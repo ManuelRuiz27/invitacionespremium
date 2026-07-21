@@ -4,6 +4,8 @@
 
 La API NestJS debe organizarse por módulos de negocio, no por pantallas.
 
+Los endpoints `/events/**` corresponden a operación del Cliente. Platform Admin no debe reutilizarlos como si impersonara al Cliente; sus consultas globales usan rutas `/admin/**` explícitas.
+
 ## Módulos backend finales
 
 - AuthModule
@@ -91,7 +93,7 @@ Platform Admin:
 
 ## EventsModule
 
-Endpoints:
+Operación Cliente:
 
 - `GET /events`
 - `POST /events`
@@ -104,6 +106,13 @@ Endpoints:
 - `POST /events/:eventId/cancel`
 - `DELETE /events/:eventId`
 - `POST /events/:eventId/change-service`
+
+Consulta Platform Admin:
+
+- `GET /admin/events`
+- `GET /admin/events/:eventId`
+
+Platform Admin tiene lectura global mediante estas rutas y no usa la sesión de un Cliente.
 
 ## ContactsModule
 
@@ -127,6 +136,8 @@ Endpoints:
 - `PATCH /events/:eventId/invitations/:invitationId`
 - `POST /events/:eventId/invitations/:invitationId/cancel`
 
+La cancelación específica de una Invitación conserva el link para renderizar el mensaje de cancelación, pero bloquea Confirmación y QR.
+
 ## InvitationDesignModule
 
 Endpoints:
@@ -142,14 +153,21 @@ Endpoints:
 
 ## PublicRsvpModule
 
-Endpoints públicos:
+Endpoints públicos con token de Invitación:
 
 - `GET /public/invitations/:token`
 - `POST /public/invitations/:token/confirm`
 - `POST /public/invitations/:token/reject`
 - `PATCH /public/invitations/:token/assistants`
 - `GET /public/invitations/:token/qr`
-- `GET /public/invitations/:token/album`
+
+Restricciones:
+
+- `GET` puede renderizar el mensaje de cancelación para Evento o Invitación cancelados;
+- Confirmación, rechazo y edición pública requieren Evento `active` o `event_day` y Confirmación abierta;
+- QR requiere Evento `active` o `event_day` e Invitación confirmada;
+- Evento `archived` o recurso con borrado lógico no expone la vista pública;
+- el token de Invitación no funciona como token de Álbum, Staff o QR.
 
 ## FloorplanModule
 
@@ -175,7 +193,13 @@ Endpoints:
 - `GET /events/:eventId/staff-tokens`
 - `POST /events/:eventId/staff-tokens`
 
-No revocación manual en MVP.
+Reglas:
+
+- máximo tres tokens activos por Evento;
+- solo se crean cuando el Evento está `active` o `event_day`;
+- expiran al cerrar o cancelar;
+- los tokens expirados no se reactivan al reabrir y no cuentan como activos;
+- no existe revocación manual en MVP.
 
 ## ScannerModule
 
@@ -186,6 +210,8 @@ Endpoints públicos:
 - `POST /scanner/:staffToken/search`
 - `POST /scanner/:staffToken/check-in`
 - `GET /scanner/:staffToken/floorplan`
+
+Todos requieren token Staff válido y Evento `active` o `event_day`.
 
 ## PhysicalPassesModule
 
@@ -198,7 +224,7 @@ Endpoints:
 
 ## AlbumsModule
 
-Endpoints:
+Operación Cliente:
 
 - `GET /events/:eventId/album`
 - `POST /events/:eventId/album`
@@ -208,14 +234,34 @@ Endpoints:
 - `POST /events/:eventId/album/publish`
 - `POST /events/:eventId/album/unpublish`
 
+Acceso público:
+
+- `GET /public/albums/:albumToken`
+
+Reglas del token de Álbum:
+
+- es distinto del token de Invitación;
+- se genera para una Invitación elegible cuando el álbum se publica;
+- la Invitación debe tener al menos un Asistente con ingreso registrado;
+- solo funciona con Evento `album_published`;
+- expira a los 30 días o antes si el Evento se archiva o el álbum se despublica;
+- no habilita acceso a datos de otras Invitaciones.
+
 ## ReportsModule
 
-Endpoints:
+Operación por Evento:
 
 - `GET /events/:eventId/reports`
 - `POST /events/:eventId/reports/attendance-pdf`
 - `POST /events/:eventId/reports/physical-passes-pdf`
 - `GET /events/:eventId/reports/:reportId/download`
+
+Consulta Platform Admin:
+
+- `GET /admin/reports`
+- `GET /admin/reports/events/:eventId`
+
+Estas rutas administrativas son de consulta y no implican impersonación.
 
 ## AuditModule
 
@@ -234,7 +280,7 @@ Endpoints internos/administrativos:
 
 ## RealtimeModule
 
-Socket.IO con canales por evento.
+Socket.IO con canales por Evento.
 
 Canales:
 
