@@ -16,9 +16,10 @@ Cuando exista diferencia entre documentos, aplicar en este orden:
 2. contrato especializado del área;
 3. documento base de producto/técnico;
 4. `13_PLAN_IMPLEMENTACION.md`;
-5. `15_BACKLOG_CODEX.md`.
+5. `16_BACKLOG_QA_AMENDMENTS.md`, únicamente para las tareas que corrige expresamente;
+6. `15_BACKLOG_CODEX.md`.
 
-El backlog organiza trabajo, pero no puede cambiar reglas de producto.
+El backlog organiza trabajo, pero no puede cambiar reglas de producto. La enmienda QA corrige temporalmente entradas concretas del backlog hasta su consolidación.
 
 Contratos especializados:
 
@@ -180,6 +181,9 @@ Cuando una tarea afecte el área indicada, Codex debe leer y citar en su PR el d
 | Modelo/persistencia | `docs/04-tecnico/09_MODELO_DATOS_CONCEPTUAL.md` y `10_SCHEMA_PRISMA_GUIDE.md` |
 | API | `docs/04-tecnico/11_API_CONTRACTS.md` |
 | Orden de implementación | `docs/05-implementacion/15_BACKLOG_CODEX.md` |
+| Correcciones al backlog | `docs/05-implementacion/16_BACKLOG_QA_AMENDMENTS.md` |
+
+Toda tarea debe verificar si su ID aparece en `16_BACKLOG_QA_AMENDMENTS.md`.
 
 ## Naming obligatorio
 
@@ -258,14 +262,15 @@ No usar `Invitado` como entidad técnica.
 
 1. Ejecutar una tarea pequeña del backlog por rama/PR.
 2. Leer documentos obligatorios antes de editar.
-3. Declarar alcance y fuera de alcance.
-4. Identificar entidades, módulos, endpoints y reglas afectadas.
-5. Implementar pruebas junto con cambio.
-6. Actualizar OpenAPI si cambia API.
-7. Crear migración si cambia schema.
-8. Actualizar `.env.example` si agrega configuración.
-9. No dejar TODO crítico o mock oculto.
-10. Documentar decisiones técnicas locales sin cambiar producto.
+3. Buscar el ID de tarea en `16_BACKLOG_QA_AMENDMENTS.md` y aplicar la corrección si existe.
+4. Declarar alcance y fuera de alcance.
+5. Identificar entidades, módulos, endpoints y reglas afectadas.
+6. Implementar pruebas junto con cambio.
+7. Actualizar OpenAPI si cambia API.
+8. Crear migración si cambia schema.
+9. Actualizar `.env.example` si agrega configuración.
+10. No dejar TODO crítico o mock oculto.
+11. Documentar decisiones técnicas locales sin cambiar producto.
 
 No solicitar ni ejecutar “implementa todo InvitacionesPremium”.
 
@@ -280,8 +285,9 @@ Todo cambio debe poder responder:
 5. ¿Qué entidad afecta?
 6. ¿Qué regla valida?
 7. ¿Qué tarea de `15_BACKLOG_CODEX.md` ejecuta?
-8. ¿Qué pruebas demuestran aceptación?
-9. ¿Cambió OpenAPI, Prisma, variables o migraciones?
-10. ¿Introdujo una decisión no documentada?
+8. ¿Existe enmienda en `16_BACKLOG_QA_AMENDMENTS.md`?
+9. ¿Qué pruebas demuestran aceptación?
+10. ¿Cambió OpenAPI, Prisma, variables o migraciones?
+11. ¿Introdujo una decisión no documentada?
 
 Si la respuesta a la última pregunta es sí, el cambio no está listo.
