@@ -163,7 +163,23 @@ jobs:
         run: pnpm --filter @invitaciones/api test:integration
 
       - name: Generate OpenAPI
-        run: pnpm --filter @invitaciones/api openapi:generate
+        id: openapi
+        continue-on-error: true
+        run: pnpm --filter @invitaciones/api openapi:generate > openapi-generate.log 2>&1
+
+      - name: Upload OpenAPI diagnostics
+        if: steps.openapi.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: openapi-diagnostics
+          path: openapi-generate.log
+          retention-days: 3
+
+      - name: Stop after OpenAPI failure
+        if: steps.openapi.outcome == 'failure'
+        run: |
+          cat openapi-generate.log
+          exit 1
 
       - name: Upload OpenAPI artifact
         uses: actions/upload-artifact@v7
