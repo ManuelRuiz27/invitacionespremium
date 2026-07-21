@@ -1,31 +1,39 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 export class HealthComponentDto {
-  @ApiProperty({ example: 'up' })
+  @ApiProperty({ type: String, enum: ['up'], example: 'up' })
   status!: 'up';
 
-  @ApiProperty({ example: 3.42, required: false })
+  @ApiProperty({ type: Number, example: 3.42, required: false })
   latencyMs?: number;
 }
 
 export class HealthChecksDto {
-  @ApiProperty({ type: HealthComponentDto })
+  @ApiProperty({ type: () => HealthComponentDto })
   api!: HealthComponentDto;
 
-  @ApiProperty({ type: HealthComponentDto })
+  @ApiProperty({ type: () => HealthComponentDto })
   database!: HealthComponentDto;
 }
 
 export class HealthResponseDto {
-  @ApiProperty({ example: 'ok' })
+  @ApiProperty({ type: String, enum: ['ok'], example: 'ok' })
   status!: 'ok';
 
-  @ApiProperty({ example: 'invitacionespremium-api' })
+  @ApiProperty({
+    type: String,
+    enum: ['invitacionespremium-api'],
+    example: 'invitacionespremium-api'
+  })
   service!: 'invitacionespremium-api';
 
-  @ApiProperty({ example: '2026-07-21T19:00:00.000Z' })
+  @ApiProperty({
+    type: String,
+    format: 'date-time',
+    example: '2026-07-21T19:00:00.000Z'
+  })
   timestamp!: string;
 
-  @ApiProperty({ type: HealthChecksDto })
+  @ApiProperty({ type: () => HealthChecksDto })
   checks!: HealthChecksDto;
 }
