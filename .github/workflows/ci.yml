@@ -44,6 +44,14 @@ jobs:
         continue-on-error: true
         run: pnpm install --no-frozen-lockfile --reporter=append-only > pnpm-install.log 2>&1
 
+      - name: Upload generated lockfile
+        if: steps.install.outcome == 'success'
+        uses: actions/upload-artifact@v7
+        with:
+          name: pnpm-lockfile-${{ github.sha }}
+          path: pnpm-lock.yaml
+          retention-days: 3
+
       - name: Upload pnpm install log
         if: steps.install.outcome == 'failure'
         uses: actions/upload-artifact@v7
