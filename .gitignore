@@ -11,5 +11,6 @@ apps/*/.env.*
 packages/*/.env
 .DS_Store
 *.log
+prettier.patch
 apps/api/src/generated/prisma/
 apps/api/openapi/openapi.json
