@@ -1,23 +1,29 @@
 import 'reflect-metadata';
-import { NestFactory } from '@nestjs/core';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { AppModule } from './app.module';
+import { Logger } from '@nestjs/common';
+import { createApp } from './bootstrap/create-app';
+import { AppConfigService } from './config/app-config.service';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
-  app.setGlobalPrefix('api/v1');
+  const app = await createApp();
+  const config = app.get(AppConfigService);
 
-  const openApiConfig = new DocumentBuilder()
-    .setTitle('InvitacionesPremium API')
-    .setDescription('Contrato base del monorepo InvitacionesPremium')
-    .setVersion('0.0.0')
-    .build();
+  await app.listen(config.apiPort, '0.0.0.0');
 
-  const document = SwaggerModule.createDocument(app, openApiConfig);
-  SwaggerModule.setup('docs', app, document);
-
-  const port = Number(process.env.API_PORT ?? 3000);
-  await app.listen(port, '0.0.0.0');
+  new Logger('Bootstrap').log({
+    event: 'api_started',
+    port: config.apiPort,
+    environment: config.nodeEnv
+  });
 }
 
-void bootstrap();
+void bootstrap().catch((error: unknown) => {
+  process.stderr.write(
+    `${JSON.stringify({
+      level: 'fatal',
+      timestamp: Date.now(),
+      event: 'api_bootstrap_failed',
+      errorName: error instanceof Error ? error.name : 'UnknownError'
+    })}\n`
+  );
+  process.exitCode = 1;
+});
