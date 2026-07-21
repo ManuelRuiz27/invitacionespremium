@@ -26,22 +26,37 @@ Si está activo:
 
 ## Cambio de servicio contratado
 
-Se han planteado estas transformaciones:
+La decisión aprobada para el MVP es:
 
-- Flyer → Flipbook pagando diferencia;
-- QR pase físico → Flyer/Flipbook pagando diferencia;
-- Flipbook → Flyer sin devolución.
+### Antes de activar
 
-Sin embargo, su aplicación después de activar contradice el congelamiento confirmado de Flyer/Flipbook y exige reglas de migración aún no definidas.
+En `draft`, `configured` o `ready_to_activate`:
 
-**Estado QA:** bloqueado conforme a `docs/05-implementacion/17_QA_OPEN_DECISIONS.md`.
+- el servicio puede cambiarse libremente dentro del wizard;
+- no se cobra diferencia;
+- al activar se cobra únicamente el servicio final configurado.
 
-Hasta cerrar QA-OPEN-001:
+### Después de activar
 
-- antes de activar, el wizard puede cambiar el servicio seleccionado y se cobra únicamente el servicio final al activar;
-- después de activar, `POST /events/:eventId/change-service` no debe implementarse ni exponerse en UI;
-- no cobrar diferencia, devolver créditos ni migrar datos entre servicios por una regla inferida;
-- Codex debe detener cualquier tarea que requiera este comportamiento.
+Solo se permite:
+
+- Flyer → Flipbook;
+- Evento en `active`;
+- fecha local anterior a `event_day`;
+- cobro de diferencia antes del cambio público;
+- preparación privada del Flipbook;
+- publicación atómica cuando el Flipbook está completo y el cargo queda confirmado;
+- conservación de Contactos, Invitaciones, Asistentes, Confirmaciones, QR y tokens.
+
+No se permite en MVP:
+
+- QR pase físico → Flyer/Flipbook;
+- Flipbook → Flyer;
+- downgrade o devolución automática;
+- cambio en `event_day`, `closed`, `album_published`, `archived` o `cancelled`;
+- cambio que regenere Contactos, Invitaciones, Asistentes o QR.
+
+El contrato completo está en `SERVICE_UPGRADE_FLOW.md` y prevalece para este workflow.
 
 ## Confirmación de asistencia
 
