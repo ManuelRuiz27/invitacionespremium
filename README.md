@@ -35,6 +35,16 @@ pnpm install
 pnpm dev
 ```
 
+Servicios locales del bootstrap:
+
+| Workspace | Puerto |
+|---|---:|
+| API | 3000 |
+| Client | 5173 |
+| Admin | 5174 |
+| Scanner | 5175 |
+| Landing | 5176 |
+
 Comandos principales:
 
 ```bash
@@ -43,6 +53,7 @@ pnpm lint
 pnpm typecheck
 pnpm test
 pnpm format:check
+pnpm ci
 ```
 
 Filtrar una app:
