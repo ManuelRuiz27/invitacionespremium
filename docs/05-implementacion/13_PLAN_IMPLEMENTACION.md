@@ -118,7 +118,8 @@ Criterios:
 - cancelación conserva vista pública de mensaje y no devuelve créditos automáticamente;
 - archivado es terminal y oculta links públicos;
 - borrador vencido recibe borrado lógico automático idempotente;
-- cambiar servicio conforme a reglas y diferencia de créditos;
+- antes de activar, el wizard permite cambiar libremente el servicio seleccionado y cobra únicamente el servicio final;
+- no implementar cambio de servicio post-activación mientras QA-OPEN-001 esté `OPEN`;
 - toda transición queda auditada.
 
 ## Fase 4 — Contactos e Invitaciones
@@ -172,7 +173,8 @@ Criterios:
 - diseño incompleto no queda listo para activar;
 - Flyer/Flipbook solo editables antes de activar;
 - diseño y orden quedan congelados al activar;
-- sustitución de archivos conforme a `FILE_ASSET_POLICY.md`.
+- sustitución de archivos conforme a `FILE_ASSET_POLICY.md`;
+- cualquier excepción por cambio de servicio queda bloqueada por QA-OPEN-001.
 
 ## Fase 6 — Confirmación pública
 
@@ -217,7 +219,7 @@ Criterios:
 - validar capacidad en frontend y backend;
 - confirmado puede quedar pendiente de Mesa mientras Confirmación siga abierta;
 - cambio posterior a check-in queda auditado;
-- Staff ve plano/mesa sin teléfonos;
+- Staff ve plano/Mesa sin teléfonos;
 - lock/unlock conforme a permisos y auditoría.
 
 ## Fase 8 — Staff y Scanner
@@ -259,7 +261,7 @@ Criterios:
 - generar pases individuales;
 - número de pase;
 - QR SVG backend;
-- mesa visible/resaltada si aplica;
+- Mesa visible/resaltada si aplica;
 - primer uso auditado;
 - segundo uso y concurrencia bloqueados;
 - scanner requiere Evento operativo;
@@ -274,7 +276,7 @@ Módulo:
 
 Criterios:
 
-- crear antes del cierre;
+- crear/preparar antes del cierre desde Resumen, sin pestaña pública durante Evento activo;
 - publicar manualmente después del cierre;
 - máximo 35 fotos JPG/PNG;
 - título, mensaje, colores y link externo;
@@ -331,6 +333,7 @@ Criterios:
 - wizard responsive;
 - cards/tabla de Eventos;
 - navegación por estado del Evento;
+- Resumen activo concentra Confirmación, preparación privada de Álbum y reportes sin crear pestañas nuevas;
 - Invitación pública `/invitacion/:invitationToken`;
 - Álbum público `/album/:albumToken`;
 - scanner `/scanner/:staffToken`;
@@ -407,6 +410,7 @@ No avanzar si:
 - Invitación cancelada no muestra su mensaje público;
 - token de Invitación se reutiliza como token de Álbum/Staff/QR;
 - se edita Flyer/Flipbook después de activar;
+- se implementa una capacidad marcada `OPEN` en `17_QA_OPEN_DECISIONS.md`;
 - se genera/publica archivo sin FileAsset/ownership;
 - frontend sube directo al storage;
 - Socket.IO emite payload no documentado o datos sensibles;
