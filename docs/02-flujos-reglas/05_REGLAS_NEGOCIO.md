@@ -42,12 +42,14 @@ Si está activo:
   - hay cupo.
 - Si está cerrada, solo Planner puede modificar.
 
-## QR
+## QR e Invitación cancelada
 
 - QR no aparece antes de confirmar.
 - Invitación rechazada no tiene QR.
-- Invitación cancelada específica: link deja de abrir.
-- QR de invitación pertenece a Invitación.
+- La cancelación específica de una Invitación no elimina ni vuelve inaccesible su link público.
+- El link de una Invitación cancelada abre únicamente la vista `Invitación cancelada por el organizador`.
+- Una Invitación cancelada no permite Confirmación, modificación de Asistentes ni acceso al QR.
+- QR de Invitación pertenece a Invitación.
 - Check-in es por Asistente.
 
 ## Link reenviado
@@ -83,7 +85,10 @@ Staff:
 - no registra extra anónimo;
 - no revierte check-in;
 - no ve asistencia en tiempo real;
-- no ve reportes finales.
+- no ve reportes finales;
+- solo puede operar con Evento `active` o `event_day`;
+- usa máximo tres tokens activos por Evento;
+- conserva expirados solo para trazabilidad, sin reactivarlos automáticamente.
 
 ## Check-in
 
@@ -95,21 +100,25 @@ Staff:
 ## Evento cerrado
 
 - Bloquea check-in.
+- Expira los tokens Staff activos.
 - Planner/Admin puede reabrir antes de archivado.
+- Reabrir no reactiva automáticamente tokens Staff expirados.
 - Puede cerrarse sin álbum.
 
 ## Archivado
 
 - Estado final.
-- Oculta links públicos.
+- Oculta links públicos de Invitación y Álbum.
+- Expira tokens públicos de Álbum y tokens Staff vigentes.
 - Ya no puede reabrirse.
 
 ## Cancelado
 
-- Muestra mensaje público.
-- Bloquea confirmación.
-- Bloquea QR.
-- Revoca tokens.
+- Mantiene accesible una vista pública mínima con el mensaje de cancelación.
+- Bloquea Confirmación.
+- Bloquea QR y check-in.
+- Expira tokens Staff y de Álbum.
+- El token de Invitación solo sirve para mostrar el mensaje de cancelación.
 - No elimina datos.
 
 ## Borrado lógico
@@ -135,9 +144,14 @@ Si evento queda en borrador y pasa la fecha sin activarse:
 - Flyer: 35 fotos.
 - Flipbook: 35 fotos.
 - QR pase físico: sin álbum.
-- Vigencia: 30 días.
+- Se crea antes del cierre y se publica manualmente después del cierre.
+- Usa token de Álbum distinto del token de Invitación.
+- Al publicar se genera un token de Álbum para cada Invitación elegible.
+- Es elegible una Invitación con al menos un Asistente ingresado.
+- Una Invitación sin ingreso muestra: `Álbum disponible solo para asistentes`.
+- Vigencia pública: 30 días desde la publicación.
+- Al vencer los 30 días, el Evento pasa a `archived` y los accesos públicos se ocultan.
 - Si se archiva antes de 30 días, se oculta inmediatamente.
-- Acceso: Invitación con al menos un Asistente ingresado.
 
 ## Privacidad
 
