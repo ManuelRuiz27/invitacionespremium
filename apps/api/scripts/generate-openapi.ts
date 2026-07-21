@@ -4,12 +4,7 @@ import type { INestApplication } from '@nestjs/common';
 import { createApp } from '../src/bootstrap/create-app';
 import { createOpenApiDocument } from '../src/openapi/openapi';
 
-type GenerationStage =
-  | 'create_app'
-  | 'initialize_app'
-  | 'create_document'
-  | 'write_document'
-  | 'close_app';
+type GenerationStage = 'create_app' | 'initialize_app' | 'create_document' | 'write_document' | 'close_app';
 
 let currentStage: GenerationStage = 'create_app';
 
