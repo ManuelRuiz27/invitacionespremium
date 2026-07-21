@@ -31,8 +31,10 @@ Este documento complementa `05_REGLAS_NEGOCIO.md`. No sustituye la diferencia en
 7. `event_day` no habilita permisos nuevos: conserva las reglas operativas de un Evento activo y habilita la operación del día del evento.
 8. `archived` y `cancelled` son estados terminales para la operación normal.
 9. Toda comparación temporal usa la zona horaria configurada en el Evento. La condición semántica de `event_day` es que la fecha local actual sea igual a la fecha local del Evento; el mecanismo técnico puede ser un proceso programado o una recalculación controlada en backend.
-10. `cancelled` conserva una vista pública mínima para mostrar el mensaje de cancelación. No habilita Confirmación, QR, álbum ni check-in.
+10. `cancelled` conserva una vista pública mínima para mostrar el mensaje de cancelación. No habilita Confirmación, QR, Álbum ni check-in.
 11. `archived` oculta los accesos públicos de Invitación y Álbum.
+12. El workflow Flyer → Flipbook definido en `SERVICE_UPGRADE_FLOW.md` es una operación interna del estado `active`; no crea un estado nuevo ni una transición `active → active` auditable como cambio de estado.
+13. Al alcanzar `event_day`, cualquier upgrade pendiente expira sin cobro y el Flyer continúa activo.
 
 ## Requisitos para estar listo para activar
 
@@ -67,7 +69,7 @@ Este documento complementa `05_REGLAS_NEGOCIO.md`. No sustituye la diferencia en
 | `configured` | Cumplir todos los requisitos de activación | `ready_to_activate` | Sistema | Checklist completo y capacidad financiera disponible | No consumir créditos todavía. |
 | `ready_to_activate` | Dejar de cumplir algún requisito | `configured` | Sistema | Recalcular checklist | No consumir créditos. |
 | `ready_to_activate` | Activar evento | `active` | Planner independiente, Admin de Organización o Planner de Organización autorizado sobre el Evento | Ownership, Cliente activo, saldo/línea, precio vigente, promoción aplicable, validaciones del servicio | Registrar cobro, ledger, comprobante interno, auditoría y habilitar invitaciones/tokens. |
-| `active` | La fecha local actual alcanza la fecha del Evento | `event_day` | Sistema | Zona horaria y fecha del Evento | Auditar la transición y no duplicar cobros. No crear un evento Socket.IO adicional sin documentarlo en `REALTIME_PAYLOADS.md`. |
+| `active` | La fecha local actual alcanza la fecha del Evento | `event_day` | Sistema | Zona horaria y fecha del Evento | Expirar upgrade pendiente si existe, auditar la transición y no duplicar cobros. No crear un evento Socket.IO adicional sin documentarlo en `REALTIME_PAYLOADS.md`. |
 | `active` | Cerrar operación | `closed` | Planner independiente, Admin de Organización o Planner de Organización autorizado | Evento no archivado/cancelado | Bloquear check-in y expirar tokens staff. |
 | `event_day` | Cerrar operación | `closed` | Planner independiente, Admin de Organización o Planner de Organización autorizado | Evento no archivado/cancelado | Bloquear check-in y expirar tokens staff. |
 | `closed` | Reabrir antes de archivar | `active` o `event_day` | Planner independiente, Admin de Organización o Planner de Organización autorizado | No archivado, no cancelado; elegir destino con la fecha local actual | Reactivar check-in y auditar. Los tokens expirados permanecen expirados; se pueden crear nuevos tokens conforme a StaffAccess. El máximo es tres tokens activos por Evento. |
@@ -79,8 +81,20 @@ Este documento complementa `05_REGLAS_NEGOCIO.md`. No sustituye la diferencia en
 | `draft` | Cancelar | `cancelled` | Planner independiente, Admin de Organización o Planner de Organización autorizado | Ownership | Conservar datos y auditar. No hay devolución automática. |
 | `configured` | Cancelar | `cancelled` | Planner independiente, Admin de Organización o Planner de Organización autorizado | Ownership | Conservar datos y auditar. No hay devolución automática. |
 | `ready_to_activate` | Cancelar | `cancelled` | Planner independiente, Admin de Organización o Planner de Organización autorizado | Ownership | Conservar datos y auditar. No hay devolución automática. |
-| `active` | Cancelar | `cancelled` | Planner independiente, Admin de Organización o Planner de Organización autorizado | Ownership | Bloquear Confirmación y QR, expirar tokens staff y mostrar mensaje público. Devolución solo manual por Platform Admin. |
+| `active` | Cancelar | `cancelled` | Planner independiente, Admin de Organización o Planner de Organización autorizado | Ownership | Cancelar upgrade pendiente si existe, bloquear Confirmación y QR, expirar tokens staff y mostrar mensaje público. Devolución solo manual por Platform Admin. |
 | `event_day` | Cancelar | `cancelled` | Planner independiente, Admin de Organización o Planner de Organización autorizado | Ownership | Bloquear check-in, Confirmación y QR; expirar tokens staff y mostrar mensaje público. Devolución solo manual por Platform Admin. |
+
+## Workflow sin cambio de estado: Flyer → Flipbook
+
+Con Evento `active` y antes de `event_day`:
+
+- preparar upgrade mantiene `status=active`;
+- configurar/preview privado mantiene `status=active`;
+- cancelar preparación mantiene `status=active`;
+- confirmar upgrade mantiene `status=active` y cambia únicamente servicio/diseño activo dentro de una transacción financiera;
+- expirar preparación al llegar `event_day` no reemplaza la transición normal a `event_day`.
+
+Toda la lógica se rige por `SERVICE_UPGRADE_FLOW.md`.
 
 ## Transiciones prohibidas
 
@@ -121,5 +135,7 @@ Un Evento `active` o `event_day` puede tener la Confirmación de asistencia abie
 - `EVENT_CREDIT_LINE_UNAVAILABLE`
 - `EVENT_FLOORPLAN_INCOMPLETE`
 - `EVENT_FORBIDDEN`
+
+Los errores específicos del upgrade se definen en `SERVICE_UPGRADE_FLOW.md`.
 
 Los nombres pueden mapearse al estándar de errores del API, pero no deben perder su significado.
