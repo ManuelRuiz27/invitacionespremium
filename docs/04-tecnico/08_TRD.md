@@ -2,345 +2,182 @@
 
 ## Stack confirmado
 
+### Monorepo
+
+- pnpm workspaces;
+- Turborepo;
+- Node.js 22;
+- TypeScript estricto;
+- estructura definida en `MONOREPO_ARCHITECTURE.md`.
+
 ### Frontends
 
-- React
-- Vite
-- Material UI
-- TypeScript estricto
+- React;
+- Vite;
+- Material UI;
+- Vitest.
 
-Aplica a:
-
-- `invitacionespremium-client`
-- `invitacionespremium-admin`
-- `invitacionespremium-scanner`
-- `invitacionespremium-landing`
-- `shared-ui`
+Aplica a `apps/client`, `apps/admin`, `apps/scanner`, `apps/landing` y `packages/ui`.
 
 ### Backend
 
-- NestJS
-- TypeScript
-- PostgreSQL
-- Prisma
-- Socket.IO/WebSockets
+- NestJS;
+- PostgreSQL;
+- Prisma;
+- Socket.IO;
+- REST + OpenAPI.
 
-### Deploy inicial
+Vive en `apps/api`.
 
-- Netlify para frontends
-- Railway para backend y PostgreSQL
+### Deploy
 
-### Repos
-
-- `invitacionespremium-api`
-- `invitacionespremium-client`
-- `invitacionespremium-admin`
-- `invitacionespremium-scanner`
-- `invitacionespremium-landing`
-- `shared-ui`
+- Railway para API y PostgreSQL;
+- Netlify para cada frontend;
+- deploys independientes desde el mismo repositorio.
 
 ## Arquitectura
 
-Apps separadas consumiendo una API REST común.
-
-Principios:
-
 - backend concentra reglas, ownership, estados y persistencia;
-- frontend no decide permisos ni efectos financieros;
-- OpenAPI es el contrato entre repos;
-- SDK cliente se genera desde OpenAPI;
-- tiempo real notifica cambios confirmados, pero REST y base de datos son fuente de verdad;
+- frontends no deciden permisos ni efectos financieros;
+- SDK se genera desde OpenAPI en `packages/api-client`;
+- Socket.IO notifica cambios persistidos;
+- REST y base de datos son fuente de verdad;
 - no crear microservicios adicionales en MVP.
 
 ## Auth
 
 ### Desarrollo temprano
 
-- auth local temporal;
 - email/password;
 - sesión/cookie;
-- hash seguro de contraseña;
+- hash seguro;
 - guards por rol y ownership.
 
 ### Producción
 
 - Auth0;
-- email/password;
-- Google;
+- email/password y Google;
+- login único con redirección;
 - sin WhatsApp/SMS en MVP;
-- login único con redirección por rol;
-- backend valida identidad y resuelve Cliente/rol local.
-
-Platform Admin no impersona Clientes.
+- Platform Admin no impersona Clientes.
 
 ## API
 
-- REST API
-- OpenAPI
-- SDK generado desde OpenAPI
-- errores de dominio estables
-- idempotencia en operaciones críticas
-- validación backend obligatoria
+- prefijo `/api/v1`;
+- OpenAPI disponible;
+- errores de dominio estables;
+- validación backend;
+- idempotencia en operaciones críticas;
+- SDK generado, no DTOs duplicados.
 
-Operaciones críticas transaccionales:
-
-- activación de Evento;
-- compra/asignación de créditos;
-- uso de línea;
-- pago de deuda;
-- devolución/reversal;
-- check-in;
-- uso de PaseFisicoQR;
-- transición de estados.
+Operaciones transaccionales incluyen activación, movimientos financieros, check-in, PaseFisicoQR y transiciones.
 
 ## Base de datos
 
-- PostgreSQL
-- Prisma ORM
-- UUID como identificador
-- enums controlados
-- JSON solo para metadata/configuraciones variables
-- constraints e índices para invariantes críticos
-- soft delete en entidades principales
-- ledger/auditoría inmutables por movimientos compensatorios
+- UUID;
+- enums controlados;
+- JSON solo para metadata variable;
+- soft delete en entidades principales;
+- ledger y auditoría inmutables;
+- constraints para concurrencia e idempotencia.
 
-PostgreSQL debe proteger concurrencia en:
+## Fecha y zona horaria
 
-- check-in único activo;
-- uso único de PaseFisicoQR;
-- idempotencia financiera;
-- folio global de comprobantes;
-- límites de línea/deuda;
-- máximo de StaffTokens activos.
+- timestamps técnicos en UTC;
+- Evento conserva zona IANA;
+- reglas se evalúan en zona del Evento;
+- no asumir zona del servidor.
 
-## Fecha, hora y zonas horarias
+## Storage y archivos
 
-- timestamps técnicos se almacenan en UTC;
-- Evento conserva zona horaria IANA;
-- estados y reglas de fecha se evalúan en la zona horaria del Evento;
-- frontend muestra horario localizado;
-- no asumir zona horaria del servidor.
+Desarrollo usa storage local controlado por API. Producción usará S3 compatible privado y URLs firmadas cortas.
 
-## Storage
+Todos los archivos obedecen `FILE_ASSET_POLICY.md`. Frontend no guarda directo, no decide `storage_key` y no recibe credenciales.
 
-### Desarrollo
-
-- storage local controlado por API.
-
-### Producción futura
-
-- S3 compatible;
-- proveedor aún no definido;
-- buckets privados;
-- URLs firmadas de corta duración cuando aplique.
-
-Todos los archivos obedecen `FILE_ASSET_POLICY.md`.
+MVP temprano acepta JPG/PNG para Flyer, Flipbook y Croquis; rechaza PDF de usuario. Conversión PDF de una página queda para fase futura.
 
 ## QR
 
-- generado en backend principal;
-- formato SVG;
+- generado en backend;
+- SVG;
 - token opaco;
-- sin nombre/teléfono visible o codificado directamente;
-- QR de Invitación y PaseFisicoQR usan propósitos distintos;
-- operación protegida contra doble uso.
+- sin nombre/teléfono;
+- QR de Invitación y PaseFisicoQR son propósitos distintos;
+- protección contra doble uso.
 
 ## Reportes PDF
 
-Decisión confirmada: se renderizan desde plantilla HTML y se exportan a PDF en el frontend autorizado.
+1. frontend solicita reporte;
+2. API autoriza y entrega dataset/snapshot;
+3. frontend renderiza HTML y exporta PDF;
+4. frontend envía PDF al API con `report_id`;
+5. API valida y almacena como FileAsset;
+6. descarga posterior vuelve a autorizarse.
 
-### Flujo
-
-1. Frontend solicita crear reporte al API.
-2. API valida rol, ownership, estado, ventana de privacidad y tipo de reporte.
-3. API crea el registro lógico de reporte y devuelve:
-   - `report_id`;
-   - dataset autorizado;
-   - versión de plantilla;
-   - parámetros;
-   - timestamp/snapshot de generación.
-4. Frontend renderiza plantilla HTML aprobada.
-5. Frontend exporta PDF.
-6. Frontend envía el PDF al API asociado al `report_id`.
-7. API valida tipo, tamaño, checksum, ownership y estado del reporte.
-8. API guarda el PDF como `FileAsset` tipo `GENERATED_REPORT_PDF`.
-9. Descarga posterior siempre pasa por autorización.
-
-### Reglas
-
-- frontend nunca sube directo al storage;
-- no aceptar un PDF sin `report_id` previamente autorizado;
-- frontend no puede cambiar Cliente, Evento ni actor del reporte;
-- no incluir teléfonos;
-- reportes detallados con nombres solo se descargan durante 30 días post-Evento;
-- al anonimizar, reportes detallados se ocultan o reemplazan por versión anonimizada;
-- historial de seis meses conserva metadata y reportes agregados/anónimos;
-- PDF es reporte operativo, no CFDI ni documento fiscal;
-- fallos de exportación/subida no deben dejar un reporte como completado.
+No incluir teléfonos. Reportes detallados con nombres se limitan a 30 días post-Evento; historial de seis meses conserva versiones agregadas/anónimas.
 
 ## Tiempo real
 
-Socket.IO.
+Canales:
 
-Canales mínimos:
+- `event:{eventId}:dashboard`;
+- `event:{eventId}:scanner`;
+- `event:{eventId}:floorplan`.
 
-- `event:{eventId}:dashboard`
-- `event:{eventId}:scanner`
-- `event:{eventId}:floorplan`
-
-Eventos autorizados:
-
-- `checkin.created`
-- `checkin.reverted`
-- `rsvp.updated`
-- `seating.updated`
-- `event.closed`
-- `event.cancelled`
-
-No enviar teléfonos, nombres, finanzas ni tokens por socket.
-
-Contratos completos en `REALTIME_PAYLOADS.md`.
-
-## Archivos
-
-Todos los archivos suben vía API.
-
-Frontend nunca:
-
-- guarda archivos directo en storage;
-- decide `storage_key`;
-- recibe credenciales de storage;
-- convierte un bucket en público;
-- reutiliza FileAssets entre Clientes/Eventos.
-
-## PDF a imagen
-
-MVP temprano:
-
-- rechazar PDF subido por usuario para Flyer/Flipbook/Croquis;
-- pedir imagen JPG/PNG.
-
-Futuro:
-
-- aceptar PDF de una página;
-- convertir a imagen mediante proceso backend controlado;
-- conservar FileAsset original/derivado según política futura.
+Eventos autorizados se definen en `REALTIME_PAYLOADS.md`. No enviar teléfonos, nombres, finanzas ni tokens.
 
 ## Procesos programados
 
-El producto requiere tareas programadas dentro de los módulos existentes. No crear un módulo backend nuevo solo por esta responsabilidad.
+Dentro de módulos existentes:
 
-Procesos mínimos:
+- borrador vencido → soft delete;
+- `active` → `event_day`;
+- expiración de upgrade pendiente;
+- expiración/archivo de Álbum;
+- expiración de tokens;
+- anonimización;
+- reemplazo de reportes detallados;
+- limpieza de bytes huérfanos;
+- backups.
 
-- borrar lógicamente borradores cuya fecha pasó sin activarse;
-- recalcular `active` → `event_day` según zona horaria;
-- archivar `album_published` al vencer 30 días;
-- expirar tokens de Álbum/Staff según estado;
-- anonimizar nombres y teléfonos 30 días post-Evento;
-- ocultar o reemplazar reportes detallados al anonimizar;
-- limpiar bytes huérfanos de subidas fallidas conforme a retención técnica;
-- ejecutar backups según configuración de infraestructura.
-
-Requisitos:
-
-- idempotentes;
-- auditables cuando cambian datos de negocio;
-- seguros ante ejecución duplicada;
-- con logs y métricas de éxito/error;
-- usan zona horaria del Evento cuando aplica.
+Deben ser idempotentes, observables y seguros ante ejecución duplicada.
 
 ## Testing
 
-- unitarias;
-- integración;
-- E2E para flujos críticos.
+- API: unitarias, integración, concurrencia e invariantes;
+- Client: wizard, Invitación, Confirmación, QR, Álbum y reportes;
+- Admin: Clientes, finanzas, reportes y auditoría;
+- Scanner: token, escaneo, check-in, cierre/cancelación;
+- Landing: navegación, performance y accesibilidad;
+- UI: componentes críticos y accesibilidad.
 
-Por repo:
+Vertical slice obligatorio:
 
-- API: unitarias + integración + concurrencia en operaciones críticas;
-- Client: E2E de wizard, Invitación, Confirmación, QR y Álbum;
-- Admin: E2E de Clientes, finanzas, precios, reportes y auditoría;
-- Scanner: E2E de token, escaneo, check-in, cierre y cancelación;
-- Landing: smoke, navegación, performance y accesibilidad básica.
+`Evento → Contacto → Invitación → Confirmación → QR → Scanner → Check-in`.
 
-Flujos E2E obligatorios:
+## Logs y seguridad
 
-- Crear Evento → Contacto → Invitación → Confirmar → QR → Scanner → Check-in.
-- Activación con saldo, línea y pago mixto.
-- Cancelación con vista pública correcta.
-- Cierre que invalida Staff.
-- Álbum con token separado y expiración.
-- Anonimización y bloqueo de reportes detallados.
-
-## Logs y observabilidad
-
-Contemplar logs estructurados para:
-
-- auth;
-- activación de Evento;
-- consumo de créditos;
-- pagos;
-- ledger e invariantes;
-- scanner;
-- check-in;
-- sockets;
-- jobs programados;
-- errores de archivo;
-- fallos de PDF;
-- errores de storage;
-- transiciones de estado.
-
-Reglas:
-
-- no registrar contraseñas;
-- no registrar tokens completos;
-- no registrar URLs firmadas completas;
-- no registrar teléfonos ni payloads personales completos;
-- incluir `operation_id`, `event_id` y `client_id` cuando aplique;
-- separar logs por ambiente.
-
-## Seguridad mínima
-
-- CORS por orígenes permitidos;
-- cookies seguras por ambiente;
-- CSRF conforme a estrategia de sesión;
-- rate limiting en auth, endpoints públicos, scanner y archivos;
-- validación MIME real;
-- límites de body/upload;
-- headers de seguridad;
-- secretos solo en variables de entorno;
-- autorización por recurso en backend;
-- respuestas `404` para recursos fuera de ownership cuando corresponda;
-- rotación/configuración segura de credenciales;
-- backups y restauración probados antes de producción.
+- logs estructurados sin contraseñas, tokens completos ni teléfonos;
+- CORS por ambiente;
+- cookies seguras y estrategia CSRF;
+- rate limiting;
+- validación MIME y límites de upload;
+- secretos solo en variables;
+- autorización por recurso;
+- backups y restauración probados.
 
 ## CI/CD
 
-MVP:
+Raíz monorepo:
 
+- format;
 - lint;
 - typecheck;
 - tests;
-- build;
-- validación de migraciones;
-- generación/verificación de OpenAPI;
-- smoke tests de despliegue.
+- build.
 
-No desplegar si falla cualquier verificación obligatoria.
+Después se añaden validación Prisma, OpenAPI, integración y smoke tests. No desplegar si falla una verificación obligatoria.
 
 ## Ambientes
 
-- local
-- staging
-- producción
-
-Cada ambiente usa:
-
-- base de datos separada;
-- storage separado;
-- credenciales separadas;
-- orígenes/CORS separados;
-- Auth0/configuración separada cuando aplique;
-- seeds demo únicamente donde estén autorizados.
-
-Nunca copiar datos reales de producción a desarrollo sin anonimización.
+Local, staging y producción usan base de datos, storage, credenciales y orígenes separados. Nunca copiar datos reales a desarrollo sin anonimización.

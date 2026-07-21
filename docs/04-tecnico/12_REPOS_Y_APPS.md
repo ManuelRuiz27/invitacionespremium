@@ -1,309 +1,166 @@
-# 12 — Repos y apps
+# 12 — Monorepo, apps y packages
 
-## Repos finales
+## Repositorio único
 
-- `invitacionespremium-api`
-- `invitacionespremium-client`
-- `invitacionespremium-admin`
-- `invitacionespremium-scanner`
-- `invitacionespremium-landing`
-- `shared-ui`
+InvitacionesPremium usa un solo repositorio con documentación y código.
 
-No crear repos adicionales para módulos de negocio sin aprobación.
+```txt
+apps/
+  api/
+  client/
+  admin/
+  scanner/
+  landing/
+packages/
+  ui/
+  api-client/
+docs/
+```
 
-## invitacionespremium-api
+La relación completa y el mapeo de nombres anteriores están en `MONOREPO_ARCHITECTURE.md`.
 
-Contiene:
+## `apps/api`
 
-- NestJS;
-- Prisma;
-- PostgreSQL schema/migraciones;
-- REST API;
-- Socket.IO;
-- auth local temporal;
-- integración Auth0 futura;
-- módulos backend autorizados;
-- procesos programados dentro de módulos existentes;
-- seeds demo;
-- tests backend;
-- OpenAPI;
-- SDK generado;
-- storage controlado;
-- auditoría, logs e idempotencia.
+NestJS, Prisma, PostgreSQL, REST, OpenAPI y Socket.IO.
 
 Responsabilidades exclusivas:
 
 - reglas de negocio;
-- ownership y permisos;
-- estados/transiciones;
+- ownership y autorización;
+- estados y transiciones;
 - ledger y efectos financieros;
-- persistencia;
-- generación de QR;
-- autorización de archivos/reportes;
-- anonimización;
-- jobs automáticos.
+- persistencia y concurrencia;
+- generación y validación de QR;
+- autorización de archivos y reportes;
+- auditoría, anonimización y procesos automáticos.
 
-## invitacionespremium-client
+No comparte código interno con los frontends.
 
-Contiene:
-
-- dashboard Cliente;
-- experiencia de Planner independiente;
-- experiencia de Admin de Organización;
-- experiencia de Planner de Organización;
-- wizard de Eventos;
-- créditos/finanzas según rol;
-- demo interna conectada a seeds;
-- perfil;
-- reportes operativos dentro del Evento;
-- Invitación pública por token de Invitación;
-- Álbum público por token de Álbum separado;
-- render/export de reportes PDF autorizados.
-
-Rutas autenticadas conceptuales:
-
-- `/dashboard`
-- `/events`
-- `/events/new`
-- `/events/:id`
-- `/credits`
-- `/finance`
-- `/demo`
-- `/profile`
-
-Rutas públicas:
-
-- `/invitacion/:invitationToken`
-- `/album/:albumToken`
-
-Reglas:
-
-- no existe `/reports` global para Planner en MVP;
-- reportes se solicitan y descargan desde Resumen de `/events/:id`;
-- Planner de Organización no ve `/credits` ni `/finance` cuando impliquen saldo/deuda;
-- el frontend oculta navegación por rol, pero backend vuelve a autorizar cada operación;
-- Flyer/Flipbook quedan congelados al activar;
-- Evento activado muestra solo las vistas aprobadas: Resumen, Croquis/Mesas en modo lectura con acción autorizada de edición y Staff;
-- no crear pantallas operativas adicionales fuera de `07_UI_UX_FLOW.md`.
-
-### Reportes PDF en client
-
-- solicita dataset/snapshot autorizado al API;
-- renderiza plantilla HTML aprobada;
-- exporta PDF;
-- sube PDF mediante API asociado a `report_id`;
-- nunca sube directo al storage;
-- respeta ventana de 30 días para reportes detallados con nombres.
-
-## invitacionespremium-admin
-
-Solo para Platform Admin.
+## `apps/client`
 
 Contiene:
 
-- Clientes;
-- Organizaciones;
-- usuarios;
-- Eventos en lectura administrativa;
-- finanzas;
-- créditos;
-- deuda;
-- pagos;
-- precios/promociones;
-- reportes generales;
-- auditoría;
-- configuración.
+- dashboard de Planner independiente y Organización;
+- wizard de Evento;
+- créditos y finanzas según permisos;
+- Invitación pública;
+- Confirmación de asistencia;
+- Álbum público;
+- reportes operativos dentro del Evento.
 
 Rutas conceptuales:
 
-- `/dashboard`
-- `/clients`
-- `/events`
-- `/finance`
-- `/prices-promos`
-- `/payments`
-- `/reports`
-- `/audit`
-- `/users`
-- `/settings`
+- `/dashboard`;
+- `/events`;
+- `/events/new`;
+- `/events/:id`;
+- `/credits`;
+- `/finance`;
+- `/demo`;
+- `/profile`;
+- `/invitacion/:invitationToken`;
+- `/album/:albumToken`.
 
-Reglas:
+No existe módulo global `/reports` para Planner en MVP.
 
-- no impersona Clientes;
-- `/events` usa endpoints `/admin/events/**`;
-- las modificaciones globales requieren acciones administrativas explícitas documentadas;
-- reportes usan `/admin/reports/**`;
-- puede renderizar/exportar reportes administrativos mediante el mismo flujo autorizado de PDF;
-- auditoría no se expone al client.
+## `apps/admin`
 
-## invitacionespremium-scanner
-
-Microapp pública con ruta conceptual:
-
-- `/scanner/:staffToken`
-
-Funciones:
-
-- validar token Staff;
-- confirmar Evento `active` o `event_day`;
-- escanear QR;
-- buscar Invitación exacta;
-- registrar check-in por Asistente;
-- ver plano/mesa;
-- escanear QR pase físico;
-- reaccionar a cierre/cancelación por Socket.IO.
-
-Restricciones:
-
-- no login de usuario;
-- no teléfonos;
-- no reportes;
-- no finanzas;
-- no reversión de check-in;
-- no room `dashboard`;
-- no modo offline MVP;
-- token expirado no se reactiva.
-
-## invitacionespremium-landing
-
-Landing pública.
+Solo Platform Admin.
 
 Contiene:
 
-- información del producto;
-- servicios/precios visibles;
-- mock visual de demo sin backend;
-- contenido para Planners y Organizaciones;
-- preguntas frecuentes;
-- botón registro;
-- botón login.
+- Clientes y Organizaciones;
+- usuarios;
+- Eventos en lectura administrativa;
+- finanzas, créditos, deuda y pagos;
+- precios y promociones;
+- reportes generales;
+- auditoría y configuración.
 
-Reglas:
+No implementa impersonación.
 
-- no crea Organización desde registro público;
-- registro público solo Planner;
-- no promete funciones fuera del MVP;
-- demo es visual y no genera datos reales.
+## `apps/scanner`
 
-## shared-ui
+Microapp pública por StaffToken.
 
-Repo separado de componentes compartidos Material UI.
+Ruta conceptual:
 
-Contiene:
+- `/scanner/:staffToken`.
 
-- tema/tokens visuales;
-- componentes presentacionales reutilizables;
-- patrones de layout;
-- componentes accesibles comunes.
+Puede validar token, escanear QR, buscar Invitación exacta, registrar check-in por Asistente y consultar plano/mesa. No muestra teléfonos, finanzas, reportes ni auditoría.
 
-No contiene:
+## `apps/landing`
 
-- reglas de negocio;
-- llamadas API con ownership implícito;
-- estados financieros;
-- entidades Prisma;
-- lógica específica de un módulo.
+Sitio público comercial:
+
+- propuesta de valor;
+- servicios y precios visibles;
+- demo visual sin backend;
+- información para Planners y Organizaciones;
+- FAQ;
+- registro/login.
+
+Registro público solo para Planner independiente.
+
+## `packages/ui`
+
+Tema, tokens visuales, layouts y componentes Material UI reutilizables.
+
+No contiene reglas de negocio, llamadas API, Prisma, permisos ni estados financieros.
+
+## `packages/api-client`
+
+Cliente generado desde OpenAPI.
+
+Durante el bootstrap solo contiene infraestructura mínima. Cuando la API tenga contratos, el código de endpoints se genera; no se mantienen DTOs manuales divergentes.
+
+## Reglas de dependencia
+
+- apps no importan otras apps;
+- frontends pueden importar `packages/ui` y `packages/api-client`;
+- API no depende de paquetes frontend;
+- código compartido adicional requiere responsabilidad clara y aprobación;
+- los tipos de dominio derivan de OpenAPI o del backend, no de una copia manual.
 
 ## Login
 
-Login único con redirección según rol/tipo de usuario.
+Login único con redirección:
 
-Destino inicial:
-
-- Platform Admin → `invitacionespremium-admin`;
-- Planner independiente → `invitacionespremium-client`;
-- Admin de Organización → `invitacionespremium-client`;
-- Planner de Organización → `invitacionespremium-client`.
+- Platform Admin → `apps/admin`;
+- Planner independiente → `apps/client`;
+- Admin de Organización → `apps/client`;
+- Planner de Organización → `apps/client`.
 
 Staff y Público usan tokens, no login.
 
-## Demo
-
-- Demo visual mock en landing sin backend.
-- Demo interna en dashboard Cliente conectada a seeds API.
-- Demo interna no consume créditos ni genera tokens reales.
-
-## Tipos compartidos
-
-No crear un repo adicional de tipos de dominio en MVP.
-
-Los tipos de API se generan desde OpenAPI para cada consumidor.
-
-`shared-ui` puede compartir props visuales, pero no convertirse en fuente paralela de contratos API.
-
-## Contratos API
-
-- OpenAPI se genera desde API;
-- SDK se regenera cuando cambia contrato;
-- CI debe detectar SDK/contrato desactualizado;
-- frontends no mantienen manualmente copias divergentes de DTOs.
-
 ## Variables de entorno
 
-Cada app debe tener `.env.example` sin secretos.
-
-Variables separadas por ambiente para:
-
-- URL API;
-- Socket.IO;
-- Auth0 cuando aplique;
-- orígenes públicos;
-- storage solo en API;
-- observabilidad.
+Cada app tiene `.env.example` sin secretos. Base de datos y storage solo se configuran en API.
 
 ## CI/CD
 
-MVP por repo:
+La raíz valida todo el workspace:
 
+- format;
 - lint;
 - typecheck;
 - tests;
 - build.
 
-API además:
+API añadirá validación de migraciones/OpenAPI. Cada frontend mantiene build y despliegue independiente.
 
-- validación de migraciones;
-- verificación OpenAPI;
-- pruebas de integración.
+## Deploy
 
-Frontends además:
-
-- smoke E2E crítico;
-- validación de rutas públicas;
-- build con variables por ambiente.
-
-## Testing por repo
-
-- API: unitarias, integración, concurrencia e invariantes.
-- Client: E2E de wizard, Invitación, Confirmación, QR, Álbum y reportes.
-- Admin: E2E de Clientes, finanzas, Eventos administrativos, reportes y auditoría.
-- Scanner: E2E de token, escaneo, check-in, cierre/cancelación.
-- Landing: navegación, CTA, performance y accesibilidad básica.
-- shared-ui: pruebas de componentes críticos y accesibilidad.
+- Railway: `apps/api`;
+- Netlify: `apps/client`;
+- Netlify: `apps/admin`;
+- Netlify: `apps/scanner`;
+- Netlify: `apps/landing`.
 
 ## Seeds
 
-Seeds demo viven en API.
-
-Frontends consumen desde API.
-
-Seeds:
-
-- solo local/staging autorizado;
-- nunca mezclados con producción;
-- sin datos personales reales;
-- reproducibles.
+Viven en `apps/api`, solo local/staging autorizado y sin datos personales reales.
 
 ## Archivos
 
-Los archivos suben vía API.
-
-Frontend nunca:
-
-- guarda archivos directo;
-- recibe credenciales de storage;
-- decide `storage_key`;
-- expone buckets públicos;
-- reutiliza assets entre Clientes/Eventos.
-
-Aplicar `FILE_ASSET_POLICY.md` en todos los repos.
+Todos los archivos pasan por `apps/api` y obedecen `FILE_ASSET_POLICY.md`.
