@@ -8,6 +8,8 @@ Codex no debe inventar entidades, roles, módulos, rutas, estados, permisos, eve
 
 Si una tarea no puede implementarse sin tomar una decisión de producto no documentada, Codex debe detener esa parte, describir el hueco y solicitar corrección documental. No debe resolverlo por intuición.
 
+Antes de iniciar cualquier tarea, Codex debe revisar `17_QA_OPEN_DECISIONS.md`. Una capacidad marcada `OPEN` queda bloqueada aunque aparezca en API, plan o backlog.
+
 ## Jerarquía documental
 
 Cuando exista diferencia entre documentos, aplicar en este orden:
@@ -20,6 +22,8 @@ Cuando exista diferencia entre documentos, aplicar en este orden:
 6. `15_BACKLOG_CODEX.md`.
 
 El backlog organiza trabajo, pero no puede cambiar reglas de producto. La enmienda QA corrige temporalmente entradas concretas del backlog hasta su consolidación.
+
+`17_QA_OPEN_DECISIONS.md` no agrega una regla alternativa: suspende la implementación del alcance afectado hasta que exista decisión explícita y se actualicen los contratos.
 
 Contratos especializados:
 
@@ -49,7 +53,8 @@ No crear:
 - modo offline MVP;
 - WhatsApp API MVP;
 - export CSV/Excel de reportes MVP;
-- conversión PDF a imagen en MVP temprano.
+- conversión PDF a imagen en MVP temprano;
+- implementación parcial o completa de una decisión marcada `OPEN`.
 
 ## Reglas duras de dominio
 
@@ -68,6 +73,8 @@ No crear:
 13. No editar/reemplazar diseño en `active`, `event_day`, `closed`, `album_published`, `archived` o `cancelled`.
 14. No implementar transición fuera de `EVENT_STATE_MACHINE.md`.
 15. Evaluar fechas con zona horaria del Evento, no del servidor.
+16. Mientras QA-OPEN-001 siga abierto, no implementar `POST /events/:eventId/change-service` ni cambio post-activación de servicio.
+17. Antes de activar, cambiar selección de servicio forma parte del wizard y se cobra únicamente el servicio final.
 
 ## Reglas duras de acceso
 
@@ -110,6 +117,7 @@ No crear:
 15. Refund comercial usa `EVENT_CREDIT_REFUND`; error contable usa `LEDGER_REVERSAL`.
 16. No crear tipos de movimiento fuera de `LEDGER_TYPES.md`.
 17. Toda operación crítica requiere idempotencia.
+18. No crear cargos, diferencias o devoluciones para cambio de servicio mientras QA-OPEN-001 esté abierto.
 
 ## Reglas duras de archivos y reportes
 
@@ -129,6 +137,7 @@ No crear:
 14. Reportes detallados con nombres dejan de estar disponibles 30 días post-Evento.
 15. Historial de seis meses conserva reportes agregados/anónimos.
 16. No publicar ni eliminar archivos fuera de `FILE_ASSET_POLICY.md`.
+17. No crear assets/migraciones de servicio post-activación mientras QA-OPEN-001 esté abierto.
 
 ## Reglas duras de tiempo real
 
@@ -182,8 +191,9 @@ Cuando una tarea afecte el área indicada, Codex debe leer y citar en su PR el d
 | API | `docs/04-tecnico/11_API_CONTRACTS.md` |
 | Orden de implementación | `docs/05-implementacion/15_BACKLOG_CODEX.md` |
 | Correcciones al backlog | `docs/05-implementacion/16_BACKLOG_QA_AMENDMENTS.md` |
+| Bloqueos abiertos | `docs/05-implementacion/17_QA_OPEN_DECISIONS.md` |
 
-Toda tarea debe verificar si su ID aparece en `16_BACKLOG_QA_AMENDMENTS.md`.
+Toda tarea debe verificar si su ID aparece en `16_BACKLOG_QA_AMENDMENTS.md` y si su alcance está bloqueado en `17_QA_OPEN_DECISIONS.md`.
 
 ## Naming obligatorio
 
@@ -263,14 +273,15 @@ No usar `Invitado` como entidad técnica.
 1. Ejecutar una tarea pequeña del backlog por rama/PR.
 2. Leer documentos obligatorios antes de editar.
 3. Buscar el ID de tarea en `16_BACKLOG_QA_AMENDMENTS.md` y aplicar la corrección si existe.
-4. Declarar alcance y fuera de alcance.
-5. Identificar entidades, módulos, endpoints y reglas afectadas.
-6. Implementar pruebas junto con cambio.
-7. Actualizar OpenAPI si cambia API.
-8. Crear migración si cambia schema.
-9. Actualizar `.env.example` si agrega configuración.
-10. No dejar TODO crítico o mock oculto.
-11. Documentar decisiones técnicas locales sin cambiar producto.
+4. Buscar el alcance en `17_QA_OPEN_DECISIONS.md`; detenerse si está `OPEN`.
+5. Declarar alcance y fuera de alcance.
+6. Identificar entidades, módulos, endpoints y reglas afectadas.
+7. Implementar pruebas junto con cambio.
+8. Actualizar OpenAPI si cambia API.
+9. Crear migración si cambia schema.
+10. Actualizar `.env.example` si agrega configuración.
+11. No dejar TODO crítico o mock oculto.
+12. Documentar decisiones técnicas locales sin cambiar producto.
 
 No solicitar ni ejecutar “implementa todo InvitacionesPremium”.
 
@@ -286,8 +297,9 @@ Todo cambio debe poder responder:
 6. ¿Qué regla valida?
 7. ¿Qué tarea de `15_BACKLOG_CODEX.md` ejecuta?
 8. ¿Existe enmienda en `16_BACKLOG_QA_AMENDMENTS.md`?
-9. ¿Qué pruebas demuestran aceptación?
-10. ¿Cambió OpenAPI, Prisma, variables o migraciones?
-11. ¿Introdujo una decisión no documentada?
+9. ¿Existe decisión `OPEN` relacionada?
+10. ¿Qué pruebas demuestran aceptación?
+11. ¿Cambió OpenAPI, Prisma, variables o migraciones?
+12. ¿Introdujo una decisión no documentada?
 
-Si la respuesta a la última pregunta es sí, el cambio no está listo.
+Si existe una decisión `OPEN` relacionada o la respuesta a la última pregunta es sí, el cambio no está listo.
