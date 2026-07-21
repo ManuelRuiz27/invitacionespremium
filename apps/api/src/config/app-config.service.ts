@@ -13,9 +13,7 @@ const LOG_LEVELS: Record<EnvironmentVariables['LOG_LEVEL'], LogLevel[]> = {
 
 @Injectable()
 export class AppConfigService {
-  constructor(
-    private readonly configService: ConfigService<EnvironmentVariables, true>
-  ) {}
+  constructor(private readonly configService: ConfigService<EnvironmentVariables, true>) {}
 
   get nodeEnv(): EnvironmentVariables['NODE_ENV'] {
     return this.configService.get('NODE_ENV', { infer: true });

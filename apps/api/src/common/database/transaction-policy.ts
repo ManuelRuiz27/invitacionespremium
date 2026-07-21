@@ -9,6 +9,5 @@ export const CRITICAL_TRANSACTION_OPTIONS = {
 export const DATABASE_INVARIANT_POLICY = {
   timestamps: 'UTC',
   identifiers: 'UUID',
-  concurrency:
-    'Use PostgreSQL constraints plus serializable transactions for critical invariants.'
+  concurrency: 'Use PostgreSQL constraints plus serializable transactions for critical invariants.'
 } as const;

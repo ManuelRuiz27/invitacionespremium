@@ -9,8 +9,6 @@ describe('resolveOperationId', () => {
   });
 
   it('replaces an invalid correlation value with a UUID', () => {
-    expect(resolveOperationId('invalid-correlation')).toMatch(
-      /^[0-9a-f-]{36}$/i
-    );
+    expect(resolveOperationId('invalid-correlation')).toMatch(/^[0-9a-f-]{36}$/i);
   });
 });

@@ -1,17 +1,6 @@
-import {
-  ArgumentsHost,
-  Catch,
-  HttpException,
-  HttpStatus,
-  Logger,
-  type ExceptionFilter
-} from '@nestjs/common';
+import { ArgumentsHost, Catch, HttpException, HttpStatus, Logger, type ExceptionFilter } from '@nestjs/common';
 import type { Response } from 'express';
-import {
-  type RequestWithOperationId,
-  resolveOperationId,
-  resolveRouteTemplate
-} from '../logging/request-context';
+import { type RequestWithOperationId, resolveOperationId, resolveRouteTemplate } from '../logging/request-context';
 
 interface NormalizedException {
   statusCode: number;
@@ -60,9 +49,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       message: normalized.message,
       timestamp: new Date().toISOString(),
       operationId,
-      ...(normalized.details === undefined
-        ? {}
-        : { details: normalized.details })
+      ...(normalized.details === undefined ? {} : { details: normalized.details })
     });
   }
 }
@@ -92,10 +79,7 @@ function normalizeException(exception: unknown): NormalizedException {
 
   return {
     statusCode,
-    code:
-      typeof body.code === 'string'
-        ? body.code
-        : defaultCodeForStatus(statusCode),
+    code: typeof body.code === 'string' ? body.code : defaultCodeForStatus(statusCode),
     message,
     ...(body.details === undefined ? {} : { details: body.details })
   };

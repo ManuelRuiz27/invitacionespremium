@@ -1,7 +1,4 @@
-import {
-  ConsoleLogger,
-  type INestApplication
-} from '@nestjs/common';
+import { ConsoleLogger, type INestApplication } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module';
 import { AllExceptionsFilter } from '../common/errors/all-exceptions.filter';

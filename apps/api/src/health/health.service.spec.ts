@@ -24,8 +24,6 @@ describe('HealthService', () => {
     } as unknown as PrismaService;
     const service = new HealthService(prisma);
 
-    await expect(service.getHealth()).rejects.toBeInstanceOf(
-      ServiceUnavailableException
-    );
+    await expect(service.getHealth()).rejects.toBeInstanceOf(ServiceUnavailableException);
   });
 });

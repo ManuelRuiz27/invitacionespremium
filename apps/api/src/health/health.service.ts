@@ -28,8 +28,7 @@ export class HealthService {
         },
         database: {
           status: 'up',
-          latencyMs:
-            Math.round((performance.now() - databaseStartedAt) * 100) / 100
+          latencyMs: Math.round((performance.now() - databaseStartedAt) * 100) / 100
         }
       }
     };

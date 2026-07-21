@@ -11,11 +11,7 @@ import {
 export class RequestLoggingMiddleware implements NestMiddleware {
   private readonly logger = new Logger('HttpRequest');
 
-  use(
-    request: RequestWithOperationId,
-    response: Response,
-    next: NextFunction
-  ): void {
+  use(request: RequestWithOperationId, response: Response, next: NextFunction): void {
     const operationId = resolveOperationId(request.header(OPERATION_ID_HEADER));
     const startedAt = performance.now();
 

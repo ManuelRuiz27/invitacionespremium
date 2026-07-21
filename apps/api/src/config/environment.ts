@@ -1,8 +1,6 @@
 import { z } from 'zod';
 
-const booleanFromEnvironment = z
-  .enum(['true', 'false'])
-  .transform((value) => value === 'true');
+const booleanFromEnvironment = z.enum(['true', 'false']).transform((value) => value === 'true');
 
 const postgresUrl = z
   .string()
@@ -23,9 +21,7 @@ export const environmentSchema = z.object({
 
 export type EnvironmentVariables = z.infer<typeof environmentSchema>;
 
-export function validateEnvironment(
-  input: Record<string, unknown>
-): EnvironmentVariables {
+export function validateEnvironment(input: Record<string, unknown>): EnvironmentVariables {
   const result = environmentSchema.safeParse(input);
 
   if (result.success) {

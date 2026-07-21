@@ -1,8 +1,4 @@
-import {
-  type MiddlewareConsumer,
-  Module,
-  type NestModule
-} from '@nestjs/common';
+import { type MiddlewareConsumer, Module, type NestModule } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { DatabaseModule } from './common/database/database.module';
 import { RequestLoggingMiddleware } from './common/logging/request-logging.middleware';

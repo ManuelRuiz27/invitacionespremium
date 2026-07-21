@@ -9,10 +9,7 @@ async function generateOpenApi(): Promise<void> {
   try {
     await app.init();
 
-    const outputPath = resolve(
-      process.cwd(),
-      process.env.OPENAPI_OUTPUT ?? 'openapi/openapi.json'
-    );
+    const outputPath = resolve(process.cwd(), process.env.OPENAPI_OUTPUT ?? 'openapi/openapi.json');
     const document = createOpenApiDocument(app);
 
     await mkdir(dirname(outputPath), { recursive: true });

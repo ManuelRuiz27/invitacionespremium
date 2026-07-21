@@ -57,9 +57,7 @@ describe('API foundation', () => {
   });
 
   it('serves the OpenAPI document when explicitly enabled', async () => {
-    const response = await request(app.getHttpServer())
-      .get('/docs-json')
-      .expect(200);
+    const response = await request(app.getHttpServer()).get('/docs-json').expect(200);
 
     expect(response.body.info.title).toBe('InvitacionesPremium API');
   });

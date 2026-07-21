@@ -1,13 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
-import {
-  DocumentBuilder,
-  SwaggerModule,
-  type OpenAPIObject
-} from '@nestjs/swagger';
+import { DocumentBuilder, SwaggerModule, type OpenAPIObject } from '@nestjs/swagger';
 
-export function createOpenApiDocument(
-  app: INestApplication
-): OpenAPIObject {
+export function createOpenApiDocument(app: INestApplication): OpenAPIObject {
   const config = new DocumentBuilder()
     .setTitle('InvitacionesPremium API')
     .setDescription('REST contract for InvitacionesPremium.')
