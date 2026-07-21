@@ -21,21 +21,23 @@ docs/         Producto, reglas, arquitectura y backlog
 
 ## Requisitos
 
-- Node.js 22.13 o superior
-- Corepack
-- pnpm 11.15.1
-- PostgreSQL para las fases que requieran persistencia
+- Node.js 22.13 o superior;
+- Corepack;
+- pnpm 11.15.1;
+- Docker Compose para PostgreSQL local.
 
-## Inicio
+## Inicio local
 
 ```bash
 corepack enable
 corepack prepare pnpm@11.15.1 --activate
-pnpm install
+cp .env.example .env
+pnpm install --frozen-lockfile
+docker compose up -d postgres
 pnpm dev
 ```
 
-Servicios locales del bootstrap:
+Servicios locales:
 
 | Workspace | Puerto |
 |---|---:|
@@ -45,7 +47,13 @@ Servicios locales del bootstrap:
 | Scanner | 5175 |
 | Landing | 5176 |
 
-Comandos principales:
+Infraestructura API disponible:
+
+- `GET http://localhost:3000/api/v1/health` valida API y PostgreSQL;
+- `http://localhost:3000/docs` expone Swagger cuando está habilitado;
+- `http://localhost:3000/docs-json` expone OpenAPI cuando está habilitado.
+
+## Comandos principales
 
 ```bash
 pnpm build
@@ -56,6 +64,15 @@ pnpm format:check
 pnpm ci
 ```
 
+Comandos de API:
+
+```bash
+pnpm --filter @invitaciones/api dev
+pnpm --filter @invitaciones/api db:validate
+pnpm --filter @invitaciones/api test:integration
+pnpm --filter @invitaciones/api openapi:generate
+```
+
 Filtrar una app:
 
 ```bash
@@ -63,22 +80,30 @@ pnpm turbo build --filter=@invitaciones/api
 pnpm turbo dev --filter=@invitaciones/client
 ```
 
-## Estado del bootstrap
+## Estado de implementación
 
-Este corte implementa `CODEX-000`:
+`CODEX-000` completó:
 
-- workspace pnpm;
-- pipeline Turborepo;
+- workspace pnpm y Turborepo;
 - TypeScript estricto;
-- ESLint y Prettier;
-- Vitest;
-- CI;
+- ESLint, Prettier y Vitest;
+- CI reproducible con lockfile congelado;
 - cinco apps base;
 - paquetes `ui` y `api-client`;
-- `.env.example` por app;
-- estructura sin lógica de negocio.
+- `.env.example` por app.
 
-La implementación funcional comienza después con `CODEX-010`.
+`CODEX-010` agrega la base operativa de API, todavía sin entidades de negocio:
+
+- configuración validada por ambiente;
+- Prisma 7 conectado a PostgreSQL;
+- health API + DB;
+- logging JSON y `operationId`;
+- errores HTTP uniformes;
+- OpenAPI reproducible;
+- PostgreSQL local y pruebas de integración;
+- soporte base para procesos programados idempotentes.
+
+La siguiente tarea de dominio es `CODEX-011`, después de aprobar y fusionar `CODEX-010`.
 
 ## Fuente de verdad
 
