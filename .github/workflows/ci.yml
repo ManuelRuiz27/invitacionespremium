@@ -37,12 +37,13 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
-          package-manager-cache: false
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
         id: install
         continue-on-error: true
-        run: pnpm install --no-frozen-lockfile --reporter=append-only > pnpm-install.log 2>&1
+        run: pnpm install --frozen-lockfile --reporter=append-only > pnpm-install.log 2>&1
 
       - name: Upload pnpm install log
         if: steps.install.outcome == 'failure'
