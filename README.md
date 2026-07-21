@@ -31,6 +31,7 @@ No se deben inventar entidades, roles, módulos, estados, reglas, permisos ni fl
 19. `docs/05-implementacion/14_CODEX_RULES.md`
 20. `docs/05-implementacion/15_BACKLOG_CODEX.md`
 21. `docs/05-implementacion/16_BACKLOG_QA_AMENDMENTS.md`
+22. `docs/05-implementacion/17_QA_OPEN_DECISIONS.md`
 
 ## Jerarquía
 
@@ -43,13 +44,15 @@ En caso de diferencia:
 5. `16_BACKLOG_QA_AMENDMENTS.md`, únicamente para las tareas que corrige expresamente;
 6. `15_BACKLOG_CODEX.md`.
 
+`17_QA_OPEN_DECISIONS.md` no resuelve reglas: bloquea la implementación de cualquier capacidad cuyo estado sea `OPEN`.
+
 Si dos contratos especializados se contradicen, no se implementa hasta corregir documentación.
 
 ## Alcance
 
 Primero se consolida la documentación fuente de verdad. Después se crean los repos de código y se implementa el producto por módulos con Codex.
 
-`13_PLAN_IMPLEMENTACION.md` describe el orden de construcción interno del producto. `15_BACKLOG_CODEX.md` convierte ese plan en tareas ejecutables y verificables. `16_BACKLOG_QA_AMENDMENTS.md` corrige tareas específicas detectadas durante QA sin renumerar el backlog.
+`13_PLAN_IMPLEMENTACION.md` describe el orden de construcción interno del producto. `15_BACKLOG_CODEX.md` convierte ese plan en tareas ejecutables y verificables. `16_BACKLOG_QA_AMENDMENTS.md` corrige tareas específicas detectadas durante QA sin renumerar el backlog. `17_QA_OPEN_DECISIONS.md` registra bloqueos que requieren decisión explícita antes de código.
 
 ## Repos previstos
 
@@ -63,3 +66,5 @@ Primero se consolida la documentación fuente de verdad. Después se crean los r
 ## Regla de cambio
 
 Cualquier cambio que afecte roles, estados, finanzas, archivos, privacidad o tiempo real debe actualizar primero el documento especializado correspondiente antes de modificar código.
+
+Antes de iniciar una tarea Codex debe comprobar que no esté bloqueada por una decisión `OPEN`.
