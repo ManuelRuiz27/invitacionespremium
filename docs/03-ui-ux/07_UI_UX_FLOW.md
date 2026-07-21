@@ -35,7 +35,7 @@ La landing debe vender:
 - SaaS para Planners y Organizaciones;
 - experiencia premium;
 - control de acceso;
-- operación del Evento, no solo diseño de invitación.
+- operación del Evento, no solo diseño de Invitación.
 
 Secciones:
 
@@ -105,14 +105,14 @@ No mostrar estados técnicos.
 2. Contactos
 3. Invitación
 4. Confirmación de asistencia
-5. Croquis/mesas opcional
+5. Croquis/Mesas opcional
 6. Revisión
 7. Activar
 
 ### QR pase físico
 
 1. Datos del Evento
-2. Croquis/mesas opcional
+2. Croquis/Mesas opcional
 3. Generar pases QR
 4. Revisión
 5. Activar
@@ -136,8 +136,8 @@ No mostrar teléfono en vistas Staff.
 
 - canvas visual;
 - panel lateral de propiedades;
-- dibujar hotspots sobre imagen;
-- elegir acción del hotspot;
+- dibujar Hotspots sobre imagen;
+- elegir acción del Hotspot;
 - preview mobile/tablet/desktop;
 - indicador de diseño completo/incompleto;
 - orden de páginas para Flipbook.
@@ -146,8 +146,9 @@ No mostrar teléfono en vistas Staff.
 
 - editable solo en `draft`, `configured` o `ready_to_activate`;
 - al activar, Flyer/Flipbook quedan congelados;
-- en `active`, `event_day`, `closed`, `album_published`, `archived` o `cancelled` no mostrar acciones de reemplazo/edición;
-- el frontend debe explicar que la invitación quedó fijada al activar.
+- en `active`, `event_day`, `closed`, `album_published`, `archived` o `cancelled` no mostrar acciones ordinarias de reemplazo/edición;
+- el frontend debe explicar que la Invitación quedó fijada al activar;
+- cualquier cambio de servicio posterior a activación queda sujeto a la decisión abierta documentada en `17_QA_OPEN_DECISIONS.md` y no debe implementarse todavía.
 
 ## Croquis
 
@@ -155,24 +156,24 @@ Debe tener:
 
 - canvas central;
 - herramientas de forma;
-- panel lateral mesa/zona;
-- lista de mesas;
+- panel lateral Mesa/Zona;
+- lista de Mesas;
 - validación visual de capacidad;
 - botón bloquear/desbloquear;
 - botón pantalla completa.
 
-## Asignación de mesas
+## Asignación de Mesas
 
 Vistas:
 
-- lista de Asistentes + croquis;
-- Grupos + croquis.
+- lista de Asistentes + Croquis;
+- Grupos + Croquis.
 
 Reglas visuales:
 
 - capacidad usada/disponible;
 - error antes de exceder capacidad;
-- confirmado pendiente de mesa visible;
+- confirmado pendiente de Mesa visible;
 - cambio posterior a check-in marcado como acción auditada;
 - zona decorativa no acepta Asistentes.
 
@@ -205,17 +206,72 @@ Pestañas visibles:
 - Croquis/Mesas en modo lectura + botón editar autorizado
 - Staff
 
-No mostrar pestañas operativas:
+No mostrar pestañas operativas separadas:
 
 - Contactos/Invitados
 - Invitación
 - Confirmación de asistencia
 - Scanner embebido
 - Álbum
-- Reportes como pestaña separada
+- Reportes
 - Auditoría
 
-El Resumen incluye acceso a reportes bajo demanda y controles de cierre/cancelación según permiso.
+La ausencia de pestañas separadas no elimina las acciones operativas confirmadas. El Resumen concentra cards y acciones contextuales.
+
+#### Card Confirmación de asistencia
+
+Mostrar:
+
+- estado abierta/cerrada;
+- confirmados, rechazados y pendientes;
+- Asistentes nominales confirmados;
+- capacidad disponible;
+- alertas por límite/cupo;
+- acción abrir/cerrar Confirmación según permiso;
+- acción `Gestionar confirmaciones` para ajustes nominales que solo Planner/Admin puede realizar.
+
+`Gestionar confirmaciones` abre drawer, modal o vista secundaria contextual; no crea una pestaña permanente ni reabre el editor de Invitación.
+
+Permite:
+
+- consultar Contacto/Invitación dentro del ownership;
+- ajustar estado/número/nombres conforme a reglas;
+- identificar confirmados pendientes de Mesa;
+- auditar cambios.
+
+No permite:
+
+- reemplazar Flyer/Flipbook;
+- modificar identidad del Contacto sin flujo autorizado;
+- exceder límites/capacidad;
+- exponer teléfonos a Staff.
+
+#### Card Álbum
+
+Solo para Flyer/Flipbook.
+
+Durante `active` o `event_day` permite:
+
+- acción `Preparar Álbum`;
+- crear/configurar título, mensaje, colores y link externo;
+- cargar/ordenar hasta 35 fotos;
+- mantenerlo privado/no publicado.
+
+No permite:
+
+- publicar antes de `closed`;
+- generar tokens públicos de Álbum;
+- mostrar el Álbum a Invitaciones.
+
+Esta card resuelve la creación previa al cierre sin agregar una pestaña Álbum durante el Evento activo.
+
+#### Otras acciones del Resumen
+
+- acceso a reportes bajo demanda;
+- cerrar/cancelar Evento según permiso;
+- estado financiero resumido solo para roles autorizados;
+- alertas operativas;
+- no mostrar auditoría global.
 
 ### `closed`
 
@@ -225,11 +281,14 @@ Mostrar:
 - Croquis/Mesas en lectura;
 - Staff expirado en lectura;
 - acción reabrir;
-- gestión de Álbum si el servicio lo permite;
+- gestión completa de Álbum si el servicio lo permite;
+- acción publicar Álbum cuando esté válido;
 - acceso a reportes desde Resumen;
 - acción archivar.
 
 No permitir check-in ni reactivar tokens automáticamente.
+
+Si el Álbum ya fue preparado durante `active`/`event_day`, conservar configuración/fotos y habilitar publicación sin recarga.
 
 ### `album_published`
 
@@ -253,11 +312,13 @@ Vista solo lectura:
 
 Vista Cliente:
 
-- resumen conservado;
+- Resumen conservado;
 - mensaje de cancelación configurado;
-- finanzas/cargo histórico;
+- finanzas/cargo histórico para roles autorizados;
 - reportes o auditoría según permiso;
 - sin Confirmación, QR, scanner ni Álbum público.
+
+Un Álbum privado preparado se conserva como datos/archivos, pero no puede publicarse.
 
 ## Scanner
 
@@ -282,7 +343,7 @@ Resultado muestra:
 
 - nombre de Invitación/Contacto;
 - Asistentes pendientes seleccionables;
-- mesa;
+- Mesa;
 - plano si existe;
 - botón registrar entrada;
 - error claro.
@@ -364,7 +425,7 @@ Reglas de UX:
 
 - token distinto al de Invitación;
 - acceso solo para Invitación con al menos un Asistente ingresado;
-- no mostrar nombres/teléfonos de otros asistentes;
+- no mostrar nombres/teléfonos de otros Asistentes;
 - token inválido o expirado: mensaje claro sin revelar existencia de otros recursos;
 - Invitación sin asistencia: `Álbum disponible solo para asistentes`;
 - Evento archivado/despublicado: acceso no disponible;
@@ -404,7 +465,7 @@ Privacidad:
 - Evento próximo;
 - borrador vencido;
 - StaffToken expirado;
-- Asistentes confirmados sin mesa;
+- Asistentes confirmados sin Mesa;
 - Álbum próximo a expirar;
 - reporte detallado próximo a anonimizarse.
 
