@@ -18,15 +18,37 @@ El ledger es la fuente de verdad financiera. El balance cache es solo una proyec
 8. El balance cache debe recalcularse o actualizarse atómicamente después de escribir el ledger.
 9. Los importes en créditos deben almacenarse como enteros. No se permiten créditos fraccionarios en MVP.
 10. Los importes MXN deben almacenarse en centavos para evitar errores de punto flotante.
+11. Solo un Pago en estado `approved` puede generar `CREDIT_PURCHASE` o `DEBT_PAYMENT`.
+12. Cambiar el valor comercial futuro del crédito no modifica compras, cargos ni deuda históricos.
 
-## Convención de efectos
+## Unidades y valoración histórica
 
-- `purchased_credit_delta`: cambio en créditos comprados.
-- `credit_line_used_delta`: cambio en línea utilizada.
-- `debt_delta`: cambio en deuda pendiente.
-- `cash_mxn_delta`: cambio en ingresos o egresos reales en centavos MXN.
+- `purchased_credit_delta`: créditos comprados disponibles; unidad entera.
+- `credit_line_used_delta`: créditos utilizados de la línea; unidad entera.
+- `debt_delta`: créditos adeudados; unidad entera.
+- `cash_mxn_delta`: ingreso o egreso real; centavos MXN.
+- `credit_unit_value_mxn_cents_snapshot`: valor de un crédito en centavos MXN aplicado a la operación.
 
 Valores positivos aumentan el concepto. Valores negativos lo reducen.
+
+### Regla de deuda por lotes
+
+Cada movimiento `CREDIT_LINE_USAGE` constituye un lote de deuda y debe guardar:
+
+- créditos utilizados;
+- valor unitario MXN del crédito al momento de uso;
+- principal MXN del lote;
+- fecha de origen;
+- vencimiento si aplica;
+- créditos pendientes de pago.
+
+No se requiere una entidad comercial nueva: el movimiento original del ledger es la referencia del lote.
+
+El valor monetario pendiente de la deuda se calcula sumando:
+
+`créditos pendientes del lote × valor unitario histórico del lote`.
+
+Un cambio posterior en el valor del crédito no altera ese cálculo.
 
 ## Enum `ledger_movement_type`
 
@@ -43,12 +65,17 @@ Compra de créditos con dinero real.
 
 Requiere:
 
-- referencia de pago;
-- precio del crédito aplicado;
+- referencia de Pago aprobado;
+- valor unitario del crédito aplicado;
 - cantidad de créditos;
+- total MXN;
 - comprobante interno.
 
-En MVP temprano puede originarse por registro manual de Platform Admin. En producción se originará por pago aprobado de Mercado Pago.
+La relación obligatoria es:
+
+`cash_mxn_delta = purchased_credit_delta × credit_unit_value_mxn_cents_snapshot`, salvo promoción documentada sobre la compra.
+
+En MVP temprano puede originarse por registro manual de Platform Admin de un pago realizado fuera del sistema. En producción se originará por pago aprobado de Mercado Pago.
 
 ### `MANUAL_CREDIT_GRANT`
 
@@ -70,6 +97,8 @@ Requiere:
 - notas internas;
 - comprobante interno.
 
+No debe utilizarse para registrar una compra pagada fuera del sistema. Ese caso usa `CREDIT_PURCHASE` con Pago manual aprobado.
+
 ### `EVENT_ACTIVATION_CHARGE`
 
 Consumo de saldo comprado al activar un Evento.
@@ -85,13 +114,15 @@ Requiere:
 
 - `event_id`;
 - servicio contratado;
-- precio base;
+- precio base en créditos;
 - promoción aplicada si existe;
-- costo final;
-- snapshot del precio vigente;
+- costo final en créditos;
+- snapshot del precio del servicio vigente;
 - comprobante interno.
 
 El valor absoluto no puede exceder el saldo comprado disponible.
+
+Este movimiento registra consumo de créditos, no un nuevo ingreso MXN. El ingreso real se registró cuando se compraron los créditos.
 
 ### `CREDIT_LINE_USAGE`
 
@@ -109,14 +140,19 @@ Requiere:
 - `event_id`;
 - línea activa;
 - disponibilidad suficiente;
+- cantidad entera de créditos utilizados;
+- `credit_unit_value_mxn_cents_snapshot`;
+- principal MXN calculado;
 - fecha de vencimiento si aplica;
 - comprobante interno.
 
 Puede coexistir con `EVENT_ACTIVATION_CHARGE` para un pago mixto. Ambos movimientos deben compartir la misma referencia de operación.
 
+El principal MXN del lote queda fijo al confirmar el movimiento.
+
 ### `DEBT_PAYMENT`
 
-Pago de deuda existente.
+Pago con dinero real aplicado a deuda existente.
 
 | Campo | Efecto |
 |---|---|
@@ -129,33 +165,76 @@ El pago reduce deuda y línea utilizada. No aumenta créditos comprados.
 
 Requiere:
 
-- referencia de pago;
-- monto aplicado;
+- referencia de Pago aprobado;
+- monto MXN recibido;
+- asignación explícita a uno o varios movimientos `CREDIT_LINE_USAGE`;
+- créditos enteros liquidados por cada lote;
+- valor unitario histórico de cada lote;
 - Platform Admin actor si es manual;
 - comprobante interno.
 
-El movimiento no puede reducir la deuda por debajo de cero.
+La suma de las asignaciones debe cumplir:
+
+`cash_mxn_delta = Σ(créditos liquidados del lote × valor unitario histórico del lote)`.
+
+Reglas:
+
+- no se permiten créditos fraccionarios;
+- no puede pagar más créditos de los pendientes en cada lote;
+- no puede reducir deuda ni línea utilizada por debajo de cero;
+- una misma porción de deuda no puede liquidarse dos veces;
+- si se aplica una estrategia automática, debe usar primero los lotes vencidos y después los más antiguos;
+- el Pago y el movimiento de ledger se confirman en una sola transacción.
 
 ### `EVENT_CREDIT_REFUND`
 
 Devolución en créditos internos asociada a un Evento.
 
-| Campo | Efecto |
-|---|---|
-| `purchased_credit_delta` | Positivo, por la porción originalmente pagada con saldo |
-| `credit_line_used_delta` | Negativo, por la porción originalmente pagada con línea |
-| `debt_delta` | Negativo, por la porción originalmente pagada con línea |
-| `cash_mxn_delta` | 0 |
-
-Solo Platform Admin.
+Solo Platform Admin. No existe reembolso de dinero en MVP.
 
 Requiere:
 
 - `event_id`;
-- referencia a los movimientos originales;
-- motivo;
-- desglose saldo/línea;
+- referencia a los movimientos originales de activación;
+- motivo obligatorio;
+- desglose de la fuente original;
+- estado pendiente/pagado de la porción financiada;
 - comprobante interno.
+
+#### Porción originalmente pagada con saldo comprado
+
+Se devuelve como créditos comprados:
+
+| Campo | Efecto |
+|---|---|
+| `purchased_credit_delta` | Positivo |
+| `credit_line_used_delta` | 0 |
+| `debt_delta` | 0 |
+| `cash_mxn_delta` | 0 |
+
+#### Porción originalmente pagada con línea y todavía adeudada
+
+Se cancela la deuda pendiente:
+
+| Campo | Efecto |
+|---|---|
+| `purchased_credit_delta` | 0 |
+| `credit_line_used_delta` | Negativo |
+| `debt_delta` | Negativo |
+| `cash_mxn_delta` | 0 |
+
+#### Porción originalmente pagada con línea pero ya liquidada
+
+Como no hay devolución de dinero en MVP, se devuelve como créditos comprados:
+
+| Campo | Efecto |
+|---|---|
+| `purchased_credit_delta` | Positivo |
+| `credit_line_used_delta` | 0 |
+| `debt_delta` | 0 |
+| `cash_mxn_delta` | 0 |
+
+Una devolución puede combinar los efectos anteriores. No puede devolver más créditos que el costo final del Evento ni aplicarse dos veces sobre la misma porción.
 
 No existe devolución automática por cancelación.
 
@@ -177,7 +256,9 @@ Requiere:
 - actor Platform Admin;
 - metadata de corrección.
 
-No sustituye `EVENT_CREDIT_REFUND`: el reversal corrige un error contable; el refund ejecuta una decisión comercial/administrativa.
+No sustituye `EVENT_CREDIT_REFUND`: el reversal corrige un error contable; el refund ejecuta una decisión comercial o administrativa.
+
+Antes de aplicar un reversal se deben validar movimientos dependientes. Por ejemplo, no se puede revertir directamente un `CREDIT_LINE_USAGE` cuya deuda ya fue pagada sin compensar también las aplicaciones relacionadas.
 
 ### `PROMOTION_DISCOUNT`
 
@@ -207,7 +288,7 @@ Ejemplo: Evento cuesta 30 créditos, Cliente tiene 18 créditos comprados y 20 d
 La transacción genera:
 
 1. `EVENT_ACTIVATION_CHARGE` por `-18` créditos comprados.
-2. `CREDIT_LINE_USAGE` por `+12` créditos utilizados y `+12` de deuda.
+2. `CREDIT_LINE_USAGE` por `+12` créditos utilizados y `+12` de deuda, con valor unitario MXN histórico.
 3. `PROMOTION_DISCOUNT` solo si existió descuento.
 4. Comprobante interno que agrupa la operación completa.
 5. Cambio del Evento a `active`.
@@ -225,13 +306,17 @@ Si cualquiera de estas escrituras falla, toda la transacción debe revertirse.
 - `credit_line_used_delta`;
 - `debt_delta`;
 - `cash_mxn_delta` en centavos;
+- `credit_unit_value_mxn_cents_snapshot` opcional según movimiento;
 - `currency`, inicialmente `MXN`;
 - `operation_reference`;
 - `idempotency_key`;
 - `related_ledger_entry_id` opcional;
+- `reverses_ledger_entry_id` opcional;
 - `promotion_id` opcional;
 - `payment_id` opcional;
 - `receipt_id` opcional;
+- `due_at` opcional;
+- `allocation_metadata` para pagos y devoluciones;
 - `metadata`;
 - `created_at`.
 
@@ -243,6 +328,7 @@ Las siguientes operaciones requieren llave idempotente única:
 - activación de Evento;
 - pago de deuda;
 - devolución;
+- reversal;
 - webhook futuro de Mercado Pago.
 
 Una repetición con la misma llave debe devolver el resultado original, no escribir otro movimiento.
@@ -252,12 +338,15 @@ Una repetición con la misma llave debe devolver el resultado original, no escri
 Debe mantener al menos:
 
 - créditos comprados disponibles;
-- límite de línea;
-- línea utilizada;
-- línea disponible;
-- deuda pendiente;
+- límite de línea en créditos;
+- línea utilizada en créditos;
+- línea disponible en créditos;
+- deuda pendiente en créditos;
+- deuda pendiente calculada en centavos MXN;
 - fecha de última actualización;
 - versión o secuencia del último ledger aplicado.
+
+El monto MXN de deuda debe poder reconstruirse desde los lotes `CREDIT_LINE_USAGE` y sus pagos, no solo desde el cache.
 
 ## Invariantes
 
@@ -266,9 +355,13 @@ Debe mantener al menos:
 - deuda pendiente `>= 0`;
 - línea disponible = límite - línea utilizada;
 - línea utilizada no puede exceder el límite activo;
+- deuda pendiente en créditos coincide con la suma de créditos pendientes de los lotes;
+- línea utilizada y deuda pendiente disminuyen por las mismas porciones al pagar o cancelar deuda;
 - un Evento activado debe tener operación financiera asociada, excepto Demo;
 - un Evento Demo no genera movimientos de consumo;
-- ningún reversal puede aplicarse dos veces al mismo movimiento.
+- ningún reversal puede aplicarse dos veces al mismo movimiento;
+- ninguna porción de deuda puede pagarse o devolverse dos veces;
+- ningún Pago rechazado, pendiente o cancelado genera movimiento confirmado.
 
 ## Códigos de error recomendados
 
@@ -278,4 +371,6 @@ Debe mantener al menos:
 - `FINANCE_DUPLICATE_OPERATION`
 - `FINANCE_INVALID_REVERSAL`
 - `FINANCE_DEBT_UNDERFLOW`
+- `FINANCE_PAYMENT_ALLOCATION_INVALID`
+- `FINANCE_REFUND_EXCEEDS_ORIGINAL_CHARGE`
 - `FINANCE_LEDGER_INVARIANT_VIOLATION`
