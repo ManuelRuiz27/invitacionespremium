@@ -1,22 +1,26 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
-
-export interface HealthResponse {
-  status: 'ok';
-  service: 'invitacionespremium-api';
-}
+import {
+  ApiOkResponse,
+  ApiServiceUnavailableResponse,
+  ApiTags
+} from '@nestjs/swagger';
+import { HealthResponseDto } from './health.dto';
+import { HealthService } from './health.service';
 
 @ApiTags('health')
 @Controller('health')
 export class HealthController {
+  constructor(private readonly healthService: HealthService) {}
+
   @Get()
   @ApiOkResponse({
-    description: 'API available'
+    description: 'API and PostgreSQL are available.',
+    type: HealthResponseDto
   })
-  getHealth(): HealthResponse {
-    return {
-      status: 'ok',
-      service: 'invitacionespremium-api'
-    };
+  @ApiServiceUnavailableResponse({
+    description: 'PostgreSQL health check failed.'
+  })
+  getHealth(): Promise<HealthResponseDto> {
+    return this.healthService.getHealth();
   }
 }
