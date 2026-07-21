@@ -40,7 +40,23 @@ jobs:
           package-manager-cache: false
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        id: install
+        continue-on-error: true
+        run: pnpm install --no-frozen-lockfile --reporter=append-only > pnpm-install.log 2>&1
+
+      - name: Upload pnpm install log
+        if: steps.install.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: pnpm-install-log
+          path: pnpm-install.log
+          retention-days: 3
+
+      - name: Stop after install failure
+        if: steps.install.outcome == 'failure'
+        run: |
+          tail -n 80 pnpm-install.log
+          exit 1
 
       - name: Format check
         run: pnpm format:check
