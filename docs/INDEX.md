@@ -35,6 +35,7 @@
 - `14_CODEX_RULES.md`
 - `15_BACKLOG_CODEX.md`
 - `16_BACKLOG_QA_AMENDMENTS.md`
+- `17_QA_OPEN_DECISIONS.md`
 
 ## Documentos especializados de QA
 
@@ -47,6 +48,7 @@ Los siguientes documentos convierten decisiones generales en contratos implement
 - `REALTIME_PAYLOADS.md`: contratos Socket.IO.
 - `15_BACKLOG_CODEX.md`: tareas ejecutables para Codex.
 - `16_BACKLOG_QA_AMENDMENTS.md`: correcciones autoritativas a tareas específicas del backlog hasta su consolidación.
+- `17_QA_OPEN_DECISIONS.md`: bloqueos que exigen decisión explícita y que Codex no puede implementar.
 
 ## Regla de lectura del backlog
 
@@ -55,5 +57,6 @@ Para ejecutar una tarea Codex:
 1. leer `14_CODEX_RULES.md`;
 2. leer la tarea correspondiente en `15_BACKLOG_CODEX.md`;
 3. verificar si está corregida por `16_BACKLOG_QA_AMENDMENTS.md`;
-4. aplicar los contratos especializados del módulo;
-5. detener implementación ante cualquier contradicción no resuelta.
+4. verificar si está bloqueada por `17_QA_OPEN_DECISIONS.md`;
+5. aplicar los contratos especializados del módulo;
+6. detener implementación ante cualquier contradicción no resuelta.
