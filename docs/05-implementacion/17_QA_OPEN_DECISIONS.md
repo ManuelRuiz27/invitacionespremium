@@ -1,142 +1,91 @@
-# Decisiones abiertas de QA documental
+# Registro de decisiones QA documental
 
 ## Objetivo
 
-Registrar contradicciones que no pueden resolverse técnicamente sin modificar una decisión de producto confirmada.
+Registrar contradicciones que requirieron una decisión explícita de producto y conservar su resolución como fuente de verdad.
 
-Mientras una decisión esté `OPEN`, Codex no debe implementar el comportamiento afectado.
+Una decisión con estado `OPEN` bloquea la implementación del alcance afectado. Una decisión `RESOLVED` debe implementarse conforme al contrato especializado indicado.
+
+## Estado general
+
+No existen decisiones QA abiertas bloqueantes.
 
 ## QA-OPEN-001 — Cambio de servicio después de activar
 
-**Estado:** `OPEN`
+**Estado:** `RESOLVED`
 
-**Prioridad:** Bloqueante antes de implementar `POST /events/:eventId/change-service`.
+**Decisión:** Opción B — upgrade limitado después de activar.
 
-## Reglas actualmente en conflicto
+**Aprobación:** decisión explícita del usuario en el proyecto InvitacionesPremium.
 
-### Regla A — Cambios de servicio permitidos
+### Regla aprobada
 
-`05_REGLAS_NEGOCIO.md` define:
+Antes de activar:
 
-- Flyer → Flipbook pagando diferencia;
-- QR pase físico → Flyer/Flipbook pagando diferencia;
-- Flipbook → Flyer sin devolución.
+- el servicio puede cambiarse libremente en `draft`, `configured` o `ready_to_activate`;
+- no existe cargo por diferencia;
+- al activar se cobra el servicio final configurado.
 
-El hecho de cobrar diferencia/no devolver implica que el Evento ya fue activado y cobrado.
+Después de activar:
 
-### Regla B — Diseño congelado al activar
+- solo se permite Flyer → Flipbook;
+- únicamente con Evento `active` y antes de `event_day` según la zona horaria del Evento;
+- el Flipbook se prepara de forma privada;
+- el Flyer continúa público hasta confirmar;
+- se cobra la diferencia con operación financiera idempotente;
+- el cambio de servicio y diseño público ocurre atómicamente;
+- se conservan Contactos, Invitaciones, Asistentes, Confirmaciones, QR y tokens.
 
-La documentación UI/UX, FileAsset y Codex Rules define:
+Quedan fuera del MVP:
 
-- Flyer/Flipbook solo se editan antes de activar;
-- al activar, diseño y orden quedan congelados;
-- no se reemplazan assets en `active`, `event_day`, `closed`, `album_published`, `archived` o `cancelled`.
+- QR pase físico → Flyer/Flipbook;
+- Flipbook → Flyer;
+- downgrades;
+- devoluciones automáticas;
+- cambio en `event_day` o estados posteriores;
+- migraciones que regeneren Contactos, Invitaciones, Asistentes o QR.
 
-### Complejidad adicional
+### Contrato especializado
 
-Cambiar QR pase físico a Flyer/Flipbook después de activar exigiría definir:
+La implementación obligatoria se define en:
 
-- creación/importación de Contactos;
-- generación de Invitaciones/Asistentes;
-- Confirmación de asistencia;
-- tratamiento de pases físicos ya generados/usados;
-- conservación o cancelación de Staff/check-ins;
-- creación privada del nuevo diseño;
-- momento del cambio público;
-- links/tokens que se conservan o regeneran;
-- precio/promoción aplicable;
-- auditoría y reversión ante fallo.
+`docs/02-flujos-reglas/SERVICE_UPGRADE_FLOW.md`
 
-Estas reglas no están definidas y no deben inventarse.
+Ese documento prevalece para:
 
-## Opciones para decisión
+- endpoints del workflow;
+- estados internos de preparación;
+- cotización y diferencia;
+- ledger;
+- FileAssets pendientes;
+- publicación atómica;
+- expiración al llegar `event_day`;
+- permisos, errores y pruebas.
 
-### Opción A — Cambios solo antes de activar
+### Efecto sobre el bloqueo anterior
 
-- El Cliente puede cambiar servicio mientras Evento está `draft`, `configured` o `ready_to_activate`.
-- No hay cargo por diferencia porque aún no existe activación/cobro.
-- Al activar se cobra el servicio final.
-- Se eliminan del MVP las reglas de diferencia/no devolución.
+Se elimina el bloqueo general de `POST /events/:eventId/change-service`.
 
-**Ventaja:** mínima complejidad y compatible con diseño congelado.
+La ruta conceptual original queda sustituida por el workflow explícito:
 
-**Costo:** elimina una capacidad comercial previamente planteada.
+- `POST /events/:eventId/change-service/prepare`;
+- `GET /events/:eventId/change-service`;
+- `POST /events/:eventId/change-service/cancel`;
+- `POST /events/:eventId/change-service/commit`.
 
-### Opción B — Upgrade limitado después de activar
+Codex no debe implementar un endpoint único ambiguo ni transformaciones adicionales.
 
-- Antes de activar: cambios libres.
-- Después de activar y antes de `event_day`: solo Flyer → Flipbook.
-- Se cobra diferencia con operación financiera idempotente.
-- El nuevo Flipbook se configura de forma privada.
-- El cambio público ocurre de forma atómica cuando está completo.
-- Se conservan Invitaciones, Contactos, Asistentes y tokens.
-- No se permiten QR pase físico → digital ni Flipbook → Flyer en MVP.
-
-**Ventaja:** conserva el upgrade comercial más razonable.
-
-**Costo:** requiere excepción documentada al congelamiento, workflow privado y pruebas adicionales.
-
-### Opción C — Cambios post-activación completos
-
-Permite las tres transformaciones originales.
-
-Requiere diseñar formalmente:
-
-- matriz por servicio/estado;
-- migración de datos operativos;
-- cargo/devolución;
-- continuidad de tokens;
-- tratamiento de pases/check-ins;
-- UX de configuración y switch;
-- rollback transaccional.
-
-**Ventaja:** mayor flexibilidad comercial.
-
-**Costo:** alcance y riesgo altos; no recomendable para MVP sin una especificación adicional completa.
-
-## Recomendación QA
-
-**Opción B**: mantener cambios libres antes de activar y permitir únicamente Flyer → Flipbook como upgrade post-activación antes de `event_day`.
-
-Motivos:
-
-- conserva una oportunidad clara de upsell;
-- no exige convertir pases físicos en Invitaciones nominales;
-- mantiene Contactos/Asistentes/tokens existentes;
-- acota el impacto técnico;
-- evita downgrade con comportamiento visual ambiguo.
-
-Esta recomendación no está aprobada hasta decisión explícita del usuario.
-
-## Bloqueo temporal
-
-Hasta resolver QA-OPEN-001:
-
-- `POST /events/:eventId/change-service` permanece documentado pero no implementable;
-- Codex no crea DTO, controller, service, migración, UI ni ledger para cambio de servicio;
-- la creación normal de Evento puede elegir/cambiar servicio antes de activar como parte del wizard, pero no usa el endpoint post-activación;
-- ninguna tarea puede asumir que la diferencia o downgrade están aprobados técnicamente.
-
-## Cierre requerido
-
-Para cerrar esta decisión debe registrarse:
-
-- opción elegida;
-- estados permitidos;
-- transformaciones permitidas;
-- regla de cargo/devolución;
-- assets y datos que se conservan;
-- tratamiento de links/tokens;
-- criterios de aceptación y pruebas;
-- documentos actualizados.
-
-Después de cerrar, eliminar el bloqueo y actualizar:
+### Documentos actualizados o subordinados
 
 - `05_REGLAS_NEGOCIO.md`;
-- `EVENT_STATE_MACHINE.md` si aplica;
-- `LEDGER_TYPES.md` si existe cargo/devolución;
-- `FILE_ASSET_POLICY.md`;
-- `11_API_CONTRACTS.md`;
-- `07_UI_UX_FLOW.md`;
-- `13_PLAN_IMPLEMENTACION.md`;
-- `15_BACKLOG_CODEX.md` o su enmienda.
+- `SERVICE_UPGRADE_FLOW.md`;
+- `EVENT_STATE_MACHINE.md`, que mantiene el Evento en `active` durante el workflow;
+- `LEDGER_TYPES.md`, cuyos tipos existentes se reutilizan con metadata obligatoria;
+- `FILE_ASSET_POLICY.md`, con excepción especializada para assets pendientes;
+- `11_API_CONTRACTS.md`, subordinado al contrato especializado para estas rutas;
+- `07_UI_UX_FLOW.md`, subordinado al flujo del CTA y editor privado;
+- `13_PLAN_IMPLEMENTACION.md` y backlog, subordinados a esta resolución.
+
+## Regla para futuras decisiones
+
+Toda nueva contradicción que no pueda resolverse por jerarquía documental debe agregarse aquí como `OPEN` antes de que Codex implemente el alcance afectado.

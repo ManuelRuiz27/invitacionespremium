@@ -4,11 +4,14 @@
 
 Esta documentación es la fuente de verdad.
 
-Codex no debe inventar entidades, roles, módulos, rutas, estados, permisos, eventos Socket.IO, tipos financieros ni reglas.
+Codex no debe inventar entidades, roles, módulos, repos, rutas, estados, permisos, eventos Socket.IO, tipos financieros ni reglas.
 
-Si una tarea no puede implementarse sin tomar una decisión de producto no documentada, Codex debe detener esa parte, describir el hueco y solicitar corrección documental. No debe resolverlo por intuición.
+Si una tarea requiere una decisión de producto no documentada, Codex debe detener esa parte, describir el hueco y solicitar corrección documental. No debe resolverlo por intuición.
 
-Antes de iniciar cualquier tarea, Codex debe revisar `17_QA_OPEN_DECISIONS.md`. Una capacidad marcada `OPEN` queda bloqueada aunque aparezca en API, plan o backlog.
+Antes de iniciar cualquier tarea, Codex debe revisar `17_QA_OPEN_DECISIONS.md`:
+
+- una decisión `OPEN` bloquea la implementación;
+- una decisión `RESOLVED` obliga a leer y aplicar el contrato especializado señalado.
 
 ## Jerarquía documental
 
@@ -21,18 +24,18 @@ Cuando exista diferencia entre documentos, aplicar en este orden:
 5. `16_BACKLOG_QA_AMENDMENTS.md`, únicamente para las tareas que corrige expresamente;
 6. `15_BACKLOG_CODEX.md`.
 
-El backlog organiza trabajo, pero no puede cambiar reglas de producto. La enmienda QA corrige temporalmente entradas concretas del backlog hasta su consolidación.
-
-`17_QA_OPEN_DECISIONS.md` no agrega una regla alternativa: suspende la implementación del alcance afectado hasta que exista decisión explícita y se actualicen los contratos.
+El backlog organiza trabajo, pero no puede cambiar reglas de producto.
 
 Contratos especializados:
 
-- `EVENT_STATE_MACHINE.md` prevalece para estados/transiciones;
-- `ACCESS_MATRIX.md` prevalece para permisos/ownership;
-- `LEDGER_TYPES.md` prevalece para efectos financieros;
-- `FILE_ASSET_POLICY.md` prevalece para archivos;
-- `REALTIME_PAYLOADS.md` prevalece para Socket.IO;
-- `10_SCHEMA_PRISMA_GUIDE.md` prevalece para restricciones de persistencia compatibles con el modelo conceptual.
+- `EVENT_STATE_MACHINE.md`: estados y transiciones;
+- `SERVICE_UPGRADE_FLOW.md`: upgrade Flyer → Flipbook post-activación;
+- `ACCESS_MATRIX.md`: permisos y ownership;
+- `LEDGER_TYPES.md`: movimientos y efectos financieros;
+- `FILE_ASSET_POLICY.md`: archivos y publicación;
+- `REALTIME_PAYLOADS.md`: Socket.IO;
+- `09_MODELO_DATOS_CONCEPTUAL.md` y `10_SCHEMA_PRISMA_GUIDE.md`: modelo/persistencia;
+- `11_API_CONTRACTS.md`: rutas generales, subordinadas a contratos especializados.
 
 Si dos contratos especializados se contradicen, no implementar hasta corregir documentación.
 
@@ -45,7 +48,6 @@ No crear:
 - módulos fuera del mapa;
 - repos adicionales;
 - pantallas fuera del flujo;
-- archivos sin responsabilidad clara;
 - flujos alternos no aprobados;
 - microservicios no aprobados;
 - app móvil nativa;
@@ -69,12 +71,15 @@ No crear:
 9. Invitación cancelada conserva vista pública de cancelación.
 10. Cancelación bloquea Confirmación, QR, Álbum y check-in según contrato.
 11. Archivado oculta links públicos y no permite reapertura.
-12. Flyer/Flipbook quedan congelados al activar.
-13. No editar/reemplazar diseño en `active`, `event_day`, `closed`, `album_published`, `archived` o `cancelled`.
-14. No implementar transición fuera de `EVENT_STATE_MACHINE.md`.
-15. Evaluar fechas con zona horaria del Evento, no del servidor.
-16. Mientras QA-OPEN-001 siga abierto, no implementar `POST /events/:eventId/change-service` ni cambio post-activación de servicio.
-17. Antes de activar, cambiar selección de servicio forma parte del wizard y se cobra únicamente el servicio final.
+12. Flyer/Flipbook quedan congelados al activar, salvo la excepción explícita de `SERVICE_UPGRADE_FLOW.md`.
+13. La excepción solo permite Flyer → Flipbook con Evento `active` antes de `event_day`.
+14. Durante el upgrade, el Flyer continúa público y el Flipbook permanece privado hasta commit atómico.
+15. No implementar QR pase físico → digital, Flipbook → Flyer ni downgrade en MVP.
+16. No implementar transición fuera de `EVENT_STATE_MACHINE.md`.
+17. Evaluar fechas con zona horaria del Evento, no del servidor.
+18. Antes de activar, cambiar selección de servicio forma parte del wizard y se cobra únicamente el servicio final.
+19. El upgrade post-activación no cambia `event_status`.
+20. Al llegar `event_day`, un upgrade pendiente expira sin cobro.
 
 ## Reglas duras de acceso
 
@@ -97,6 +102,7 @@ No crear:
 17. Staff no ve reportes finales ni dashboard global.
 18. Público no accede a otros Contactos/Invitaciones.
 19. No conceder acceso fuera de `ACCESS_MATRIX.md`.
+20. El upgrade usa el mismo ownership del Evento; Staff, Público y Platform Admin por impersonación quedan excluidos.
 
 ## Reglas duras financieras
 
@@ -117,7 +123,9 @@ No crear:
 15. Refund comercial usa `EVENT_CREDIT_REFUND`; error contable usa `LEDGER_REVERSAL`.
 16. No crear tipos de movimiento fuera de `LEDGER_TYPES.md`.
 17. Toda operación crítica requiere idempotencia.
-18. No crear cargos, diferencias o devoluciones para cambio de servicio mientras QA-OPEN-001 esté abierto.
+18. El upgrade usa `EVENT_ACTIVATION_CHARGE` y/o `CREDIT_LINE_USAGE` con `operationKind=SERVICE_UPGRADE` conforme a `SERVICE_UPGRADE_FLOW.md`.
+19. El upgrade no modifica el cargo original y no genera devolución automática.
+20. La promoción original no se reaplica; una promoción nueva solo aplica si admite upgrades explícitamente.
 
 ## Reglas duras de archivos y reportes
 
@@ -137,7 +145,9 @@ No crear:
 14. Reportes detallados con nombres dejan de estar disponibles 30 días post-Evento.
 15. Historial de seis meses conserva reportes agregados/anónimos.
 16. No publicar ni eliminar archivos fuera de `FILE_ASSET_POLICY.md`.
-17. No crear assets/migraciones de servicio post-activación mientras QA-OPEN-001 esté abierto.
+17. En upgrade, assets Flipbook pendientes permanecen privados y el Flyer activo no se reemplaza antes del commit.
+18. Commit de upgrade cambia referencias de diseño atómicamente con ledger y auditoría.
+19. Cancelar/expirar upgrade oculta assets pendientes sin hard delete inmediato.
 
 ## Reglas duras de tiempo real
 
@@ -151,6 +161,7 @@ No crear:
 8. Consumidores deduplican con `operationId`.
 9. Reconexión revalida identidad, ownership, token y estado.
 10. Pérdida de evento se recupera por snapshot REST.
+11. No emitir evento de upgrade nuevo sin actualizar `REALTIME_PAYLOADS.md`; el MVP puede refrescar por REST después del commit.
 
 ## Privacidad
 
@@ -167,6 +178,7 @@ Implementar dentro de módulos existentes, sin crear módulo nuevo solo para job
 
 - borrador vencido → borrado lógico;
 - `active` → `event_day` por zona horaria;
+- expiración de upgrade pendiente al iniciar `event_day`;
 - expiración/archivo de Álbum;
 - expiración de tokens;
 - anonimización;
@@ -178,11 +190,10 @@ Deben ser idempotentes, auditables cuando cambian negocio y seguros ante ejecuci
 
 ## Contratos especializados obligatorios
 
-Cuando una tarea afecte el área indicada, Codex debe leer y citar en su PR el documento correspondiente:
-
 | Área | Documento obligatorio |
 |---|---|
 | Estados y ciclo del Evento | `docs/02-flujos-reglas/EVENT_STATE_MACHINE.md` |
+| Upgrade Flyer → Flipbook | `docs/02-flujos-reglas/SERVICE_UPGRADE_FLOW.md` |
 | Roles, permisos y ownership | `docs/01-producto/ACCESS_MATRIX.md` |
 | Créditos, deuda, pagos y activación | `docs/02-flujos-reglas/LEDGER_TYPES.md` |
 | Archivos, imágenes, QR y reportes | `docs/04-tecnico/FILE_ASSET_POLICY.md` |
@@ -191,9 +202,9 @@ Cuando una tarea afecte el área indicada, Codex debe leer y citar en su PR el d
 | API | `docs/04-tecnico/11_API_CONTRACTS.md` |
 | Orden de implementación | `docs/05-implementacion/15_BACKLOG_CODEX.md` |
 | Correcciones al backlog | `docs/05-implementacion/16_BACKLOG_QA_AMENDMENTS.md` |
-| Bloqueos abiertos | `docs/05-implementacion/17_QA_OPEN_DECISIONS.md` |
+| Decisiones QA | `docs/05-implementacion/17_QA_OPEN_DECISIONS.md` |
 
-Toda tarea debe verificar si su ID aparece en `16_BACKLOG_QA_AMENDMENTS.md` y si su alcance está bloqueado en `17_QA_OPEN_DECISIONS.md`.
+Toda tarea debe verificar si su ID aparece en la enmienda y si existe una decisión QA aplicable.
 
 ## Naming obligatorio
 
@@ -251,6 +262,8 @@ No usar `Invitado` como entidad técnica.
 - RealtimeModule
 - DemoModule
 
+El upgrade se implementa dentro de `EventsModule`, `InvitationDesignModule`, `FinanceModule`, `FileAssetsModule` y `AuditModule`; no crea un módulo nuevo.
+
 ## Validaciones obligatorias
 
 - máximo 150 Contactos/Invitaciones por Evento;
@@ -266,17 +279,19 @@ No usar `Invitado` como entidad técnica.
 - token de Álbum separado, elegible y vigente;
 - idempotencia financiera;
 - ownership en backend;
-- anonimización y ventana de reportes.
+- anonimización y ventana de reportes;
+- upgrade solo Flyer → Flipbook en `active` antes de `event_day`;
+- commit de upgrade atómico e idempotente.
 
 ## Flujo de trabajo Codex
 
 1. Ejecutar una tarea pequeña del backlog por rama/PR.
 2. Leer documentos obligatorios antes de editar.
-3. Buscar el ID de tarea en `16_BACKLOG_QA_AMENDMENTS.md` y aplicar la corrección si existe.
-4. Buscar el alcance en `17_QA_OPEN_DECISIONS.md`; detenerse si está `OPEN`.
+3. Buscar el ID de tarea en `16_BACKLOG_QA_AMENDMENTS.md`.
+4. Revisar `17_QA_OPEN_DECISIONS.md` y aplicar la resolución/contrato correspondiente.
 5. Declarar alcance y fuera de alcance.
 6. Identificar entidades, módulos, endpoints y reglas afectadas.
-7. Implementar pruebas junto con cambio.
+7. Implementar pruebas junto con el cambio.
 8. Actualizar OpenAPI si cambia API.
 9. Crear migración si cambia schema.
 10. Actualizar `.env.example` si agrega configuración.
@@ -297,7 +312,7 @@ Todo cambio debe poder responder:
 6. ¿Qué regla valida?
 7. ¿Qué tarea de `15_BACKLOG_CODEX.md` ejecuta?
 8. ¿Existe enmienda en `16_BACKLOG_QA_AMENDMENTS.md`?
-9. ¿Existe decisión `OPEN` relacionada?
+9. ¿Existe decisión QA relacionada y cuál es su estado?
 10. ¿Qué pruebas demuestran aceptación?
 11. ¿Cambió OpenAPI, Prisma, variables o migraciones?
 12. ¿Introdujo una decisión no documentada?
