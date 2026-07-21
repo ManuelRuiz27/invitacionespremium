@@ -60,20 +60,23 @@
 
 1. Recibe WhatsApp:
    `Hola [Nombre], [Mensaje emotivo], mira nuestra invitación digital y confirma aquí: [link]`
-2. Abre link único.
-3. Ve invitación.
-4. Confirma asistencia o rechaza.
-5. Si confirma, registra nombres de acompañantes/familia nominal según aplique.
-6. Al confirmar, ve QR.
-7. Puede abrir QR en pantalla completa.
-8. Puede modificar respuesta mientras Confirmación de asistencia esté abierta.
-9. Después del evento, ve álbum si su Invitación tuvo al menos un Asistente ingresado.
+2. Abre el link único de Invitación.
+3. El sistema valida token, Evento e Invitación.
+4. Si el Evento o la Invitación fueron cancelados, muestra únicamente el mensaje de cancelación y detiene el flujo.
+5. Si el acceso es válido, muestra la invitación.
+6. Confirma asistencia o rechaza mientras la Confirmación esté abierta.
+7. Si confirma, registra nombres de acompañantes/familia nominal según aplique.
+8. Al confirmar, ve QR.
+9. Puede abrir QR en pantalla completa.
+10. Puede modificar respuesta mientras la Confirmación de asistencia esté abierta.
+11. Después del evento, si su Invitación tuvo al menos un Asistente ingresado y el álbum está publicado, la experiencia puede mostrar un link de Álbum con token separado.
+12. El token de Invitación no sustituye al token de Álbum.
 
 ## Flujo Staff por token
 
 1. Recibe link token.
 2. Abre microapp scanner sin login.
-3. Valida token.
+3. Valida token y confirma que el Evento esté `active` o `event_day`.
 4. Escanea QR.
 5. Ve Contacto/Invitación y Asistentes pendientes.
 6. Selecciona quién entra.
@@ -81,6 +84,7 @@
 8. Si hay croquis, ve plano y mesa.
 9. No ve teléfonos.
 10. No ve reportes.
+11. Al cerrar o cancelar el Evento, el token expira y deja de operar.
 
 ## Flujo QR pase físico
 
@@ -96,13 +100,15 @@
 ## Flujo álbum post-evento
 
 1. Planner puede crear álbum antes del cierre.
-2. Publica manualmente.
+2. Publica manualmente después del cierre.
 3. Hasta 35 fotos JPG/PNG.
 4. Link externo opcional.
-5. Token de álbum distinto al token de invitación.
-6. Visible durante 30 días.
-7. Oculto al archivar.
-8. Invitación sin asistencia ve: `Álbum disponible solo para asistentes`.
+5. El sistema genera tokens de Álbum separados para Invitaciones elegibles.
+6. Es elegible una Invitación con al menos un Asistente ingresado.
+7. Invitación sin asistencia ve: `Álbum disponible solo para asistentes`.
+8. El acceso público dura 30 días desde la publicación.
+9. El archivado anticipado lo oculta inmediatamente.
+10. Al vencer los 30 días, el Evento se archiva y los tokens de Álbum expiran.
 
 ## Flujo demo
 
