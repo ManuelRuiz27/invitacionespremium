@@ -14,11 +14,11 @@ Este documento complementa `05_REGLAS_NEGOCIO.md`. No sustituye la diferencia en
 | `configured` | En preparación | Configuración suficiente para continuar, pero todavía no cumple todos los requisitos de activación. Este estado puede permanecer oculto en UI. |
 | `ready_to_activate` | Listo para activar | Cumple todos los requisitos funcionales para activarse. |
 | `active` | Activo | Evento cobrado y habilitado para enviar invitaciones, confirmar asistencia y generar accesos de staff. |
-| `event_day` | Día del evento | Evento activo cuya fecha/hora operativa corresponde al día del evento. |
+| `event_day` | Día del evento | Evento activo cuya fecha local corresponde al día del evento. |
 | `closed` | Cerrado | Check-in bloqueado. Puede reabrirse mientras no esté archivado. |
 | `album_published` | Álbum publicado | Evento cerrado con álbum público publicado. |
 | `archived` | Archivado | Estado final. Links públicos ocultos y sin reapertura. |
-| `cancelled` | Cancelado | Evento cancelado; confirmación, QR y tokens quedan bloqueados. Conserva datos. |
+| `cancelled` | Cancelado | Evento cancelado; confirmación, QR y tokens quedan bloqueados. Conserva datos y muestra el mensaje público de cancelación. |
 
 ## Reglas generales
 
@@ -30,6 +30,9 @@ Este documento complementa `05_REGLAS_NEGOCIO.md`. No sustituye la diferencia en
 6. `configured` y `ready_to_activate` pueden recalcularse por backend cuando cambia la configuración.
 7. `event_day` no habilita permisos nuevos: conserva las reglas operativas de un Evento activo y habilita la operación del día del evento.
 8. `archived` y `cancelled` son estados terminales para la operación normal.
+9. Toda comparación temporal usa la zona horaria configurada en el Evento. La condición semántica de `event_day` es que la fecha local actual sea igual a la fecha local del Evento; el mecanismo técnico puede ser un proceso programado o una recalculación controlada en backend.
+10. `cancelled` conserva una vista pública mínima para mostrar el mensaje de cancelación. No habilita Confirmación, QR, álbum ni check-in.
+11. `archived` oculta los accesos públicos de Invitación y Álbum.
 
 ## Requisitos para estar listo para activar
 
@@ -64,19 +67,20 @@ Este documento complementa `05_REGLAS_NEGOCIO.md`. No sustituye la diferencia en
 | `configured` | Cumplir todos los requisitos de activación | `ready_to_activate` | Sistema | Checklist completo y capacidad financiera disponible | No consumir créditos todavía. |
 | `ready_to_activate` | Dejar de cumplir algún requisito | `configured` | Sistema | Recalcular checklist | No consumir créditos. |
 | `ready_to_activate` | Activar evento | `active` | Planner independiente, Admin de Organización o Planner de Organización autorizado sobre el Evento | Ownership, Cliente activo, saldo/línea, precio vigente, promoción aplicable, validaciones del servicio | Registrar cobro, ledger, comprobante interno, auditoría y habilitar invitaciones/tokens. |
-| `active` | Llegar al día operativo del evento | `event_day` | Sistema | Fecha/hora y zona horaria del Evento | Auditar la transición y no duplicar cobros. No crear un evento Socket.IO adicional sin documentarlo en `REALTIME_PAYLOADS.md`. |
+| `active` | La fecha local actual alcanza la fecha del Evento | `event_day` | Sistema | Zona horaria y fecha del Evento | Auditar la transición y no duplicar cobros. No crear un evento Socket.IO adicional sin documentarlo en `REALTIME_PAYLOADS.md`. |
 | `active` | Cerrar operación | `closed` | Planner independiente, Admin de Organización o Planner de Organización autorizado | Evento no archivado/cancelado | Bloquear check-in y expirar tokens staff. |
 | `event_day` | Cerrar operación | `closed` | Planner independiente, Admin de Organización o Planner de Organización autorizado | Evento no archivado/cancelado | Bloquear check-in y expirar tokens staff. |
-| `closed` | Reabrir antes de archivar | `active` o `event_day` | Planner independiente, Admin de Organización o Planner de Organización autorizado | No archivado, no cancelado; elegir destino según fecha/hora actual | Reactivar check-in y generar auditoría. Los tokens expirados no se reactivan automáticamente; deben aplicarse las reglas vigentes de acceso staff. |
-| `closed` | Publicar álbum | `album_published` | Planner independiente, Admin de Organización o Planner de Organización autorizado | Servicio permite álbum, álbum válido y evento cerrado | Publicar token de álbum, fijar fecha de publicación y expiración. |
-| `album_published` | Retirar publicación del álbum | `closed` | Planner independiente, Admin de Organización o Planner de Organización autorizado | Evento no archivado | Ocultar acceso público al álbum y auditar. |
+| `closed` | Reabrir antes de archivar | `active` o `event_day` | Planner independiente, Admin de Organización o Planner de Organización autorizado | No archivado, no cancelado; elegir destino con la fecha local actual | Reactivar check-in y auditar. Los tokens expirados permanecen expirados; se pueden crear nuevos tokens conforme a StaffAccess. El máximo es tres tokens activos por Evento. |
+| `closed` | Publicar álbum | `album_published` | Planner independiente, Admin de Organización o Planner de Organización autorizado | Servicio permite álbum, álbum válido y Evento cerrado | Generar tokens de álbum separados para Invitaciones elegibles, fijar publicación y expiración a 30 días. |
+| `album_published` | Retirar publicación del álbum | `closed` | Planner independiente, Admin de Organización o Planner de Organización autorizado | Evento no archivado | Expirar tokens de álbum, ocultar acceso público y auditar. |
+| `album_published` | Alcanzar la expiración de 30 días | `archived` | Sistema | `album_expires_at` alcanzado | Expirar tokens de álbum, ocultar Invitación y Álbum públicos, auditar y bloquear reapertura. |
 | `closed` | Archivar | `archived` | Planner independiente, Admin de Organización o Planner de Organización autorizado | Evento cerrado | Ocultar links públicos y bloquear reapertura. |
-| `album_published` | Archivar | `archived` | Planner independiente, Admin de Organización o Planner de Organización autorizado | Evento con álbum publicado | Ocultar invitación y álbum públicos; bloquear reapertura. |
+| `album_published` | Archivar anticipadamente | `archived` | Planner independiente, Admin de Organización o Planner de Organización autorizado | Evento con álbum publicado | Expirar tokens de álbum, ocultar Invitación y Álbum públicos y bloquear reapertura. |
 | `draft` | Cancelar | `cancelled` | Planner independiente, Admin de Organización o Planner de Organización autorizado | Ownership | Conservar datos y auditar. No hay devolución automática. |
 | `configured` | Cancelar | `cancelled` | Planner independiente, Admin de Organización o Planner de Organización autorizado | Ownership | Conservar datos y auditar. No hay devolución automática. |
 | `ready_to_activate` | Cancelar | `cancelled` | Planner independiente, Admin de Organización o Planner de Organización autorizado | Ownership | Conservar datos y auditar. No hay devolución automática. |
-| `active` | Cancelar | `cancelled` | Planner independiente, Admin de Organización o Planner de Organización autorizado | Ownership | Bloquear confirmación y QR, expirar/revocar tokens, mostrar mensaje público. Devolución solo manual por Platform Admin. |
-| `event_day` | Cancelar | `cancelled` | Planner independiente, Admin de Organización o Planner de Organización autorizado | Ownership | Bloquear check-in, confirmación y QR; expirar/revocar tokens. Devolución solo manual por Platform Admin. |
+| `active` | Cancelar | `cancelled` | Planner independiente, Admin de Organización o Planner de Organización autorizado | Ownership | Bloquear Confirmación y QR, expirar tokens staff y mostrar mensaje público. Devolución solo manual por Platform Admin. |
+| `event_day` | Cancelar | `cancelled` | Planner independiente, Admin de Organización o Planner de Organización autorizado | Ownership | Bloquear check-in, Confirmación y QR; expirar tokens staff y mostrar mensaje público. Devolución solo manual por Platform Admin. |
 
 ## Transiciones prohibidas
 
