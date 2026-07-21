@@ -38,12 +38,12 @@ En caso de diferencia:
 
 1. corrección explícita más reciente aprobada por el usuario;
 2. contrato especializado del área;
-3. documento base;
-4. plan interno de implementación;
-5. backlog;
-6. enmienda QA del backlog para los puntos que corrige expresamente.
+3. documento base de producto/técnico;
+4. `13_PLAN_IMPLEMENTACION.md`;
+5. `16_BACKLOG_QA_AMENDMENTS.md`, únicamente para las tareas que corrige expresamente;
+6. `15_BACKLOG_CODEX.md`.
 
-Para una tarea afectada por `16_BACKLOG_QA_AMENDMENTS.md`, la enmienda prevalece sobre el texto contradictorio de `15_BACKLOG_CODEX.md` hasta su consolidación.
+Si dos contratos especializados se contradicen, no se implementa hasta corregir documentación.
 
 ## Alcance
 
