@@ -24,26 +24,66 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 11.15.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
-          cache: pnpm
+          package-manager-cache: false
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        id: install
+        continue-on-error: true
+        run: pnpm install --no-frozen-lockfile --reporter=append-only > pnpm-install.log 2>&1
+
+      - name: Upload pnpm install log
+        if: steps.install.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: pnpm-install-log
+          path: pnpm-install.log
+          retention-days: 3
+
+      - name: Stop after install failure
+        if: steps.install.outcome == 'failure'
+        run: |
+          tail -n 80 pnpm-install.log
+          exit 1
 
       - name: Format check
-        run: pnpm format:check
+        id: format
+        continue-on-error: true
+        run: pnpm format:check > prettier-check.log 2>&1
+
+      - name: Generate Prettier patch
+        if: steps.format.outcome == 'failure'
+        run: |
+          pnpm format
+          git diff --binary -- . ':!pnpm-lock.yaml' > prettier.patch
+
+      - name: Upload Prettier diagnostics
+        if: steps.format.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: prettier-diagnostics
+          path: |
+            prettier-check.log
+            prettier.patch
+          retention-days: 3
+
+      - name: Stop after format failure
+        if: steps.format.outcome == 'failure'
+        run: |
+          cat prettier-check.log
+          exit 1
 
       - name: Lint
         run: pnpm lint

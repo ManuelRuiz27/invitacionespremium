@@ -1,14 +1,5 @@
 import type { ReactNode } from 'react';
-import {
-  Box,
-  Chip,
-  Container,
-  CssBaseline,
-  Paper,
-  Stack,
-  ThemeProvider,
-  Typography
-} from '@mui/material';
+import { Box, Chip, Container, CssBaseline, Paper, Stack, ThemeProvider, Typography } from '@mui/material';
 import { appTheme } from './theme';
 
 export interface AppFrameProps {
