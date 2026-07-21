@@ -12,3 +12,4 @@ packages/*/.env
 .DS_Store
 *.log
 apps/api/src/generated/prisma/
+apps/api/openapi/openapi.json
