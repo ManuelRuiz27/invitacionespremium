@@ -30,12 +30,26 @@ No se deben inventar entidades, roles, módulos, estados, reglas, permisos ni fl
 18. `docs/05-implementacion/13_PLAN_IMPLEMENTACION.md`
 19. `docs/05-implementacion/14_CODEX_RULES.md`
 20. `docs/05-implementacion/15_BACKLOG_CODEX.md`
+21. `docs/05-implementacion/16_BACKLOG_QA_AMENDMENTS.md`
+
+## Jerarquía
+
+En caso de diferencia:
+
+1. corrección explícita más reciente aprobada por el usuario;
+2. contrato especializado del área;
+3. documento base;
+4. plan interno de implementación;
+5. backlog;
+6. enmienda QA del backlog para los puntos que corrige expresamente.
+
+Para una tarea afectada por `16_BACKLOG_QA_AMENDMENTS.md`, la enmienda prevalece sobre el texto contradictorio de `15_BACKLOG_CODEX.md` hasta su consolidación.
 
 ## Alcance
 
 Primero se consolida la documentación fuente de verdad. Después se crean los repos de código y se implementa el producto por módulos con Codex.
 
-`13_PLAN_IMPLEMENTACION.md` describe el orden de construcción interno del producto. `15_BACKLOG_CODEX.md` convierte ese plan en tareas ejecutables y verificables.
+`13_PLAN_IMPLEMENTACION.md` describe el orden de construcción interno del producto. `15_BACKLOG_CODEX.md` convierte ese plan en tareas ejecutables y verificables. `16_BACKLOG_QA_AMENDMENTS.md` corrige tareas específicas detectadas durante QA sin renumerar el backlog.
 
 ## Repos previstos
 
@@ -48,4 +62,4 @@ Primero se consolida la documentación fuente de verdad. Después se crean los r
 
 ## Regla de cambio
 
-Cualquier cambio que afecte roles, estados, finanzas, archivos o tiempo real debe actualizar primero el documento especializado correspondiente antes de modificar código.
+Cualquier cambio que afecte roles, estados, finanzas, archivos, privacidad o tiempo real debe actualizar primero el documento especializado correspondiente antes de modificar código.
