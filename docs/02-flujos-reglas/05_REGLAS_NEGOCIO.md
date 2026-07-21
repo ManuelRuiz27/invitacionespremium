@@ -1,46 +1,58 @@
 # 05 — Reglas de negocio
 
-## Activación de evento
+## Activación de Evento
 
-Un evento se cobra al activar.
+Un Evento se cobra al activar.
 
 No puede activarse si no hay:
 
 - datos mínimos;
 - servicio contratado;
-- configuración de invitación, si aplica;
-- contactos, si aplica;
-- confirmación de asistencia configurada, si aplica;
+- configuración de Invitación, si aplica;
+- Contactos, si aplica;
+- Confirmación de asistencia configurada, si aplica;
 - saldo suficiente o línea de crédito disponible.
 
-## Croquis/mesas
+## Croquis/Mesas
 
-El módulo croquis/mesas se activa por evento.
+El módulo Croquis/Mesas se activa por Evento.
 
 Si está activo:
 
-- los confirmados deben tener mesa antes del día del evento;
-- no se permite exceder capacidad de mesa;
-- las mesas se bloquean al activar el evento;
+- los confirmados deben tener Mesa antes del día del Evento;
+- no se permite exceder capacidad de Mesa;
+- las Mesas se bloquean al activar el Evento;
 - Owner/Admin correspondiente puede desbloquear con auditoría según permisos definidos.
 
 ## Cambio de servicio contratado
 
-- Flyer → Flipbook: permitido pagando diferencia antes del cambio.
-- QR pase físico → Flyer/Flipbook: permitido pagando diferencia antes del cambio.
-- Flipbook → Flyer: permitido sin devolución.
-- Si no hay saldo, puede comprar créditos o usar línea activa.
+Se han planteado estas transformaciones:
+
+- Flyer → Flipbook pagando diferencia;
+- QR pase físico → Flyer/Flipbook pagando diferencia;
+- Flipbook → Flyer sin devolución.
+
+Sin embargo, su aplicación después de activar contradice el congelamiento confirmado de Flyer/Flipbook y exige reglas de migración aún no definidas.
+
+**Estado QA:** bloqueado conforme a `docs/05-implementacion/17_QA_OPEN_DECISIONS.md`.
+
+Hasta cerrar QA-OPEN-001:
+
+- antes de activar, el wizard puede cambiar el servicio seleccionado y se cobra únicamente el servicio final al activar;
+- después de activar, `POST /events/:eventId/change-service` no debe implementarse ni exponerse en UI;
+- no cobrar diferencia, devolver créditos ni migrar datos entre servicios por una regla inferida;
+- Codex debe detener cualquier tarea que requiera este comportamiento.
 
 ## Confirmación de asistencia
 
 - El Contacto puede confirmar o rechazar.
 - Si rechaza, puede cambiar mientras esté abierta.
-- Si confirma, puede reducir asistentes mientras esté abierta.
-- Si confirma, puede aumentar asistentes si:
+- Si confirma, puede reducir Asistentes mientras esté abierta.
+- Si confirma, puede aumentar Asistentes si:
   - la Confirmación está abierta;
   - su Invitación lo permite;
   - hay cupo.
-- Si está cerrada, solo Planner puede modificar.
+- Si está cerrada, solo Planner/Admin autorizado puede modificar.
 
 ## QR e Invitación cancelada
 
@@ -58,9 +70,9 @@ Si alguien reenvía el link, se permite abrir, pero solo puede confirmar con dat
 
 MVP usa token largo no adivinable.
 
-## Límite de contactos
+## Límite de Contactos
 
-Máximo 150 contactos/invitaciones por evento.
+Máximo 150 Contactos/Invitaciones por Evento.
 
 CSV con más de 150 se bloquea.
 
@@ -84,10 +96,10 @@ Staff:
 - no ve teléfonos;
 - no registra extra anónimo;
 - no revierte check-in;
-- no ve asistencia en tiempo real;
+- no ve asistencia en tiempo real global;
 - no ve reportes finales;
 - solo puede operar con Evento `active` o `event_day`;
-- usa máximo tres tokens activos por Evento;
+- usa máximo tres StaffTokens activos por Evento;
 - conserva expirados solo para trazabilidad, sin reactivarlos automáticamente.
 
 ## Check-in
@@ -95,21 +107,21 @@ Staff:
 - Un Asistente solo puede tener un check-in válido.
 - Reversión no elimina el registro; lo marca como revertido y audita.
 - No requiere motivo obligatorio.
-- Cambio de mesa posterior al ingreso queda auditado; no requiere motivo obligatorio.
+- Cambio de Mesa posterior al ingreso queda auditado; no requiere motivo obligatorio.
 
 ## Evento cerrado
 
 - Bloquea check-in.
-- Expira los tokens Staff activos.
+- Expira los StaffTokens activos.
 - Planner/Admin puede reabrir antes de archivado.
-- Reabrir no reactiva automáticamente tokens Staff expirados.
-- Puede cerrarse sin álbum.
+- Reabrir no reactiva automáticamente StaffTokens expirados.
+- Puede cerrarse sin Álbum.
 
 ## Archivado
 
 - Estado final.
 - Oculta links públicos de Invitación y Álbum.
-- Expira tokens públicos de Álbum y tokens Staff vigentes.
+- Expira tokens públicos de Álbum y StaffTokens vigentes.
 - Ya no puede reabrirse.
 
 ## Cancelado
@@ -117,13 +129,13 @@ Staff:
 - Mantiene accesible una vista pública mínima con el mensaje de cancelación.
 - Bloquea Confirmación.
 - Bloquea QR y check-in.
-- Expira tokens Staff y de Álbum.
+- Expira StaffTokens y tokens de Álbum.
 - El token de Invitación solo sirve para mostrar el mensaje de cancelación.
 - No elimina datos.
 
 ## Borrado lógico
 
-Planner puede eliminar evento con borrado lógico.
+Planner puede eliminar Evento con borrado lógico conforme a estado y permisos.
 
 Efecto:
 
@@ -134,7 +146,7 @@ Efecto:
 
 ## Borrador vencido
 
-Si evento queda en borrador y pasa la fecha sin activarse:
+Si Evento queda en borrador y pasa la fecha sin activarse:
 
 - borrado lógico automático;
 - no eliminación definitiva.
@@ -143,7 +155,7 @@ Si evento queda en borrador y pasa la fecha sin activarse:
 
 - Flyer: 35 fotos.
 - Flipbook: 35 fotos.
-- QR pase físico: sin álbum.
+- QR pase físico: sin Álbum.
 - Se crea antes del cierre y se publica manualmente después del cierre.
 - Usa token de Álbum distinto del token de Invitación.
 - Al publicar se genera un token de Álbum para cada Invitación elegible.
@@ -155,7 +167,7 @@ Si evento queda en borrador y pasa la fecha sin activarse:
 
 ## Privacidad
 
-Después de 30 días post-evento:
+Después de 30 días post-Evento:
 
 - anonimizar nombres;
 - anonimizar teléfonos;
@@ -163,4 +175,10 @@ Después de 30 días post-evento:
 
 ## Regla de contradicción
 
-Si en documentación futura aparece contradicción, prevalece la primera regla confirmada, salvo corrección explícita del usuario.
+Si aparece una contradicción:
+
+1. prevalece la corrección explícita más reciente del usuario;
+2. después el contrato especializado aplicable;
+3. la implementación se detiene si no puede resolverse con esa jerarquía.
+
+No usar esta regla para inventar una decisión faltante.
