@@ -11,7 +11,7 @@ on:
   pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -62,24 +62,13 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
-          package-manager-cache: false
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
         id: install
         continue-on-error: true
-        run: pnpm install --no-frozen-lockfile --reporter=append-only > pnpm-install.log 2>&1
-
-      - name: Commit updated lockfile
-        if: github.event_name == 'push' && github.ref == 'refs/heads/feat/codex-010-api-foundation' && steps.install.outcome == 'success'
-        run: |
-          if [ -z "$(git status --porcelain -- pnpm-lock.yaml)" ]; then
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add pnpm-lock.yaml
-          git commit -m "chore(deps): update lockfile for CODEX-010"
-          git push
+        run: pnpm install --frozen-lockfile --reporter=append-only > pnpm-install.log 2>&1
 
       - name: Upload pnpm install log
         if: steps.install.outcome == 'failure'
@@ -108,15 +97,6 @@ jobs:
         run: |
           pnpm format
           git diff --binary -- . ':!pnpm-lock.yaml' > prettier.patch
-
-      - name: Commit formatted files
-        if: github.event_name == 'push' && github.ref == 'refs/heads/feat/codex-010-api-foundation' && steps.format.outcome == 'failure'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -u
-          git commit -m "style: format CODEX-010 files"
-          git push
 
       - name: Upload Prettier diagnostics
         if: steps.format.outcome == 'failure'
