@@ -34,6 +34,7 @@
 - `13_PLAN_IMPLEMENTACION.md`
 - `14_CODEX_RULES.md`
 - `15_BACKLOG_CODEX.md`
+- `16_BACKLOG_QA_AMENDMENTS.md`
 
 ## Documentos especializados de QA
 
@@ -45,3 +46,14 @@ Los siguientes documentos convierten decisiones generales en contratos implement
 - `FILE_ASSET_POLICY.md`: ownership y ciclo de vida de archivos.
 - `REALTIME_PAYLOADS.md`: contratos Socket.IO.
 - `15_BACKLOG_CODEX.md`: tareas ejecutables para Codex.
+- `16_BACKLOG_QA_AMENDMENTS.md`: correcciones autoritativas a tareas específicas del backlog hasta su consolidación.
+
+## Regla de lectura del backlog
+
+Para ejecutar una tarea Codex:
+
+1. leer `14_CODEX_RULES.md`;
+2. leer la tarea correspondiente en `15_BACKLOG_CODEX.md`;
+3. verificar si está corregida por `16_BACKLOG_QA_AMENDMENTS.md`;
+4. aplicar los contratos especializados del módulo;
+5. detener implementación ante cualquier contradicción no resuelta.
