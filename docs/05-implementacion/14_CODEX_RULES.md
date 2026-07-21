@@ -44,6 +44,25 @@ No crear:
 23. No implementar impersonación.
 24. No separar salón/jardín/agencia como entidades distintas.
 25. Organización cubre salón, jardín, agencia, empresa u otro cliente comercial.
+26. No implementar una transición de Evento fuera de `EVENT_STATE_MACHINE.md`.
+27. No conceder acceso fuera de `ACCESS_MATRIX.md`.
+28. No crear tipos de movimiento financiero fuera de `LEDGER_TYPES.md`.
+29. No subir, publicar ni eliminar archivos fuera de `FILE_ASSET_POLICY.md`.
+30. No emitir eventos Socket.IO o payloads fuera de `REALTIME_PAYLOADS.md`.
+31. No iniciar una tarea Codex que no cumpla las dependencias y criterios de `15_BACKLOG_CODEX.md`.
+
+## Contratos especializados obligatorios
+
+Cuando una tarea afecte el área indicada, Codex debe leer y citar en su PR el documento correspondiente:
+
+| Área | Documento obligatorio |
+|---|---|
+| Estados y ciclo del Evento | `docs/02-flujos-reglas/EVENT_STATE_MACHINE.md` |
+| Roles, permisos y ownership | `docs/01-producto/ACCESS_MATRIX.md` |
+| Créditos, deuda, pagos y activación | `docs/02-flujos-reglas/LEDGER_TYPES.md` |
+| Archivos, imágenes, QR y reportes | `docs/04-tecnico/FILE_ASSET_POLICY.md` |
+| Socket.IO | `docs/04-tecnico/REALTIME_PAYLOADS.md` |
+| Orden de implementación | `docs/05-implementacion/15_BACKLOG_CODEX.md` |
 
 ## Naming obligatorio
 
@@ -117,3 +136,5 @@ Todo cambio debe poder responder:
 3. ¿Qué módulo lo contiene?
 4. ¿Qué entidad afecta?
 5. ¿Qué regla de negocio valida?
+6. ¿Qué contrato especializado aplica?
+7. ¿Qué tarea de `15_BACKLOG_CODEX.md` está ejecutando?
