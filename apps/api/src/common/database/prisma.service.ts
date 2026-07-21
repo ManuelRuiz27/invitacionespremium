@@ -1,5 +1,11 @@
 import { PrismaPg } from '@prisma/adapter-pg';
-import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  type OnModuleDestroy,
+  type OnModuleInit
+} from '@nestjs/common';
 import { AppConfigService } from '../../config/app-config.service';
 import { PrismaClient } from '../../generated/prisma/client';
 
@@ -7,7 +13,7 @@ import { PrismaClient } from '../../generated/prisma/client';
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
 
-  constructor(config: AppConfigService) {
+  constructor(@Inject(AppConfigService) config: AppConfigService) {
     const adapter = new PrismaPg({
       connectionString: config.databaseUrl,
       max: config.databasePoolMax,
