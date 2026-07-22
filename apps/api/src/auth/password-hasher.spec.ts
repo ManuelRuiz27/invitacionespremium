@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hashPassword, verifyPassword } from './password-hasher';
+import { DUMMY_PASSWORD_HASH, hashPassword, verifyPassword } from './password-hasher';
 
 describe('password hashing', () => {
   it('creates salted scrypt hashes and validates the original password', async () => {
@@ -10,6 +10,13 @@ describe('password hashing', () => {
     expect(second).not.toBe(first);
     await expect(verifyPassword('correct horse battery staple', first)).resolves.toBe(true);
     await expect(verifyPassword('wrong password', first)).resolves.toBe(false);
+  });
+
+  it('executes the dummy hash path used for unknown login identifiers', async () => {
+    await expect(
+      verifyPassword('invalid-login-password', DUMMY_PASSWORD_HASH)
+    ).resolves.toBe(true);
+    await expect(verifyPassword('another-password', DUMMY_PASSWORD_HASH)).resolves.toBe(false);
   });
 
   it('rejects malformed or unsupported hashes without throwing', async () => {
