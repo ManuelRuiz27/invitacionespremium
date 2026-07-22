@@ -1,7 +1,6 @@
 import type { AuditObject } from './audit.types';
 
-const SENSITIVE_KEY_PATTERN =
-  /(authorization|cookie|password|secret|token|phone|telefono|teléfono|whatsapp)/i;
+const SENSITIVE_KEY_PATTERN = /(authorization|cookie|password|secret|token|phone|telefono|teléfono|whatsapp)/i;
 
 export function sanitizeAuditObject(input: AuditObject): AuditObject {
   return sanitizeObject(input);
@@ -27,12 +26,7 @@ function sanitizeObject(input: Record<string, unknown>): Record<string, unknown>
 }
 
 function sanitizeValue(value: unknown): unknown {
-  if (
-    value === null ||
-    typeof value === 'string' ||
-    typeof value === 'number' ||
-    typeof value === 'boolean'
-  ) {
+  if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
     return value;
   }
 
@@ -45,9 +39,7 @@ function sanitizeValue(value: unknown): unknown {
   }
 
   if (Array.isArray(value)) {
-    return value
-      .filter((item) => item !== undefined)
-      .map((item) => sanitizeValue(item));
+    return value.filter((item) => item !== undefined).map((item) => sanitizeValue(item));
   }
 
   if (typeof value === 'object') {
