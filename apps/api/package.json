@@ -15,6 +15,7 @@
     "db:validate": "prisma validate",
     "db:format": "prisma format",
     "db:migrate:deploy": "prisma migrate deploy",
+    "auth:seed-local-admin": "prisma generate && tsx scripts/seed-local-admin.ts",
     "openapi:generate": "prisma generate && tsx scripts/generate-openapi.ts"
   },
   "dependencies": {
