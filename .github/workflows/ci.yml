@@ -87,6 +87,9 @@ jobs:
       - name: Validate Prisma schema
         run: pnpm --filter @invitaciones/api db:validate
 
+      - name: Apply Prisma migrations
+        run: pnpm --filter @invitaciones/api db:migrate:deploy
+
       - name: Format check
         id: format
         continue-on-error: true
