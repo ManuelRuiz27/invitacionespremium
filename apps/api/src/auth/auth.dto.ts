@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import { z } from 'zod';
 import { UserRole } from '../generated/prisma/client';
 
@@ -26,7 +26,7 @@ export class AuthUserDto {
   @ApiProperty({ enum: UserRole })
   role!: UserRole;
 
-  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  @ApiProperty({ format: 'uuid', nullable: true })
   clientId!: string | null;
 }
 
