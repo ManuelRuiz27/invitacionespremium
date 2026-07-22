@@ -8,12 +8,7 @@ import { HealthController } from './health/health.controller';
 import { HealthService } from './health/health.service';
 
 @Module({
-  imports: [
-    AppConfigModule,
-    DatabaseModule,
-    AuditModule,
-    ScheduleModule.forRoot()
-  ],
+  imports: [AppConfigModule, DatabaseModule, AuditModule, ScheduleModule.forRoot()],
   controllers: [HealthController],
   providers: [HealthService]
 })
