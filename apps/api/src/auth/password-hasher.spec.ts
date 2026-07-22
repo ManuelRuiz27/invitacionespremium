@@ -14,9 +14,7 @@ describe('password hashing', () => {
 
   it('executes the dummy hash path used for unknown login identifiers', async () => {
     expect(DUMMY_PASSWORD_HASH).toMatch(/^scrypt\$v=1\$/);
-    await expect(
-      verifyPassword('invalid-login-password', DUMMY_PASSWORD_HASH)
-    ).resolves.toBe(true);
+    await expect(verifyPassword('invalid-login-password', DUMMY_PASSWORD_HASH)).resolves.toBe(true);
     await expect(verifyPassword('another-password', DUMMY_PASSWORD_HASH)).resolves.toBe(false);
   });
 
