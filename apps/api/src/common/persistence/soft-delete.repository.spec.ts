@@ -1,10 +1,7 @@
 import { ForbiddenException } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
 import { AuditActorType } from '../../generated/prisma/client';
-import {
-  type ActiveWhere,
-  SoftDeleteRepository
-} from './soft-delete.repository';
+import { type ActiveWhere, SoftDeleteRepository } from './soft-delete.repository';
 
 interface TestRecord {
   id: string;
@@ -22,11 +19,7 @@ interface TestWhereUnique {
   id: string;
 }
 
-class TestSoftDeleteRepository extends SoftDeleteRepository<
-  TestRecord,
-  TestWhere,
-  TestWhereUnique
-> {
+class TestSoftDeleteRepository extends SoftDeleteRepository<TestRecord, TestWhere, TestWhereUnique> {
   readonly record: TestRecord = {
     id: 'record-1',
     state: 'active',
@@ -36,24 +29,17 @@ class TestSoftDeleteRepository extends SoftDeleteRepository<
   lastActiveWhere?: ActiveWhere<TestWhere>;
   lastDeletedAt?: Date | null;
 
-  protected findManyActive(
-    where: ActiveWhere<TestWhere>
-  ): Promise<TestRecord[]> {
+  protected findManyActive(where: ActiveWhere<TestWhere>): Promise<TestRecord[]> {
     this.lastActiveWhere = where;
     return Promise.resolve([this.record]);
   }
 
-  protected findFirstActive(
-    where: ActiveWhere<TestWhere>
-  ): Promise<TestRecord | null> {
+  protected findFirstActive(where: ActiveWhere<TestWhere>): Promise<TestRecord | null> {
     this.lastActiveWhere = where;
     return Promise.resolve(this.record);
   }
 
-  protected updateDeletedAt(
-    _where: TestWhereUnique,
-    deletedAt: Date | null
-  ): Promise<TestRecord> {
+  protected updateDeletedAt(_where: TestWhereUnique, deletedAt: Date | null): Promise<TestRecord> {
     this.lastDeletedAt = deletedAt;
     return Promise.resolve({
       ...this.record,
