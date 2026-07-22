@@ -19,11 +19,18 @@ export const environmentSchema = z
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'log', 'debug', 'verbose']).default('log'),
     SWAGGER_ENABLED: booleanFromEnvironment.optional(),
     AUTH_SESSION_TTL_SECONDS: z.coerce.number().int().min(300).max(86_400).default(28_800),
-    AUTH_COOKIE_NAME: z.string().regex(/^[A-Za-z0-9_-]+$/).default('ip_session'),
+    AUTH_COOKIE_NAME: z
+      .string()
+      .regex(/^[A-Za-z0-9_-]+$/)
+      .default('ip_session'),
     AUTH_COOKIE_SECURE: booleanFromEnvironment.optional(),
     AUTH_COOKIE_SAME_SITE: z.enum(['strict', 'lax', 'none']).default('lax'),
     AUTH_COOKIE_PATH: z.string().startsWith('/').default('/api/v1'),
-    LOCAL_ADMIN_EMAIL: z.string().email().transform((value) => value.trim().toLowerCase()).optional(),
+    LOCAL_ADMIN_EMAIL: z
+      .string()
+      .email()
+      .transform((value) => value.trim().toLowerCase())
+      .optional(),
     LOCAL_ADMIN_PASSWORD: z.string().min(12).max(1024).optional()
   })
   .superRefine((environment, context) => {

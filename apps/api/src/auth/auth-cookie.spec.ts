@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  buildClearedSessionCookie,
-  buildSessionCookie,
-  readCookie
-} from './auth-cookie';
+import { buildClearedSessionCookie, buildSessionCookie, readCookie } from './auth-cookie';
 
 const config = {
   authCookieName: 'ip_session',
@@ -26,9 +22,7 @@ describe('auth cookies', () => {
   });
 
   it('reads the exact cookie and clears it using the same scope', () => {
-    expect(readCookie('other=1; ip_session=opaque%2Ftoken', 'ip_session')).toBe(
-      'opaque/token'
-    );
+    expect(readCookie('other=1; ip_session=opaque%2Ftoken', 'ip_session')).toBe('opaque/token');
 
     const cleared = buildClearedSessionCookie(config);
     expect(cleared).toContain('ip_session=');

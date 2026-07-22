@@ -3,11 +3,7 @@ import { resolve } from 'node:path';
 import { config as loadDotenv } from 'dotenv';
 
 export function loadEnvironmentFiles(cwd: string = process.cwd()): void {
-  const candidates = [
-    resolve(cwd, '.env'),
-    resolve(cwd, 'apps/api/.env'),
-    resolve(cwd, '../../.env')
-  ];
+  const candidates = [resolve(cwd, '.env'), resolve(cwd, 'apps/api/.env'), resolve(cwd, '../../.env')];
 
   const loaded = new Set<string>();
 

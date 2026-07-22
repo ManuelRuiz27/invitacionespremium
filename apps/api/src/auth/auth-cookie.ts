@@ -40,11 +40,7 @@ export function buildSessionCookie(
   token: string,
   config: Pick<
     AppConfigService,
-    | 'authCookieName'
-    | 'authCookiePath'
-    | 'authCookieSameSite'
-    | 'authCookieSecure'
-    | 'authSessionTtlSeconds'
+    'authCookieName' | 'authCookiePath' | 'authCookieSameSite' | 'authCookieSecure' | 'authSessionTtlSeconds'
   >
 ): string {
   return serializeCookie(config.authCookieName, token, {
@@ -56,10 +52,7 @@ export function buildSessionCookie(
 }
 
 export function buildClearedSessionCookie(
-  config: Pick<
-    AppConfigService,
-    'authCookieName' | 'authCookiePath' | 'authCookieSameSite' | 'authCookieSecure'
-  >
+  config: Pick<AppConfigService, 'authCookieName' | 'authCookiePath' | 'authCookieSameSite' | 'authCookieSecure'>
 ): string {
   return serializeCookie(config.authCookieName, '', {
     maxAge: 0,

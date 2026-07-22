@@ -100,9 +100,7 @@ describe('Local authentication', () => {
       .expect(204);
 
     const clearedCookie = logoutResponse.headers['set-cookie'];
-    expect(Array.isArray(clearedCookie) ? clearedCookie[0] : clearedCookie).toContain(
-      'Max-Age=0'
-    );
+    expect(Array.isArray(clearedCookie) ? clearedCookie[0] : clearedCookie).toContain('Max-Age=0');
 
     await request(app.getHttpServer())
       .get('/api/v1/auth/me')
@@ -127,10 +125,7 @@ describe('Local authentication', () => {
       },
       select: { action: true }
     });
-    expect(auditActions.map((entry) => entry.action).sort()).toEqual([
-      'AUTH_LOGIN',
-      'AUTH_LOGOUT'
-    ]);
+    expect(auditActions.map((entry) => entry.action).sort()).toEqual(['AUTH_LOGIN', 'AUTH_LOGOUT']);
   });
 
   it('does not reveal whether the email exists', async () => {

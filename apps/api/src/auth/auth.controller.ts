@@ -1,21 +1,5 @@
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Inject,
-  Post,
-  Req,
-  Res
-} from '@nestjs/common';
-import {
-  ApiCookieAuth,
-  ApiNoContentResponse,
-  ApiOkResponse,
-  ApiTags,
-  ApiUnauthorizedResponse
-} from '@nestjs/swagger';
+import { Body, Controller, Get, HttpCode, HttpStatus, Inject, Post, Req, Res } from '@nestjs/common';
+import { ApiCookieAuth, ApiNoContentResponse, ApiOkResponse, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { AppConfigService } from '../config/app-config.service';
 import { buildClearedSessionCookie, buildSessionCookie } from './auth-cookie';

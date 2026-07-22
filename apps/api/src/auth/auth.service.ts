@@ -4,12 +4,7 @@ import { AuditService } from '../audit/audit.service';
 import { AuditedMutationService, auditedResult } from '../audit/audited-mutation.service';
 import { PrismaService } from '../common/database/prisma.service';
 import { AppConfigService } from '../config/app-config.service';
-import {
-  createSessionToken,
-  fingerprintLoginIdentifier,
-  hashSessionToken,
-  normalizeEmail
-} from './auth-token';
+import { createSessionToken, fingerprintLoginIdentifier, hashSessionToken, normalizeEmail } from './auth-token';
 import type { AuthPrincipal } from './auth.types';
 import { DUMMY_PASSWORD_HASH, verifyPassword } from './password-hasher';
 

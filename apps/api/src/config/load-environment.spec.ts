@@ -19,11 +19,7 @@ afterEach(async () => {
 describe('loadEnvironmentFiles', () => {
   it('loads the nearest .env file before environment validation', async () => {
     temporaryDirectory = await mkdtemp(join(tmpdir(), 'invitacionespremium-env-'));
-    await writeFile(
-      join(temporaryDirectory, '.env'),
-      `${TEST_KEY}=loaded-before-validation\n`,
-      'utf8'
-    );
+    await writeFile(join(temporaryDirectory, '.env'), `${TEST_KEY}=loaded-before-validation\n`, 'utf8');
 
     loadEnvironmentFiles(temporaryDirectory);
 

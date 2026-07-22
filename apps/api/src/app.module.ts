@@ -9,13 +9,7 @@ import { HealthController } from './health/health.controller';
 import { HealthService } from './health/health.service';
 
 @Module({
-  imports: [
-    AppConfigModule,
-    DatabaseModule,
-    AuditModule,
-    AuthModule,
-    ScheduleModule.forRoot()
-  ],
+  imports: [AppConfigModule, DatabaseModule, AuditModule, AuthModule, ScheduleModule.forRoot()],
   controllers: [HealthController],
   providers: [HealthService]
 })

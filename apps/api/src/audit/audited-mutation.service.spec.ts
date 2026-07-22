@@ -18,10 +18,7 @@ describe('AuditedMutationService', () => {
     const audit = {
       record: vi.fn().mockResolvedValue('audit-id')
     };
-    const service = new AuditedMutationService(
-      prisma as never,
-      audit as unknown as AuditService
-    );
+    const service = new AuditedMutationService(prisma as never, audit as unknown as AuditService);
 
     const result = await service.execute({
       actor: { type: AuditActorType.SYSTEM },
@@ -34,10 +31,7 @@ describe('AuditedMutationService', () => {
     });
 
     expect(result).toBe('result');
-    expect(prisma.$transaction).toHaveBeenCalledWith(
-      expect.any(Function),
-      CRITICAL_TRANSACTION_OPTIONS
-    );
+    expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), CRITICAL_TRANSACTION_OPTIONS);
     expect(audit.record).toHaveBeenCalledWith(
       expect.objectContaining({
         resourceType: 'TEST',

@@ -1,10 +1,5 @@
 import { promisify } from 'node:util';
-import {
-  randomBytes,
-  scrypt as scryptCallback,
-  scryptSync,
-  timingSafeEqual
-} from 'node:crypto';
+import { randomBytes, scrypt as scryptCallback, scryptSync, timingSafeEqual } from 'node:crypto';
 
 const scrypt = promisify(scryptCallback);
 const KEY_LENGTH = 64;
@@ -83,11 +78,7 @@ function parsePasswordHash(encodedHash: string): {
     })
   );
 
-  if (
-    parameters.N !== COST ||
-    parameters.r !== BLOCK_SIZE ||
-    parameters.p !== PARALLELIZATION
-  ) {
+  if (parameters.N !== COST || parameters.r !== BLOCK_SIZE || parameters.p !== PARALLELIZATION) {
     return null;
   }
 
