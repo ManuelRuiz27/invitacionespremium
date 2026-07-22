@@ -76,10 +76,10 @@ describe('SoftDeleteRepository', () => {
     });
   });
 
-  it('rejects restoration by any principal other than Platform Admin', async () => {
+  it('rejects restoration by any principal other than Platform Admin', () => {
     const repository = new TestSoftDeleteRepository();
 
-    await expect(
+    expect(() =>
       repository.restore(
         { id: 'record-1' },
         {
@@ -87,9 +87,9 @@ describe('SoftDeleteRepository', () => {
           isPlatformAdmin: false
         }
       )
-    ).rejects.toBeInstanceOf(ForbiddenException);
+    ).toThrow(ForbiddenException);
 
-    await expect(
+    expect(() =>
       repository.restore(
         { id: 'record-1' },
         {
@@ -97,7 +97,7 @@ describe('SoftDeleteRepository', () => {
           isPlatformAdmin: true
         }
       )
-    ).rejects.toBeInstanceOf(ForbiddenException);
+    ).toThrow(ForbiddenException);
   });
 
   it('restores only deletedAt and preserves the previous resource state', async () => {
