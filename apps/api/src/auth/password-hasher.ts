@@ -42,12 +42,7 @@ export async function verifyPassword(password: string, encodedHash: string): Pro
   return derivedKey.length === parsed.key.length && timingSafeEqual(derivedKey, parsed.key);
 }
 
-function deriveKey(
-  password: string,
-  salt: Buffer,
-  keyLength: number,
-  options: ScryptOptions
-): Promise<Buffer> {
+function deriveKey(password: string, salt: Buffer, keyLength: number, options: ScryptOptions): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     scrypt(password, salt, keyLength, options, (error, derivedKey) => {
       if (error) {
