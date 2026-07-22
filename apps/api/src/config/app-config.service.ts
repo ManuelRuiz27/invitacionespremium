@@ -65,4 +65,36 @@ export class AppConfigService {
 
     return explicitValue ?? this.nodeEnv !== 'production';
   }
+
+  get authSessionTtlSeconds(): number {
+    return this.configService.get('AUTH_SESSION_TTL_SECONDS', { infer: true });
+  }
+
+  get authCookieName(): string {
+    return this.configService.get('AUTH_COOKIE_NAME', { infer: true });
+  }
+
+  get authCookieSecure(): boolean {
+    const explicitValue = this.configService.get('AUTH_COOKIE_SECURE', {
+      infer: true
+    });
+
+    return explicitValue ?? this.nodeEnv === 'production';
+  }
+
+  get authCookieSameSite(): 'strict' | 'lax' | 'none' {
+    return this.configService.get('AUTH_COOKIE_SAME_SITE', { infer: true });
+  }
+
+  get authCookiePath(): string {
+    return this.configService.get('AUTH_COOKIE_PATH', { infer: true });
+  }
+
+  get localAdminEmail(): string | undefined {
+    return this.configService.get('LOCAL_ADMIN_EMAIL', { infer: true });
+  }
+
+  get localAdminPassword(): string | undefined {
+    return this.configService.get('LOCAL_ADMIN_PASSWORD', { infer: true });
+  }
 }
