@@ -4,9 +4,11 @@ import { AppModule } from '../app.module';
 import { AllExceptionsFilter } from '../common/errors/all-exceptions.filter';
 import { AppConfigService } from '../config/app-config.service';
 import { validateEnvironment } from '../config/environment';
+import { loadEnvironmentFiles } from '../config/load-environment';
 import { setupOpenApi } from '../openapi/openapi';
 
 export async function createApp(): Promise<INestApplication> {
+  loadEnvironmentFiles();
   const environment = validateEnvironment(process.env);
   const app = await NestFactory.create(AppModule, {
     logger: new ConsoleLogger({
