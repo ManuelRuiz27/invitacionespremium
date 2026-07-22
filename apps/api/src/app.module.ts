@@ -1,5 +1,6 @@
 import { type MiddlewareConsumer, Module, type NestModule } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
+import { AuditModule } from './audit/audit.module';
 import { DatabaseModule } from './common/database/database.module';
 import { RequestLoggingMiddleware } from './common/logging/request-logging.middleware';
 import { AppConfigModule } from './config/app-config.module';
@@ -7,7 +8,7 @@ import { HealthController } from './health/health.controller';
 import { HealthService } from './health/health.service';
 
 @Module({
-  imports: [AppConfigModule, DatabaseModule, ScheduleModule.forRoot()],
+  imports: [AppConfigModule, DatabaseModule, AuditModule, ScheduleModule.forRoot()],
   controllers: [HealthController],
   providers: [HealthService]
 })
