@@ -1,5 +1,16 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
+  "globalEnv": [
+    "NODE_ENV",
+    "API_PORT",
+    "DATABASE_URL",
+    "DATABASE_POOL_MAX",
+    "DATABASE_CONNECTION_TIMEOUT_MS",
+    "DATABASE_IDLE_TIMEOUT_MS",
+    "CORS_ORIGINS",
+    "LOG_LEVEL",
+    "SWAGGER_ENABLED"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

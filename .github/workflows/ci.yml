@@ -20,7 +20,32 @@ concurrency:
 jobs:
   quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
+    env:
+      NODE_ENV: test
+      API_PORT: 3000
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/invitacionespremium_test
+      DATABASE_POOL_MAX: 5
+      DATABASE_CONNECTION_TIMEOUT_MS: 5000
+      DATABASE_IDLE_TIMEOUT_MS: 30000
+      CORS_ORIGINS: http://localhost:5173
+      LOG_LEVEL: error
+      SWAGGER_ENABLED: 'true'
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: invitacionespremium_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d invitacionespremium_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - name: Checkout
@@ -56,8 +81,11 @@ jobs:
       - name: Stop after install failure
         if: steps.install.outcome == 'failure'
         run: |
-          tail -n 80 pnpm-install.log
+          tail -n 100 pnpm-install.log
           exit 1
+
+      - name: Validate Prisma schema
+        run: pnpm --filter @invitaciones/api db:validate
 
       - name: Format check
         id: format
@@ -90,10 +118,55 @@ jobs:
         run: pnpm lint
 
       - name: Typecheck
-        run: pnpm typecheck
+        id: typecheck
+        continue-on-error: true
+        run: pnpm typecheck > typecheck.log 2>&1
 
-      - name: Test
+      - name: Upload typecheck diagnostics
+        if: steps.typecheck.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: typecheck-diagnostics
+          path: typecheck.log
+          retention-days: 3
+
+      - name: Stop after typecheck failure
+        if: steps.typecheck.outcome == 'failure'
+        run: |
+          cat typecheck.log
+          exit 1
+
+      - name: Unit tests
         run: pnpm test
+
+      - name: API integration tests
+        run: pnpm --filter @invitaciones/api test:integration
+
+      - name: Generate OpenAPI
+        id: openapi
+        continue-on-error: true
+        run: pnpm --filter @invitaciones/api openapi:generate > openapi-generate.log 2>&1
+
+      - name: Upload OpenAPI diagnostics
+        if: steps.openapi.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: openapi-diagnostics
+          path: openapi-generate.log
+          retention-days: 3
+
+      - name: Stop after OpenAPI failure
+        if: steps.openapi.outcome == 'failure'
+        run: |
+          cat openapi-generate.log
+          exit 1
+
+      - name: Upload OpenAPI artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: invitacionespremium-openapi
+          path: apps/api/openapi/openapi.json
+          retention-days: 7
 
       - name: Build
         run: pnpm build
