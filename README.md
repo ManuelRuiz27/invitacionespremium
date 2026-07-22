@@ -34,6 +34,7 @@ corepack prepare pnpm@11.15.1 --activate
 cp .env.example .env
 pnpm install --frozen-lockfile
 docker compose up -d postgres
+pnpm --filter @invitaciones/api db:migrate:deploy
 pnpm dev
 ```
 
@@ -69,6 +70,7 @@ Comandos de API:
 ```bash
 pnpm --filter @invitaciones/api dev
 pnpm --filter @invitaciones/api db:validate
+pnpm --filter @invitaciones/api db:migrate:deploy
 pnpm --filter @invitaciones/api test:integration
 pnpm --filter @invitaciones/api openapi:generate
 ```
@@ -92,7 +94,7 @@ pnpm turbo dev --filter=@invitaciones/client
 - paquetes `ui` y `api-client`;
 - `.env.example` por app.
 
-`CODEX-010` agrega la base operativa de API, todavía sin entidades de negocio:
+`CODEX-010` agregó la base operativa de API:
 
 - configuración validada por ambiente;
 - Prisma 7 conectado a PostgreSQL;
@@ -103,7 +105,17 @@ pnpm turbo dev --filter=@invitaciones/client
 - PostgreSQL local y pruebas de integración;
 - soporte base para procesos programados idempotentes.
 
-La siguiente tarea de dominio es `CODEX-011`, después de aprobar y fusionar `CODEX-010`.
+`CODEX-011` agrega la base de auditoría y borrado lógico:
+
+- tabla `audit_log` append-only;
+- actores `USER`, `STAFF_TOKEN`, `PUBLIC_TOKEN` y `SYSTEM`;
+- redacción de secretos y datos de contacto en payloads;
+- mutaciones auditadas dentro de transacciones;
+- triggers PostgreSQL contra modificación o eliminación de auditoría;
+- repositorio base que excluye `deletedAt` por defecto;
+- restauración exclusiva de Platform Admin sin reactivar tokens expirados.
+
+La siguiente tarea después de fusionar `CODEX-011` es `CODEX-020`, autenticación local temporal.
 
 ## Fuente de verdad
 
