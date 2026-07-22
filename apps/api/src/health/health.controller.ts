@@ -1,9 +1,11 @@
 import { Controller, Get, Inject } from '@nestjs/common';
 import { ApiOkResponse, ApiServiceUnavailableResponse, ApiTags } from '@nestjs/swagger';
+import { PublicRoute } from '../auth/public-route.decorator';
 import { HealthResponseDto } from './health.dto';
 import { HealthService } from './health.service';
 
 @ApiTags('health')
+@PublicRoute()
 @Controller('health')
 export class HealthController {
   constructor(@Inject(HealthService) private readonly healthService: HealthService) {}
