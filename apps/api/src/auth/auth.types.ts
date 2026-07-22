@@ -1,5 +1,5 @@
-import type { Request } from 'express';
 import type { UserRole } from '../generated/prisma/client';
+import type { RequestWithOperationId } from '../common/logging/request-context';
 
 export interface AuthPrincipal {
   userId: string;
@@ -9,6 +9,6 @@ export interface AuthPrincipal {
   clientId: string | null;
 }
 
-export interface AuthenticatedRequest extends Request {
+export interface AuthenticatedRequest extends RequestWithOperationId {
   auth?: AuthPrincipal;
 }
