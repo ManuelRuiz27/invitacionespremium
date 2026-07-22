@@ -1,11 +1,18 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Inject, Post, Req, Res } from '@nestjs/common';
-import { ApiCookieAuth, ApiNoContentResponse, ApiOkResponse, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import {
+  ApiBody,
+  ApiCookieAuth,
+  ApiNoContentResponse,
+  ApiOkResponse,
+  ApiTags,
+  ApiUnauthorizedResponse
+} from '@nestjs/swagger';
 import type { Response } from 'express';
 import { AppConfigService } from '../config/app-config.service';
 import { buildClearedSessionCookie, buildSessionCookie } from './auth-cookie';
 import { AuthService } from './auth.service';
 import type { AuthenticatedRequest, AuthPrincipal } from './auth.types';
-import { AuthUserDto, LoginResponseDto, parseLoginRequest } from './auth.dto';
+import { AuthUserDto, LoginRequestDto, LoginResponseDto, parseLoginRequest } from './auth.dto';
 import { CurrentAuth } from './current-auth.decorator';
 import { PublicRoute } from './public-route.decorator';
 
@@ -20,6 +27,7 @@ export class AuthController {
   @PublicRoute()
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @ApiBody({ type: LoginRequestDto })
   @ApiOkResponse({ type: LoginResponseDto })
   @ApiUnauthorizedResponse({ description: 'Invalid email or password.' })
   async login(
