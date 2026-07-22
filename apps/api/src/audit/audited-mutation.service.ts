@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { CRITICAL_TRANSACTION_OPTIONS } from '../common/database/transaction-policy';
 import { PrismaService } from '../common/database/prisma.service';
 import type { Prisma } from '../generated/prisma/client';
 import { AuditService } from './audit.service';
@@ -28,7 +29,7 @@ export class AuditedMutationService {
       await this.audit.record(auditRecord, transaction);
 
       return mutation.result;
-    });
+    }, CRITICAL_TRANSACTION_OPTIONS);
   }
 }
 
