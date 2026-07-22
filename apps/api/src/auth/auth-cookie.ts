@@ -1,5 +1,11 @@
 import type { AppConfigService } from '../config/app-config.service';
 
+const SAME_SITE_ATTRIBUTE = {
+  strict: 'Strict',
+  lax: 'Lax',
+  none: 'None'
+} as const;
+
 export function readCookie(cookieHeader: string | undefined, name: string): string | undefined {
   if (!cookieHeader) {
     return undefined;
@@ -69,7 +75,7 @@ function serializeCookie(
   options: {
     maxAge: number;
     path: string;
-    sameSite: 'strict' | 'lax' | 'none';
+    sameSite: keyof typeof SAME_SITE_ATTRIBUTE;
     secure: boolean;
   }
 ): string {
@@ -78,7 +84,7 @@ function serializeCookie(
     `Max-Age=${Math.max(0, Math.floor(options.maxAge))}`,
     `Path=${options.path}`,
     'HttpOnly',
-    `SameSite=${capitalize(options.sameSite)}`
+    `SameSite=${SAME_SITE_ATTRIBUTE[options.sameSite]}`
   ];
 
   if (options.secure) {
@@ -86,8 +92,4 @@ function serializeCookie(
   }
 
   return attributes.join('; ');
-}
-
-function capitalize(value: 'strict' | 'lax' | 'none'): 'Strict' | 'Lax' | 'None' {
-  return `${value[0].toUpperCase()}${value.slice(1)}` as 'Strict' | 'Lax' | 'None';
 }
