@@ -35,6 +35,7 @@ cp .env.example .env
 pnpm install --frozen-lockfile
 docker compose up -d postgres
 pnpm --filter @invitaciones/api db:migrate:deploy
+pnpm --filter @invitaciones/api auth:seed-local-admin
 pnpm dev
 ```
 
@@ -48,9 +49,12 @@ Servicios locales:
 | Scanner | 5175 |
 | Landing | 5176 |
 
-Infraestructura API disponible:
+API disponible:
 
 - `GET http://localhost:3000/api/v1/health` valida API y PostgreSQL;
+- `POST http://localhost:3000/api/v1/auth/login` crea una sesión local temporal;
+- `POST http://localhost:3000/api/v1/auth/logout` revoca la sesión actual;
+- `GET http://localhost:3000/api/v1/auth/me` devuelve el usuario autenticado;
 - `http://localhost:3000/docs` expone Swagger cuando está habilitado;
 - `http://localhost:3000/docs-json` expone OpenAPI cuando está habilitado.
 
@@ -71,6 +75,7 @@ Comandos de API:
 pnpm --filter @invitaciones/api dev
 pnpm --filter @invitaciones/api db:validate
 pnpm --filter @invitaciones/api db:migrate:deploy
+pnpm --filter @invitaciones/api auth:seed-local-admin
 pnpm --filter @invitaciones/api test:integration
 pnpm --filter @invitaciones/api openapi:generate
 ```
@@ -105,17 +110,29 @@ pnpm turbo dev --filter=@invitaciones/client
 - PostgreSQL local y pruebas de integración;
 - soporte base para procesos programados idempotentes.
 
-`CODEX-011` agrega la base de auditoría y borrado lógico:
+`CODEX-011` agregó auditoría y borrado lógico:
 
 - tabla `audit_log` append-only;
 - actores `USER`, `STAFF_TOKEN`, `PUBLIC_TOKEN` y `SYSTEM`;
-- redacción de secretos y datos de contacto en payloads;
-- mutaciones auditadas dentro de transacciones;
+- redacción de secretos y datos de contacto;
+- mutaciones auditadas dentro de transacciones `Serializable`;
 - triggers PostgreSQL contra modificación o eliminación de auditoría;
 - repositorio base que excluye `deletedAt` por defecto;
 - restauración exclusiva de Platform Admin sin reactivar tokens expirados.
 
-La siguiente tarea después de fusionar `CODEX-011` es `CODEX-020`, autenticación local temporal.
+`CODEX-020` agrega autenticación local temporal:
+
+- usuarios y sesiones persistidas;
+- contraseñas derivadas con `scrypt` y sal aleatoria;
+- tokens de sesión opacos almacenados únicamente como SHA-256;
+- cookie `HttpOnly`, `SameSite` y `Secure` según ambiente;
+- login, logout y `me`;
+- guard global con rutas públicas explícitas;
+- protección de origen para métodos inseguros;
+- auditoría de login/logout y no enumeración de usuarios;
+- seed local de Platform Admin.
+
+Después de fusionar `CODEX-020` corresponde `CODEX-021 — Clientes Planner y Organización`.
 
 ## Fuente de verdad
 
