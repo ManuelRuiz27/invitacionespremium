@@ -6,11 +6,7 @@ import { normalizeEmail } from '../auth/auth-token';
 import { hashPassword } from '../auth/password-hasher';
 import { PrismaService } from '../common/database/prisma.service';
 import { ClientAccessPolicy, clientNotFound } from '../clients/client-access.policy';
-import type {
-  ClientUserResponseDto,
-  CreatePlannerUserInput,
-  UpdateClientUserInput
-} from '../clients/clients.dto';
+import type { ClientUserResponseDto, CreatePlannerUserInput, UpdateClientUserInput } from '../clients/clients.dto';
 import { ClientsService, toClientUserResponse } from '../clients/clients.service';
 
 @Injectable()
