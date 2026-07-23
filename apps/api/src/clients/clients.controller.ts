@@ -25,10 +25,7 @@ export class ClientsController {
   @Post('register-planner')
   @ApiBody({ type: RegisterPlannerRequestDto })
   @ApiCreatedResponse({ type: ClientCreatedResponseDto })
-  registerPlanner(
-    @Body() body: unknown,
-    @Req() request: AuthenticatedRequest
-  ): Promise<ClientCreatedResponseDto> {
+  registerPlanner(@Body() body: unknown, @Req() request: AuthenticatedRequest): Promise<ClientCreatedResponseDto> {
     return this.clients.registerPlanner(parseRegisterPlannerRequest(body), request.operationId);
   }
 
