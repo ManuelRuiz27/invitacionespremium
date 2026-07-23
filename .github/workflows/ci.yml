@@ -143,7 +143,23 @@ jobs:
         run: pnpm test
 
       - name: API integration tests
-        run: pnpm --filter @invitaciones/api test:integration
+        id: integration
+        continue-on-error: true
+        run: pnpm --filter @invitaciones/api test:integration > api-integration.log 2>&1
+
+      - name: Upload API integration diagnostics
+        if: steps.integration.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: api-integration-diagnostics
+          path: api-integration.log
+          retention-days: 3
+
+      - name: Stop after API integration failure
+        if: steps.integration.outcome == 'failure'
+        run: |
+          cat api-integration.log
+          exit 1
 
       - name: Generate OpenAPI
         id: openapi
