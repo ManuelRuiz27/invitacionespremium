@@ -88,10 +88,6 @@ export class AdminClientsController {
     @CurrentAuth() principal: AuthPrincipal,
     @Req() request: AuthenticatedRequest
   ): Promise<ClientResponseDto> {
-    return this.clients.restore(
-      parseUuidParameter(clientIdInput, 'clientId'),
-      principal,
-      request.operationId
-    );
+    return this.clients.restore(parseUuidParameter(clientIdInput, 'clientId'), principal, request.operationId);
   }
 }
