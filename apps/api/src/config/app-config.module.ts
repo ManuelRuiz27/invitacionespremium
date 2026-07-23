@@ -10,6 +10,7 @@ import { validateEnvironment } from './environment';
       isGlobal: true,
       cache: true,
       expandVariables: false,
+      skipProcessEnv: true,
       validate: validateEnvironment
     })
   ],

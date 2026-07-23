@@ -9,32 +9,42 @@ const loginRequestSchema = z.object({
 });
 
 export class LoginRequestDto {
-  @ApiProperty({ example: 'admin@example.com', format: 'email', maxLength: 320 })
+  @ApiProperty({
+    type: String,
+    example: 'admin@example.com',
+    format: 'email',
+    maxLength: 320
+  })
   email!: string;
 
-  @ApiProperty({ format: 'password', maxLength: 1024, writeOnly: true })
+  @ApiProperty({
+    type: String,
+    format: 'password',
+    maxLength: 1024,
+    writeOnly: true
+  })
   password!: string;
 }
 
 export class AuthUserDto {
-  @ApiProperty({ format: 'uuid' })
+  @ApiProperty({ type: String, format: 'uuid' })
   id!: string;
 
-  @ApiProperty({ format: 'email' })
+  @ApiProperty({ type: String, format: 'email' })
   email!: string;
 
   @ApiProperty({ enum: UserRole })
   role!: UserRole;
 
-  @ApiProperty({ format: 'uuid', nullable: true })
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
   clientId!: string | null;
 }
 
 export class LoginResponseDto {
-  @ApiProperty({ type: AuthUserDto })
+  @ApiProperty({ type: () => AuthUserDto })
   user!: AuthUserDto;
 
-  @ApiProperty({ format: 'date-time' })
+  @ApiProperty({ type: String, format: 'date-time' })
   expiresAt!: string;
 }
 
