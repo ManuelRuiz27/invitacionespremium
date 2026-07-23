@@ -1,5 +1,5 @@
 import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
-import { AuditActorType } from '../generated/prisma/client';
+import { AuditActorType, UserRole } from '../generated/prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { AuditedMutationService, auditedResult } from '../audit/audited-mutation.service';
 import { PrismaService } from '../common/database/prisma.service';
@@ -33,12 +33,22 @@ export class AuthService {
         passwordHash: true,
         role: true,
         clientId: true,
-        deletedAt: true
+        deletedAt: true,
+        client: {
+          select: {
+            id: true,
+            type: true,
+            status: true,
+            deletedAt: true
+          }
+        }
       }
     });
     const passwordMatches = await verifyPassword(password, user?.passwordHash ?? DUMMY_PASSWORD_HASH);
+    const operationalClientUnavailable =
+      user !== null && user.role !== UserRole.PLATFORM_ADMIN && (!user.client || user.client.deletedAt !== null);
 
-    if (!user || user.deletedAt !== null || !passwordMatches) {
+    if (!user || user.deletedAt !== null || operationalClientUnavailable || !passwordMatches) {
       await this.audit.record({
         actor: { type: AuditActorType.SYSTEM },
         resourceType: 'AUTH',
@@ -60,7 +70,9 @@ export class AuthService {
       userId: user.id,
       email: user.email,
       role: user.role,
-      clientId: user.clientId
+      clientId: user.clientId,
+      clientType: user.client?.type ?? null,
+      clientStatus: user.client?.status ?? null
     };
 
     return this.auditedMutation.execute({
@@ -115,7 +127,14 @@ export class AuthService {
             id: true,
             email: true,
             role: true,
-            clientId: true
+            clientId: true,
+            client: {
+              select: {
+                type: true,
+                status: true,
+                deletedAt: true
+              }
+            }
           }
         }
       }
@@ -125,12 +144,21 @@ export class AuthService {
       return null;
     }
 
+    if (
+      session.user.role !== UserRole.PLATFORM_ADMIN &&
+      (!session.user.client || session.user.client.deletedAt !== null)
+    ) {
+      return null;
+    }
+
     return {
       userId: session.user.id,
       sessionId: session.id,
       email: session.user.email,
       role: session.user.role,
-      clientId: session.user.clientId
+      clientId: session.user.clientId,
+      clientType: session.user.client?.type ?? null,
+      clientStatus: session.user.client?.status ?? null
     };
   }
 
