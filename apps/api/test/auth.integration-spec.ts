@@ -66,7 +66,9 @@ describe('Local authentication', () => {
         id: user.id,
         email,
         role: UserRole.PLATFORM_ADMIN,
-        clientId: null
+        clientId: null,
+        clientType: null,
+        clientStatus: null
       }
     });
     expect(loginResponse.body).not.toHaveProperty('token');
@@ -90,7 +92,9 @@ describe('Local authentication', () => {
         id: user.id,
         email,
         role: UserRole.PLATFORM_ADMIN,
-        clientId: null
+        clientId: null,
+        clientType: null,
+        clientStatus: null
       });
 
     const logoutResponse = await request(app.getHttpServer())
