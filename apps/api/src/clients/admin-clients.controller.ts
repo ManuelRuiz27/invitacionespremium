@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Param, Patch, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Inject, Param, Patch, Post, Req } from '@nestjs/common';
 import { ApiBody, ApiCookieAuth, ApiCreatedResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import type { AuthenticatedRequest, AuthPrincipal } from '../auth/auth.types';
 import { CurrentAuth } from '../auth/current-auth.decorator';
@@ -65,6 +65,7 @@ export class AdminClientsController {
   }
 
   @Post(':clientId/suspend')
+  @HttpCode(HttpStatus.OK)
   @ApiBody({ type: SuspendClientRequestDto })
   @ApiOkResponse({ type: ClientResponseDto })
   suspend(
@@ -82,6 +83,7 @@ export class AdminClientsController {
   }
 
   @Post(':clientId/restore')
+  @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: ClientResponseDto })
   restore(
     @Param('clientId') clientIdInput: string,
