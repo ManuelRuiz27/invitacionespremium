@@ -54,7 +54,10 @@ API disponible:
 - `GET http://localhost:3000/api/v1/health` valida API y PostgreSQL;
 - `POST http://localhost:3000/api/v1/auth/login` crea una sesión local temporal;
 - `POST http://localhost:3000/api/v1/auth/logout` revoca la sesión actual;
-- `GET http://localhost:3000/api/v1/auth/me` devuelve el usuario autenticado;
+- `GET http://localhost:3000/api/v1/auth/me` devuelve usuario, rol y contexto del Cliente;
+- `POST http://localhost:3000/api/v1/clients/register-planner` registra un Planner independiente;
+- `/api/v1/admin/clients/**` concentra las acciones globales de Platform Admin;
+- `/api/v1/clients/:clientId/**` concentra las acciones del Cliente autenticado;
 - `http://localhost:3000/docs` expone Swagger cuando está habilitado;
 - `http://localhost:3000/docs-json` expone OpenAPI cuando está habilitado.
 
@@ -120,7 +123,7 @@ pnpm turbo dev --filter=@invitaciones/client
 - repositorio base que excluye `deletedAt` por defecto;
 - restauración exclusiva de Platform Admin sin reactivar tokens expirados.
 
-`CODEX-020` agrega autenticación local temporal:
+`CODEX-020` agregó autenticación local temporal:
 
 - usuarios y sesiones persistidas;
 - contraseñas derivadas con `scrypt` y sal aleatoria;
@@ -132,7 +135,18 @@ pnpm turbo dev --filter=@invitaciones/client
 - auditoría de login/logout y no enumeración de usuarios;
 - seed local de Platform Admin.
 
-Después de fusionar `CODEX-020` corresponde `CODEX-021 — Clientes Planner y Organización`.
+`CODEX-021` agrega Clientes Planner y Organización:
+
+- entidad `Client`, tipo y estado operativo;
+- FK formal de Usuario a Cliente;
+- compatibilidad rol/tipo reforzada en PostgreSQL;
+- registro público de Planner independiente;
+- creación administrativa de Organización;
+- usuarios Planner internos;
+- suspensión/restauración auditada;
+- roles y ownership sin impersonación.
+
+Después de fusionar `CODEX-021` corresponde `CODEX-030 — Servicios, precios y promociones`.
 
 ## Fuente de verdad
 
