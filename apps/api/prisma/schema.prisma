@@ -17,6 +17,20 @@ enum AuditActorType {
   @@map("audit_actor_type")
 }
 
+enum ClientType {
+  PLANNER
+  ORGANIZATION
+
+  @@map("client_type")
+}
+
+enum ClientStatus {
+  ACTIVE
+  SUSPENDED
+
+  @@map("client_status")
+}
+
 enum UserRole {
   PLATFORM_ADMIN
   INDEPENDENT_PLANNER
@@ -49,6 +63,23 @@ model AuditLog {
   @@map("audit_log")
 }
 
+model Client {
+  id               String       @id @default(uuid()) @db.Uuid
+  type             ClientType
+  name             String       @db.VarChar(160)
+  status           ClientStatus @default(ACTIVE)
+  suspendedAt      DateTime?    @map("suspended_at") @db.Timestamptz(6)
+  suspensionReason String?      @map("suspension_reason") @db.VarChar(500)
+  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt        DateTime?    @map("deleted_at") @db.Timestamptz(6)
+  users            User[]
+
+  @@index([type, status, deletedAt])
+  @@index([status, deletedAt])
+  @@map("client")
+}
+
 model User {
   id           String        @id @default(uuid()) @db.Uuid
   email        String        @unique @db.VarChar(320)
@@ -58,6 +89,7 @@ model User {
   createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt    DateTime?     @map("deleted_at") @db.Timestamptz(6)
+  client       Client?       @relation(fields: [clientId], references: [id], onDelete: Restrict)
   sessions     AuthSession[]
 
   @@index([clientId])

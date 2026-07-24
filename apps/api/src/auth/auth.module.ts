@@ -3,6 +3,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { AuditModule } from '../audit/audit.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { RolesGuard } from './roles.guard';
 import { SessionAuthGuard } from './session-auth.guard';
 import { TrustedOriginGuard } from './trusted-origin.guard';
 
@@ -18,6 +19,10 @@ import { TrustedOriginGuard } from './trusted-origin.guard';
     {
       provide: APP_GUARD,
       useClass: SessionAuthGuard
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard
     }
   ],
   exports: [AuthService]
