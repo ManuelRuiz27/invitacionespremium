@@ -31,6 +31,22 @@ enum ClientStatus {
   @@map("client_status")
 }
 
+enum ServiceCode {
+  FLIPBOOK
+  FLYER
+  PHYSICAL_QR
+  DEMO
+
+  @@map("service_code")
+}
+
+enum PromotionScope {
+  CREDIT_PURCHASE
+  EVENT_ACTIVATION
+
+  @@map("promotion_scope")
+}
+
 enum UserRole {
   PLATFORM_ADMIN
   INDEPENDENT_PLANNER
@@ -74,6 +90,7 @@ model Client {
   updatedAt        DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt        DateTime?    @map("deleted_at") @db.Timestamptz(6)
   users            User[]
+  promotions       Promotion[]
 
   @@index([type, status, deletedAt])
   @@index([status, deletedAt])
@@ -109,4 +126,57 @@ model AuthSession {
   @@index([userId, revokedAt, expiresAt])
   @@index([expiresAt])
   @@map("auth_session")
+}
+
+model Service {
+  id         String         @id @default(uuid()) @db.Uuid
+  code       ServiceCode    @unique
+  isActive   Boolean        @default(true) @map("is_active")
+  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  prices     ServicePrice[]
+  promotions Promotion[]
+
+  @@index([isActive, code])
+  @@map("service")
+}
+
+model ServicePrice {
+  id         String     @id @default(uuid()) @db.Uuid
+  serviceId  String     @map("service_id") @db.Uuid
+  clientType ClientType @map("client_type")
+  credits    Int
+  validFrom  DateTime   @map("valid_from") @db.Timestamptz(6)
+  validUntil DateTime?  @map("valid_until") @db.Timestamptz(6)
+  createdAt  DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  service    Service    @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+
+  @@unique([serviceId, clientType, validFrom])
+  @@index([clientType, validFrom, validUntil])
+  @@index([serviceId, clientType, validFrom])
+  @@map("service_price")
+}
+
+model Promotion {
+  id             String         @id @default(uuid()) @db.Uuid
+  name           String         @db.VarChar(160)
+  scope          PromotionScope
+  clientId       String?        @map("client_id") @db.Uuid
+  clientType     ClientType?    @map("client_type")
+  serviceId      String?        @map("service_id") @db.Uuid
+  validFrom      DateTime       @map("valid_from") @db.Timestamptz(6)
+  validUntil     DateTime?      @map("valid_until") @db.Timestamptz(6)
+  isActive       Boolean        @default(false) @map("is_active")
+  allowsStacking Boolean        @default(false) @map("allows_stacking")
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  client         Client?        @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  service        Service?       @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+
+  @@index([isActive, scope, validFrom, validUntil])
+  @@index([clientId, isActive])
+  @@index([clientType, isActive])
+  @@index([serviceId, isActive])
+  @@map("promotion")
 }

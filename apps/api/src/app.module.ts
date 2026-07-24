@@ -9,6 +9,7 @@ import { RequestLoggingMiddleware } from './common/logging/request-logging.middl
 import { AppConfigModule } from './config/app-config.module';
 import { HealthController } from './health/health.controller';
 import { HealthService } from './health/health.service';
+import { ServicesPricingModule } from './services-pricing/services-pricing.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { HealthService } from './health/health.service';
     AuthModule,
     ClientsModule,
     ClientUsersModule,
+    ServicesPricingModule,
     ScheduleModule.forRoot()
   ],
   controllers: [HealthController],

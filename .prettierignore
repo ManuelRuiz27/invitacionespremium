@@ -5,3 +5,5 @@ dist/
 coverage/
 .turbo/
 pnpm-lock.yaml
+graphify-out/
+apps/api/prisma/schema.prisma

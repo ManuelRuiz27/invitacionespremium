@@ -16,6 +16,7 @@
     "db:format": "prisma format",
     "db:migrate:deploy": "prisma migrate deploy",
     "auth:seed-local-admin": "prisma generate && tsx scripts/seed-local-admin.ts",
+    "services-pricing:seed": "prisma generate && tsx scripts/seed-services-pricing.ts",
     "openapi:generate": "prisma generate && tsx scripts/generate-openapi.ts"
   },
   "dependencies": {
