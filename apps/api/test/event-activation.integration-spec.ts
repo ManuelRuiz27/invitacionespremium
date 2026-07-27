@@ -91,6 +91,207 @@ describe('Event activation', () => {
     expect(await prisma.auditLog.count({ where: { eventId: event.id, action: 'EVENT_ACTIVATE' } })).toBe(1);
   });
 
+  it('rejects every direct snapshot mutation while allowing later lifecycle status changes', async () => {
+    const planner = await createClientUser(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
+    const { service } = await createPricedService(ServiceCode.FLYER, ClientType.PLANNER, 12);
+    const replacement = await createPricedService(ServiceCode.FLIPBOOK, ClientType.PLANNER, 12);
+    const event = await createReadyEvent(planner, service.id);
+    await grantCredits(planner.clientId, planner.userId, 12);
+    await activate(event.id, await login(planner.email), 'activation-immutable-001').expect(200);
+    const original = await prisma.event.findUniqueOrThrow({ where: { id: event.id } });
+    const replacementReceipt = await createActivationReceipt(
+      planner.clientId,
+      event.id,
+      'activation-immutable-receipt'
+    );
+
+    const mutations = [
+      () => prisma.event.update({ where: { id: event.id }, data: { baseCostCredits: 13 } }),
+      () => prisma.event.update({ where: { id: event.id }, data: { activatedServiceId: replacement.service.id } }),
+      () =>
+        prisma.event.update({
+          where: { id: event.id },
+          data: { activatedServicePriceId: replacement.price.id }
+        }),
+      () =>
+        prisma.event.update({
+          where: { id: event.id },
+          data: { activationReceiptId: replacementReceipt.id }
+        }),
+      () =>
+        prisma.event.update({
+          where: { id: event.id },
+          data: { activationIdempotencyKey: 'activation-immutable-changed' }
+        }),
+      () =>
+        prisma.event.update({
+          where: { id: event.id },
+          data: {
+            activatedAt: null,
+            activatedByUserId: null,
+            activatedServiceId: null,
+            activatedServicePriceId: null,
+            baseCostCredits: null,
+            promotionDiscountCredits: null,
+            finalCostCredits: null,
+            purchasedCreditsUsed: null,
+            creditLineCreditsUsed: null,
+            creditUnitValueMxnCentsSnapshot: null,
+            activationReceiptId: null,
+            activationIdempotencyKey: null
+          }
+        })
+    ];
+
+    for (const mutate of mutations) await expect(mutate()).rejects.toThrow();
+
+    const eventDay = await prisma.event.update({
+      where: { id: event.id },
+      data: { status: EventStatus.EVENT_DAY }
+    });
+    expect(eventDay.status).toBe(EventStatus.EVENT_DAY);
+    expect(activationSnapshotOf(eventDay)).toEqual(activationSnapshotOf(original));
+  });
+
+  it('enforces the complete activation snapshot for every lifecycle state', async () => {
+    const planner = await createClientUser(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
+    const { service, price } = await createPricedService(ServiceCode.FLYER, ClientType.PLANNER, 8);
+    const ready = await createReadyEvent(planner, service.id);
+
+    await expect(
+      prisma.event.update({ where: { id: ready.id }, data: { status: EventStatus.ACTIVE } })
+    ).rejects.toThrow();
+    await expect(createReadyEvent(planner, service.id, EventStatus.ACTIVE)).rejects.toThrow();
+
+    const preparationReceipt = await createActivationReceipt(
+      planner.clientId,
+      ready.id,
+      'activation-preparation-snapshot'
+    );
+    await expect(
+      prisma.event.update({
+        where: { id: ready.id },
+        data: activationSnapshotData(
+          planner.userId,
+          service.id,
+          price.id,
+          preparationReceipt.id,
+          'activation-preparation-snapshot',
+          8
+        )
+      })
+    ).rejects.toThrow();
+
+    const cancelledWithoutSnapshot = await createReadyEvent(planner, service.id, EventStatus.CANCELLED);
+    expect(cancelledWithoutSnapshot.activatedAt).toBeNull();
+
+    const cancelledWithSnapshot = await createReadyEvent(planner, service.id, EventStatus.CANCELLED);
+    const cancelledReceipt = await createActivationReceipt(
+      planner.clientId,
+      cancelledWithSnapshot.id,
+      'activation-cancelled-snapshot'
+    );
+    const completedCancelled = await prisma.event.update({
+      where: { id: cancelledWithSnapshot.id },
+      data: activationSnapshotData(
+        planner.userId,
+        service.id,
+        price.id,
+        cancelledReceipt.id,
+        'activation-cancelled-snapshot',
+        8
+      )
+    });
+    expect(completedCancelled.status).toBe(EventStatus.CANCELLED);
+    expect(completedCancelled.activatedAt).not.toBeNull();
+  });
+
+  it('rejects cross-reference mismatches in prices, Receipts, Clients, Events, and actors', async () => {
+    const planner = await createClientUser(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
+    const outsider = await createClientUser(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
+    const { service, price } = await createPricedService(ServiceCode.FLYER, ClientType.PLANNER, 9);
+    const otherService = await createPricedService(ServiceCode.FLIPBOOK, ClientType.PLANNER, 9);
+    const organizationPrice = await createPrice(service.id, ClientType.ORGANIZATION, 9);
+    const event = await createReadyEvent(planner, service.id);
+
+    async function expectRejectedSnapshot(
+      key: string,
+      overrides: Partial<ReturnType<typeof activationSnapshotData>> = {},
+      receiptClientId = planner.clientId,
+      receiptEventId = event.id,
+      receiptOperationType = 'EVENT_ACTIVATION',
+      receiptKey = key
+    ) {
+      const receipt = await createActivationReceipt(receiptClientId, receiptEventId, receiptKey, receiptOperationType);
+      await expect(
+        prisma.event.update({
+          where: { id: event.id },
+          data: {
+            ...activationSnapshotData(planner.userId, service.id, price.id, receipt.id, key, 9),
+            ...overrides
+          }
+        })
+      ).rejects.toThrow();
+      expect((await prisma.event.findUniqueOrThrow({ where: { id: event.id } })).activatedAt).toBeNull();
+    }
+
+    await expectRejectedSnapshot('activation-wrong-service', {
+      activatedServicePriceId: otherService.price.id
+    });
+    await expectRejectedSnapshot('activation-wrong-client-type', {
+      activatedServicePriceId: organizationPrice.id
+    });
+    await expectRejectedSnapshot('activation-wrong-receipt-client', {}, outsider.clientId);
+    await expectRejectedSnapshot('activation-wrong-receipt-event', {}, planner.clientId, randomUUID());
+    await expectRejectedSnapshot(
+      'activation-wrong-receipt-operation',
+      {},
+      planner.clientId,
+      event.id,
+      'MANUAL_CREDIT_GRANT'
+    );
+    await expectRejectedSnapshot(
+      'activation-wrong-receipt-key',
+      {},
+      planner.clientId,
+      event.id,
+      'EVENT_ACTIVATION',
+      'activation-different-receipt-key'
+    );
+    await expectRejectedSnapshot('activation-wrong-actor', {
+      activatedByUserId: outsider.userId
+    });
+
+    const organization = await createClientUser(ClientType.ORGANIZATION, UserRole.ORGANIZATION_ADMIN);
+    const creator = await createUser(organization.clientId, UserRole.ORGANIZATION_PLANNER);
+    const differentPlanner = await createUser(organization.clientId, UserRole.ORGANIZATION_PLANNER);
+    const organizationEvent = await createReadyEvent(
+      { clientId: organization.clientId, userId: creator.userId },
+      service.id
+    );
+    const organizationReceipt = await createActivationReceipt(
+      organization.clientId,
+      organizationEvent.id,
+      'activation-wrong-planner-owner'
+    );
+    await expect(
+      prisma.event.update({
+        where: { id: organizationEvent.id },
+        data: {
+          status: EventStatus.ACTIVE,
+          ...activationSnapshotData(
+            differentPlanner.userId,
+            service.id,
+            organizationPrice.id,
+            organizationReceipt.id,
+            'activation-wrong-planner-owner',
+            9
+          )
+        }
+      })
+    ).rejects.toThrow();
+  });
+
   it('activates with credit line only and mixed funds using one receipt', async () => {
     const lineOnly = await createClientUser(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
     const mixed = await createClientUser(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
@@ -420,6 +621,76 @@ describe('Event activation', () => {
         capacity: 100
       }
     });
+  }
+
+  function createActivationReceipt(
+    clientId: string,
+    eventId: string,
+    idempotencyKey: string,
+    operationType = 'EVENT_ACTIVATION'
+  ) {
+    return prisma.receipt.create({
+      data: {
+        clientId,
+        operationType,
+        operationReference: eventId,
+        idempotencyKey
+      }
+    });
+  }
+
+  function activationSnapshotData(
+    actorUserId: string,
+    serviceId: string,
+    servicePriceId: string,
+    receiptId: string,
+    idempotencyKey: string,
+    credits: number
+  ) {
+    return {
+      activatedAt: new Date(),
+      activatedByUserId: actorUserId,
+      activatedServiceId: serviceId,
+      activatedServicePriceId: servicePriceId,
+      baseCostCredits: credits,
+      promotionDiscountCredits: 0,
+      finalCostCredits: credits,
+      purchasedCreditsUsed: credits,
+      creditLineCreditsUsed: 0,
+      creditUnitValueMxnCentsSnapshot: null,
+      activationReceiptId: receiptId,
+      activationIdempotencyKey: idempotencyKey
+    };
+  }
+
+  function activationSnapshotOf(event: {
+    activatedAt: Date | null;
+    activatedByUserId: string | null;
+    activatedServiceId: string | null;
+    activatedServicePriceId: string | null;
+    baseCostCredits: number | null;
+    promotionDiscountCredits: number | null;
+    finalCostCredits: number | null;
+    purchasedCreditsUsed: number | null;
+    creditLineCreditsUsed: number | null;
+    creditUnitValueMxnCentsSnapshot: number | null;
+    activationReceiptId: string | null;
+    activationIdempotencyKey: string | null;
+  }) {
+    return {
+      activatedAt: event.activatedAt,
+      activatedByUserId: event.activatedByUserId,
+      activatedServiceId: event.activatedServiceId,
+      activatedServicePriceId: event.activatedServicePriceId,
+      baseCostCredits: event.baseCostCredits,
+      promotionDiscountCredits: event.promotionDiscountCredits,
+      finalCostCredits: event.finalCostCredits,
+      purchasedCreditsUsed: event.purchasedCreditsUsed,
+      creditLineCreditsUsed: event.creditLineCreditsUsed,
+      creditUnitValueMxnCentsSnapshot: event.creditUnitValueMxnCentsSnapshot,
+      activationReceiptId: event.activationReceiptId,
+      activationIdempotencyKey: event.activationIdempotencyKey
+    };
   }
 
   async function grantCredits(clientId: string, actorUserId: string, credits: number) {

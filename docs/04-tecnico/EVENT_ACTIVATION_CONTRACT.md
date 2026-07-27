@@ -124,7 +124,12 @@ finalCostCredits = baseCostCredits
 purchasedCreditsUsed + creditLineCreditsUsed = finalCostCredits
 ```
 
-Los snapshots no cambian si después cambia el catálogo de precios.
+Una vez establecido `activatedAt`, PostgreSQL trata todos los campos anteriores como inmutables. No pueden
+modificarse, limpiarse ni eliminarse mediante Prisma, SQL directo u otro proceso. Los snapshots permanecen
+durante `EVENT_DAY`, `CLOSED`, `ALBUM_PUBLISHED`, `ARCHIVED` y una cancelación posterior a la activación.
+
+El snapshot es la fuente histórica del Evento activado. No se recalcula durante consultas y no cambia si
+después se modifican precios, servicios, el valor central del crédito u otra configuración.
 
 ## Atomicidad
 
@@ -156,14 +161,24 @@ Los conflictos `P2034` y los `TransactionWriteConflict` del adaptador PostgreSQL
 
 ## PostgreSQL
 
-La migración agrega:
+Las migraciones de activación agregan:
 
 - FKs restrictivas desde snapshots hacia Usuario, Servicio, Precio y Comprobante;
 - FK real `ledger_entry.event_id → event.id` con `ON DELETE RESTRICT`;
 - unicidad para comprobante y llave idempotente de activación;
 - check de completitud y coherencia del snapshot;
 - check de costos no negativos, descuento cero y suma exacta de fuentes;
-- snapshot MXN obligatorio y positivo únicamente cuando se usa línea.
+- snapshot MXN obligatorio y positivo únicamente cuando se usa línea;
+- `event_activation_state_snapshot_check`, que exige snapshots nulos en `DRAFT`, `CONFIGURED` y
+  `READY_TO_ACTIVATE`, y completos desde `ACTIVE` hasta `ARCHIVED`;
+- excepción controlada para `CANCELLED`: snapshot completamente nulo si se canceló antes de activar o
+  completamente establecido si se canceló después;
+- `event_activation_snapshot_immutable_trigger`, que usa `IS DISTINCT FROM` sobre cada campo protegido y
+  rechaza también el borrado físico de un Evento activado;
+- `event_activation_snapshot_references_trigger`, que al establecer el snapshot comprueba que precio,
+  servicio, tipo real de Cliente, comprobante, Evento, idempotencia y actor pertenecen a la misma operación;
+- validación del rol operativo del actor; un `ORGANIZATION_PLANNER` solo puede figurar como activador de un
+  Evento creado por él.
 
 Continúan aplicando los triggers financieros de ledger inmutable, balance derivado, línea activa y comprobante con folio global.
 

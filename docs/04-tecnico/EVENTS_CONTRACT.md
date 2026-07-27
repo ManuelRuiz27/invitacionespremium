@@ -22,6 +22,8 @@
 - `createdAt`, `updatedAt` y `deletedAt`.
 
 No existe una entidad adicional de “servicio contratado”. El Evento referencia directamente `Service`.
+Los snapshots de activación son la fuente histórica del Evento: una vez activado no dependen de cambios
+posteriores en precios, servicios ni configuración.
 
 ## Tipos sociales
 
@@ -51,6 +53,11 @@ CANCELLED
 
 PostgreSQL los persiste como `draft`, `configured`, `ready_to_activate`, `active`, `event_day`, `closed`, `album_published`, `archived` y `cancelled`.
 
+La persistencia exige snapshots de activación completamente nulos en `DRAFT`, `CONFIGURED` y
+`READY_TO_ACTIVATE`, y completos en `ACTIVE`, `EVENT_DAY`, `CLOSED`, `ALBUM_PUBLISHED` y `ARCHIVED`.
+`CANCELLED` admite ambos casos completos: sin snapshot cuando la cancelación precede a la activación o con
+snapshot cuando ocurre después. Nunca se permite un snapshot parcial.
+
 ## Estado calculado
 
 El frontend no envía `status`.
@@ -72,6 +79,12 @@ El resolver expone un checklist extensible. Contactos, diseño, Confirmación co
 - la capacidad, cuando existe, es un entero mayor que cero;
 - `PATCH` solo opera en `DRAFT`, `CONFIGURED` o `READY_TO_ACTIVATE`;
 - las consultas operativas siempre exigen `deletedAt IS NULL`.
+
+Después de establecer `activatedAt`, un trigger PostgreSQL protege individualmente todos los campos del
+snapshot mediante `IS DISTINCT FROM`. La protección aplica también contra SQL directo, permite cambios
+legítimos de estado y conserva el snapshot durante todo estado posterior. Otro trigger valida al establecerlo
+que servicio y precio coincidan, que el precio corresponda al tipo real del Cliente, que el comprobante
+pertenezca al Cliente y Evento correctos y que el actor tenga ownership y rol operativo autorizado.
 
 ## Ownership
 

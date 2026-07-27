@@ -182,7 +182,8 @@ pnpm turbo dev --filter=@invitaciones/client
 - precio vigente según tipo real de Cliente;
 - valor histórico MXN para deuda financiada;
 - ownership, idempotencia y concurrencia sin doble cobro;
-- rechazo de Demo y rollback completo ante cualquier error.
+- rechazo de Demo y rollback completo ante cualquier error;
+- hardening PostgreSQL cerrado para inmutabilidad, estados y consistencia referencial de snapshots.
 
 La siguiente tarea es `CODEX-042 — Cierre, reapertura, cancelación y archivado`.
 
