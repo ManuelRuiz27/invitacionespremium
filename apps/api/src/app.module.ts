@@ -7,6 +7,7 @@ import { ClientsModule } from './clients/clients.module';
 import { DatabaseModule } from './common/database/database.module';
 import { RequestLoggingMiddleware } from './common/logging/request-logging.middleware';
 import { AppConfigModule } from './config/app-config.module';
+import { FinanceModule } from './finance/finance.module';
 import { HealthController } from './health/health.controller';
 import { HealthService } from './health/health.service';
 import { ServicesPricingModule } from './services-pricing/services-pricing.module';
@@ -20,6 +21,7 @@ import { ServicesPricingModule } from './services-pricing/services-pricing.modul
     ClientsModule,
     ClientUsersModule,
     ServicesPricingModule,
+    FinanceModule,
     ScheduleModule.forRoot()
   ],
   controllers: [HealthController],
