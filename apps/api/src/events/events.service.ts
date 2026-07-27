@@ -515,7 +515,7 @@ function invalidEventState(message: string): ConflictException {
   return new ConflictException({ code: 'EVENT_INVALID_STATE_TRANSITION', message });
 }
 
-function eventAuditSnapshot(event: Event): Record<string, unknown> {
+export function eventAuditSnapshot(event: Event): Record<string, unknown> {
   return {
     id: event.id,
     clientId: event.clientId,

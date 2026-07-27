@@ -185,7 +185,16 @@ pnpm turbo dev --filter=@invitaciones/client
 - rechazo de Demo y rollback completo ante cualquier error;
 - hardening PostgreSQL cerrado para inmutabilidad, estados y consistencia referencial de snapshots.
 
-La siguiente tarea es `CODEX-042 — Cierre, reapertura, cancelación y archivado`.
+`CODEX-042` agregó el ciclo de vida posterior del Evento:
+
+- entrada automática e idempotente a `EVENT_DAY` según la zona IANA;
+- cierre y reapertura con resolución por fecha local;
+- cancelación sin refund y con conservación de datos y snapshots;
+- archivado desde cierre o publicación de Álbum;
+- estados terminales y transiciones reforzados mediante PostgreSQL;
+- ownership, idempotencia, concurrencia y auditoría transaccional.
+
+La siguiente tarea es `CODEX-050 — Contactos e importación CSV`.
 
 ## Fuente de verdad
 

@@ -182,6 +182,12 @@ Las migraciones de activación agregan:
 
 Continúan aplicando los triggers financieros de ledger inmutable, balance derivado, línea activa y comprobante con folio global.
 
+## Ciclo posterior
+
+Después de activar, las transiciones a `EVENT_DAY`, cierre, reapertura, cancelación y archivado conservan
+íntegro este snapshot. Sus reglas, idempotencia y efectos se especifican en
+`EVENT_LIFECYCLE_CONTRACT.md`.
+
 ## Errores
 
 - `EVENT_NOT_FOUND`;
@@ -206,7 +212,6 @@ No se implementan:
 - RSVP;
 - Croquis o Mesas;
 - pases físicos, QR o StaffTokens;
-- cierre, reapertura, cancelación o archivado;
 - devoluciones o reversos;
 - upgrade de servicio;
 - frontend.

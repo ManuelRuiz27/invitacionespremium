@@ -2,7 +2,8 @@
 
 ## Alcance
 
-`EventsModule`, dentro de `apps/api`, implementa el modelo, CRUD y activación transaccional de Evento. Cliente, creador, estado, precio y fuentes financieras se resuelven en backend.
+`EventsModule`, dentro de `apps/api`, implementa el modelo, CRUD, activación transaccional y ciclo de vida
+posterior de Evento. Cliente, creador, estado, precio y fuentes financieras se resuelven en backend.
 
 ## Modelo Event
 
@@ -103,6 +104,10 @@ Operación Cliente:
 GET    /api/v1/events
 POST   /api/v1/events
 POST   /api/v1/events/:eventId/activate
+POST   /api/v1/events/:eventId/close
+POST   /api/v1/events/:eventId/reopen
+POST   /api/v1/events/:eventId/cancel
+POST   /api/v1/events/:eventId/archive
 GET    /api/v1/events/:eventId
 PATCH  /api/v1/events/:eventId
 DELETE /api/v1/events/:eventId
@@ -136,13 +141,23 @@ La operación usa actor `SYSTEM`, aislamiento `Serializable` y un registro de au
 
 ## Auditoría
 
-Crear, editar, activar, borrar, restaurar y expirar un borrador generan auditoría transaccional con Cliente, Evento, recurso, actor y snapshots aplicables.
+Crear, editar, activar, cerrar, reabrir, cancelar, archivar, borrar, restaurar, expirar un borrador y entrar
+automáticamente a `EVENT_DAY` generan auditoría transaccional con Cliente, Evento, recurso, actor y
+snapshots aplicables.
 
 ## Activación
 
 `POST /events/:eventId/activate` exige `Idempotency-Key`, estado `READY_TO_ACTIVATE`, Cliente activo, servicio real activo, precio vigente y capacidad financiera suficiente. Consume primero saldo comprado y luego línea de crédito. Ledger, comprobante, balance, snapshots, estado `ACTIVE` y auditoría se confirman en una transacción `Serializable`.
 
 El detalle normativo se encuentra en `EVENT_ACTIVATION_CONTRACT.md`.
+
+## Ciclo de vida posterior
+
+Cierre, reapertura, cancelación y archivado requieren `Idempotency-Key`. La entrada a `EVENT_DAY` es
+automática según la fecha local de la zona IANA del Evento. PostgreSQL restringe las transiciones, los
+estados terminales y la conservación de snapshots.
+
+El detalle normativo se encuentra en `EVENT_LIFECYCLE_CONTRACT.md`.
 
 ## Errores
 
@@ -152,6 +167,8 @@ El detalle normativo se encuentra en `EVENT_ACTIVATION_CONTRACT.md`.
 - `EVENT_INVALID_STATE_TRANSITION`: edición o borrado incompatible con el estado;
 - `EVENT_DEMO_NOT_ACTIVATABLE`: un Evento Demo no admite activación real;
 - `EVENT_ACTIVATION_IDEMPOTENCY_CONFLICT`: llave usada por otro Evento u operación;
+- `EVENT_STATE_IDEMPOTENCY_CONFLICT`: llave de ciclo de vida usada por otro Evento o acción;
+- `EVENT_STATE_TRANSITION_CONFLICT`: la transición no pudo serializarse después de reintentos;
 - `ROLE_FORBIDDEN`: rol sin acceso al grupo de rutas.
 
 ## Alcance diferido
@@ -164,6 +181,5 @@ No se implementan todavía:
 - Confirmación pública;
 - Croquis o Mesas;
 - StaffTokens, QR y scanner;
-- cierre, reapertura, cancelación o archivado;
 - cambio de servicio después de activar;
 - frontend.

@@ -35,6 +35,7 @@ import {
   parseEventId,
   parseUpdateEventRequest
 } from './events.dto';
+import { EventLifecycleService } from './event-lifecycle.service';
 import { EventsService } from './events.service';
 
 @ApiTags('events')
@@ -42,7 +43,10 @@ import { EventsService } from './events.service';
 @Roles(UserRole.INDEPENDENT_PLANNER, UserRole.ORGANIZATION_ADMIN, UserRole.ORGANIZATION_PLANNER)
 @Controller('events')
 export class EventsController {
-  constructor(@Inject(EventsService) private readonly events: EventsService) {}
+  constructor(
+    @Inject(EventsService) private readonly events: EventsService,
+    @Inject(EventLifecycleService) private readonly lifecycle: EventLifecycleService
+  ) {}
 
   @Get()
   @ApiOkResponse({ type: EventResponseDto, isArray: true })
@@ -101,6 +105,78 @@ export class EventsController {
     @Req() request: AuthenticatedRequest
   ): Promise<EventActivationResponseDto> {
     return this.events.activate(
+      parseEventId(eventId),
+      parseIdempotencyKey(idempotencyKey),
+      principal,
+      request.operationId
+    );
+  }
+
+  @Post(':eventId/close')
+  @HttpCode(HttpStatus.OK)
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @ApiOkResponse({ type: EventResponseDto })
+  close(
+    @Param('eventId') eventId: string,
+    @Headers('idempotency-key') idempotencyKey: unknown,
+    @CurrentAuth() principal: AuthPrincipal,
+    @Req() request: AuthenticatedRequest
+  ): Promise<EventResponseDto> {
+    return this.lifecycle.close(
+      parseEventId(eventId),
+      parseIdempotencyKey(idempotencyKey),
+      principal,
+      request.operationId
+    );
+  }
+
+  @Post(':eventId/reopen')
+  @HttpCode(HttpStatus.OK)
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @ApiOkResponse({ type: EventResponseDto })
+  reopen(
+    @Param('eventId') eventId: string,
+    @Headers('idempotency-key') idempotencyKey: unknown,
+    @CurrentAuth() principal: AuthPrincipal,
+    @Req() request: AuthenticatedRequest
+  ): Promise<EventResponseDto> {
+    return this.lifecycle.reopen(
+      parseEventId(eventId),
+      parseIdempotencyKey(idempotencyKey),
+      principal,
+      request.operationId
+    );
+  }
+
+  @Post(':eventId/cancel')
+  @HttpCode(HttpStatus.OK)
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @ApiOkResponse({ type: EventResponseDto })
+  cancel(
+    @Param('eventId') eventId: string,
+    @Headers('idempotency-key') idempotencyKey: unknown,
+    @CurrentAuth() principal: AuthPrincipal,
+    @Req() request: AuthenticatedRequest
+  ): Promise<EventResponseDto> {
+    return this.lifecycle.cancel(
+      parseEventId(eventId),
+      parseIdempotencyKey(idempotencyKey),
+      principal,
+      request.operationId
+    );
+  }
+
+  @Post(':eventId/archive')
+  @HttpCode(HttpStatus.OK)
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @ApiOkResponse({ type: EventResponseDto })
+  archive(
+    @Param('eventId') eventId: string,
+    @Headers('idempotency-key') idempotencyKey: unknown,
+    @CurrentAuth() principal: AuthPrincipal,
+    @Req() request: AuthenticatedRequest
+  ): Promise<EventResponseDto> {
+    return this.lifecycle.archive(
       parseEventId(eventId),
       parseIdempotencyKey(idempotencyKey),
       principal,
