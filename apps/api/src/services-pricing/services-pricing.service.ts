@@ -1,7 +1,15 @@
-import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  HttpStatus,
+  Inject,
+  Injectable,
+  NotFoundException
+} from '@nestjs/common';
 import { AuditedMutationService, auditedResult } from '../audit/audited-mutation.service';
 import type { AuthPrincipal } from '../auth/auth.types';
 import { PrismaService } from '../common/database/prisma.service';
+import { DomainError } from '../common/errors/domain-error';
 import {
   AuditActorType,
   type ClientType,
@@ -26,6 +34,7 @@ import type {
 } from './services-pricing.dto';
 
 type PriceWithService = ServicePrice & { service: Pick<Service, 'code'> };
+type CurrentPriceWithService = ServicePrice & { service: Pick<Service, 'id' | 'code'> };
 
 export interface PromotionEligibilityInput {
   scope: PromotionScope;
@@ -50,47 +59,39 @@ export class ServicesPricingService {
       });
     }
 
-    const now = new Date();
-    const services = await this.prisma.service.findMany({
-      where: {
-        isActive: true,
-        prices: {
-          some: {
-            clientType: principal.clientType,
-            validFrom: { lte: now },
-            OR: [{ validUntil: null }, { validUntil: { gt: now } }]
-          }
-        }
-      },
-      include: {
-        prices: {
-          where: {
-            clientType: principal.clientType,
-            validFrom: { lte: now },
-            OR: [{ validUntil: null }, { validUntil: { gt: now } }]
-          },
-          orderBy: { validFrom: 'desc' },
-          take: 1
-        }
-      },
-      orderBy: { code: 'asc' }
-    });
+    const prices = await this.findCurrentPrices(principal.clientType, new Date(), { activeServicesOnly: true });
 
-    return services.flatMap((service) => {
-      const price = service.prices[0];
+    return prices.map((price) => ({
+      id: price.service.id,
+      code: price.service.code,
+      credits: price.credits,
+      validFrom: price.validFrom.toISOString(),
+      validUntil: price.validUntil?.toISOString() ?? null
+    }));
+  }
 
-      return price
-        ? [
-            {
-              id: service.id,
-              code: service.code,
-              credits: price.credits,
-              validFrom: price.validFrom.toISOString(),
-              validUntil: price.validUntil?.toISOString() ?? null
-            }
-          ]
-        : [];
-    });
+  async resolveCurrentPrice(
+    serviceCode: ServiceCode,
+    clientType: ClientType,
+    at: Date = new Date()
+  ): Promise<PriceResponseDto> {
+    const prices = await this.findCurrentPrices(clientType, at, { serviceCode });
+    const price = prices[0];
+
+    if (!price) {
+      throw new DomainError(
+        'CURRENT_PRICE_NOT_FOUND',
+        'No current price exists for the service and Client type at the requested instant.',
+        HttpStatus.NOT_FOUND,
+        {
+          serviceCode,
+          clientType,
+          at: at.toISOString()
+        }
+      );
+    }
+
+    return toPriceResponse(price);
   }
 
   async createService(
@@ -332,7 +333,12 @@ export class ServicesPricingService {
       action: 'PROMOTION_CREATE',
       ...(operationId === undefined ? {} : { operationId }),
       mutate: async (transaction) => {
-        await assertPromotionTargets(transaction, input.clientId ?? null, input.serviceId ?? null);
+        await assertPromotionTargets(
+          transaction,
+          input.clientId ?? null,
+          input.clientType ?? null,
+          input.serviceId ?? null
+        );
         const promotion = await transaction.promotion.create({
           data: {
             name: input.name,
@@ -383,8 +389,9 @@ export class ServicesPricingService {
       ...(operationId === undefined ? {} : { operationId }),
       mutate: async (transaction) => {
         const clientId = input.clientId === undefined ? current.clientId : input.clientId;
+        const clientType = input.clientType === undefined ? current.clientType : input.clientType;
         const serviceId = input.serviceId === undefined ? current.serviceId : input.serviceId;
-        await assertPromotionTargets(transaction, clientId, serviceId);
+        await assertPromotionTargets(transaction, clientId, clientType, serviceId);
         const promotion = await transaction.promotion.update({
           where: { id: promotionId },
           data: {
@@ -465,6 +472,26 @@ export class ServicesPricingService {
     }
 
     return service;
+  }
+
+  private findCurrentPrices(
+    clientType: ClientType,
+    at: Date,
+    options: { serviceCode?: ServiceCode; activeServicesOnly?: boolean } = {}
+  ): Promise<CurrentPriceWithService[]> {
+    return this.prisma.servicePrice.findMany({
+      where: {
+        clientType,
+        validFrom: { lte: at },
+        OR: [{ validUntil: null }, { validUntil: { gt: at } }],
+        service: {
+          ...(options.serviceCode === undefined ? {} : { code: options.serviceCode }),
+          ...(options.activeServicesOnly === true ? { isActive: true } : {})
+        }
+      },
+      include: { service: { select: { id: true, code: true } } },
+      orderBy: [{ service: { code: 'asc' } }, { validFrom: 'desc' }]
+    });
   }
 
   private async requirePromotion(promotionId: string): Promise<Promotion> {
@@ -571,18 +598,26 @@ function assertDemoPrice(code: ServiceCode, credits: number): void {
 async function assertPromotionTargets(
   transaction: Prisma.TransactionClient,
   clientId: string | null,
+  clientType: ClientType | null,
   serviceId: string | null
 ): Promise<void> {
   if (clientId !== null) {
     const client = await transaction.client.findFirst({
       where: { id: clientId, deletedAt: null },
-      select: { id: true }
+      select: { id: true, type: true }
     });
 
     if (!client) {
       throw new NotFoundException({
         code: 'CLIENT_NOT_FOUND',
         message: 'Client not found.'
+      });
+    }
+
+    if (clientType !== null && client.type !== clientType) {
+      throw new BadRequestException({
+        code: 'PROMOTION_CLIENT_TYPE_MISMATCH',
+        message: 'Promotion clientType must match the selected Client type.'
       });
     }
   }

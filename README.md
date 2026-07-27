@@ -135,7 +135,7 @@ pnpm turbo dev --filter=@invitaciones/client
 - auditoría de login/logout y no enumeración de usuarios;
 - seed local de Platform Admin.
 
-`CODEX-021` agrega Clientes Planner y Organización:
+`CODEX-021` agregó Clientes Planner y Organización:
 
 - entidad `Client`, tipo y estado operativo;
 - FK formal de Usuario a Cliente;
@@ -146,7 +146,17 @@ pnpm turbo dev --filter=@invitaciones/client
 - suspensión/restauración auditada;
 - roles y ownership sin impersonación.
 
-Después de fusionar `CODEX-021` corresponde `CODEX-030 — Servicios, precios y promociones`.
+`CODEX-030` agregó servicios, precios y promociones:
+
+- catálogo cerrado de Flipbook, Flyer, QR físico y Demo;
+- precios vigentes e historial por tipo de Cliente;
+- intervalos de vigencia `[validFrom, validUntil)`;
+- constraints PostgreSQL contra solapamientos y precios no válidos de Demo;
+- promociones base con elegibilidad, vigencia y acumulación controlada;
+- administración exclusiva de Platform Admin;
+- seed idempotente de cuatro servicios y ocho precios iniciales.
+
+La siguiente tarea es `CODEX-031 — Ledger, balance cache y línea de crédito`.
 
 ## Fuente de verdad
 

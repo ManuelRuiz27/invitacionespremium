@@ -14,3 +14,4 @@ packages/*/.env
 prettier.patch
 apps/api/src/generated/prisma/
 apps/api/openapi/openapi.json
+graphify-out/

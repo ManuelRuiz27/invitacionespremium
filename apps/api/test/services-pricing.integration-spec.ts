@@ -1,4 +1,7 @@
+import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+import { promisify } from 'node:util';
+import { resolve } from 'node:path';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -10,6 +13,7 @@ import { ServicesPricingService } from '../src/services-pricing/services-pricing
 
 const trustedOrigin = 'http://localhost:5173';
 const password = 'correct horse battery staple';
+const execFileAsync = promisify(execFile);
 
 describe('Services, prices, and promotions', () => {
   let app: INestApplication;
@@ -87,6 +91,28 @@ describe('Services, prices, and promotions', () => {
     expect(creditsFor(plannerResponse.body, ServiceCode.FLIPBOOK)).toBe(30);
     expect(creditsFor(organizationResponse.body, ServiceCode.FLIPBOOK)).toBe(27);
     expect(creditsFor(organizationResponse.body, ServiceCode.PHYSICAL_QR)).toBe(10);
+  });
+
+  it('resolves exactly one current price or a stable domain error', async () => {
+    await expect(
+      servicesPricing.resolveCurrentPrice(ServiceCode.FLIPBOOK, ClientType.ORGANIZATION)
+    ).resolves.toMatchObject({
+      serviceCode: ServiceCode.FLIPBOOK,
+      clientType: ClientType.ORGANIZATION,
+      credits: 27
+    });
+
+    await expect(
+      servicesPricing.resolveCurrentPrice(
+        ServiceCode.FLIPBOOK,
+        ClientType.ORGANIZATION,
+        new Date('2000-01-01T00:00:00.000Z')
+      )
+    ).rejects.toMatchObject({
+      response: {
+        code: 'CURRENT_PRICE_NOT_FOUND'
+      }
+    });
   });
 
   it('forbids Client users from administrative routes', async () => {
@@ -294,6 +320,67 @@ describe('Services, prices, and promotions', () => {
     ).toHaveLength(0);
   });
 
+  it('requires a targeted promotion clientType to match the real Client type', async () => {
+    const cookie = await createPlatformAdminCookie();
+    const planner = await createOperationalUser(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
+    const basePromotion = {
+      name: 'Targeted Planner',
+      scope: PromotionScope.CREDIT_PURCHASE,
+      clientId: planner.clientId,
+      validFrom: pastIso(1),
+      validUntil: futureIso(60),
+      allowsStacking: false
+    };
+
+    await request(app.getHttpServer())
+      .post('/api/v1/admin/promotions')
+      .set('Origin', trustedOrigin)
+      .set('Cookie', cookie)
+      .send({ ...basePromotion, clientType: ClientType.ORGANIZATION })
+      .expect(400)
+      .expect((response) => {
+        expect(response.body.code).toBe('PROMOTION_CLIENT_TYPE_MISMATCH');
+      });
+
+    const compatible = await request(app.getHttpServer())
+      .post('/api/v1/admin/promotions')
+      .set('Origin', trustedOrigin)
+      .set('Cookie', cookie)
+      .send({ ...basePromotion, clientType: ClientType.PLANNER })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .patch(`/api/v1/admin/promotions/${String(compatible.body.id)}`)
+      .set('Origin', trustedOrigin)
+      .set('Cookie', cookie)
+      .send({ clientType: ClientType.ORGANIZATION })
+      .expect(400)
+      .expect((response) => {
+        expect(response.body.code).toBe('PROMOTION_CLIENT_TYPE_MISMATCH');
+      });
+  });
+
+  it('runs the real services-pricing seed twice without duplicating services or prices', async () => {
+    await prisma.servicePrice.deleteMany();
+    await prisma.service.deleteMany();
+
+    const firstRun = await runSeedScript();
+    const secondRun = await runSeedScript();
+    const services = await prisma.service.findMany({ orderBy: { code: 'asc' } });
+    const prices = await prisma.servicePrice.findMany({
+      orderBy: [{ serviceId: 'asc' }, { clientType: 'asc' }, { validFrom: 'asc' }]
+    });
+    const uniquePrices = new Set(
+      prices.map((price) => `${price.serviceId}:${price.clientType}:${price.validFrom.toISOString()}`)
+    );
+
+    expect(firstRun).toContain('"pricesCreated":8');
+    expect(secondRun).toContain('"pricesCreated":0');
+    expect(services.map((service) => service.code).sort()).toEqual(Object.values(ServiceCode).sort());
+    expect(prices).toHaveLength(8);
+    expect(uniquePrices.size).toBe(8);
+  }, 30_000);
+
   it('audits mutations and publishes the complete OpenAPI contract', async () => {
     const cookie = await createPlatformAdminCookie();
     const created = await createPromotion(cookie, {
@@ -436,6 +523,28 @@ describe('Services, prices, and promotions', () => {
       .set('Origin', trustedOrigin)
       .set('Cookie', cookie)
       .expect(200);
+  }
+
+  async function runSeedScript(): Promise<string> {
+    const databaseUrl = process.env.DATABASE_URL;
+
+    if (!databaseUrl) {
+      throw new Error('DATABASE_URL is required to execute the seed script.');
+    }
+
+    const workspaceRoot = resolve(__dirname, '../../..');
+    const isWindows = process.platform === 'win32';
+    const executable = isWindows ? (process.env.ComSpec ?? 'cmd.exe') : 'pnpm';
+    const args = isWindows
+      ? ['/d', '/s', '/c', 'pnpm --filter @invitaciones/api services-pricing:seed']
+      : ['--filter', '@invitaciones/api', 'services-pricing:seed'];
+    const { stdout } = await execFileAsync(executable, args, {
+      cwd: workspaceRoot,
+      env: { ...process.env, DATABASE_URL: databaseUrl },
+      maxBuffer: 1024 * 1024
+    });
+
+    return stdout;
   }
 });
 
