@@ -46,6 +46,10 @@ export class AppConfigService {
     });
   }
 
+  get creditUnitValueMxnCents(): number {
+    return this.configService.get('CREDIT_UNIT_VALUE_MXN_CENTS', { infer: true });
+  }
+
   get corsOrigins(): string[] {
     return this.configService
       .get('CORS_ORIGINS', { infer: true })

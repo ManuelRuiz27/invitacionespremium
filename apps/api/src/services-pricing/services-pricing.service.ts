@@ -35,6 +35,7 @@ import type {
 
 type PriceWithService = ServicePrice & { service: Pick<Service, 'code'> };
 type CurrentPriceWithService = ServicePrice & { service: Pick<Service, 'id' | 'code'> };
+type PricingDatabase = PrismaService | Prisma.TransactionClient;
 
 export interface PromotionEligibilityInput {
   scope: PromotionScope;
@@ -59,7 +60,9 @@ export class ServicesPricingService {
       });
     }
 
-    const prices = await this.findCurrentPrices(principal.clientType, new Date(), { activeServicesOnly: true });
+    const prices = await this.findCurrentPrices(this.prisma, principal.clientType, new Date(), {
+      activeServicesOnly: true
+    });
 
     return prices.map((price) => ({
       id: price.service.id,
@@ -75,7 +78,25 @@ export class ServicesPricingService {
     clientType: ClientType,
     at: Date = new Date()
   ): Promise<PriceResponseDto> {
-    const prices = await this.findCurrentPrices(clientType, at, { serviceCode });
+    return this.resolveCurrentPriceWithDatabase(this.prisma, serviceCode, clientType, at);
+  }
+
+  async resolveCurrentPriceInTransaction(
+    transaction: Prisma.TransactionClient,
+    serviceCode: ServiceCode,
+    clientType: ClientType,
+    at: Date = new Date()
+  ): Promise<PriceResponseDto> {
+    return this.resolveCurrentPriceWithDatabase(transaction, serviceCode, clientType, at);
+  }
+
+  private async resolveCurrentPriceWithDatabase(
+    database: PricingDatabase,
+    serviceCode: ServiceCode,
+    clientType: ClientType,
+    at: Date
+  ): Promise<PriceResponseDto> {
+    const prices = await this.findCurrentPrices(database, clientType, at, { serviceCode });
     const price = prices[0];
 
     if (!price) {
@@ -475,11 +496,12 @@ export class ServicesPricingService {
   }
 
   private findCurrentPrices(
+    database: PricingDatabase,
     clientType: ClientType,
     at: Date,
     options: { serviceCode?: ServiceCode; activeServicesOnly?: boolean } = {}
   ): Promise<CurrentPriceWithService[]> {
-    return this.prisma.servicePrice.findMany({
+    return database.servicePrice.findMany({
       where: {
         clientType,
         validFrom: { lte: at },

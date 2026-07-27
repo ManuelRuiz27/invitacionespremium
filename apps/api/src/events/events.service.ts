@@ -1,14 +1,25 @@
-import { BadRequestException, ConflictException, Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
 import { AuditedMutationService, auditedResult } from '../audit/audited-mutation.service';
 import type { AuthPrincipal } from '../auth/auth.types';
 import { PrismaService } from '../common/database/prisma.service';
 import { CRITICAL_TRANSACTION_OPTIONS } from '../common/database/transaction-policy';
+import { DomainError } from '../common/errors/domain-error';
 import { activeWhere, assertPlatformAdminRestoration } from '../common/persistence/soft-delete.repository';
-import { AuditActorType, EventStatus, Prisma, UserRole, type Event } from '../generated/prisma/client';
+import {
+  AuditActorType,
+  ClientStatus,
+  EventStatus,
+  Prisma,
+  ServiceCode,
+  UserRole,
+  type Event
+} from '../generated/prisma/client';
+import { FinanceService } from '../finance/finance.service';
+import { ServicesPricingService } from '../services-pricing/services-pricing.service';
 import { EventAccessPolicy, eventNotFound } from './event-access.policy';
 import { resolvePreparationStatus } from './event-status.resolver';
-import type { CreateEventInput, EventResponseDto, UpdateEventInput } from './events.dto';
+import type { CreateEventInput, EventActivationResponseDto, EventResponseDto, UpdateEventInput } from './events.dto';
 
 const PREPARATION_STATUSES: readonly EventStatus[] = [
   EventStatus.DRAFT,
@@ -30,7 +41,9 @@ export class EventsService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(AuditedMutationService) private readonly auditedMutation: AuditedMutationService,
     @Inject(AuditService) private readonly audit: AuditService,
-    @Inject(EventAccessPolicy) private readonly accessPolicy: EventAccessPolicy
+    @Inject(EventAccessPolicy) private readonly accessPolicy: EventAccessPolicy,
+    @Inject(FinanceService) private readonly finance: FinanceService,
+    @Inject(ServicesPricingService) private readonly pricing: ServicesPricingService
   ) {}
 
   async listOwned(principal: AuthPrincipal): Promise<EventResponseDto[]> {
@@ -152,6 +165,166 @@ export class EventsService {
     });
   }
 
+  async activate(
+    eventId: string,
+    idempotencyKey: string,
+    principal: AuthPrincipal,
+    operationId?: string
+  ): Promise<EventActivationResponseDto> {
+    await this.findOwnedEvent(this.prisma, eventId, principal);
+    const prior = await this.findActivationResult(eventId, idempotencyKey);
+    if (prior) {
+      return prior;
+    }
+
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      try {
+        return await this.prisma.$transaction(async (transaction) => {
+          await transaction.$queryRaw`
+            SELECT "id"
+            FROM "event"
+            WHERE "id" = ${eventId}::uuid
+            FOR UPDATE
+          `;
+          const current = await this.findOwnedEvent(transaction, eventId, principal);
+          const repeated = await this.findActivationResult(eventId, idempotencyKey, transaction);
+          if (repeated) {
+            return repeated;
+          }
+          if (current.status !== EventStatus.READY_TO_ACTIVATE) {
+            throw invalidEventState('Only a ready Event may be activated.');
+          }
+
+          const client = await transaction.client.findFirst({
+            where: { id: current.clientId, deletedAt: null },
+            select: { type: true, status: true }
+          });
+          if (!client || client.status !== ClientStatus.ACTIVE) {
+            throw new DomainError(
+              'CLIENT_NOT_ACTIVE',
+              'Event activation requires an active Client.',
+              HttpStatus.CONFLICT
+            );
+          }
+          if (!current.serviceId) {
+            throw new DomainError(
+              'EVENT_SERVICE_NOT_AVAILABLE',
+              'Event activation requires an active service.',
+              HttpStatus.CONFLICT
+            );
+          }
+          const service = await transaction.service.findFirst({
+            where: { id: current.serviceId, isActive: true },
+            select: { id: true, code: true }
+          });
+          if (!service) {
+            throw new DomainError(
+              'EVENT_SERVICE_NOT_AVAILABLE',
+              'Event service does not exist or is inactive.',
+              HttpStatus.CONFLICT
+            );
+          }
+          if (service.code === ServiceCode.DEMO) {
+            throw new DomainError(
+              'EVENT_DEMO_NOT_ACTIVATABLE',
+              'Demo service cannot be activated as a real Event.',
+              HttpStatus.CONFLICT
+            );
+          }
+
+          const activatedAt = new Date();
+          const price = await this.pricing.resolveCurrentPriceInTransaction(
+            transaction,
+            service.code,
+            client.type,
+            activatedAt
+          );
+          const baseCostCredits = price.credits;
+          const promotionDiscountCredits = 0 as const;
+          const finalCostCredits = baseCostCredits;
+          const financial = await this.finance.consumeEventActivation(transaction, {
+            clientId: current.clientId,
+            eventId,
+            actorUserId: principal.userId,
+            serviceId: service.id,
+            servicePriceId: price.id,
+            baseCostCredits,
+            promotionDiscountCredits,
+            finalCostCredits,
+            idempotencyKey,
+            at: activatedAt
+          });
+          const event = await transaction.event.update({
+            where: { id: eventId },
+            data: {
+              status: EventStatus.ACTIVE,
+              activatedAt,
+              activatedByUserId: principal.userId,
+              activatedServiceId: service.id,
+              activatedServicePriceId: price.id,
+              baseCostCredits,
+              promotionDiscountCredits,
+              finalCostCredits,
+              purchasedCreditsUsed: financial.purchasedCreditsUsed,
+              creditLineCreditsUsed: financial.creditLineCreditsUsed,
+              creditUnitValueMxnCentsSnapshot: financial.creditUnitValueMxnCentsSnapshot,
+              activationReceiptId: financial.receipt.id,
+              activationIdempotencyKey: idempotencyKey
+            }
+          });
+          const result: EventActivationResponseDto = {
+            event: toEventResponse(event),
+            baseCostCredits,
+            promotionDiscountCredits,
+            finalCostCredits,
+            purchasedCreditsUsed: financial.purchasedCreditsUsed,
+            creditLineCreditsUsed: financial.creditLineCreditsUsed,
+            movements: financial.movements,
+            receipt: financial.receipt,
+            balance: financial.balance
+          };
+          await transaction.receipt.update({
+            where: { id: financial.receipt.id },
+            data: { resultSnapshot: result as unknown as Prisma.InputJsonObject }
+          });
+          await this.audit.record(
+            {
+              actor: { type: AuditActorType.USER, id: principal.userId },
+              clientId: current.clientId,
+              eventId,
+              resourceType: 'EVENT',
+              resourceId: eventId,
+              action: 'EVENT_ACTIVATE',
+              beforeData: eventAuditSnapshot(current),
+              afterData: eventAuditSnapshot(event),
+              ...(operationId === undefined ? {} : { operationId })
+            },
+            transaction
+          );
+          return result;
+        }, CRITICAL_TRANSACTION_OPTIONS);
+      } catch (error) {
+        if (hasPrismaCode(error, 'P2002')) {
+          const raced = await this.findActivationResult(eventId, idempotencyKey);
+          if (raced) {
+            return raced;
+          }
+        }
+        if (isRetryableTransactionError(error) && attempt < 19) {
+          await waitForRetry(attempt);
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    throw new DomainError(
+      'EVENT_ACTIVATION_CONFLICT',
+      'Event activation could not be serialized.',
+      HttpStatus.CONFLICT
+    );
+  }
+
   async restoreAdmin(eventId: string, principal: AuthPrincipal, operationId?: string): Promise<EventResponseDto> {
     assertPlatformAdminRestoration({
       actorType: AuditActorType.USER,
@@ -257,6 +430,32 @@ export class EventsService {
       });
     }
   }
+
+  private async findActivationResult(
+    eventId: string,
+    idempotencyKey: string,
+    database: PrismaService | Prisma.TransactionClient = this.prisma
+  ): Promise<EventActivationResponseDto | null> {
+    const receipt = await database.receipt.findUnique({
+      where: { idempotencyKey },
+      select: {
+        operationType: true,
+        operationReference: true,
+        resultSnapshot: true
+      }
+    });
+    if (!receipt) {
+      return null;
+    }
+    if (receipt.operationType !== 'EVENT_ACTIVATION' || receipt.operationReference !== eventId) {
+      throw new DomainError(
+        'EVENT_ACTIVATION_IDEMPOTENCY_CONFLICT',
+        'Idempotency key is already assigned to another operation or Event.',
+        HttpStatus.CONFLICT
+      );
+    }
+    return receipt.resultSnapshot as unknown as EventActivationResponseDto;
+  }
 }
 
 function preparationData(input: CreateEventInput) {
@@ -330,6 +529,18 @@ function eventAuditSnapshot(event: Event): Record<string, unknown> {
     capacity: event.capacity,
     confirmationEnabled: event.confirmationEnabled,
     floorplanEnabled: event.floorplanEnabled,
+    activatedAt: event.activatedAt,
+    activatedByUserId: event.activatedByUserId,
+    activatedServiceId: event.activatedServiceId,
+    activatedServicePriceId: event.activatedServicePriceId,
+    baseCostCredits: event.baseCostCredits,
+    promotionDiscountCredits: event.promotionDiscountCredits,
+    finalCostCredits: event.finalCostCredits,
+    purchasedCreditsUsed: event.purchasedCreditsUsed,
+    creditLineCreditsUsed: event.creditLineCreditsUsed,
+    creditUnitValueMxnCentsSnapshot: event.creditUnitValueMxnCentsSnapshot,
+    activationReceiptId: event.activationReceiptId,
+    activationIdempotencyKey: event.activationIdempotencyKey,
     deletedAt: event.deletedAt
   };
 }
@@ -348,8 +559,47 @@ export function toEventResponse(event: Event): EventResponseDto {
     capacity: event.capacity,
     confirmationEnabled: event.confirmationEnabled,
     floorplanEnabled: event.floorplanEnabled,
+    activatedAt: event.activatedAt?.toISOString() ?? null,
+    activatedByUserId: event.activatedByUserId,
+    activatedServiceId: event.activatedServiceId,
+    activatedServicePriceId: event.activatedServicePriceId,
+    baseCostCredits: event.baseCostCredits,
+    promotionDiscountCredits: event.promotionDiscountCredits,
+    finalCostCredits: event.finalCostCredits,
+    purchasedCreditsUsed: event.purchasedCreditsUsed,
+    creditLineCreditsUsed: event.creditLineCreditsUsed,
+    creditUnitValueMxnCentsSnapshot: event.creditUnitValueMxnCentsSnapshot,
+    activationReceiptId: event.activationReceiptId,
+    activationIdempotencyKey: event.activationIdempotencyKey,
     createdAt: event.createdAt.toISOString(),
     updatedAt: event.updatedAt.toISOString(),
     deletedAt: event.deletedAt?.toISOString() ?? null
   };
+}
+
+function hasPrismaCode(error: unknown, code: string): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: unknown }).code === code;
+}
+
+function isRetryableTransactionError(error: unknown): boolean {
+  if (hasPrismaCode(error, 'P2034')) {
+    return true;
+  }
+  if (!hasPrismaCode(error, 'P2010') || typeof error !== 'object' || error === null || !('meta' in error)) {
+    return false;
+  }
+  const meta = (error as { meta?: unknown }).meta;
+  if (typeof meta !== 'object' || meta === null) {
+    return false;
+  }
+  const code = 'code' in meta ? (meta as { code?: unknown }).code : undefined;
+  const driverError =
+    'driverAdapterError' in meta ? String((meta as { driverAdapterError?: unknown }).driverAdapterError) : '';
+  return code === '40001' || code === '40P01' || driverError.includes('TransactionWriteConflict');
+}
+
+function waitForRetry(attempt: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, Math.min(100, 5 * (attempt + 1)));
+  });
 }

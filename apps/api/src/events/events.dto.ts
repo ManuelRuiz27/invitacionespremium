@@ -2,6 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import { ApiProperty } from '@nestjs/swagger';
 import { z } from 'zod';
 import { EventSocialType, EventStatus } from '../generated/prisma/client';
+import { FinanceBalanceResponseDto, LedgerMovementResponseDto, ReceiptResponseDto } from '../finance/finance.dto';
 
 const nullableName = z.string().trim().min(1).max(160).nullable().optional();
 const nullableUuid = z.string().uuid().nullable().optional();
@@ -99,6 +100,42 @@ export class EventResponseDto {
   @ApiProperty({ type: Boolean })
   floorplanEnabled!: boolean;
 
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  activatedAt!: string | null;
+
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  activatedByUserId!: string | null;
+
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  activatedServiceId!: string | null;
+
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  activatedServicePriceId!: string | null;
+
+  @ApiProperty({ type: Number, nullable: true })
+  baseCostCredits!: number | null;
+
+  @ApiProperty({ type: Number, nullable: true })
+  promotionDiscountCredits!: number | null;
+
+  @ApiProperty({ type: Number, nullable: true })
+  finalCostCredits!: number | null;
+
+  @ApiProperty({ type: Number, nullable: true })
+  purchasedCreditsUsed!: number | null;
+
+  @ApiProperty({ type: Number, nullable: true })
+  creditLineCreditsUsed!: number | null;
+
+  @ApiProperty({ type: Number, nullable: true })
+  creditUnitValueMxnCentsSnapshot!: number | null;
+
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  activationReceiptId!: string | null;
+
+  @ApiProperty({ type: String, nullable: true })
+  activationIdempotencyKey!: string | null;
+
   @ApiProperty({ type: String, format: 'date-time' })
   createdAt!: string;
 
@@ -107,6 +144,35 @@ export class EventResponseDto {
 
   @ApiProperty({ type: String, format: 'date-time', nullable: true })
   deletedAt!: string | null;
+}
+
+export class EventActivationResponseDto {
+  @ApiProperty({ type: EventResponseDto })
+  event!: EventResponseDto;
+
+  @ApiProperty({ type: Number })
+  baseCostCredits!: number;
+
+  @ApiProperty({ type: Number })
+  promotionDiscountCredits!: number;
+
+  @ApiProperty({ type: Number })
+  finalCostCredits!: number;
+
+  @ApiProperty({ type: Number })
+  purchasedCreditsUsed!: number;
+
+  @ApiProperty({ type: Number })
+  creditLineCreditsUsed!: number;
+
+  @ApiProperty({ type: LedgerMovementResponseDto, isArray: true })
+  movements!: LedgerMovementResponseDto[];
+
+  @ApiProperty({ type: ReceiptResponseDto })
+  receipt!: ReceiptResponseDto;
+
+  @ApiProperty({ type: FinanceBalanceResponseDto })
+  balance!: FinanceBalanceResponseDto;
 }
 
 export type CreateEventInput = z.infer<typeof createEventSchema>;

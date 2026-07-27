@@ -1,8 +1,22 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Inject, Param, Patch, Post, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  HttpCode,
+  HttpStatus,
+  Inject,
+  Param,
+  Patch,
+  Post,
+  Req
+} from '@nestjs/common';
 import {
   ApiBody,
   ApiCookieAuth,
   ApiCreatedResponse,
+  ApiHeader,
   ApiNoContentResponse,
   ApiOkResponse,
   ApiTags
@@ -11,8 +25,10 @@ import type { AuthenticatedRequest, AuthPrincipal } from '../auth/auth.types';
 import { CurrentAuth } from '../auth/current-auth.decorator';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../generated/prisma/client';
+import { parseIdempotencyKey } from '../finance/finance.dto';
 import {
   CreateEventRequestDto,
+  EventActivationResponseDto,
   EventResponseDto,
   UpdateEventRequestDto,
   parseCreateEventRequest,
@@ -72,5 +88,23 @@ export class EventsController {
     @Req() request: AuthenticatedRequest
   ): Promise<void> {
     await this.events.softDelete(parseEventId(eventId), principal, request.operationId);
+  }
+
+  @Post(':eventId/activate')
+  @HttpCode(HttpStatus.OK)
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @ApiOkResponse({ type: EventActivationResponseDto })
+  activate(
+    @Param('eventId') eventId: string,
+    @Headers('idempotency-key') idempotencyKey: unknown,
+    @CurrentAuth() principal: AuthPrincipal,
+    @Req() request: AuthenticatedRequest
+  ): Promise<EventActivationResponseDto> {
+    return this.events.activate(
+      parseEventId(eventId),
+      parseIdempotencyKey(idempotencyKey),
+      principal,
+      request.operationId
+    );
   }
 }

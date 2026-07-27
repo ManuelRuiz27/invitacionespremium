@@ -18,6 +18,7 @@ describe('validateEnvironment', () => {
     expect(environment.SWAGGER_ENABLED).toBe(false);
     expect(environment.AUTH_SESSION_TTL_SECONDS).toBe(3600);
     expect(environment.AUTH_COOKIE_SECURE).toBe(false);
+    expect(environment.CREDIT_UNIT_VALUE_MXN_CENTS).toBe(2000);
   });
 
   it('rejects non-PostgreSQL database URLs', () => {

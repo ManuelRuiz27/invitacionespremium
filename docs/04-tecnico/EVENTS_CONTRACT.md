@@ -2,7 +2,7 @@
 
 ## Alcance
 
-`EventsModule`, dentro de `apps/api`, implementa el modelo y CRUD de Evento en preparación. Cliente, creador y estado se resuelven en backend. Esta entrega no activa Eventos ni ejecuta operaciones financieras.
+`EventsModule`, dentro de `apps/api`, implementa el modelo, CRUD y activación transaccional de Evento. Cliente, creador, estado, precio y fuentes financieras se resuelven en backend.
 
 ## Modelo Event
 
@@ -18,6 +18,7 @@
 - `capacity`: entero positivo nullable;
 - `confirmationEnabled`: configuración básica de Confirmación;
 - `floorplanEnabled`: flag de Croquis/Mesas;
+- snapshots de activación, precio, fuentes financieras, comprobante e idempotencia;
 - `createdAt`, `updatedAt` y `deletedAt`.
 
 No existe una entidad adicional de “servicio contratado”. El Evento referencia directamente `Service`.
@@ -88,6 +89,7 @@ Operación Cliente:
 ```http
 GET    /api/v1/events
 POST   /api/v1/events
+POST   /api/v1/events/:eventId/activate
 GET    /api/v1/events/:eventId
 PATCH  /api/v1/events/:eventId
 DELETE /api/v1/events/:eventId
@@ -121,7 +123,13 @@ La operación usa actor `SYSTEM`, aislamiento `Serializable` y un registro de au
 
 ## Auditoría
 
-Crear, editar, borrar, restaurar y expirar un borrador generan auditoría transaccional con Cliente, Evento, recurso, actor y snapshots aplicables.
+Crear, editar, activar, borrar, restaurar y expirar un borrador generan auditoría transaccional con Cliente, Evento, recurso, actor y snapshots aplicables.
+
+## Activación
+
+`POST /events/:eventId/activate` exige `Idempotency-Key`, estado `READY_TO_ACTIVATE`, Cliente activo, servicio real activo, precio vigente y capacidad financiera suficiente. Consume primero saldo comprado y luego línea de crédito. Ledger, comprobante, balance, snapshots, estado `ACTIVE` y auditoría se confirman en una transacción `Serializable`.
+
+El detalle normativo se encuentra en `EVENT_ACTIVATION_CONTRACT.md`.
 
 ## Errores
 
@@ -129,14 +137,14 @@ Crear, editar, borrar, restaurar y expirar un borrador generan auditoría transa
 - `EVENT_NOT_FOUND`: Evento inexistente, borrado o fuera de ownership;
 - `EVENT_SERVICE_NOT_AVAILABLE`: servicio inexistente o inactivo;
 - `EVENT_INVALID_STATE_TRANSITION`: edición o borrado incompatible con el estado;
+- `EVENT_DEMO_NOT_ACTIVATABLE`: un Evento Demo no admite activación real;
+- `EVENT_ACTIVATION_IDEMPOTENCY_CONFLICT`: llave usada por otro Evento u operación;
 - `ROLE_FORBIDDEN`: rol sin acceso al grupo de rutas.
 
 ## Alcance diferido
 
 No se implementan todavía:
 
-- activación ni cobro;
-- ledger, comprobantes o snapshots de precio del Evento;
 - promociones económicas;
 - Contactos e Invitaciones;
 - diseño Flyer/Flipbook;

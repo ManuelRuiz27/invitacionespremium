@@ -175,7 +175,16 @@ pnpm turbo dev --filter=@invitaciones/client
 - borrado lógico, restauración administrativa y limpieza idempotente de borradores vencidos;
 - auditoría transaccional y consulta global de Platform Admin.
 
-La siguiente tarea es `CODEX-041 — Activación transaccional`.
+`CODEX-041` agregó la activación transaccional de Evento:
+
+- consumo ordenado de saldo comprado y línea de crédito;
+- ledger, comprobante, balance, snapshots y estado `ACTIVE` atómicos;
+- precio vigente según tipo real de Cliente;
+- valor histórico MXN para deuda financiada;
+- ownership, idempotencia y concurrencia sin doble cobro;
+- rechazo de Demo y rollback completo ante cualquier error.
+
+La siguiente tarea es `CODEX-042 — Cierre, reapertura, cancelación y archivado`.
 
 ## Fuente de verdad
 

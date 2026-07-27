@@ -99,8 +99,8 @@ El enum usa exclusivamente los valores definidos en `LEDGER_TYPES.md`:
 |---|---:|---:|---:|---:|---|
 | `CREDIT_PURCHASE` | positivo | 0 | 0 | positivo | Implementado |
 | `MANUAL_CREDIT_GRANT` | positivo | 0 | 0 | 0 | Implementado |
-| `EVENT_ACTIVATION_CHARGE` | negativo | 0 | 0 | 0 | Diferido |
-| `CREDIT_LINE_USAGE` | 0 | positivo | positivo | 0 | Creación desde Evento diferida |
+| `EVENT_ACTIVATION_CHARGE` | negativo | 0 | 0 | 0 | Implementado desde Evento |
+| `CREDIT_LINE_USAGE` | 0 | positivo | positivo | 0 | Implementado desde Evento |
 | `DEBT_PAYMENT` | 0 | negativo | negativo | positivo | Implementado |
 | `EVENT_CREDIT_REFUND` | según origen | según origen | según origen | 0 | Diferido |
 | `LEDGER_REVERSAL` | inverso del original | inverso | inverso | inverso | Diferido |
@@ -139,6 +139,12 @@ amountMxnCents = credits × lot.creditUnitValueMxnCentsSnapshot
 ```
 
 La suma solicitada debe coincidir con el importe aprobado.
+
+### Activación de Evento
+
+`FinanceService.consumeEventActivation(transaction, input)` bloquea balance y línea, consume primero saldo comprado y financia el remanente. Crea `EVENT_ACTIVATION_CHARGE`, `CREDIT_LINE_USAGE` o ambos, siempre bajo un comprobante compartido. El valor unitario de la porción financiada proviene de configuración central y queda congelado en el movimiento.
+
+La operación no abre ni confirma una transacción por sí sola: participa en la transacción `Serializable` coordinada por `EventsModule`, para que ledger, balance, snapshots, estado y auditoría sean atómicos.
 
 ### Consultas, cortes y reconstrucción
 
@@ -209,14 +215,10 @@ GET  /api/v1/admin/finance/cuts/monthly
 
 Platform Admin no impersona al Cliente.
 
-## Alcance diferido hasta Eventos
+## Alcance diferido
 
 Quedan fuera de este contrato operativo:
 
-- modelo y CRUD de Evento;
-- activación;
-- creación operativa de `EVENT_ACTIVATION_CHARGE`;
-- creación operativa de `CREDIT_LINE_USAGE` desde Evento;
 - promociones económicas;
 - `EVENT_CREDIT_REFUND`;
 - `LEDGER_REVERSAL`;

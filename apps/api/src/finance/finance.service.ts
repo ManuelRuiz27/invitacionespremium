@@ -2,6 +2,7 @@ import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { AuditedMutationService, auditedResult } from '../audit/audited-mutation.service';
 import type { AuthPrincipal } from '../auth/auth.types';
 import { PrismaService } from '../common/database/prisma.service';
+import { AppConfigService } from '../config/app-config.service';
 import { DomainError } from '../common/errors/domain-error';
 import {
   AuditActorType,
@@ -47,11 +48,34 @@ type ReconstructionRow = {
   last_ledger_sequence: bigint | null;
 };
 
+export interface ConsumeEventActivationInput {
+  clientId: string;
+  eventId: string;
+  actorUserId: string;
+  serviceId: string;
+  servicePriceId: string;
+  baseCostCredits: number;
+  promotionDiscountCredits: 0;
+  finalCostCredits: number;
+  idempotencyKey: string;
+  at: Date;
+}
+
+export interface EventActivationFinanceResult {
+  receipt: ReceiptResponseDto;
+  movements: LedgerMovementResponseDto[];
+  balance: FinanceBalanceResponseDto;
+  purchasedCreditsUsed: number;
+  creditLineCreditsUsed: number;
+  creditUnitValueMxnCentsSnapshot: number | null;
+}
+
 @Injectable()
 export class FinanceService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
-    @Inject(AuditedMutationService) private readonly auditedMutation: AuditedMutationService
+    @Inject(AuditedMutationService) private readonly auditedMutation: AuditedMutationService,
+    @Inject(AppConfigService) private readonly config: AppConfigService
   ) {}
 
   async getOwnBalance(principal: AuthPrincipal): Promise<FinanceBalanceResponseDto> {
@@ -276,6 +300,121 @@ export class FinanceService {
       }
       throw error;
     }
+  }
+
+  async consumeEventActivation(
+    transaction: Prisma.TransactionClient,
+    input: ConsumeEventActivationInput
+  ): Promise<EventActivationFinanceResult> {
+    await transaction.$queryRaw`
+      SELECT "client_id"
+      FROM "finance_balance"
+      WHERE "client_id" = ${input.clientId}::uuid
+      FOR UPDATE
+    `;
+    await transaction.$queryRaw`
+      SELECT "client_id"
+      FROM "credit_line"
+      WHERE "client_id" = ${input.clientId}::uuid
+      FOR UPDATE
+    `;
+
+    const [balance, creditLine] = await Promise.all([
+      transaction.financeBalance.findUnique({ where: { clientId: input.clientId } }),
+      transaction.creditLine.findUnique({ where: { clientId: input.clientId } })
+    ]);
+    const purchasedCreditsUsed = Math.min(balance?.purchasedCredits ?? 0, input.finalCostCredits);
+    const creditLineCreditsUsed = input.finalCostCredits - purchasedCreditsUsed;
+    const lineAvailable =
+      creditLine?.status === CreditLineStatus.ACTIVE &&
+      (creditLine.expiresAt === null || creditLine.expiresAt > input.at)
+        ? creditLine.limitCredits - (balance?.creditLineUsed ?? 0)
+        : 0;
+
+    if (creditLineCreditsUsed > lineAvailable) {
+      throw new DomainError(
+        'FINANCE_INSUFFICIENT_CREDITS',
+        'Purchased balance and available credit line are insufficient for Event activation.',
+        HttpStatus.CONFLICT,
+        {
+          finalCostCredits: input.finalCostCredits,
+          purchasedCreditsAvailable: balance?.purchasedCredits ?? 0,
+          creditLineAvailable: Math.max(0, lineAvailable)
+        }
+      );
+    }
+
+    const receipt = await transaction.receipt.create({
+      data: {
+        clientId: input.clientId,
+        operationType: 'EVENT_ACTIVATION',
+        operationReference: input.eventId,
+        idempotencyKey: input.idempotencyKey
+      }
+    });
+    const metadata = toJson({
+      eventId: input.eventId,
+      serviceId: input.serviceId,
+      servicePriceId: input.servicePriceId,
+      baseCostCredits: input.baseCostCredits,
+      promotionDiscountCredits: input.promotionDiscountCredits,
+      finalCostCredits: input.finalCostCredits
+    });
+    const movements: LedgerEntry[] = [];
+
+    if (purchasedCreditsUsed > 0) {
+      movements.push(
+        await transaction.ledgerEntry.create({
+          data: {
+            clientId: input.clientId,
+            eventId: input.eventId,
+            actorUserId: input.actorUserId,
+            movementType: LedgerMovementType.EVENT_ACTIVATION_CHARGE,
+            purchasedCreditDelta: -purchasedCreditsUsed,
+            creditLineUsedDelta: 0,
+            debtDelta: 0,
+            cashMxnDelta: 0,
+            operationReference: input.eventId,
+            idempotencyKey: input.idempotencyKey,
+            receiptId: receipt.id,
+            metadata
+          }
+        })
+      );
+    }
+
+    const creditUnitValueMxnCentsSnapshot = creditLineCreditsUsed === 0 ? null : this.config.creditUnitValueMxnCents;
+    if (creditLineCreditsUsed > 0) {
+      movements.push(
+        await transaction.ledgerEntry.create({
+          data: {
+            clientId: input.clientId,
+            eventId: input.eventId,
+            actorUserId: input.actorUserId,
+            movementType: LedgerMovementType.CREDIT_LINE_USAGE,
+            purchasedCreditDelta: 0,
+            creditLineUsedDelta: creditLineCreditsUsed,
+            debtDelta: creditLineCreditsUsed,
+            cashMxnDelta: 0,
+            creditUnitValueMxnCentsSnapshot,
+            operationReference: input.eventId,
+            idempotencyKey: input.idempotencyKey,
+            receiptId: receipt.id,
+            dueAt: creditLine?.expiresAt ?? null,
+            metadata
+          }
+        })
+      );
+    }
+
+    return {
+      receipt: toReceiptResponse(receipt),
+      movements: movements.map(toLedgerMovementResponse),
+      balance: await this.buildBalanceResponse(transaction, input.clientId),
+      purchasedCreditsUsed,
+      creditLineCreditsUsed,
+      creditUnitValueMxnCentsSnapshot
+    };
   }
 
   async getDailyCut(query: DailyCutQuery): Promise<FinanceCutResponseDto> {

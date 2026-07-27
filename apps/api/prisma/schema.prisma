@@ -84,11 +84,11 @@ enum CreditLineStatus {
 }
 
 enum EventSocialType {
-  WEDDING       @map("wedding")
-  QUINCEANERA   @map("quinceanera")
-  CORPORATE     @map("corporate")
-  BIRTHDAY      @map("birthday")
-  OTHER         @map("other")
+  WEDDING     @map("wedding")
+  QUINCEANERA @map("quinceanera")
+  CORPORATE   @map("corporate")
+  BIRTHDAY    @map("birthday")
+  OTHER       @map("other")
 
   @@map("event_social_type")
 }
@@ -164,19 +164,20 @@ model Client {
 }
 
 model User {
-  id            String        @id @default(uuid()) @db.Uuid
-  email         String        @unique @db.VarChar(320)
-  passwordHash  String        @map("password_hash") @db.Text
-  role          UserRole
-  clientId      String?       @map("client_id") @db.Uuid
-  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
-  deletedAt     DateTime?     @map("deleted_at") @db.Timestamptz(6)
-  client        Client?       @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  sessions      AuthSession[]
-  ledgerEntries LedgerEntry[]
-  payments      Payment[]
-  createdEvents Event[]       @relation("EventCreator")
+  id              String        @id @default(uuid()) @db.Uuid
+  email           String        @unique @db.VarChar(320)
+  passwordHash    String        @map("password_hash") @db.Text
+  role            UserRole
+  clientId        String?       @map("client_id") @db.Uuid
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt       DateTime?     @map("deleted_at") @db.Timestamptz(6)
+  client          Client?       @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  sessions        AuthSession[]
+  ledgerEntries   LedgerEntry[]
+  payments        Payment[]
+  createdEvents   Event[]       @relation("EventCreator")
+  activatedEvents Event[]       @relation("EventActivator")
 
   @@index([clientId])
   @@index([role, deletedAt])
@@ -198,29 +199,31 @@ model AuthSession {
 }
 
 model Service {
-  id         String         @id @default(uuid()) @db.Uuid
-  code       ServiceCode    @unique
-  isActive   Boolean        @default(true) @map("is_active")
-  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt  DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
-  prices     ServicePrice[]
-  promotions Promotion[]
-  events     Event[]
+  id              String         @id @default(uuid()) @db.Uuid
+  code            ServiceCode    @unique
+  isActive        Boolean        @default(true) @map("is_active")
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  prices          ServicePrice[]
+  promotions      Promotion[]
+  events          Event[]        @relation("EventConfiguredService")
+  activatedEvents Event[]        @relation("EventActivatedService")
 
   @@index([isActive, code])
   @@map("service")
 }
 
 model ServicePrice {
-  id         String     @id @default(uuid()) @db.Uuid
-  serviceId  String     @map("service_id") @db.Uuid
-  clientType ClientType @map("client_type")
-  credits    Int
-  validFrom  DateTime   @map("valid_from") @db.Timestamptz(6)
-  validUntil DateTime?  @map("valid_until") @db.Timestamptz(6)
-  createdAt  DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt  DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
-  service    Service    @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  id              String     @id @default(uuid()) @db.Uuid
+  serviceId       String     @map("service_id") @db.Uuid
+  clientType      ClientType @map("client_type")
+  credits         Int
+  validFrom       DateTime   @map("valid_from") @db.Timestamptz(6)
+  validUntil      DateTime?  @map("valid_until") @db.Timestamptz(6)
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  service         Service    @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  activatedEvents Event[]
 
   @@unique([serviceId, clientType, validFrom])
   @@index([clientType, validFrom, validUntil])
@@ -293,6 +296,7 @@ model Receipt {
   client             Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
   ledgerEntries      LedgerEntry[]
   payment            Payment?
+  activatedEvent     Event?
 
   @@index([clientId, createdAt])
   @@map("receipt")
@@ -357,6 +361,7 @@ model LedgerEntry {
   promotion                       Promotion?              @relation(fields: [promotionId], references: [id], onDelete: Restrict)
   payment                         Payment?                @relation(fields: [paymentId], references: [id], onDelete: Restrict)
   receipt                         Receipt                 @relation(fields: [receiptId], references: [id], onDelete: Restrict)
+  event                           Event?                  @relation(fields: [eventId], references: [id], onDelete: Restrict)
   debtLotAllocations              DebtPaymentAllocation[] @relation("DebtLot")
   debtPaymentAllocations          DebtPaymentAllocation[] @relation("DebtPayment")
 
@@ -385,27 +390,45 @@ model DebtPaymentAllocation {
 }
 
 model Event {
-  id                  String           @id @default(uuid()) @db.Uuid
-  clientId            String           @map("client_id") @db.Uuid
-  createdByUserId     String           @map("created_by_user_id") @db.Uuid
-  serviceId           String?          @map("service_id") @db.Uuid
-  name                String?          @db.VarChar(160)
-  socialType          EventSocialType? @map("social_type")
-  status              EventStatus      @default(DRAFT)
-  eventDateTime       DateTime?         @map("event_date_time") @db.Timestamptz(6)
-  timeZone            String?          @map("time_zone") @db.VarChar(100)
-  capacity            Int?
-  confirmationEnabled Boolean          @default(false) @map("confirmation_enabled")
-  floorplanEnabled    Boolean           @default(false) @map("floorplan_enabled")
-  createdAt           DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt           DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
-  deletedAt           DateTime?         @map("deleted_at") @db.Timestamptz(6)
-  client              Client            @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  createdByUser       User              @relation("EventCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
-  service             Service?          @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  id                              String           @id @default(uuid()) @db.Uuid
+  clientId                        String           @map("client_id") @db.Uuid
+  createdByUserId                 String           @map("created_by_user_id") @db.Uuid
+  serviceId                       String?          @map("service_id") @db.Uuid
+  name                            String?          @db.VarChar(160)
+  socialType                      EventSocialType? @map("social_type")
+  status                          EventStatus      @default(DRAFT)
+  eventDateTime                   DateTime?        @map("event_date_time") @db.Timestamptz(6)
+  timeZone                        String?          @map("time_zone") @db.VarChar(100)
+  capacity                        Int?
+  confirmationEnabled             Boolean          @default(false) @map("confirmation_enabled")
+  floorplanEnabled                Boolean          @default(false) @map("floorplan_enabled")
+  activatedAt                     DateTime?        @map("activated_at") @db.Timestamptz(6)
+  activatedByUserId               String?          @map("activated_by_user_id") @db.Uuid
+  activatedServiceId              String?          @map("activated_service_id") @db.Uuid
+  activatedServicePriceId         String?          @map("activated_service_price_id") @db.Uuid
+  baseCostCredits                 Int?             @map("base_cost_credits")
+  promotionDiscountCredits        Int?             @map("promotion_discount_credits")
+  finalCostCredits                Int?             @map("final_cost_credits")
+  purchasedCreditsUsed            Int?             @map("purchased_credits_used")
+  creditLineCreditsUsed           Int?             @map("credit_line_credits_used")
+  creditUnitValueMxnCentsSnapshot Int?             @map("credit_unit_value_mxn_cents_snapshot")
+  activationReceiptId             String?          @unique @map("activation_receipt_id") @db.Uuid
+  activationIdempotencyKey        String?          @unique @map("activation_idempotency_key") @db.VarChar(128)
+  createdAt                       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt                       DateTime?        @map("deleted_at") @db.Timestamptz(6)
+  client                          Client           @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  createdByUser                   User             @relation("EventCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  activatedByUser                 User?            @relation("EventActivator", fields: [activatedByUserId], references: [id], onDelete: Restrict)
+  service                         Service?         @relation("EventConfiguredService", fields: [serviceId], references: [id], onDelete: Restrict)
+  activatedService                Service?         @relation("EventActivatedService", fields: [activatedServiceId], references: [id], onDelete: Restrict)
+  activatedServicePrice           ServicePrice?    @relation(fields: [activatedServicePriceId], references: [id], onDelete: Restrict)
+  activationReceipt               Receipt?         @relation(fields: [activationReceiptId], references: [id], onDelete: Restrict)
+  ledgerEntries                   LedgerEntry[]
 
   @@index([clientId, status, deletedAt])
   @@index([createdByUserId, status, deletedAt])
   @@index([eventDateTime, status, deletedAt])
+  @@index([activatedAt])
   @@map("event")
 }

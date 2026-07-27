@@ -8,6 +8,7 @@ import { PrismaService } from '../src/common/database/prisma.service';
 import {
   ClientType,
   CreditLineStatus,
+  EventStatus,
   LedgerMovementType,
   PaymentProvider,
   PaymentStatus,
@@ -508,6 +509,17 @@ describe('Finance core', () => {
   async function createDebtLot(clientId: string, actorUserId: string, credits: number, unitValueMxnCents: number) {
     const key = `test-lot-${randomUUID()}`;
     return prisma.$transaction(async (transaction) => {
+      const creator = await transaction.user.findFirstOrThrow({
+        where: { clientId, deletedAt: null },
+        select: { id: true }
+      });
+      const event = await transaction.event.create({
+        data: {
+          clientId,
+          createdByUserId: creator.id,
+          status: EventStatus.READY_TO_ACTIVATE
+        }
+      });
       const receipt = await transaction.receipt.create({
         data: {
           clientId,
@@ -519,7 +531,7 @@ describe('Finance core', () => {
       return transaction.ledgerEntry.create({
         data: {
           clientId,
-          eventId: randomUUID(),
+          eventId: event.id,
           actorUserId,
           movementType: LedgerMovementType.CREDIT_LINE_USAGE,
           purchasedCreditDelta: 0,
@@ -623,6 +635,7 @@ describe('Finance core', () => {
       BEGIN;
       SET LOCAL session_replication_role = replica;
       TRUNCATE TABLE
+        "event",
         "debt_payment_allocation",
         "ledger_entry",
         "payment",
