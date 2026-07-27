@@ -10,9 +10,14 @@ describe('finance DTO validation', () => {
         credits: 7,
         creditUnitValueMxnCents: 2000,
         amountMxnCents: 14_000,
-        externalReference: 'cash-001'
+        externalReference: 'cash-001',
+        metadata: { channel: 'cash-desk', batch: 7 }
       })
-    ).toMatchObject({ credits: 7, amountMxnCents: 14_000 });
+    ).toMatchObject({
+      credits: 7,
+      amountMxnCents: 14_000,
+      metadata: { channel: 'cash-desk', batch: 7 }
+    });
   });
 
   it('rejects a paid purchase whose amount does not match its historical unit value', () => {

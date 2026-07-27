@@ -8,6 +8,7 @@ import {
   ClientStatus,
   CreditLineStatus,
   LedgerMovementType,
+  PaymentProvider,
   PaymentStatus,
   Prisma,
   type CreditLine,
@@ -196,51 +197,85 @@ export class FinanceService {
   ): Promise<FinanceMutationResponseDto> {
     const operationType = input.kind;
 
-    return this.executeIdempotent(
-      clientId,
-      operationType,
-      input.operationReference ?? idempotencyKey,
-      idempotencyKey,
-      principal,
-      operationId,
-      async (transaction, receipt) => {
-        const payment = await transaction.payment.create({
-          data: {
-            clientId,
-            receiptId: receipt.id,
-            actorUserId: principal.userId,
-            status: PaymentStatus.APPROVED,
-            amountMxnCents: BigInt(input.amountMxnCents),
-            externalReference: input.externalReference,
-            approvedAt: new Date()
-          }
-        });
-
-        if (input.kind === LedgerMovementType.CREDIT_PURCHASE) {
-          const movement = await transaction.ledgerEntry.create({
+    try {
+      return await this.executeIdempotent(
+        clientId,
+        operationType,
+        input.operationReference ?? idempotencyKey,
+        idempotencyKey,
+        principal,
+        operationId,
+        async (transaction, receipt) => {
+          const metadata = paymentMetadata(input.metadata, input.notes);
+          const payment = await transaction.payment.create({
             data: {
               clientId,
-              actorUserId: principal.userId,
-              movementType: LedgerMovementType.CREDIT_PURCHASE,
-              purchasedCreditDelta: input.credits,
-              creditLineUsedDelta: 0,
-              debtDelta: 0,
-              cashMxnDelta: BigInt(input.amountMxnCents),
-              creditUnitValueMxnCentsSnapshot: input.creditUnitValueMxnCents,
-              operationReference: input.operationReference ?? idempotencyKey,
-              idempotencyKey,
-              paymentId: payment.id,
               receiptId: receipt.id,
-              ...(input.notes == null ? {} : { metadata: toJson({ notes: input.notes }) })
+              actorUserId: principal.userId,
+              provider: PaymentProvider.MANUAL,
+              status: PaymentStatus.APPROVED,
+              amountMxnCents: BigInt(input.amountMxnCents),
+              externalReference: input.externalReference,
+              idempotencyKey,
+              ...(metadata === undefined ? {} : { metadata }),
+              approvedAt: new Date()
             }
           });
 
-          return { receipt, movement, payment };
-        }
+          if (input.kind === LedgerMovementType.CREDIT_PURCHASE) {
+            const movement = await transaction.ledgerEntry.create({
+              data: {
+                clientId,
+                actorUserId: principal.userId,
+                movementType: LedgerMovementType.CREDIT_PURCHASE,
+                purchasedCreditDelta: input.credits,
+                creditLineUsedDelta: 0,
+                debtDelta: 0,
+                cashMxnDelta: BigInt(input.amountMxnCents),
+                creditUnitValueMxnCentsSnapshot: input.creditUnitValueMxnCents,
+                operationReference: input.operationReference ?? idempotencyKey,
+                idempotencyKey,
+                paymentId: payment.id,
+                receiptId: receipt.id,
+                ...(input.notes == null ? {} : { metadata: toJson({ notes: input.notes }) })
+              }
+            });
 
-        return this.createDebtPayment(transaction, clientId, input, idempotencyKey, principal.userId, receipt, payment);
+            return { receipt, movement, payment };
+          }
+
+          return this.createDebtPayment(
+            transaction,
+            clientId,
+            input,
+            idempotencyKey,
+            principal.userId,
+            receipt,
+            payment
+          );
+        }
+      );
+    } catch (error) {
+      if (hasPrismaCode(error, 'P2002')) {
+        const duplicate = await this.prisma.payment.findUnique({
+          where: {
+            provider_externalReference: {
+              provider: PaymentProvider.MANUAL,
+              externalReference: input.externalReference
+            }
+          },
+          select: { id: true }
+        });
+        if (duplicate) {
+          throw new DomainError(
+            'FINANCE_DUPLICATE_PAYMENT_REFERENCE',
+            'External payment reference is already registered for this provider.',
+            HttpStatus.CONFLICT
+          );
+        }
       }
-    );
+      throw error;
+    }
   }
 
   async getDailyCut(query: DailyCutQuery): Promise<FinanceCutResponseDto> {
@@ -687,10 +722,13 @@ function toLedgerMovementResponse(entry: LedgerEntry): LedgerMovementResponseDto
 function toPaymentResponse(payment: Payment): PaymentResponseDto {
   return {
     id: payment.id,
+    provider: payment.provider,
     status: payment.status,
     amountMxnCents: safeBigIntNumber(payment.amountMxnCents, 'amountMxnCents'),
     currency: payment.currency,
     externalReference: payment.externalReference,
+    idempotencyKey: payment.idempotencyKey,
+    metadata: asRecord(payment.metadata),
     approvedAt: payment.approvedAt?.toISOString() ?? null
   };
 }
@@ -744,6 +782,19 @@ function safeBigIntNumber(value: bigint, fieldName: string): number {
 
 function toJson(value: unknown): Prisma.InputJsonObject {
   return value as Prisma.InputJsonObject;
+}
+
+function paymentMetadata(
+  metadata: Record<string, unknown> | undefined,
+  notes: string | null | undefined
+): Prisma.InputJsonObject | undefined {
+  if (metadata === undefined && notes == null) {
+    return undefined;
+  }
+  return toJson({
+    ...(metadata ?? {}),
+    ...(notes == null ? {} : { notes })
+  });
 }
 
 function asRecord(value: Prisma.JsonValue | null): Record<string, unknown> | null {

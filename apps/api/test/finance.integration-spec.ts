@@ -9,6 +9,7 @@ import {
   ClientType,
   CreditLineStatus,
   LedgerMovementType,
+  PaymentProvider,
   PaymentStatus,
   UserRole
 } from '../src/generated/prisma/client';
@@ -73,18 +74,27 @@ describe('Finance core', () => {
     );
     expect(repeatedGrant.body).toEqual(firstGrant.body);
 
-    await adminPost(
+    const purchaseKey = `purchase-${randomUUID()}`;
+    const purchaseBody = {
+      kind: LedgerMovementType.CREDIT_PURCHASE,
+      credits: 5,
+      creditUnitValueMxnCents: 2000,
+      amountMxnCents: 10_000,
+      externalReference: 'manual-cash-001',
+      metadata: { sourceDesk: 'north', reconciliationBatch: 42 }
+    };
+    const purchase = await adminPost(
       adminCookie,
       `/api/v1/admin/finance/clients/${planner.clientId}/manual-payment`,
-      `purchase-${randomUUID()}`,
-      {
-        kind: LedgerMovementType.CREDIT_PURCHASE,
-        credits: 5,
-        creditUnitValueMxnCents: 2000,
-        amountMxnCents: 10_000,
-        externalReference: 'manual-cash-001'
-      }
+      purchaseKey,
+      purchaseBody
     );
+    expect(purchase.body.payment).toMatchObject({
+      provider: PaymentProvider.MANUAL,
+      idempotencyKey: purchaseKey,
+      externalReference: 'manual-cash-001',
+      metadata: { sourceDesk: 'north', reconciliationBatch: 42 }
+    });
 
     const balance = await request(app.getHttpServer())
       .get('/api/v1/finance/balance')
@@ -109,6 +119,29 @@ describe('Finance core', () => {
     expect(await prisma.payment.count({ where: { status: PaymentStatus.APPROVED } })).toBe(1);
     expect(await prisma.receipt.count()).toBe(2);
     expect(await prisma.auditLog.count({ where: { resourceType: 'FinanceOperation' } })).toBe(2);
+    const persistedPayment = await prisma.payment.findFirstOrThrow();
+    expect(persistedPayment).toMatchObject({
+      provider: PaymentProvider.MANUAL,
+      idempotencyKey: purchaseKey,
+      externalReference: 'manual-cash-001',
+      metadata: { sourceDesk: 'north', reconciliationBatch: 42 }
+    });
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/admin/finance/clients/${planner.clientId}/manual-payment`)
+      .set('Origin', trustedOrigin)
+      .set('Cookie', adminCookie)
+      .set('Idempotency-Key', `duplicate-reference-${randomUUID()}`)
+      .send(purchaseBody)
+      .expect(409)
+      .expect((response) => {
+        expect(response.body.code).toBe('FINANCE_DUPLICATE_PAYMENT_REFERENCE');
+      });
+    expect(await prisma.payment.count()).toBe(1);
+    expect(await prisma.receipt.count()).toBe(2);
+    expect(await prisma.ledgerEntry.count()).toBe(2);
+    expect(await prisma.auditLog.count({ where: { resourceType: 'FinanceOperation' } })).toBe(2);
+    expect((await finance.getBalance(planner.clientId)).purchasedCredits).toBe(15);
 
     const grantEntry = await prisma.ledgerEntry.findFirstOrThrow({
       where: { movementType: LedgerMovementType.MANUAL_CREDIT_GRANT }
@@ -143,9 +176,11 @@ describe('Finance core', () => {
             clientId: planner.clientId,
             receiptId: receipt.id,
             actorUserId: admin.userId,
+            provider: PaymentProvider.MANUAL,
             status: PaymentStatus.PENDING,
             amountMxnCents: 2000,
-            externalReference: 'pending-payment'
+            externalReference: 'pending-payment',
+            idempotencyKey: `pending-${randomUUID()}`
           }
         });
         await transaction.ledgerEntry.create({
@@ -166,6 +201,73 @@ describe('Finance core', () => {
         });
       })
     ).rejects.toThrow();
+  });
+
+  it('rejects a debt allocation appended after a valid payment commit without changing finance state', async () => {
+    const admin = await createPlatformAdmin();
+    const organization = await createClientUser(ClientType.ORGANIZATION, UserRole.ORGANIZATION_ADMIN);
+    const adminCookie = await login(admin.email);
+
+    await adminPost(
+      adminCookie,
+      `/api/v1/admin/finance/clients/${organization.clientId}/credit-line`,
+      `line-${randomUUID()}`,
+      { limitCredits: 10, status: CreditLineStatus.ACTIVE }
+    );
+    const paidLot = await createDebtLot(organization.clientId, admin.userId, 2, 2000);
+    const untouchedLot = await createDebtLot(organization.clientId, admin.userId, 1, 3000);
+    const payment = await adminPost(
+      adminCookie,
+      `/api/v1/admin/finance/clients/${organization.clientId}/manual-payment`,
+      `debt-${randomUUID()}`,
+      {
+        kind: LedgerMovementType.DEBT_PAYMENT,
+        amountMxnCents: 4000,
+        externalReference: 'post-commit-allocation-payment',
+        allocations: [{ debtLotLedgerEntryId: paidLot.id, credits: 2 }]
+      }
+    );
+
+    const before = {
+      ledger: await prisma.ledgerEntry.count(),
+      payments: await prisma.payment.count(),
+      receipts: await prisma.receipt.count(),
+      allocations: await prisma.debtPaymentAllocation.findMany({ orderBy: { id: 'asc' } }),
+      balance: await finance.getBalance(organization.clientId)
+    };
+
+    await expect(
+      prisma.debtPaymentAllocation.create({
+        data: {
+          debtLotLedgerEntryId: untouchedLot.id,
+          paymentLedgerEntryId: payment.body.movement.id,
+          credits: 1,
+          amountMxnCents: 3000
+        }
+      })
+    ).rejects.toThrow();
+
+    expect(await prisma.ledgerEntry.count()).toBe(before.ledger);
+    expect(await prisma.payment.count()).toBe(before.payments);
+    expect(await prisma.receipt.count()).toBe(before.receipts);
+    expect(await prisma.debtPaymentAllocation.findMany({ orderBy: { id: 'asc' } })).toEqual(before.allocations);
+    expect(await finance.getBalance(organization.clientId)).toEqual(before.balance);
+  });
+
+  it('keeps the maximum applied ledger sequence in the balance cache', async () => {
+    const admin = await createPlatformAdmin();
+    const planner = await createClientUser(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
+    const highSequence = 9_000_000n;
+    const lowerSequence = 8_000_000n;
+
+    await createGrantWithSequence(planner.clientId, admin.userId, highSequence);
+    await createGrantWithSequence(planner.clientId, admin.userId, lowerSequence);
+
+    const balance = await prisma.financeBalance.findUniqueOrThrow({
+      where: { clientId: planner.clientId }
+    });
+    expect(balance.purchasedCredits).toBe(2);
+    expect(balance.lastLedgerSequence).toBe(highSequence);
   });
 
   it('pays explicit debt lots at their historical unit values without increasing purchased balance', async () => {
@@ -428,6 +530,36 @@ describe('Finance core', () => {
           operationReference: key,
           idempotencyKey: key,
           receiptId: receipt.id
+        }
+      });
+    });
+  }
+
+  async function createGrantWithSequence(clientId: string, actorUserId: string, sequence: bigint) {
+    const key = `sequence-${sequence.toString()}-${randomUUID()}`;
+    await prisma.$transaction(async (transaction) => {
+      const receipt = await transaction.receipt.create({
+        data: {
+          clientId,
+          operationType: LedgerMovementType.MANUAL_CREDIT_GRANT,
+          operationReference: key,
+          idempotencyKey: key
+        }
+      });
+      await transaction.ledgerEntry.create({
+        data: {
+          sequence,
+          clientId,
+          actorUserId,
+          movementType: LedgerMovementType.MANUAL_CREDIT_GRANT,
+          purchasedCreditDelta: 1,
+          creditLineUsedDelta: 0,
+          debtDelta: 0,
+          cashMxnDelta: 0,
+          operationReference: key,
+          idempotencyKey: key,
+          receiptId: receipt.id,
+          metadata: { reason: 'Sequence trigger integration test' }
         }
       });
     });

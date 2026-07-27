@@ -156,7 +156,17 @@ pnpm turbo dev --filter=@invitaciones/client
 - administración exclusiva de Platform Admin;
 - seed idempotente de cuatro servicios y ocho precios iniciales.
 
-La siguiente tarea es `CODEX-031 — Ledger, balance cache y línea de crédito`.
+`CODEX-031` agregó el núcleo financiero:
+
+- ledger append-only e inmutable;
+- balance cache reconstruible;
+- línea de crédito y deuda por lotes históricos;
+- pagos manuales aprobados, asignaciones gratuitas y comprobantes;
+- folio global, idempotencia y auditoría transaccional;
+- cortes diarios y mensuales derivados del ledger;
+- constraints PostgreSQL para balances, pagos y asignaciones de deuda.
+
+La siguiente tarea es `CODEX-040 — Modelo y CRUD de Evento`.
 
 ## Fuente de verdad
 

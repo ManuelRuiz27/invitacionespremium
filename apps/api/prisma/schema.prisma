@@ -70,6 +70,12 @@ enum PaymentStatus {
   @@map("payment_status")
 }
 
+enum PaymentProvider {
+  MANUAL
+
+  @@map("payment_provider")
+}
+
 enum CreditLineStatus {
   ACTIVE
   SUSPENDED
@@ -266,22 +272,26 @@ model Receipt {
 }
 
 model Payment {
-  id                String        @id @default(uuid()) @db.Uuid
-  clientId          String        @map("client_id") @db.Uuid
-  receiptId         String        @unique @map("receipt_id") @db.Uuid
-  actorUserId       String        @map("actor_user_id") @db.Uuid
+  id                String          @id @default(uuid()) @db.Uuid
+  clientId          String          @map("client_id") @db.Uuid
+  receiptId         String          @unique @map("receipt_id") @db.Uuid
+  actorUserId       String          @map("actor_user_id") @db.Uuid
+  provider          PaymentProvider @default(MANUAL)
   status            PaymentStatus
-  amountMxnCents    BigInt        @map("amount_mxn_cents")
-  currency          String        @default("MXN") @db.Char(3)
-  externalReference String        @map("external_reference") @db.VarChar(160)
-  approvedAt        DateTime?     @map("approved_at") @db.Timestamptz(6)
-  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
-  client            Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  receipt           Receipt       @relation(fields: [receiptId], references: [id], onDelete: Restrict)
-  actorUser         User          @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+  amountMxnCents    BigInt          @map("amount_mxn_cents")
+  currency          String          @default("MXN") @db.Char(3)
+  externalReference String          @map("external_reference") @db.VarChar(160)
+  idempotencyKey    String          @unique @map("idempotency_key") @db.VarChar(128)
+  metadata          Json?
+  approvedAt        DateTime?       @map("approved_at") @db.Timestamptz(6)
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  client            Client          @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  receipt           Receipt         @relation(fields: [receiptId], references: [id], onDelete: Restrict)
+  actorUser         User            @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
   ledgerEntries     LedgerEntry[]
 
+  @@unique([provider, externalReference])
   @@index([clientId, createdAt])
   @@index([status, approvedAt])
   @@map("payment")

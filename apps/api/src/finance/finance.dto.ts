@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { ApiProperty } from '@nestjs/swagger';
 import { z } from 'zod';
-import { CreditLineStatus, LedgerMovementType, PaymentStatus } from '../generated/prisma/client';
+import { CreditLineStatus, LedgerMovementType, PaymentProvider, PaymentStatus } from '../generated/prisma/client';
 
 const uuidSchema = z.string().uuid();
 const instantSchema = z.string().datetime({ offset: true });
@@ -11,6 +11,12 @@ const positiveCreditsSchema = z.number().int().positive().max(1_000_000_000);
 const nonnegativeCreditsSchema = z.number().int().nonnegative().max(1_000_000_000);
 const positiveMxnCentsSchema = z.number().int().positive().max(Number.MAX_SAFE_INTEGER);
 const optionalNotesSchema = z.string().trim().max(1000).nullable().optional();
+const optionalPaymentMetadataSchema = z
+  .record(z.string(), z.unknown())
+  .refine((value) => JSON.stringify(value).length <= 10_000, {
+    message: 'metadata must not exceed 10000 serialized characters.'
+  })
+  .optional();
 
 const assignCreditsSchema = z
   .object({
@@ -38,6 +44,7 @@ const creditPurchaseSchema = z
     creditUnitValueMxnCents: positiveMxnCentsSchema.max(2_147_483_647),
     amountMxnCents: positiveMxnCentsSchema,
     externalReference: z.string().trim().min(1).max(160),
+    metadata: optionalPaymentMetadataSchema,
     notes: optionalNotesSchema,
     operationReference: operationReferenceSchema
   })
@@ -51,6 +58,7 @@ const debtPaymentSchema = z
     kind: z.literal(LedgerMovementType.DEBT_PAYMENT),
     amountMxnCents: positiveMxnCentsSchema,
     externalReference: z.string().trim().min(1).max(160),
+    metadata: optionalPaymentMetadataSchema,
     allocations: z
       .array(
         z
@@ -171,6 +179,9 @@ export class ManualPaymentRequestDto {
 
   @ApiProperty({ type: String, maxLength: 160 })
   externalReference!: string;
+
+  @ApiProperty({ type: Object, required: false, additionalProperties: true })
+  metadata?: Record<string, unknown>;
 
   @ApiProperty({ type: DebtLotAllocationRequestDto, isArray: true, required: false })
   allocations?: DebtLotAllocationRequestDto[];
@@ -308,6 +319,9 @@ export class PaymentResponseDto {
   @ApiProperty({ type: String, format: 'uuid' })
   id!: string;
 
+  @ApiProperty({ enum: PaymentProvider })
+  provider!: PaymentProvider;
+
   @ApiProperty({ enum: PaymentStatus })
   status!: PaymentStatus;
 
@@ -319,6 +333,12 @@ export class PaymentResponseDto {
 
   @ApiProperty({ type: String })
   externalReference!: string;
+
+  @ApiProperty({ type: String })
+  idempotencyKey!: string;
+
+  @ApiProperty({ type: Object, nullable: true, additionalProperties: true })
+  metadata!: Record<string, unknown> | null;
 
   @ApiProperty({ type: String, format: 'date-time', nullable: true })
   approvedAt!: string | null;
