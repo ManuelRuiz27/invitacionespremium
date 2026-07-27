@@ -171,10 +171,13 @@ export class EventsService {
     principal: AuthPrincipal,
     operationId?: string
   ): Promise<EventActivationResponseDto> {
-    await this.findOwnedEvent(this.prisma, eventId, principal);
+    const replayEvent = await this.findOwnedEventForReplay(this.prisma, eventId, principal);
     const prior = await this.findActivationResult(eventId, idempotencyKey);
     if (prior) {
       return prior;
+    }
+    if (replayEvent.deletedAt !== null) {
+      throw eventNotFound();
     }
 
     for (let attempt = 0; attempt < 20; attempt += 1) {
@@ -186,10 +189,13 @@ export class EventsService {
             WHERE "id" = ${eventId}::uuid
             FOR UPDATE
           `;
-          const current = await this.findOwnedEvent(transaction, eventId, principal);
+          const current = await this.findOwnedEventForReplay(transaction, eventId, principal);
           const repeated = await this.findActivationResult(eventId, idempotencyKey, transaction);
           if (repeated) {
             return repeated;
+          }
+          if (current.deletedAt !== null) {
+            throw eventNotFound();
           }
           if (current.status !== EventStatus.READY_TO_ACTIVATE) {
             throw invalidEventState('Only a ready Event may be activated.');
@@ -305,6 +311,7 @@ export class EventsService {
         }, CRITICAL_TRANSACTION_OPTIONS);
       } catch (error) {
         if (hasPrismaCode(error, 'P2002')) {
+          await this.findOwnedEventForReplay(this.prisma, eventId, principal);
           const raced = await this.findActivationResult(eventId, idempotencyKey);
           if (raced) {
             return raced;
@@ -405,6 +412,20 @@ export class EventsService {
   ): Promise<Event> {
     const event = await database.event.findFirst({
       where: activeWhere({ id: eventId, ...this.accessPolicy.ownedWhere(principal) })
+    });
+    if (!event) {
+      throw eventNotFound();
+    }
+    return event;
+  }
+
+  private async findOwnedEventForReplay(
+    database: PrismaService | Prisma.TransactionClient,
+    eventId: string,
+    principal: AuthPrincipal
+  ): Promise<Event> {
+    const event = await database.event.findFirst({
+      where: { id: eventId, ...this.accessPolicy.ownedWhere(principal) }
     });
     if (!event) {
       throw eventNotFound();

@@ -503,6 +503,35 @@ describe('Event activation', () => {
     expect(await prisma.auditLog.count({ where: { eventId: concurrent.id, action: 'EVENT_ACTIVATE' } })).toBe(1);
   });
 
+  it('replays an activation snapshot after a later soft delete without new financial effects', async () => {
+    const planner = await createClientUser(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
+    const { service } = await createPricedService(ServiceCode.FLYER, ClientType.PLANNER, 5);
+    await grantCredits(planner.clientId, planner.userId, 5);
+    const cookie = await login(planner.email);
+    const event = await createReadyEvent(planner, service.id);
+    const key = 'activation-deleted-replay';
+
+    const original = await activate(event.id, cookie, key).expect(200);
+    await prisma.event.update({
+      where: { id: event.id },
+      data: { status: EventStatus.CLOSED }
+    });
+    await request(app.getHttpServer())
+      .delete(`/api/v1/events/${event.id}`)
+      .set('Origin', trustedOrigin)
+      .set('Cookie', cookie)
+      .expect(204);
+
+    const replay = await activate(event.id, cookie, key).expect(200);
+    expect(replay.body).toEqual(original.body);
+    expect(await prisma.ledgerEntry.count({ where: { eventId: event.id } })).toBe(1);
+    expect(await prisma.receipt.count({ where: { operationReference: event.id } })).toBe(1);
+    expect(await prisma.auditLog.count({ where: { eventId: event.id, action: 'EVENT_ACTIVATE' } })).toBe(1);
+    await activate(event.id, cookie, 'activation-deleted-new-key')
+      .expect(404)
+      .expect((response) => expect(response.body.code).toBe('EVENT_NOT_FOUND'));
+  });
+
   it('rolls back completely on a late audit error and enforces the ledger Event FK', async () => {
     const planner = await createClientUser(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
     const { service } = await createPricedService(ServiceCode.FLYER, ClientType.PLANNER, 5);

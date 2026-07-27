@@ -52,7 +52,9 @@ recibe cuerpo: el producto todavía no define campos de motivo o mensaje.
 - `ORGANIZATION_PLANNER`: únicamente Eventos creados por su usuario dentro de la Organización;
 - `PLATFORM_ADMIN`: bloqueado en `/events/**`.
 
-Un Evento inexistente, eliminado lógicamente o fuera del ownership responde `404 EVENT_NOT_FOUND`.
+Un Evento inexistente o fuera del ownership responde `404 EVENT_NOT_FOUND`. Una operación nueva sobre un
+Evento eliminado lógicamente también responde `404`; la única excepción es el replay exacto y autorizado de
+una operación ya confirmada.
 
 ## Atomicidad, concurrencia e idempotencia
 
@@ -68,11 +70,23 @@ Cada transición manual ejecuta con aislamiento PostgreSQL `Serializable`:
 `EventStateOperation` es una tabla técnica append-only con `eventId`, acción, `idempotencyKey` global y
 `resultSnapshot`. Repetir la misma llave para el mismo Evento y acción devuelve exactamente el resultado
 guardado. Usarla para otro Evento o acción responde `409 EVENT_STATE_IDEMPOTENCY_CONFLICT`. Triggers
-PostgreSQL prohíben actualizar o eliminar operaciones confirmadas.
+PostgreSQL prohíben actualizar, eliminar o truncar operaciones confirmadas.
+
+El replay comprueba primero el ownership contra el Evento persistido, incluyendo filas con `deletedAt`.
+Después consulta la llave y devuelve el snapshot solo cuando Evento y acción coinciden. Por ello:
+
+- el propietario puede recuperar el resultado original aunque el Evento se haya eliminado después;
+- el replay no genera una nueva auditoría ni una nueva `EventStateOperation`;
+- una llave nunca revela el resultado de un Evento fuera del ownership;
+- los conflictos de llave se informan únicamente después de autorizar el Evento solicitado;
+- si no existe un resultado exacto, `deletedAt` impide ejecutar una transición nueva.
 
 Las solicitudes concurrentes con la misma llave producen una sola transición y una sola auditoría. Una llave
 distinta después de consumar la transición se evalúa contra el estado actual y, si no es válida, responde
 `409 EVENT_INVALID_STATE_TRANSITION`.
+
+La limpieza controlada de pruebas puede deshabilitar temporalmente triggers con
+`SET LOCAL session_replication_role = replica`; el mecanismo de producción no dispone de esa excepción.
 
 ## Entrada automática a `EVENT_DAY`
 

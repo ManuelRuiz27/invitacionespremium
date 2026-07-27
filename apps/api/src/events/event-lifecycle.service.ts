@@ -4,7 +4,6 @@ import type { AuthPrincipal } from '../auth/auth.types';
 import { PrismaService } from '../common/database/prisma.service';
 import { CRITICAL_TRANSACTION_OPTIONS } from '../common/database/transaction-policy';
 import { DomainError } from '../common/errors/domain-error';
-import { activeWhere } from '../common/persistence/soft-delete.repository';
 import { AuditActorType, EventStateAction, EventStatus, Prisma, type Event } from '../generated/prisma/client';
 import { EventAccessPolicy, eventNotFound } from './event-access.policy';
 import type { EventResponseDto } from './events.dto';
@@ -98,20 +97,26 @@ export class EventLifecycleService {
     operationId?: string,
     at: Date = new Date()
   ): Promise<EventResponseDto> {
-    await this.findOwnedEvent(this.prisma, eventId, principal);
+    const replayEvent = await this.findOwnedEventForReplay(this.prisma, eventId, principal);
     const prior = await this.findResult(eventId, action, idempotencyKey);
     if (prior) {
       return prior;
+    }
+    if (replayEvent.deletedAt !== null) {
+      throw eventNotFound();
     }
 
     for (let attempt = 0; attempt < MAX_TRANSACTION_ATTEMPTS; attempt += 1) {
       try {
         return await this.prisma.$transaction(async (transaction) => {
           await lockEvent(transaction, eventId);
-          const current = await this.findOwnedEvent(transaction, eventId, principal);
+          const current = await this.findOwnedEventForReplay(transaction, eventId, principal);
           const repeated = await this.findResult(eventId, action, idempotencyKey, transaction);
           if (repeated) {
             return repeated;
+          }
+          if (current.deletedAt !== null) {
+            throw eventNotFound();
           }
 
           const targetStatus = resolveTargetStatus(action, current, at);
@@ -146,6 +151,7 @@ export class EventLifecycleService {
         }, CRITICAL_TRANSACTION_OPTIONS);
       } catch (error) {
         if (hasPrismaCode(error, 'P2002')) {
+          await this.findOwnedEventForReplay(this.prisma, eventId, principal);
           const raced = await this.findResult(eventId, action, idempotencyKey);
           if (raced) {
             return raced;
@@ -233,13 +239,13 @@ export class EventLifecycleService {
     );
   }
 
-  private async findOwnedEvent(
+  private async findOwnedEventForReplay(
     database: PrismaService | Prisma.TransactionClient,
     eventId: string,
     principal: AuthPrincipal
   ): Promise<Event> {
     const event = await database.event.findFirst({
-      where: activeWhere({ id: eventId, ...this.accessPolicy.ownedWhere(principal) })
+      where: { id: eventId, ...this.accessPolicy.ownedWhere(principal) }
     });
     if (!event) {
       throw eventNotFound();

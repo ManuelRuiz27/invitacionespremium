@@ -192,7 +192,10 @@ pnpm turbo dev --filter=@invitaciones/client
 - cancelación sin refund y con conservación de datos y snapshots;
 - archivado desde cierre o publicación de Álbum;
 - estados terminales y transiciones reforzados mediante PostgreSQL;
-- ownership, idempotencia, concurrencia y auditoría transaccional.
+- ownership, idempotencia, concurrencia y auditoría transaccional;
+- replay seguro después de borrado lógico y protección append-only contra `UPDATE`, `DELETE` y `TRUNCATE`.
+
+`CODEX-042` quedó completamente cerrado.
 
 La siguiente tarea es `CODEX-050 — Contactos e importación CSV`.
 

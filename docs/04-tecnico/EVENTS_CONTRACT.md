@@ -157,6 +157,10 @@ Cierre, reapertura, cancelación y archivado requieren `Idempotency-Key`. La ent
 automática según la fecha local de la zona IANA del Evento. PostgreSQL restringe las transiciones, los
 estados terminales y la conservación de snapshots.
 
+Un replay confirmado de activación o ciclo de vida autoriza ownership incluso si el Evento fue eliminado
+lógicamente después y devuelve el snapshot original. Esto no habilita operaciones nuevas sobre Eventos
+eliminados ni permite consultar llaves de Eventos fuera del ownership.
+
 El detalle normativo se encuentra en `EVENT_LIFECYCLE_CONTRACT.md`.
 
 ## Errores

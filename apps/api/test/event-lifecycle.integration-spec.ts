@@ -204,6 +204,8 @@ describe('Event lifecycle', () => {
       })
     ).rejects.toThrow();
     await expect(prisma.eventStateOperation.delete({ where: { id: operation.id } })).rejects.toThrow();
+    await expect(prisma.$executeRawUnsafe('TRUNCATE TABLE "event_state_operation"')).rejects.toThrow();
+    expect(await prisma.eventStateOperation.count({ where: { eventId: event.id } })).toBe(1);
     await transition(event.id, 'archive', cookie, 'lifecycle-idempotent-key')
       .expect(409)
       .expect((response) => expect(response.body.code).toBe('EVENT_STATE_IDEMPOTENCY_CONFLICT'));
@@ -224,6 +226,51 @@ describe('Event lifecycle', () => {
     expect(responses[0].body).toEqual(responses[1].body);
     expect(await prisma.eventStateOperation.count({ where: { eventId: concurrent.id } })).toBe(1);
     expect(await prisma.auditLog.count({ where: { eventId: concurrent.id, action: 'EVENT_CLOSE' } })).toBe(1);
+  });
+
+  it('authorizes an exact replay after soft delete without exposing another owner Event', async () => {
+    const owner = await createClientUser(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
+    const outsider = await createClientUser(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
+    const catalog = await createCatalog();
+    const ownerCookie = await login(owner.email);
+    const outsiderCookie = await login(outsider.email);
+    const event = await createActivatedEvent(owner, catalog.service.id, catalog.plannerPrice.id);
+    const key = 'lifecycle-deleted-replay';
+
+    const original = await transition(event.id, 'close', ownerCookie, key).expect(200);
+    await request(app.getHttpServer())
+      .delete(`/api/v1/events/${event.id}`)
+      .set('Origin', trustedOrigin)
+      .set('Cookie', ownerCookie)
+      .expect(204);
+
+    const replay = await transition(event.id, 'close', ownerCookie, key).expect(200);
+    expect(replay.body).toEqual(original.body);
+    expect(await prisma.eventStateOperation.count({ where: { eventId: event.id } })).toBe(1);
+    expect(await prisma.auditLog.count({ where: { eventId: event.id, action: 'EVENT_CLOSE' } })).toBe(1);
+
+    await transition(event.id, 'close', ownerCookie, 'lifecycle-deleted-new-key')
+      .expect(404)
+      .expect((response) => expect(response.body.code).toBe('EVENT_NOT_FOUND'));
+    await transition(event.id, 'close', outsiderCookie, key)
+      .expect(404)
+      .expect((response) => expect(response.body.code).toBe('EVENT_NOT_FOUND'));
+    await transition(event.id, 'archive', ownerCookie, key)
+      .expect(409)
+      .expect((response) => expect(response.body.code).toBe('EVENT_STATE_IDEMPOTENCY_CONFLICT'));
+
+    const ownerOtherEvent = await createActivatedEvent(owner, catalog.service.id, catalog.plannerPrice.id);
+    await transition(ownerOtherEvent.id, 'close', ownerCookie, key)
+      .expect(409)
+      .expect((response) => expect(response.body.code).toBe('EVENT_STATE_IDEMPOTENCY_CONFLICT'));
+
+    const outsiderEvent = await createActivatedEvent(outsider, catalog.service.id, catalog.plannerPrice.id);
+    await transition(outsiderEvent.id, 'close', ownerCookie, key)
+      .expect(404)
+      .expect((response) => expect(response.body.code).toBe('EVENT_NOT_FOUND'));
+    await transition(outsiderEvent.id, 'close', outsiderCookie, key)
+      .expect(409)
+      .expect((response) => expect(response.body.code).toBe('EVENT_STATE_IDEMPOTENCY_CONFLICT'));
   });
 
   it('advances EVENT_DAY idempotently across midnight in America/Mexico_City without finance effects', async () => {
