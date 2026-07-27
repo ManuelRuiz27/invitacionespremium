@@ -166,7 +166,16 @@ pnpm turbo dev --filter=@invitaciones/client
 - cortes diarios y mensuales derivados del ledger;
 - constraints PostgreSQL para balances, pagos y asignaciones de deuda.
 
-La siguiente tarea es `CODEX-040 — Modelo y CRUD de Evento`.
+`CODEX-040` agregó el modelo y CRUD de Evento:
+
+- borradores con datos básicos progresivos;
+- estados `DRAFT` y `CONFIGURED` calculados por backend;
+- ownership por Cliente, Organización y usuario creador;
+- servicio activo, zona horaria IANA y capacidad validada;
+- borrado lógico, restauración administrativa y limpieza idempotente de borradores vencidos;
+- auditoría transaccional y consulta global de Platform Admin.
+
+La siguiente tarea es `CODEX-041 — Activación transaccional`.
 
 ## Fuente de verdad
 

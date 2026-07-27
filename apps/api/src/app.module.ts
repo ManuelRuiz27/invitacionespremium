@@ -8,6 +8,7 @@ import { DatabaseModule } from './common/database/database.module';
 import { RequestLoggingMiddleware } from './common/logging/request-logging.middleware';
 import { AppConfigModule } from './config/app-config.module';
 import { FinanceModule } from './finance/finance.module';
+import { EventsModule } from './events/events.module';
 import { HealthController } from './health/health.controller';
 import { HealthService } from './health/health.service';
 import { ServicesPricingModule } from './services-pricing/services-pricing.module';
@@ -22,6 +23,7 @@ import { ServicesPricingModule } from './services-pricing/services-pricing.modul
     ClientUsersModule,
     ServicesPricingModule,
     FinanceModule,
+    EventsModule,
     ScheduleModule.forRoot()
   ],
   controllers: [HealthController],

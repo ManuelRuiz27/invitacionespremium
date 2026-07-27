@@ -83,6 +83,30 @@ enum CreditLineStatus {
   @@map("credit_line_status")
 }
 
+enum EventSocialType {
+  WEDDING       @map("wedding")
+  QUINCEANERA   @map("quinceanera")
+  CORPORATE     @map("corporate")
+  BIRTHDAY      @map("birthday")
+  OTHER         @map("other")
+
+  @@map("event_social_type")
+}
+
+enum EventStatus {
+  DRAFT             @map("draft")
+  CONFIGURED        @map("configured")
+  READY_TO_ACTIVATE @map("ready_to_activate")
+  ACTIVE            @map("active")
+  EVENT_DAY         @map("event_day")
+  CLOSED            @map("closed")
+  ALBUM_PUBLISHED   @map("album_published")
+  ARCHIVED          @map("archived")
+  CANCELLED         @map("cancelled")
+
+  @@map("event_status")
+}
+
 enum UserRole {
   PLATFORM_ADMIN
   INDEPENDENT_PLANNER
@@ -132,6 +156,7 @@ model Client {
   ledgerEntries    LedgerEntry[]
   payments         Payment[]
   receipts         Receipt[]
+  events           Event[]
 
   @@index([type, status, deletedAt])
   @@index([status, deletedAt])
@@ -151,6 +176,7 @@ model User {
   sessions      AuthSession[]
   ledgerEntries LedgerEntry[]
   payments      Payment[]
+  createdEvents Event[]       @relation("EventCreator")
 
   @@index([clientId])
   @@index([role, deletedAt])
@@ -179,6 +205,7 @@ model Service {
   updatedAt  DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
   prices     ServicePrice[]
   promotions Promotion[]
+  events     Event[]
 
   @@index([isActive, code])
   @@map("service")
@@ -355,4 +382,30 @@ model DebtPaymentAllocation {
   @@unique([debtLotLedgerEntryId, paymentLedgerEntryId])
   @@index([paymentLedgerEntryId])
   @@map("debt_payment_allocation")
+}
+
+model Event {
+  id                  String           @id @default(uuid()) @db.Uuid
+  clientId            String           @map("client_id") @db.Uuid
+  createdByUserId     String           @map("created_by_user_id") @db.Uuid
+  serviceId           String?          @map("service_id") @db.Uuid
+  name                String?          @db.VarChar(160)
+  socialType          EventSocialType? @map("social_type")
+  status              EventStatus      @default(DRAFT)
+  eventDateTime       DateTime?         @map("event_date_time") @db.Timestamptz(6)
+  timeZone            String?          @map("time_zone") @db.VarChar(100)
+  capacity            Int?
+  confirmationEnabled Boolean          @default(false) @map("confirmation_enabled")
+  floorplanEnabled    Boolean           @default(false) @map("floorplan_enabled")
+  createdAt           DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt           DateTime?         @map("deleted_at") @db.Timestamptz(6)
+  client              Client            @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  createdByUser       User              @relation("EventCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  service             Service?          @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+
+  @@index([clientId, status, deletedAt])
+  @@index([createdByUserId, status, deletedAt])
+  @@index([eventDateTime, status, deletedAt])
+  @@map("event")
 }
