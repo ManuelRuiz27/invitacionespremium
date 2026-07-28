@@ -19,6 +19,8 @@ describe('validateEnvironment', () => {
     expect(environment.AUTH_SESSION_TTL_SECONDS).toBe(3600);
     expect(environment.AUTH_COOKIE_SECURE).toBe(false);
     expect(environment.CREDIT_UNIT_VALUE_MXN_CENTS).toBe(2000);
+    expect(environment.PHONE_DEFAULT_REGION).toBe('MX');
+    expect(environment.CONTACT_IMPORT_PREVIEW_TTL_SECONDS).toBe(1800);
   });
 
   it('rejects non-PostgreSQL database URLs', () => {
@@ -56,5 +58,20 @@ describe('validateEnvironment', () => {
         LOCAL_ADMIN_EMAIL: 'admin@example.com'
       })
     ).toThrow(/must be provided together/);
+  });
+
+  it('validates contact phone region and preview TTL', () => {
+    expect(() =>
+      validateEnvironment({
+        DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/app',
+        PHONE_DEFAULT_REGION: 'mex'
+      })
+    ).toThrow();
+    expect(() =>
+      validateEnvironment({
+        DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/app',
+        CONTACT_IMPORT_PREVIEW_TTL_SECONDS: '30'
+      })
+    ).toThrow();
   });
 });

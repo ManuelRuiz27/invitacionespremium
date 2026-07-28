@@ -16,6 +16,11 @@ export const environmentSchema = z
     DATABASE_CONNECTION_TIMEOUT_MS: z.coerce.number().int().min(100).default(5000),
     DATABASE_IDLE_TIMEOUT_MS: z.coerce.number().int().min(1000).default(30_000),
     CREDIT_UNIT_VALUE_MXN_CENTS: z.coerce.number().int().positive().default(2000),
+    PHONE_DEFAULT_REGION: z
+      .string()
+      .regex(/^[A-Z]{2}$/)
+      .default('MX'),
+    CONTACT_IMPORT_PREVIEW_TTL_SECONDS: z.coerce.number().int().min(60).max(86_400).default(1800),
     CORS_ORIGINS: z.string().default('http://localhost:5173'),
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'log', 'debug', 'verbose']).default('log'),
     SWAGGER_ENABLED: booleanFromEnvironment.optional(),

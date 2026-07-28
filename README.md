@@ -197,7 +197,19 @@ pnpm turbo dev --filter=@invitaciones/client
 
 `CODEX-042` quedó completamente cerrado.
 
-La siguiente tarea es `CODEX-050 — Contactos e importación CSV`.
+`CODEX-050` agregó Contactos, grupos e importación CSV:
+
+- CRUD con ownership exacto y mutaciones limitadas a la preparación del Evento;
+- teléfonos WhatsApp normalizados a E.164 sin unicidad artificial;
+- grupos únicos por nombre normalizado dentro de cada Evento;
+- límite concurrente de 150 Contactos activos;
+- preview CSV temporal y commit transaccional idempotente;
+- auditoría sin PII y anonimización agregada después de 30 días;
+- limpieza irreversible de previews vencidos.
+
+`CODEX-050` quedó completado.
+
+La siguiente tarea es `CODEX-051 — Invitaciones y Asistentes nominales`.
 
 ## Fuente de verdad
 

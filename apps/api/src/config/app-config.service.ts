@@ -50,6 +50,14 @@ export class AppConfigService {
     return this.configService.get('CREDIT_UNIT_VALUE_MXN_CENTS', { infer: true });
   }
 
+  get phoneDefaultRegion(): string {
+    return this.configService.get('PHONE_DEFAULT_REGION', { infer: true });
+  }
+
+  get contactImportPreviewTtlSeconds(): number {
+    return this.configService.get('CONTACT_IMPORT_PREVIEW_TTL_SECONDS', { infer: true });
+  }
+
   get corsOrigins(): string[] {
     return this.configService
       .get('CORS_ORIGINS', { infer: true })

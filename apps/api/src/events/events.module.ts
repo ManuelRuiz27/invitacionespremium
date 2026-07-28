@@ -13,6 +13,6 @@ import { EventsService } from './events.service';
   imports: [AuditModule, FinanceModule, ServicesPricingModule],
   controllers: [EventsController, AdminEventsController],
   providers: [EventsService, EventAccessPolicy, EventLifecycleService, EventLifecycleScheduler],
-  exports: [EventsService, EventLifecycleService]
+  exports: [EventsService, EventLifecycleService, EventAccessPolicy]
 })
 export class EventsModule {}
