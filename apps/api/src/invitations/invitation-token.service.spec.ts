@@ -27,4 +27,24 @@ describe('InvitationTokenService', () => {
     expect(invitation).not.toContain('name');
     expect(service.invitationLink(invitationId, invitationNonce)).toContain(invitation);
   });
+
+  it('verifies production tokens only across instances sharing the same secret', () => {
+    const sharedSecret = 'production-shared-invitation-secret-at-least-32-bytes';
+    const first = tokenService(sharedSecret);
+    const second = tokenService(sharedSecret);
+    const unrelated = tokenService('different-production-invitation-secret-at-least-32-bytes');
+    const invitationId = '0fbc468d-51cb-442b-8591-a4d80cf6efbb';
+    const nonce = first.createNonce();
+    const token = first.issue('INVITATION', invitationId, nonce);
+
+    expect(second.verify('INVITATION', token)).toEqual({ invitationId, nonce, version: 1 });
+    expect(unrelated.verify('INVITATION', token)).toBeNull();
+  });
 });
+
+function tokenService(secret: string): InvitationTokenService {
+  return new InvitationTokenService({
+    invitationTokenSigningSecret: secret,
+    publicInvitationBaseUrl: 'https://invitaciones.example.com/invitacion'
+  } as AppConfigService);
+}

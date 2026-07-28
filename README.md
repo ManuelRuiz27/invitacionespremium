@@ -225,6 +225,13 @@ pnpm turbo dev --filter=@invitaciones/client
 
 `CODEX-051` quedó completamente cerrado.
 
+El hardening final de `CODEX-051` agregó:
+
+- configuración obligatoria, explícita y segura de tokens en producción;
+- respuesta mínima e inmutable para cancelaciones, sin PII ni tokens;
+- replay idempotente con ownership después de cambios de estado y soft delete;
+- validación PostgreSQL del Cliente, rol, estado y ownership del actor de cancelación.
+
 La siguiente tarea es `CODEX-060 — FileAssets y storage local`.
 
 ## Fuente de verdad

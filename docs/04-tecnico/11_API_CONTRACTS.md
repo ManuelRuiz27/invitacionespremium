@@ -185,6 +185,12 @@ Las mutaciones de modo, límite y Asistentes adicionales solo operan durante la 
 es irreversible, requiere `Idempotency-Key`, conserva el link para renderizar el mensaje de cancelación y
 bloquea Confirmación, edición pública y QR.
 
+`POST /events/:eventId/invitations/:invitationId/cancel` devuelve únicamente `invitationId`, `eventId`,
+`status = CANCELLED` y `cancelledAt`. El replay autorizado conserva exactamente esos valores incluso tras
+cambios de estado o soft delete; no devuelve PII, links, nonces, tokens ni datos financieros. El replay
+vuelve a comprobar ownership incluyendo eliminados, mientras una operación nueva conserva el `404`
+operativo sobre recursos eliminados.
+
 CODEX-051 implementa únicamente la lectura pública mínima:
 
 - `GET /public/invitations/:invitationToken`

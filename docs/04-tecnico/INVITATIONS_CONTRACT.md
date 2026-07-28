@@ -68,6 +68,19 @@ secreto `INVITATION_TOKEN_SIGNING_SECRET` debe contener al menos 32 bytes y
 `PUBLIC_INVITATION_BASE_URL` define la URL usada para reconstruir el link. Nonces, versiones, tokens,
 nombres y teléfonos no se escriben en auditoría o logs.
 
+En `development` y `test` existen defaults exclusivamente locales. En `production`, ambas variables son
+obligatorias y explícitas:
+
+- el secreto debe ser único, tener al menos 32 bytes y no puede ser el default local ni el placeholder de
+  los archivos `.env.example`;
+- la URL debe usar HTTPS, incluir un path público como `/invitacion` y no puede incluir credenciales,
+  query o fragment;
+- `localhost`, `127.0.0.1` y `::1` están rechazados;
+- un error de arranque identifica la variable inválida sin imprimir el secreto.
+
+Instancias distintas con el mismo secreto verifican el mismo token; otro secreto no lo verifica. La
+rotación de secretos permanece diferida.
+
 ## Operaciones y estados
 
 Las consultas operativas y mutaciones requieren ownership exacto del Evento. Pueden operar:
@@ -98,10 +111,22 @@ La cancelación específica se permite en `DRAFT`, `CONFIGURED`, `READY_TO_ACTIV
 `EVENT_DAY`. Requiere `Idempotency-Key`, conserva Invitación, Asistentes, respuestas y material de tokens,
 no altera finanzas y es irreversible.
 
-- misma llave e Invitación: devuelve el mismo agregado y no duplica auditoría;
+- la respuesta estable contiene exclusivamente `invitationId`, `eventId`, `status = CANCELLED` y
+  `cancelledAt`;
+- misma llave e Invitación: devuelve exactamente esa misma respuesta y no duplica auditoría;
 - misma llave para otra Invitación: `409 INVITATION_CANCEL_IDEMPOTENCY_CONFLICT`;
 - otra llave sobre una Invitación cancelada: `409 INVITATION_ALREADY_CANCELLED`;
 - la serialización y los locks garantizan una sola cancelación/auditoría bajo concurrencia.
+
+El replay se resuelve antes de las validaciones operativas de estado o borrado lógico. Tras localizar la
+llave, se autoriza de nuevo el Evento con la política exacta, incluyendo registros eliminados. Por ello, el
+propietario puede repetir una cancelación después de cambios de estado o soft delete del Evento, Contacto
+o Invitación. Una llave no permite descubrir recursos de otro Cliente: fuera de ownership siempre se
+responde `404`. Las operaciones nuevas mantienen las consultas normales y reciben `404` sobre recursos
+eliminados.
+
+El resultado idempotente se deriva de los campos inmutables de cancelación; no existe snapshot adicional
+y nunca contiene nombre, link, nonces, tokens, teléfono o información financiera.
 
 ## Lectura pública mínima
 
@@ -135,6 +160,9 @@ idempotente y no duplica la anonimización del Contacto principal.
 - nonces de Invitación y QR únicos, no vacíos, con versiones positivas;
 - identidad, pertenencia, nonces y versiones de Invitación inmutables;
 - forma completa y coherente de cancelación, sin reactivación;
+- actor inicial de cancelación activo, del Cliente del Evento y con rol operativo permitido;
+- un `ORGANIZATION_PLANNER` solo puede figurar como cancelador si creó el Evento; Platform Admin queda
+  rechazado;
 - `additionalAssistantLimit >= 0` y consistencia entre modo y límite;
 - índice parcial único para un principal activo;
 - trigger diferible que exige exactamente un principal activo y máximo `1 + additionalAssistantLimit`;

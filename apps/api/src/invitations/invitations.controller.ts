@@ -31,6 +31,7 @@ import { UserRole } from '../generated/prisma/client';
 import {
   AssistantRequestDto,
   AssistantResponseDto,
+  InvitationCancellationResponseDto,
   InvitationResponseDto,
   PublicInvitationResponseDto,
   UpdateInvitationRequestDto,
@@ -85,14 +86,14 @@ export class InvitationsController {
   @Post(':invitationId/cancel')
   @HttpCode(HttpStatus.OK)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
-  @ApiOkResponse({ type: InvitationResponseDto })
+  @ApiOkResponse({ type: InvitationCancellationResponseDto })
   cancel(
     @Param('eventId') eventId: string,
     @Param('invitationId') invitationId: string,
     @Headers('idempotency-key') idempotencyKey: unknown,
     @CurrentAuth() principal: AuthPrincipal,
     @Req() request: AuthenticatedRequest
-  ): Promise<InvitationResponseDto> {
+  ): Promise<InvitationCancellationResponseDto> {
     return this.invitations.cancel(
       parseEventId(eventId),
       parseInvitationId(invitationId),

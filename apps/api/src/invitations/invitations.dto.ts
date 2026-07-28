@@ -102,6 +102,20 @@ export class InvitationResponseDto {
   updatedAt!: Date;
 }
 
+export class InvitationCancellationResponseDto {
+  @ApiProperty({ type: String, format: 'uuid' })
+  invitationId!: string;
+
+  @ApiProperty({ type: String, format: 'uuid' })
+  eventId!: string;
+
+  @ApiProperty({ enum: ['CANCELLED'] })
+  status!: 'CANCELLED';
+
+  @ApiProperty({ type: String, format: 'date-time' })
+  cancelledAt!: Date;
+}
+
 export class PublicInvitationResponseDto {
   @ApiProperty({ enum: ['AVAILABLE', 'CANCELLED', 'CLOSED'] })
   status!: 'AVAILABLE' | 'CANCELLED' | 'CLOSED';

@@ -8,6 +8,7 @@ import { EventAccessPolicy, eventNotFound } from '../events/event-access.policy'
 import type {
   AssistantInput,
   AssistantResponseDto,
+  InvitationCancellationResponseDto,
   InvitationResponseDto,
   PublicInvitationResponseDto,
   UpdateInvitationInput
@@ -185,17 +186,18 @@ export class InvitationsService {
     idempotencyKey: string,
     principal: AuthPrincipal,
     operationId: string | undefined
-  ): Promise<InvitationResponseDto> {
+  ): Promise<InvitationCancellationResponseDto> {
     return this.serializable(async (tx) => {
-      const event = await this.lockOwnedEvent(tx, eventId, principal);
       const prior = await tx.invitation.findUnique({
         where: { cancelIdempotencyKey: idempotencyKey },
-        include: details
+        select: { id: true, eventId: true, cancelledAt: true }
       });
       if (prior) {
+        await this.authorizeCancellationReplay(tx, prior.eventId, principal);
         if (prior.id !== invitationId || prior.eventId !== eventId) throw cancellationIdempotencyConflict();
-        return this.toResponse(prior);
+        return toCancellationResponse(prior);
       }
+      const event = await this.lockOwnedEvent(tx, eventId, principal);
       if (!CANCELLABLE_STATUSES.has(event.status)) {
         throw new ConflictException({
           code: 'INVITATION_CANCELLATION_NOT_ALLOWED',
@@ -218,14 +220,14 @@ export class InvitationsService {
           cancelledByUserId: principal.userId,
           cancelIdempotencyKey: idempotencyKey
         },
-        include: details
+        select: { id: true, eventId: true, cancelledAt: true }
       });
       await this.recordAudit(tx, principal, event, operationId, 'INVITATION_CANCEL', invitationId, {
         id: invitationId,
         eventId,
         cancelledAt
       });
-      return this.toResponse(cancelled);
+      return toCancellationResponse(cancelled);
     });
   }
 
@@ -301,6 +303,18 @@ export class InvitationsService {
     });
     if (!event) throw eventNotFound();
     return event;
+  }
+
+  private async authorizeCancellationReplay(
+    client: Prisma.TransactionClient | PrismaService,
+    eventId: string,
+    principal: AuthPrincipal
+  ): Promise<void> {
+    const event = await client.event.findFirst({
+      where: { id: eventId, ...this.eventAccess.ownedWhere(principal) },
+      select: { id: true }
+    });
+    if (!event) throw eventNotFound();
   }
 
   private async lockOwnedEvent(
@@ -399,6 +413,22 @@ function toAssistantResponse(assistant: Assistant): AssistantResponseDto {
     anonymizedAt: assistant.anonymizedAt,
     createdAt: assistant.createdAt,
     updatedAt: assistant.updatedAt
+  };
+}
+
+function toCancellationResponse(invitation: {
+  id: string;
+  eventId: string;
+  cancelledAt: Date | null;
+}): InvitationCancellationResponseDto {
+  if (!invitation.cancelledAt) {
+    throw new TypeError('Confirmed invitation cancellation is incomplete.');
+  }
+  return {
+    invitationId: invitation.id,
+    eventId: invitation.eventId,
+    status: 'CANCELLED',
+    cancelledAt: invitation.cancelledAt
   };
 }
 

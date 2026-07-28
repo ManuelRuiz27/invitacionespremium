@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { validateEnvironment } from './environment';
 
 describe('validateEnvironment', () => {
-  it('coerces numeric and boolean values', () => {
+  it('coerces values and permits local invitation defaults in development', () => {
     const environment = validateEnvironment({
-      NODE_ENV: 'test',
+      NODE_ENV: 'development',
       API_PORT: '3100',
       DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/app',
       DATABASE_POOL_MAX: '5',
@@ -85,4 +85,88 @@ describe('validateEnvironment', () => {
       })
     ).toThrow(/32 bytes/);
   });
+
+  it('requires invitation token configuration explicitly in production', () => {
+    expect(() => validateEnvironment(productionEnvironment())).toThrow(
+      /INVITATION_TOKEN_SIGNING_SECRET: must be explicitly configured in production/
+    );
+    expect(() =>
+      validateEnvironment({
+        ...productionEnvironment(),
+        INVITATION_TOKEN_SIGNING_SECRET: 'safe-production-secret-with-at-least-32-bytes'
+      })
+    ).toThrow(/PUBLIC_INVITATION_BASE_URL: must be explicitly configured in production/);
+  });
+
+  it.each([
+    'local-development-invitation-signing-secret',
+    'replace-with-at-least-32-random-bytes',
+    '  replace-with-at-least-32-random-bytes  '
+  ])('rejects a known invitation signing secret in production', (secret) => {
+    expect(() =>
+      validateEnvironment({
+        ...productionEnvironment(),
+        INVITATION_TOKEN_SIGNING_SECRET: secret,
+        PUBLIC_INVITATION_BASE_URL: 'https://invitaciones.example.com/invitacion'
+      })
+    ).toThrow(/must use a unique production secret/);
+  });
+
+  it('rejects short production secrets', () => {
+    const secret = 'too-short';
+    expect(() =>
+      validateEnvironment({
+        ...productionEnvironment(),
+        INVITATION_TOKEN_SIGNING_SECRET: secret,
+        PUBLIC_INVITATION_BASE_URL: 'https://invitaciones.example.com/invitacion'
+      })
+    ).toThrow(/32 bytes/);
+    try {
+      validateEnvironment({
+        ...productionEnvironment(),
+        INVITATION_TOKEN_SIGNING_SECRET: secret,
+        PUBLIC_INVITATION_BASE_URL: 'https://invitaciones.example.com/invitacion'
+      });
+    } catch (error) {
+      expect(String(error)).not.toContain(secret);
+    }
+  });
+
+  it.each([
+    ['an HTTP URL', 'http://invitaciones.example.com/invitacion', /must use https in production/],
+    ['localhost', 'https://localhost/invitacion', /must not use a loopback host/],
+    ['IPv4 loopback', 'https://127.0.0.1/invitacion', /must not use a loopback host/],
+    ['IPv6 loopback', 'https://[::1]/invitacion', /must not use a loopback host/],
+    ['credentials', 'https://user:password@invitaciones.example.com/invitacion', /must not contain user credentials/],
+    ['a query', 'https://invitaciones.example.com/invitacion?source=unsafe', /must not contain a query or fragment/],
+    ['a fragment', 'https://invitaciones.example.com/invitacion#unsafe', /must not contain a query or fragment/],
+    ['no path', 'https://invitaciones.example.com', /must include a public invitation path/]
+  ])('rejects production invitation URLs with %s', (_case, url, expected) => {
+    expect(() =>
+      validateEnvironment({
+        ...productionEnvironment(),
+        INVITATION_TOKEN_SIGNING_SECRET: 'safe-production-secret-with-at-least-32-bytes',
+        PUBLIC_INVITATION_BASE_URL: url
+      })
+    ).toThrow(expected);
+  });
+
+  it('accepts an explicit secure production invitation configuration', () => {
+    const environment = validateEnvironment({
+      ...productionEnvironment(),
+      INVITATION_TOKEN_SIGNING_SECRET: 'safe-production-secret-with-at-least-32-bytes',
+      PUBLIC_INVITATION_BASE_URL: 'https://invitaciones.example.com/invitacion'
+    });
+
+    expect(environment.INVITATION_TOKEN_SIGNING_SECRET).toBe('safe-production-secret-with-at-least-32-bytes');
+    expect(environment.PUBLIC_INVITATION_BASE_URL).toBe('https://invitaciones.example.com/invitacion');
+  });
 });
+
+function productionEnvironment(): Record<string, unknown> {
+  return {
+    NODE_ENV: 'production',
+    DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/app',
+    AUTH_COOKIE_SECURE: 'true'
+  };
+}

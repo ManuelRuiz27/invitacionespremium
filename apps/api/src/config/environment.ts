@@ -6,6 +6,9 @@ const postgresUrl = z
   .string()
   .min(1)
   .regex(/^postgres(?:ql)?:\/\//, 'must be a PostgreSQL connection URL');
+const LOCAL_INVITATION_SIGNING_SECRET = 'local-development-invitation-signing-secret';
+const LOCAL_PUBLIC_INVITATION_BASE_URL = 'http://localhost:5173/invitacion';
+const INVITATION_SECRET_PLACEHOLDER = 'replace-with-at-least-32-random-bytes';
 const invitationSigningSecret = z
   .string()
   .refine((value) => Buffer.byteLength(value, 'utf8') >= 32, 'must contain at least 32 bytes');
@@ -24,8 +27,8 @@ export const environmentSchema = z
       .regex(/^[A-Z]{2}$/)
       .default('MX'),
     CONTACT_IMPORT_PREVIEW_TTL_SECONDS: z.coerce.number().int().min(60).max(86_400).default(1800),
-    INVITATION_TOKEN_SIGNING_SECRET: invitationSigningSecret.default('local-development-invitation-signing-secret'),
-    PUBLIC_INVITATION_BASE_URL: z.string().url().default('http://localhost:5173/invitacion'),
+    INVITATION_TOKEN_SIGNING_SECRET: invitationSigningSecret.optional(),
+    PUBLIC_INVITATION_BASE_URL: z.string().url().optional(),
     CORS_ORIGINS: z.string().default('http://localhost:5173'),
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'log', 'debug', 'verbose']).default('log'),
     SWAGGER_ENABLED: booleanFromEnvironment.optional(),
@@ -70,7 +73,83 @@ export const environmentSchema = z
         message: 'LOCAL_ADMIN_EMAIL and LOCAL_ADMIN_PASSWORD must be provided together'
       });
     }
-  });
+
+    if (environment.NODE_ENV !== 'production') {
+      return;
+    }
+
+    if (environment.INVITATION_TOKEN_SIGNING_SECRET === undefined) {
+      context.addIssue({
+        code: 'custom',
+        path: ['INVITATION_TOKEN_SIGNING_SECRET'],
+        message: 'must be explicitly configured in production'
+      });
+    } else if (
+      environment.INVITATION_TOKEN_SIGNING_SECRET.trim() === LOCAL_INVITATION_SIGNING_SECRET ||
+      environment.INVITATION_TOKEN_SIGNING_SECRET.trim() === INVITATION_SECRET_PLACEHOLDER
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['INVITATION_TOKEN_SIGNING_SECRET'],
+        message: 'must use a unique production secret'
+      });
+    }
+
+    if (environment.PUBLIC_INVITATION_BASE_URL === undefined) {
+      context.addIssue({
+        code: 'custom',
+        path: ['PUBLIC_INVITATION_BASE_URL'],
+        message: 'must be explicitly configured in production'
+      });
+      return;
+    }
+
+    const publicUrl = new URL(environment.PUBLIC_INVITATION_BASE_URL);
+    if (publicUrl.protocol !== 'https:') {
+      context.addIssue({
+        code: 'custom',
+        path: ['PUBLIC_INVITATION_BASE_URL'],
+        message: 'must use https in production'
+      });
+    }
+    if (publicUrl.username || publicUrl.password) {
+      context.addIssue({
+        code: 'custom',
+        path: ['PUBLIC_INVITATION_BASE_URL'],
+        message: 'must not contain user credentials'
+      });
+    }
+    if (publicUrl.search || publicUrl.hash) {
+      context.addIssue({
+        code: 'custom',
+        path: ['PUBLIC_INVITATION_BASE_URL'],
+        message: 'must not contain a query or fragment'
+      });
+    }
+    const hostname = publicUrl.hostname
+      .toLowerCase()
+      .replace(/^\[|\]$/gu, '')
+      .replace(/\.$/u, '');
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') {
+      context.addIssue({
+        code: 'custom',
+        path: ['PUBLIC_INVITATION_BASE_URL'],
+        message: 'must not use a loopback host in production'
+      });
+    }
+    if (publicUrl.pathname === '/' || publicUrl.pathname === '') {
+      context.addIssue({
+        code: 'custom',
+        path: ['PUBLIC_INVITATION_BASE_URL'],
+        message: 'must include a public invitation path'
+      });
+    }
+  })
+  .transform((environment) => ({
+    ...environment,
+    INVITATION_TOKEN_SIGNING_SECRET: environment.INVITATION_TOKEN_SIGNING_SECRET ?? LOCAL_INVITATION_SIGNING_SECRET,
+    PUBLIC_INVITATION_BASE_URL: environment.PUBLIC_INVITATION_BASE_URL ?? LOCAL_PUBLIC_INVITATION_BASE_URL
+  }));
 
 export type EnvironmentVariables = z.infer<typeof environmentSchema>;
 

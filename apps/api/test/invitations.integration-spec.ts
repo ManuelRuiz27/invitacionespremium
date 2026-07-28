@@ -230,6 +230,12 @@ describe('Invitations and nominal assistants', () => {
     ]);
     expect(concurrent.map(({ status }) => status)).toEqual([200, 200]);
     expect(concurrent[0]?.body).toEqual(concurrent[1]?.body);
+    expect(concurrent[0]?.body).toEqual({
+      invitationId: firstInvitation.id,
+      eventId: event.id,
+      status: 'CANCELLED',
+      cancelledAt: expect.any(String)
+    });
     expect(
       await prisma.auditLog.count({ where: { action: 'INVITATION_CANCEL', resourceId: firstInvitation.id } })
     ).toBe(1);
@@ -258,6 +264,128 @@ describe('Invitations and nominal assistants', () => {
       .expect(({ body }) => expect(body).toEqual({ status: 'CLOSED' }));
     await setEventStatus(event.id, EventStatus.ARCHIVED);
     await publicInvitation(secondToken).expect(404);
+  });
+
+  it('replays the stable cancellation response after later changes and soft deletes without leaking ownership', async () => {
+    const owner = await createClientUser(UserRole.INDEPENDENT_PLANNER);
+    const outsider = await createClientUser(UserRole.INDEPENDENT_PLANNER);
+    const event = await createEvent(owner);
+    const ownerCookie = await login(owner.email);
+    const outsiderCookie = await login(outsider.email);
+    const firstContact = await createContact(event.id, ownerCookie, 'Nombre Original');
+    const secondContact = await createContact(event.id, ownerCookie, 'Otra InvitaciÃ³n');
+    const invitations = await invitationList(event.id, ownerCookie).expect(200);
+    const firstInvitation = invitations.body.find((item: { contactId: string }) => item.contactId === firstContact.id);
+    const secondInvitation = invitations.body.find(
+      (item: { contactId: string }) => item.contactId === secondContact.id
+    );
+    const stored = await prisma.invitation.findUniqueOrThrow({ where: { id: firstInvitation.id } });
+    const beforeFinance = {
+      ledger: await prisma.ledgerEntry.count(),
+      receipts: await prisma.receipt.count(),
+      payments: await prisma.payment.count()
+    };
+
+    const first = await cancel(event.id, firstInvitation.id, ownerCookie, 'stable-cancellation-001').expect(200);
+    const stableResponse = {
+      invitationId: firstInvitation.id,
+      eventId: event.id,
+      status: 'CANCELLED',
+      cancelledAt: expect.any(String)
+    };
+    expect(first.body).toEqual(stableResponse);
+    const responseText = JSON.stringify(first.body);
+    expect(responseText).not.toContain('Nombre Original');
+    expect(responseText).not.toContain(firstInvitation.invitationLink);
+    expect(responseText).not.toContain(stored.invitationTokenNonce);
+    expect(responseText).not.toContain(stored.qrTokenNonce);
+
+    await mutate('patch', `/events/${event.id}/contacts/${firstContact.id}`, ownerCookie, {
+      name: 'Nombre Posterior'
+    }).expect(200);
+    const afterRename = await cancel(event.id, firstInvitation.id, ownerCookie, 'stable-cancellation-001').expect(200);
+    expect(afterRename.body).toEqual(first.body);
+    await cancel(event.id, firstInvitation.id, ownerCookie, 'different-cancellation-001')
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('INVITATION_ALREADY_CANCELLED'));
+    await cancel(event.id, secondInvitation.id, ownerCookie, 'stable-cancellation-001')
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('INVITATION_CANCEL_IDEMPOTENCY_CONFLICT'));
+
+    await setEventStatus(event.id, EventStatus.CANCELLED);
+    const afterStatusChange = await cancel(event.id, firstInvitation.id, ownerCookie, 'stable-cancellation-001').expect(
+      200
+    );
+    expect(afterStatusChange.body).toEqual(first.body);
+
+    const deletedAt = new Date();
+    await prisma.$transaction(async (tx) => {
+      await tx.invitation.update({ where: { id: firstInvitation.id }, data: { deletedAt } });
+      await tx.assistant.updateMany({
+        where: { invitationId: firstInvitation.id, deletedAt: null },
+        data: { deletedAt }
+      });
+      await tx.contact.update({ where: { id: firstContact.id }, data: { deletedAt } });
+      await tx.event.update({ where: { id: event.id }, data: { deletedAt } });
+    });
+
+    const afterSoftDelete = await cancel(event.id, firstInvitation.id, ownerCookie, 'stable-cancellation-001').expect(
+      200
+    );
+    expect(afterSoftDelete.body).toEqual(first.body);
+    await cancel(event.id, firstInvitation.id, ownerCookie, 'new-after-soft-delete').expect(404);
+    await cancel(event.id, firstInvitation.id, outsiderCookie, 'stable-cancellation-001').expect(404);
+
+    expect(
+      await prisma.auditLog.count({ where: { action: 'INVITATION_CANCEL', resourceId: firstInvitation.id } })
+    ).toBe(1);
+    expect(await prisma.ledgerEntry.count()).toBe(beforeFinance.ledger);
+    expect(await prisma.receipt.count()).toBe(beforeFinance.receipts);
+    expect(await prisma.payment.count()).toBe(beforeFinance.payments);
+  });
+
+  it('rejects unauthorized cancellation actors at the PostgreSQL boundary', async () => {
+    const owner = await createClientUser(UserRole.INDEPENDENT_PLANNER);
+    const otherClientActor = await createClientUser(UserRole.INDEPENDENT_PLANNER);
+    const platform = await createUser(null, UserRole.PLATFORM_ADMIN);
+    const event = await createEvent(owner);
+    await createProvisionedFixture(event.id, owner.userId, 'Actor externo');
+    await createProvisionedFixture(event.id, owner.userId, 'Actor plataforma');
+    await createProvisionedFixture(event.id, owner.userId, 'Actor eliminado');
+    await prisma.user.update({ where: { id: owner.userId }, data: { deletedAt: new Date() } });
+    const independentInvitations = await prisma.invitation.findMany({
+      where: { eventId: event.id },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    await expectCancellationActorRejected(independentInvitations[0]!.id, otherClientActor.userId, 'actor-other-client');
+    await expectCancellationActorRejected(independentInvitations[1]!.id, platform.userId, 'actor-platform-admin');
+    await expectCancellationActorRejected(independentInvitations[2]!.id, owner.userId, 'actor-deleted-user');
+
+    const organization = await prisma.client.create({
+      data: { type: ClientType.ORGANIZATION, name: `Organization ${randomUUID()}` }
+    });
+    const creator = await createUser(organization.id, UserRole.ORGANIZATION_PLANNER);
+    const colleague = await createUser(organization.id, UserRole.ORGANIZATION_PLANNER);
+    const organizationEvent = await createEvent({ clientId: organization.id, userId: creator.userId });
+    await createProvisionedFixture(organizationEvent.id, creator.userId, 'Planner ajeno');
+    const organizationInvitation = await prisma.invitation.findFirstOrThrow({
+      where: { eventId: organizationEvent.id }
+    });
+    await expectCancellationActorRejected(
+      organizationInvitation.id,
+      colleague.userId,
+      'actor-unrelated-organization-planner'
+    );
+
+    expect(
+      await prisma.invitation.count({
+        where: {
+          id: { in: [...independentInvitations.map(({ id }) => id), organizationInvitation.id] },
+          cancelledAt: { not: null }
+        }
+      })
+    ).toBe(0);
   });
 
   it('anonymizes active and deleted assistants idempotently without PII or token audit data', async () => {
@@ -499,6 +627,23 @@ describe('Invitations and nominal assistants', () => {
     return prisma.assistant.findFirstOrThrow({
       where: { isPrimary: true, invitation: { contactId } }
     });
+  }
+
+  async function expectCancellationActorRejected(
+    invitationId: string,
+    actorUserId: string,
+    idempotencyKey: string
+  ): Promise<void> {
+    await expect(
+      prisma.invitation.update({
+        where: { id: invitationId },
+        data: {
+          cancelledAt: new Date(),
+          cancelledByUserId: actorUserId,
+          cancelIdempotencyKey: idempotencyKey
+        }
+      })
+    ).rejects.toThrow(/invitation cancellation actor is not authorized/);
   }
 
   async function createClientUser(role: UserRole, type: ClientType = ClientType.PLANNER) {
