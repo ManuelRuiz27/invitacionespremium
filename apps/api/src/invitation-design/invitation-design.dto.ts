@@ -134,7 +134,7 @@ export class UpdateHotspotRequestDto {
   @ApiPropertyOptional({ type: Number, minimum: 0, maximum: 1000 })
   priority?: number;
 
-  @ApiPropertyOptional({ type: String, format: 'uri', maxLength: 2048, nullable: true })
+  @ApiPropertyOptional({ type: String, format: 'uri', maxLength: 2048 })
   url?: string;
 }
 
@@ -271,6 +271,13 @@ export function parseDesignUuid(value: unknown): string {
 }
 
 export function normalizeExternalHotspotUrl(value: string): string {
+  const hasControlCharacter = [...value].some((character) => {
+    const codePoint = character.codePointAt(0) ?? 0;
+    return codePoint <= 31 || codePoint === 127;
+  });
+  if (value.length === 0 || value.includes('\\') || /\s/u.test(value) || hasControlCharacter) {
+    throw validationError();
+  }
   let parsed: URL;
   try {
     parsed = new URL(value);
@@ -282,12 +289,19 @@ export function normalizeExternalHotspotUrl(value: string): string {
     parsed.username !== '' ||
     parsed.password !== '' ||
     parsed.hostname.length === 0 ||
+    !isSupportedHostname(parsed.hostname) ||
     parsed.search !== '' ||
     parsed.hash !== ''
   ) {
     throw validationError();
   }
   return parsed.toString();
+}
+
+function isSupportedHostname(hostname: string): boolean {
+  return /^(?:[a-z0-9]|[a-z0-9][a-z0-9-]{0,61}[a-z0-9])(?:\.(?:[a-z0-9]|[a-z0-9][a-z0-9-]{0,61}[a-z0-9]))*$/iu.test(
+    hostname
+  );
 }
 
 function validateHotspot(value: CreateHotspotInput, context: z.RefinementCtx): void {

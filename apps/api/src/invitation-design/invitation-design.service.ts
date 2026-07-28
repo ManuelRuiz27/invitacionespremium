@@ -420,6 +420,7 @@ export class InvitationDesignService {
       if (pages.length !== input.pageIds.length || pages.some((page) => !input.pageIds.includes(page.id))) {
         throw designConflict('Reorder must contain every active Flipbook page exactly once.');
       }
+      const before = await resolveDesignReadiness(transaction, eventId, ServiceCode.FLIPBOOK);
       const beforeOrder = pages.map((page) => page.id);
       for (const [index, id] of input.pageIds.entries()) {
         await transaction.flipbookPage.update({ where: { id }, data: { position: index + 1 } });
@@ -433,6 +434,16 @@ export class InvitationDesignService {
         'FLIPBOOK_PAGES_REORDER',
         { pageIds: beforeOrder },
         { pageIds: input.pageIds },
+        operationId
+      );
+      await this.recordReadinessChange(
+        transaction,
+        principal,
+        event.clientId,
+        eventId,
+        design.id,
+        before,
+        await resolveDesignReadiness(transaction, eventId, ServiceCode.FLIPBOOK),
         operationId
       );
       return this.getDesignInTransaction(transaction, design.id);
@@ -510,7 +521,8 @@ export class InvitationDesignService {
       const design = await this.lockDesignForService(transaction, eventId, event.service!.code);
       this.assertHotspotOwner(design.type, input.visualOwnerType, input.flipbookPageId);
       if (input.flipbookPageId) {
-        await this.lockPage(transaction, design.id, eventId, input.flipbookPageId);
+        const page = await this.lockPage(transaction, design.id, eventId, input.flipbookPageId);
+        await this.assertFlipbookHotspotPlacement(transaction, design.id, page.id, page.position, input.action);
       }
       const before = await resolveDesignReadiness(transaction, eventId, event.service!.code);
       if (input.action === HotspotAction.EXTERNAL_LINK) {
@@ -573,6 +585,9 @@ export class InvitationDesignService {
       const event = await this.lockMutableEvent(transaction, eventId, principal);
       const design = await this.lockDesignForService(transaction, eventId, event.service!.code);
       const current = await this.lockHotspot(transaction, design.id, eventId, hotspotId);
+      if (input.url !== undefined && input.action === undefined && current.action !== HotspotAction.EXTERNAL_LINK) {
+        throw invalidHotspotPatch();
+      }
       const merged = {
         action: input.action ?? current.action,
         x: input.x ?? Number(current.x),
@@ -586,6 +601,21 @@ export class InvitationDesignService {
             : null
       };
       assertCoordinates(merged);
+      if (current.flipbookPageId) {
+        const page = await this.lockPage(transaction, design.id, eventId, current.flipbookPageId);
+        await this.assertFlipbookHotspotPlacement(
+          transaction,
+          design.id,
+          page.id,
+          page.position,
+          merged.action,
+          current.id
+        );
+        if (current.action === HotspotAction.QR_AREA && merged.action !== HotspotAction.QR_AREA) {
+          await this.assertQrPageHasNoExternalLinks(transaction, design.id, page.id, current.id);
+        }
+      }
+      const before = await resolveDesignReadiness(transaction, eventId, event.service!.code);
       if (merged.action === HotspotAction.EXTERNAL_LINK && current.action !== HotspotAction.EXTERNAL_LINK) {
         const count = await transaction.hotspot.count({
           where: { designId: design.id, action: HotspotAction.EXTERNAL_LINK, deletedAt: null }
@@ -610,6 +640,16 @@ export class InvitationDesignService {
         operationId,
         'HOTSPOT'
       );
+      await this.recordReadinessChange(
+        transaction,
+        principal,
+        event.clientId,
+        eventId,
+        design.id,
+        before,
+        await resolveDesignReadiness(transaction, eventId, event.service!.code),
+        operationId
+      );
       return toHotspotResponse(hotspot);
     });
   }
@@ -625,6 +665,9 @@ export class InvitationDesignService {
       const design = await this.lockDesignForService(transaction, eventId, event.service!.code);
       const current = await this.lockHotspot(transaction, design.id, eventId, hotspotId);
       const before = await resolveDesignReadiness(transaction, eventId, event.service!.code);
+      if (current.action === HotspotAction.QR_AREA && current.flipbookPageId) {
+        await this.assertQrPageHasNoExternalLinks(transaction, design.id, current.flipbookPageId, current.id);
+      }
       const deleted = await transaction.hotspot.update({
         where: { id: current.id },
         data: { deletedAt: new Date() }
@@ -811,6 +854,73 @@ export class InvitationDesignService {
         pageId !== undefined);
     if (!valid) {
       throw designConflict('Hotspot visual owner is incompatible with the active design.');
+    }
+  }
+
+  private async assertFlipbookHotspotPlacement(
+    transaction: Prisma.TransactionClient,
+    designId: string,
+    pageId: string,
+    position: number,
+    action: HotspotAction,
+    currentHotspotId?: string
+  ): Promise<void> {
+    if (action === HotspotAction.RSVP || action === HotspotAction.LOCATION || action === HotspotAction.GIFT_REGISTRY) {
+      if (position !== 1) {
+        throw hotspotPlacementInvalid();
+      }
+      return;
+    }
+    if (action === HotspotAction.QR_AREA) {
+      const existingQr = await transaction.hotspot.findFirst({
+        where: {
+          designId,
+          action: HotspotAction.QR_AREA,
+          deletedAt: null,
+          ...(currentHotspotId ? { id: { not: currentHotspotId } } : {})
+        },
+        select: { id: true }
+      });
+      if (existingQr) {
+        throw qrPageAlreadyDefined();
+      }
+      return;
+    }
+    if (action === HotspotAction.EXTERNAL_LINK && position !== 1) {
+      const qrOnPage = await transaction.hotspot.findFirst({
+        where: {
+          designId,
+          flipbookPageId: pageId,
+          action: HotspotAction.QR_AREA,
+          deletedAt: null,
+          ...(currentHotspotId ? { id: { not: currentHotspotId } } : {})
+        },
+        select: { id: true }
+      });
+      if (!qrOnPage) {
+        throw hotspotPlacementInvalid();
+      }
+    }
+  }
+
+  private async assertQrPageHasNoExternalLinks(
+    transaction: Prisma.TransactionClient,
+    designId: string,
+    pageId: string,
+    currentHotspotId: string
+  ): Promise<void> {
+    const externalLink = await transaction.hotspot.findFirst({
+      where: {
+        designId,
+        flipbookPageId: pageId,
+        action: HotspotAction.EXTERNAL_LINK,
+        deletedAt: null,
+        id: { not: currentHotspotId }
+      },
+      select: { id: true }
+    });
+    if (externalLink) {
+      throw hotspotPlacementInvalid();
     }
   }
 
@@ -1052,6 +1162,30 @@ function externalLinkLimitExceeded(): DomainError {
   );
 }
 
+function qrPageAlreadyDefined(): DomainError {
+  return new DomainError(
+    'HOTSPOT_QR_PAGE_ALREADY_DEFINED',
+    'Flipbook already has an active QR page.',
+    HttpStatus.CONFLICT
+  );
+}
+
+function hotspotPlacementInvalid(): DomainError {
+  return new DomainError(
+    'HOTSPOT_VISUAL_OWNER_NOT_OPERATIONAL',
+    'Flipbook hotspot must belong to the cover or active QR page.',
+    HttpStatus.CONFLICT
+  );
+}
+
+function invalidHotspotPatch(): DomainError {
+  return new DomainError(
+    'VALIDATION_ERROR',
+    'URL is incompatible with the current Hotspot action.',
+    HttpStatus.BAD_REQUEST
+  );
+}
+
 function isRetryableTransactionError(error: unknown): boolean {
   const text = String(error);
   return (
@@ -1069,6 +1203,12 @@ function mapPersistenceError(error: unknown): unknown {
   }
   if (text.includes('external hotspot link limit exceeded')) {
     return externalLinkLimitExceeded();
+  }
+  if (text.includes('hotspot_one_qr_page_per_design')) {
+    return qrPageAlreadyDefined();
+  }
+  if (text.includes('active hotspot visual owner is invalid')) {
+    return hotspotPlacementInvalid();
   }
   if (
     hasPrismaCode(error, 'P2002') ||

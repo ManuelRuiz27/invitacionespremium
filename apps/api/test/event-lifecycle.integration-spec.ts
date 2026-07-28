@@ -475,18 +475,20 @@ describe('Event lifecycle', () => {
         where: { id: { in: [initial.id, qr.id] } },
         data: { ownerId: design.id, associatedAt: new Date() }
       });
-      await transaction.hotspot.create({
-        data: {
-          eventId: event.id,
-          designId: design.id,
-          visualOwnerType: 'FLYER',
-          action: 'RSVP',
-          x: 0,
-          y: 0,
-          width: 0.2,
-          height: 0.2
-        }
-      });
+      for (const action of ['RSVP', 'LOCATION', 'GIFT_REGISTRY', 'QR_AREA'] as const) {
+        await transaction.hotspot.create({
+          data: {
+            eventId: event.id,
+            designId: design.id,
+            visualOwnerType: 'FLYER',
+            action,
+            x: 0,
+            y: 0,
+            width: 0.2,
+            height: 0.2
+          }
+        });
+      }
     });
   }
 

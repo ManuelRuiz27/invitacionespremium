@@ -225,7 +225,13 @@ Reglas:
 - archivos se validan/vinculan conforme a `FILE_ASSET_POLICY.md`;
 - Hotspot es entidad separada;
 - Flyer requiere ambas variantes READY y Flipbook usa páginas relacionales con orden continuo y máximo 10;
-- un diseño necesita al menos un Hotspot válido para completar su parte del preflight;
+- Flyer requiere `RSVP`, `LOCATION`, `GIFT_REGISTRY` y `QR_AREA`;
+- Flipbook requiere `RSVP`, `LOCATION` y `GIFT_REGISTRY` en la portada activa (posición `1`) y una página
+  activa derivada por `QR_AREA`;
+- `EXTERNAL_LINK` es opcional, máximo tres, y solo admite HTTPS sin credenciales, query, fragment,
+  espacios ni controles;
+- `PATCH` con `url` exige acción actual o resultante `EXTERNAL_LINK`; no acepta `null` ni descarta el campo;
+- Hotspots de Flipbook solo operan sobre portada o página QR y nunca sobre páginas eliminadas;
 - la activación recalcula readiness antes de cualquier efecto financiero;
 - detalle completo en `INVITATION_DESIGN_CONTRACT.md`.
 

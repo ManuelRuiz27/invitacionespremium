@@ -30,11 +30,15 @@ describe('Invitation design DTO validation', () => {
     ).toBe('https://example.com/gifts');
 
     for (const url of [
+      '',
       'http://example.com',
       'javascript:alert(1)',
+      'https://',
       'https://user:secret@example.com',
       'https://example.com/?token=secret',
-      'https://example.com/#guest'
+      'https://example.com/#guest',
+      'https://example.com/has space',
+      'https://bad_host.example.com'
     ]) {
       expect(() =>
         parseCreateHotspot({

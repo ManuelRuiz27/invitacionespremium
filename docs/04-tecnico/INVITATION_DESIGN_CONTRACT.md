@@ -68,8 +68,10 @@ Acciones cerradas:
 - `EXTERNAL_LINK`.
 
 `QR_AREA` solo representa una región visual; no genera ni entrega el QR. `EXTERNAL_LINK` requiere una URL
-HTTPS absoluta, sin credenciales, query ni fragment. Las demás acciones rechazan URL. Esta forma evita
-guardar nombres, teléfonos, tokens o secretos como parámetros.
+HTTPS absoluta con host válido, sin credenciales, query, fragment, espacios, controles ni protocolo
+alternativo. Zod y PostgreSQL aplican la misma forma; las demás acciones rechazan URL. Un `PATCH` nunca
+descarta silenciosamente una URL incompatible: actualizar URL requiere que la acción actual o resultante
+sea `EXTERNAL_LINK`, y cambiar a otra acción limpia la URL.
 
 Las coordenadas `x`, `y`, `width` y `height` son `DECIMAL(9,8)` relativas al owner visual. PostgreSQL y
 Zod exigen valores finitos dentro de `[0,1]`, ancho y alto positivos y que el rectángulo no salga del
@@ -78,19 +80,29 @@ lienzo. `priority` es entero no negativo.
 Cada diseño admite como máximo tres Hotspots `EXTERNAL_LINK`. El límite se serializa bloqueando el diseño
 y se vuelve a comprobar mediante trigger diferible.
 
+En Flipbook, la página activa en posición `1` es la portada. `RSVP`, `LOCATION` y `GIFT_REGISTRY` solo se
+crean o cambian sobre la portada. La única página activa que contiene `QR_AREA` se deriva como página QR;
+no existe columna o entidad adicional. `EXTERNAL_LINK` solo opera sobre portada o página QR. Dos intentos
+concurrentes de establecer páginas QR diferentes se serializan y PostgreSQL conserva una sola.
+
+Un Hotspot activo de Flipbook requiere página y diseño activos de la misma combinación
+`designId/eventId`. El borrado de página elimina lógicamente sus Hotspots en la misma transacción; una
+escritura directa no puede dejar un Hotspot activo sobre una página eliminada.
+
 ## Readiness
 
 `GET /api/v1/events/:eventId/design/readiness` devuelve `complete`, `designType` y bloqueos estables.
 
 La parte de diseño está completa cuando:
 
-- Flyer: existe el diseño compatible, ambas variantes están `READY` y asociadas, y existe al menos un
-  Hotspot activo válido;
-- Flipbook: existe el diseño compatible, hay de una a diez páginas, posiciones continuas, todos los assets
-  están `READY` y asociados, y existe al menos un Hotspot activo válido sobre una página.
+- Flyer: existe el diseño compatible, ambas variantes están `READY` y asociadas, y existen Hotspots
+  activos válidos individuales para `RSVP`, `LOCATION`, `GIFT_REGISTRY` y `QR_AREA`;
+- Flipbook: existe el diseño compatible, hay de una a diez páginas con orden continuo y assets `READY`;
+  la portada contiene `RSVP`, `LOCATION` y `GIFT_REGISTRY`, y una página activa contiene `QR_AREA`.
 
-El mínimo de CODEX-061 es un Hotspot activo válido; los tipos de acción adicionales son capacidades, no
-campos obligatorios para todos los Eventos.
+`EXTERNAL_LINK` es opcional y nunca sustituye una acción requerida. Readiness ignora Hotspots eliminados
+o cuyo owner visual no esté activo. Un reordenamiento puede cambiar la portada: las acciones de la
+portada anterior dejan de contar y el resultado baja inmediatamente.
 
 Bloqueos:
 
@@ -102,7 +114,17 @@ Bloqueos:
 - `FLIPBOOK_PAGE_COUNT_INVALID`;
 - `FLIPBOOK_PAGE_ORDER_INVALID`;
 - `FLIPBOOK_PAGE_ASSET_INVALID`;
-- `INVITATION_DESIGN_HOTSPOT_MISSING`.
+- `FLYER_RSVP_HOTSPOT_MISSING`;
+- `FLYER_LOCATION_HOTSPOT_MISSING`;
+- `FLYER_GIFT_REGISTRY_HOTSPOT_MISSING`;
+- `FLYER_QR_AREA_HOTSPOT_MISSING`;
+- `FLIPBOOK_COVER_PAGE_MISSING`;
+- `FLIPBOOK_COVER_RSVP_HOTSPOT_MISSING`;
+- `FLIPBOOK_COVER_LOCATION_HOTSPOT_MISSING`;
+- `FLIPBOOK_COVER_GIFT_REGISTRY_HOTSPOT_MISSING`;
+- `FLIPBOOK_QR_PAGE_MISSING`;
+- `FLIPBOOK_HOTSPOT_OWNER_INVALID`;
+- `FLIPBOOK_HOTSPOT_PLACEMENT_INVALID`.
 
 La activación vuelve a calcular este checklist dentro de su transacción, antes de ledger o comprobante. Un
 diseño incompleto responde `409 EVENT_INVITATION_DESIGN_INCOMPLETE` con los bloqueos y no genera efectos
@@ -170,8 +192,10 @@ datos personales. Una falla de auditoría revierte la operación completa.
 - un asset por página;
 - posición positiva, única y continua;
 - máximo diez páginas activas;
-- coordenadas y forma URL/acción;
-- owner visual compatible con tipo de diseño;
+- coordenadas y forma URL/acción, incluida validación directa de host, credenciales, query, fragment,
+  espacios y controles;
+- owner visual compatible con tipo de diseño y página activa;
+- una sola página QR activa por Flipbook;
 - máximo tres enlaces externos;
 - FileAsset `READY`, owner y pertenencia Cliente/Evento compatibles al commit;
 - servicio configurado compatible al commit, incluso si se modifica directamente;

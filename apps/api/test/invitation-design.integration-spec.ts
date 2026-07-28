@@ -75,9 +75,21 @@ describe('InvitationDesignModule', () => {
       .expect(200)
       .expect(({ body }) => {
         expect(body.complete).toBe(false);
-        expect(body.blockers).toEqual(['INVITATION_DESIGN_HOTSPOT_MISSING']);
+        expect(body.blockers).toEqual([
+          'FLYER_RSVP_HOTSPOT_MISSING',
+          'FLYER_LOCATION_HOTSPOT_MISSING',
+          'FLYER_GIFT_REGISTRY_HOTSPOT_MISSING',
+          'FLYER_QR_AREA_HOTSPOT_MISSING'
+        ]);
       });
-    await mutate('post', `/events/${event.id}/hotspots`, cookie).send(flyerHotspot(HotspotAction.RSVP)).expect(201);
+    for (const action of [
+      HotspotAction.RSVP,
+      HotspotAction.LOCATION,
+      HotspotAction.GIFT_REGISTRY,
+      HotspotAction.QR_AREA
+    ]) {
+      await mutate('post', `/events/${event.id}/hotspots`, cookie).send(flyerHotspot(action)).expect(201);
+    }
     await read(`/events/${event.id}/design/readiness`, cookie)
       .expect(200)
       .expect(({ body }) => expect(body).toMatchObject({ complete: true, blockers: [] }));
@@ -130,6 +142,45 @@ describe('InvitationDesignModule', () => {
       .expect(({ body }) => expect(body.code).toBe('FILE_OWNER_MISMATCH'));
     expect(await prisma.invitationDesign.count()).toBe(0);
     expect((await prisma.fileAsset.findUniqueOrThrow({ where: { id: initial.id } })).ownerId).toBeNull();
+  });
+
+  it('evaluates every required Flyer action and never treats optional links as readiness', async () => {
+    const owner = await createOwner(UserRole.INDEPENDENT_PLANNER, ClientType.PLANNER);
+    const cookie = await login(owner.email);
+    const event = await createEvent(owner, ServiceCode.FLYER);
+    await createFlyerDesign(event, owner.userId, cookie);
+
+    await mutate('post', `/events/${event.id}/hotspots`, cookie).send(flyerHotspot(HotspotAction.RSVP)).expect(201);
+    expect((await read(`/events/${event.id}/design/readiness`, cookie).expect(200)).body.blockers).toEqual([
+      'FLYER_LOCATION_HOTSPOT_MISSING',
+      'FLYER_GIFT_REGISTRY_HOTSPOT_MISSING',
+      'FLYER_QR_AREA_HOTSPOT_MISSING'
+    ]);
+    for (const action of [HotspotAction.LOCATION, HotspotAction.GIFT_REGISTRY]) {
+      await mutate('post', `/events/${event.id}/hotspots`, cookie).send(flyerHotspot(action)).expect(201);
+    }
+    expect((await read(`/events/${event.id}/design/readiness`, cookie).expect(200)).body.blockers).toEqual([
+      'FLYER_QR_AREA_HOTSPOT_MISSING'
+    ]);
+    await mutate('post', `/events/${event.id}/hotspots`, cookie).send(flyerHotspot(HotspotAction.QR_AREA)).expect(201);
+    expect((await read(`/events/${event.id}/design/readiness`, cookie).expect(200)).body).toMatchObject({
+      complete: true,
+      blockers: []
+    });
+
+    const linksOnlyEvent = await createEvent(owner, ServiceCode.FLYER);
+    await createFlyerDesign(linksOnlyEvent, owner.userId, cookie);
+    for (let index = 0; index < 3; index += 1) {
+      await mutate('post', `/events/${linksOnlyEvent.id}/hotspots`, cookie)
+        .send(flyerHotspot(HotspotAction.EXTERNAL_LINK, `https://example.com/optional-${index}`))
+        .expect(201);
+    }
+    expect((await read(`/events/${linksOnlyEvent.id}/design/readiness`, cookie).expect(200)).body.blockers).toEqual([
+      'FLYER_RSVP_HOTSPOT_MISSING',
+      'FLYER_LOCATION_HOTSPOT_MISSING',
+      'FLYER_GIFT_REGISTRY_HOTSPOT_MISSING',
+      'FLYER_QR_AREA_HOTSPOT_MISSING'
+    ]);
   });
 
   it('creates, replaces, reorders and deletes Flipbook pages with continuous compact positions', async () => {
@@ -217,6 +268,72 @@ describe('InvitationDesignModule', () => {
     expect(positions.map(({ position }) => position)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   }, 60_000);
 
+  it('derives Flipbook cover and QR page readiness across reorder and deletion', async () => {
+    const owner = await createOwner(UserRole.INDEPENDENT_PLANNER, ClientType.PLANNER);
+    const event = await createEvent(owner, ServiceCode.FLIPBOOK);
+    const cookie = await login(owner.email);
+    const design = await createFlipbookDesign(event, owner.userId, cookie, 3);
+    const [cover, qrPage, otherPage] = design.pages as Array<{ id: string }>;
+
+    expect((await read(`/events/${event.id}/design/readiness`, cookie).expect(200)).body.blockers).toEqual([
+      'FLIPBOOK_COVER_RSVP_HOTSPOT_MISSING',
+      'FLIPBOOK_COVER_LOCATION_HOTSPOT_MISSING',
+      'FLIPBOOK_COVER_GIFT_REGISTRY_HOTSPOT_MISSING',
+      'FLIPBOOK_QR_PAGE_MISSING'
+    ]);
+    await mutate('post', `/events/${event.id}/hotspots`, cookie)
+      .send(pageHotspot(otherPage!.id, HotspotAction.RSVP))
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('HOTSPOT_VISUAL_OWNER_NOT_OPERATIONAL'));
+
+    for (const action of [HotspotAction.RSVP, HotspotAction.LOCATION]) {
+      await mutate('post', `/events/${event.id}/hotspots`, cookie).send(pageHotspot(cover!.id, action)).expect(201);
+    }
+    expect((await read(`/events/${event.id}/design/readiness`, cookie).expect(200)).body.blockers).toEqual([
+      'FLIPBOOK_COVER_GIFT_REGISTRY_HOTSPOT_MISSING',
+      'FLIPBOOK_QR_PAGE_MISSING'
+    ]);
+    await mutate('post', `/events/${event.id}/hotspots`, cookie)
+      .send(pageHotspot(cover!.id, HotspotAction.GIFT_REGISTRY))
+      .expect(201);
+    expect((await read(`/events/${event.id}/design/readiness`, cookie).expect(200)).body.blockers).toEqual([
+      'FLIPBOOK_QR_PAGE_MISSING'
+    ]);
+    await mutate('post', `/events/${event.id}/hotspots`, cookie)
+      .send(pageHotspot(qrPage!.id, HotspotAction.QR_AREA))
+      .expect(201);
+    expect((await read(`/events/${event.id}/design/readiness`, cookie).expect(200)).body).toMatchObject({
+      complete: true,
+      blockers: []
+    });
+
+    await setEventStatus(event.id, EventStatus.READY_TO_ACTIVATE);
+    await mutate('patch', `/events/${event.id}/design/flipbook/pages/reorder`, cookie)
+      .send({ pageIds: [qrPage!.id, cover!.id, otherPage!.id] })
+      .expect(200);
+    const afterReorder = (await read(`/events/${event.id}/design/readiness`, cookie).expect(200)).body;
+    expect(afterReorder.complete).toBe(false);
+    expect(afterReorder.blockers).toEqual(
+      expect.arrayContaining([
+        'FLIPBOOK_COVER_RSVP_HOTSPOT_MISSING',
+        'FLIPBOOK_COVER_LOCATION_HOTSPOT_MISSING',
+        'FLIPBOOK_COVER_GIFT_REGISTRY_HOTSPOT_MISSING',
+        'FLIPBOOK_HOTSPOT_PLACEMENT_INVALID'
+      ])
+    );
+    expect((await prisma.event.findUniqueOrThrow({ where: { id: event.id } })).status).toBe(EventStatus.CONFIGURED);
+
+    await mutate('patch', `/events/${event.id}/design/flipbook/pages/reorder`, cookie)
+      .send({ pageIds: [cover!.id, qrPage!.id, otherPage!.id] })
+      .expect(200);
+    expect((await read(`/events/${event.id}/design/readiness`, cookie).expect(200)).body.complete).toBe(true);
+    await mutate('delete', `/events/${event.id}/design/flipbook/pages/${qrPage!.id}`, cookie).expect(200);
+    expect((await read(`/events/${event.id}/design/readiness`, cookie).expect(200)).body.blockers).toContain(
+      'FLIPBOOK_QR_PAGE_MISSING'
+    );
+    expect(await prisma.hotspot.count({ where: { flipbookPageId: qrPage!.id, deletedAt: null } })).toBe(0);
+  });
+
   it('supports every Hotspot action, validates URLs and enforces three external links', async () => {
     const owner = await createOwner(UserRole.INDEPENDENT_PLANNER, ClientType.PLANNER);
     const event = await createEvent(owner, ServiceCode.FLYER);
@@ -259,6 +376,7 @@ describe('InvitationDesignModule', () => {
       .send({ priority: 7, x: 0.1, y: 0.1 })
       .expect(200)
       .expect(({ body }) => expect(body).toMatchObject({ priority: 7, x: 0.1, y: 0.1 }));
+    await setEventStatus(event.id, EventStatus.READY_TO_ACTIVATE);
     const [concurrentUpdate, concurrentDelete] = await Promise.all([
       mutate('patch', `/events/${event.id}/hotspots/${rsvp.id}`, cookie).send({ priority: 8 }),
       mutate('delete', `/events/${event.id}/hotspots/${rsvp.id}`, cookie)
@@ -267,7 +385,247 @@ describe('InvitationDesignModule', () => {
     expect([200, 404]).toContain(concurrentUpdate.status);
     expect((await read(`/events/${event.id}/hotspots`, cookie).expect(200)).body).toHaveLength(6);
     expect(await prisma.hotspot.count({ where: { id: rsvp.id, deletedAt: null } })).toBe(0);
+    expect((await prisma.event.findUniqueOrThrow({ where: { id: event.id } })).status).toBe(EventStatus.CONFIGURED);
+    await read(`/events/${event.id}/design/readiness`, cookie)
+      .expect(200)
+      .expect(({ body }) => expect(body.blockers).toContain('FLYER_RSVP_HOTSPOT_MISSING'));
   });
+
+  it('validates every PATCH transition between URL and non-URL Hotspot actions', async () => {
+    const owner = await createOwner(UserRole.INDEPENDENT_PLANNER, ClientType.PLANNER);
+    const event = await createEvent(owner, ServiceCode.FLYER);
+    const cookie = await login(owner.email);
+    await createFlyerDesign(event, owner.userId, cookie);
+    const rsvp = (
+      await mutate('post', `/events/${event.id}/hotspots`, cookie).send(flyerHotspot(HotspotAction.RSVP)).expect(201)
+    ).body as { id: string };
+
+    await mutate('patch', `/events/${event.id}/hotspots/${rsvp.id}`, cookie)
+      .send({ url: 'https://example.com/ignored-before' })
+      .expect(400)
+      .expect(({ body }) => expect(body.code).toBe('VALIDATION_ERROR'));
+    await mutate('patch', `/events/${event.id}/hotspots/${rsvp.id}`, cookie)
+      .send({ action: HotspotAction.EXTERNAL_LINK })
+      .expect(400)
+      .expect(({ body }) => expect(body.code).toBe('VALIDATION_ERROR'));
+    await mutate('patch', `/events/${event.id}/hotspots/${rsvp.id}`, cookie)
+      .send({ action: HotspotAction.EXTERNAL_LINK, url: 'https://example.com/first' })
+      .expect(200)
+      .expect(({ body }) =>
+        expect(body).toMatchObject({ action: HotspotAction.EXTERNAL_LINK, url: 'https://example.com/first' })
+      );
+    await mutate('patch', `/events/${event.id}/hotspots/${rsvp.id}`, cookie)
+      .send({ url: 'https://example.com/updated' })
+      .expect(200)
+      .expect(({ body }) => expect(body.url).toBe('https://example.com/updated'));
+    await mutate('patch', `/events/${event.id}/hotspots/${rsvp.id}`, cookie)
+      .send({ url: 'http://example.com' })
+      .expect(400)
+      .expect(({ body }) => expect(body.code).toBe('VALIDATION_ERROR'));
+    await mutate('patch', `/events/${event.id}/hotspots/${rsvp.id}`, cookie)
+      .send({ action: HotspotAction.LOCATION })
+      .expect(200)
+      .expect(({ body }) => expect(body).toMatchObject({ action: HotspotAction.LOCATION, url: null }));
+
+    const requestSchema = createOpenApiDocument(app).components?.schemas?.UpdateHotspotRequestDto as {
+      properties?: { url?: { nullable?: boolean } };
+    };
+    expect(requestSchema.properties?.url?.nullable).not.toBe(true);
+  });
+
+  it('enforces PostgreSQL external URL rules for direct INSERT and UPDATE', async () => {
+    const owner = await createOwner(UserRole.INDEPENDENT_PLANNER, ClientType.PLANNER);
+    const event = await createEvent(owner, ServiceCode.FLYER);
+    const cookie = await login(owner.email);
+    const design = await createFlyerDesign(event, owner.userId, cookie);
+    const invalidUrls = [
+      'javascript:alert(1)',
+      'http://example.com',
+      'https://',
+      'https://usuario:clave@example.com',
+      'https://example.com?token=abc',
+      'https://example.com#seccion',
+      'https://example.com/has space',
+      ''
+    ];
+    for (const url of invalidUrls) {
+      await expect(insertDirectHotspot(design.id, event.id, HotspotAction.EXTERNAL_LINK, url)).rejects.toThrow();
+    }
+    await expect(insertDirectHotspot(design.id, event.id, HotspotAction.RSVP, 'https://example.com')).rejects.toThrow();
+
+    const valid = await prisma.hotspot.create({
+      data: {
+        designId: design.id,
+        eventId: event.id,
+        visualOwnerType: HotspotVisualOwnerType.FLYER,
+        action: HotspotAction.EXTERNAL_LINK,
+        x: 0,
+        y: 0,
+        width: 0.2,
+        height: 0.2,
+        url: 'https://example.com/valid'
+      }
+    });
+    await expect(
+      prisma.$executeRaw`UPDATE "hotspot" SET "url" = ${'https://example.com?token=abc'} WHERE "id" = ${valid.id}::uuid`
+    ).rejects.toThrow();
+    expect((await prisma.hotspot.findUniqueOrThrow({ where: { id: valid.id } })).url).toBe('https://example.com/valid');
+  });
+
+  it('rejects active Hotspots on deleted Flipbook pages and keeps API deletion atomic', async () => {
+    const owner = await createOwner(UserRole.INDEPENDENT_PLANNER, ClientType.PLANNER);
+    const event = await createEvent(owner, ServiceCode.FLIPBOOK);
+    const cookie = await login(owner.email);
+    const design = await createFlipbookDesign(event, owner.userId, cookie, 2);
+    const qrPage = design.pages[1] as { id: string };
+    const qrHotspot = (
+      await mutate('post', `/events/${event.id}/hotspots`, cookie)
+        .send(pageHotspot(qrPage.id, HotspotAction.QR_AREA))
+        .expect(201)
+    ).body as { id: string };
+
+    await expect(
+      prisma.flipbookPage.update({ where: { id: qrPage.id }, data: { deletedAt: new Date() } })
+    ).rejects.toThrow(/active hotspot visual owner is invalid/u);
+    expect((await prisma.flipbookPage.findUniqueOrThrow({ where: { id: qrPage.id } })).deletedAt).toBeNull();
+    expect((await prisma.hotspot.findUniqueOrThrow({ where: { id: qrHotspot.id } })).deletedAt).toBeNull();
+
+    await mutate('delete', `/events/${event.id}/design/flipbook/pages/${qrPage.id}`, cookie).expect(200);
+    const [deletedPage, deletedHotspot] = await Promise.all([
+      prisma.flipbookPage.findUniqueOrThrow({ where: { id: qrPage.id } }),
+      prisma.hotspot.findUniqueOrThrow({ where: { id: qrHotspot.id } })
+    ]);
+    expect(deletedPage.deletedAt).not.toBeNull();
+    expect(deletedHotspot.deletedAt).not.toBeNull();
+    await expect(
+      insertDirectHotspot(
+        design.id,
+        event.id,
+        HotspotAction.QR_AREA,
+        null,
+        HotspotVisualOwnerType.FLIPBOOK_PAGE,
+        qrPage.id
+      )
+    ).rejects.toThrow(/active hotspot visual owner is invalid/u);
+    await expect(
+      prisma.$executeRaw`UPDATE "hotspot" SET "deleted_at" = NULL WHERE "id" = ${qrHotspot.id}::uuid`
+    ).rejects.toThrow();
+
+    await prisma.$executeRawUnsafe(`
+      BEGIN;
+      SET LOCAL session_replication_role = replica;
+      UPDATE "hotspot" SET "deleted_at" = NULL WHERE "id" = '${qrHotspot.id}'::uuid;
+      COMMIT;
+    `);
+    const readiness = (await read(`/events/${event.id}/design/readiness`, cookie).expect(200)).body;
+    expect(readiness.complete).toBe(false);
+    expect(readiness.blockers).toEqual(
+      expect.arrayContaining(['FLIPBOOK_HOTSPOT_OWNER_INVALID', 'FLIPBOOK_QR_PAGE_MISSING'])
+    );
+  });
+
+  it('serializes QR selection, required actions, page deletion, reorder readiness and external links', async () => {
+    const owner = await createOwner(UserRole.INDEPENDENT_PLANNER, ClientType.PLANNER);
+    const cookie = await login(owner.email);
+
+    const flipbookEvent = await createEvent(owner, ServiceCode.FLIPBOOK);
+    const flipbook = await createFlipbookDesign(flipbookEvent, owner.userId, cookie, 3);
+    const [cover, candidateA, candidateB] = flipbook.pages as Array<{ id: string }>;
+    const qrResults = await Promise.all([
+      mutate('post', `/events/${flipbookEvent.id}/hotspots`, cookie).send(
+        pageHotspot(candidateA!.id, HotspotAction.QR_AREA)
+      ),
+      mutate('post', `/events/${flipbookEvent.id}/hotspots`, cookie).send(
+        pageHotspot(candidateB!.id, HotspotAction.QR_AREA)
+      )
+    ]);
+    expect(qrResults.map(({ status }) => status).sort()).toEqual([201, 409]);
+    expect(
+      await prisma.hotspot.count({
+        where: { designId: flipbook.id, action: HotspotAction.QR_AREA, deletedAt: null }
+      })
+    ).toBe(1);
+    for (const action of [HotspotAction.RSVP, HotspotAction.LOCATION, HotspotAction.GIFT_REGISTRY]) {
+      await mutate('post', `/events/${flipbookEvent.id}/hotspots`, cookie)
+        .send(pageHotspot(cover!.id, action))
+        .expect(201);
+    }
+    const qrPageId = (
+      await prisma.hotspot.findFirstOrThrow({
+        where: { designId: flipbook.id, action: HotspotAction.QR_AREA, deletedAt: null },
+        select: { flipbookPageId: true }
+      })
+    ).flipbookPageId!;
+    const remainingPageId = [candidateA!.id, candidateB!.id].find((id) => id !== qrPageId)!;
+    const [reorderResult, concurrentReadiness] = await Promise.all([
+      mutate('patch', `/events/${flipbookEvent.id}/design/flipbook/pages/reorder`, cookie).send({
+        pageIds: [qrPageId, cover!.id, remainingPageId]
+      }),
+      read(`/events/${flipbookEvent.id}/design/readiness`, cookie)
+    ]);
+    expect(reorderResult.status).toBe(200);
+    expect(concurrentReadiness.status).toBe(200);
+    expect((await read(`/events/${flipbookEvent.id}/design/readiness`, cookie).expect(200)).body.complete).toBe(false);
+
+    const deleteRaceEvent = await createEvent(owner, ServiceCode.FLIPBOOK);
+    const deleteRace = await createFlipbookDesign(deleteRaceEvent, owner.userId, cookie, 2);
+    const deleteRacePage = deleteRace.pages[1] as { id: string };
+    const [createQr, deletePage] = await Promise.all([
+      mutate('post', `/events/${deleteRaceEvent.id}/hotspots`, cookie).send(
+        pageHotspot(deleteRacePage.id, HotspotAction.QR_AREA)
+      ),
+      mutate('delete', `/events/${deleteRaceEvent.id}/design/flipbook/pages/${deleteRacePage.id}`, cookie)
+    ]);
+    expect(deletePage.status).toBe(200);
+    expect([201, 404]).toContain(createQr.status);
+    expect(await prisma.hotspot.count({ where: { flipbookPageId: deleteRacePage.id, deletedAt: null } })).toBe(0);
+    expect(
+      (await prisma.flipbookPage.findUniqueOrThrow({ where: { id: deleteRacePage.id } })).deletedAt
+    ).not.toBeNull();
+
+    const flyerEvent = await createEvent(owner, ServiceCode.FLYER);
+    const flyer = await createFlyerDesign(flyerEvent, owner.userId, cookie);
+    const required = await Promise.all(
+      [HotspotAction.RSVP, HotspotAction.LOCATION, HotspotAction.GIFT_REGISTRY, HotspotAction.QR_AREA].map(
+        async (action) =>
+          (await mutate('post', `/events/${flyerEvent.id}/hotspots`, cookie).send(flyerHotspot(action)).expect(201))
+            .body as { id: string; action: HotspotAction }
+      )
+    );
+    const currentRsvp = required.find(({ action }) => action === HotspotAction.RSVP)!;
+    const [replacement, removal] = await Promise.all([
+      mutate('post', `/events/${flyerEvent.id}/hotspots`, cookie).send(flyerHotspot(HotspotAction.RSVP)),
+      mutate('delete', `/events/${flyerEvent.id}/hotspots/${currentRsvp.id}`, cookie)
+    ]);
+    expect(replacement.status).toBe(201);
+    expect(removal.status).toBe(204);
+    expect(
+      await prisma.hotspot.count({
+        where: { designId: flyer.id, action: HotspotAction.RSVP, deletedAt: null }
+      })
+    ).toBe(1);
+    expect((await read(`/events/${flyerEvent.id}/design/readiness`, cookie).expect(200)).body.complete).toBe(true);
+
+    for (let index = 0; index < 2; index += 1) {
+      await mutate('post', `/events/${flyerEvent.id}/hotspots`, cookie)
+        .send(flyerHotspot(HotspotAction.EXTERNAL_LINK, `https://example.com/base-${index}`))
+        .expect(201);
+    }
+    const linkResults = await Promise.all([
+      mutate('post', `/events/${flyerEvent.id}/hotspots`, cookie).send(
+        flyerHotspot(HotspotAction.EXTERNAL_LINK, 'https://example.com/race-a')
+      ),
+      mutate('post', `/events/${flyerEvent.id}/hotspots`, cookie).send(
+        flyerHotspot(HotspotAction.EXTERNAL_LINK, 'https://example.com/race-b')
+      )
+    ]);
+    expect(linkResults.map(({ status }) => status).sort()).toEqual([201, 409]);
+    expect(
+      await prisma.hotspot.count({
+        where: { designId: flyer.id, action: HotspotAction.EXTERNAL_LINK, deletedAt: null }
+      })
+    ).toBe(3);
+  }, 60_000);
 
   it('enforces ownership for all operational roles and freezes every mutation after activation', async () => {
     const organization = await createOwner(UserRole.ORGANIZATION_PLANNER, ClientType.ORGANIZATION);
@@ -456,6 +814,67 @@ describe('InvitationDesignModule', () => {
     });
   }
 
+  async function createFlyerDesign(
+    event: { id: string; clientId: string },
+    userId: string,
+    cookie: string
+  ): Promise<{ id: string }> {
+    const [initial, qr] = await Promise.all([
+      readyAsset(event, userId, FileAssetOwnerType.FLYER, FileAssetType.FLYER_INITIAL_IMAGE),
+      readyAsset(event, userId, FileAssetOwnerType.FLYER, FileAssetType.FLYER_QR_IMAGE)
+    ]);
+    return (
+      await mutate('post', `/events/${event.id}/design/flyer`, cookie)
+        .send({ initialAssetId: initial.id, qrAssetId: qr.id })
+        .expect(201)
+    ).body as { id: string };
+  }
+
+  async function createFlipbookDesign(
+    event: { id: string; clientId: string },
+    userId: string,
+    cookie: string,
+    pageCount: number
+  ): Promise<{ id: string; pages: Array<{ id: string }> }> {
+    let design = (await mutate('post', `/events/${event.id}/design/flipbook`, cookie).expect(201)).body as {
+      id: string;
+      pages: Array<{ id: string }>;
+    };
+    const assets = await Promise.all(
+      Array.from({ length: pageCount }, () =>
+        readyAsset(event, userId, FileAssetOwnerType.FLIPBOOK_PAGE, FileAssetType.FLIPBOOK_PAGE_IMAGE)
+      )
+    );
+    for (const asset of assets) {
+      design = (
+        await mutate('post', `/events/${event.id}/design/flipbook/pages`, cookie)
+          .send({ fileAssetId: asset.id })
+          .expect(201)
+      ).body as typeof design;
+    }
+    return design;
+  }
+
+  function insertDirectHotspot(
+    designId: string,
+    eventId: string,
+    action: HotspotAction,
+    url: string | null,
+    ownerType: HotspotVisualOwnerType = HotspotVisualOwnerType.FLYER,
+    flipbookPageId: string | null = null
+  ): Promise<number> {
+    return prisma.$executeRaw`
+      INSERT INTO "hotspot" (
+        "design_id", "event_id", "visual_owner_type", "flipbook_page_id", "action",
+        "x", "y", "width", "height", "url", "updated_at"
+      ) VALUES (
+        ${designId}::uuid, ${eventId}::uuid, ${ownerType}::"hotspot_visual_owner_type",
+        ${flipbookPageId}::uuid, ${action}::"hotspot_action",
+        0, 0, 0.2, 0.2, ${url}, NOW()
+      )
+    `;
+  }
+
   async function ownerIds(ids: string[]): Promise<Array<string | null>> {
     const assets = await prisma.fileAsset.findMany({
       where: { id: { in: ids } },
@@ -570,6 +989,20 @@ describe('InvitationDesignModule', () => {
 function flyerHotspot(action: HotspotAction, url?: string) {
   return {
     visualOwnerType: HotspotVisualOwnerType.FLYER,
+    action,
+    x: 0.1,
+    y: 0.1,
+    width: 0.2,
+    height: 0.2,
+    priority: 1,
+    ...(url ? { url } : {})
+  };
+}
+
+function pageHotspot(pageId: string, action: HotspotAction, url?: string) {
+  return {
+    visualOwnerType: HotspotVisualOwnerType.FLIPBOOK_PAGE,
+    flipbookPageId: pageId,
     action,
     x: 0.1,
     y: 0.1,

@@ -528,6 +528,10 @@ prisma/schema.prisma
 - coordenadas son relativas;
 - Hotspot no se incrusta únicamente como JSON del diseño;
 - límites se validan en backend.
+- Flyer exige `RSVP`, `LOCATION`, `GIFT_REGISTRY` y `QR_AREA`;
+- Flipbook exige acciones de portada y página QR derivada de `QR_AREA`;
+- PostgreSQL impide URLs externas inválidas y Hotspots activos sobre páginas eliminadas;
+- readiness se recalcula transaccionalmente al editar, eliminar o reordenar.
 
 ---
 

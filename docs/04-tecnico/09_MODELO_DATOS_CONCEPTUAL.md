@@ -241,6 +241,11 @@ Hotspot es una entidad separada vinculada al Flyer o, mediante FK compuesta, a u
 Flipbook. Conserva acción cerrada, coordenadas relativas, prioridad y URL únicamente para enlace externo.
 No se almacena como JSON opaco ni puede cruzar Evento o diseño.
 
+Flyer requiere Hotspots activos separados para RSVP, ubicación, mesa de regalos y área QR. En Flipbook,
+la posición `1` deriva la portada y debe contener RSVP, ubicación y mesa de regalos; la única página activa
+con `QR_AREA` deriva la página QR. Los Hotspots activos no pueden conservar como owner una página
+eliminada. PostgreSQL valida además la forma estricta de las URLs externas.
+
 ## Mesa/Zona
 
 Pertenece a Croquis.

@@ -260,9 +260,17 @@ El hardening final de `CODEX-060` agregó:
 - readiness estable integrado al preflight antes de cualquier efecto financiero;
 - ownership, congelamiento post-activación, auditoría y constraints PostgreSQL contra concurrencia.
 
+El hardening final de `CODEX-061` agregó:
+
+- readiness por acción: cuatro Hotspots requeridos en Flyer y portada/página QR derivadas en Flipbook;
+- recálculo transaccional al editar, eliminar o reordenar, con baja inmediata a `CONFIGURED`;
+- PATCH estricto que no descarta URLs incompatibles;
+- URLs HTTPS reforzadas también mediante constraint PostgreSQL;
+- una sola página QR y owners visuales activos, incluso frente a concurrencia y SQL directo.
+
 `CODEX-061` quedó completamente cerrado.
 
-La siguiente tarea es `CODEX-070 — Vista pública y Confirmación de asistencia API`.
+La siguiente tarea es `CODEX-070 — Vista pública y Confirmación de asistencia API`; no fue iniciada.
 
 ## Fuente de verdad
 
