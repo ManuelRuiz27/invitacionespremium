@@ -6,6 +6,9 @@ const postgresUrl = z
   .string()
   .min(1)
   .regex(/^postgres(?:ql)?:\/\//, 'must be a PostgreSQL connection URL');
+const invitationSigningSecret = z
+  .string()
+  .refine((value) => Buffer.byteLength(value, 'utf8') >= 32, 'must contain at least 32 bytes');
 
 export const environmentSchema = z
   .object({
@@ -21,6 +24,8 @@ export const environmentSchema = z
       .regex(/^[A-Z]{2}$/)
       .default('MX'),
     CONTACT_IMPORT_PREVIEW_TTL_SECONDS: z.coerce.number().int().min(60).max(86_400).default(1800),
+    INVITATION_TOKEN_SIGNING_SECRET: invitationSigningSecret.default('local-development-invitation-signing-secret'),
+    PUBLIC_INVITATION_BASE_URL: z.string().url().default('http://localhost:5173/invitacion'),
     CORS_ORIGINS: z.string().default('http://localhost:5173'),
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'log', 'debug', 'verbose']).default('log'),
     SWAGGER_ENABLED: booleanFromEnvironment.optional(),

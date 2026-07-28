@@ -58,6 +58,14 @@ export class AppConfigService {
     return this.configService.get('CONTACT_IMPORT_PREVIEW_TTL_SECONDS', { infer: true });
   }
 
+  get invitationTokenSigningSecret(): string {
+    return this.configService.get('INVITATION_TOKEN_SIGNING_SECRET', { infer: true });
+  }
+
+  get publicInvitationBaseUrl(): string {
+    return this.configService.get('PUBLIC_INVITATION_BASE_URL', { infer: true }).replace(/\/+$/u, '');
+  }
+
   get corsOrigins(): string[] {
     return this.configService
       .get('CORS_ORIGINS', { infer: true })

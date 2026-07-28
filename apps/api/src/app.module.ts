@@ -12,6 +12,7 @@ import { FinanceModule } from './finance/finance.module';
 import { EventsModule } from './events/events.module';
 import { HealthController } from './health/health.controller';
 import { HealthService } from './health/health.service';
+import { InvitationsModule } from './invitations/invitations.module';
 import { ServicesPricingModule } from './services-pricing/services-pricing.module';
 
 @Module({
@@ -25,6 +26,7 @@ import { ServicesPricingModule } from './services-pricing/services-pricing.modul
     ServicesPricingModule,
     FinanceModule,
     EventsModule,
+    InvitationsModule,
     ContactsModule,
     ScheduleModule.forRoot()
   ],

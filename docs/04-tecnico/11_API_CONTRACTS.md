@@ -176,8 +176,22 @@ Endpoints:
 - `GET /events/:eventId/invitations/:invitationId`
 - `PATCH /events/:eventId/invitations/:invitationId`
 - `POST /events/:eventId/invitations/:invitationId/cancel`
+- `POST /events/:eventId/invitations/:invitationId/assistants`
+- `PATCH /events/:eventId/invitations/:invitationId/assistants/:assistantId`
+- `DELETE /events/:eventId/invitations/:invitationId/assistants/:assistantId`
 
-La cancelación específica conserva el link para renderizar el mensaje de cancelación, pero bloquea Confirmación, edición pública y QR.
+Cada Contacto se aprovisiona transaccionalmente con una Invitación individual y un Asistente principal.
+Las mutaciones de modo, límite y Asistentes adicionales solo operan durante la preparación. La cancelación
+es irreversible, requiere `Idempotency-Key`, conserva el link para renderizar el mensaje de cancelación y
+bloquea Confirmación, edición pública y QR.
+
+CODEX-051 implementa únicamente la lectura pública mínima:
+
+- `GET /public/invitations/:invitationToken`
+
+En `active` y `event_day` devuelve contenido mínimo; diferencia cancelación específica/global y cierre;
+oculta preparación, archivado, borrado lógico y tokens inválidos. Confirmación, rechazo, edición pública y
+consulta de QR permanecen diferidos al `PublicRsvpModule`.
 
 ## InvitationDesignModule
 

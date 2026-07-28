@@ -383,12 +383,17 @@ describe('Contacts, groups, and CSV imports', () => {
       commits: await prisma.auditLog.count({ where: { action: 'CONTACT_IMPORT_COMMIT' } })
     };
     const anonymizedAt = new Date();
-    expect(await contacts.anonymizeExpiredContacts(anonymizedAt)).toBe(3);
+    expect(await contacts.anonymizeExpiredContacts(anonymizedAt)).toBe(5);
     expect(await contacts.anonymizeExpiredContacts(anonymizedAt)).toBe(0);
     const stored = await prisma.contact.findMany({ where: { eventId: event.id } });
     expect(
       stored.every(
         ({ name, whatsappPhoneNormalized, anonymizedAt }) => !name && !whatsappPhoneNormalized && anonymizedAt
+      )
+    ).toBe(true);
+    expect(
+      (await prisma.assistant.findMany({ where: { eventId: event.id } })).every(
+        ({ name, anonymizedAt: assistantAnonymizedAt }) => !name && assistantAnonymizedAt
       )
     ).toBe(true);
     const committedPreview = await prisma.contactImportPreview.findUniqueOrThrow({
@@ -413,6 +418,7 @@ describe('Contacts, groups, and CSV imports', () => {
     expect(await prisma.auditLog.count({ where: { action: 'CONTACT_IMPORT_COMMIT' } })).toBe(mutationCounts.commits);
     expect(await prisma.contactImportPreview.count({ where: { eventId: event.id, committedAt: null } })).toBe(0);
     expect(await prisma.auditLog.count({ where: { action: 'CONTACTS_ANONYMIZED', eventId: event.id } })).toBe(1);
+    expect(await prisma.auditLog.count({ where: { action: 'ASSISTANTS_ANONYMIZED', eventId: event.id } })).toBe(1);
     const privacyAudit = await prisma.auditLog.findFirstOrThrow({
       where: { action: 'CONTACTS_ANONYMIZED', eventId: event.id },
       select: { afterData: true }
@@ -482,6 +488,10 @@ describe('Contacts, groups, and CSV imports', () => {
     await prisma.contact.updateMany({
       where: { eventId: previewOnlyEvent.id },
       data: { name: null, whatsappPhoneNormalized: null, anonymizedAt: new Date(anonymizedAt.getTime() - 1000) }
+    });
+    await prisma.assistant.updateMany({
+      where: { eventId: previewOnlyEvent.id },
+      data: { name: null, anonymizedAt: new Date(anonymizedAt.getTime() - 1000) }
     });
     const later = new Date(anonymizedAt.getTime() + 1000);
     expect(await contacts.anonymizeExpiredContacts(later)).toBe(1);

@@ -3,8 +3,9 @@
 ## Alcance
 
 `ContactsModule`, dentro de `apps/api`, administra los destinatarios principales de un Evento, sus grupos
-opcionales y una importación CSV en dos fases. No crea Invitaciones, Acompañantes, tokens públicos, QR,
-confirmaciones RSVP ni envíos por WhatsApp.
+opcionales y una importación CSV en dos fases. Desde CODEX-051, cada alta crea transaccionalmente una
+Invitación y su Asistente principal mediante `InvitationProvisioningService`. Contactos no implementa
+confirmaciones RSVP, QR, diseño ni envíos por WhatsApp.
 
 ## Modelos
 
@@ -20,6 +21,9 @@ confirmaciones RSVP ni envíos por WhatsApp.
 
 No existe unicidad por teléfono: dos Contactos pueden compartir un número. El borrado es lógico y un
 Contacto eliminado deja de contar para el límite operativo.
+
+El nombre del Contacto es la fuente del nombre del Asistente principal: una edición lo sincroniza y el
+borrado lógico propaga el mismo timestamp a Invitación y Asistentes.
 
 ### Group
 
@@ -168,8 +172,10 @@ hubieran sido anonimizados.
 
 La operación es idempotente y emite una auditoría `SYSTEM` `CONTACTS_ANONYMIZED` por Evento y ejecución solo
 si cambió algún Contacto o preview. Su `afterData` contiene exactamente `eventId`, `contactsAnonymized`,
-`previewsRedacted`, `contactIds` y `previewIds`; no incluye PII, snapshots ni filas. En la misma limpieza se
-eliminan previews vencidos no confirmados y se registra una auditoría técnica agregada, sin PII.
+`previewsRedacted`, `contactIds` y `previewIds`; no incluye PII, snapshots ni filas. La misma transacción
+anonimiza nombres de Asistentes y, si hubo cambios, emite una auditoría separada
+`ASSISTANTS_ANONYMIZED`, también agregada y sin PII. En la misma limpieza se eliminan previews vencidos no
+confirmados y se registra una auditoría técnica agregada, sin PII.
 
 ## Invariantes PostgreSQL
 
@@ -192,5 +198,5 @@ desactivar triggers dentro de su transacción mediante `session_replication_role
 
 ## Alcance diferido
 
-Quedan para tareas posteriores Invitaciones, Acompañantes, `StaffToken`, tokens públicos, QR, RSVP,
-WhatsApp y frontend. CODEX-050 tampoco envía mensajes ni convierte Contactos en Invitaciones.
+La integración básica con Invitaciones y Asistentes nominales está vigente desde CODEX-051. Quedan para
+tareas posteriores `StaffToken`, QR público, RSVP, WhatsApp, diseño y frontend.

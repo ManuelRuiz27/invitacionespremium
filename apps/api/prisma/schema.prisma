@@ -117,6 +117,29 @@ enum EventStateAction {
   @@map("event_state_action")
 }
 
+enum InvitationMode {
+  INDIVIDUAL
+  FAMILY_NOMINAL
+
+  @@map("invitation_mode")
+}
+
+enum InvitationResponseStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+
+  @@map("invitation_response_status")
+}
+
+enum AssistantResponseStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+
+  @@map("assistant_response_status")
+}
+
 enum UserRole {
   PLATFORM_ADMIN
   INDEPENDENT_PLANNER
@@ -189,6 +212,7 @@ model User {
   createdEvents         Event[]                @relation("EventCreator")
   activatedEvents       Event[]                @relation("EventActivator")
   contactImportPreviews ContactImportPreview[]
+  cancelledInvitations  Invitation[]          @relation("InvitationCanceller")
 
   @@index([clientId])
   @@index([role, deletedAt])
@@ -440,6 +464,8 @@ model Event {
   contacts                        Contact[]
   groups                          Group[]
   contactImportPreviews           ContactImportPreview[]
+  invitations                     Invitation[]
+  assistants                      Assistant[]
 
   @@index([clientId, status, deletedAt])
   @@index([createdByUserId, status, deletedAt])
@@ -489,10 +515,60 @@ model Contact {
   deletedAt               DateTime? @map("deleted_at") @db.Timestamptz(6)
   event                   Event     @relation(fields: [eventId], references: [id], onDelete: Restrict)
   group                   Group?    @relation(fields: [groupId, eventId], references: [id, eventId], onDelete: Restrict)
+  invitation              Invitation?
 
+  @@unique([id, eventId])
   @@index([eventId, deletedAt, createdAt])
   @@index([groupId, eventId, deletedAt])
   @@map("contact")
+}
+
+model Invitation {
+  id                       String                   @id @default(uuid()) @db.Uuid
+  eventId                  String                   @map("event_id") @db.Uuid
+  contactId                String                   @unique @map("contact_id") @db.Uuid
+  mode                     InvitationMode           @default(INDIVIDUAL)
+  responseStatus           InvitationResponseStatus @default(PENDING) @map("response_status")
+  additionalAssistantLimit Int                      @default(0) @map("additional_assistant_limit")
+  invitationTokenNonce     String                   @unique @map("invitation_token_nonce") @db.VarChar(64)
+  invitationTokenVersion   Int                      @default(1) @map("invitation_token_version")
+  qrTokenNonce             String                   @unique @map("qr_token_nonce") @db.VarChar(64)
+  qrTokenVersion           Int                      @default(1) @map("qr_token_version")
+  cancelledAt              DateTime?                @map("cancelled_at") @db.Timestamptz(6)
+  cancelledByUserId        String?                  @map("cancelled_by_user_id") @db.Uuid
+  cancelIdempotencyKey     String?                  @unique @map("cancel_idempotency_key") @db.VarChar(128)
+  createdAt                DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt                DateTime?                @map("deleted_at") @db.Timestamptz(6)
+  event                    Event                    @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  contact                  Contact                  @relation(fields: [contactId, eventId], references: [id, eventId], onDelete: Restrict)
+  cancelledByUser          User?                    @relation("InvitationCanceller", fields: [cancelledByUserId], references: [id], onDelete: Restrict)
+  assistants               Assistant[]
+
+  @@unique([id, eventId])
+  @@unique([contactId, eventId])
+  @@index([eventId, deletedAt, createdAt])
+  @@index([cancelledAt])
+  @@map("invitation")
+}
+
+model Assistant {
+  id             String                  @id @default(uuid()) @db.Uuid
+  eventId        String                  @map("event_id") @db.Uuid
+  invitationId   String                  @map("invitation_id") @db.Uuid
+  name           String?                 @db.VarChar(160)
+  isPrimary      Boolean                 @default(false) @map("is_primary")
+  responseStatus AssistantResponseStatus @default(PENDING) @map("response_status")
+  anonymizedAt   DateTime?               @map("anonymized_at") @db.Timestamptz(6)
+  createdAt      DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt      DateTime?               @map("deleted_at") @db.Timestamptz(6)
+  event          Event                   @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  invitation     Invitation              @relation(fields: [invitationId, eventId], references: [id, eventId], onDelete: Restrict)
+
+  @@index([invitationId, deletedAt, createdAt])
+  @@index([eventId, deletedAt])
+  @@map("assistant")
 }
 
 model ContactImportPreview {

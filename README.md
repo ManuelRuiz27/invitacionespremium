@@ -211,7 +211,21 @@ pnpm turbo dev --filter=@invitaciones/client
 
 `CODEX-050` quedó completamente cerrado.
 
-La siguiente tarea es `CODEX-051 — Invitaciones y Asistentes nominales`.
+`CODEX-051` agregó Invitaciones y Asistentes nominales:
+
+- aprovisionamiento transaccional desde altas manuales y CSV de Contactos;
+- una Invitación y un Asistente principal por Contacto, con modos individual y familiar nominal;
+- límites de Asistentes protegidos frente a concurrencia y pertenencia cruzada;
+- tokens de Invitación y QR separados por propósito, firmados y no intercambiables;
+- cancelación irreversible, idempotente y auditada;
+- lectura pública mínima según estado del Evento, cancelación y borrado lógico;
+- ownership operativo exacto y auditoría sin PII ni secretos;
+- migración idempotente de Contactos existentes y anonimización de Asistentes a 30 días;
+- constraints y triggers PostgreSQL para pertenencia, cardinalidad, principal e inmutabilidad.
+
+`CODEX-051` quedó completamente cerrado.
+
+La siguiente tarea es `CODEX-060 — FileAssets y storage local`.
 
 ## Fuente de verdad
 

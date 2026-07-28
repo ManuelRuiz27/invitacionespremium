@@ -7,6 +7,7 @@ import { CRITICAL_TRANSACTION_OPTIONS } from '../common/database/transaction-pol
 import { AppConfigService } from '../config/app-config.service';
 import { AuditActorType, EventStatus, Prisma, type Contact, type Group, type Event } from '../generated/prisma/client';
 import { EventAccessPolicy, eventNotFound } from '../events/event-access.policy';
+import { InvitationProvisioningService } from '../invitations/invitation-provisioning.service';
 import {
   collapseWhitespace,
   type CommitImportResponseDto,
@@ -40,7 +41,8 @@ export class ContactsService {
     @Inject(AuditService) private readonly audit: AuditService,
     @Inject(EventAccessPolicy) private readonly eventAccess: EventAccessPolicy,
     @Inject(PhoneNormalizer) private readonly phones: PhoneNormalizer,
-    @Inject(AppConfigService) private readonly config: AppConfigService
+    @Inject(AppConfigService) private readonly config: AppConfigService,
+    @Inject(InvitationProvisioningService) private readonly invitations: InvitationProvisioningService
   ) {}
 
   async listContacts(eventId: string, principal: AuthPrincipal): Promise<ContactResponseDto[]> {
@@ -73,11 +75,13 @@ export class ContactsService {
           whatsappPhoneNormalized: normalizedPhone
         }
       });
+      const provisioned = await this.invitations.provisionForContact(tx, contact);
 
       await this.recordUserAudit(tx, principal, event, operationId, 'CONTACT_CREATE', 'Contact', contact.id, {
         id: contact.id,
         eventId,
-        groupId: contact.groupId
+        groupId: contact.groupId,
+        ...provisioned
       });
       return toContactResponse(contact);
     });
@@ -108,6 +112,9 @@ export class ContactsService {
           ...(input.groupId === undefined ? {} : { groupId: input.groupId })
         }
       });
+      if (input.name !== undefined) {
+        await this.invitations.syncPrimaryName(tx, contact.id, contact.name as string);
+      }
 
       await this.recordUserAudit(
         tx,
@@ -136,10 +143,12 @@ export class ContactsService {
       if (!current) {
         throw contactNotFound();
       }
+      const deletedAt = new Date();
       const deleted = await tx.contact.update({
         where: { id: contactId },
-        data: { deletedAt: new Date() }
+        data: { deletedAt }
       });
+      await this.invitations.softDeleteForContact(tx, contactId, deletedAt);
       await this.recordUserAudit(
         tx,
         principal,
@@ -377,16 +386,16 @@ export class ContactsService {
           if (!row.name || !row.normalizedPhone) {
             throw new TypeError('A valid preview contains a non-importable row.');
           }
-          contacts.push(
-            await tx.contact.create({
-              data: {
-                eventId,
-                name: row.name,
-                whatsappPhoneNormalized: row.normalizedPhone,
-                groupId: row.normalizedGroup ? (groupIds.get(row.normalizedGroup) ?? null) : null
-              }
-            })
-          );
+          const contact = await tx.contact.create({
+            data: {
+              eventId,
+              name: row.name,
+              whatsappPhoneNormalized: row.normalizedPhone,
+              groupId: row.normalizedGroup ? (groupIds.get(row.normalizedGroup) ?? null) : null
+            }
+          });
+          await this.invitations.provisionForContact(tx, contact);
+          contacts.push(contact);
         }
 
         const result: CommitImportResponseDto = {
@@ -446,7 +455,8 @@ export class ContactsService {
             contactImportPreviews: {
               some: { committedAt: { not: null }, piiPurgedAt: null }
             }
-          }
+          },
+          { assistants: { some: { anonymizedAt: null } } }
         ]
       },
       select: { id: true }
@@ -468,7 +478,8 @@ export class ContactsService {
           where: { eventId: event.id, committedAt: { not: null }, piiPurgedAt: null },
           select: { id: true, resultSnapshot: true }
         });
-        if (contacts.length === 0 && previews.length === 0) {
+        const assistantIds = await this.invitations.anonymizeForEvent(tx, event.id, at);
+        if (contacts.length === 0 && previews.length === 0 && assistantIds.length === 0) {
           return 0;
         }
         if (contacts.length > 0) {
@@ -489,25 +500,45 @@ export class ContactsService {
             }
           });
         }
-        await this.audit.record(
-          {
-            actor: { type: AuditActorType.SYSTEM },
-            action: 'CONTACTS_ANONYMIZED',
-            resourceType: 'Event',
-            resourceId: event.id,
-            clientId: event.clientId,
-            eventId: event.id,
-            afterData: {
+        if (contacts.length > 0 || previews.length > 0) {
+          await this.audit.record(
+            {
+              actor: { type: AuditActorType.SYSTEM },
+              action: 'CONTACTS_ANONYMIZED',
+              resourceType: 'Event',
+              resourceId: event.id,
+              clientId: event.clientId,
               eventId: event.id,
-              contactsAnonymized: contacts.length,
-              previewsRedacted: previews.length,
-              contactIds: contacts.map(({ id }) => id),
-              previewIds: previews.map(({ id }) => id)
-            }
-          },
-          tx
-        );
-        return contacts.length + previews.length;
+              afterData: {
+                eventId: event.id,
+                contactsAnonymized: contacts.length,
+                previewsRedacted: previews.length,
+                contactIds: contacts.map(({ id }) => id),
+                previewIds: previews.map(({ id }) => id)
+              }
+            },
+            tx
+          );
+        }
+        if (assistantIds.length > 0) {
+          await this.audit.record(
+            {
+              actor: { type: AuditActorType.SYSTEM },
+              action: 'ASSISTANTS_ANONYMIZED',
+              resourceType: 'Event',
+              resourceId: event.id,
+              clientId: event.clientId,
+              eventId: event.id,
+              afterData: {
+                eventId: event.id,
+                assistantsAnonymized: assistantIds.length,
+                assistantIds
+              }
+            },
+            tx
+          );
+        }
+        return contacts.length + previews.length + assistantIds.length;
       });
     }
 

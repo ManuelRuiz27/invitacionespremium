@@ -21,6 +21,8 @@ describe('validateEnvironment', () => {
     expect(environment.CREDIT_UNIT_VALUE_MXN_CENTS).toBe(2000);
     expect(environment.PHONE_DEFAULT_REGION).toBe('MX');
     expect(environment.CONTACT_IMPORT_PREVIEW_TTL_SECONDS).toBe(1800);
+    expect(Buffer.byteLength(environment.INVITATION_TOKEN_SIGNING_SECRET)).toBeGreaterThanOrEqual(32);
+    expect(environment.PUBLIC_INVITATION_BASE_URL).toBe('http://localhost:5173/invitacion');
   });
 
   it('rejects non-PostgreSQL database URLs', () => {
@@ -73,5 +75,14 @@ describe('validateEnvironment', () => {
         CONTACT_IMPORT_PREVIEW_TTL_SECONDS: '30'
       })
     ).toThrow();
+  });
+
+  it('requires at least 32 bytes for invitation token signing', () => {
+    expect(() =>
+      validateEnvironment({
+        DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/app',
+        INVITATION_TOKEN_SIGNING_SECRET: 'too-short'
+      })
+    ).toThrow(/32 bytes/);
   });
 });
