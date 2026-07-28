@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import path from 'node:path';
-import { ConflictException, HttpStatus, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, HttpStatus, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
 import type { AuthPrincipal } from '../auth/auth.types';
 import { PrismaService } from '../common/database/prisma.service';
@@ -15,7 +15,8 @@ import {
   FileAssetStatus,
   FileAssetType,
   StorageProvider,
-  type FileAsset
+  type FileAsset,
+  type Prisma
 } from '../generated/prisma/client';
 import { assertCompatibleFileAssetType, USER_IMAGE_FILE_TYPES } from './file-asset-compatibility';
 import { FileAssetOwnerRegistry, type FileAssetOwnerReference, ownerMismatch } from './file-asset-owner.registry';
@@ -60,6 +61,8 @@ export interface CreateGeneratedAssetInput {
 
 @Injectable()
 export class FileAssetsService {
+  private readonly logger = new Logger(FileAssetsService.name);
+
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(AuditService) private readonly audit: AuditService,
@@ -178,17 +181,28 @@ export class FileAssetsService {
     operationId?: string
   ): Promise<void> {
     await this.requireOwnedEvent(eventId, principal);
-    const current = await this.requireEventAsset(eventId, fileAssetId, true);
-    if (current.status === FileAssetStatus.DELETED) {
-      return;
-    }
-    if (current.ownerId !== null) {
-      throw new ConflictException({
-        code: 'FILE_ASSET_ASSOCIATED',
-        message: 'An associated file asset cannot be deleted through the generic endpoint.'
+    await this.serializable(async (transaction) => {
+      await transaction.$queryRaw`
+        SELECT "id"
+        FROM "file_asset"
+        WHERE "id" = ${fileAssetId}::uuid AND "event_id" = ${eventId}::uuid
+        FOR UPDATE
+      `;
+      const current = await transaction.fileAsset.findFirst({
+        where: { id: fileAssetId, eventId }
       });
-    }
-    await this.prisma.$transaction(async (transaction) => {
+      if (!current) {
+        throw fileAssetNotFound();
+      }
+      if (current.status === FileAssetStatus.DELETED && current.deletedAt !== null) {
+        return;
+      }
+      if (current.ownerId !== null) {
+        throw new ConflictException({
+          code: 'FILE_ASSET_ASSOCIATED',
+          message: 'An associated file asset cannot be deleted through the generic endpoint.'
+        });
+      }
       const asset = await transaction.fileAsset.update({
         where: { id: fileAssetId },
         data: {
@@ -201,7 +215,7 @@ export class FileAssetsService {
         fileAssetAudit(asset, principal.userId, 'FILE_ASSET_SOFT_DELETE', operationId),
         transaction
       );
-    }, CRITICAL_TRANSACTION_OPTIONS);
+    });
   }
 
   async claimReadyAsset(
@@ -210,7 +224,7 @@ export class FileAssetsService {
     actorUserId: string,
     operationId?: string
   ): Promise<FileAssetResponseDto> {
-    return this.prisma.$transaction(async (transaction) => {
+    return this.serializable(async (transaction) => {
       await transaction.$queryRaw`
         SELECT "id" FROM "file_asset" WHERE "id" = ${fileAssetId}::uuid FOR UPDATE
       `;
@@ -232,7 +246,7 @@ export class FileAssetsService {
       });
       await this.audit.record(fileAssetAudit(claimed, actorUserId, 'FILE_ASSET_CLAIM', operationId), transaction);
       return toFileAssetResponse(claimed);
-    }, CRITICAL_TRANSACTION_OPTIONS);
+    });
   }
 
   async createGeneratedAsset(input: CreateGeneratedAssetInput): Promise<FileAssetResponseDto> {
@@ -310,38 +324,92 @@ export class FileAssetsService {
     const candidates = await this.prisma.fileAsset.findMany({
       where: {
         ownerId: null,
-        createdAt: { lt: cutoff },
         OR: [
-          { status: FileAssetStatus.UPLOADING },
-          { status: FileAssetStatus.FAILED },
-          { status: FileAssetStatus.DELETED },
-          { status: FileAssetStatus.READY }
+          {
+            status: {
+              in: [FileAssetStatus.UPLOADING, FileAssetStatus.FAILED, FileAssetStatus.READY]
+            },
+            createdAt: { lt: cutoff }
+          },
+          {
+            status: FileAssetStatus.DELETED,
+            updatedAt: { lt: cutoff }
+          }
         ]
       },
-      orderBy: { createdAt: 'asc' }
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }]
     });
-    let cleaned = 0;
-    for (const asset of candidates) {
-      await this.storage.delete(asset.storageKey);
-      const result = await this.prisma.fileAsset.updateMany({
-        where: { id: asset.id, ownerId: null, status: asset.status },
-        data: {
-          status: FileAssetStatus.DELETED,
-          failureCode: null,
-          deletedAt: asset.deletedAt ?? at
+
+    const claimed = await this.serializable(async (transaction) => {
+      const claimedAssets: typeof candidates = [];
+      let transitioned = 0;
+      for (const candidate of candidates) {
+        const result = await transaction.fileAsset.updateMany({
+          where: {
+            id: candidate.id,
+            ownerId: null,
+            status: candidate.status,
+            updatedAt: candidate.updatedAt,
+            ...(candidate.status === FileAssetStatus.DELETED
+              ? { AND: [{ updatedAt: { lt: cutoff } }] }
+              : { createdAt: { lt: cutoff } })
+          },
+          data: {
+            status: FileAssetStatus.DELETED,
+            failureCode: null,
+            deletedAt: candidate.deletedAt ?? at,
+            updatedAt: at
+          }
+        });
+        if (result.count === 1) {
+          claimedAssets.push(candidate);
+          if (candidate.status !== FileAssetStatus.DELETED) {
+            transitioned += 1;
+          }
         }
-      });
-      cleaned += result.count;
+      }
+      if (transitioned > 0) {
+        await this.audit.record(
+          {
+            actor: { type: AuditActorType.SYSTEM },
+            resourceType: 'FILE_ASSET',
+            action: 'FILE_ASSET_ORPHAN_CLEANUP',
+            metadata: { count: transitioned }
+          },
+          transaction
+        );
+      }
+      return claimedAssets;
+    });
+
+    let physicallyDeleted = 0;
+    for (const asset of claimed) {
+      try {
+        await this.storage.delete(asset.storageKey);
+        physicallyDeleted += 1;
+      } catch {
+        this.logger.warn({
+          event: 'file_asset_orphan_physical_delete_failed',
+          fileAssetId: asset.id
+        });
+        // The logical DELETED state is deliberately retained for a later cleanup retry.
+      }
     }
-    if (cleaned > 0) {
-      await this.audit.record({
-        actor: { type: AuditActorType.SYSTEM },
-        resourceType: 'FILE_ASSET',
-        action: 'FILE_ASSET_ORPHAN_CLEANUP',
-        metadata: { count: cleaned }
-      });
+    return physicallyDeleted;
+  }
+
+  private async serializable<T>(work: (transaction: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      try {
+        return await this.prisma.$transaction(work, CRITICAL_TRANSACTION_OPTIONS);
+      } catch (error) {
+        if (!isRetryableTransactionError(error) || attempt === 19) {
+          throw error;
+        }
+        await new Promise((resolve) => setTimeout(resolve, Math.min(5 * (attempt + 1), 50)));
+      }
     }
-    return cleaned;
+    throw new Error('Serializable transaction retry limit exceeded.');
   }
 
   private async requireOwnedEvent(eventId: string, principal: AuthPrincipal) {
@@ -364,10 +432,7 @@ export class FileAssetsService {
       }
     });
     if (!asset) {
-      throw new NotFoundException({
-        code: 'FILE_ASSET_NOT_FOUND',
-        message: 'File asset not found.'
-      });
+      throw fileAssetNotFound();
     }
     return asset;
   }
@@ -386,6 +451,32 @@ export class FileAssetsService {
       }, CRITICAL_TRANSACTION_OPTIONS)
       .catch(() => undefined);
   }
+}
+
+function fileAssetNotFound(): NotFoundException {
+  return new NotFoundException({
+    code: 'FILE_ASSET_NOT_FOUND',
+    message: 'File asset not found.'
+  });
+}
+
+function isRetryableTransactionError(error: unknown): boolean {
+  if (hasPrismaCode(error, 'P2034')) {
+    return true;
+  }
+  if (!hasPrismaCode(error, 'P2010') || typeof error !== 'object' || error === null || !('meta' in error)) {
+    return false;
+  }
+  const meta = (error as { meta?: unknown }).meta;
+  if (typeof meta !== 'object' || meta === null) return false;
+  const code = 'code' in meta ? (meta as { code?: unknown }).code : undefined;
+  const driverError =
+    'driverAdapterError' in meta ? String((meta as { driverAdapterError?: unknown }).driverAdapterError) : '';
+  return code === '40001' || code === '40P01' || driverError.includes('TransactionWriteConflict');
+}
+
+function hasPrismaCode(error: unknown, code: string): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: unknown }).code === code;
 }
 
 function safeOriginalName(input: string): string {

@@ -241,7 +241,15 @@ El hardening final de `CODEX-051` agregó:
 - asociación transaccional mediante resolvers, con adapter inicial de Invitación;
 - limpieza idempotente de huérfanos y constraints/triggers PostgreSQL.
 
-`CODEX-060` quedó completado.
+El hardening final de `CODEX-060` agregó:
+
+- reclamación lógica atómica antes de eliminar bytes huérfanos;
+- exclusión segura entre cleanup, asociación y borrado genérico;
+- reintento de eliminación física sin restaurar assets `DELETED`;
+- deduplicación de schedulers concurrentes;
+- descarga autenticada `private, no-store` y `nosniff`.
+
+`CODEX-060` quedó completamente cerrado.
 
 La siguiente tarea es `CODEX-061 — Flyer, Flipbook y Hotspots`.
 

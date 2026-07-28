@@ -297,6 +297,16 @@ Los bytes huérfanos por subidas fallidas pueden eliminarse mediante limpieza t�
 - no se necesitan para diagnóstico;
 - se cumple la retención técnica definida.
 
+La limpieza debe reclamar primero el registro con una transición condicional a `DELETED` mientras
+`owner_id IS NULL`; solo después del commit puede eliminar los bytes. No debe mantener una transacción de
+base de datos abierta durante I/O de storage. Si la eliminación física falla, el registro permanece
+`DELETED` y puede reintentarse después de la retención. La misma fila y versión no pueden reclamarse dos
+veces por schedulers concurrentes.
+
+La asociación y el borrado genérico deben bloquear y volver a validar la misma fila dentro de sus
+transacciones. Si la asociación gana, el borrado genérico no puede marcar `DELETED`; si el borrado o cleanup
+gana, el asset deja de ser asociable antes de cualquier eliminación física.
+
 ## Seguridad
 
 - Validar MIME por contenido, no solo extensión.
@@ -308,6 +318,7 @@ Los bytes huérfanos por subidas fallidas pueden eliminarse mediante limpieza t�
 - Registrar intentos inválidos y errores de storage.
 - Mantener storage separado por ambiente.
 - No registrar tokens, URLs firmadas completas ni contenido binario en logs.
+- Toda descarga autenticada usa cache privado sin almacenamiento y `nosniff`.
 
 ## Invariantes
 

@@ -405,8 +405,13 @@ requieren ownership; las respuestas nunca incluyen `storageKey`, ruta física ni
 
 La asociación usa el método interno `claimReadyAsset` y resolvers especializados. No existe endpoint para
 que el frontend asigne `ownerId`. Los tipos PDF/SVG generados solo se crean por métodos internos. La
-limpieza técnica elimina bytes huérfanos después del TTL sin tocar assets asociados ni reaccionar a
-cancelación/archivado. Detalle completo en `FILE_ASSETS_CONTRACT.md`.
+limpieza técnica reclama atómicamente cada huérfano como `DELETED` antes de eliminar sus bytes, sin mantener
+la transacción abierta durante filesystem y sin tocar assets asociados ni reaccionar a
+cancelación/archivado. El borrado genérico y el claim serializan sobre la fila.
+
+La descarga autenticada devuelve `Content-Type`, `Content-Length`, `ETag`, `Content-Disposition: inline`,
+`Cache-Control: private, no-store` y `X-Content-Type-Options: nosniff`, sin nombres ni identificadores
+internos. Detalle completo en `FILE_ASSETS_CONTRACT.md`.
 
 ## RealtimeModule
 

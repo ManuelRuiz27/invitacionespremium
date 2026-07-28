@@ -84,7 +84,17 @@ export class FileAssetsController {
 
   @Get(':fileAssetId/content')
   @ApiProduces('image/jpeg', 'image/png')
-  @ApiOkResponse({ description: 'Authorized binary content.' })
+  @ApiOkResponse({
+    description: 'Authorized private binary content.',
+    headers: {
+      'Content-Type': { schema: { type: 'string', example: 'image/jpeg' } },
+      'Content-Length': { schema: { type: 'integer', example: 12345 } },
+      ETag: { schema: { type: 'string', example: '"sha256-0123456789abcdef0123456789abcdef"' } },
+      'Content-Disposition': { schema: { type: 'string', example: 'inline' } },
+      'Cache-Control': { schema: { type: 'string', example: 'private, no-store' } },
+      'X-Content-Type-Options': { schema: { type: 'string', example: 'nosniff' } }
+    }
+  })
   async content(
     @Param('eventId') eventId: string,
     @Param('fileAssetId') fileAssetId: string,
@@ -100,6 +110,8 @@ export class FileAssetsController {
     response.setHeader('Content-Length', String(content.sizeBytes));
     response.setHeader('ETag', content.etag);
     response.setHeader('Content-Disposition', 'inline');
+    response.setHeader('Cache-Control', 'private, no-store');
+    response.setHeader('X-Content-Type-Options', 'nosniff');
     response.end(content.bytes);
   }
 

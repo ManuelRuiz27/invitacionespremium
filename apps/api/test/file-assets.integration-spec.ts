@@ -3,8 +3,9 @@ import { rm } from 'node:fs/promises';
 import path from 'node:path';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import sharp from 'sharp';
+import { AuditService } from '../src/audit/audit.service';
 import { hashPassword } from '../src/auth/password-hasher';
 import { createApp } from '../src/bootstrap/create-app';
 import { PrismaService } from '../src/common/database/prisma.service';
@@ -40,6 +41,7 @@ describe('FileAssets and local storage', () => {
   let prisma: PrismaService;
   let fileAssets: FileAssetsService;
   let storage: LocalFileStorage;
+  let audit: AuditService;
   let storageRoot: string;
   let jpeg: Buffer;
   let png: Buffer;
@@ -61,11 +63,13 @@ describe('FileAssets and local storage', () => {
     prisma = app.get(PrismaService);
     fileAssets = app.get(FileAssetsService);
     storage = app.get(FileStorage) as LocalFileStorage;
+    audit = app.get(AuditService);
     jpeg = await image('jpeg');
     png = await image('png');
   });
 
   beforeEach(resetDatabase, 60_000);
+  afterEach(() => vi.restoreAllMocks());
 
   afterAll(async () => {
     await resetDatabase();
@@ -133,6 +137,12 @@ describe('FileAssets and local storage', () => {
     expect(content.headers['content-length']).toBe(String(stored.sizeBytes));
     expect(content.headers.etag).toMatch(/^"sha256-[0-9a-f]{32}"$/u);
     expect(content.headers['content-disposition']).toBe('inline');
+    expect(content.headers['cache-control']).toBe('private, no-store');
+    expect(content.headers['x-content-type-options']).toBe('nosniff');
+    const serializedHeaders = JSON.stringify(content.headers);
+    expect(serializedHeaders).not.toContain(stored.storageKey);
+    expect(serializedHeaders).not.toContain(stored.checksumSha256);
+    expect(serializedHeaders).not.toContain(stored.originalName);
     expect(Buffer.isBuffer(content.body)).toBe(true);
 
     await mutate('delete', `/events/${event.id}/file-assets/${stored.id}`, cookie).expect(204);
@@ -335,6 +345,212 @@ describe('FileAssets and local storage', () => {
     expect(await prisma.fileAsset.findUnique({ where: { id: staged.id } })).not.toBeNull();
   });
 
+  it('serializes claimReadyAsset against cleanupOrphans in both winning orders', async () => {
+    const owner = await createClientUser(UserRole.INDEPENDENT_PLANNER);
+    const event = await createEvent(owner);
+    const firstInvitation = await createInvitation(event);
+    const secondInvitation = await createInvitation(event);
+    const cleanupAt = new Date(Date.now() + 120_000);
+
+    const claimWinsAsset = await createReadyInvitationAsset(event, owner.userId);
+    const claimAuditStarted = deferred<void>();
+    const releaseClaimAudit = deferred<void>();
+    const originalRecord = audit.record.bind(audit);
+    let pausedClaim = false;
+    const auditSpy = vi.spyOn(audit, 'record').mockImplementation(async (input, client) => {
+      if (input.action === 'FILE_ASSET_CLAIM' && !pausedClaim) {
+        pausedClaim = true;
+        claimAuditStarted.resolve();
+        await releaseClaimAudit.promise;
+      }
+      return originalRecord(input, client);
+    });
+
+    const claim = fileAssets.claimReadyAsset(
+      claimWinsAsset.id,
+      { ownerType: FileAssetOwnerType.INVITATION, ownerId: firstInvitation.id },
+      owner.userId
+    );
+    await claimAuditStarted.promise;
+    const cleanupAfterClaim = fileAssets.cleanupOrphans(cleanupAt);
+    releaseClaimAudit.resolve();
+
+    await expect(claim).resolves.toMatchObject({
+      status: FileAssetStatus.READY,
+      ownerId: firstInvitation.id
+    });
+    await expect(cleanupAfterClaim).resolves.toBe(0);
+    expect(await storage.exists(claimWinsAsset.storageKey)).toBe(true);
+    auditSpy.mockRestore();
+
+    const cleanupWinsAsset = await createReadyInvitationAsset(event, owner.userId);
+    const physicalDeleteStarted = deferred<void>();
+    const releasePhysicalDelete = deferred<void>();
+    const originalDelete = storage.delete.bind(storage);
+    const deleteSpy = vi.spyOn(storage, 'delete').mockImplementation(async (storageKey) => {
+      if (storageKey === cleanupWinsAsset.storageKey) {
+        physicalDeleteStarted.resolve();
+        await releasePhysicalDelete.promise;
+      }
+      return originalDelete(storageKey);
+    });
+
+    const cleanup = fileAssets.cleanupOrphans(cleanupAt);
+    await physicalDeleteStarted.promise;
+    await expect(
+      fileAssets.claimReadyAsset(
+        cleanupWinsAsset.id,
+        { ownerType: FileAssetOwnerType.INVITATION, ownerId: secondInvitation.id },
+        owner.userId
+      )
+    ).rejects.toMatchObject({ response: { code: 'FILE_OWNER_MISMATCH' } });
+    expect(await storage.exists(cleanupWinsAsset.storageKey)).toBe(true);
+    releasePhysicalDelete.resolve();
+
+    await expect(cleanup).resolves.toBe(1);
+    expect(await storage.exists(cleanupWinsAsset.storageKey)).toBe(false);
+    expect(await prisma.fileAsset.findUniqueOrThrow({ where: { id: cleanupWinsAsset.id } })).toMatchObject({
+      status: FileAssetStatus.DELETED,
+      ownerId: null,
+      deletedAt: expect.any(Date)
+    });
+    expect(deleteSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('serializes claimReadyAsset against generic soft delete in both winning orders', async () => {
+    const owner = await createClientUser(UserRole.INDEPENDENT_PLANNER);
+    const event = await createEvent(owner);
+    const cookie = await login(owner.email);
+    const firstInvitation = await createInvitation(event);
+    const secondInvitation = await createInvitation(event);
+    const originalRecord = audit.record.bind(audit);
+
+    const claimWinsAsset = await createReadyInvitationAsset(event, owner.userId);
+    const claimAuditStarted = deferred<void>();
+    const releaseClaimAudit = deferred<void>();
+    let pausedClaim = false;
+    const claimAuditSpy = vi.spyOn(audit, 'record').mockImplementation(async (input, client) => {
+      if (input.action === 'FILE_ASSET_CLAIM' && !pausedClaim) {
+        pausedClaim = true;
+        claimAuditStarted.resolve();
+        await releaseClaimAudit.promise;
+      }
+      return originalRecord(input, client);
+    });
+    const claim = fileAssets.claimReadyAsset(
+      claimWinsAsset.id,
+      { ownerType: FileAssetOwnerType.INVITATION, ownerId: firstInvitation.id },
+      owner.userId
+    );
+    await claimAuditStarted.promise;
+    const deleteAfterClaim = mutate('delete', `/events/${event.id}/file-assets/${claimWinsAsset.id}`, cookie)
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('FILE_ASSET_ASSOCIATED'))
+      .then(() => undefined);
+    releaseClaimAudit.resolve();
+
+    await expect(claim).resolves.toMatchObject({ ownerId: firstInvitation.id });
+    await deleteAfterClaim;
+    expect(await storage.exists(claimWinsAsset.storageKey)).toBe(true);
+    expect(await prisma.fileAsset.findUniqueOrThrow({ where: { id: claimWinsAsset.id } })).toMatchObject({
+      status: FileAssetStatus.READY,
+      ownerId: firstInvitation.id
+    });
+    claimAuditSpy.mockRestore();
+
+    const deleteWinsAsset = await createReadyInvitationAsset(event, owner.userId);
+    const deleteAuditStarted = deferred<void>();
+    const releaseDeleteAudit = deferred<void>();
+    let pausedDelete = false;
+    const deleteAuditSpy = vi.spyOn(audit, 'record').mockImplementation(async (input, client) => {
+      if (input.action === 'FILE_ASSET_SOFT_DELETE' && !pausedDelete) {
+        pausedDelete = true;
+        deleteAuditStarted.resolve();
+        await releaseDeleteAudit.promise;
+      }
+      return originalRecord(input, client);
+    });
+    const softDelete = mutate('delete', `/events/${event.id}/file-assets/${deleteWinsAsset.id}`, cookie)
+      .expect(204)
+      .then(() => undefined);
+    await deleteAuditStarted.promise;
+    const claimAfterDelete = fileAssets.claimReadyAsset(
+      deleteWinsAsset.id,
+      { ownerType: FileAssetOwnerType.INVITATION, ownerId: secondInvitation.id },
+      owner.userId
+    );
+    releaseDeleteAudit.resolve();
+
+    await softDelete;
+    await expect(claimAfterDelete).rejects.toMatchObject({
+      response: { code: 'FILE_OWNER_MISMATCH' }
+    });
+    expect(await prisma.fileAsset.findUniqueOrThrow({ where: { id: deleteWinsAsset.id } })).toMatchObject({
+      status: FileAssetStatus.DELETED,
+      ownerId: null,
+      deletedAt: expect.any(Date)
+    });
+    expect(await storage.exists(deleteWinsAsset.storageKey)).toBe(true);
+    deleteAuditSpy.mockRestore();
+  });
+
+  it('deduplicates concurrent cleanup claims for the same asset without timers', async () => {
+    const owner = await createClientUser(UserRole.INDEPENDENT_PLANNER);
+    const event = await createEvent(owner);
+    const orphan = await createReadyInvitationAsset(event, owner.userId);
+    const cleanupAt = new Date(Date.now() + 120_000);
+    const physicalDeleteStarted = deferred<void>();
+    const releasePhysicalDelete = deferred<void>();
+    const originalDelete = storage.delete.bind(storage);
+    const deleteSpy = vi.spyOn(storage, 'delete').mockImplementation(async (storageKey) => {
+      if (storageKey === orphan.storageKey) {
+        physicalDeleteStarted.resolve();
+        await releasePhysicalDelete.promise;
+      }
+      return originalDelete(storageKey);
+    });
+
+    const firstCleanup = fileAssets.cleanupOrphans(cleanupAt);
+    await physicalDeleteStarted.promise;
+    const secondCleanup = fileAssets.cleanupOrphans(cleanupAt);
+    await expect(secondCleanup).resolves.toBe(0);
+    expect(deleteSpy).toHaveBeenCalledTimes(1);
+    releasePhysicalDelete.resolve();
+
+    await expect(firstCleanup).resolves.toBe(1);
+    expect(await storage.exists(orphan.storageKey)).toBe(false);
+    expect(await prisma.fileAsset.findUniqueOrThrow({ where: { id: orphan.id } })).toMatchObject({
+      status: FileAssetStatus.DELETED,
+      ownerId: null
+    });
+  });
+
+  it('keeps the logical deletion after storage failure and retries it after retention', async () => {
+    const owner = await createClientUser(UserRole.INDEPENDENT_PLANNER);
+    const event = await createEvent(owner);
+    const orphan = await createReadyInvitationAsset(event, owner.userId);
+    const firstCleanupAt = new Date(Date.now() + 120_000);
+    const deleteSpy = vi.spyOn(storage, 'delete').mockRejectedValueOnce(new Error('simulated storage failure'));
+
+    await expect(fileAssets.cleanupOrphans(firstCleanupAt)).resolves.toBe(0);
+    expect(await prisma.fileAsset.findUniqueOrThrow({ where: { id: orphan.id } })).toMatchObject({
+      status: FileAssetStatus.DELETED,
+      ownerId: null,
+      deletedAt: expect.any(Date)
+    });
+    expect(await storage.exists(orphan.storageKey)).toBe(true);
+    deleteSpy.mockRestore();
+
+    const retryAt = new Date(firstCleanupAt.getTime() + 60_001);
+    await expect(fileAssets.cleanupOrphans(retryAt)).resolves.toBe(1);
+    expect(await storage.exists(orphan.storageKey)).toBe(false);
+    expect(
+      await prisma.auditLog.count({
+        where: { action: 'FILE_ASSET_ORPHAN_CLEANUP', resourceType: 'FILE_ASSET' }
+      })
+    ).toBe(1);
+  });
+
   it('creates generated Invitation assets internally and cleans only expired unassociated assets', async () => {
     const owner = await createClientUser(UserRole.INDEPENDENT_PLANNER);
     const event = await createEvent(owner);
@@ -435,6 +651,10 @@ describe('FileAssets and local storage', () => {
       { properties?: Record<string, unknown> } | undefined;
     expect(schema?.properties).not.toHaveProperty('storageKey');
     expect(schema?.properties).not.toHaveProperty('checksumSha256');
+    const contentResponse = document.paths?.['/api/v1/events/{eventId}/file-assets/{fileAssetId}/content']?.get
+      ?.responses?.['200'] as { headers?: Record<string, unknown> } | undefined;
+    expect(contentResponse?.headers).toHaveProperty('Cache-Control');
+    expect(contentResponse?.headers).toHaveProperty('X-Content-Type-Options');
   });
 
   async function expectUploadError(
@@ -726,4 +946,14 @@ function hash(bytes: Buffer): string {
 
 function storedPathMarker(): string {
   return 'file-assets-vitest-';
+}
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
 }

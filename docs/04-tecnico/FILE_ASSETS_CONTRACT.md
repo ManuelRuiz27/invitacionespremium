@@ -130,17 +130,34 @@ Permisos:
 - Platform Admin: no usa estas rutas operativas;
 - Evento ajeno, inexistente o eliminado: `404`.
 
-El contenido solo se entrega para `READY`, con `Content-Type`, `Content-Length`, ETag derivado y
-`Content-Disposition: inline`. No existen endpoints públicos en CODEX-060.
+El contenido solo se entrega para `READY`, con `Content-Type`, `Content-Length`, ETag derivado,
+`Content-Disposition: inline`, `Cache-Control: private, no-store` y
+`X-Content-Type-Options: nosniff`. La respuesta no incluye clave de storage, ruta, checksum completo,
+nombre interno ni filename en `Content-Disposition`. No existen endpoints públicos en CODEX-060.
 
 ## Borrado y limpieza
 
-`DELETE` marca `DELETED`, establece `deletedAt`, conserva bytes y es idempotente. Un asset asociado responde
-`409 FILE_ASSET_ASSOCIATED`.
+`DELETE` autoriza primero el Evento y después bloquea la fila del asset dentro de la transacción crítica. En
+ese mismo bloqueo vuelve a comprobar `status`, `deletedAt` y `ownerId`: si ya está `DELETED` conserva
+idempotencia; si está asociado responde `409 FILE_ASSET_ASSOCIATED`; en otro caso marca `DELETED`, establece
+`deletedAt`, audita y conserva bytes. El bloqueo se comparte con `claimReadyAsset`, por lo que solo una
+operación puede ganar: un claim confirmado impide el borrado genérico y un borrado confirmado impide el
+claim.
 
 La limpieza programada elimina mediante `FileStorage` los assets no asociados que superaron la retención:
 `UPLOADING`, `FAILED`, `DELETED` y `READY`. Los deja en `DELETED` y genera una auditoría agregada `SYSTEM`.
 Nunca toca assets asociados ni elimina por cancelar o archivar un Evento.
+
+Cada candidato se reclama primero mediante una actualización condicional atómica que exige el mismo
+`status`, `updatedAt` y `ownerId IS NULL`. La transición lógica a `DELETED`, su `deletedAt` y la auditoría se
+confirman antes de tocar filesystem. Solo el proceso que obtuvo esa transición elimina los bytes y la
+transacción PostgreSQL ya está cerrada cuando comienza el I/O.
+
+Si el claim gana, la condición del cleanup afecta cero filas y los bytes permanecen. Si cleanup gana,
+`claimReadyAsset` observa `DELETED` y rechaza la asociación. Un fallo físico no revierte el estado
+`DELETED`: tras la retención, otra ejecución puede reclamarlo de nuevo y reintentar la eliminación.
+`updatedAt` funciona como versión de la reclamación; ejecuciones concurrentes que leyeron la misma versión
+no duplican el trabajo.
 
 ## Invariantes PostgreSQL
 
