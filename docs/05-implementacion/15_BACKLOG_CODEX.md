@@ -572,10 +572,14 @@ prisma/schema.prisma
 - cierre/reapertura y override operativo con ownership;
 - capacidad por Asistente, auditoría `PUBLIC_TOKEN` sin PII y constraints diferibles PostgreSQL.
 - `contentPath` funcional para Flyer y páginas Flipbook, sin placeholders;
-- normalización HTTPS equivalente en aplicación y PostgreSQL, sin fragmentos ni material privado;
-- once carreras con barreras deterministas y rollback probado ante auditoría o storage fallidos.
+- corpus único para normalización, DTO/API, `INSERT` y `UPDATE`, con rechazo de controles ASCII tras
+  hasta cuatro decodificaciones y `%20` limitado a path y valores de query;
+- once carreras con señal verificable de intento del lock PostgreSQL real, sin `nextTick` ni
+  temporizadores arbitrarios;
+- rollback probado ante auditoría o storage fallidos y restauración de spies en `finally`.
 
-El hardening de entrega privada y concurrencia quedó cerrado sin iniciar `CODEX-071`.
+El hardening final de controles URL, entrega privada y concurrencia quedó cerrado sin iniciar
+`CODEX-071`.
 
 ### CODEX-071 — Generación de QR SVG
 

@@ -475,5 +475,12 @@ La resolución pública es mínima; las mutaciones nominales usan transacciones 
 Asistente y auditoría sin PII. La entrega de assets revalida token, Evento, Invitación, diseño y referencia
 actual. Las referencias devueltas incluyen un `contentPath` inmediatamente consumible con el token actual
 codificado; un fallo de storage devuelve `500 FILE_STORAGE_FAILURE` sin datos internos. Los destinos del
-Evento se normalizan y excluyen fragmentos y componentes semánticos privados en path o query.
+Evento se normalizan y excluyen fragmentos y componentes semánticos privados en path o query. Tras hasta
+cuatro rondas de decodificación rechazan controles ASCII `0x00-0x1F`/`0x7F`, `/`, `\` y `#`; `%20`
+solo se admite en path y valores de query. Un corpus único verifica normalizador, DTO/API, `INSERT` y
+`UPDATE` directos.
+
+Las once carreras de RSVP usan una barrera posterior a los locks de la primera operación y una señal
+explícita de que la competidora alcanzó el método que ejecuta `SELECT ... FOR UPDATE`. No dependen de
+`nextTick`, sleeps, temporizadores ni lógica de producción exclusiva de pruebas.
 Contrato normativo: `PUBLIC_RSVP_CONTRACT.md`.

@@ -6,6 +6,7 @@ import { AuditService } from '../src/audit/audit.service';
 import { hashPassword } from '../src/auth/password-hasher';
 import { createApp } from '../src/bootstrap/create-app';
 import { PrismaService } from '../src/common/database/prisma.service';
+import { EVENT_DESTINATION_URL_CORPUS } from '../src/events/event-destination-url.corpus';
 import { FileStorage } from '../src/file-assets/file-storage';
 import {
   AssistantResponseStatus,
@@ -21,7 +22,9 @@ import {
   type FileAsset
 } from '../src/generated/prisma/client';
 import { InvitationTokenService } from '../src/invitations/invitation-token.service';
+import { InvitationsService } from '../src/invitations/invitations.service';
 import { createOpenApiDocument } from '../src/openapi/openapi';
+import { PublicRsvpService } from '../src/public-rsvp/public-rsvp.service';
 
 const origin = 'http://localhost:5173';
 const password = 'correct horse battery staple';
@@ -32,6 +35,8 @@ describe('Public RSVP', () => {
   let tokens: InvitationTokenService;
   let storage: FileStorage;
   let audit: AuditService;
+  let rsvp: PublicRsvpService;
+  let invitations: InvitationsService;
 
   beforeAll(async () => {
     if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required.');
@@ -48,6 +53,8 @@ describe('Public RSVP', () => {
     tokens = app.get(InvitationTokenService);
     storage = app.get(FileStorage);
     audit = app.get(AuditService);
+    rsvp = app.get(PublicRsvpService);
+    invitations = app.get(InvitationsService);
   });
 
   beforeEach(resetDatabase, 60_000);
@@ -118,14 +125,14 @@ describe('Public RSVP', () => {
   it('serializes invitations competing for the final capacity place and never commits an over-capacity state', async () => {
     const fixture = await createFixture({ capacity: 1 });
     const second = await addInvitation(fixture.eventId, 'Segunda');
-    const barrier = auditBarrier('RSVP_CONFIRM');
-    const first = start(publicPost(fixture.token, 'confirm', { additionalAssistants: [] }));
-    await barrier.entered.promise;
-    const competing = start(publicPost(second.token, 'confirm', { additionalAssistants: [] }));
-    await expectPending(competing);
-    barrier.release.resolve();
-    const results = await Promise.all([first, competing]);
-    barrier.restore();
+    const results = await runAuditContended(
+      'RSVP_CONFIRM',
+      rsvp,
+      'lockInvitationContext',
+      2,
+      () => publicPost(fixture.token, 'confirm', { additionalAssistants: [] }),
+      () => publicPost(second.token, 'confirm', { additionalAssistants: [] })
+    );
     expect(results.map(({ status }) => status).sort()).toEqual([200, 409]);
     expect(results.find(({ status }) => status === 409)?.body.code).toBe('RSVP_EVENT_CAPACITY_EXCEEDED');
     expect(
@@ -135,19 +142,20 @@ describe('Public RSVP', () => {
     ).toBe(1);
     expect(await prisma.auditLog.count({ where: { eventId: fixture.eventId, action: 'RSVP_CONFIRM' } })).toBe(1);
 
-    const sameBarrier = auditBarrier('RSVP_REJECT');
-    const rejected = start(publicPost(fixture.token, 'reject'));
-    await sameBarrier.entered.promise;
-    const confirmed = start(publicPost(fixture.token, 'confirm', { additionalAssistants: [] }));
-    await expectPending(confirmed);
-    sameBarrier.release.resolve();
-    const sameInvitation = await Promise.all([rejected, confirmed]);
-    sameBarrier.restore();
+    const sameInvitation = await runAuditContended(
+      'RSVP_REJECT',
+      rsvp,
+      'lockInvitationContext',
+      2,
+      () => publicPost(fixture.token, 'reject'),
+      () => publicPost(fixture.token, 'confirm', { additionalAssistants: [] })
+    );
     expect(sameInvitation.map(({ status }) => status)).toEqual([200, 200]);
     const invitation = await prisma.invitation.findUniqueOrThrow({
       where: { id: fixture.invitationId },
       include: { assistants: { where: { deletedAt: null } } }
     });
+    expect(invitation.responseStatus).toBe(InvitationResponseStatus.CONFIRMED);
     expect(
       invitation.assistants.every(
         ({ responseStatus }) => responseStatus === (invitation.responseStatus as unknown as AssistantResponseStatus)
@@ -161,68 +169,77 @@ describe('Public RSVP', () => {
     const fixture = await createFixture({ capacity: 4, withDesign: true });
     const cookie = await login(fixture.email);
     const samePayload = { additionalAssistants: [{ name: 'Mismo acompañante' }] };
-    const confirmBarrier = auditBarrier('RSVP_CONFIRM');
-    const firstConfirm = start(publicPost(fixture.token, 'confirm', samePayload));
-    await confirmBarrier.entered.promise;
-    const repeatedConfirm = start(publicPost(fixture.token, 'confirm', samePayload));
-    await expectPending(repeatedConfirm);
-    confirmBarrier.release.resolve();
-    const sameInvitation = await Promise.all([firstConfirm, repeatedConfirm]);
-    confirmBarrier.restore();
-    expect(sameInvitation.every(({ status }) => status === 200)).toBe(true);
+    const sameInvitation = await runAuditContended(
+      'RSVP_CONFIRM',
+      rsvp,
+      'lockInvitationContext',
+      2,
+      () => publicPost(fixture.token, 'confirm', samePayload),
+      () => publicPost(fixture.token, 'confirm', samePayload)
+    );
+    expect(sameInvitation.map(({ status }) => status)).toEqual([200, 200]);
     expect(await prisma.auditLog.count({ where: { eventId: fixture.eventId, action: 'RSVP_CONFIRM' } })).toBe(1);
     let stored = await prisma.invitation.findUniqueOrThrow({
       where: { id: fixture.invitationId },
       include: { assistants: { where: { deletedAt: null } } }
     });
+    expect(stored.responseStatus).toBe(InvitationResponseStatus.CONFIRMED);
     expect(stored.assistants).toHaveLength(2);
+    expect(stored.assistants.every(({ responseStatus }) => responseStatus === AssistantResponseStatus.CONFIRMED)).toBe(
+      true
+    );
     const extraId = stored.assistants.find(({ isPrimary }) => !isPrimary)!.id;
 
-    const updateBarrier = auditBarrier('RSVP_CONFIRM');
-    const firstUpdate = start(
-      publicPatch(fixture.token, { additionalAssistants: [{ id: extraId, name: 'Nombre primero' }] })
+    const sameIdUpdates = await runAuditContended(
+      'RSVP_CONFIRM',
+      rsvp,
+      'lockInvitationContext',
+      2,
+      () => publicPatch(fixture.token, { additionalAssistants: [{ id: extraId, name: 'Nombre primero' }] }),
+      () => publicPatch(fixture.token, { additionalAssistants: [{ id: extraId, name: 'Nombre definitivo' }] })
     );
-    await updateBarrier.entered.promise;
-    const secondUpdate = start(
-      publicPatch(fixture.token, { additionalAssistants: [{ id: extraId, name: 'Nombre definitivo' }] })
-    );
-    await expectPending(secondUpdate);
-    updateBarrier.release.resolve();
-    expect((await Promise.all([firstUpdate, secondUpdate])).every(({ status }) => status === 200)).toBe(true);
-    updateBarrier.restore();
+    expect(sameIdUpdates.map(({ status }) => status)).toEqual([200, 200]);
     expect(await prisma.assistant.count({ where: { invitationId: fixture.invitationId, deletedAt: null } })).toBe(2);
     expect((await prisma.assistant.findUniqueOrThrow({ where: { id: extraId } })).name).toBe('Nombre definitivo');
     expect(await prisma.auditLog.count({ where: { eventId: fixture.eventId, action: 'RSVP_CONFIRM' } })).toBe(3);
 
     await publicPost(fixture.token, 'reject').expect(200);
-    const confirmAgainstCloseBarrier = auditBarrier('RSVP_CONFIRM');
-    const confirmBeforeClose = start(
-      publicPost(fixture.token, 'confirm', {
-        additionalAssistants: [{ id: extraId, name: 'Nombre definitivo' }]
-      })
+    const closeAgainstConfirm = await runAuditContended(
+      'RSVP_CONFIRM',
+      rsvp,
+      'lockOwnedEvent',
+      1,
+      () =>
+        publicPost(fixture.token, 'confirm', {
+          additionalAssistants: [{ id: extraId, name: 'Nombre definitivo' }]
+        }),
+      () => authPost(`/events/${fixture.eventId}/confirmation/close`, cookie)
     );
-    await confirmAgainstCloseBarrier.entered.promise;
-    const closeAfterConfirm = start(authPost(`/events/${fixture.eventId}/confirmation/close`, cookie));
-    await expectPending(closeAfterConfirm);
-    confirmAgainstCloseBarrier.release.resolve();
-    const closeAgainstConfirm = await Promise.all([confirmBeforeClose, closeAfterConfirm]);
-    confirmAgainstCloseBarrier.restore();
     expect(closeAgainstConfirm.map(({ status }) => status)).toEqual([200, 200]);
     expect(
       await prisma.auditLog.count({ where: { eventId: fixture.eventId, action: 'EVENT_CONFIRMATION_CLOSE' } })
     ).toBe(1);
     const closedEvent = await prisma.event.findUniqueOrThrow({ where: { id: fixture.eventId } });
-    expect(Boolean(closedEvent.confirmationClosedAt)).toBe(Boolean(closedEvent.confirmationClosedByUserId));
+    expect(closedEvent.confirmationClosedAt).not.toBeNull();
+    expect(closedEvent.confirmationClosedByUserId).toBe(fixture.userId);
+    stored = await prisma.invitation.findUniqueOrThrow({
+      where: { id: fixture.invitationId },
+      include: { assistants: { where: { deletedAt: null } } }
+    });
+    expect(stored.responseStatus).toBe(InvitationResponseStatus.CONFIRMED);
+    expect(stored.assistants.every(({ responseStatus }) => responseStatus === AssistantResponseStatus.CONFIRMED)).toBe(
+      true
+    );
 
     await authPost(`/events/${fixture.eventId}/confirmation/reopen`, cookie).expect(200);
-    const closeBarrier = auditBarrier('EVENT_CONFIRMATION_CLOSE');
-    const closeFirst = start(authPost(`/events/${fixture.eventId}/confirmation/close`, cookie));
-    await closeBarrier.entered.promise;
-    const reopenSecond = start(authPost(`/events/${fixture.eventId}/confirmation/reopen`, cookie));
-    await expectPending(reopenSecond);
-    closeBarrier.release.resolve();
-    const closeAgainstReopen = await Promise.all([closeFirst, reopenSecond]);
-    closeBarrier.restore();
+    const closeAgainstReopen = await runAuditContended(
+      'EVENT_CONFIRMATION_CLOSE',
+      rsvp,
+      'lockOwnedEvent',
+      2,
+      () => authPost(`/events/${fixture.eventId}/confirmation/close`, cookie),
+      () => authPost(`/events/${fixture.eventId}/confirmation/reopen`, cookie)
+    );
     expect(closeAgainstReopen.map(({ status }) => status)).toEqual([200, 200]);
     expect(
       await prisma.auditLog.count({ where: { eventId: fixture.eventId, action: 'EVENT_CONFIRMATION_CLOSE' } })
@@ -231,28 +248,24 @@ describe('Public RSVP', () => {
       await prisma.auditLog.count({ where: { eventId: fixture.eventId, action: 'EVENT_CONFIRMATION_REOPEN' } })
     ).toBe(2);
     const closureResult = await prisma.event.findUniqueOrThrow({ where: { id: fixture.eventId } });
-    expect(Boolean(closureResult.confirmationClosedAt)).toBe(Boolean(closureResult.confirmationClosedByUserId));
-    if (closureResult.confirmationClosedAt) {
-      await authPost(`/events/${fixture.eventId}/confirmation/reopen`, cookie).expect(200);
-    }
+    expect(closureResult.confirmationClosedAt).toBeNull();
+    expect(closureResult.confirmationClosedByUserId).toBeNull();
 
-    const overrideBarrier = auditBarrier('RSVP_OPERATIONAL_OVERRIDE');
-    const overrideFirst = start(
-      authPut(`/events/${fixture.eventId}/invitations/${fixture.invitationId}/confirmation`, cookie, {
-        responseStatus: 'REJECTED',
-        additionalAssistants: []
-      })
+    const overrideAgainstPublic = await runAuditContended(
+      'RSVP_OPERATIONAL_OVERRIDE',
+      rsvp,
+      'lockInvitationContext',
+      1,
+      () =>
+        authPut(`/events/${fixture.eventId}/invitations/${fixture.invitationId}/confirmation`, cookie, {
+          responseStatus: 'REJECTED',
+          additionalAssistants: []
+        }),
+      () =>
+        publicPost(fixture.token, 'confirm', {
+          additionalAssistants: [{ id: extraId, name: 'Nombre definitivo' }]
+        })
     );
-    await overrideBarrier.entered.promise;
-    const publicSecond = start(
-      publicPost(fixture.token, 'confirm', {
-        additionalAssistants: [{ id: extraId, name: 'Nombre definitivo' }]
-      })
-    );
-    await expectPending(publicSecond);
-    overrideBarrier.release.resolve();
-    const overrideAgainstPublic = await Promise.all([overrideFirst, publicSecond]);
-    overrideBarrier.restore();
     expect(overrideAgainstPublic.map(({ status }) => status)).toEqual([200, 200]);
     expect(
       await prisma.auditLog.count({ where: { eventId: fixture.eventId, action: 'RSVP_OPERATIONAL_OVERRIDE' } })
@@ -261,6 +274,8 @@ describe('Public RSVP', () => {
       where: { id: fixture.invitationId },
       include: { assistants: { where: { deletedAt: null } } }
     });
+    expect(stored.responseStatus).toBe(InvitationResponseStatus.CONFIRMED);
+    expect(stored.assistants).toHaveLength(2);
     expect(
       stored.assistants.every(
         ({ responseStatus }) => responseStatus === (stored.responseStatus as unknown as AssistantResponseStatus)
@@ -270,18 +285,20 @@ describe('Public RSVP', () => {
     const asset = await prisma.fileAsset.findFirstOrThrow({
       where: { eventId: fixture.eventId, fileType: FileAssetType.FLYER_INITIAL_IMAGE }
     });
-    const readBarrier = storageReadBarrier();
-    const assetRead = start(
-      request(app.getHttpServer()).get(`/api/v1/public/invitations/${fixture.token}/assets/${asset.id}/content`)
+    const assetAgainstCancel = await runStorageContended(
+      invitations,
+      'lockOwnedEvent',
+      1,
+      () => request(app.getHttpServer()).get(`/api/v1/public/invitations/${fixture.token}/assets/${asset.id}/content`),
+      () => authCancel(fixture.eventId, fixture.invitationId, cookie)
     );
-    await readBarrier.entered.promise;
-    const cancellation = start(authCancel(fixture.eventId, fixture.invitationId, cookie));
-    await expectPending(cancellation);
-    readBarrier.release.resolve();
-    const assetAgainstCancel = await Promise.all([assetRead, cancellation]);
-    readBarrier.restore();
     expect(assetAgainstCancel[0].status).toBe(200);
     expect(assetAgainstCancel[1].status).toBe(200);
+    expect(
+      await prisma.auditLog.count({
+        where: { eventId: fixture.eventId, action: 'INVITATION_CANCEL', resourceId: fixture.invitationId }
+      })
+    ).toBe(1);
     await request(app.getHttpServer())
       .get(`/api/v1/public/invitations/${fixture.token}/assets/${asset.id}/content`)
       .expect(404);
@@ -302,20 +319,21 @@ describe('Public RSVP', () => {
       ({ isPrimary }) => !isPrimary
     )!.id;
 
-    const modificationBarrier = auditBarrier('RSVP_CONFIRM');
-    const modificationFirst = start(publicPatch(modification.token, { additionalAssistants: [] }));
-    await modificationBarrier.entered.promise;
-    const closeSecond = start(authPost(`/events/${modification.eventId}/confirmation/close`, modificationCookie));
-    await expectPending(closeSecond);
-    modificationBarrier.release.resolve();
-    const modificationAgainstClose = await Promise.all([modificationFirst, closeSecond]);
-    modificationBarrier.restore();
+    const modificationAgainstClose = await runAuditContended(
+      'RSVP_CONFIRM',
+      rsvp,
+      'lockOwnedEvent',
+      1,
+      () => publicPatch(modification.token, { additionalAssistants: [] }),
+      () => authPost(`/events/${modification.eventId}/confirmation/close`, modificationCookie)
+    );
     expect(modificationAgainstClose.map(({ status }) => status)).toEqual([200, 200]);
     expect(
       await prisma.auditLog.count({ where: { eventId: modification.eventId, action: 'EVENT_CONFIRMATION_CLOSE' } })
     ).toBe(1);
     const closedEvent = await prisma.event.findUniqueOrThrow({ where: { id: modification.eventId } });
-    expect(Boolean(closedEvent.confirmationClosedAt)).toBe(Boolean(closedEvent.confirmationClosedByUserId));
+    expect(closedEvent.confirmationClosedAt).not.toBeNull();
+    expect(closedEvent.confirmationClosedByUserId).toBe(modification.userId);
     const afterCloseRace = await prisma.invitation.findUniqueOrThrow({
       where: { id: modification.invitationId },
       include: { assistants: { where: { deletedAt: null } } }
@@ -341,14 +359,14 @@ describe('Public RSVP', () => {
 
     const cancellation = await createFixture({ capacity: 2 });
     const cancellationCookie = await login(cancellation.email);
-    const cancellationBarrier = auditBarrier('RSVP_CONFIRM');
-    const confirmationFirst = start(publicPost(cancellation.token, 'confirm', { additionalAssistants: [] }));
-    await cancellationBarrier.entered.promise;
-    const cancellationSecond = start(authCancel(cancellation.eventId, cancellation.invitationId, cancellationCookie));
-    await expectPending(cancellationSecond);
-    cancellationBarrier.release.resolve();
-    const confirmationAgainstCancellation = await Promise.all([confirmationFirst, cancellationSecond]);
-    cancellationBarrier.restore();
+    const confirmationAgainstCancellation = await runAuditContended(
+      'RSVP_CONFIRM',
+      invitations,
+      'lockOwnedEvent',
+      1,
+      () => publicPost(cancellation.token, 'confirm', { additionalAssistants: [] }),
+      () => authCancel(cancellation.eventId, cancellation.invitationId, cancellationCookie)
+    );
     expect(confirmationAgainstCancellation[0].status).toBe(200);
     expect(confirmationAgainstCancellation[1].status).toBe(200);
     const cancelled = await prisma.invitation.findUniqueOrThrow({
@@ -356,6 +374,24 @@ describe('Public RSVP', () => {
       include: { assistants: { where: { deletedAt: null } } }
     });
     expect(cancelled.cancelledAt).not.toBeNull();
+    expect(
+      await prisma.auditLog.count({
+        where: {
+          eventId: cancellation.eventId,
+          action: 'RSVP_CONFIRM',
+          resourceId: cancellation.invitationId
+        }
+      })
+    ).toBe(1);
+    expect(
+      await prisma.auditLog.count({
+        where: {
+          eventId: cancellation.eventId,
+          action: 'INVITATION_CANCEL',
+          resourceId: cancellation.invitationId
+        }
+      })
+    ).toBe(1);
     expect(
       cancelled.assistants.every(
         ({ responseStatus }) => responseStatus === (cancelled.responseStatus as unknown as AssistantResponseStatus)
@@ -430,62 +466,48 @@ describe('Public RSVP', () => {
       .expect(404);
   });
 
-  it('normalizes approved destination URLs and rejects private material in the API and PostgreSQL', async () => {
+  it('applies the shared destination URL corpus to DTO/API and direct PostgreSQL INSERT/UPDATE', async () => {
     const owner = await createClientUser();
     const cookie = await login(owner.email);
-    const valid = await request(app.getHttpServer())
-      .post('/api/v1/events')
-      .set('Origin', origin)
-      .set('Cookie', cookie)
-      .send({
-        locationUrl: ' https://maps.google.com/maps/place/Salon ',
-        giftRegistryUrl: 'https://example.com/mesa?evento=1'
-      })
-      .expect(201);
-    expect(valid.body).toMatchObject({
-      locationUrl: 'https://maps.google.com/maps/place/Salon',
-      giftRegistryUrl: 'https://example.com/mesa?evento=1'
+    const baseline = await prisma.event.create({
+      data: {
+        clientId: owner.clientId,
+        createdByUserId: owner.userId,
+        locationUrl: 'https://example.com/maps',
+        giftRegistryUrl: 'https://example.com/mesa'
+      }
     });
 
-    const invalidUrls = [
-      'https://user:password@example.com/ruta',
-      'https://example.com/ruta#fragment',
-      'https://example.com/ruta/token/secret',
-      'https://example.com/ruta/telefono/555',
-      'https://example.com/?%74oken=secret',
-      'https://example.com/?INVITATION-TOKEN=secret',
-      'https://example.com/?invitation_token=secret',
-      'https://example.com/?Phone-Number=555',
-      'https://example.com/\\interno'
-    ];
-    for (const locationUrl of invalidUrls) {
-      await request(app.getHttpServer())
+    for (const testCase of EVENT_DESTINATION_URL_CORPUS) {
+      const apiResponse = await request(app.getHttpServer())
         .post('/api/v1/events')
         .set('Origin', origin)
         .set('Cookie', cookie)
-        .send({ locationUrl })
-        .expect(400)
-        .expect(({ body }) => expect(body.code).toBe('VALIDATION_ERROR'));
-      await expect(
-        prisma.event.create({
-          data: {
-            clientId: owner.clientId,
-            createdByUserId: owner.userId,
-            locationUrl
-          }
-        })
-      ).rejects.toThrow();
-    }
+        .send({ [testCase.field]: testCase.url });
+      expect(apiResponse.status, `${testCase.name}: API`).toBe(testCase.accepted ? 201 : 400);
+      if (testCase.accepted) {
+        expect(apiResponse.body[testCase.field]).toBe(new URL(testCase.url).href);
+        await expect(insertDestinationDirect(owner.clientId, owner.userId, testCase.field, testCase.url)).resolves.toBe(
+          1
+        );
+      } else {
+        expect(apiResponse.body.code).toBe('VALIDATION_ERROR');
+        await expect(
+          insertDestinationDirect(owner.clientId, owner.userId, testCase.field, testCase.url)
+        ).rejects.toThrow();
+      }
 
-    await expect(
-      prisma.event.update({
-        where: { id: valid.body.id },
-        data: { locationUrl: 'https://example.com/?na-me=Ana' }
-      })
-    ).rejects.toThrow();
-    expect((await prisma.event.findUniqueOrThrow({ where: { id: valid.body.id } })).locationUrl).toBe(
-      'https://maps.google.com/maps/place/Salon'
-    );
+      const before = await prisma.event.findUniqueOrThrow({ where: { id: baseline.id } });
+      if (testCase.accepted) {
+        await expect(updateDestinationDirect(baseline.id, testCase.field, testCase.url)).resolves.toBe(1);
+        expect((await prisma.event.findUniqueOrThrow({ where: { id: baseline.id } }))[testCase.field]).toBe(
+          testCase.url
+        );
+      } else {
+        await expect(updateDestinationDirect(baseline.id, testCase.field, testCase.url)).rejects.toThrow();
+        expect(await prisma.event.findUniqueOrThrow({ where: { id: baseline.id } })).toEqual(before);
+      }
+    }
   });
 
   it('rolls back confirm, reject, close and override when transactional audit persistence fails', async () => {
@@ -535,13 +557,16 @@ describe('Public RSVP', () => {
     const contentPath = view.body.design.flyerInitialAsset.contentPath as string;
     const before = await prisma.fileAsset.findFirstOrThrow({ where: { eventId: fixture.eventId } });
     const spy = vi.spyOn(storage, 'read').mockRejectedValueOnce(new Error(`forced ${before.storageKey} failure`));
-    const response = await request(app.getHttpServer()).get(contentPath).expect(500);
-    spy.mockRestore();
-    expect(response.body).toMatchObject({
-      code: 'FILE_STORAGE_FAILURE',
-      message: 'The requested file asset is temporarily unavailable.'
-    });
-    expect(JSON.stringify(response.body)).not.toContain(before.storageKey);
+    try {
+      const response = await request(app.getHttpServer()).get(contentPath).expect(500);
+      expect(response.body).toMatchObject({
+        code: 'FILE_STORAGE_FAILURE',
+        message: 'The requested file asset is temporarily unavailable.'
+      });
+      expect(JSON.stringify(response.body)).not.toContain(before.storageKey);
+    } finally {
+      spy.mockRestore();
+    }
     expect(await prisma.fileAsset.findUniqueOrThrow({ where: { id: before.id } })).toEqual(before);
     expect(await prisma.auditLog.count({ where: { eventId: fixture.eventId } })).toBe(0);
   });
@@ -819,18 +844,20 @@ describe('Public RSVP', () => {
     fixture: { token: string; eventId: string; invitationId: string },
     extraId: string
   ) {
-    const barrier = auditBarrier('RSVP_CONFIRM');
-    const reduction = start(publicPatch(fixture.token, { additionalAssistants: [] }));
-    await barrier.entered.promise;
-    const increase = start(
-      publicPatch(fixture.token, {
-        additionalAssistants: [{ id: extraId, name: 'Extra conservado' }, { name: 'Extra aumentado' }]
-      })
+    const auditsBefore = await prisma.auditLog.count({
+      where: { eventId: fixture.eventId, action: 'RSVP_CONFIRM' }
+    });
+    const results = await runAuditContended(
+      'RSVP_CONFIRM',
+      rsvp,
+      'lockInvitationContext',
+      2,
+      () => publicPatch(fixture.token, { additionalAssistants: [] }),
+      () =>
+        publicPatch(fixture.token, {
+          additionalAssistants: [{ id: extraId, name: 'Extra conservado' }, { name: 'Extra aumentado' }]
+        })
     );
-    await expectPending(increase);
-    barrier.release.resolve();
-    const results = await Promise.all([reduction, increase]);
-    barrier.restore();
     expect(results.map(({ status }) => status)).toEqual([200, 409]);
     expect(results[1].body.code).toBe('RSVP_ASSISTANT_MISMATCH');
     const invitation = await prisma.invitation.findUniqueOrThrow({
@@ -850,6 +877,76 @@ describe('Public RSVP', () => {
         }
       })
     ).toBeLessThanOrEqual(4);
+    expect(await prisma.auditLog.count({ where: { eventId: fixture.eventId, action: 'RSVP_CONFIRM' } })).toBe(
+      auditsBefore + 1
+    );
+  }
+
+  async function runAuditContended<TFirst, TSecond>(
+    action: string,
+    lockService: object,
+    lockMethod: string,
+    signalOnCall: number,
+    firstOperation: () => PromiseLike<TFirst>,
+    secondOperation: () => PromiseLike<TSecond>
+  ): Promise<[TFirst, TSecond]> {
+    const firstBarrier = auditBarrier(action);
+    const lockBarrier = lockAttemptBarrier(lockService, lockMethod, signalOnCall);
+    try {
+      const first = start(firstOperation());
+      await firstBarrier.entered.promise;
+      const second = track(secondOperation());
+      await lockBarrier.attempted.promise;
+      expect(second.isSettled()).toBe(false);
+      firstBarrier.release.resolve();
+      const [firstResult, secondResult] = await Promise.all([first, second.promise]);
+      return [firstResult, secondResult];
+    } finally {
+      firstBarrier.release.resolve();
+      lockBarrier.restore();
+      firstBarrier.restore();
+    }
+  }
+
+  async function runStorageContended<TFirst, TSecond>(
+    lockService: object,
+    lockMethod: string,
+    signalOnCall: number,
+    firstOperation: () => PromiseLike<TFirst>,
+    secondOperation: () => PromiseLike<TSecond>
+  ): Promise<[TFirst, TSecond]> {
+    const firstBarrier = storageReadBarrier();
+    const lockBarrier = lockAttemptBarrier(lockService, lockMethod, signalOnCall);
+    try {
+      const first = start(firstOperation());
+      await firstBarrier.entered.promise;
+      const second = track(secondOperation());
+      await lockBarrier.attempted.promise;
+      expect(second.isSettled()).toBe(false);
+      firstBarrier.release.resolve();
+      const [firstResult, secondResult] = await Promise.all([first, second.promise]);
+      return [firstResult, secondResult];
+    } finally {
+      firstBarrier.release.resolve();
+      lockBarrier.restore();
+      firstBarrier.restore();
+    }
+  }
+
+  function lockAttemptBarrier(service: object, methodName: string, signalOnCall: number) {
+    type AsyncLockMethod = (...args: unknown[]) => Promise<unknown>;
+    const target = service as Record<string, AsyncLockMethod>;
+    const method = target[methodName];
+    if (!method) throw new TypeError(`Missing lock method ${methodName}.`);
+    const attempted = deferred<void>();
+    const original = method.bind(service);
+    let calls = 0;
+    const spy = vi.spyOn(target, methodName).mockImplementation((...args) => {
+      calls += 1;
+      if (calls === signalOnCall) attempted.resolve();
+      return original(...args);
+    });
+    return { attempted, restore: () => spy.mockRestore() };
   }
 
   function auditBarrier(action: string) {
@@ -898,9 +995,10 @@ describe('Public RSVP', () => {
     return Promise.resolve(operation);
   }
 
-  async function expectPending(operation: PromiseLike<unknown>): Promise<void> {
+  function track<T>(operation: PromiseLike<T>) {
     let settled = false;
-    void operation.then(
+    const promise = Promise.resolve(operation);
+    void promise.then(
       () => {
         settled = true;
       },
@@ -908,8 +1006,7 @@ describe('Public RSVP', () => {
         settled = true;
       }
     );
-    await new Promise<void>((resolve) => process.nextTick(resolve));
-    expect(settled).toBe(false);
+    return { promise, isSettled: () => settled };
   }
 
   async function withAuditFailure(action: string, operation: () => PromiseLike<unknown>): Promise<void> {
@@ -922,9 +1019,12 @@ describe('Public RSVP', () => {
       }
       return original(input, transaction);
     });
-    await operation();
-    spy.mockRestore();
-    expect(failed).toBe(true);
+    try {
+      await operation();
+      expect(failed).toBe(true);
+    } finally {
+      spy.mockRestore();
+    }
   }
 
   async function expectPendingInvitation(invitationId: string): Promise<void> {
@@ -936,6 +1036,41 @@ describe('Public RSVP', () => {
     expect(
       invitation.assistants.every(({ responseStatus }) => responseStatus === AssistantResponseStatus.PENDING)
     ).toBe(true);
+  }
+
+  function insertDestinationDirect(
+    clientId: string,
+    userId: string,
+    field: 'locationUrl' | 'giftRegistryUrl',
+    value: string
+  ): Promise<number> {
+    return field === 'locationUrl'
+      ? prisma.$executeRaw`
+          INSERT INTO "event" ("client_id", "created_by_user_id", "location_url")
+          VALUES (${clientId}::uuid, ${userId}::uuid, ${value})
+        `
+      : prisma.$executeRaw`
+          INSERT INTO "event" ("client_id", "created_by_user_id", "gift_registry_url")
+          VALUES (${clientId}::uuid, ${userId}::uuid, ${value})
+        `;
+  }
+
+  function updateDestinationDirect(
+    eventId: string,
+    field: 'locationUrl' | 'giftRegistryUrl',
+    value: string
+  ): Promise<number> {
+    return field === 'locationUrl'
+      ? prisma.$executeRaw`
+          UPDATE "event"
+          SET "location_url" = ${value}, "updated_at" = NOW()
+          WHERE "id" = ${eventId}::uuid
+        `
+      : prisma.$executeRaw`
+          UPDATE "event"
+          SET "gift_registry_url" = ${value}, "updated_at" = NOW()
+          WHERE "id" = ${eventId}::uuid
+        `;
   }
 
   async function resetDatabase() {

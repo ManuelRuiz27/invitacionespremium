@@ -20,10 +20,17 @@ Quedan fuera `CODEX-071`, generación o entrega de QR, scanner, `StaffToken`, ch
 La Confirmación está abierta si está habilitada y no tiene cierre. Los dos campos de cierre son ambos
 nulos o ambos no nulos. Los destinos se editan solo durante `DRAFT`, `CONFIGURED` o
 `READY_TO_ACTIVATE`; después de activar son inmutables. Aceptan HTTPS absoluto y query string, pero
-rechazan credenciales, fragmentos, controles, barra inversa y componentes semánticos de token,
-invitación, nombre, teléfono o WhatsApp. La comparación ignora mayúsculas, guiones, guiones bajos y
-codificación porcentual. Se normalizan antes de persistir y Zod y PostgreSQL aplican el mismo contrato.
-Los destinos no forman parte de snapshots de auditoría.
+rechazan credenciales, fragmentos, barra inversa y componentes semánticos de token, invitación, nombre,
+teléfono o WhatsApp. Cada componente porcentual se decodifica hasta cuatro rondas y en cada ronda se
+rechazan controles ASCII `0x00-0x1F` y `0x7F`, incluidos CR, LF, TAB y NUL, sin importar caja o
+codificación doble/triple. Un espacio literal nunca es válido. `%20` se permite exclusivamente en
+segmentos de path y valores de query; se rechaza en claves de query y autoridad. También se rechazan
+`/`, `\`, `#` y material reservado que aparezca tras decodificar. Los destinos no forman parte de
+snapshots de auditoría.
+
+La equivalencia entre normalización, DTO/API y constraints PostgreSQL se mantiene mediante un único
+corpus compartido. Cada caso se ejecuta contra el normalizador, creación por API, `INSERT` directo y
+`UPDATE` directo; solo después de aprobar las cuatro superficies se considera equivalente.
 
 Para Flyer y Flipbook, el preflight se ejecuta antes del ledger y exige Confirmación habilitada, ambos
 destinos válidos, diseño completo y al menos una Invitación activa. Un Hotspot no sustituye su destino.
@@ -116,11 +123,13 @@ Cancelación de Invitación y acceso público usan el mismo orden de bloqueo. Cl
 públicas y override terminan en uno de los resultados serializables completos, nunca en un agregado
 mixto.
 
-La integración prueba las once intercalaciones críticas con barreras controladas en auditoría o storage:
-la primera operación se detiene después de adquirir locks, la competidora permanece pendiente, y solo
-entonces se libera. No usa sleeps, timeouts ni endpoints de producción auxiliares. Cubre confirm/confirm,
-confirm/reject, confirm/close, modify/close, último cupo, reducción/incremento, mismo UUID, confirm/cancel,
-close/reopen, override/público y asset/cancel.
+La integración prueba las once intercalaciones críticas con barreras controladas en auditoría o storage.
+La primera operación se detiene después de adquirir sus locks. Un spy de prueba sobre el método privado
+que ejecuta el lock real señala que la competidora llegó a ese punto; se comprueba que aún no terminó y
+solo entonces se libera la primera. No se sustituye el lock, no hay lógica auxiliar en producción y no se
+usan `nextTick`, sleeps ni temporizadores arbitrarios. Cubre confirm/confirm, confirm/reject,
+confirm/close, modify/close, último cupo, reducción/incremento, mismo UUID, confirm/cancel, close/reopen,
+override/público y asset/cancel. Los spies de lock, auditoría y storage se restauran en `finally`.
 
 ## PostgreSQL
 
@@ -137,6 +146,12 @@ La migración `20260728210000_harden_public_rsvp_urls` conserva intacta la migra
 guiones y guiones bajos, rechaza fragmentos y bloquea material privado tanto en segmentos de path como
 en claves de query. Los checks existentes de `location_url` y `gift_registry_url` adoptan la función
 reemplazada para `INSERT` y `UPDATE`.
+
+La migración `20260728220000_reject_encoded_destination_controls` conserva las 20 migraciones previas y
+reemplaza las funciones de validación para aplicar hasta cuatro rondas de decodificación. Rechaza
+controles ASCII, separadores y material reservado decodificado; distingue path, clave de query y valor
+de query para permitir `%20` únicamente donde corresponde. Los checks existentes protegen tanto
+`INSERT` como `UPDATE` sin modificar el schema Prisma.
 
 Al commit, una Invitación `CONFIRMED` tiene principal y todos sus Asistentes activos confirmados; una
 `REJECTED`, todos rechazados; una `PENDING`, todos pendientes. Existe exactamente un principal activo y

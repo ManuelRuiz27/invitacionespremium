@@ -11,7 +11,7 @@ const SENSITIVE_COMPONENTS = new Set([
 ]);
 
 export function normalizeEventDestinationUrl(value: string): string | null {
-  const input = value.trim();
+  const input = value;
   if (
     input.length === 0 ||
     input.includes('\\') ||
@@ -37,8 +37,16 @@ export function normalizeEventDestinationUrl(value: string): string | null {
     }
 
     const pathComponents = url.pathname.split('/').filter(Boolean);
-    if (pathComponents.some(isSensitiveComponent)) return null;
-    if ([...url.searchParams.keys()].some(isSensitiveComponent)) return null;
+    if (pathComponents.some((component) => !isValidComponent(component, true, true))) return null;
+
+    const rawQuery = url.search.startsWith('?') ? url.search.slice(1) : url.search;
+    for (const queryPart of rawQuery.split('&')) {
+      if (queryPart === '') continue;
+      const separator = queryPart.indexOf('=');
+      const key = separator < 0 ? queryPart : queryPart.slice(0, separator);
+      const queryValue = separator < 0 ? '' : queryPart.slice(separator + 1);
+      if (!isValidComponent(key, false, true) || !isValidComponent(queryValue, true, false)) return null;
+    }
 
     return url.href;
   } catch {
@@ -46,7 +54,7 @@ export function normalizeEventDestinationUrl(value: string): string | null {
   }
 }
 
-function isSensitiveComponent(value: string): boolean {
+function isValidComponent(value: string, allowSpace: boolean, rejectSensitiveMaterial: boolean): boolean {
   let decoded = value;
   for (let pass = 0; pass < 4 && decoded.includes('%'); pass += 1) {
     try {
@@ -54,9 +62,20 @@ function isSensitiveComponent(value: string): boolean {
       if (next === decoded) break;
       decoded = next;
     } catch {
-      return true;
+      return false;
     }
   }
-  if (decoded.includes('/') || decoded.includes('\\')) return true;
-  return SENSITIVE_COMPONENTS.has(decoded.toLocaleLowerCase('en-US').replaceAll('-', '').replaceAll('_', ''));
+  if (
+    [...decoded].some((character) => {
+      const code = character.codePointAt(0) ?? 0;
+      return code < 32 || code === 127 || (!allowSpace && code === 32);
+    }) ||
+    decoded.includes('/') ||
+    decoded.includes('\\') ||
+    decoded.includes('#')
+  ) {
+    return false;
+  }
+  if (!rejectSensitiveMaterial) return true;
+  return !SENSITIVE_COMPONENTS.has(decoded.toLocaleLowerCase('en-US').replaceAll('-', '').replaceAll('_', ''));
 }

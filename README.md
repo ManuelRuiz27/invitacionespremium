@@ -275,10 +275,12 @@ Confirmación nominal, rechazo, reconciliación de acompañantes, cierre/reapert
 Capacidad, ownership, auditoría sin PII y consistencia Invitación/Asistentes se serializan y se refuerzan
 con triggers diferibles PostgreSQL.
 
-El hardening final de `CODEX-070` añadió rutas `contentPath` directamente consumibles para todos los
-assets públicos autorizados, destinos HTTPS normalizados y protegidos de material privado también en
-PostgreSQL, carreras deterministas con locks realmente solapados y pruebas de rollback ante fallos de
-auditoría o storage.
+El cierre definitivo de `CODEX-070` añadió rutas `contentPath` directamente consumibles para todos los
+assets públicos autorizados; destinos HTTPS que rechazan controles ASCII porcentuales tras hasta cuatro
+rondas de decodificación tanto en aplicación como en PostgreSQL; y once carreras deterministas. Cada
+carrera señala que la operación competidora alcanzó el método que ejecuta el lock real antes de liberar
+la primera operación, sin `nextTick`, sleeps ni temporizadores arbitrarios. También prueba rollback ante
+fallos de auditoría o storage y restaura todos los spies incluso cuando una aserción falla.
 
 `CODEX-070` quedó completamente cerrado. La siguiente tarea continúa siendo
 `CODEX-071 — Generación de QR SVG`; no fue iniciada.

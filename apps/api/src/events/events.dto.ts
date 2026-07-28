@@ -20,7 +20,6 @@ const nullableTimeZone = z
 const nullableCapacity = z.number().int().positive().max(1_000_000_000).nullable().optional();
 const nullableDestinationUrl = z
   .string()
-  .trim()
   .max(2048)
   .transform((value, context) => {
     const normalized = normalizeEventDestinationUrl(value);
@@ -78,7 +77,7 @@ export class CreateEventRequestDto {
     required: false,
     nullable: true,
     description:
-      'Absolute HTTPS destination without credentials, fragments, or token/name/phone/WhatsApp semantic components.'
+      'Safe absolute HTTPS destination. Encoded ASCII controls are rejected after four decoding rounds; %20 is allowed only in path segments and query values.'
   })
   locationUrl?: string | null;
 
@@ -88,7 +87,7 @@ export class CreateEventRequestDto {
     required: false,
     nullable: true,
     description:
-      'Absolute HTTPS destination without credentials, fragments, or token/name/phone/WhatsApp semantic components.'
+      'Safe absolute HTTPS destination. Encoded ASCII controls are rejected after four decoding rounds; %20 is allowed only in path segments and query values.'
   })
   giftRegistryUrl?: string | null;
 
