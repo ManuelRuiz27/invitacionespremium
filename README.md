@@ -282,6 +282,11 @@ carrera señala que la operación competidora alcanzó el método que ejecuta el
 la primera operación, sin `nextTick`, sleeps ni temporizadores arbitrarios. También prueba rollback ante
 fallos de auditoría o storage y restaura todos los spies incluso cuando una aserción falla.
 
+El cierre de paridad del parser exige sintaxis porcentual completa y UTF-8 válido, procesa todo el query
+posterior al primer `?` y verifica filas heredadas antes de instalar la política nueva. Un corpus de 54
+casos se ejecuta para `locationUrl` y `giftRegistryUrl` contra normalizador, DTO/API, `INSERT` y `UPDATE`.
+La aplicación normaliza mediante `URL.href`; PostgreSQL solo valida y conserva el texto recibido.
+
 `CODEX-070` quedó completamente cerrado. La siguiente tarea continúa siendo
 `CODEX-071 — Generación de QR SVG`; no fue iniciada.
 

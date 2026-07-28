@@ -77,7 +77,7 @@ export class CreateEventRequestDto {
     required: false,
     nullable: true,
     description:
-      'Safe absolute HTTPS destination. Encoded ASCII controls are rejected after four decoding rounds; %20 is allowed only in path segments and query values.'
+      'Safe absolute HTTPS destination. Percent escapes must contain valid UTF-8 through at most four decoding rounds; %20 is allowed only in path segments and query values.'
   })
   locationUrl?: string | null;
 
@@ -87,7 +87,7 @@ export class CreateEventRequestDto {
     required: false,
     nullable: true,
     description:
-      'Safe absolute HTTPS destination. Encoded ASCII controls are rejected after four decoding rounds; %20 is allowed only in path segments and query values.'
+      'Safe absolute HTTPS destination. Percent escapes must contain valid UTF-8 through at most four decoding rounds; %20 is allowed only in path segments and query values.'
   })
   giftRegistryUrl?: string | null;
 

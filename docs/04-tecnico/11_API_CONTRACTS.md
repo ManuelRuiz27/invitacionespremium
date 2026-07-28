@@ -480,6 +480,12 @@ cuatro rondas de decodificación rechazan controles ASCII `0x00-0x1F`/`0x7F`, `/
 solo se admite en path y valores de query. Un corpus único verifica normalizador, DTO/API, `INSERT` y
 `UPDATE` directos.
 
+Todo escape porcentual debe estar completo y representar UTF-8 válido; `%C3%B3` es válido, mientras
+secuencias no hexadecimales, truncadas, sobrelargas o continuaciones aisladas se rechazan. Se procesa
+todo el query posterior al primer `?`. PostgreSQL valida sin normalizar ni reescribir el valor. Los 54
+casos se prueban para `locationUrl` y `giftRegistryUrl`; la migración revisa filas heredadas y falla sin
+exponer destinos si detecta incompatibilidades.
+
 Las once carreras de RSVP usan una barrera posterior a los locks de la primera operación y una señal
 explícita de que la competidora alcanzó el método que ejecuta `SELECT ... FOR UPDATE`. No dependen de
 `nextTick`, sleeps, temporizadores ni lógica de producción exclusiva de pruebas.

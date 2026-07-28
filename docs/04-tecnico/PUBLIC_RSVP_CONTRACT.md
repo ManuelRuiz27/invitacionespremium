@@ -25,12 +25,21 @@ teléfono o WhatsApp. Cada componente porcentual se decodifica hasta cuatro rond
 rechazan controles ASCII `0x00-0x1F` y `0x7F`, incluidos CR, LF, TAB y NUL, sin importar caja o
 codificación doble/triple. Un espacio literal nunca es válido. `%20` se permite exclusivamente en
 segmentos de path y valores de query; se rechaza en claves de query y autoridad. También se rechazan
-`/`, `\`, `#` y material reservado que aparezca tras decodificar. Los destinos no forman parte de
-snapshots de auditoría.
+`/`, `\`, `#` y material reservado que aparezca tras decodificar. Cada `%` debe iniciar dos dígitos
+hexadecimales y los bytes contiguos deben formar UTF-8 válido: secuencias truncadas, sobrelargas,
+continuaciones aisladas o no hexadecimales son inválidas. UTF-8 válido como `%C3%B3` se acepta.
+Después de cuatro rondas no puede quedar otra secuencia porcentual pendiente.
+
+La aplicación devuelve la forma de `URL.href`. PostgreSQL únicamente valida y conserva el valor textual
+recibido; no se atribuye normalización a la base. El query se procesa completo desde el primer `?`,
+incluidos signos `?` posteriores, claves sin `=`, valores con `=` y partes separadas por múltiples `&`.
+Los destinos no forman parte de snapshots de auditoría.
 
 La equivalencia entre normalización, DTO/API y constraints PostgreSQL se mantiene mediante un único
-corpus compartido. Cada caso se ejecuta contra el normalizador, creación por API, `INSERT` directo y
-`UPDATE` directo; solo después de aprobar las cuatro superficies se considera equivalente.
+corpus compartido de 54 casos. Cada caso se ejecuta contra el normalizador y, para ambos campos
+`locationUrl` y `giftRegistryUrl`, contra creación por API, `INSERT` directo y `UPDATE` directo. Un
+`UPDATE` rechazado debe conservar la fila completa anterior. Solo después de aprobar todas las
+superficies se considera equivalente.
 
 Para Flyer y Flipbook, el preflight se ejecuta antes del ledger y exige Confirmación habilitada, ambos
 destinos válidos, diseño completo y al menos una Invitación activa. Un Hotspot no sustituye su destino.
@@ -152,6 +161,12 @@ reemplaza las funciones de validación para aplicar hasta cuatro rondas de decod
 controles ASCII, separadores y material reservado decodificado; distingue path, clave de query y valor
 de query para permitir `%20` únicamente donde corresponde. Los checks existentes protegen tanto
 `INSERT` como `UPDATE` sin modificar el schema Prisma.
+
+La migración `20260728230000_validate_destination_url_encoding` conserva las 21 migraciones publicadas,
+valida sintaxis porcentual y UTF-8, y obtiene el query mediante la subcadena completa posterior al primer
+`?`. Antes del commit revisa `event.location_url` y `event.gift_registry_url`. Si encuentra filas
+heredadas incompatibles, toda la migración revierte con `P0001` y
+`EVENT_DESTINATION_URL_LEGACY_INVALID count=<n>`; no incluye URLs ni las modifica silenciosamente.
 
 Al commit, una Invitación `CONFIRMED` tiene principal y todos sus Asistentes activos confirmados; una
 `REJECTED`, todos rechazados; una `PENDING`, todos pendientes. Existe exactamente un principal activo y

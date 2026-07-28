@@ -28,6 +28,7 @@ import { PublicRsvpService } from '../src/public-rsvp/public-rsvp.service';
 
 const origin = 'http://localhost:5173';
 const password = 'correct horse battery staple';
+const destinationFields = ['locationUrl', 'giftRegistryUrl'] as const;
 
 describe('Public RSVP', () => {
   let app: INestApplication;
@@ -479,33 +480,30 @@ describe('Public RSVP', () => {
     });
 
     for (const testCase of EVENT_DESTINATION_URL_CORPUS) {
-      const apiResponse = await request(app.getHttpServer())
-        .post('/api/v1/events')
-        .set('Origin', origin)
-        .set('Cookie', cookie)
-        .send({ [testCase.field]: testCase.url });
-      expect(apiResponse.status, `${testCase.name}: API`).toBe(testCase.accepted ? 201 : 400);
-      if (testCase.accepted) {
-        expect(apiResponse.body[testCase.field]).toBe(new URL(testCase.url).href);
-        await expect(insertDestinationDirect(owner.clientId, owner.userId, testCase.field, testCase.url)).resolves.toBe(
-          1
-        );
-      } else {
-        expect(apiResponse.body.code).toBe('VALIDATION_ERROR');
-        await expect(
-          insertDestinationDirect(owner.clientId, owner.userId, testCase.field, testCase.url)
-        ).rejects.toThrow();
-      }
+      for (const field of destinationFields) {
+        const context = `${testCase.name}: ${field}`;
+        const apiResponse = await request(app.getHttpServer())
+          .post('/api/v1/events')
+          .set('Origin', origin)
+          .set('Cookie', cookie)
+          .send({ [field]: testCase.url });
+        expect(apiResponse.status, `${context}: API`).toBe(testCase.accepted ? 201 : 400);
+        if (testCase.accepted) {
+          expect(apiResponse.body[field], `${context}: API normalization`).toBe(new URL(testCase.url).href);
+          await expect(insertDestinationDirect(owner.clientId, owner.userId, field, testCase.url)).resolves.toBe(1);
+        } else {
+          expect(apiResponse.body.code, `${context}: API error`).toBe('VALIDATION_ERROR');
+          await expect(insertDestinationDirect(owner.clientId, owner.userId, field, testCase.url)).rejects.toThrow();
+        }
 
-      const before = await prisma.event.findUniqueOrThrow({ where: { id: baseline.id } });
-      if (testCase.accepted) {
-        await expect(updateDestinationDirect(baseline.id, testCase.field, testCase.url)).resolves.toBe(1);
-        expect((await prisma.event.findUniqueOrThrow({ where: { id: baseline.id } }))[testCase.field]).toBe(
-          testCase.url
-        );
-      } else {
-        await expect(updateDestinationDirect(baseline.id, testCase.field, testCase.url)).rejects.toThrow();
-        expect(await prisma.event.findUniqueOrThrow({ where: { id: baseline.id } })).toEqual(before);
+        const before = await prisma.event.findUniqueOrThrow({ where: { id: baseline.id } });
+        if (testCase.accepted) {
+          await expect(updateDestinationDirect(baseline.id, field, testCase.url)).resolves.toBe(1);
+          expect((await prisma.event.findUniqueOrThrow({ where: { id: baseline.id } }))[field]).toBe(testCase.url);
+        } else {
+          await expect(updateDestinationDirect(baseline.id, field, testCase.url)).rejects.toThrow();
+          expect(await prisma.event.findUniqueOrThrow({ where: { id: baseline.id } })).toEqual(before);
+        }
       }
     }
   });

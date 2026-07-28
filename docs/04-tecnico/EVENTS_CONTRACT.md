@@ -202,6 +202,14 @@ es inválido; `%20` solo es válido en path y valores de query, nunca en claves 
 compartido verifica el mismo resultado en normalizador, DTO/API y PostgreSQL. El cierre de Confirmación
 es un subestado independiente y completo; solo opera en `ACTIVE` o `EVENT_DAY`.
 
+La migración `20260728230000_validate_destination_url_encoding` añade paridad estricta: todo `%` requiere
+dos dígitos hexadecimales y los bytes deben ser UTF-8 válido. Se acepta UTF-8 válido como `%C3%B3`; se
+rechazan secuencias truncadas, sobrelargas o continuaciones aisladas. PostgreSQL evalúa la subcadena
+completa después del primer `?`, aunque existan otros signos `?`, y solo valida: no reescribe ni normaliza
+el texto almacenado. Antes de aplicar las funciones revisa ambos destinos heredados y revierte con un
+error técnico sin URLs si alguna fila viola la política. Los 54 casos del corpus se ejecutan contra
+`locationUrl` y `giftRegistryUrl`, incluido el valor previo intacto tras un `UPDATE` rechazado.
+
 Para Flyer/Flipbook, activación exige Confirmación habilitada, ambos destinos, diseño completo y al menos
 una Invitación activa antes de cualquier efecto financiero. Las rutas `GET /confirmation`, `POST
 /confirmation/close` y `POST /confirmation/reopen` siguen `EventAccessPolicy`, bloquean el Evento y son

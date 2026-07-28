@@ -65,6 +65,7 @@ function isValidComponent(value: string, allowSpace: boolean, rejectSensitiveMat
       return false;
     }
   }
+  if (decoded.includes('%')) return false;
   if (
     [...decoded].some((character) => {
       const code = character.codePointAt(0) ?? 0;

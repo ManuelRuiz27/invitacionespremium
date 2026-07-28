@@ -574,6 +574,10 @@ prisma/schema.prisma
 - `contentPath` funcional para Flyer y páginas Flipbook, sin placeholders;
 - corpus único para normalización, DTO/API, `INSERT` y `UPDATE`, con rechazo de controles ASCII tras
   hasta cuatro decodificaciones y `%20` limitado a path y valores de query;
+- paridad de sintaxis porcentual y UTF-8, procesamiento completo del query desde el primer `?` y
+  verificación transaccional de destinos heredados;
+- 54 casos ejecutados contra `locationUrl` y `giftRegistryUrl`, conservando la fila anterior ante
+  `UPDATE` rechazado; PostgreSQL valida sin normalizar;
 - once carreras con señal verificable de intento del lock PostgreSQL real, sin `nextTick` ni
   temporizadores arbitrarios;
 - rollback probado ante auditoría o storage fallidos y restauración de spies en `finally`.
