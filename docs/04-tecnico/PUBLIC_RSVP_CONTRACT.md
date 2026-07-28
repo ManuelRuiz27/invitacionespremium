@@ -19,8 +19,10 @@ Quedan fuera `CODEX-071`, generación o entrega de QR, scanner, `StaffToken`, ch
 
 La Confirmación está abierta si está habilitada y no tiene cierre. Los dos campos de cierre son ambos
 nulos o ambos no nulos. Los destinos se editan solo durante `DRAFT`, `CONFIGURED` o
-`READY_TO_ACTIVATE`; después de activar son inmutables. Aceptan HTTPS absoluto, query string y fragment,
-pero rechazan credenciales, controles, barra inversa y parámetros con claves de token, nombre o teléfono.
+`READY_TO_ACTIVATE`; después de activar son inmutables. Aceptan HTTPS absoluto y query string, pero
+rechazan credenciales, fragmentos, controles, barra inversa y componentes semánticos de token,
+invitación, nombre, teléfono o WhatsApp. La comparación ignora mayúsculas, guiones, guiones bajos y
+codificación porcentual. Se normalizan antes de persistir y Zod y PostgreSQL aplican el mismo contrato.
 Los destinos no forman parte de snapshots de auditoría.
 
 Para Flyer y Flipbook, el preflight se ejecuta antes del ledger y exige Confirmación habilitada, ambos
@@ -52,9 +54,16 @@ finanzas, cookies ni datos de otra Invitación.
 Invitación o Evento cancelado, estado no operativo, asset oculto, histórico, no referenciado o cruzado
 responden como recurso no encontrado.
 
+Cada referencia de Flyer —imagen inicial y QR— y cada página activa de Flipbook incluye un
+`contentPath` funcional:
+`/api/v1/public/invitations/<token-actual-codificado>/assets/<assetId>/content`. No contiene placeholders;
+el consumidor puede usarlo directamente y la autorización continúa vinculada al token y al asset.
+
 Headers: `Content-Type`, `Content-Length`, `ETag`, `Content-Disposition: inline`,
 `Cache-Control: private, no-store`, `X-Content-Type-Options: nosniff` y
 `Referrer-Policy: no-referrer`. Nunca se devuelve la clave interna.
+Si la lectura privada falla, responde `500 FILE_STORAGE_FAILURE` sin revelar storage keys, rutas,
+checksum completo ni nombres internos.
 
 ## Mutaciones públicas
 
@@ -107,6 +116,12 @@ Cancelación de Invitación y acceso público usan el mismo orden de bloqueo. Cl
 públicas y override terminan en uno de los resultados serializables completos, nunca en un agregado
 mixto.
 
+La integración prueba las once intercalaciones críticas con barreras controladas en auditoría o storage:
+la primera operación se detiene después de adquirir locks, la competidora permanece pendiente, y solo
+entonces se libera. No usa sleeps, timeouts ni endpoints de producción auxiliares. Cubre confirm/confirm,
+confirm/reject, confirm/close, modify/close, último cupo, reducción/incremento, mismo UUID, confirm/cancel,
+close/reopen, override/público y asset/cancel.
+
 ## PostgreSQL
 
 La migración `20260728200000_add_public_rsvp` agrega:
@@ -116,6 +131,12 @@ La migración `20260728200000_add_public_rsvp` agrega:
 - trigger que congela destinos post-activación y valida Cliente, rol y ownership del actor de cierre;
 - constraint triggers diferibles de coherencia Invitación/Asistentes y cardinalidad;
 - protección contra restauración directa y contra `TRUNCATE` de Invitación y Asistente.
+
+La migración `20260728210000_harden_public_rsvp_urls` conserva intacta la migración anterior y endurece
+`is_valid_event_destination_url`: decodifica componentes ASCII porcentuales, normaliza mayúsculas,
+guiones y guiones bajos, rechaza fragmentos y bloquea material privado tanto en segmentos de path como
+en claves de query. Los checks existentes de `location_url` y `gift_registry_url` adoptan la función
+reemplazada para `INSERT` y `UPDATE`.
 
 Al commit, una Invitación `CONFIRMED` tiene principal y todos sus Asistentes activos confirmados; una
 `REJECTED`, todos rechazados; una `PENDING`, todos pendientes. Existe exactamente un principal activo y
@@ -140,6 +161,7 @@ la operación.
 - `RSVP_INVITATION_CANCELLED`;
 - `RSVP_EVENT_CANCELLED`;
 - `RSVP_EVENT_STATE_INVALID`.
+- `FILE_STORAGE_FAILURE`.
 
 Close y reopen son naturalmente idempotentes, por lo que devuelven el estado actual en vez de
 `CONFIRMATION_ALREADY_OPEN` o `CONFIRMATION_ALREADY_CLOSED`.

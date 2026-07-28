@@ -473,4 +473,7 @@ Rutas operativas:
 
 La resolución pública es mínima; las mutaciones nominales usan transacciones serializables, capacidad por
 Asistente y auditoría sin PII. La entrega de assets revalida token, Evento, Invitación, diseño y referencia
-actual. Contrato normativo: `PUBLIC_RSVP_CONTRACT.md`.
+actual. Las referencias devueltas incluyen un `contentPath` inmediatamente consumible con el token actual
+codificado; un fallo de storage devuelve `500 FILE_STORAGE_FAILURE` sin datos internos. Los destinos del
+Evento se normalizan y excluyen fragmentos y componentes semánticos privados en path o query.
+Contrato normativo: `PUBLIC_RSVP_CONTRACT.md`.

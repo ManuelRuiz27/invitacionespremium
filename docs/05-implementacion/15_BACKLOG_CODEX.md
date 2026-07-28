@@ -571,6 +571,11 @@ prisma/schema.prisma
 - confirmación, rechazo y reconciliación nominal serializable;
 - cierre/reapertura y override operativo con ownership;
 - capacidad por Asistente, auditoría `PUBLIC_TOKEN` sin PII y constraints diferibles PostgreSQL.
+- `contentPath` funcional para Flyer y páginas Flipbook, sin placeholders;
+- normalización HTTPS equivalente en aplicación y PostgreSQL, sin fragmentos ni material privado;
+- once carreras con barreras deterministas y rollback probado ante auditoría o storage fallidos.
+
+El hardening de entrega privada y concurrencia quedó cerrado sin iniciar `CODEX-071`.
 
 ### CODEX-071 — Generación de QR SVG
 

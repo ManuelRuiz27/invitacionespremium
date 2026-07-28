@@ -82,7 +82,7 @@ export class PublicRsvpService {
 
   async resolve(invitationToken: string): Promise<PublicInvitationViewResponseDto> {
     const invitation = await this.resolvePublicInvitation(this.prisma, invitationToken);
-    return this.toPublicView(invitation);
+    return this.toPublicView(invitation, invitationToken);
   }
 
   async content(invitationToken: string, fileAssetId: string): Promise<PublicAssetContent> {
@@ -107,7 +107,16 @@ export class PublicRsvpService {
         }
       });
       if (!asset || !asset.checksumSha256) throw invitationNotFound();
-      const bytes = await this.storage.read(asset.storageKey);
+      let bytes: Buffer;
+      try {
+        bytes = await this.storage.read(asset.storageKey);
+      } catch {
+        throw new DomainError(
+          'FILE_STORAGE_FAILURE',
+          'The requested file asset is temporarily unavailable.',
+          HttpStatus.INTERNAL_SERVER_ERROR
+        );
+      }
       return {
         bytes,
         mimeType: asset.mimeType,
@@ -454,7 +463,7 @@ export class PublicRsvpService {
     return invitation;
   }
 
-  private toPublicView(invitation: PublicInvitation): PublicInvitationViewResponseDto {
+  private toPublicView(invitation: PublicInvitation, invitationToken: string): PublicInvitationViewResponseDto {
     const event = invitation.event;
     if (invitation.cancelledAt) return { status: 'CANCELLED', message: INVITATION_CANCELLED_MESSAGE };
     if (event.status === EventStatus.CANCELLED) return { status: 'CANCELLED', message: EVENT_CANCELLED_MESSAGE };
@@ -463,9 +472,10 @@ export class PublicRsvpService {
     if (!OPERATIONAL_STATUSES.has(event.status)) throw invitationNotFound();
     if (!event.name || !event.eventDateTime || !event.timeZone) throw invitationNotFound();
     const design = event.invitationDesigns[0];
+    const encodedToken = encodeURIComponent(invitationToken);
     const asset = (id: string) => ({
       id,
-      contentPath: `/api/v1/public/invitations/{invitationToken}/assets/${id}/content`
+      contentPath: `/api/v1/public/invitations/${encodedToken}/assets/${id}/content`
     });
     return {
       status: 'AVAILABLE',

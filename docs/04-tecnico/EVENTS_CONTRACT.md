@@ -189,8 +189,13 @@ No se implementan todavía:
 
 `Event` incluye `locationUrl`, `giftRegistryUrl`, `confirmationClosedAt` y
 `confirmationClosedByUserId`. Los destinos son HTTPS controlados, se configuran durante preparación, no
-se auditan y quedan congelados al activar. El cierre de Confirmación es un subestado independiente y
-completo; solo opera en `ACTIVE` o `EVENT_DAY`.
+se auditan y quedan congelados al activar. Se normalizan antes de persistir; permiten query, no
+fragmentos, y rechazan credenciales, controles, barra inversa y material de token, invitación, nombre,
+teléfono o WhatsApp en segmentos de path o claves de query incluso con cambios de caja, guiones,
+guiones bajos o codificación porcentual. La migración
+`20260728210000_harden_public_rsvp_urls` impone el mismo contrato en PostgreSQL para inserción y
+actualización directa. El cierre de Confirmación es un subestado independiente y completo; solo opera
+en `ACTIVE` o `EVENT_DAY`.
 
 Para Flyer/Flipbook, activación exige Confirmación habilitada, ambos destinos, diseño completo y al menos
 una Invitación activa antes de cualquier efecto financiero. Las rutas `GET /confirmation`, `POST

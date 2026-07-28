@@ -3,6 +3,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { z } from 'zod';
 import { EventSocialType, EventStatus } from '../generated/prisma/client';
 import { FinanceBalanceResponseDto, LedgerMovementResponseDto, ReceiptResponseDto } from '../finance/finance.dto';
+import { normalizeEventDestinationUrl } from './event-destination-url';
 
 const nullableName = z.string().trim().min(1).max(160).nullable().optional();
 const nullableUuid = z.string().uuid().nullable().optional();
@@ -17,7 +18,18 @@ const nullableTimeZone = z
   .nullable()
   .optional();
 const nullableCapacity = z.number().int().positive().max(1_000_000_000).nullable().optional();
-const nullableDestinationUrl = z.string().trim().max(2048).url().refine(isSafeHttpsDestination).nullable().optional();
+const nullableDestinationUrl = z
+  .string()
+  .trim()
+  .max(2048)
+  .transform((value, context) => {
+    const normalized = normalizeEventDestinationUrl(value);
+    if (normalized !== null) return normalized;
+    context.addIssue({ code: 'custom', message: 'Destination must be a safe absolute HTTPS URL.' });
+    return z.NEVER;
+  })
+  .nullable()
+  .optional();
 
 const eventFields = {
   name: nullableName,
@@ -60,10 +72,24 @@ export class CreateEventRequestDto {
   @ApiProperty({ type: Boolean, required: false, default: false })
   confirmationEnabled?: boolean;
 
-  @ApiProperty({ type: String, format: 'uri', required: false, nullable: true })
+  @ApiProperty({
+    type: String,
+    format: 'uri',
+    required: false,
+    nullable: true,
+    description:
+      'Absolute HTTPS destination without credentials, fragments, or token/name/phone/WhatsApp semantic components.'
+  })
   locationUrl?: string | null;
 
-  @ApiProperty({ type: String, format: 'uri', required: false, nullable: true })
+  @ApiProperty({
+    type: String,
+    format: 'uri',
+    required: false,
+    nullable: true,
+    description:
+      'Absolute HTTPS destination without credentials, fragments, or token/name/phone/WhatsApp semantic components.'
+  })
   giftRegistryUrl?: string | null;
 
   @ApiProperty({ type: Boolean, required: false, default: false })
@@ -226,31 +252,6 @@ function isValidTimeZone(value: string): boolean {
   try {
     new Intl.DateTimeFormat('en-US', { timeZone: value }).format();
     return true;
-  } catch {
-    return false;
-  }
-}
-
-function isSafeHttpsDestination(value: string): boolean {
-  if (
-    value.includes('\\') ||
-    /\s/u.test(value) ||
-    [...value].some((character) => {
-      const code = character.codePointAt(0) ?? 0;
-      return code < 32 || code === 127;
-    })
-  )
-    return false;
-  try {
-    const url = new URL(value);
-    const sensitiveKeys = /^(?:token|invitationtoken|name|nombre|phone|telefono|tel|whatsapp)$/iu;
-    return (
-      url.protocol === 'https:' &&
-      url.username === '' &&
-      url.password === '' &&
-      url.hostname.length > 0 &&
-      [...url.searchParams.keys()].every((key) => !sensitiveKeys.test(key.replace(/[-_]/gu, '')))
-    );
   } catch {
     return false;
   }

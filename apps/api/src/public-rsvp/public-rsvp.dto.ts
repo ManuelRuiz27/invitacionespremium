@@ -145,7 +145,13 @@ export class PublicRsvpAssetReferenceDto {
   @ApiProperty({ type: String, format: 'uuid' })
   id!: string;
 
-  @ApiProperty({ type: String })
+  @ApiProperty({
+    type: String,
+    description:
+      'Immediately fetchable private API path containing the current URL-encoded invitation token and asset id.',
+    example:
+      '/api/v1/public/invitations/eyJraW5kIjoiSU5WSVRBVElPTiJ9/assets/2e07a475-7865-4782-9916-04dba57fb2ef/content'
+  })
   contentPath!: string;
 }
 
