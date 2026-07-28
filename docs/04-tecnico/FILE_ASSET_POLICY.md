@@ -59,9 +59,17 @@ Estos valores corresponden a recursos ya definidos. No crean roles ni módulos n
 - `client_id` debe coincidir con el Cliente del recurso dueño.
 - `event_id`, cuando aplique, debe coincidir con el Evento del recurso dueño.
 
+Durante la subida puede existir temporalmente un asset sin `owner_id`. Es staging técnico preparado:
+
+- conserva `client_id`, `event_id`, `owner_type` y `file_type` derivados por backend;
+- nunca se considera asociado a una configuración;
+- nunca se expone por endpoints públicos;
+- solo puede asociarse mediante el resolver especializado del owner;
+- queda sujeto a la limpieza de huérfanos.
+
 No se permite:
 
-- archivo sin owner;
+- tratar un staging sin owner como archivo operativo;
 - owner inventado por frontend;
 - reutilizar un archivo entre Clientes distintos;
 - asociar un archivo de un Evento a otro Evento;
@@ -125,7 +133,7 @@ Enum sugerido `file_asset_status`:
 6. Backend valida MIME real, tamaño y checksum.
 7. Si es válido, cambia a `READY`.
 8. Si falla, cambia a `FAILED` y registra log técnico.
-9. El módulo dueño asocia el archivo dentro de una transacción.
+9. El módulo dueño asocia el archivo mediante `claimReadyAsset` dentro de una transacción.
 
 Si falla la asociación después de guardar bytes, el sistema debe conservar el asset como no asociado/oculto para limpieza controlada; no debe publicarlo.
 

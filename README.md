@@ -232,7 +232,18 @@ El hardening final de `CODEX-051` agregó:
 - replay idempotente con ownership después de cambios de estado y soft delete;
 - validación PostgreSQL del Cliente, rol, estado y ownership del actor de cancelación.
 
-La siguiente tarea es `CODEX-060 — FileAssets y storage local`.
+`CODEX-060` agregó FileAssets y storage local:
+
+- modelo común con staging técnico, estados y compatibilidad owner/file cerrada;
+- subida autenticada JPEG/PNG con firma, decodificación, dimensiones, límites, checksum y eliminación de metadata;
+- storage local privado detrás de `FileStorage`, claves criptográficas y escritura atómica;
+- consulta, contenido autenticado y borrado lógico sin exponer rutas ni claves internas;
+- asociación transaccional mediante resolvers, con adapter inicial de Invitación;
+- limpieza idempotente de huérfanos y constraints/triggers PostgreSQL.
+
+`CODEX-060` quedó completado.
+
+La siguiente tarea es `CODEX-061 — Flyer, Flipbook y Hotspots`.
 
 ## Fuente de verdad
 

@@ -140,6 +140,47 @@ enum AssistantResponseStatus {
   @@map("assistant_response_status")
 }
 
+enum FileAssetOwnerType {
+  FLYER
+  FLIPBOOK_PAGE
+  FLOORPLAN
+  ALBUM_PHOTO
+  GENERATED_REPORT
+  INVITATION
+  PHYSICAL_PASS
+
+  @@map("file_asset_owner_type")
+}
+
+enum FileAssetType {
+  FLYER_INITIAL_IMAGE
+  FLYER_QR_IMAGE
+  FLIPBOOK_PAGE_IMAGE
+  FLOORPLAN_IMAGE
+  ALBUM_PHOTO_IMAGE
+  GENERATED_REPORT_PDF
+  INVITATION_QR_SVG
+  PHYSICAL_PASS_QR_SVG
+
+  @@map("file_asset_type")
+}
+
+enum FileAssetStatus {
+  UPLOADING
+  READY
+  FAILED
+  HIDDEN
+  DELETED
+
+  @@map("file_asset_status")
+}
+
+enum StorageProvider {
+  LOCAL
+
+  @@map("storage_provider")
+}
+
 enum UserRole {
   PLATFORM_ADMIN
   INDEPENDENT_PLANNER
@@ -190,6 +231,7 @@ model Client {
   payments         Payment[]
   receipts         Receipt[]
   events           Event[]
+  fileAssets       FileAsset[]
 
   @@index([type, status, deletedAt])
   @@index([status, deletedAt])
@@ -212,7 +254,8 @@ model User {
   createdEvents         Event[]                @relation("EventCreator")
   activatedEvents       Event[]                @relation("EventActivator")
   contactImportPreviews ContactImportPreview[]
-  cancelledInvitations  Invitation[]          @relation("InvitationCanceller")
+  cancelledInvitations  Invitation[]           @relation("InvitationCanceller")
+  createdFileAssets     FileAsset[]            @relation("FileAssetCreator")
 
   @@index([clientId])
   @@index([role, deletedAt])
@@ -466,12 +509,45 @@ model Event {
   contactImportPreviews           ContactImportPreview[]
   invitations                     Invitation[]
   assistants                      Assistant[]
+  fileAssets                      FileAsset[]
 
   @@index([clientId, status, deletedAt])
   @@index([createdByUserId, status, deletedAt])
   @@index([eventDateTime, status, deletedAt])
   @@index([activatedAt])
   @@map("event")
+}
+
+model FileAsset {
+  id              String             @id @default(uuid()) @db.Uuid
+  clientId        String             @map("client_id") @db.Uuid
+  eventId         String             @map("event_id") @db.Uuid
+  ownerType       FileAssetOwnerType @map("owner_type")
+  ownerId         String?            @map("owner_id") @db.Uuid
+  fileType        FileAssetType      @map("file_type")
+  storageProvider StorageProvider    @default(LOCAL) @map("storage_provider")
+  storageKey      String             @unique @map("storage_key") @db.VarChar(160)
+  originalName    String             @map("original_name") @db.VarChar(255)
+  mimeType        String             @map("mime_type") @db.VarChar(100)
+  sizeBytes       Int                @map("size_bytes")
+  checksumSha256  String?            @map("checksum_sha256") @db.Char(64)
+  width           Int?
+  height          Int?
+  createdByUserId String             @map("created_by_user_id") @db.Uuid
+  status          FileAssetStatus    @default(UPLOADING)
+  failureCode     String?            @map("failure_code") @db.VarChar(80)
+  associatedAt    DateTime?          @map("associated_at") @db.Timestamptz(6)
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt       DateTime?          @map("deleted_at") @db.Timestamptz(6)
+  client          Client             @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  event           Event              @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  createdByUser   User               @relation("FileAssetCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@index([clientId, eventId, status, deletedAt])
+  @@index([eventId, ownerType, ownerId])
+  @@index([status, ownerId, createdAt])
+  @@map("file_asset")
 }
 
 model EventStateOperation {
@@ -504,17 +580,17 @@ model Group {
 }
 
 model Contact {
-  id                      String    @id @default(uuid()) @db.Uuid
-  eventId                 String    @map("event_id") @db.Uuid
-  groupId                 String?   @map("group_id") @db.Uuid
-  name                    String?   @db.VarChar(160)
-  whatsappPhoneNormalized String?   @map("whatsapp_phone_normalized") @db.VarChar(20)
-  anonymizedAt            DateTime? @map("anonymized_at") @db.Timestamptz(6)
-  createdAt               DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt               DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
-  deletedAt               DateTime? @map("deleted_at") @db.Timestamptz(6)
-  event                   Event     @relation(fields: [eventId], references: [id], onDelete: Restrict)
-  group                   Group?    @relation(fields: [groupId, eventId], references: [id, eventId], onDelete: Restrict)
+  id                      String      @id @default(uuid()) @db.Uuid
+  eventId                 String      @map("event_id") @db.Uuid
+  groupId                 String?     @map("group_id") @db.Uuid
+  name                    String?     @db.VarChar(160)
+  whatsappPhoneNormalized String?     @map("whatsapp_phone_normalized") @db.VarChar(20)
+  anonymizedAt            DateTime?   @map("anonymized_at") @db.Timestamptz(6)
+  createdAt               DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt               DateTime?   @map("deleted_at") @db.Timestamptz(6)
+  event                   Event       @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  group                   Group?      @relation(fields: [groupId, eventId], references: [id, eventId], onDelete: Restrict)
   invitation              Invitation?
 
   @@unique([id, eventId])

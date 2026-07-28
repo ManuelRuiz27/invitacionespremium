@@ -10,6 +10,7 @@ import { AppConfigModule } from './config/app-config.module';
 import { ContactsModule } from './contacts/contacts.module';
 import { FinanceModule } from './finance/finance.module';
 import { EventsModule } from './events/events.module';
+import { FileAssetsModule } from './file-assets/file-assets.module';
 import { HealthController } from './health/health.controller';
 import { HealthService } from './health/health.service';
 import { InvitationsModule } from './invitations/invitations.module';
@@ -26,6 +27,7 @@ import { ServicesPricingModule } from './services-pricing/services-pricing.modul
     ServicesPricingModule,
     FinanceModule,
     EventsModule,
+    FileAssetsModule,
     InvitationsModule,
     ContactsModule,
     ScheduleModule.forRoot()

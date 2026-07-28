@@ -104,6 +104,7 @@ function defaultCodeForStatus(statusCode: number): string {
     [HttpStatus.FORBIDDEN]: 'FORBIDDEN',
     [HttpStatus.NOT_FOUND]: 'NOT_FOUND',
     [HttpStatus.CONFLICT]: 'CONFLICT',
+    [HttpStatus.PAYLOAD_TOO_LARGE]: 'FILE_SIZE_EXCEEDED',
     [HttpStatus.UNPROCESSABLE_ENTITY]: 'UNPROCESSABLE_ENTITY',
     [HttpStatus.TOO_MANY_REQUESTS]: 'TOO_MANY_REQUESTS',
     [HttpStatus.SERVICE_UNAVAILABLE]: 'SERVICE_UNAVAILABLE'

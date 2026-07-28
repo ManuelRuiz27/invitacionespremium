@@ -391,13 +391,22 @@ Endpoints:
 
 ## FileAssetsModule
 
-Endpoints internos/administrativos:
+Operación autenticada del Cliente:
 
-- `POST /files`
-- `GET /files/:fileId`
-- `DELETE /files/:fileId`
+- `POST /events/:eventId/file-assets`
+- `GET /events/:eventId/file-assets`
+- `GET /events/:eventId/file-assets/:fileAssetId`
+- `GET /events/:eventId/file-assets/:fileAssetId/content`
+- `DELETE /events/:eventId/file-assets/:fileAssetId`
 
-Los módulos dueños deben preferir endpoints contextuales para vincular assets. `/files` no concede ownership por sí solo.
+La subida es multipart, acepta únicamente JPEG/PNG reales y no recibe Cliente, storage, checksum, MIME
+confiable, tamaño, actor ni owner ID. Opera solo durante preparación del Evento. Metadata y contenido
+requieren ownership; las respuestas nunca incluyen `storageKey`, ruta física ni checksum completo.
+
+La asociación usa el método interno `claimReadyAsset` y resolvers especializados. No existe endpoint para
+que el frontend asigne `ownerId`. Los tipos PDF/SVG generados solo se crean por métodos internos. La
+limpieza técnica elimina bytes huérfanos después del TTL sin tocar assets asociados ni reaccionar a
+cancelación/archivado. Detalle completo en `FILE_ASSETS_CONTRACT.md`.
 
 ## RealtimeModule
 

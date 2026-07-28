@@ -27,6 +27,10 @@ export const environmentSchema = z
       .regex(/^[A-Z]{2}$/)
       .default('MX'),
     CONTACT_IMPORT_PREVIEW_TTL_SECONDS: z.coerce.number().int().min(60).max(86_400).default(1800),
+    FILE_STORAGE_LOCAL_ROOT: z.string().trim().min(1).default('var/file-assets'),
+    FILE_UPLOAD_MAX_BYTES: z.coerce.number().int().positive().default(10_485_760),
+    FILE_IMAGE_MAX_PIXELS: z.coerce.number().int().positive().default(40_000_000),
+    FILE_ORPHAN_RETENTION_SECONDS: z.coerce.number().int().min(60).default(86_400),
     INVITATION_TOKEN_SIGNING_SECRET: invitationSigningSecret.optional(),
     PUBLIC_INVITATION_BASE_URL: z.string().url().optional(),
     CORS_ORIGINS: z.string().default('http://localhost:5173'),

@@ -15,3 +15,5 @@ prettier.patch
 apps/api/src/generated/prisma/
 apps/api/openapi/openapi.json
 graphify-out/
+var/file-assets/
+apps/api/var/file-assets/

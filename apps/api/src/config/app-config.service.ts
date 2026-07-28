@@ -58,6 +58,22 @@ export class AppConfigService {
     return this.configService.get('CONTACT_IMPORT_PREVIEW_TTL_SECONDS', { infer: true });
   }
 
+  get fileStorageLocalRoot(): string {
+    return this.configService.get('FILE_STORAGE_LOCAL_ROOT', { infer: true });
+  }
+
+  get fileUploadMaxBytes(): number {
+    return this.configService.get('FILE_UPLOAD_MAX_BYTES', { infer: true });
+  }
+
+  get fileImageMaxPixels(): number {
+    return this.configService.get('FILE_IMAGE_MAX_PIXELS', { infer: true });
+  }
+
+  get fileOrphanRetentionSeconds(): number {
+    return this.configService.get('FILE_ORPHAN_RETENTION_SECONDS', { infer: true });
+  }
+
   get invitationTokenSigningSecret(): string {
     return this.configService.get('INVITATION_TOKEN_SIGNING_SECRET', { infer: true });
   }

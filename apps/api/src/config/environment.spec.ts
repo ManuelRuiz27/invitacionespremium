@@ -21,6 +21,10 @@ describe('validateEnvironment', () => {
     expect(environment.CREDIT_UNIT_VALUE_MXN_CENTS).toBe(2000);
     expect(environment.PHONE_DEFAULT_REGION).toBe('MX');
     expect(environment.CONTACT_IMPORT_PREVIEW_TTL_SECONDS).toBe(1800);
+    expect(environment.FILE_STORAGE_LOCAL_ROOT).toBe('var/file-assets');
+    expect(environment.FILE_UPLOAD_MAX_BYTES).toBe(10_485_760);
+    expect(environment.FILE_IMAGE_MAX_PIXELS).toBe(40_000_000);
+    expect(environment.FILE_ORPHAN_RETENTION_SECONDS).toBe(86_400);
     expect(Buffer.byteLength(environment.INVITATION_TOKEN_SIGNING_SECRET)).toBeGreaterThanOrEqual(32);
     expect(environment.PUBLIC_INVITATION_BASE_URL).toBe('http://localhost:5173/invitacion');
   });
@@ -73,6 +77,33 @@ describe('validateEnvironment', () => {
       validateEnvironment({
         DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/app',
         CONTACT_IMPORT_PREVIEW_TTL_SECONDS: '30'
+      })
+    ).toThrow();
+  });
+
+  it('validates FileAsset storage and upload limits', () => {
+    expect(() =>
+      validateEnvironment({
+        DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/app',
+        FILE_STORAGE_LOCAL_ROOT: ' '
+      })
+    ).toThrow();
+    expect(() =>
+      validateEnvironment({
+        DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/app',
+        FILE_UPLOAD_MAX_BYTES: '0'
+      })
+    ).toThrow();
+    expect(() =>
+      validateEnvironment({
+        DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/app',
+        FILE_IMAGE_MAX_PIXELS: '0'
+      })
+    ).toThrow();
+    expect(() =>
+      validateEnvironment({
+        DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/app',
+        FILE_ORPHAN_RETENTION_SECONDS: '30'
       })
     ).toThrow();
   });
