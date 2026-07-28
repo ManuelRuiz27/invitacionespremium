@@ -116,23 +116,6 @@ export class InvitationCancellationResponseDto {
   cancelledAt!: Date;
 }
 
-export class PublicInvitationResponseDto {
-  @ApiProperty({ enum: ['AVAILABLE', 'CANCELLED', 'CLOSED'] })
-  status!: 'AVAILABLE' | 'CANCELLED' | 'CLOSED';
-
-  @ApiPropertyOptional({ type: String })
-  message?: string;
-
-  @ApiPropertyOptional({ type: Object })
-  event?: Record<string, unknown>;
-
-  @ApiPropertyOptional({ type: Object })
-  invitation?: Record<string, unknown>;
-
-  @ApiPropertyOptional({ type: () => AssistantResponseDto, isArray: true })
-  assistants?: AssistantResponseDto[];
-}
-
 export function parseInvitationId(value: unknown): string {
   return parse(uuid, value);
 }

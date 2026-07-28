@@ -270,7 +270,13 @@ El hardening final de `CODEX-061` agregó:
 
 `CODEX-061` quedó completamente cerrado.
 
-La siguiente tarea es `CODEX-070 — Vista pública y Confirmación de asistencia API`; no fue iniciada.
+`CODEX-070` agregó la vista pública completa de Flyer/Flipbook, entrega privada de sus assets y Hotspots,
+Confirmación nominal, rechazo, reconciliación de acompañantes, cierre/reapertura y override operativo.
+Capacidad, ownership, auditoría sin PII y consistencia Invitación/Asistentes se serializan y se refuerzan
+con triggers diferibles PostgreSQL.
+
+`CODEX-070` quedó completamente cerrado. La siguiente tarea es
+`CODEX-071 — Generación de QR SVG`; no fue iniciada.
 
 ## Fuente de verdad
 

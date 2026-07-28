@@ -649,7 +649,10 @@ describe('Event activation', () => {
         status,
         eventDateTime: new Date(Date.now() + 86_400_000),
         timeZone: 'America/Mexico_City',
-        capacity: 100
+        capacity: 100,
+        confirmationEnabled: true,
+        locationUrl: 'https://maps.google.com/?q=19.4326,-99.1332',
+        giftRegistryUrl: 'https://example.com/mesa-regalos'
       }
     });
     const service = await prisma.service.findUniqueOrThrow({ where: { id: serviceId } });
@@ -745,6 +748,29 @@ describe('Event activation', () => {
           });
         }
       }
+      const contact = await transaction.contact.create({
+        data: {
+          eventId: event.id,
+          name: 'Contacto activación',
+          whatsappPhoneNormalized: '+525555555555'
+        }
+      });
+      const invitation = await transaction.invitation.create({
+        data: {
+          eventId: event.id,
+          contactId: contact.id,
+          invitationTokenNonce: randomBytes(32).toString('hex'),
+          qrTokenNonce: randomBytes(32).toString('hex')
+        }
+      });
+      await transaction.assistant.create({
+        data: {
+          eventId: event.id,
+          invitationId: invitation.id,
+          name: 'Contacto activación',
+          isPrimary: true
+        }
+      });
     });
   }
 

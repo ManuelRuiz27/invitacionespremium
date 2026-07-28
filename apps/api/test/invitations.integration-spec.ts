@@ -247,7 +247,7 @@ describe('Invitations and nominal assistants', () => {
       .expect(({ body }) =>
         expect(body).toEqual({
           status: 'CANCELLED',
-          message: 'Invitación cancelada por el organizador'
+          message: 'Esta invitación fue cancelada por el organizador.'
         })
       );
 
@@ -256,7 +256,10 @@ describe('Invitations and nominal assistants', () => {
     await publicInvitation(secondToken)
       .expect(200)
       .expect(({ body }) =>
-        expect(body).toEqual({ status: 'CANCELLED', message: 'Evento cancelado por el organizador' })
+        expect(body).toEqual({
+          status: 'CANCELLED',
+          message: 'Este evento ha sido cancelado por el organizador.'
+        })
       );
     await setEventStatus(event.id, EventStatus.CLOSED);
     await publicInvitation(secondToken)

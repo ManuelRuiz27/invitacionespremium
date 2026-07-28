@@ -22,7 +22,6 @@ import {
   ApiTags
 } from '@nestjs/swagger';
 import { CurrentAuth } from '../auth/current-auth.decorator';
-import { PublicRoute } from '../auth/public-route.decorator';
 import { Roles } from '../auth/roles.decorator';
 import type { AuthenticatedRequest, AuthPrincipal } from '../auth/auth.types';
 import { parseEventId } from '../events/events.dto';
@@ -33,7 +32,6 @@ import {
   AssistantResponseDto,
   InvitationCancellationResponseDto,
   InvitationResponseDto,
-  PublicInvitationResponseDto,
   UpdateInvitationRequestDto,
   parseAssistant,
   parseInvitationId,
@@ -160,18 +158,5 @@ export class InvitationsController {
       principal,
       request.operationId
     );
-  }
-}
-
-@ApiTags('public-invitations')
-@PublicRoute()
-@Controller('public/invitations')
-export class PublicInvitationsController {
-  constructor(@Inject(InvitationsService) private readonly invitations: InvitationsService) {}
-
-  @Get(':invitationToken')
-  @ApiOkResponse({ type: PublicInvitationResponseDto })
-  resolve(@Param('invitationToken') token: string): Promise<PublicInvitationResponseDto> {
-    return this.invitations.resolvePublic(token);
   }
 }

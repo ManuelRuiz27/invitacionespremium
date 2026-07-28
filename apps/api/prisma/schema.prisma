@@ -263,23 +263,24 @@ model Client {
 }
 
 model User {
-  id                    String                 @id @default(uuid()) @db.Uuid
-  email                 String                 @unique @db.VarChar(320)
-  passwordHash          String                 @map("password_hash") @db.Text
-  role                  UserRole
-  clientId              String?                @map("client_id") @db.Uuid
-  createdAt             DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt             DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
-  deletedAt             DateTime?              @map("deleted_at") @db.Timestamptz(6)
-  client                Client?                @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  sessions              AuthSession[]
-  ledgerEntries         LedgerEntry[]
-  payments              Payment[]
-  createdEvents         Event[]                @relation("EventCreator")
-  activatedEvents       Event[]                @relation("EventActivator")
-  contactImportPreviews ContactImportPreview[]
-  cancelledInvitations  Invitation[]           @relation("InvitationCanceller")
-  createdFileAssets     FileAsset[]            @relation("FileAssetCreator")
+  id                       String                 @id @default(uuid()) @db.Uuid
+  email                    String                 @unique @db.VarChar(320)
+  passwordHash             String                 @map("password_hash") @db.Text
+  role                     UserRole
+  clientId                 String?                @map("client_id") @db.Uuid
+  createdAt                DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt                DateTime?              @map("deleted_at") @db.Timestamptz(6)
+  client                   Client?                @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  sessions                 AuthSession[]
+  ledgerEntries            LedgerEntry[]
+  payments                 Payment[]
+  createdEvents            Event[]                @relation("EventCreator")
+  activatedEvents          Event[]                @relation("EventActivator")
+  contactImportPreviews    ContactImportPreview[]
+  cancelledInvitations     Invitation[]           @relation("InvitationCanceller")
+  createdFileAssets        FileAsset[]            @relation("FileAssetCreator")
+  confirmationClosedEvents Event[]                @relation("EventConfirmationCloser")
 
   @@index([clientId])
   @@index([role, deletedAt])
@@ -503,6 +504,10 @@ model Event {
   timeZone                        String?                @map("time_zone") @db.VarChar(100)
   capacity                        Int?
   confirmationEnabled             Boolean                @default(false) @map("confirmation_enabled")
+  locationUrl                     String?                @map("location_url") @db.VarChar(2048)
+  giftRegistryUrl                 String?                @map("gift_registry_url") @db.VarChar(2048)
+  confirmationClosedAt            DateTime?              @map("confirmation_closed_at") @db.Timestamptz(6)
+  confirmationClosedByUserId      String?                @map("confirmation_closed_by_user_id") @db.Uuid
   floorplanEnabled                Boolean                @default(false) @map("floorplan_enabled")
   activatedAt                     DateTime?              @map("activated_at") @db.Timestamptz(6)
   activatedByUserId               String?                @map("activated_by_user_id") @db.Uuid
@@ -522,6 +527,7 @@ model Event {
   client                          Client                 @relation(fields: [clientId], references: [id], onDelete: Restrict)
   createdByUser                   User                   @relation("EventCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
   activatedByUser                 User?                  @relation("EventActivator", fields: [activatedByUserId], references: [id], onDelete: Restrict)
+  confirmationClosedByUser        User?                  @relation("EventConfirmationCloser", fields: [confirmationClosedByUserId], references: [id], onDelete: Restrict)
   service                         Service?               @relation("EventConfiguredService", fields: [serviceId], references: [id], onDelete: Restrict)
   activatedService                Service?               @relation("EventActivatedService", fields: [activatedServiceId], references: [id], onDelete: Restrict)
   activatedServicePrice           ServicePrice?          @relation(fields: [activatedServicePriceId], references: [id], onDelete: Restrict)

@@ -453,3 +453,24 @@ Endpoints:
 - `GET /demo/scanner`
 
 Demo usa datos mock/seed, no consume créditos ni genera tokens reales.
+
+## PublicRsvpModule
+
+Rutas públicas por token:
+
+- `GET /public/invitations/:invitationToken`;
+- `GET /public/invitations/:invitationToken/assets/:fileAssetId/content`;
+- `POST /public/invitations/:invitationToken/confirm`;
+- `POST /public/invitations/:invitationToken/reject`;
+- `PATCH /public/invitations/:invitationToken/assistants`.
+
+Rutas operativas:
+
+- `GET /events/:eventId/confirmation`;
+- `POST /events/:eventId/confirmation/close`;
+- `POST /events/:eventId/confirmation/reopen`;
+- `PUT /events/:eventId/invitations/:invitationId/confirmation`.
+
+La resolución pública es mínima; las mutaciones nominales usan transacciones serializables, capacidad por
+Asistente y auditoría sin PII. La entrega de assets revalida token, Evento, Invitación, diseño y referencia
+actual. Contrato normativo: `PUBLIC_RSVP_CONTRACT.md`.

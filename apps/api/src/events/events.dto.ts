@@ -17,6 +17,7 @@ const nullableTimeZone = z
   .nullable()
   .optional();
 const nullableCapacity = z.number().int().positive().max(1_000_000_000).nullable().optional();
+const nullableDestinationUrl = z.string().trim().max(2048).url().refine(isSafeHttpsDestination).nullable().optional();
 
 const eventFields = {
   name: nullableName,
@@ -26,6 +27,8 @@ const eventFields = {
   timeZone: nullableTimeZone,
   capacity: nullableCapacity,
   confirmationEnabled: z.boolean().optional(),
+  locationUrl: nullableDestinationUrl,
+  giftRegistryUrl: nullableDestinationUrl,
   floorplanEnabled: z.boolean().optional()
 };
 
@@ -56,6 +59,12 @@ export class CreateEventRequestDto {
 
   @ApiProperty({ type: Boolean, required: false, default: false })
   confirmationEnabled?: boolean;
+
+  @ApiProperty({ type: String, format: 'uri', required: false, nullable: true })
+  locationUrl?: string | null;
+
+  @ApiProperty({ type: String, format: 'uri', required: false, nullable: true })
+  giftRegistryUrl?: string | null;
 
   @ApiProperty({ type: Boolean, required: false, default: false })
   floorplanEnabled?: boolean;
@@ -96,6 +105,18 @@ export class EventResponseDto {
 
   @ApiProperty({ type: Boolean })
   confirmationEnabled!: boolean;
+
+  @ApiProperty({ type: String, format: 'uri', nullable: true })
+  locationUrl!: string | null;
+
+  @ApiProperty({ type: String, format: 'uri', nullable: true })
+  giftRegistryUrl!: string | null;
+
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  confirmationClosedAt!: string | null;
+
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  confirmationClosedByUserId!: string | null;
 
   @ApiProperty({ type: Boolean })
   floorplanEnabled!: boolean;
@@ -205,6 +226,31 @@ function isValidTimeZone(value: string): boolean {
   try {
     new Intl.DateTimeFormat('en-US', { timeZone: value }).format();
     return true;
+  } catch {
+    return false;
+  }
+}
+
+function isSafeHttpsDestination(value: string): boolean {
+  if (
+    value.includes('\\') ||
+    /\s/u.test(value) ||
+    [...value].some((character) => {
+      const code = character.codePointAt(0) ?? 0;
+      return code < 32 || code === 127;
+    })
+  )
+    return false;
+  try {
+    const url = new URL(value);
+    const sensitiveKeys = /^(?:token|invitationtoken|name|nombre|phone|telefono|tel|whatsapp)$/iu;
+    return (
+      url.protocol === 'https:' &&
+      url.username === '' &&
+      url.password === '' &&
+      url.hostname.length > 0 &&
+      [...url.searchParams.keys()].every((key) => !sensitiveKeys.test(key.replace(/[-_]/gu, '')))
+    );
   } catch {
     return false;
   }

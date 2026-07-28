@@ -498,3 +498,13 @@ Se conservan:
 - al ejecutar anonimización, los FileAssets de reportes detallados con nombres deben ocultarse o reemplazarse por versión anonimizada;
 - historial de seis meses conserva metadata y reportes agregados/anónimos, no nombres ni teléfonos;
 - un PDF no puede utilizarse para evadir la política de anonimización.
+
+## Confirmación pública
+
+La Confirmación no es una entidad separada. `Event.confirmationEnabled` indica configuración;
+`confirmationClosedAt` y `confirmationClosedByUserId` representan un cierre completo e independiente del
+estado del Evento. `locationUrl` y `giftRegistryUrl` pertenecen al Evento.
+
+`Invitation.responseStatus` es el agregado general y `Assistant.responseStatus`, su composición nominal.
+Al commit, `CONFIRMED` o `REJECTED` no permiten estados individuales mixtos. La capacidad se cuenta por
+Asistentes activos confirmados, no por número de Invitaciones.

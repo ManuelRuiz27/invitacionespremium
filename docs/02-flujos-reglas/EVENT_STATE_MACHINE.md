@@ -123,7 +123,13 @@ El borrado lógico:
 
 El estado de la Confirmación de asistencia no debe confundirse con el estado del Evento.
 
-Un Evento `active` o `event_day` puede tener la Confirmación de asistencia abierta o cerrada. Cerrar la Confirmación no cierra el Evento.
+Un Evento `active` o `event_day` puede tener la Confirmación de asistencia abierta o cerrada. Cerrar la
+Confirmación no cierra el Evento. Close/reopen bloquean la fila y solo alternan el par completo
+`confirmation_closed_at`/`confirmation_closed_by_user_id`; repetir el estado actual es idempotente.
+
+Mientras está abierta, el token de Invitación puede confirmar, rechazar o reconciliar acompañantes. Al
+cerrarla, solo el usuario operativo con ownership puede aplicar un override nominal. `closed`,
+`album_published`, `archived` y `cancelled` no aceptan una nueva transición de Confirmación.
 
 ## Códigos de error de dominio recomendados
 

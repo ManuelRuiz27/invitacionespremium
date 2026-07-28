@@ -16,6 +16,7 @@ import { HealthService } from './health/health.service';
 import { InvitationsModule } from './invitations/invitations.module';
 import { InvitationDesignModule } from './invitation-design/invitation-design.module';
 import { ServicesPricingModule } from './services-pricing/services-pricing.module';
+import { PublicRsvpModule } from './public-rsvp/public-rsvp.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { ServicesPricingModule } from './services-pricing/services-pricing.modul
     FileAssetsModule,
     InvitationDesignModule,
     InvitationsModule,
+    PublicRsvpModule,
     ContactsModule,
     ScheduleModule.forRoot()
   ],

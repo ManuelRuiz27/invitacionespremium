@@ -10,7 +10,6 @@ import type {
   AssistantResponseDto,
   InvitationCancellationResponseDto,
   InvitationResponseDto,
-  PublicInvitationResponseDto,
   UpdateInvitationInput
 } from './invitations.dto';
 import { InvitationTokenService } from './invitation-token.service';
@@ -229,51 +228,6 @@ export class InvitationsService {
       });
       return toCancellationResponse(cancelled);
     });
-  }
-
-  async resolvePublic(invitationToken: string): Promise<PublicInvitationResponseDto> {
-    const verified = this.tokens.verify('INVITATION', invitationToken);
-    if (!verified) throw invitationNotFound();
-    const invitation = await this.prisma.invitation.findFirst({
-      where: {
-        id: verified.invitationId,
-        invitationTokenNonce: verified.nonce,
-        invitationTokenVersion: verified.version,
-        deletedAt: null,
-        contact: { deletedAt: null },
-        event: { deletedAt: null }
-      },
-      include: { ...details, event: true }
-    });
-    if (!invitation || invitation.event.status === EventStatus.ARCHIVED) throw invitationNotFound();
-    if (invitation.cancelledAt) {
-      return { status: 'CANCELLED', message: 'Invitación cancelada por el organizador' };
-    }
-    if (invitation.event.status === EventStatus.CANCELLED) {
-      return { status: 'CANCELLED', message: 'Evento cancelado por el organizador' };
-    }
-    if (invitation.event.status === EventStatus.CLOSED || invitation.event.status === EventStatus.ALBUM_PUBLISHED) {
-      return { status: 'CLOSED' };
-    }
-    if (invitation.event.status !== EventStatus.ACTIVE && invitation.event.status !== EventStatus.EVENT_DAY) {
-      throw invitationNotFound();
-    }
-    return {
-      status: 'AVAILABLE',
-      event: {
-        id: invitation.event.id,
-        name: invitation.event.name,
-        eventDateTime: invitation.event.eventDateTime,
-        timeZone: invitation.event.timeZone
-      },
-      invitation: {
-        id: invitation.id,
-        mode: invitation.mode,
-        responseStatus: invitation.responseStatus,
-        additionalAssistantLimit: invitation.additionalAssistantLimit
-      },
-      assistants: invitation.assistants.map(toAssistantResponse)
-    };
   }
 
   private toResponse(invitation: InvitationDetails): InvitationResponseDto {

@@ -208,6 +208,16 @@ varias filas atómicamente sin confirmar estados intermedios.
 
 ## Fuera de alcance
 
-CODEX-061 no implementa CODEX-070, acceso público, Confirmación, QR gráfico, scanner, frontend, croquis,
+CODEX-061 no implementó por sí mismo CODEX-070, QR gráfico, scanner, frontend, croquis,
 Álbum, reportes PDF, WhatsApp ni conversión de PDF. El workflow post-activación Flyer → Flipbook permanece
 en una tarea independiente conforme a `SERVICE_UPGRADE_FLOW.md`.
+
+## Resolución pública CODEX-070
+
+`PublicRsvpModule` proyecta el diseño activo sin reutilizar DTO operativos: Flyer expone sus assets
+autorizados; Flipbook, páginas activas ordenadas; ambos exponen Hotspots activos con coordenadas y
+prioridad. `LOCATION` y `GIFT_REGISTRY` resuelven los destinos congelados del Evento y `EXTERNAL_LINK`,
+la URL del Hotspot. La respuesta omite storage, checksum, nonces y contenido interno.
+
+Los bytes se entregan solo por el endpoint público controlado de `PUBLIC_RSVP_CONTRACT.md`; no existe
+bucket público ni se genera o entrega QR.

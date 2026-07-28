@@ -180,10 +180,19 @@ El detalle normativo se encuentra en `EVENT_LIFECYCLE_CONTRACT.md`.
 No se implementan todavía:
 
 - promociones económicas;
-- Contactos e Invitaciones;
-- diseño Flyer/Flipbook;
-- Confirmación pública;
 - Croquis o Mesas;
 - StaffTokens, QR y scanner;
 - cambio de servicio después de activar;
 - frontend.
+
+## Configuración y cierre de Confirmación
+
+`Event` incluye `locationUrl`, `giftRegistryUrl`, `confirmationClosedAt` y
+`confirmationClosedByUserId`. Los destinos son HTTPS controlados, se configuran durante preparación, no
+se auditan y quedan congelados al activar. El cierre de Confirmación es un subestado independiente y
+completo; solo opera en `ACTIVE` o `EVENT_DAY`.
+
+Para Flyer/Flipbook, activación exige Confirmación habilitada, ambos destinos, diseño completo y al menos
+una Invitación activa antes de cualquier efecto financiero. Las rutas `GET /confirmation`, `POST
+/confirmation/close` y `POST /confirmation/reopen` siguen `EventAccessPolicy`, bloquean el Evento y son
+idempotentes sin duplicar auditoría. Detalle en `PUBLIC_RSVP_CONTRACT.md`.

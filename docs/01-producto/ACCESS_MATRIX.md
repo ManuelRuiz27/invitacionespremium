@@ -96,6 +96,10 @@ Un token no puede reutilizarse como otro tipo de acceso.
 | Gestionar Contactos/Invitaciones | Lectura administrativa si aplica | Propio | Organización | Creados | No | Token limitado a su Invitación |
 | Gestionar diseño Flyer/Flipbook | No por operación cliente | Propio | Organización | Creados | No | Solo lectura pública renderizada |
 | Gestionar Confirmación de asistencia | No por operación cliente | Propio | Organización | Creados | No | Token de Invitación |
+| Cerrar/reabrir Confirmación | No | Propio | Organización | Creados | No | No |
+| Override nominal de Confirmación | No | Propio | Organización | Creados | No | No |
+| Ver Invitación y diseño público | No aplica | No aplica | No aplica | No aplica | No | Token de Invitación |
+| Confirmar/rechazar y editar acompañantes | No | No | No | No | No | Token, mientras esté abierta |
 | Gestionar croquis/mesas | No por operación cliente | Propio | Organización | Creados | Solo lectura operativa | No |
 | Crear tokens staff | No por operación cliente | Propio | Organización | Creados | No | No |
 | Escanear QR y registrar entrada | No | No | No desde panel; usa token Staff si participa | No desde panel; usa token Staff si participa | Token | No |

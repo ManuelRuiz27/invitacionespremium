@@ -128,7 +128,7 @@ eliminados.
 El resultado idempotente se deriva de los campos inmutables de cancelación; no existe snapshot adicional
 y nunca contiene nombre, link, nonces, tokens, teléfono o información financiera.
 
-## Lectura pública mínima
+## Vista pública y Confirmación
 
 `GET /api/v1/public/invitations/:invitationToken` no requiere sesión:
 
@@ -140,8 +140,14 @@ y nunca contiene nombre, link, nonces, tokens, teléfono o información financie
 - preparación, archivado, token inválido, Evento/Contacto/Invitación eliminado: `404
   INVITATION_NOT_FOUND`.
 
-La respuesta no expone teléfono, nonces, token QR, otras Invitaciones ni datos de otro Evento. Esta
-operación no confirma, rechaza ni edita RSVP y no entrega un QR.
+La respuesta no expone teléfono, nonces, token QR, otras Invitaciones ni datos de otro Evento. Incluye el
+diseño activo, páginas y Hotspots autorizados, además de la apertura de Confirmación.
+
+`POST /confirm`, `POST /reject` y `PATCH /assistants` reconcilian nominalmente principal y acompañantes
+activos en una transacción `Serializable`, respetando límite y capacidad global. `PUT
+/events/:eventId/invitations/:invitationId/confirmation` permite el override del usuario operativo incluso
+con Confirmación pública cerrada. Ninguna operación genera o entrega QR. Detalle en
+`PUBLIC_RSVP_CONTRACT.md`.
 
 ## Privacidad y auditoría
 
@@ -176,6 +182,5 @@ agregado completo en una sola transacción sin observar estados intermedios inv�
 
 ## Alcance diferido
 
-Quedan fuera Flyer/Flipbook, archivos, RSVP público y edición de respuestas, generación o endpoint público
-de QR, WhatsApp, `StaffToken`, check-in, mesas, Álbum, frontend, efectos financieros y automatización de
-activación o de `READY_TO_ACTIVATE`.
+Quedan fuera generación o endpoint de QR, WhatsApp, `StaffToken`, check-in, mesas, Álbum, frontend y
+efectos financieros propios de RSVP.

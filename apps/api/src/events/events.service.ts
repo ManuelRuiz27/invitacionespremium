@@ -248,6 +248,24 @@ export class EventsService {
                 { blockers: designReadiness.blockers }
               );
             }
+            const activeInvitation = await transaction.invitation.findFirst({
+              where: { eventId, deletedAt: null, cancelledAt: null, contact: { deletedAt: null } },
+              select: { id: true }
+            });
+            const publicInvitationBlockers = [
+              ...(current.confirmationEnabled ? [] : ['EVENT_CONFIRMATION_NOT_ENABLED']),
+              ...(current.locationUrl ? [] : ['EVENT_LOCATION_URL_MISSING']),
+              ...(current.giftRegistryUrl ? [] : ['EVENT_GIFT_REGISTRY_URL_MISSING']),
+              ...(activeInvitation ? [] : ['EVENT_ACTIVE_INVITATION_MISSING'])
+            ];
+            if (publicInvitationBlockers.length > 0) {
+              throw new DomainError(
+                'EVENT_PUBLIC_INVITATION_PREFLIGHT_INCOMPLETE',
+                'Event public invitation configuration is incomplete.',
+                HttpStatus.CONFLICT,
+                { blockers: publicInvitationBlockers }
+              );
+            }
           }
 
           const activatedAt = new Date();
@@ -500,6 +518,8 @@ function preparationData(input: CreateEventInput) {
     timeZone: input.timeZone ?? null,
     capacity: input.capacity ?? null,
     confirmationEnabled: input.confirmationEnabled ?? false,
+    locationUrl: input.locationUrl ?? null,
+    giftRegistryUrl: input.giftRegistryUrl ?? null,
     floorplanEnabled: input.floorplanEnabled ?? false
   };
 }
@@ -516,7 +536,11 @@ function mergePreparationData(current: Event, input: UpdateEventInput) {
           ? null
           : new Date(input.eventDateTime),
     timeZone: input.timeZone === undefined ? current.timeZone : input.timeZone,
-    capacity: input.capacity === undefined ? current.capacity : input.capacity
+    capacity: input.capacity === undefined ? current.capacity : input.capacity,
+    confirmationEnabled:
+      input.confirmationEnabled === undefined ? current.confirmationEnabled : input.confirmationEnabled,
+    locationUrl: input.locationUrl === undefined ? current.locationUrl : input.locationUrl,
+    giftRegistryUrl: input.giftRegistryUrl === undefined ? current.giftRegistryUrl : input.giftRegistryUrl
   };
 }
 
@@ -533,6 +557,8 @@ function updateData(input: UpdateEventInput): Prisma.EventUpdateInput {
     ...(input.timeZone === undefined ? {} : { timeZone: input.timeZone }),
     ...(input.capacity === undefined ? {} : { capacity: input.capacity }),
     ...(input.confirmationEnabled === undefined ? {} : { confirmationEnabled: input.confirmationEnabled }),
+    ...(input.locationUrl === undefined ? {} : { locationUrl: input.locationUrl }),
+    ...(input.giftRegistryUrl === undefined ? {} : { giftRegistryUrl: input.giftRegistryUrl }),
     ...(input.floorplanEnabled === undefined ? {} : { floorplanEnabled: input.floorplanEnabled })
   };
 }
@@ -561,6 +587,8 @@ export function eventAuditSnapshot(event: Event): Record<string, unknown> {
     timeZone: event.timeZone,
     capacity: event.capacity,
     confirmationEnabled: event.confirmationEnabled,
+    confirmationClosedAt: event.confirmationClosedAt,
+    confirmationClosedByUserId: event.confirmationClosedByUserId,
     floorplanEnabled: event.floorplanEnabled,
     activatedAt: event.activatedAt,
     activatedByUserId: event.activatedByUserId,
@@ -591,6 +619,10 @@ export function toEventResponse(event: Event): EventResponseDto {
     timeZone: event.timeZone,
     capacity: event.capacity,
     confirmationEnabled: event.confirmationEnabled,
+    locationUrl: event.locationUrl,
+    giftRegistryUrl: event.giftRegistryUrl,
+    confirmationClosedAt: event.confirmationClosedAt?.toISOString() ?? null,
+    confirmationClosedByUserId: event.confirmationClosedByUserId,
     floorplanEnabled: event.floorplanEnabled,
     activatedAt: event.activatedAt?.toISOString() ?? null,
     activatedByUserId: event.activatedByUserId,

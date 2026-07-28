@@ -539,6 +539,8 @@ prisma/schema.prisma
 
 ### CODEX-070 — Vista pública y Confirmación de asistencia API
 
+**Estado:** completado.
+
 **Repo:** `invitacionespremium-api`
 
 **Módulo:** `PublicRsvpModule`
@@ -561,6 +563,14 @@ prisma/schema.prisma
 - aumento respeta invitación y capacidad;
 - cierre de Confirmación bloquea cambios públicos;
 - link reenviado conserva identidad del Contacto original.
+
+**Implementado**
+
+- resolución única mediante `PublicRsvpModule` y `InvitationTokenService`;
+- Flyer/Flipbook, páginas, Hotspots y assets referenciados con entrega privada;
+- confirmación, rechazo y reconciliación nominal serializable;
+- cierre/reapertura y override operativo con ownership;
+- capacidad por Asistente, auditoría `PUBLIC_TOKEN` sin PII y constraints diferibles PostgreSQL.
 
 ### CODEX-071 — Generación de QR SVG
 

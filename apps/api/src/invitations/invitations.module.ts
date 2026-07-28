@@ -3,13 +3,13 @@ import { AuditModule } from '../audit/audit.module';
 import { EventsModule } from '../events/events.module';
 import { InvitationProvisioningService } from './invitation-provisioning.service';
 import { InvitationTokenService } from './invitation-token.service';
-import { InvitationsController, PublicInvitationsController } from './invitations.controller';
+import { InvitationsController } from './invitations.controller';
 import { InvitationsService } from './invitations.service';
 
 @Module({
   imports: [AuditModule, EventsModule],
-  controllers: [InvitationsController, PublicInvitationsController],
+  controllers: [InvitationsController],
   providers: [InvitationTokenService, InvitationProvisioningService, InvitationsService],
-  exports: [InvitationProvisioningService]
+  exports: [InvitationProvisioningService, InvitationTokenService]
 })
 export class InvitationsModule {}

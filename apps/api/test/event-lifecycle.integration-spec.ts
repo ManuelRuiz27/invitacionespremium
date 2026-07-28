@@ -436,7 +436,10 @@ describe('Event lifecycle', () => {
         status: EventStatus.READY_TO_ACTIVATE,
         eventDateTime: futureEventDate,
         timeZone: 'America/Mexico_City',
-        capacity: 100
+        capacity: 100,
+        confirmationEnabled: true,
+        locationUrl: 'https://maps.google.com/?q=19.4326,-99.1332',
+        giftRegistryUrl: 'https://example.com/mesa-regalos'
       }
     });
   }
@@ -489,6 +492,20 @@ describe('Event lifecycle', () => {
           }
         });
       }
+      const contact = await transaction.contact.create({
+        data: { eventId: event.id, name: 'Contacto activación', whatsappPhoneNormalized: '+525555555555' }
+      });
+      const invitation = await transaction.invitation.create({
+        data: {
+          eventId: event.id,
+          contactId: contact.id,
+          invitationTokenNonce: randomBytes(32).toString('hex'),
+          qrTokenNonce: randomBytes(32).toString('hex')
+        }
+      });
+      await transaction.assistant.create({
+        data: { eventId: event.id, invitationId: invitation.id, name: 'Contacto activación', isPrimary: true }
+      });
     });
   }
 
