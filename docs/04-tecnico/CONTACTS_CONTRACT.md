@@ -36,9 +36,16 @@ Evento. CODEX-050 no expone eliminación de grupos.
 ### ContactImportPreview
 
 Es un artefacto técnico temporal con Evento, usuario creador, vencimiento, conteos, filas normalizadas,
-resultado de commit e idempotencia. Nunca conserva el archivo ni teléfonos sin normalizar. Un preview
-confirmado conserva el snapshot necesario para responder replays exactos; uno vencido y no confirmado se
-elimina en la limpieza programada.
+resultado de commit e idempotencia. Nunca conserva el archivo ni teléfonos sin normalizar.
+
+- pendiente: `normalizedRows` es un arreglo JSON cuya longitud coincide con `totalRows`; `committedAt`,
+  `commitIdempotencyKey`, `resultSnapshot` y `piiPurgedAt` son `NULL`;
+- confirmado: `committedAt`, `commitIdempotencyKey` y `resultSnapshot` existen, mientras
+  `normalizedRows` es `NULL`;
+- purgado: además de estar confirmado, `piiPurgedAt` identifica la fecha de redacción irreversible.
+
+Un preview vencido y no confirmado se elimina en la limpieza programada. Un preview confirmado no se
+elimina ni conserva las filas que sirvieron para crear Contactos.
 
 ## Ownership y estados
 
@@ -114,9 +121,12 @@ con `CONTACT_IMPORT_PREVIEW_TTL_SECONDS` y por defecto es de 1,800 segundos.
 
 El preview debe pertenecer al Evento autorizado, estar vigente, no contener filas inválidas y no haberse
 confirmado con otra llave. En una sola transacción se vuelven a resolver o crear grupos, se crean todos los
-Contactos, se registra auditoría y se confirma el preview.
+Contactos, se registra auditoría, se guarda el resultado y se descarta `normalizedRows`.
 
-- misma llave, Evento y preview: devuelve exactamente el resultado confirmado;
+- misma llave, Evento y preview antes de la retención de 30 días: devuelve exactamente el resultado
+  confirmado;
+- después de la retención, la misma llave devuelve el snapshot redactado; la privacidad prevalece sobre el
+  replay byte a byte y no se crean Contactos, grupos ni auditorías adicionales;
 - misma llave para otro Evento o preview: `409 CONTACT_IMPORT_IDEMPOTENCY_CONFLICT`;
 - preview vencido: `409 CONTACT_IMPORT_PREVIEW_EXPIRED`;
 - preview con errores: `409 CONTACT_IMPORT_HAS_INVALID_ROWS`;
@@ -139,18 +149,26 @@ Contactos, se registra auditoría y se confirma el preview.
 
 ## Auditoría y privacidad
 
-Todas las mutaciones se auditan dentro de la misma transacción. Los snapshots solo contienen identificadores,
-conteos, estado técnico y timestamps; nunca incluyen nombres, teléfonos, contenido CSV ni filas del preview.
+Todas las mutaciones se auditan dentro de la misma transacción. Los snapshots de auditoría solo contienen
+identificadores, conteos, estado técnico y timestamps; nunca incluyen nombres, teléfonos, contenido CSV ni
+filas del preview.
 
-Un proceso diario anonimiza Contactos de Eventos cuya fecha ocurrió hace 30 días o más, incluidos Contactos
-activos y eliminados:
+Un proceso diario anonimiza Contactos y snapshots confirmados de Eventos cuya fecha ocurrió hace 30 días o
+más, incluidos Contactos activos y eliminados:
 
 - `name = NULL`;
 - `whatsappPhoneNormalized = NULL`;
 - `anonymizedAt` queda establecido;
 - se conservan Evento, grupo, timestamps y métricas.
 
-La operación es idempotente y emite una sola auditoría `SYSTEM` agregada por Evento. En la misma limpieza se
+Cada `resultSnapshot.contacts[]` confirmado se redacta con `name = null`, `whatsappPhone = null` y
+`anonymizedAt`; conserva identificadores, `eventId`, `groupId`, timestamps, conteos y datos técnicos. El
+preview recibe `piiPurgedAt`. El proceso también detecta previews pendientes de purga aunque sus Contactos ya
+hubieran sido anonimizados.
+
+La operación es idempotente y emite una auditoría `SYSTEM` `CONTACTS_ANONYMIZED` por Evento y ejecución solo
+si cambió algún Contacto o preview. Su `afterData` contiene exactamente `eventId`, `contactsAnonymized`,
+`previewsRedacted`, `contactIds` y `previewIds`; no incluye PII, snapshots ni filas. En la misma limpieza se
 eliminan previews vencidos no confirmados y se registra una auditoría técnica agregada, sin PII.
 
 ## Invariantes PostgreSQL
@@ -161,9 +179,16 @@ eliminan previews vencidos no confirmados y se registra una auditoría técnica 
 - nombre visible limpio y no vacío;
 - teléfono E.164 cuando existe;
 - Contacto no anonimizado con nombre y teléfono; anonimizado con ambos en `NULL`;
-- conteos del preview entre 0 y 150 y consistentes con la longitud JSON;
-- confirmación del preview completamente nula o completamente establecida;
+- conteos del preview entre 0 y 150;
+- estado pendiente con filas JSON consistentes con `totalRows` y campos de confirmación y purga nulos;
+- estado confirmado con commit, llave y resultado establecidos, y `normalizedRows = NULL`;
+- `piiPurgedAt` solo en previews confirmados;
 - llave de idempotencia de commit globalmente única.
+
+Triggers PostgreSQL impiden modificar Evento, creador, llave o fecha de commit de un preview confirmado;
+reintroducir filas o PII después de la redacción; eliminar un preview confirmado; y ejecutar `TRUNCATE` sobre
+la tabla. El borrado de previews pendientes continúa permitido. La limpieza controlada de pruebas puede
+desactivar triggers dentro de su transacción mediante `session_replication_role = replica`.
 
 ## Alcance diferido
 

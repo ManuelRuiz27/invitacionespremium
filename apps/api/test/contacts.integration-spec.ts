@@ -71,6 +71,18 @@ describe('Contacts, groups, and CSV imports', () => {
       whatsappPhone: '+525512345678',
       groupId: family.body.id
     });
+    const updatedGroup = await mutate('patch', `/events/${event.id}/groups/${family.body.id}`, ownerCookie, {
+      name: 'Familia principal'
+    }).expect(200);
+    expect(updatedGroup.body.name).toBe('Familia principal');
+    const updatedContact = await mutate('patch', `/events/${event.id}/contacts/${created.body.id}`, ownerCookie, {
+      name: 'Persona Actualizada',
+      whatsappPhone: '+525598765432'
+    }).expect(200);
+    expect(updatedContact.body).toMatchObject({
+      name: 'Persona Actualizada',
+      whatsappPhone: '+525598765432'
+    });
     await mutate('patch', `/events/${event.id}/contacts/${created.body.id}`, ownerCookie, {
       groupId: otherGroup.body.id
     }).expect(404);
@@ -82,6 +94,15 @@ describe('Contacts, groups, and CSV imports', () => {
       .get(`/api/v1/events/${event.id}/contacts`)
       .set('Cookie', platformCookie)
       .expect(403);
+    await mutate('delete', `/events/${event.id}/contacts/${created.body.id}`, ownerCookie).expect(204);
+    const afterDelete = await request(app.getHttpServer())
+      .get(`/api/v1/events/${event.id}/contacts`)
+      .set('Cookie', ownerCookie)
+      .expect(200);
+    expect(afterDelete.body).toEqual([]);
+    expect(
+      await prisma.contact.findUnique({ where: { id: created.body.id }, select: { deletedAt: true } })
+    ).toMatchObject({ deletedAt: expect.any(Date) });
 
     await mutate(
       'post',
@@ -102,8 +123,28 @@ describe('Contacts, groups, and CSV imports', () => {
     const auditText = JSON.stringify(
       await prisma.auditLog.findMany({ where: { eventId: event.id }, select: { beforeData: true, afterData: true } })
     );
-    expect(auditText).not.toContain('Persona Ejemplo');
-    expect(auditText).not.toContain('+525512345678');
+    expect(auditText).not.toContain('Persona Actualizada');
+    expect(auditText).not.toContain('+525598765432');
+  });
+
+  it('limits organization planners to events they own inside their shared client', async () => {
+    const client = await prisma.client.create({
+      data: { type: ClientType.ORGANIZATION, name: `Organization ${randomUUID()}` }
+    });
+    const planner = await createUser(client.id, UserRole.ORGANIZATION_PLANNER);
+    const colleague = await createUser(client.id, UserRole.ORGANIZATION_PLANNER);
+    const ownEvent = await createEvent({ clientId: client.id, userId: planner.userId });
+    const colleagueEvent = await createEvent({ clientId: client.id, userId: colleague.userId });
+    const cookie = await login(planner.email);
+
+    await mutate('post', `/events/${ownEvent.id}/contacts`, cookie, {
+      name: 'Contacto propio',
+      whatsappPhone: '+525511111111'
+    }).expect(201);
+    await mutate('post', `/events/${colleagueEvent.id}/contacts`, cookie, {
+      name: 'Contacto ajeno',
+      whatsappPhone: '+525522222222'
+    }).expect(404);
   });
 
   it('previews without definitive writes and commits atomically with groups and exact idempotent replay', async () => {
@@ -145,6 +186,16 @@ describe('Contacts, groups, and CSV imports', () => {
     expect(await prisma.contact.count()).toBe(2);
     expect(await prisma.group.count()).toBe(2);
     expect(await prisma.auditLog.count({ where: { action: 'CONTACT_IMPORT_COMMIT' } })).toBe(1);
+    expect(
+      await prisma.contactImportPreview.findUnique({
+        where: { id: preview.body.previewId },
+        select: { normalizedRows: true, piiPurgedAt: true, resultSnapshot: true }
+      })
+    ).toEqual({
+      normalizedRows: null,
+      piiPurgedAt: null,
+      resultSnapshot: first.body
+    });
 
     const anotherPreview = await previewCsv(event.id, cookie, 'name,whatsapp_phone,group\nOtro,+525533333333,\n');
     await commit(event.id, outsiderCookie, anotherPreview.body.previewId, 'outsider-import-001').expect(404);
@@ -238,6 +289,23 @@ describe('Contacts, groups, and CSV imports', () => {
         whatsappPhoneNormalized: `+5255${String(index).padStart(8, '0')}`
       }))
     });
+    await prisma.contact.create({
+      data: {
+        eventId: event.id,
+        name: 'Deleted fixture',
+        whatsappPhoneNormalized: '+525588888888',
+        deletedAt: new Date()
+      }
+    });
+    const overCapacityImport = await previewCsv(
+      event.id,
+      cookie,
+      'name,whatsapp_phone,group\nImport A,+525599999981,Nuevo\nImport B,+525599999982,Nuevo\n'
+    ).expect(201);
+    await commit(event.id, cookie, overCapacityImport.body.previewId, 'over-capacity-import').expect(409);
+    expect(await prisma.contact.count({ where: { eventId: event.id, deletedAt: null } })).toBe(149);
+    expect(await prisma.group.count({ where: { eventId: event.id } })).toBe(0);
+
     const attempts = await Promise.all([
       mutate('post', `/events/${event.id}/contacts`, cookie, {
         name: 'Concurrent A',
@@ -250,22 +318,49 @@ describe('Contacts, groups, and CSV imports', () => {
     ]);
     expect(attempts.map(({ status }) => status).sort()).toEqual([201, 409]);
     expect(await prisma.contact.count({ where: { eventId: event.id, deletedAt: null } })).toBe(150);
+
+    const importEvent = await createEvent(owner);
+    await prisma.contact.createMany({
+      data: Array.from({ length: 148 }, (_, index) => ({
+        eventId: importEvent.id,
+        name: `Import fixture ${index}`,
+        whatsappPhoneNormalized: `+5266${String(index).padStart(8, '0')}`
+      }))
+    });
+    const previewA = await previewCsv(
+      importEvent.id,
+      cookie,
+      'name,whatsapp_phone,group\nConcurrent A1,+525577777771,\nConcurrent A2,+525577777772,\n'
+    ).expect(201);
+    const previewB = await previewCsv(
+      importEvent.id,
+      cookie,
+      'name,whatsapp_phone,group\nConcurrent B1,+525577777773,\nConcurrent B2,+525577777774,\n'
+    ).expect(201);
+    const concurrentImports = await Promise.all([
+      commit(importEvent.id, cookie, previewA.body.previewId, 'capacity-import-a'),
+      commit(importEvent.id, cookie, previewB.body.previewId, 'capacity-import-b')
+    ]);
+    expect(concurrentImports.map(({ status }) => status).sort()).toEqual([200, 409]);
+    expect(await prisma.contact.count({ where: { eventId: importEvent.id, deletedAt: null } })).toBe(150);
   });
 
-  it('anonymizes active and deleted contacts after 30 days, purges previews, and is idempotent', async () => {
+  it('redacts committed previews, preserves private replay, enforces database immutability, and purges pending rows', async () => {
     const owner = await createClientUser(UserRole.INDEPENDENT_PLANNER);
+    const otherOwner = await createClientUser(UserRole.INDEPENDENT_PLANNER);
     const oldDate = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000);
     const event = await createEvent(owner, oldDate);
-    await prisma.contact.createMany({
-      data: [
-        { eventId: event.id, name: 'Active PII', whatsappPhoneNormalized: '+525511111111' },
-        {
-          eventId: event.id,
-          name: 'Deleted PII',
-          whatsappPhoneNormalized: '+525522222222',
-          deletedAt: new Date()
-        }
-      ]
+    const otherEvent = await createEvent(otherOwner, oldDate);
+    const cookie = await login(owner.email);
+    const imported = await previewCsv(
+      event.id,
+      cookie,
+      'name,whatsapp_phone,group\nActive PII,+525511111111,Familia\nDeleted PII,+525522222222,Familia\n'
+    ).expect(201);
+    const original = await commit(event.id, cookie, imported.body.previewId, 'privacy-import-001').expect(200);
+    await prisma.contact.update({
+      where: { id: original.body.contacts[1].id },
+      data: { deletedAt: new Date() }
     });
     await prisma.contactImportPreview.create({
       data: {
@@ -279,19 +374,133 @@ describe('Contacts, groups, and CSV imports', () => {
       }
     });
 
-    expect(await contacts.anonymizeExpiredContacts()).toBe(2);
-    expect(await contacts.anonymizeExpiredContacts()).toBe(0);
+    expect(
+      await commit(event.id, cookie, imported.body.previewId, 'privacy-import-001').then(({ body }) => body)
+    ).toEqual(original.body);
+    const mutationCounts = {
+      contacts: await prisma.contact.count(),
+      groups: await prisma.group.count(),
+      commits: await prisma.auditLog.count({ where: { action: 'CONTACT_IMPORT_COMMIT' } })
+    };
+    const anonymizedAt = new Date();
+    expect(await contacts.anonymizeExpiredContacts(anonymizedAt)).toBe(3);
+    expect(await contacts.anonymizeExpiredContacts(anonymizedAt)).toBe(0);
     const stored = await prisma.contact.findMany({ where: { eventId: event.id } });
     expect(
       stored.every(
         ({ name, whatsappPhoneNormalized, anonymizedAt }) => !name && !whatsappPhoneNormalized && anonymizedAt
       )
     ).toBe(true);
-    expect(await prisma.contactImportPreview.count()).toBe(0);
+    const committedPreview = await prisma.contactImportPreview.findUniqueOrThrow({
+      where: { id: imported.body.previewId }
+    });
+    expect(committedPreview.normalizedRows).toBeNull();
+    expect(committedPreview.piiPurgedAt).toEqual(anonymizedAt);
+    const expectedRedacted = {
+      ...original.body,
+      contacts: original.body.contacts.map((contact: Record<string, unknown>) => ({
+        ...contact,
+        name: null,
+        whatsappPhone: null,
+        anonymizedAt: anonymizedAt.toISOString()
+      }))
+    };
+    expect(committedPreview.resultSnapshot).toEqual(expectedRedacted);
+    const replay = await commit(event.id, cookie, imported.body.previewId, 'privacy-import-001').expect(200);
+    expect(replay.body).toEqual(expectedRedacted);
+    expect(await prisma.contact.count()).toBe(mutationCounts.contacts);
+    expect(await prisma.group.count()).toBe(mutationCounts.groups);
+    expect(await prisma.auditLog.count({ where: { action: 'CONTACT_IMPORT_COMMIT' } })).toBe(mutationCounts.commits);
+    expect(await prisma.contactImportPreview.count({ where: { eventId: event.id, committedAt: null } })).toBe(0);
     expect(await prisma.auditLog.count({ where: { action: 'CONTACTS_ANONYMIZED', eventId: event.id } })).toBe(1);
+    const privacyAudit = await prisma.auditLog.findFirstOrThrow({
+      where: { action: 'CONTACTS_ANONYMIZED', eventId: event.id },
+      select: { afterData: true }
+    });
+    expect(privacyAudit.afterData).toEqual({
+      eventId: event.id,
+      contactsAnonymized: 2,
+      previewsRedacted: 1,
+      contactIds: expect.arrayContaining(stored.map(({ id }) => id)),
+      previewIds: [imported.body.previewId]
+    });
+    expect(Object.keys(privacyAudit.afterData as object).sort()).toEqual(
+      ['eventId', 'contactsAnonymized', 'previewsRedacted', 'contactIds', 'previewIds'].sort()
+    );
     const audit = JSON.stringify(await prisma.auditLog.findMany({ where: { eventId: event.id } }));
     expect(audit).not.toContain('Active PII');
     expect(audit).not.toContain('+525511111111');
+
+    await expect(
+      prisma.contactImportPreview.update({
+        where: { id: imported.body.previewId },
+        data: { eventId: otherEvent.id }
+      })
+    ).rejects.toThrow();
+    await expect(
+      prisma.contactImportPreview.update({
+        where: { id: imported.body.previewId },
+        data: { createdByUserId: otherOwner.userId }
+      })
+    ).rejects.toThrow();
+    await expect(
+      prisma.contactImportPreview.update({
+        where: { id: imported.body.previewId },
+        data: { commitIdempotencyKey: 'privacy-import-changed' }
+      })
+    ).rejects.toThrow();
+    await expect(
+      prisma.contactImportPreview.update({
+        where: { id: imported.body.previewId },
+        data: { committedAt: new Date(anonymizedAt.getTime() + 1000) }
+      })
+    ).rejects.toThrow();
+    await expect(
+      prisma.contactImportPreview.update({
+        where: { id: imported.body.previewId },
+        data: { resultSnapshot: original.body }
+      })
+    ).rejects.toThrow();
+    await expect(prisma.contactImportPreview.delete({ where: { id: imported.body.previewId } })).rejects.toThrow();
+    await expect(prisma.$executeRawUnsafe('TRUNCATE TABLE "contact_import_preview"')).rejects.toThrow();
+    expect(await prisma.contactImportPreview.findUnique({ where: { id: imported.body.previewId } })).toEqual(
+      committedPreview
+    );
+
+    const previewOnlyEvent = await createEvent(owner, oldDate);
+    const previewOnly = await previewCsv(
+      previewOnlyEvent.id,
+      cookie,
+      'name,whatsapp_phone,group\nAlready anonymous,+525533333333,\n'
+    ).expect(201);
+    const previewOnlyCommit = await commit(
+      previewOnlyEvent.id,
+      cookie,
+      previewOnly.body.previewId,
+      'preview-only-privacy'
+    ).expect(200);
+    await prisma.contact.updateMany({
+      where: { eventId: previewOnlyEvent.id },
+      data: { name: null, whatsappPhoneNormalized: null, anonymizedAt: new Date(anonymizedAt.getTime() - 1000) }
+    });
+    const later = new Date(anonymizedAt.getTime() + 1000);
+    expect(await contacts.anonymizeExpiredContacts(later)).toBe(1);
+    const previewOnlyStored = await prisma.contactImportPreview.findUniqueOrThrow({
+      where: { id: previewOnly.body.previewId }
+    });
+    expect(previewOnlyStored.piiPurgedAt).toEqual(later);
+    expect(previewOnlyStored.resultSnapshot).toEqual({
+      ...previewOnlyCommit.body,
+      contacts: previewOnlyCommit.body.contacts.map((contact: Record<string, unknown>) => ({
+        ...contact,
+        name: null,
+        whatsappPhone: null,
+        anonymizedAt: later.toISOString()
+      }))
+    });
+    expect(
+      await prisma.auditLog.count({ where: { action: 'CONTACTS_ANONYMIZED', eventId: previewOnlyEvent.id } })
+    ).toBe(1);
   });
 
   it('publishes all CODEX-050 endpoints in OpenAPI', () => {

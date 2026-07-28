@@ -204,10 +204,12 @@ pnpm turbo dev --filter=@invitaciones/client
 - grupos únicos por nombre normalizado dentro de cada Evento;
 - límite concurrente de 150 Contactos activos;
 - preview CSV temporal y commit transaccional idempotente;
-- auditoría sin PII y anonimización agregada después de 30 días;
+- descarte transaccional de filas normalizadas al confirmar;
+- auditoría sin PII y anonimización agregada de Contactos y snapshots después de 30 días;
+- replay redactado después de la retención y protección PostgreSQL contra reintroducir PII;
 - limpieza irreversible de previews vencidos.
 
-`CODEX-050` quedó completado.
+`CODEX-050` quedó completamente cerrado.
 
 La siguiente tarea es `CODEX-051 — Invitaciones y Asistentes nominales`.
 

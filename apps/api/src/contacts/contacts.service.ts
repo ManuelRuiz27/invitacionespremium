@@ -399,7 +399,8 @@ export class ContactsService {
           data: {
             committedAt: new Date(),
             commitIdempotencyKey: idempotencyKey,
-            resultSnapshot: serializeCommitResult(result)
+            resultSnapshot: serializeCommitResult(result),
+            normalizedRows: Prisma.DbNull
           }
         });
         await this.recordUserAudit(
@@ -439,7 +440,14 @@ export class ContactsService {
     const candidates = await this.prisma.event.findMany({
       where: {
         eventDateTime: { lte: threshold },
-        contacts: { some: { anonymizedAt: null } }
+        OR: [
+          { contacts: { some: { anonymizedAt: null } } },
+          {
+            contactImportPreviews: {
+              some: { committedAt: { not: null }, piiPurgedAt: null }
+            }
+          }
+        ]
       },
       select: { id: true }
     });
@@ -456,13 +464,31 @@ export class ContactsService {
           where: { eventId: event.id, anonymizedAt: null },
           select: { id: true }
         });
-        if (contacts.length === 0) {
+        const previews = await tx.contactImportPreview.findMany({
+          where: { eventId: event.id, committedAt: { not: null }, piiPurgedAt: null },
+          select: { id: true, resultSnapshot: true }
+        });
+        if (contacts.length === 0 && previews.length === 0) {
           return 0;
         }
-        await tx.contact.updateMany({
-          where: { id: { in: contacts.map(({ id }) => id) }, anonymizedAt: null },
-          data: { name: null, whatsappPhoneNormalized: null, anonymizedAt: at }
-        });
+        if (contacts.length > 0) {
+          await tx.contact.updateMany({
+            where: { id: { in: contacts.map(({ id }) => id) }, anonymizedAt: null },
+            data: { name: null, whatsappPhoneNormalized: null, anonymizedAt: at }
+          });
+        }
+        for (const preview of previews) {
+          if (!preview.resultSnapshot) {
+            throw new TypeError('A committed contact import preview has no result snapshot.');
+          }
+          await tx.contactImportPreview.update({
+            where: { id: preview.id },
+            data: {
+              resultSnapshot: redactCommitResultSnapshot(preview.resultSnapshot, at),
+              piiPurgedAt: at
+            }
+          });
+        }
         await this.audit.record(
           {
             actor: { type: AuditActorType.SYSTEM },
@@ -471,11 +497,17 @@ export class ContactsService {
             resourceId: event.id,
             clientId: event.clientId,
             eventId: event.id,
-            afterData: { eventId: event.id, count: contacts.length, contactIds: contacts.map(({ id }) => id) }
+            afterData: {
+              eventId: event.id,
+              contactsAnonymized: contacts.length,
+              previewsRedacted: previews.length,
+              contactIds: contacts.map(({ id }) => id),
+              previewIds: previews.map(({ id }) => id)
+            }
           },
           tx
         );
-        return contacts.length;
+        return contacts.length + previews.length;
       });
     }
 
@@ -744,7 +776,7 @@ function publicPreviewRow(row: StoredImportRow) {
   };
 }
 
-function parseStoredRows(value: Prisma.JsonValue): StoredImportRow[] {
+function parseStoredRows(value: Prisma.JsonValue | null): StoredImportRow[] {
   if (!Array.isArray(value)) {
     throw new TypeError('Contact import preview rows are invalid.');
   }
@@ -753,6 +785,27 @@ function parseStoredRows(value: Prisma.JsonValue): StoredImportRow[] {
 
 function serializeCommitResult(result: CommitImportResponseDto): Prisma.InputJsonObject {
   return JSON.parse(JSON.stringify(result)) as Prisma.InputJsonObject;
+}
+
+function redactCommitResultSnapshot(value: Prisma.JsonValue, at: Date): Prisma.InputJsonObject {
+  if (!value || Array.isArray(value) || typeof value !== 'object') {
+    throw new TypeError('A committed contact import result snapshot is invalid.');
+  }
+  const result = value as unknown as CommitImportResponseDto;
+  if (!Array.isArray(result.contacts)) {
+    throw new TypeError('A committed contact import result snapshot has no contacts.');
+  }
+  return JSON.parse(
+    JSON.stringify({
+      ...result,
+      contacts: result.contacts.map((contact) => ({
+        ...contact,
+        name: null,
+        whatsappPhone: null,
+        anonymizedAt: at.toISOString()
+      }))
+    })
+  ) as Prisma.InputJsonObject;
 }
 
 function deserializeCommitResult(value: Prisma.JsonValue): CommitImportResponseDto {
