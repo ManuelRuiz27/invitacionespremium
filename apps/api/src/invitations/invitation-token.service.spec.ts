@@ -26,6 +26,9 @@ describe('InvitationTokenService', () => {
     expect(service.verify('INVITATION', qr)).toBeNull();
     expect(invitation).not.toContain('name');
     expect(service.invitationLink(invitationId, invitationNonce)).toContain(invitation);
+
+    const rotated = service.issue('QR', invitationId, qrNonce, 2);
+    expect(service.verify('QR', rotated)).toEqual({ invitationId, nonce: qrNonce, version: 2 });
   });
 
   it('verifies production tokens only across instances sharing the same secret', () => {
@@ -39,6 +42,11 @@ describe('InvitationTokenService', () => {
 
     expect(second.verify('INVITATION', token)).toEqual({ invitationId, nonce, version: 1 });
     expect(unrelated.verify('INVITATION', token)).toBeNull();
+  });
+
+  it('rejects a correctly signed token whose resource id is not a UUID', () => {
+    const token = service.issue('QR', 'not-a-uuid', service.createNonce());
+    expect(service.verify('QR', token)).toBeNull();
   });
 });
 

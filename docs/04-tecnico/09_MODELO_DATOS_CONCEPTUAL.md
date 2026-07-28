@@ -208,9 +208,15 @@ No mezclar Confirmación con estado del Evento.
 
 Pertenece a Invitación.
 
-Contiene token opaco o URL controlada; no contiene teléfono ni nombre en texto.
+No es una entidad ni un archivo persistido. El backend deriva bajo demanda un token opaco firmado con
+propósito `QR` a partir de `Invitation.id`, `qrTokenNonce` y `qrTokenVersion`, y lo codifica en SVG. El
+token y el SVG no contienen teléfono ni nombre en texto y no son intercambiables con el token de
+Invitación.
 
 Solo es operativo con Evento `active` o `event_day` e Invitación confirmada.
+
+La validación interna vuelve a comprobar Evento, Contacto, Invitación, principal y Asistentes activos. El
+check-in posterior pertenece a cada Asistente; no existe QR individual por Asistente.
 
 ## Check-in
 

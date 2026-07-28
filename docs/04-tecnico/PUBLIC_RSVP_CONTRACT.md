@@ -6,8 +6,8 @@
 `CODEX-070`. Reutiliza `InvitationTokenService`, Invitación, Asistente, diseño, FileAsset,
 `EventAccessPolicy`, auditoría y transacciones críticas. No crea una entidad RSVP.
 
-Quedan fuera `CODEX-071`, generación o entrega de QR, scanner, `StaffToken`, check-in, frontend, mesas,
-Álbum, WhatsApp y upgrade.
+`CODEX-071` agrega generación y entrega de QR mediante `InvitationQrService` y se rige por
+`QR_CONTRACT.md`. Quedan fuera scanner, `StaffToken`, check-in, frontend, mesas, Álbum, WhatsApp y upgrade.
 
 ## Configuración del Evento
 
@@ -62,6 +62,28 @@ y Hotspots con destino resuelto. Cuando está cerrada usa:
 
 No expone teléfono, `contactId`, `clientId`, claves o rutas de storage, checksum, nonce, token QR,
 finanzas, cookies ni datos de otra Invitación.
+
+Las vistas `AVAILABLE` incluyen `qr`. Para Invitaciones `PENDING` o `REJECTED` contiene únicamente
+`available: false`. Para una Invitación `CONFIRMED`, no cancelada y nominalmente coherente en Evento
+`ACTIVE` o `EVENT_DAY`, contiene `available: true` y un `contentPath` inmediatamente consumible hacia
+`/api/v1/public/invitations/<token-codificado>/qr.svg`. Cerrar la Confirmación no oculta el QR ya
+confirmado. Las vistas `CANCELLED` y `CLOSED` no incluyen información QR.
+
+## QR SVG
+
+`GET /api/v1/public/invitations/:invitationToken/qr.svg` verifica el token de Invitación y bloquea Evento
+→ Invitación en una transacción `Serializable`. Solo entrega el SVG si la Invitación está confirmada, el
+principal existe, todos los Asistentes activos están confirmados y Evento, Contacto e Invitación siguen
+activos. El payload codificado usa exclusivamente el propósito `QR`, nonce y versión existentes.
+
+El SVG se genera bajo demanda y no se almacena como FileAsset. Usa corrección `M`, margen de cuatro
+módulos, `512 × 512`, colores `#111827`/`#FFFFFF` y validación defensiva de estructura. Responde con
+`image/svg+xml; charset=utf-8`, longitud, ETag SHA-256, disposición inline, `private, no-store`,
+`nosniff`, `no-referrer` y `Content-Security-Policy: default-src 'none'`.
+
+`InvitationQrService.resolveQrToken()` queda exportado para CODEX-081, sin endpoint HTTP. Valida propósito,
+firma, nonce, versión, estados y coherencia nominal y devuelve únicamente `eventId`/`invitationId` o
+`null`. Detalle normativo en `QR_CONTRACT.md`.
 
 ## Assets del diseño
 
@@ -190,8 +212,10 @@ la operación.
 - `RSVP_ASSISTANT_MISMATCH`;
 - `RSVP_INVITATION_CANCELLED`;
 - `RSVP_EVENT_CANCELLED`;
-- `RSVP_EVENT_STATE_INVALID`.
-- `FILE_STORAGE_FAILURE`.
+- `RSVP_EVENT_STATE_INVALID`;
+- `FILE_STORAGE_FAILURE`;
+- `QR_NOT_AVAILABLE`;
+- `QR_GENERATION_FAILURE`.
 
 Close y reopen son naturalmente idempotentes, por lo que devuelven el estado actual en vez de
 `CONFIRMATION_ALREADY_OPEN` o `CONFIRMATION_ALREADY_CLOSED`.

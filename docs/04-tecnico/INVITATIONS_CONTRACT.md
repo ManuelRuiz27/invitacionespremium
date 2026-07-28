@@ -4,8 +4,8 @@
 
 `InvitationsModule`, dentro de `apps/api`, administra una Invitación por Contacto y sus Asistentes
 nominales. La creación del agregado se integra transaccionalmente con las altas manuales y CSV de
-`ContactsModule`. Este contrato no habilita RSVP público, generación o consulta pública de QR, diseño,
-archivos, WhatsApp, mesas, check-in ni frontend.
+`ContactsModule`. La generación y consulta pública de QR se especializa en `QR_CONTRACT.md`; este contrato
+no habilita diseño, archivos persistidos para QR, WhatsApp, mesas, check-in ni frontend.
 
 ## Modelos
 
@@ -146,8 +146,9 @@ diseño activo, páginas y Hotspots autorizados, además de la apertura de Confi
 `POST /confirm`, `POST /reject` y `PATCH /assistants` reconcilian nominalmente principal y acompañantes
 activos en una transacción `Serializable`, respetando límite y capacidad global. `PUT
 /events/:eventId/invitations/:invitationId/confirmation` permite el override del usuario operativo incluso
-con Confirmación pública cerrada. Ninguna operación genera o entrega QR. Detalle en
-`PUBLIC_RSVP_CONTRACT.md`.
+con Confirmación pública cerrada. Confirmar no escribe material QR nuevo: hace disponible el nonce ya
+aprovisionado, y `InvitationQrService` genera el SVG bajo demanda. Detalle en `PUBLIC_RSVP_CONTRACT.md` y
+`QR_CONTRACT.md`.
 
 ## Privacidad y auditoría
 
@@ -182,5 +183,5 @@ agregado completo en una sola transacción sin observar estados intermedios inv�
 
 ## Alcance diferido
 
-Quedan fuera generación o endpoint de QR, WhatsApp, `StaffToken`, check-in, mesas, Álbum, frontend y
-efectos financieros propios de RSVP.
+Quedan fuera QR por Asistente, persistencia del SVG, WhatsApp, `StaffToken`, scanner, check-in, mesas,
+Álbum, frontend y efectos financieros propios de RSVP.

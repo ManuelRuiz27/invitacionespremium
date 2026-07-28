@@ -78,6 +78,13 @@ El contrato completo está en `SERVICE_UPGRADE_FLOW.md` y prevalece para este wo
 - Una Invitación cancelada no permite Confirmación, modificación de Asistentes ni acceso al QR.
 - QR de Invitación pertenece a Invitación.
 - Check-in es por Asistente.
+- El SVG se genera bajo demanda en backend y no se persiste como FileAsset.
+- Su payload es únicamente el token técnico de propósito `QR`; no contiene PII ni el token de Invitación.
+- Cerrar la Confirmación no oculta el QR de una Invitación ya confirmada.
+- Solo `active` y `event_day` permiten entregar y validar el QR; cierre, cancelación, archivado o borrado
+  lógico lo bloquean.
+- Rechazar no rota el nonce. Si la Confirmación sigue abierta, reconfirmar restaura exactamente el mismo
+  QR.
 
 ## Link reenviado
 

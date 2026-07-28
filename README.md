@@ -287,8 +287,21 @@ posterior al primer `?` y verifica filas heredadas antes de instalar la polític
 casos se ejecuta para `locationUrl` y `giftRegistryUrl` contra normalizador, DTO/API, `INSERT` y `UPDATE`.
 La aplicación normaliza mediante `URL.href`; PostgreSQL solo valida y conserva el texto recibido.
 
-`CODEX-070` quedó completamente cerrado. La siguiente tarea continúa siendo
-`CODEX-071 — Generación de QR SVG`; no fue iniciada.
+`CODEX-070` quedó completamente cerrado.
+
+`CODEX-071` agregó la generación y entrega controlada del QR SVG:
+
+- un QR determinista por Invitación confirmada, generado bajo demanda y sin persistencia;
+- token técnico con propósito `QR`, separado y no intercambiable con el token de Invitación;
+- proyección pública `qr.available`/`contentPath` y endpoint privado por token
+  `GET /api/v1/public/invitations/:invitationToken/qr.svg`;
+- SVG vectorial validado defensivamente, sin PII, token visible, scripts, metadata ni referencias externas;
+- resolución interna reutilizable por el scanner futuro, sin endpoint público de validación;
+- locks Evento → Invitación, estados/cancelación/borrado lógico y carreras serializadas;
+- headers privados, CSP restrictiva, ETag determinista y decodificación independiente probada.
+
+`CODEX-071` quedó completamente cerrado. La siguiente tarea es `CODEX-080 — Tokens staff`; no fue
+iniciada.
 
 ## Fuente de verdad
 

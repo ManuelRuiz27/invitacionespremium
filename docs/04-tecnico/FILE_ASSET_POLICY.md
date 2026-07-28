@@ -16,7 +16,8 @@ Todos los archivos deben pasar por API. Ningún frontend guarda archivos directa
 | Croquis | JPG/PNG | 1 archivo activo por Evento |
 | Foto de álbum | JPG/PNG | Máximo 35 por Álbum |
 | Reporte PDF | PDF generado por sistema | Bajo demanda |
-| QR Invitación/Pase | SVG generado por backend | Uno por recurso correspondiente |
+| QR Invitación | SVG generado bajo demanda por backend | Uno derivado por Invitación; no se persiste como FileAsset |
+| QR Pase físico | SVG generado por backend | Uno por recurso correspondiente; implementación futura |
 
 PDF subido por usuario se rechaza en MVP temprano. La conversión de PDF de una página a imagen queda fuera del alcance inicial.
 
@@ -76,12 +77,14 @@ No se permite:
 - cambiar `owner_id` después de publicar sin una operación explícita y auditada;
 - utilizar un `file_type` incompatible con su `owner_type`.
 
-Ejemplos válidos:
+Ejemplos válidos para archivos que sí se persisten:
 
 - `owner_type=FLYER` + `file_type=FLYER_INITIAL_IMAGE`;
 - `owner_type=FLYER` + `file_type=FLYER_QR_IMAGE`;
-- `owner_type=INVITATION` + `file_type=INVITATION_QR_SVG`;
 - `owner_type=GENERATED_REPORT` + `file_type=GENERATED_REPORT_PDF`.
+
+`INVITATION_QR_SVG` permanece como tipo conceptual reservado, pero CODEX-071 no crea el FileAsset: el
+SVG de Invitación se deriva bajo demanda. No debe agregarse una fila o bytes de storage para materializarlo.
 
 ## Campos mínimos de FileAsset
 
@@ -265,6 +268,7 @@ Nunca borrar primero el archivo anterior y después intentar subir el nuevo.
 ### QR SVG
 
 - Se genera en backend.
+- El QR de Invitación se genera bajo demanda y no se persiste en FileAsset, disco o PostgreSQL.
 - El SVG no debe contener datos sensibles visibles en texto.
 - El contenido codificado debe ser token opaco o URL controlada.
 - QR de Invitación y QR de Pase físico usan propósitos y tokens distintos.

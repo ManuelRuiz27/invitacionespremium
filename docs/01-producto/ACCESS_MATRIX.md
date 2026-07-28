@@ -176,7 +176,7 @@ Un token no puede reutilizarse como otro tipo de acceso.
 | `POST /public/invitations/:token/confirm` | Token válido, Evento `active` o `event_day`, Confirmación abierta, cupo y límites de Invitación. |
 | `POST /public/invitations/:token/reject` | Token válido, Evento `active` o `event_day` y Confirmación abierta. |
 | `PATCH /public/invitations/:token/assistants` | Token válido, Evento `active` o `event_day`, Confirmación abierta y límites permitidos. |
-| `GET /public/invitations/:token/qr` | Token válido, Evento `active` o `event_day` e Invitación confirmada. |
+| `GET /public/invitations/:token/qr.svg` | Token de Invitación válido, Evento `active` o `event_day`, Invitación confirmada y agregado nominal activo/coherente. Genera el SVG bajo demanda; no valida públicamente el token QR. |
 | `GET /public/albums/:albumToken` | Token de Álbum separado, Evento `album_published`, token no expirado e Invitación asociada con al menos un Asistente ingresado. |
 | `GET /scanner/:staffToken/session` | Token Staff válido y Evento `active` o `event_day`. |
 | `POST /scanner/:staffToken/scan` | Token válido, Evento `active` o `event_day` y QR perteneciente al mismo Evento. |

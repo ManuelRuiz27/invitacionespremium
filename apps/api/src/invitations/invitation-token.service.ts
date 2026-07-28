@@ -28,13 +28,18 @@ export class InvitationTokenService {
     const parts = token.split('.');
     if (parts.length !== 4) return null;
     const [prefixAndVersion, invitationId, nonce, signature] = parts;
-    const expectedPrefix = purpose === 'INVITATION' ? 'ip1' : 'qr1';
+    const prefixMatch = /^(ip|qr)([1-9][0-9]*)$/u.exec(prefixAndVersion ?? '');
+    const expectedPrefix = purpose === 'INVITATION' ? 'ip' : 'qr';
+    const version = Number(prefixMatch?.[2]);
     if (
       !prefixAndVersion ||
       !nonce ||
       !signature ||
-      prefixAndVersion !== expectedPrefix ||
+      prefixMatch?.[1] !== expectedPrefix ||
+      !Number.isSafeInteger(version) ||
+      version > 2_147_483_647 ||
       !invitationId ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(invitationId) ||
       !/^[0-9a-f]{64}$/u.test(nonce) ||
       !/^[A-Za-z0-9_-]{43}$/u.test(signature)
     ) {
@@ -47,7 +52,7 @@ export class InvitationTokenService {
     if (actualBuffer.length !== expectedBuffer.length || !timingSafeEqual(actualBuffer, expectedBuffer)) {
       return null;
     }
-    return { invitationId, nonce, version: 1 };
+    return { invitationId, nonce, version };
   }
 
   invitationLink(invitationId: string, nonce: string, version = 1): string {

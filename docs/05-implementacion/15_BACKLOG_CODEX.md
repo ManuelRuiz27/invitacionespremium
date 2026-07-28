@@ -587,6 +587,8 @@ El hardening final de controles URL, entrega privada y concurrencia quedó cerra
 
 ### CODEX-071 — Generación de QR SVG
 
+**Estado:** COMPLETADO
+
 **Repo:** `invitacionespremium-api`
 
 **Módulos:** `PublicRsvpModule`, QR service
@@ -606,6 +608,21 @@ El hardening final de controles URL, entrega privada y concurrencia quedó cerra
 - QR pertenece a una Invitación;
 - no es visible antes de confirmar;
 - token cancelado deja de validar.
+
+**Implementado**
+
+- `InvitationQrService` integrado en `PublicRsvpModule`, sin entidad, tabla, FileAsset ni persistencia;
+- payload exacto emitido por `InvitationTokenService` con propósito `QR`, nonce y versión existentes;
+- proyección `qr.available`/`contentPath` en la vista pública;
+- `GET /public/invitations/:invitationToken/qr.svg` con SVG determinista y headers privados/CSP;
+- validación defensiva contra elementos activos, metadata, referencias externas, PII y token visible;
+- `resolveQrToken()` interno para CODEX-081, sin endpoint público;
+- estados, cancelación, borrado lógico y coherencia nominal revalidados bajo locks Evento → Invitación;
+- carreras confirm/reject/cancel/close/reconfirm/lecturas serializadas con barreras verificables;
+- escaneabilidad comprobada mediante rasterización `sharp` y decodificación independiente `jsQR`;
+- 22 migraciones existentes suficientes; no se persisten SVG ni tokens completos.
+
+`CODEX-080` permanece sin iniciar.
 
 ---
 

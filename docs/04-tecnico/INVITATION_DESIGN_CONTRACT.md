@@ -220,6 +220,8 @@ prioridad. `LOCATION` y `GIFT_REGISTRY` resuelven los destinos congelados del Ev
 la URL del Hotspot. La respuesta omite storage, checksum, nonces y contenido interno.
 
 Los bytes se entregan solo por el endpoint público controlado de `PUBLIC_RSVP_CONTRACT.md`; no existe
-bucket público ni se genera o entrega QR. Cada asset de Flyer y cada página de Flipbook lleva un
+bucket público. CODEX-071 genera el QR de Invitación por separado y bajo demanda conforme a
+`QR_CONTRACT.md`; no convierte el asset visual `FLYER_QR_IMAGE` en el QR técnico. Cada asset de Flyer y
+cada página de Flipbook lleva un
 `contentPath` listo para consumir que incorpora el token actual codificado y el UUID del asset; nunca
 usa `{invitationToken}` ni otra plantilla pendiente de sustitución.

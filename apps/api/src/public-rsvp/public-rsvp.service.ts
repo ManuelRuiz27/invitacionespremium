@@ -25,6 +25,7 @@ import type {
   RsvpMutationResponseDto,
   RsvpOverrideInput
 } from './public-rsvp.dto';
+import { isInvitationQrAvailable } from './invitation-qr.service';
 
 const OPERATIONAL_STATUSES = new Set<EventStatus>([EventStatus.ACTIVE, EventStatus.EVENT_DAY]);
 const CLOSED_MESSAGE = 'La confirmación de asistencia ya fue cerrada. Contacta al organizador.';
@@ -492,6 +493,12 @@ export class PublicRsvpService {
         open: event.confirmationEnabled && !event.confirmationClosedAt,
         ...(event.confirmationClosedAt ? { message: CLOSED_MESSAGE } : {})
       },
+      qr: isInvitationQrAvailable(invitation)
+        ? {
+            available: true,
+            contentPath: `/api/v1/public/invitations/${encodedToken}/qr.svg`
+          }
+        : { available: false },
       ...(design
         ? {
             designType: design.type,

@@ -215,6 +215,18 @@ export class PublicRsvpDesignResponseDto {
   hotspots!: PublicRsvpHotspotResponseDto[];
 }
 
+export class PublicInvitationQrResponseDto {
+  @ApiProperty({ type: Boolean })
+  available!: boolean;
+
+  @ApiPropertyOptional({
+    type: String,
+    description: 'Immediately fetchable invitation-scoped QR SVG path containing the current URL-encoded token.',
+    example: '/api/v1/public/invitations/ip1.example/qr.svg'
+  })
+  contentPath?: string;
+}
+
 export class PublicInvitationViewResponseDto {
   @ApiProperty({ enum: ['AVAILABLE', 'CANCELLED', 'CLOSED'] })
   status!: 'AVAILABLE' | 'CANCELLED' | 'CLOSED';
@@ -239,6 +251,9 @@ export class PublicInvitationViewResponseDto {
 
   @ApiPropertyOptional({ type: PublicRsvpDesignResponseDto })
   design?: PublicRsvpDesignResponseDto;
+
+  @ApiPropertyOptional({ type: PublicInvitationQrResponseDto })
+  qr?: PublicInvitationQrResponseDto;
 }
 
 export function parseRsvpAssistants(value: unknown): RsvpAssistantsInput {

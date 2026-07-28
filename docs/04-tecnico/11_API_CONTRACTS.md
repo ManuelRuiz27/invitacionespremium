@@ -243,17 +243,23 @@ Endpoints públicos con token de Invitación:
 - `POST /public/invitations/:invitationToken/confirm`
 - `POST /public/invitations/:invitationToken/reject`
 - `PATCH /public/invitations/:invitationToken/assistants`
-- `GET /public/invitations/:invitationToken/qr`
+- `GET /public/invitations/:invitationToken/qr.svg`
 
 Restricciones:
 
 - `GET` puede renderizar el mensaje de cancelación para Evento o Invitación cancelados;
 - Confirmación, rechazo y edición pública requieren Evento `active` o `event_day` y Confirmación abierta;
-- QR requiere Evento `active` o `event_day` e Invitación confirmada;
+- QR requiere Evento `active` o `event_day`, Invitación confirmada y agregado nominal coherente;
 - Evento `closed` bloquea Confirmación/QR operativo;
 - Evento `archived` o recurso con borrado lógico no expone contenido;
 - token de Invitación no funciona como token de Álbum, Staff o QR;
 - auditoría identifica actor `PUBLIC_TOKEN` sin almacenar el secreto.
+
+La vista `AVAILABLE` proyecta `qr.available`; solo agrega `contentPath` cuando el QR está disponible.
+`qr.svg` genera bytes vectoriales deterministas bajo demanda, no persiste FileAsset y devuelve cache
+privado, `nosniff`, `no-referrer`, CSP `default-src 'none'` y ETag SHA-256. El token QR se emite
+internamente con propósito `QR` y nunca aparece en JSON, headers, errores o texto SVG. Contrato normativo:
+`QR_CONTRACT.md`.
 
 ## FloorplanModule
 
@@ -460,6 +466,7 @@ Rutas públicas por token:
 
 - `GET /public/invitations/:invitationToken`;
 - `GET /public/invitations/:invitationToken/assets/:fileAssetId/content`;
+- `GET /public/invitations/:invitationToken/qr.svg`;
 - `POST /public/invitations/:invitationToken/confirm`;
 - `POST /public/invitations/:invitationToken/reject`;
 - `PATCH /public/invitations/:invitationToken/assistants`.
@@ -490,3 +497,7 @@ Las once carreras de RSVP usan una barrera posterior a los locks de la primera o
 explícita de que la competidora alcanzó el método que ejecuta `SELECT ... FOR UPDATE`. No dependen de
 `nextTick`, sleeps, temporizadores ni lógica de producción exclusiva de pruebas.
 Contrato normativo: `PUBLIC_RSVP_CONTRACT.md`.
+
+`InvitationQrService` reutiliza el orden Evento → Invitación y las transacciones críticas para generar el
+SVG solo en `ACTIVE`/`EVENT_DAY` y resolver internamente tokens de propósito `QR`. No crea endpoint de
+scanner ni validación pública del token QR. Contrato normativo: `QR_CONTRACT.md`.

@@ -8,6 +8,7 @@ import type { AuthenticatedRequest, AuthPrincipal } from '../auth/auth.types';
 import { parseEventId } from '../events/events.dto';
 import { UserRole } from '../generated/prisma/client';
 import { parseInvitationId } from '../invitations/invitations.dto';
+import { InvitationQrService } from './invitation-qr.service';
 import {
   ConfirmationStateResponseDto,
   PublicInvitationViewResponseDto,
@@ -24,7 +25,10 @@ import { PublicRsvpService } from './public-rsvp.service';
 @PublicRoute()
 @Controller('public/invitations')
 export class PublicRsvpController {
-  constructor(@Inject(PublicRsvpService) private readonly rsvp: PublicRsvpService) {}
+  constructor(
+    @Inject(PublicRsvpService) private readonly rsvp: PublicRsvpService,
+    @Inject(InvitationQrService) private readonly invitationQr: InvitationQrService
+  ) {}
 
   @Get(':invitationToken')
   @ApiOkResponse({ type: PublicInvitationViewResponseDto })
@@ -59,6 +63,35 @@ export class PublicRsvpController {
     response.setHeader('Cache-Control', 'private, no-store');
     response.setHeader('X-Content-Type-Options', 'nosniff');
     response.setHeader('Referrer-Policy', 'no-referrer');
+    response.end(content.bytes);
+  }
+
+  @Get(':invitationToken/qr.svg')
+  @ApiProduces('image/svg+xml')
+  @ApiOkResponse({
+    description: 'Deterministic invitation QR SVG generated on demand.',
+    content: { 'image/svg+xml': { schema: { type: 'string', format: 'binary' } } },
+    headers: {
+      'Content-Type': { schema: { type: 'string', example: 'image/svg+xml; charset=utf-8' } },
+      'Content-Length': { schema: { type: 'integer' } },
+      ETag: { schema: { type: 'string' } },
+      'Content-Disposition': { schema: { type: 'string', example: 'inline' } },
+      'Cache-Control': { schema: { type: 'string', example: 'private, no-store' } },
+      'X-Content-Type-Options': { schema: { type: 'string', example: 'nosniff' } },
+      'Referrer-Policy': { schema: { type: 'string', example: 'no-referrer' } },
+      'Content-Security-Policy': { schema: { type: 'string', example: "default-src 'none'" } }
+    }
+  })
+  async qrSvg(@Param('invitationToken') token: string, @Res() response: Response): Promise<void> {
+    const content = await this.invitationQr.getSvg(token);
+    response.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
+    response.setHeader('Content-Length', String(content.bytes.length));
+    response.setHeader('ETag', content.etag);
+    response.setHeader('Content-Disposition', 'inline');
+    response.setHeader('Cache-Control', 'private, no-store');
+    response.setHeader('X-Content-Type-Options', 'nosniff');
+    response.setHeader('Referrer-Policy', 'no-referrer');
+    response.setHeader('Content-Security-Policy', "default-src 'none'");
     response.end(content.bytes);
   }
 
