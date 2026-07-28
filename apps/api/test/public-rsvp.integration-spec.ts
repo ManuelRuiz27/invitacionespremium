@@ -220,6 +220,66 @@ describe('Public RSVP', () => {
       .expect(({ body }) => expect(body.code).toBe('RSVP_INVITATION_CANCELLED'));
   });
 
+  it('serializes modification/close, reduction/increase and confirmation/cancellation races', async () => {
+    const modification = await createFixture({ capacity: 4 });
+    const modificationCookie = await login(modification.email);
+    const confirmed = await publicPost(modification.token, 'confirm', {
+      additionalAssistants: [{ name: 'Extra inicial' }]
+    }).expect(200);
+    const extraId = (confirmed.body.assistants as Array<{ id: string; isPrimary: boolean }>).find(
+      ({ isPrimary }) => !isPrimary
+    )!.id;
+
+    const modificationAgainstClose = await Promise.all([
+      publicPatch(modification.token, { additionalAssistants: [] }),
+      authPost(`/events/${modification.eventId}/confirmation/close`, modificationCookie)
+    ]);
+    expect(modificationAgainstClose.every(({ status }) => [200, 409].includes(status))).toBe(true);
+    const closedEvent = await prisma.event.findUniqueOrThrow({ where: { id: modification.eventId } });
+    expect(Boolean(closedEvent.confirmationClosedAt)).toBe(Boolean(closedEvent.confirmationClosedByUserId));
+    const afterCloseRace = await prisma.invitation.findUniqueOrThrow({
+      where: { id: modification.invitationId },
+      include: { assistants: { where: { deletedAt: null } } }
+    });
+    expect(
+      afterCloseRace.assistants.every(
+        ({ responseStatus }) => responseStatus === (afterCloseRace.responseStatus as unknown as AssistantResponseStatus)
+      )
+    ).toBe(true);
+
+    await authPost(`/events/${modification.eventId}/confirmation/reopen`, modificationCookie).expect(200);
+    if (!(await prisma.assistant.findFirst({ where: { id: extraId, deletedAt: null } }))) {
+      const restored = await publicPost(modification.token, 'confirm', {
+        additionalAssistants: [{ name: 'Extra para carrera' }]
+      }).expect(200);
+      const activeExtra = (restored.body.assistants as Array<{ id: string; isPrimary: boolean }>).find(
+        ({ isPrimary }) => !isPrimary
+      )!.id;
+      await runReductionAgainstIncrease(modification, activeExtra);
+    } else {
+      await runReductionAgainstIncrease(modification, extraId);
+    }
+
+    const cancellation = await createFixture({ capacity: 2 });
+    const cancellationCookie = await login(cancellation.email);
+    const confirmationAgainstCancellation = await Promise.all([
+      publicPost(cancellation.token, 'confirm', { additionalAssistants: [] }),
+      authCancel(cancellation.eventId, cancellation.invitationId, cancellationCookie)
+    ]);
+    expect([200, 409]).toContain(confirmationAgainstCancellation[0].status);
+    expect(confirmationAgainstCancellation[1].status).toBe(200);
+    const cancelled = await prisma.invitation.findUniqueOrThrow({
+      where: { id: cancellation.invitationId },
+      include: { assistants: { where: { deletedAt: null } } }
+    });
+    expect(cancelled.cancelledAt).not.toBeNull();
+    expect(
+      cancelled.assistants.every(
+        ({ responseStatus }) => responseStatus === (cancelled.responseStatus as unknown as AssistantResponseStatus)
+      )
+    ).toBe(true);
+  });
+
   it('serves only a currently referenced READY asset with private headers and hides cross-event assets', async () => {
     const fixture = await createFixture({ capacity: 2, withDesign: true });
     const asset = await prisma.fileAsset.findFirstOrThrow({ where: { eventId: fixture.eventId } });
@@ -489,6 +549,37 @@ describe('Public RSVP', () => {
       .set('Cookie', cookie)
       .set('Idempotency-Key', `rsvp-cancel-${randomUUID()}`)
       .send({});
+  }
+
+  async function runReductionAgainstIncrease(
+    fixture: { token: string; eventId: string; invitationId: string },
+    extraId: string
+  ) {
+    const results = await Promise.all([
+      publicPatch(fixture.token, { additionalAssistants: [] }),
+      publicPatch(fixture.token, {
+        additionalAssistants: [{ id: extraId, name: 'Extra conservado' }, { name: 'Extra aumentado' }]
+      })
+    ]);
+    expect(results.every(({ status }) => [200, 409].includes(status))).toBe(true);
+    expect(results.some(({ status }) => status === 200)).toBe(true);
+    const invitation = await prisma.invitation.findUniqueOrThrow({
+      where: { id: fixture.invitationId },
+      include: { assistants: { where: { deletedAt: null } } }
+    });
+    expect(invitation.assistants.length).toBeLessThanOrEqual(3);
+    expect(
+      invitation.assistants.every(({ responseStatus }) => responseStatus === AssistantResponseStatus.CONFIRMED)
+    ).toBe(true);
+    expect(
+      await prisma.assistant.count({
+        where: {
+          eventId: fixture.eventId,
+          deletedAt: null,
+          responseStatus: AssistantResponseStatus.CONFIRMED
+        }
+      })
+    ).toBeLessThanOrEqual(4);
   }
 
   async function resetDatabase() {
