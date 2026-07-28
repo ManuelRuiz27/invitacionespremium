@@ -175,6 +175,30 @@ enum FileAssetStatus {
   @@map("file_asset_status")
 }
 
+enum InvitationDesignType {
+  FLYER
+  FLIPBOOK
+
+  @@map("invitation_design_type")
+}
+
+enum HotspotVisualOwnerType {
+  FLYER
+  FLIPBOOK_PAGE
+
+  @@map("hotspot_visual_owner_type")
+}
+
+enum HotspotAction {
+  RSVP
+  LOCATION
+  GIFT_REGISTRY
+  QR_AREA
+  EXTERNAL_LINK
+
+  @@map("hotspot_action")
+}
+
 enum StorageProvider {
   LOCAL
 
@@ -510,6 +534,7 @@ model Event {
   invitations                     Invitation[]
   assistants                      Assistant[]
   fileAssets                      FileAsset[]
+  invitationDesigns               InvitationDesign[]
 
   @@index([clientId, status, deletedAt])
   @@index([createdByUserId, status, deletedAt])
@@ -543,11 +568,76 @@ model FileAsset {
   client          Client             @relation(fields: [clientId], references: [id], onDelete: Restrict)
   event           Event              @relation(fields: [eventId], references: [id], onDelete: Restrict)
   createdByUser   User               @relation("FileAssetCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  flyerInitialFor InvitationDesign[] @relation("FlyerInitialAsset")
+  flyerQrFor      InvitationDesign[] @relation("FlyerQrAsset")
+  flipbookPages   FlipbookPage[]
 
   @@index([clientId, eventId, status, deletedAt])
   @@index([eventId, ownerType, ownerId])
   @@index([status, ownerId, createdAt])
   @@map("file_asset")
+}
+
+model InvitationDesign {
+  id                  String               @id @default(uuid()) @db.Uuid
+  eventId             String               @map("event_id") @db.Uuid
+  type                InvitationDesignType
+  flyerInitialAssetId String?              @map("flyer_initial_asset_id") @db.Uuid
+  flyerQrAssetId      String?              @map("flyer_qr_asset_id") @db.Uuid
+  createdAt           DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt           DateTime?            @map("deleted_at") @db.Timestamptz(6)
+  event               Event                @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  flyerInitialAsset   FileAsset?           @relation("FlyerInitialAsset", fields: [flyerInitialAssetId], references: [id], onDelete: Restrict)
+  flyerQrAsset        FileAsset?           @relation("FlyerQrAsset", fields: [flyerQrAssetId], references: [id], onDelete: Restrict)
+  pages               FlipbookPage[]
+  hotspots            Hotspot[]
+
+  @@unique([id, eventId])
+  @@index([eventId, type, deletedAt])
+  @@map("invitation_design")
+}
+
+model FlipbookPage {
+  id          String           @id @default(uuid()) @db.Uuid
+  designId    String           @map("design_id") @db.Uuid
+  eventId     String           @map("event_id") @db.Uuid
+  fileAssetId String           @unique @map("file_asset_id") @db.Uuid
+  position    Int
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt   DateTime?        @map("deleted_at") @db.Timestamptz(6)
+  design      InvitationDesign @relation(fields: [designId, eventId], references: [id, eventId], onDelete: Restrict)
+  fileAsset   FileAsset        @relation(fields: [fileAssetId], references: [id], onDelete: Restrict)
+  hotspots    Hotspot[]
+
+  @@unique([id, eventId, designId])
+  @@index([eventId, designId, deletedAt, position])
+  @@map("flipbook_page")
+}
+
+model Hotspot {
+  id              String                 @id @default(uuid()) @db.Uuid
+  designId        String                 @map("design_id") @db.Uuid
+  eventId         String                 @map("event_id") @db.Uuid
+  visualOwnerType HotspotVisualOwnerType @map("visual_owner_type")
+  flipbookPageId  String?                @map("flipbook_page_id") @db.Uuid
+  action          HotspotAction
+  x               Decimal                @db.Decimal(9, 8)
+  y               Decimal                @db.Decimal(9, 8)
+  width           Decimal                @db.Decimal(9, 8)
+  height          Decimal                @db.Decimal(9, 8)
+  priority        Int                    @default(0)
+  url             String?                @db.VarChar(2048)
+  createdAt       DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt       DateTime?              @map("deleted_at") @db.Timestamptz(6)
+  design          InvitationDesign       @relation(fields: [designId, eventId], references: [id, eventId], onDelete: Restrict)
+  flipbookPage    FlipbookPage?          @relation(fields: [flipbookPageId, eventId, designId], references: [id, eventId, designId], onDelete: Restrict)
+
+  @@index([eventId, designId, deletedAt, priority])
+  @@index([flipbookPageId, deletedAt])
+  @@map("hotspot")
 }
 
 model EventStateOperation {

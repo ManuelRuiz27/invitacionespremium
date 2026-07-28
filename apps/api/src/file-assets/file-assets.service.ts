@@ -225,28 +225,68 @@ export class FileAssetsService {
     operationId?: string
   ): Promise<FileAssetResponseDto> {
     return this.serializable(async (transaction) => {
-      await transaction.$queryRaw`
-        SELECT "id" FROM "file_asset" WHERE "id" = ${fileAssetId}::uuid FOR UPDATE
-      `;
-      const asset = await transaction.fileAsset.findUnique({ where: { id: fileAssetId } });
-      if (!asset || asset.status !== FileAssetStatus.READY || asset.deletedAt !== null) {
-        throw ownerMismatch();
-      }
-      assertCompatibleFileAssetType(owner.ownerType, asset.fileType);
-      if (asset.ownerType !== owner.ownerType || asset.ownerId !== null) {
-        throw ownerMismatch();
-      }
-      const resolved = await this.owners.resolve(transaction, owner);
-      if (resolved.clientId !== asset.clientId || resolved.eventId !== asset.eventId) {
-        throw ownerMismatch();
-      }
-      const claimed = await transaction.fileAsset.update({
-        where: { id: fileAssetId },
-        data: { ownerId: owner.ownerId, associatedAt: new Date() }
-      });
-      await this.audit.record(fileAssetAudit(claimed, actorUserId, 'FILE_ASSET_CLAIM', operationId), transaction);
-      return toFileAssetResponse(claimed);
+      return toFileAssetResponse(
+        await this.claimReadyAssetInTransaction(transaction, fileAssetId, owner, actorUserId, operationId)
+      );
     });
+  }
+
+  async claimReadyAssetInTransaction(
+    transaction: Prisma.TransactionClient,
+    fileAssetId: string,
+    owner: FileAssetOwnerReference,
+    actorUserId: string,
+    operationId?: string
+  ): Promise<FileAsset> {
+    await transaction.$queryRaw`
+      SELECT "id" FROM "file_asset" WHERE "id" = ${fileAssetId}::uuid FOR UPDATE
+    `;
+    const asset = await transaction.fileAsset.findUnique({ where: { id: fileAssetId } });
+    if (!asset || asset.status !== FileAssetStatus.READY || asset.deletedAt !== null) {
+      throw ownerMismatch();
+    }
+    assertCompatibleFileAssetType(owner.ownerType, asset.fileType);
+    if (asset.ownerType !== owner.ownerType || asset.ownerId !== null) {
+      throw ownerMismatch();
+    }
+    const resolved = await this.owners.resolve(transaction, owner);
+    if (resolved.clientId !== asset.clientId || resolved.eventId !== asset.eventId) {
+      throw ownerMismatch();
+    }
+    const claimed = await transaction.fileAsset.update({
+      where: { id: fileAssetId },
+      data: { ownerId: owner.ownerId, associatedAt: new Date() }
+    });
+    await this.audit.record(fileAssetAudit(claimed, actorUserId, 'FILE_ASSET_CLAIM', operationId), transaction);
+    return claimed;
+  }
+
+  async hideOwnedAssetInTransaction(
+    transaction: Prisma.TransactionClient,
+    fileAssetId: string,
+    owner: FileAssetOwnerReference,
+    actorUserId: string,
+    operationId?: string
+  ): Promise<FileAsset> {
+    await transaction.$queryRaw`
+      SELECT "id" FROM "file_asset" WHERE "id" = ${fileAssetId}::uuid FOR UPDATE
+    `;
+    const asset = await transaction.fileAsset.findUnique({ where: { id: fileAssetId } });
+    if (
+      !asset ||
+      asset.ownerType !== owner.ownerType ||
+      asset.ownerId !== owner.ownerId ||
+      asset.status !== FileAssetStatus.READY ||
+      asset.deletedAt !== null
+    ) {
+      throw ownerMismatch();
+    }
+    const hidden = await transaction.fileAsset.update({
+      where: { id: fileAssetId },
+      data: { status: FileAssetStatus.HIDDEN }
+    });
+    await this.audit.record(fileAssetAudit(hidden, actorUserId, 'FILE_ASSET_HIDE', operationId), transaction);
+    return hidden;
   }
 
   async createGeneratedAsset(input: CreateGeneratedAssetInput): Promise<FileAssetResponseDto> {

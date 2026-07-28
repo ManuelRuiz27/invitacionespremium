@@ -229,6 +229,18 @@ Pertenece a Evento.
 
 Tiene un FileAsset de imagen activo y shapes relacionados.
 
+## Flyer, Flipbook y Hotspot
+
+Un Evento digital conserva un único diseño activo compatible con su servicio configurado.
+
+Flyer referencia por FK un FileAsset de imagen inicial y otro de área QR. Flipbook contiene entre una y
+diez páginas para readiness; cada página es una entidad con FK al diseño, Evento y FileAsset, posición
+continua, timestamps y borrado lógico.
+
+Hotspot es una entidad separada vinculada al Flyer o, mediante FK compuesta, a una página específica del
+Flipbook. Conserva acción cerrada, coordenadas relativas, prioridad y URL únicamente para enlace externo.
+No se almacena como JSON opaco ni puede cruzar Evento o diseño.
+
 ## Mesa/Zona
 
 Pertenece a Croquis.

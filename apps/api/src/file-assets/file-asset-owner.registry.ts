@@ -38,14 +38,65 @@ export class InvitationFileAssetOwnerResolver implements FileAssetOwnerResolver 
 }
 
 @Injectable()
+export class FlyerFileAssetOwnerResolver implements FileAssetOwnerResolver {
+  readonly ownerType = FileAssetOwnerType.FLYER;
+
+  async resolve(transaction: Prisma.TransactionClient, ownerId: string): Promise<ResolvedFileAssetOwner | null> {
+    const design = await transaction.invitationDesign.findFirst({
+      where: {
+        id: ownerId,
+        type: 'FLYER',
+        deletedAt: null,
+        event: { deletedAt: null }
+      },
+      select: {
+        eventId: true,
+        event: { select: { clientId: true } }
+      }
+    });
+    return design ? { clientId: design.event.clientId, eventId: design.eventId } : null;
+  }
+}
+
+@Injectable()
+export class FlipbookPageFileAssetOwnerResolver implements FileAssetOwnerResolver {
+  readonly ownerType = FileAssetOwnerType.FLIPBOOK_PAGE;
+
+  async resolve(transaction: Prisma.TransactionClient, ownerId: string): Promise<ResolvedFileAssetOwner | null> {
+    const page = await transaction.flipbookPage.findFirst({
+      where: {
+        id: ownerId,
+        deletedAt: null,
+        design: {
+          type: 'FLIPBOOK',
+          deletedAt: null,
+          event: { deletedAt: null }
+        }
+      },
+      select: {
+        eventId: true,
+        design: { select: { event: { select: { clientId: true } } } }
+      }
+    });
+    return page ? { clientId: page.design.event.clientId, eventId: page.eventId } : null;
+  }
+}
+
+@Injectable()
 export class FileAssetOwnerRegistry {
   private readonly resolvers = new Map<FileAssetOwnerType, FileAssetOwnerResolver>();
 
   constructor(
     @Inject(InvitationFileAssetOwnerResolver)
-    invitationResolver: InvitationFileAssetOwnerResolver
+    invitationResolver: InvitationFileAssetOwnerResolver,
+    @Inject(FlyerFileAssetOwnerResolver)
+    flyerResolver: FlyerFileAssetOwnerResolver,
+    @Inject(FlipbookPageFileAssetOwnerResolver)
+    flipbookPageResolver: FlipbookPageFileAssetOwnerResolver
   ) {
     this.register(invitationResolver);
+    this.register(flyerResolver);
+    this.register(flipbookPageResolver);
   }
 
   register(resolver: FileAssetOwnerResolver): void {

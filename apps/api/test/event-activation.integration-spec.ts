@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -13,6 +13,8 @@ import {
   CreditLineStatus,
   EventSocialType,
   EventStatus,
+  FileAssetStatus,
+  FileAssetType,
   LedgerMovementType,
   ServiceCode,
   UserRole
@@ -632,12 +634,12 @@ describe('Event activation', () => {
     });
   }
 
-  function createReadyEvent(
+  async function createReadyEvent(
     owner: { clientId: string; userId: string },
     serviceId: string,
     status: EventStatus = EventStatus.READY_TO_ACTIVATE
   ) {
-    return prisma.event.create({
+    const event = await prisma.event.create({
       data: {
         clientId: owner.clientId,
         createdByUserId: owner.userId,
@@ -648,6 +650,96 @@ describe('Event activation', () => {
         eventDateTime: new Date(Date.now() + 86_400_000),
         timeZone: 'America/Mexico_City',
         capacity: 100
+      }
+    });
+    const service = await prisma.service.findUniqueOrThrow({ where: { id: serviceId } });
+    if (service.code === ServiceCode.FLYER || service.code === ServiceCode.FLIPBOOK) {
+      await createCompleteDesign(event, owner.userId, service.code);
+    }
+    return event;
+  }
+
+  async function createCompleteDesign(
+    event: { id: string; clientId: string },
+    userId: string,
+    serviceCode: ServiceCode
+  ): Promise<void> {
+    await prisma.$transaction(async (transaction) => {
+      const createAsset = (ownerType: 'FLYER' | 'FLIPBOOK_PAGE', fileType: FileAssetType) =>
+        transaction.fileAsset.create({
+          data: {
+            clientId: event.clientId,
+            eventId: event.id,
+            ownerType,
+            fileType,
+            storageKey: randomBytes(32).toString('hex'),
+            originalName: 'activation.png',
+            mimeType: 'image/png',
+            sizeBytes: 64,
+            checksumSha256: randomBytes(32).toString('hex'),
+            width: 10,
+            height: 10,
+            createdByUserId: userId,
+            status: FileAssetStatus.READY
+          }
+        });
+      if (serviceCode === ServiceCode.FLYER) {
+        const initial = await createAsset('FLYER', FileAssetType.FLYER_INITIAL_IMAGE);
+        const qr = await createAsset('FLYER', FileAssetType.FLYER_QR_IMAGE);
+        const design = await transaction.invitationDesign.create({
+          data: {
+            eventId: event.id,
+            type: 'FLYER',
+            flyerInitialAssetId: initial.id,
+            flyerQrAssetId: qr.id
+          }
+        });
+        await transaction.fileAsset.updateMany({
+          where: { id: { in: [initial.id, qr.id] } },
+          data: { ownerId: design.id, associatedAt: new Date() }
+        });
+        await transaction.hotspot.create({
+          data: {
+            eventId: event.id,
+            designId: design.id,
+            visualOwnerType: 'FLYER',
+            action: 'RSVP',
+            x: 0,
+            y: 0,
+            width: 0.2,
+            height: 0.2
+          }
+        });
+      } else {
+        const design = await transaction.invitationDesign.create({
+          data: { eventId: event.id, type: 'FLIPBOOK' }
+        });
+        const asset = await createAsset('FLIPBOOK_PAGE', FileAssetType.FLIPBOOK_PAGE_IMAGE);
+        const page = await transaction.flipbookPage.create({
+          data: {
+            eventId: event.id,
+            designId: design.id,
+            fileAssetId: asset.id,
+            position: 1
+          }
+        });
+        await transaction.fileAsset.update({
+          where: { id: asset.id },
+          data: { ownerId: page.id, associatedAt: new Date() }
+        });
+        await transaction.hotspot.create({
+          data: {
+            eventId: event.id,
+            designId: design.id,
+            visualOwnerType: 'FLIPBOOK_PAGE',
+            flipbookPageId: page.id,
+            action: 'RSVP',
+            x: 0,
+            y: 0,
+            width: 0.2,
+            height: 0.2
+          }
+        });
       }
     });
   }

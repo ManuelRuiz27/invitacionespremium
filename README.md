@@ -251,7 +251,18 @@ El hardening final de `CODEX-060` agregó:
 
 `CODEX-060` quedó completamente cerrado.
 
-La siguiente tarea es `CODEX-061 — Flyer, Flipbook y Hotspots`.
+`CODEX-061` agregó Flyer, Flipbook y Hotspots:
+
+- un diseño digital activo y compatible con el servicio configurado por Evento;
+- Flyer con imagen inicial y QR, claim y sustitución segura de FileAssets;
+- Flipbook relacional de una a diez páginas, orden continuo, reordenamiento y compactación;
+- Hotspots persistentes con cinco acciones, coordenadas relativas y enlaces HTTPS controlados;
+- readiness estable integrado al preflight antes de cualquier efecto financiero;
+- ownership, congelamiento post-activación, auditoría y constraints PostgreSQL contra concurrencia.
+
+`CODEX-061` quedó completamente cerrado.
+
+La siguiente tarea es `CODEX-070 — Vista pública y Confirmación de asistencia API`.
 
 ## Fuente de verdad
 

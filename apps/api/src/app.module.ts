@@ -14,6 +14,7 @@ import { FileAssetsModule } from './file-assets/file-assets.module';
 import { HealthController } from './health/health.controller';
 import { HealthService } from './health/health.service';
 import { InvitationsModule } from './invitations/invitations.module';
+import { InvitationDesignModule } from './invitation-design/invitation-design.module';
 import { ServicesPricingModule } from './services-pricing/services-pricing.module';
 
 @Module({
@@ -28,6 +29,7 @@ import { ServicesPricingModule } from './services-pricing/services-pricing.modul
     FinanceModule,
     EventsModule,
     FileAssetsModule,
+    InvitationDesignModule,
     InvitationsModule,
     ContactsModule,
     ScheduleModule.forRoot()

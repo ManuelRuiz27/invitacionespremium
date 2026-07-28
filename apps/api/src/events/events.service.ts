@@ -16,6 +16,7 @@ import {
   type Event
 } from '../generated/prisma/client';
 import { FinanceService } from '../finance/finance.service';
+import { resolveDesignReadiness } from '../invitation-design/invitation-design.readiness';
 import { ServicesPricingService } from '../services-pricing/services-pricing.service';
 import { EventAccessPolicy, eventNotFound } from './event-access.policy';
 import { resolvePreparationStatus } from './event-status.resolver';
@@ -236,6 +237,17 @@ export class EventsService {
               'Demo service cannot be activated as a real Event.',
               HttpStatus.CONFLICT
             );
+          }
+          if (service.code === ServiceCode.FLYER || service.code === ServiceCode.FLIPBOOK) {
+            const designReadiness = await resolveDesignReadiness(transaction, eventId, service.code);
+            if (!designReadiness.complete) {
+              throw new DomainError(
+                'EVENT_INVITATION_DESIGN_INCOMPLETE',
+                'Event invitation design is incomplete.',
+                HttpStatus.CONFLICT,
+                { blockers: designReadiness.blockers }
+              );
+            }
           }
 
           const activatedAt = new Date();

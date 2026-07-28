@@ -227,6 +227,8 @@ Nunca borrar primero el archivo anterior y después intentar subir el nuevo.
 - Si ambos son el mismo archivo lógico, pueden reutilizar la referencia solo dentro del mismo Flyer/Evento.
 - Hotspots se almacenan como entidades separadas.
 - El diseño queda congelado al activar Evento.
+- `owner_id` es el UUID del `InvitationDesign`; el resolver valida el mismo Cliente y Evento.
+- Sustituir reclama el nuevo staging y solo después oculta el asset anterior dentro de la misma transacción.
 
 ### Flipbook
 
@@ -234,6 +236,8 @@ Nunca borrar primero el archivo anterior y después intentar subir el nuevo.
 - Cada página debe tener orden único dentro del Flipbook.
 - Reordenar páginas no modifica el archivo; modifica la relación/posición.
 - El diseño y orden quedan congelados al activar Evento.
+- `owner_id` de cada asset es el UUID de `FlipbookPage`; su resolver exige página, diseño y Evento activos.
+- Eliminar una página compacta posiciones, elimina lógicamente sus Hotspots y conserva el asset como `HIDDEN`.
 
 ### Croquis
 

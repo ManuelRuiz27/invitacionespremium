@@ -634,7 +634,7 @@ describe('FileAssets and local storage', () => {
       })
     ).rejects.toThrow(/invalid file asset status transition/);
     await expect(prisma.$executeRawUnsafe('TRUNCATE TABLE "file_asset"')).rejects.toThrow(
-      /file_asset cannot be truncated/
+      /file_asset cannot be truncated|cannot truncate a table referenced in a foreign key constraint/
     );
   });
 

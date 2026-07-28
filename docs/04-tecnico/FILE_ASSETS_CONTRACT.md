@@ -4,7 +4,8 @@
 
 `FileAssetsModule` implementa el almacenamiento privado común para archivos del dominio. CODEX-060 incluye
 storage local, subida autenticada de imágenes, consulta, contenido autenticado, asociación interna y limpieza
-de huérfanos. No incluye Flyer, Flipbook, Hotspots, Croquis, Álbum, QR gráfico, reportes PDF ni frontend.
+de huérfanos. CODEX-061 agrega los adapters `FLYER` y `FLIPBOOK_PAGE`; Croquis, Álbum, QR gráfico,
+reportes PDF y frontend permanecen fuera de este contrato.
 
 ## Modelo
 
@@ -109,8 +110,14 @@ completo o bytes.
 - audita solo IDs y metadata técnica.
 
 Las diferencias responden `409 FILE_OWNER_MISMATCH`. No existe endpoint genérico para recibir `ownerId`.
-CODEX-060 registra el resolver de `INVITATION`; módulos posteriores pueden registrar adapters sin cambiar
-storage. `createGeneratedAsset` es interno y se prueba con `INVITATION_QR_SVG`, pero no genera todavía el QR.
+CODEX-060 registra el resolver de `INVITATION` y CODEX-061 registra `FLYER` y `FLIPBOOK_PAGE`. Los dos
+adapters de diseño resuelven el Cliente y Evento desde FKs reales, excluyen owners eliminados y participan
+en la misma transacción que crea o sustituye la referencia. `createGeneratedAsset` es interno y se prueba
+con `INVITATION_QR_SVG`, pero no genera todavía el QR.
+
+La sustitución de una imagen de diseño usa las operaciones internas transaccionales: valida y reclama el
+nuevo staging antes de cambiar el asset anterior a `HIDDEN`. Nunca hay una ventana confirmada sin imagen
+válida ni se oculta el archivo anterior si el claim nuevo falla.
 
 ## Endpoints
 

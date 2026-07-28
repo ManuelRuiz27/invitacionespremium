@@ -3,7 +3,12 @@ import { MulterModule } from '@nestjs/platform-express';
 import { AuditModule } from '../audit/audit.module';
 import { AppConfigService } from '../config/app-config.service';
 import { EventsModule } from '../events/events.module';
-import { FileAssetOwnerRegistry, InvitationFileAssetOwnerResolver } from './file-asset-owner.registry';
+import {
+  FileAssetOwnerRegistry,
+  FlipbookPageFileAssetOwnerResolver,
+  FlyerFileAssetOwnerResolver,
+  InvitationFileAssetOwnerResolver
+} from './file-asset-owner.registry';
 import { FileImageValidator } from './file-image-validator';
 import { FileStorage } from './file-storage';
 import { FileAssetsController } from './file-assets.controller';
@@ -30,6 +35,8 @@ import { LocalFileStorage } from './local-file-storage';
     LocalFileStorage,
     { provide: FileStorage, useExisting: LocalFileStorage },
     InvitationFileAssetOwnerResolver,
+    FlyerFileAssetOwnerResolver,
+    FlipbookPageFileAssetOwnerResolver,
     FileAssetOwnerRegistry
   ],
   exports: [FileAssetsService, FileAssetOwnerRegistry, FileStorage]

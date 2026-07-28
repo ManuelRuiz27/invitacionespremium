@@ -505,6 +505,8 @@ prisma/schema.prisma
 
 ### CODEX-061 — Flyer, Flipbook y Hotspots
 
+**Estado:** COMPLETADO
+
 **Repo:** `invitacionespremium-api`
 
 **Módulo:** `InvitationDesignModule`

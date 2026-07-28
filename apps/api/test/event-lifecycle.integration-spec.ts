@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -14,6 +14,8 @@ import {
   EventSocialType,
   EventStateAction,
   EventStatus,
+  FileAssetStatus,
+  FileAssetType,
   LedgerMovementType,
   ServiceCode,
   UserRole
@@ -98,6 +100,7 @@ describe('Event lifecycle', () => {
     });
 
     const ready = await createReadyEvent(planner, catalog.service.id);
+    await createCompleteFlyerDesign(ready, planner.userId);
     await grantCredits(planner.clientId, planner.userId, 5);
     await transition(ready.id, 'activate', cookie, 'lifecycle-activation-paid').expect(200);
     const activated = await prisma.event.findUniqueOrThrow({ where: { id: ready.id } });
@@ -435,6 +438,55 @@ describe('Event lifecycle', () => {
         timeZone: 'America/Mexico_City',
         capacity: 100
       }
+    });
+  }
+
+  async function createCompleteFlyerDesign(event: { id: string; clientId: string }, userId: string): Promise<void> {
+    await prisma.$transaction(async (transaction) => {
+      const createAsset = (fileType: FileAssetType) =>
+        transaction.fileAsset.create({
+          data: {
+            clientId: event.clientId,
+            eventId: event.id,
+            ownerType: 'FLYER',
+            fileType,
+            storageKey: randomBytes(32).toString('hex'),
+            originalName: 'lifecycle.png',
+            mimeType: 'image/png',
+            sizeBytes: 64,
+            checksumSha256: randomBytes(32).toString('hex'),
+            width: 10,
+            height: 10,
+            createdByUserId: userId,
+            status: FileAssetStatus.READY
+          }
+        });
+      const initial = await createAsset(FileAssetType.FLYER_INITIAL_IMAGE);
+      const qr = await createAsset(FileAssetType.FLYER_QR_IMAGE);
+      const design = await transaction.invitationDesign.create({
+        data: {
+          eventId: event.id,
+          type: 'FLYER',
+          flyerInitialAssetId: initial.id,
+          flyerQrAssetId: qr.id
+        }
+      });
+      await transaction.fileAsset.updateMany({
+        where: { id: { in: [initial.id, qr.id] } },
+        data: { ownerId: design.id, associatedAt: new Date() }
+      });
+      await transaction.hotspot.create({
+        data: {
+          eventId: event.id,
+          designId: design.id,
+          visualOwnerType: 'FLYER',
+          action: 'RSVP',
+          x: 0,
+          y: 0,
+          width: 0.2,
+          height: 0.2
+        }
+      });
     });
   }
 

@@ -206,7 +206,13 @@ Endpoints:
 - `POST /events/:eventId/design/flyer`
 - `POST /events/:eventId/design/flipbook`
 - `GET /events/:eventId/design`
-- `PATCH /events/:eventId/design`
+- `GET /events/:eventId/design/readiness`
+- `PATCH /events/:eventId/design/flyer/initial-image`
+- `PATCH /events/:eventId/design/flyer/qr-image`
+- `POST /events/:eventId/design/flipbook/pages`
+- `PATCH /events/:eventId/design/flipbook/pages/reorder`
+- `PATCH /events/:eventId/design/flipbook/pages/:pageId/asset`
+- `DELETE /events/:eventId/design/flipbook/pages/:pageId`
 - `GET /events/:eventId/hotspots`
 - `POST /events/:eventId/hotspots`
 - `PATCH /events/:eventId/hotspots/:hotspotId`
@@ -217,7 +223,11 @@ Reglas:
 - mutaciones solo en `draft`, `configured`, `ready_to_activate`;
 - Flyer/Flipbook quedan congelados al activar;
 - archivos se validan/vinculan conforme a `FILE_ASSET_POLICY.md`;
-- Hotspot es entidad separada.
+- Hotspot es entidad separada;
+- Flyer requiere ambas variantes READY y Flipbook usa páginas relacionales con orden continuo y máximo 10;
+- un diseño necesita al menos un Hotspot válido para completar su parte del preflight;
+- la activación recalcula readiness antes de cualquier efecto financiero;
+- detalle completo en `INVITATION_DESIGN_CONTRACT.md`.
 
 ## PublicRsvpModule
 
