@@ -394,6 +394,39 @@ describe('StaffAccess', () => {
       response: expect.objectContaining({ code: 'STAFF_TOKEN_INVALID_OR_EXPIRED' })
     });
 
+    // The same lock ordering applies to cancellation: an in-flight session may finish, future ones cannot.
+    const sessionBeforeCancel = await createFixture(UserRole.INDEPENDENT_PLANNER, ClientType.PLANNER);
+    const sessionBeforeCancelPrincipal = toPrincipal(sessionBeforeCancel);
+    const cancelToken = await management.create(
+      sessionBeforeCancel.eventId,
+      { alias: 'Sesión antes de cancelar' },
+      sessionBeforeCancelPrincipal
+    );
+    const heldCancelLookup = methodHoldBarrier(technical, 'lookupByDigest', 2);
+    const cancelWaiting = methodCallBarrier(lifecycle, 'lockEvent', 1);
+    try {
+      const session = resolver.getPublicSession(cancelToken.token);
+      const sessionSettled = Promise.allSettled([session]);
+      await heldCancelLookup.entered.promise;
+      const cancellation = lifecycle.cancel(
+        sessionBeforeCancel.eventId,
+        `cancel-session-${randomUUID()}`,
+        sessionBeforeCancelPrincipal
+      );
+      const cancellationSettled = Promise.allSettled([cancellation]);
+      await cancelWaiting.called.promise;
+      heldCancelLookup.release.resolve();
+      expect(await sessionSettled).toMatchObject([{ status: 'fulfilled' }]);
+      expect(await cancellationSettled).toMatchObject([{ status: 'fulfilled' }]);
+    } finally {
+      heldCancelLookup.release.resolve();
+      heldCancelLookup.restore();
+      cancelWaiting.restore();
+    }
+    await expect(resolver.getPublicSession(cancelToken.token)).rejects.toMatchObject({
+      response: expect.objectContaining({ code: 'STAFF_TOKEN_INVALID_OR_EXPIRED' })
+    });
+
     // Two simultaneous validations are read-only and a close followed by reopen never reactivates.
     const validation = await createFixture(UserRole.INDEPENDENT_PLANNER, ClientType.PLANNER);
     const validationPrincipal = toPrincipal(validation);
