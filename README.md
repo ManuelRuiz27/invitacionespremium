@@ -322,10 +322,15 @@ La aplicación normaliza mediante `URL.href`; PostgreSQL solo valida y conserva 
 - proyección privada exclusiva de Asistentes confirmados pendientes;
 - check-in parcial atómico, idempotente y con un único registro activo por Asistente;
 - historial y reversión exclusiva de usuarios operativos autorizados;
-- locks deterministas, auditoría transaccional y constraints PostgreSQL de pertenencia e inmutabilidad.
+- locks deterministas, auditoría transaccional y constraints PostgreSQL de pertenencia e inmutabilidad;
+- cinco claves foráneas físicas `RESTRICT` y revalidación bajo locks de Evento, StaffToken, Invitación,
+  Contacto y Asistente;
+- replay idempotente estable desde snapshot, aun después de cambios operativos posteriores;
+- pruebas deterministas de carreras entre check-in, estados del Evento, expiración, cancelación,
+  lectura y reversión.
 
-`CODEX-081` quedó completamente cerrado. La siguiente tarea es `CODEX-082 — Tiempo real operativo`;
-no fue iniciada.
+El hardening de integridad quedó cerrado con la migración PostgreSQL 26. `CODEX-081` quedó
+completamente cerrado. La siguiente tarea es `CODEX-082 — Tiempo real operativo`; no fue iniciada.
 
 ## Fuente de verdad
 

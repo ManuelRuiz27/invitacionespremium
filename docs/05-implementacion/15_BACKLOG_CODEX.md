@@ -664,7 +664,7 @@ resolución de reapertura permanece independiente.
 
 ### CODEX-081 — Scanner y check-in por Asistente
 
-**Estado:** completada.
+**Estado:** completada y endurecida.
 
 **Repo:** `invitacionespremium-api`
 
@@ -690,9 +690,13 @@ resolución de reapertura permanece independiente.
 - evento cerrado/cancelado bloquea operación;
 - QR de otro Evento se rechaza.
 
-Implementado con contrato normativo `SCANNER_CHECKIN_CONTRACT.md`, transacciones `Serializable`, orden
-Evento → StaffToken → Invitación → Asistentes → CheckIns, auditoría sin PII y migración PostgreSQL que
-protege pertenencia, unicidad activa, idempotencia, reversión e inmutabilidad.
+Implementado con contrato normativo `SCANNER_CHECKIN_CONTRACT.md`; las mutaciones usan transacciones
+`Serializable` y las lecturas operativas bloqueadas usan `ReadCommitted` para observar al ganador tras
+esperar el lock. El orden Evento → StaffToken → Invitación → Contacto → Asistentes → CheckIns, la
+auditoría sin PII y las migraciones PostgreSQL protegen pertenencia, unicidad activa, idempotencia,
+reversión e inmutabilidad. El hardening final agrega cinco claves foráneas físicas `RESTRICT`, revalida
+las entidades bajo locks, prohíbe insertar CheckIns nacidos revertidos y conserva el replay exacto
+desde su snapshot aunque el estado operativo cambie después.
 
 ### CODEX-082 — Tiempo real operativo
 

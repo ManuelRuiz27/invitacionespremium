@@ -782,11 +782,11 @@ model CheckIn {
   revertedByUserId     String?    @map("reverted_by_user_id") @db.Uuid
   revertIdempotencyKey String?    @unique @map("revert_idempotency_key") @db.VarChar(128)
   createdAt            DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
-  event                Event      @relation(fields: [eventId], references: [id], onDelete: Restrict)
-  invitation           Invitation @relation(fields: [invitationId, eventId], references: [id, eventId], onDelete: Restrict)
-  assistant            Assistant  @relation(fields: [assistantId, eventId, invitationId], references: [id, eventId, invitationId], onDelete: Restrict)
-  staffToken           StaffToken @relation(fields: [staffTokenId, eventId], references: [id, eventId], onDelete: Restrict)
-  revertedByUser       User?      @relation("CheckInReverter", fields: [revertedByUserId], references: [id], onDelete: Restrict)
+  event                Event      @relation(fields: [eventId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "check_in_event_fkey")
+  invitation           Invitation @relation(fields: [invitationId, eventId], references: [id, eventId], onDelete: Restrict, onUpdate: NoAction, map: "check_in_invitation_event_fkey")
+  assistant            Assistant  @relation(fields: [assistantId, eventId, invitationId], references: [id, eventId, invitationId], onDelete: Restrict, onUpdate: NoAction, map: "check_in_assistant_event_invitation_fkey")
+  staffToken           StaffToken @relation(fields: [staffTokenId, eventId], references: [id, eventId], onDelete: Restrict, onUpdate: NoAction, map: "check_in_staff_token_event_fkey")
+  revertedByUser       User?      @relation("CheckInReverter", fields: [revertedByUserId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "check_in_reverted_by_user_fkey")
 
   @@index([eventId, invitationId, checkedInAt, id])
   @@index([assistantId, revertedAt])
