@@ -112,7 +112,9 @@ function envelope<EventName extends string, Data extends z.ZodType>(eventName: E
 export const checkInCreatedEnvelopeSchema = envelope('checkin.created', checkInCreatedDataSchema);
 export const checkInRevertedEnvelopeSchema = envelope('checkin.reverted', checkInRevertedDataSchema);
 export const rsvpUpdatedEnvelopeSchema = envelope('rsvp.updated', rsvpUpdatedDataSchema);
-export const seatingUpdatedEnvelopeSchema = envelope('seating.updated', seatingUpdatedDataSchema);
+export const seatingUpdatedEnvelopeSchema = envelope('seating.updated', seatingUpdatedDataSchema).extend({
+  actorType: z.enum(['USER', 'PUBLIC_TOKEN'])
+});
 export const eventClosedEnvelopeSchema = envelope('event.closed', eventClosedDataSchema);
 export const eventCancelledEnvelopeSchema = envelope('event.cancelled', eventCancelledDataSchema);
 

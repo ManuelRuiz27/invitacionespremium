@@ -18,6 +18,8 @@ import {
 } from '../generated/prisma/client';
 import { FileStorage } from '../file-assets/file-storage';
 import { InvitationTokenService } from '../invitations/invitation-token.service';
+import type { RealtimeActorType, SeatingUpdatedEnvelope } from '../realtime/realtime-contract';
+import { RealtimePublisherService } from '../realtime/realtime-publisher.service';
 import type {
   ConfirmationStateResponseDto,
   PublicInvitationViewResponseDto,
@@ -26,7 +28,6 @@ import type {
   RsvpOverrideInput
 } from './public-rsvp.dto';
 import { isInvitationQrAvailable } from './invitation-qr.service';
-import { RealtimePublisherService } from '../realtime/realtime-publisher.service';
 
 const OPERATIONAL_STATUSES = new Set<EventStatus>([EventStatus.ACTIVE, EventStatus.EVENT_DAY]);
 const CLOSED_MESSAGE = 'La confirmación de asistencia ya fue cerrada. Contacta al organizador.';
@@ -213,7 +214,19 @@ export class PublicRsvpService {
           tx
         );
       }
+      if (result.seating && result.seatingSource) {
+        await this.recordSeatingReleaseAudit(
+          tx,
+          event,
+          effectiveOperationId,
+          invitationId,
+          result.seatingSource,
+          result.seating,
+          { actorType: 'USER', actorId: principal.userId }
+        );
+      }
       return {
+        eventId,
         response: result.response,
         realtime: result.changed
           ? {
@@ -225,7 +238,8 @@ export class PublicRsvpService {
               confirmedAssistants: confirmedAssistantCount(result.response.assistants),
               previousConfirmedAssistants: beforeCount
             }
-          : null
+          : null,
+        seating: result.seating
       };
     });
     if (outcome.realtime) {
@@ -233,6 +247,9 @@ export class PublicRsvpService {
         ...outcome.realtime,
         occurredAt: new Date().toISOString()
       });
+    }
+    if (outcome.seating) {
+      await this.publishSeatingRelease(eventId, effectiveOperationId, 'USER', outcome.seating);
     }
     return outcome.response;
   }
@@ -284,7 +301,19 @@ export class PublicRsvpService {
           tx
         );
       }
+      if (result.seating && result.seatingSource) {
+        await this.recordSeatingReleaseAudit(
+          tx,
+          event,
+          effectiveOperationId,
+          invitation.id,
+          result.seatingSource,
+          result.seating,
+          { actorType: 'PUBLIC_TOKEN', fingerprint }
+        );
+      }
       return {
+        eventId: event.id,
         response: result.response,
         realtime: result.changed
           ? {
@@ -296,7 +325,8 @@ export class PublicRsvpService {
               confirmedAssistants: confirmedAssistantCount(result.response.assistants),
               previousConfirmedAssistants: beforeCount
             }
-          : null
+          : null,
+        seating: result.seating
       };
     });
     if (outcome.realtime) {
@@ -304,6 +334,9 @@ export class PublicRsvpService {
         ...outcome.realtime,
         occurredAt: new Date().toISOString()
       });
+    }
+    if (outcome.seating) {
+      await this.publishSeatingRelease(outcome.eventId, effectiveOperationId, 'PUBLIC_TOKEN', outcome.seating);
     }
     return outcome.response;
   }
@@ -315,7 +348,13 @@ export class PublicRsvpService {
     status: InvitationResponseStatus,
     input: RsvpAssistantsInput,
     reconcileAdditional: boolean
-  ): Promise<{ response: RsvpMutationResponseDto; changed: boolean; affectedIds: string[] }> {
+  ): Promise<{
+    response: RsvpMutationResponseDto;
+    changed: boolean;
+    affectedIds: string[];
+    seating: SeatingRelease | null;
+    seatingSource: SeatingReleaseSource | null;
+  }> {
     if (invitation.cancelledAt) {
       throw rsvpError('RSVP_INVITATION_CANCELLED', 'The invitation is cancelled.');
     }
@@ -369,6 +408,21 @@ export class PublicRsvpService {
 
     const affectedIds: string[] = [];
     let changed = invitation.responseStatus !== status;
+    await this.lockActiveInvitationAssistants(tx, event.id, invitation.id);
+    const omitted = reconcileAdditional ? currentExtras.filter(({ id }) => !selected.has(id)) : [];
+    const releasedAssistants =
+      status === InvitationResponseStatus.REJECTED
+        ? invitation.assistants.filter(({ floorplanShapeId }) => floorplanShapeId !== null)
+        : omitted.filter(({ floorplanShapeId }) => floorplanShapeId !== null);
+    const seatingChanges = releasedAssistants
+      .map(({ id, floorplanShapeId }) => ({
+        assistantId: id,
+        fromTableId: floorplanShapeId as string,
+        toTableId: null
+      }))
+      .sort((left, right) => left.assistantId.localeCompare(right.assistantId));
+    const tableIds = [...new Set(seatingChanges.map(({ fromTableId }) => fromTableId))].sort();
+    await this.lockFloorplanShapes(tx, tableIds);
     if (status === InvitationResponseStatus.REJECTED) {
       const update = await tx.assistant.updateMany({
         where: {
@@ -376,15 +430,15 @@ export class PublicRsvpService {
           deletedAt: null,
           responseStatus: { not: AssistantResponseStatus.REJECTED }
         },
-        data: {
-          responseStatus: AssistantResponseStatus.REJECTED,
-          floorplanShapeId: null
-        }
+        data: { responseStatus: AssistantResponseStatus.REJECTED }
+      });
+      await tx.assistant.updateMany({
+        where: { invitationId: invitation.id, deletedAt: null, floorplanShapeId: { not: null } },
+        data: { floorplanShapeId: null }
       });
       changed ||= update.count > 0;
       affectedIds.push(...invitation.assistants.map(({ id }) => id));
     } else {
-      const omitted = reconcileAdditional ? currentExtras.filter(({ id }) => !selected.has(id)) : [];
       if (omitted.length > 0) {
         await tx.assistant.updateMany({
           where: { id: { in: omitted.map(({ id }) => id) } },
@@ -437,7 +491,19 @@ export class PublicRsvpService {
       await tx.invitation.update({ where: { id: invitation.id }, data: { responseStatus: status } });
     }
     const refreshed = await this.requireInvitation(tx, event.id, invitation.id);
-    return { response: mutationResponse(refreshed), changed, affectedIds: [...new Set(affectedIds)] };
+    const seating = seatingChanges.length > 0 ? await this.seatingRelease(tx, seatingChanges, tableIds) : null;
+    return {
+      response: mutationResponse(refreshed),
+      changed,
+      affectedIds: [...new Set(affectedIds)],
+      seating,
+      seatingSource:
+        seating === null
+          ? null
+          : status === InvitationResponseStatus.REJECTED
+            ? 'RSVP_REJECT'
+            : 'RSVP_ASSISTANT_REMOVAL'
+    };
   }
 
   private async changeConfirmation(
@@ -636,6 +702,104 @@ export class PublicRsvpService {
     }
   }
 
+  private async lockActiveInvitationAssistants(
+    tx: Prisma.TransactionClient,
+    eventId: string,
+    invitationId: string
+  ): Promise<void> {
+    await tx.$queryRaw`
+      SELECT "id" FROM "assistant"
+      WHERE "event_id" = ${eventId}::uuid
+        AND "invitation_id" = ${invitationId}::uuid
+        AND "deleted_at" IS NULL
+      ORDER BY "id"
+      FOR UPDATE
+    `;
+  }
+
+  private async lockFloorplanShapes(tx: Prisma.TransactionClient, tableIds: string[]): Promise<void> {
+    if (tableIds.length === 0) return;
+    await tx.$queryRaw`
+      SELECT "id" FROM "floorplan_shape"
+      WHERE "id" = ANY(ARRAY[${Prisma.join(tableIds)}]::uuid[])
+      ORDER BY "id"
+      FOR UPDATE
+    `;
+  }
+
+  private async seatingRelease(
+    tx: Prisma.TransactionClient,
+    changes: SeatingRelease['changes'],
+    tableIds: string[]
+  ): Promise<SeatingRelease> {
+    const tables = await tx.floorplanShape.findMany({
+      where: { id: { in: tableIds } },
+      select: {
+        id: true,
+        capacity: true,
+        _count: { select: { assistants: { where: { deletedAt: null } } } }
+      },
+      orderBy: { id: 'asc' }
+    });
+    return {
+      changes,
+      affectedTables: tables.map(({ id, capacity, _count }) => ({
+        tableId: id,
+        occupancy: _count.assistants,
+        capacity
+      }))
+    };
+  }
+
+  private async recordSeatingReleaseAudit(
+    tx: Prisma.TransactionClient,
+    event: Event,
+    operationId: string,
+    invitationId: string,
+    source: SeatingReleaseSource,
+    seating: SeatingRelease,
+    actor: SeatingReleaseActor
+  ): Promise<void> {
+    await this.audit.record(
+      {
+        actor:
+          actor.actorType === 'USER'
+            ? { type: AuditActorType.USER, id: actor.actorId }
+            : { type: AuditActorType.PUBLIC_TOKEN, fingerprint: actor.fingerprint },
+        clientId: event.clientId,
+        eventId: event.id,
+        resourceType: 'FLOORPLAN',
+        resourceId: invitationId,
+        action: 'SEATING_IMPLICIT_RELEASE',
+        afterData: {
+          assistantIds: seating.changes.map(({ assistantId }) => assistantId),
+          changes: seating.changes,
+          affectedTables: seating.affectedTables,
+          source
+        },
+        operationId
+      },
+      tx
+    );
+  }
+
+  private async publishSeatingRelease(
+    eventId: string,
+    operationId: string,
+    actorType: Extract<RealtimeActorType, 'USER' | 'PUBLIC_TOKEN'>,
+    seating: SeatingRelease
+  ): Promise<void> {
+    await this.realtime.publishSeatingUpdated({
+      eventName: 'seating.updated',
+      version: 1,
+      eventId,
+      occurredAt: new Date().toISOString(),
+      operationId,
+      actorType,
+      data: seating
+    });
+  }
+
   private async lockInvitationContext(tx: Prisma.TransactionClient, invitationId: string): Promise<void> {
     const context = await tx.invitation.findUnique({ where: { id: invitationId }, select: { eventId: true } });
     if (!context) throw invitationNotFound();
@@ -693,6 +857,10 @@ export class PublicRsvpService {
     throw rsvpError('RSVP_CONCURRENCY_CONFLICT', 'RSVP operation could not be serialized.');
   }
 }
+
+type SeatingRelease = SeatingUpdatedEnvelope['data'];
+type SeatingReleaseSource = 'RSVP_REJECT' | 'RSVP_ASSISTANT_REMOVAL';
+type SeatingReleaseActor = { actorType: 'USER'; actorId: string } | { actorType: 'PUBLIC_TOKEN'; fingerprint: string };
 
 function publicAssistant(assistant: PublicInvitation['assistants'][number]) {
   if (!assistant.name) throw invitationNotFound();

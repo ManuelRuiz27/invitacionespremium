@@ -293,7 +293,9 @@ posterior al check-in está permitido y queda señalado en auditoría.
 
 Con `floorplanEnabled=true`, activación exige Croquis, imagen lista y al menos una Mesa; cerrar
 Confirmación falla con `EVENT_FLOORPLAN_PENDING_SEATING` y solo `pendingCount` si quedan confirmados sin
-Mesa. Rechazo de Invitación y borrado de Asistente adicional limpian la asignación en la misma transacción.
+Mesa. Rechazo de Invitación, borrado de Asistente adicional y cancelación de Invitación limpian todas
+las asignaciones afectadas en la misma transacción. La auditoría de negocio se conserva y se agrega
+`SEATING_IMPLICIT_RELEASE`; solo un cambio real publica `seating.updated` después del commit.
 
 Endpoints Staff de solo lectura:
 
@@ -346,7 +348,11 @@ Todos requieren:
 - recurso perteneciente al mismo Evento;
 - respuesta sin teléfono, finanzas ni reportes.
 
-Check-in es parcial por Asistente, atómico, idempotente y protegido contra concurrencia. La reversión
+Check-in es parcial por Asistente, atómico, idempotente y protegido contra concurrencia. Con Croquis
+habilitado, toda la selección debe apuntar a Mesas activas del mismo Evento y Croquis; de otro modo
+responde `409 SCANNER_TABLE_ASSIGNMENT_REQUIRED` sin filas, auditoría ni realtime. Con Croquis
+deshabilitado, `table=null` sigue permitido. La migración 28 replica la misma precondición para INSERT
+directo con `check_in_floorplan_table_required`. La reversión
 autenticada vive en `POST /events/:eventId/check-ins/:checkInId/revert`. Scanner también expone Croquis
 privado y Mesa mínima conforme a `FloorplanModule`; Socket.IO publica los cambios post-commit. Contrato
 normativo de check-in: `SCANNER_CHECKIN_CONTRACT.md`.

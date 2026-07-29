@@ -279,7 +279,12 @@ Reglas:
 
 - `changes` permite asignaciones individuales, familiares o de grupo sin asumir una sola mesa de origen;
 - `affectedTables` contiene únicamente mesas cuya ocupación cambió;
-- `FloorplanModule` lo publica exclusivamente después del commit a `dashboard`, `scanner` y `floorplan`;
+- `actorType` es `USER` para seating explícito, override o cancelación y `PUBLIC_TOKEN` para RSVP
+  público;
+- `FloorplanModule`, RSVP y cancelación lo publican exclusivamente después del commit a `dashboard`,
+  `scanner` y `floorplan`;
+- rechazo RSVP, eliminación nominal y cancelación emiten un solo envelope si liberaron Mesas; no
+  crean `SeatingOperation` y pueden compartir `operationId` con `rsvp.updated`;
 - replay idempotente y rollback no publican; el fallo de transporte no revierte la asignación confirmada;
 - no incluir nombres ni teléfonos;
 - Staff recibe el cambio mínimo necesario y vuelve a consultar el plano por REST cuando requiera detalle.

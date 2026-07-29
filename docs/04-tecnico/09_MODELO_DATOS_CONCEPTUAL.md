@@ -234,6 +234,10 @@ Implementación relacional: `Event 1:N CheckIn`, `Invitation 1:N CheckIn`,
 compuestas y triggers validan el mismo Evento/Invitación. `revertedAt IS NULL` deriva la única entrada vigente;
 los campos de reversión forman un conjunto completo e irreversible.
 
+Si el Evento tiene Croquis habilitado, el CheckIn exige que el Asistente conserve una Mesa activa del
+mismo Evento y Croquis. La aplicación y PostgreSQL validan esta relación bajo locks antes del INSERT.
+Sin Croquis habilitado, la Mesa continúa siendo opcional.
+
 ## Croquis
 
 Pertenece a Evento.
@@ -280,6 +284,10 @@ Pertenece a Asistente.
 rechaza zonas, cruces de Evento, sobrecupo, reducción por debajo de ocupación y eliminación de Mesas
 ocupadas. La asignación puede ser individual, familiar o por Grupo, siempre all-or-none, y permite
 desasignación o cambio auditado incluso posterior al check-in.
+
+Rechazar una Invitación, eliminar un Asistente nominal o cancelar una Invitación libera la referencia
+de Mesa dentro de la misma transacción que invalida el recurso. La ocupación se deriva así de
+relaciones operativas reales, no de un filtro que oculte asignaciones obsoletas.
 
 `SeatingOperation` persiste acción, llave idempotente global, firma de solicitud y snapshot mínimo sin
 PII. Un replay compatible devuelve exactamente el snapshot y no repite auditoría ni realtime.

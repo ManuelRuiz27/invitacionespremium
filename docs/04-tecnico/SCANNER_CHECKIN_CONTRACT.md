@@ -4,7 +4,8 @@
 
 `ScannerModule` resuelve acceso temporal mediante `StaffToken`, escanea el token QR firmado de una
 Invitación, realiza búsqueda exacta y registra entrada individual por Asistente. No existe
-`ScannerSession` persistida. Socket.IO, Floorplan, mesas, pases físicos y frontend quedan fuera.
+`ScannerSession` persistida. Se integra con Socket.IO y `FloorplanModule` para proyectar la Mesa mínima
+y exigir una asignación operativa cuando el Evento tiene Croquis habilitado.
 
 ## Modelo
 
@@ -26,15 +27,16 @@ reversión nunca elimina ni modifica la identidad del registro.
 
 `scan` recibe `{qrToken}` y devuelve `AVAILABLE` o `NO_PENDING`. `search` recibe `{query}` y devuelve
 `MATCHES` o `NO_MATCHES`. Ambas proyectan solo Invitación, modo, conteos y Asistentes confirmados
-pendientes (`id`, `name`, `isPrimary`). `check-in` recibe una Invitación y una selección UUID no vacía
-ni duplicada; responde `CHECKED_IN`, las entradas creadas y los pendientes restantes. La selección
-completa se confirma o revierte atómicamente.
+pendientes (`id`, `name`, `isPrimary`, `table: {id,name} | null`). `check-in` recibe una Invitación y
+una selección UUID no vacía ni duplicada; responde `CHECKED_IN`, las entradas creadas con esa misma
+Mesa mínima y los pendientes restantes. La selección completa se confirma o revierte atómicamente.
 
 ## Resolución y locks
 
 `resolveStaffTokenInTransaction()` y `resolveQrTokenInTransaction()` reutilizan digest, firma, nonce,
 versión y reglas de disponibilidad existentes dentro de la transacción consumidora. El orden es:
-Evento → StaffToken → Invitación → Asistentes por UUID → CheckIns activos. Una lectura preliminar solo
+Evento → StaffToken → Invitación → Contacto → Asistentes por UUID → FloorplanShapes por UUID →
+CheckIns activos. Una lectura preliminar solo
 descubre identificadores; la autorización y el estado se vuelven a evaluar bajo locks. Check-in y
 reversión usan `Serializable`. Scan y search son lecturas con locks en `READ COMMITTED`, para que una
 lectura que esperó a una mutación ganadora observe su commit en vez de conservar un snapshot anterior.
@@ -50,8 +52,9 @@ creación e id.
 
 La llave de creación identifica globalmente una solicitud. Una firma SHA-256 liga StaffToken, Evento,
 Invitación y selección ordenada. El snapshot conserva exactamente `status`, `invitationId`, los
-CheckIns creados (`checkInId`, `assistantId`, `name`, `checkedInAt`), los pendientes restantes (`id`,
-`name`, `isPrimary`) y su conteo. El replay valida esa estructura y la devuelve directamente, sin
+CheckIns creados (`checkInId`, `assistantId`, `name`, `checkedInAt`, `table: {id,name} | null`), los
+pendientes restantes (`id`, `name`, `isPrimary`, `table: {id,name} | null`) y su conteo. El replay
+valida esa estructura y la devuelve directamente, sin
 consultar nombres o estados actuales, ni crear otra fila o auditoría. Cualquier reutilización incompatible produce
 `409 CHECK_IN_IDEMPOTENCY_CONFLICT`. Las filas adicionales de una selección múltiple reciben llaves
 técnicas derivadas y únicas sin persistir el secreto Staff.
@@ -85,6 +88,13 @@ La migración `20260729140000_harden_scanner_check_ins`, número 26 acumulado:
   Contacto → Asistente;
 - prohíbe crear un CheckIn con cualquier campo de reversión ya establecido.
 
+La migración 28 `20260729203000_harden_floorplan_seating` reemplaza nuevamente
+`validate_check_in_insert()` sin perder esas garantías. Si `event.floorplan_enabled=true`, bloquea y
+valida la `FloorplanShape` después del Asistente: debe ser una Mesa activa, del mismo Evento y de un
+Croquis activo. Un INSERT incompatible falla con `check_in_floorplan_table_required`; el precheck de
+instalación informa solo el conteo de incompatibilidades históricas activas. Si el Evento no usa
+Croquis, `floorplanShapeId=null` continúa permitido.
+
 ## Reversión y permisos
 
 Solo Planner independiente sobre su Cliente, Admin de Organización sobre su Organización y Planner de
@@ -99,9 +109,10 @@ Cada selección, aunque incluya varios Asistentes, genera una sola auditoría `C
 conteos, timestamps y estado técnico. Session, scan y search no auditan.
 
 Ninguna respuesta, snapshot o auditoría contiene teléfono, Cliente, secretos/digest Staff, QR, nonce,
-finanzas, mesa, croquis o payload público completo. Como excepción de idempotencia, el snapshot mínimo
-conserva únicamente los nombres ya entregados al Staff en la respuesta original. Las auditorías nunca
-contienen nombres.
+finanzas, Croquis completo o payload público completo. La única proyección de seating es
+`table: {id,name} | null`; no incluye geometría, capacidad ni ocupación. Como excepción de
+idempotencia, el snapshot mínimo conserva únicamente los nombres y esa Mesa mínima ya entregados al
+Staff en la respuesta original. Las auditorías nunca contienen nombres.
 
 ## Carreras verificadas
 
@@ -111,6 +122,10 @@ servicio se cubren esos cambios, scan contra check-in/cancelación, selecciones 
 reversiones, nuevo check-in tras reversión y lecturas simultáneas. No se usan sleeps ni temporizadores
 arbitrarios.
 
+El hardening de CODEX-090 agrega carreras deterministas entre check-in sin Mesa y asignación, y entre
+cambio de Mesa posterior al check-in y reversión. El resultado nunca deja un CheckIn activo sin Mesa
+cuando el Evento usa Croquis.
+
 ## Errores estables
 
 - `STAFF_TOKEN_INVALID_OR_EXPIRED`;
@@ -118,6 +133,7 @@ arbitrarios.
 - `SCANNER_QR_NOT_FOUND`;
 - `SCANNER_SELECTION_NOT_FOUND`;
 - `ASSISTANT_ALREADY_CHECKED_IN`;
+- `SCANNER_TABLE_ASSIGNMENT_REQUIRED`;
 - `CHECK_IN_IDEMPOTENCY_CONFLICT`;
 - `CHECK_IN_REVERT_IDEMPOTENCY_CONFLICT`;
 - `CHECK_IN_ALREADY_REVERTED`;
@@ -127,5 +143,6 @@ QR inválido, adulterado, no disponible o de otro Evento comparte `SCANNER_QR_NO
 
 ## Fronteras diferidas
 
-`CODEX-081` no crea rutas Floorplan, Socket.IO, rooms, dashboard, asistencia global, reportes,
-PaseFisicoQR ni frontend. `CODEX-082` permanece sin iniciar.
+PaseFisicoQR, frontend, canvas, modo offline y reportes permanecen fuera de este contrato. La lectura
+del Croquis para Staff está definida por `FloorplanModule`; Scanner solo incorpora la Mesa mínima en
+sus resultados.

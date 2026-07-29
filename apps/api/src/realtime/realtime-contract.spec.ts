@@ -73,6 +73,25 @@ describe('Realtime v1 contract', () => {
           ]
         }
       }),
+      seatingUpdatedEnvelopeSchema.parse({
+        ...base('seating.updated', 'PUBLIC_TOKEN'),
+        data: {
+          changes: [
+            {
+              assistantId: randomUUID(),
+              fromTableId: randomUUID(),
+              toTableId: null
+            }
+          ],
+          affectedTables: [
+            {
+              tableId: randomUUID(),
+              occupancy: 0,
+              capacity: 10
+            }
+          ]
+        }
+      }),
       eventClosedEnvelopeSchema.parse({
         ...base('event.closed', 'USER'),
         data: {
@@ -95,6 +114,12 @@ describe('Realtime v1 contract', () => {
     for (const envelope of envelopes) {
       expect(realtimeEnvelopeSchema.parse(envelope)).toEqual(envelope);
     }
+    expect(
+      seatingUpdatedEnvelopeSchema.safeParse({
+        ...envelopes[3],
+        actorType: 'STAFF_TOKEN'
+      }).success
+    ).toBe(false);
     expect(realtimeRoomName(eventId, 'dashboard')).toBe(`event:${eventId}:dashboard`);
     expect(realtimeRoomName(eventId, 'scanner')).toBe(`event:${eventId}:scanner`);
     expect(realtimeRoomName(eventId, 'floorplan')).toBe(`event:${eventId}:floorplan`);

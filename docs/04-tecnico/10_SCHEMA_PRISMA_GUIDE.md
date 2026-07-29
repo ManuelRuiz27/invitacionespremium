@@ -120,13 +120,19 @@ La base de datos debe impedir dos check-ins activos para el mismo Asistente medi
 
 El modelo implementado `CheckIn` agrega pertenencia compuesta a Evento/Invitación/Asistente/StaffToken,
 llave idempotente global, firma y snapshot mínimo estable. PostgreSQL valida el agregado operativo en
-inserción bajo locks Evento → StaffToken → Invitación → Contacto → Asistente, prohíbe INSERT nacido
+inserción bajo locks Evento → StaffToken → Invitación → Contacto → Asistente → FloorplanShape,
+prohíbe INSERT nacido
 como revertido, autoriza al usuario de reversión, protege campos de creación, hace irreversible la
 reversión y rechaza `DELETE`/`TRUNCATE`. Las FK físicas
 `check_in_event_fkey`, `check_in_invitation_event_fkey`,
 `check_in_assistant_event_invitation_fkey`, `check_in_staff_token_event_fkey` y
 `check_in_reverted_by_user_fkey` usan `ON DELETE RESTRICT`. El índice parcial
 `check_in_one_active_per_assistant` materializa la unicidad vigente.
+
+La migración 28 conserva ese agregado y agrega la precondición de Mesa: con
+`Event.floorplanEnabled=true`, un CheckIn activo solo puede insertarse si el Asistente apunta a una
+`FloorplanShape` `TABLE`, activa, del mismo Evento y perteneciente a un `Floorplan` activo. El trigger
+usa `check_in_floorplan_table_required`; con Croquis deshabilitado, la relación puede ser `NULL`.
 
 Campos conceptuales:
 
@@ -317,6 +323,10 @@ Los checks validan capacidad por `kind`, coordenadas relativas, dimensiones dent
 `[0,360)`, lados iguales y puntos poligonales estrictos. Los triggers validan imagen `READY` del mismo
 Cliente/Evento y owner, protegen el FileAsset referenciado, admiten asignación únicamente a Mesa activa,
 serializan el conteo de capacidad y bloquean borrado o reducción incompatible con la ocupación.
+
+Las mutaciones que invalidan una asignación —rechazo RSVP, eliminación nominal y cancelación de
+Invitación— limpian `Assistant.floorplanShapeId` dentro de su propia transacción. No crean
+`SeatingOperation`: su idempotencia pertenece a la operación RSVP o cancelación original.
 
 `polygonPoints` es el único JSON de layout: arreglo de 3 a 64 objetos exactos `{x,y}` con números en
 `[0,1]`; para el resto de geometrías es `NULL` SQL.

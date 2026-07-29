@@ -17,6 +17,7 @@ import {
   AssistantResponseStatus,
   AuditActorType,
   EventStatus,
+  FloorplanShapeKind,
   InvitationResponseStatus,
   Prisma,
   type CheckIn
@@ -234,6 +235,33 @@ export class ScannerService {
           });
           if (assistants.length !== sortedIds.length) throw scannerSelectionNotFound();
 
+          if (resolution.event.floorplanEnabled) {
+            const tableIds = [
+              ...new Set(
+                assistants.map(({ floorplanShapeId }) => floorplanShapeId).filter((id): id is string => id !== null)
+              )
+            ].sort();
+            if (tableIds.length === 0 || assistants.some(({ floorplanShapeId }) => floorplanShapeId === null)) {
+              throw scannerTableAssignmentRequired();
+            }
+            await tx.$queryRaw`
+              SELECT "id" FROM "floorplan_shape"
+              WHERE "id" = ANY(ARRAY[${Prisma.join(tableIds)}]::uuid[])
+              ORDER BY "id"
+              FOR UPDATE
+            `;
+            const validTables = await tx.floorplanShape.count({
+              where: {
+                id: { in: tableIds },
+                eventId: invitation.eventId,
+                kind: FloorplanShapeKind.TABLE,
+                deletedAt: null,
+                floorplan: { eventId: invitation.eventId, deletedAt: null }
+              }
+            });
+            if (validTables !== tableIds.length) throw scannerTableAssignmentRequired();
+          }
+
           await tx.$queryRaw`
             SELECT "id" FROM "check_in"
             WHERE "assistant_id" = ANY(ARRAY[${Prisma.join(sortedIds)}]::uuid[]) AND "reverted_at" IS NULL
@@ -343,6 +371,7 @@ export class ScannerService {
         return outcome.response;
       } catch (error) {
         if (isActiveCheckInUniqueError(error)) throw assistantAlreadyCheckedIn();
+        if (isCheckInFloorplanTableError(error)) throw scannerTableAssignmentRequired();
         if (isRetryable(error) && attempt < MAX_ATTEMPTS - 1) continue;
         if (isIdempotencyUniqueError(error) && attempt < MAX_ATTEMPTS - 1) continue;
         throw error;
@@ -553,6 +582,14 @@ function assistantAlreadyCheckedIn(): DomainError {
   return new DomainError('ASSISTANT_ALREADY_CHECKED_IN', 'Assistant is already checked in.', HttpStatus.CONFLICT);
 }
 
+function scannerTableAssignmentRequired(): DomainError {
+  return new DomainError(
+    'SCANNER_TABLE_ASSIGNMENT_REQUIRED',
+    'All selected Assistants require an active table assignment.',
+    HttpStatus.CONFLICT
+  );
+}
+
 function idempotencyConflict(): DomainError {
   return new DomainError(
     'CHECK_IN_IDEMPOTENCY_CONFLICT',
@@ -596,6 +633,12 @@ function prismaCode(error: unknown): string | undefined {
 
 function isActiveCheckInUniqueError(error: unknown): boolean {
   return prismaCode(error) === 'P2002' && String(error).includes('assistant');
+}
+
+function isCheckInFloorplanTableError(error: unknown): boolean {
+  if (String(error).includes('check_in_floorplan_table_required')) return true;
+  if (typeof error !== 'object' || error === null || !('meta' in error)) return false;
+  return String((error as { meta?: unknown }).meta).includes('check_in_floorplan_table_required');
 }
 
 function isIdempotencyUniqueError(error: unknown): boolean {

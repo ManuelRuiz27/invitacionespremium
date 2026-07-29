@@ -793,6 +793,14 @@ pendientes al cerrar Confirmación y lectura privada Staff. La auditoría es tra
 `seating.updated` se publica una vez post-commit. El vertical slice cubre creación, activación, RSVP,
 asignación, Scanner, realtime, check-in, cambio post-check-in y cierre. `CODEX-100` permanece sin iniciar.
 
+El cierre de integridad agrega la migración 28: el trigger de CheckIn exige Mesa activa del mismo
+Croquis cuando `floorplanEnabled=true` y Scanner devuelve
+`409 SCANNER_TABLE_ASSIGNMENT_REQUIRED` con efecto cero ante una selección incompatible. Cancelación,
+rechazo RSVP y eliminación nominal liberan realmente `floorplanShapeId`, registran
+`SEATING_IMPLICIT_RELEASE` en la transacción y publican un solo `seating.updated` post-commit. La matriz
+determinista cubre capacidad, lotes, RSVP/cancelación, cierre de Confirmación, lock de layout, check-in
+y reversión en ambos órdenes, sin sleeps.
+
 ---
 
 ## EPIC 10 — QR pase físico

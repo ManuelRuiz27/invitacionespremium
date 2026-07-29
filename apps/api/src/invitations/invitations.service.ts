@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
 import type { AuthPrincipal } from '../auth/auth.types';
@@ -5,6 +6,8 @@ import { PrismaService } from '../common/database/prisma.service';
 import { CRITICAL_TRANSACTION_OPTIONS } from '../common/database/transaction-policy';
 import { AuditActorType, EventStatus, Prisma, type Assistant, type Event } from '../generated/prisma/client';
 import { EventAccessPolicy, eventNotFound } from '../events/event-access.policy';
+import type { SeatingUpdatedEnvelope } from '../realtime/realtime-contract';
+import { RealtimePublisherService } from '../realtime/realtime-publisher.service';
 import type {
   AssistantInput,
   AssistantResponseDto,
@@ -35,7 +38,8 @@ export class InvitationsService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(AuditService) private readonly audit: AuditService,
     @Inject(EventAccessPolicy) private readonly eventAccess: EventAccessPolicy,
-    @Inject(InvitationTokenService) private readonly tokens: InvitationTokenService
+    @Inject(InvitationTokenService) private readonly tokens: InvitationTokenService,
+    @Inject(RealtimePublisherService) private readonly realtime: RealtimePublisherService
   ) {}
 
   async list(eventId: string, principal: AuthPrincipal): Promise<InvitationResponseDto[]> {
@@ -157,29 +161,67 @@ export class InvitationsService {
     principal: AuthPrincipal,
     operationId: string | undefined
   ): Promise<void> {
-    await this.serializable(async (tx) => {
+    const effectiveOperationId = operationId ?? randomUUID();
+    const seating = await this.serializable(async (tx) => {
       const event = await this.lockOwnedEvent(tx, eventId, principal);
       this.assertPreparation(event);
       await this.lockInvitation(tx, invitationId);
       const invitation = await this.requireInvitation(tx, eventId, invitationId);
       this.assertNotCancelled(invitation.cancelledAt);
+      await tx.$queryRaw`
+        SELECT "id" FROM "assistant"
+        WHERE "id" = ${assistantId}::uuid
+          AND "event_id" = ${eventId}::uuid
+          AND "invitation_id" = ${invitationId}::uuid
+        FOR UPDATE
+      `;
       const current = await tx.assistant.findFirst({
         where: { id: assistantId, eventId, invitationId, deletedAt: null }
       });
       if (!current) throw assistantNotFound();
       if (current.isPrimary) throw primaryAssistantProtected();
+      const changes =
+        current.floorplanShapeId === null
+          ? []
+          : [{ assistantId, fromTableId: current.floorplanShapeId, toTableId: null }];
+      const tableIds = changes.map(({ fromTableId }) => fromTableId);
+      await this.lockFloorplanShapes(tx, tableIds);
       const deletedAt = new Date();
       await tx.assistant.update({
         where: { id: assistantId },
         data: { deletedAt, floorplanShapeId: null }
       });
-      await this.recordAudit(tx, principal, event, operationId, 'ASSISTANT_DELETE', assistantId, {
+      await this.recordAudit(tx, principal, event, effectiveOperationId, 'ASSISTANT_DELETE', assistantId, {
         id: assistantId,
         eventId,
         invitationId,
         deletedAt
       });
+      const release = changes.length > 0 ? await this.seatingRelease(tx, changes, tableIds) : null;
+      if (release) {
+        await this.recordSeatingReleaseAudit(
+          tx,
+          principal,
+          event,
+          effectiveOperationId,
+          invitationId,
+          'RSVP_ASSISTANT_REMOVAL',
+          release
+        );
+      }
+      return release;
     });
+    if (seating) {
+      await this.realtime.publishSeatingUpdated({
+        eventName: 'seating.updated',
+        version: 1,
+        eventId,
+        occurredAt: new Date().toISOString(),
+        operationId: effectiveOperationId,
+        actorType: 'USER',
+        data: seating
+      });
+    }
   }
 
   async cancel(
@@ -189,7 +231,8 @@ export class InvitationsService {
     principal: AuthPrincipal,
     operationId: string | undefined
   ): Promise<InvitationCancellationResponseDto> {
-    return this.serializable(async (tx) => {
+    const effectiveOperationId = operationId ?? randomUUID();
+    const outcome = await this.serializable(async (tx) => {
       const prior = await tx.invitation.findUnique({
         where: { cancelIdempotencyKey: idempotencyKey },
         select: { id: true, eventId: true, cancelledAt: true }
@@ -197,7 +240,7 @@ export class InvitationsService {
       if (prior) {
         await this.authorizeCancellationReplay(tx, prior.eventId, principal);
         if (prior.id !== invitationId || prior.eventId !== eventId) throw cancellationIdempotencyConflict();
-        return toCancellationResponse(prior);
+        return { response: toCancellationResponse(prior), seating: null };
       }
       const event = await this.lockOwnedEvent(tx, eventId, principal);
       if (!CANCELLABLE_STATUSES.has(event.status)) {
@@ -214,6 +257,20 @@ export class InvitationsService {
           message: 'The invitation is already cancelled.'
         });
       }
+      const assistants = await this.lockActiveInvitationAssistants(tx, eventId, invitationId);
+      const changes = assistants
+        .filter(({ floorplanShapeId }) => floorplanShapeId !== null)
+        .map(({ id, floorplanShapeId }) => ({
+          assistantId: id,
+          fromTableId: floorplanShapeId as string,
+          toTableId: null
+        }));
+      const tableIds = [...new Set(changes.map(({ fromTableId }) => fromTableId))].sort();
+      await this.lockFloorplanShapes(tx, tableIds);
+      await tx.assistant.updateMany({
+        where: { invitationId, floorplanShapeId: { not: null } },
+        data: { floorplanShapeId: null }
+      });
       const cancelledAt = new Date();
       const cancelled = await tx.invitation.update({
         where: { id: invitationId },
@@ -224,13 +281,37 @@ export class InvitationsService {
         },
         select: { id: true, eventId: true, cancelledAt: true }
       });
-      await this.recordAudit(tx, principal, event, operationId, 'INVITATION_CANCEL', invitationId, {
+      await this.recordAudit(tx, principal, event, effectiveOperationId, 'INVITATION_CANCEL', invitationId, {
         id: invitationId,
         eventId,
         cancelledAt
       });
-      return toCancellationResponse(cancelled);
+      const seating = changes.length > 0 ? await this.seatingRelease(tx, changes, tableIds) : null;
+      if (seating) {
+        await this.recordSeatingReleaseAudit(
+          tx,
+          principal,
+          event,
+          effectiveOperationId,
+          invitationId,
+          'INVITATION_CANCEL',
+          seating
+        );
+      }
+      return { response: toCancellationResponse(cancelled), seating };
     });
+    if (outcome.seating) {
+      await this.realtime.publishSeatingUpdated({
+        eventName: 'seating.updated',
+        version: 1,
+        eventId,
+        occurredAt: new Date().toISOString(),
+        operationId: effectiveOperationId,
+        actorType: 'USER',
+        data: outcome.seating
+      });
+    }
+    return outcome.response;
   }
 
   private toResponse(invitation: InvitationDetails): InvitationResponseDto {
@@ -346,6 +427,89 @@ export class InvitationsService {
     );
   }
 
+  private async lockActiveInvitationAssistants(
+    tx: Prisma.TransactionClient,
+    eventId: string,
+    invitationId: string
+  ): Promise<Array<{ id: string; floorplanShapeId: string | null }>> {
+    await tx.$queryRaw`
+      SELECT "id" FROM "assistant"
+      WHERE "event_id" = ${eventId}::uuid
+        AND "invitation_id" = ${invitationId}::uuid
+        AND "deleted_at" IS NULL
+      ORDER BY "id"
+      FOR UPDATE
+    `;
+    return tx.assistant.findMany({
+      where: { eventId, invitationId, deletedAt: null },
+      select: { id: true, floorplanShapeId: true },
+      orderBy: { id: 'asc' }
+    });
+  }
+
+  private async lockFloorplanShapes(tx: Prisma.TransactionClient, tableIds: string[]): Promise<void> {
+    if (tableIds.length === 0) return;
+    await tx.$queryRaw`
+      SELECT "id" FROM "floorplan_shape"
+      WHERE "id" = ANY(ARRAY[${Prisma.join(tableIds)}]::uuid[])
+      ORDER BY "id"
+      FOR UPDATE
+    `;
+  }
+
+  private async seatingRelease(
+    tx: Prisma.TransactionClient,
+    changes: SeatingRelease['changes'],
+    tableIds: string[]
+  ): Promise<SeatingRelease> {
+    const tables = await tx.floorplanShape.findMany({
+      where: { id: { in: tableIds } },
+      select: {
+        id: true,
+        capacity: true,
+        _count: { select: { assistants: { where: { deletedAt: null } } } }
+      },
+      orderBy: { id: 'asc' }
+    });
+    return {
+      changes,
+      affectedTables: tables.map(({ id, capacity, _count }) => ({
+        tableId: id,
+        occupancy: _count.assistants,
+        capacity
+      }))
+    };
+  }
+
+  private async recordSeatingReleaseAudit(
+    tx: Prisma.TransactionClient,
+    principal: AuthPrincipal,
+    event: Event,
+    operationId: string,
+    invitationId: string,
+    source: SeatingReleaseSource,
+    seating: SeatingRelease
+  ): Promise<void> {
+    await this.audit.record(
+      {
+        actor: { type: AuditActorType.USER, id: principal.userId },
+        action: 'SEATING_IMPLICIT_RELEASE',
+        resourceType: 'FLOORPLAN',
+        resourceId: invitationId,
+        clientId: event.clientId,
+        eventId: event.id,
+        afterData: {
+          assistantIds: seating.changes.map(({ assistantId }) => assistantId),
+          changes: seating.changes,
+          affectedTables: seating.affectedTables,
+          source
+        },
+        operationId
+      },
+      tx
+    );
+  }
+
   private async serializable<T>(work: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
     for (let attempt = 0; attempt < 20; attempt += 1) {
       try {
@@ -358,6 +522,9 @@ export class InvitationsService {
     throw new Error('Serializable transaction retry limit exceeded.');
   }
 }
+
+type SeatingRelease = SeatingUpdatedEnvelope['data'];
+type SeatingReleaseSource = 'INVITATION_CANCEL' | 'RSVP_ASSISTANT_REMOVAL';
 
 function toAssistantResponse(assistant: Assistant): AssistantResponseDto {
   return {

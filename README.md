@@ -347,8 +347,12 @@ Staff bloquea Evento → StaffToken y coordina handshakes pendientes contra cier
 - asignación individual, familiar y por Grupo, transaccional e idempotente;
 - readiness de activación y cierre de Confirmación condicionado por Asistentes pendientes;
 - proyección privada de Mesa y Croquis para Scanner;
-- auditoría transaccional y `seating.updated` post-commit, incluido cambio posterior al check-in;
-- migración PostgreSQL 27, pruebas unitarias, integración real y vertical slice Socket.IO.
+- cancelación y RSVP liberan Mesas en la misma transacción, con auditoría adicional y un solo
+  `seating.updated` post-commit;
+- Scanner rechaza con `409 SCANNER_TABLE_ASSIGNMENT_REQUIRED` todo check-in sin Mesa operativa cuando
+  el Evento usa Croquis;
+- migraciones PostgreSQL 27 y 28, matriz determinista de concurrencia, integración real y vertical
+  slice Socket.IO.
 
 `CODEX-100 — Generación y uso de pases físicos` permanece sin iniciar.
 
