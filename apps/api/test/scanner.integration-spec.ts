@@ -84,6 +84,7 @@ describe('Scanner and CheckIn', () => {
       'María López',
       'José López'
     ]);
+    expect(scan.body.pendingAssistants.every(({ table }: { table: null }) => table === null)).toBe(true);
 
     const normalized = await scannerPost(fixture.staffToken, 'search', { query: '  mARÍA   lÓPEZ ' }).expect(200);
     expect(normalized.body.status).toBe('MATCHES');
@@ -104,7 +105,7 @@ describe('Scanner and CheckIn', () => {
     });
     expect(first.body.checkedIn).toHaveLength(1);
     expect(first.body.remainingPendingAssistants).toEqual([
-      { id: fixture.companionId, name: 'José López', isPrimary: false }
+      { id: fixture.companionId, name: 'José López', isPrimary: false, table: null }
     ]);
     const replay = await scannerCheckIn(fixture.staffToken, key, fixture.invitationId, [fixture.primaryId]).expect(200);
     expect(replay.body).toEqual(first.body);
@@ -115,9 +116,11 @@ describe('Scanner and CheckIn', () => {
       .expect(({ body }) => expect(body.code).toBe('CHECK_IN_IDEMPOTENCY_CONFLICT'));
 
     const after = await scannerPost(fixture.staffToken, 'scan', { qrToken }).expect(200);
-    expect(after.body.pendingAssistants).toEqual([{ id: fixture.companionId, name: 'José López', isPrimary: false }]);
+    expect(after.body.pendingAssistants).toEqual([
+      { id: fixture.companionId, name: 'José López', isPrimary: false, table: null }
+    ]);
     expect(JSON.stringify([scan.body, normalized.body, first.body, after.body])).not.toMatch(
-      /phone|clientId|staffToken|digest|qrToken|nonce|ledger|receipt|audit|table/iu
+      /phone|clientId|staffToken|digest|qrToken|nonce|ledger|receipt|audit/iu
     );
     const auditText = JSON.stringify(await prisma.auditLog.findMany({ where: { eventId: fixture.eventId } }));
     expect(auditText).not.toMatch(/María|José|phone|st1\.|qr1\.|digest|nonce/iu);
@@ -201,7 +204,7 @@ describe('Scanner and CheckIn', () => {
         'remainingPendingCount',
         'status'
       ]);
-      expect(serialized).not.toMatch(/phone|clientId|staffToken|digest|qrToken|nonce|ledger|receipt|audit|table/iu);
+      expect(serialized).not.toMatch(/phone|clientId|staffToken|digest|qrToken|nonce|ledger|receipt|audit/iu);
     }
   });
 
@@ -736,15 +739,16 @@ describe('Scanner and CheckIn', () => {
     }
   });
 
-  it('documents all four endpoints without CODEX-082 or floorplan routes', () => {
+  it('documents Scanner, CheckIn and read-only Floorplan endpoints', () => {
     const document = createOpenApiDocument(app);
     expect(document.paths).toHaveProperty('/api/v1/scanner/{staffToken}/session');
     expect(document.paths).toHaveProperty('/api/v1/scanner/{staffToken}/scan');
     expect(document.paths).toHaveProperty('/api/v1/scanner/{staffToken}/search');
     expect(document.paths).toHaveProperty('/api/v1/scanner/{staffToken}/check-in');
     expect(document.paths).toHaveProperty('/api/v1/events/{eventId}/check-ins/{checkInId}/revert');
-    expect(document.paths).not.toHaveProperty('/api/v1/scanner/{staffToken}/floorplan');
-    expect(JSON.stringify(document)).not.toContain('CODEX-082');
+    expect(document.paths).toHaveProperty('/api/v1/scanner/{staffToken}/floorplan');
+    expect(document.paths).toHaveProperty('/api/v1/scanner/{staffToken}/floorplan/content');
+    expect(JSON.stringify(document)).not.toContain('CODEX-100');
   });
 
   async function createFixture() {

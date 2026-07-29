@@ -169,7 +169,10 @@ export class InvitationsService {
       if (!current) throw assistantNotFound();
       if (current.isPrimary) throw primaryAssistantProtected();
       const deletedAt = new Date();
-      await tx.assistant.update({ where: { id: assistantId }, data: { deletedAt } });
+      await tx.assistant.update({
+        where: { id: assistantId },
+        data: { deletedAt, floorplanShapeId: null }
+      });
       await this.recordAudit(tx, principal, event, operationId, 'ASSISTANT_DELETE', assistantId, {
         id: assistantId,
         eventId,

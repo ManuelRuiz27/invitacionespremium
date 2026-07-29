@@ -53,7 +53,10 @@ const scannerInvitationInclude = {
       name: { not: null },
       responseStatus: AssistantResponseStatus.CONFIRMED
     },
-    include: { checkIns: { where: { revertedAt: null }, select: { id: true } } },
+    include: {
+      checkIns: { where: { revertedAt: null }, select: { id: true } },
+      floorplanShape: { select: { id: true, name: true } }
+    },
     orderBy: [{ isPrimary: 'desc' as const }, { createdAt: 'asc' as const }, { id: 'asc' as const }]
   }
 } satisfies Prisma.InvitationInclude;
@@ -69,7 +72,11 @@ const checkInResultSnapshotSchema = z
           checkInId: z.string().uuid(),
           assistantId: z.string().uuid(),
           name: z.string().min(1).max(160),
-          checkedInAt: z.iso.datetime()
+          checkedInAt: z.iso.datetime(),
+          table: z
+            .object({ id: z.string().uuid(), name: z.string().min(1).max(120) })
+            .strict()
+            .nullable()
         })
         .strict()
     ),
@@ -78,7 +85,11 @@ const checkInResultSnapshotSchema = z
         .object({
           id: z.string().uuid(),
           name: z.string().min(1).max(160),
-          isPrimary: z.boolean()
+          isPrimary: z.boolean(),
+          table: z
+            .object({ id: z.string().uuid(), name: z.string().min(1).max(120) })
+            .strict()
+            .nullable()
         })
         .strict()
     ),
@@ -218,6 +229,7 @@ export class ScannerService {
               name: { not: null },
               responseStatus: AssistantResponseStatus.CONFIRMED
             },
+            include: { floorplanShape: { select: { id: true, name: true } } },
             orderBy: { id: 'asc' }
           });
           if (assistants.length !== sortedIds.length) throw scannerSelectionNotFound();
@@ -249,23 +261,25 @@ export class ScannerService {
               responseStatus: AssistantResponseStatus.CONFIRMED,
               checkIns: { none: { revertedAt: null } }
             },
-            select: { id: true, name: true, isPrimary: true },
+            select: { id: true, name: true, isPrimary: true, floorplanShape: { select: { id: true, name: true } } },
             orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }, { id: 'asc' }]
           });
           const checkedIn = assistants.map((assistant) => ({
             checkInId: randomUUID(),
             assistantId: assistant.id,
             name: requireAssistantName(assistant.name),
-            checkedInAt: checkedInAt.toISOString()
+            checkedInAt: checkedInAt.toISOString(),
+            table: assistant.floorplanShape
           }));
           const snapshot: ScannerCheckInResponseDto = {
             status: 'CHECKED_IN',
             invitationId: invitation.id,
             checkedIn,
-            remainingPendingAssistants: remaining.map(({ id, name, isPrimary }) => ({
+            remainingPendingAssistants: remaining.map(({ id, name, isPrimary, floorplanShape }) => ({
               id,
               name: requireAssistantName(name),
-              isPrimary
+              isPrimary,
+              table: floorplanShape
             })),
             remainingPendingCount: remaining.length
           };
@@ -315,9 +329,10 @@ export class ScannerService {
               invitationId: invitation.id,
               operationId: effectiveOperationId,
               occurredAt: checkedInAt.toISOString(),
-              checkIns: checkedIn.map(({ checkInId, assistantId }) => ({
+              checkIns: checkedIn.map(({ checkInId, assistantId, table }) => ({
                 checkInId,
-                assistantId
+                assistantId,
+                tableId: table?.id ?? null
               }))
             }
           };
@@ -496,7 +511,12 @@ export class ScannerService {
 function projectInvitation(invitation: ScannerInvitation): ScannerInvitationResultDto {
   const pendingAssistants: PendingAssistantDto[] = invitation.assistants
     .filter(({ checkIns }) => checkIns.length === 0)
-    .map(({ id, name, isPrimary }) => ({ id, name: name as string, isPrimary }));
+    .map(({ id, name, isPrimary, floorplanShape }) => ({
+      id,
+      name: name as string,
+      isPrimary,
+      table: floorplanShape
+    }));
   return {
     invitation: { id: invitation.id, mode: invitation.mode },
     pendingAssistants,

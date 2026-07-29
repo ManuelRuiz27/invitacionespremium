@@ -338,8 +338,19 @@ por `eventName + operationId`, invalidación Staff al cerrar/cancelar y recupera
 La integración vertical prueba desde login y creación del Evento hasta RSVP, QR SVG, check-in realtime
 y cierre. El hardening final fija la cookie Auth `HttpOnly` en `Path=/` para que el navegador la envíe al
 path `/socket.io`; el token de sesión nunca se copia a JavaScript ni viaja en `auth` o query. La resolución
-Staff bloquea Evento → StaffToken y coordina handshakes pendientes contra cierre/cancelación. La siguiente
-tarea es `CODEX-090 — Croquis, mesas y zonas`; no fue iniciada.
+Staff bloquea Evento → StaffToken y coordina handshakes pendientes contra cierre/cancelación.
+
+`CODEX-090 — Croquis, mesas, zonas y asignación de Asistentes` quedó completado:
+
+- un Croquis activo por Evento con imagen JPG/PNG reclamada mediante FileAsset;
+- Mesas y zonas relacionales, geometría validada, lock de layout y capacidad protegida por PostgreSQL;
+- asignación individual, familiar y por Grupo, transaccional e idempotente;
+- readiness de activación y cierre de Confirmación condicionado por Asistentes pendientes;
+- proyección privada de Mesa y Croquis para Scanner;
+- auditoría transaccional y `seating.updated` post-commit, incluido cambio posterior al check-in;
+- migración PostgreSQL 27, pruebas unitarias, integración real y vertical slice Socket.IO.
+
+`CODEX-100 — Generación y uso de pases físicos` permanece sin iniciar.
 
 ## Fuente de verdad
 

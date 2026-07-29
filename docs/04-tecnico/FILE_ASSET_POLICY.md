@@ -245,9 +245,18 @@ Nunca borrar primero el archivo anterior y después intentar subir el nuevo.
 ### Croquis
 
 - Solo un croquis activo por Evento.
+- El staging usa `ownerType=FLOORPLAN` y `fileType=FLOORPLAN_IMAGE`; acepta exclusivamente JPG/PNG.
+- Al crear, el backend reclama el asset `READY` y fija `ownerId` al UUID del Croquis dentro de la misma
+  transacción; Cliente y Evento deben coincidir.
+- El reemplazo reclama el asset nuevo antes de cambiar la FK y después oculta el anterior. Cualquier fallo
+  revierte las tres acciones y conserva la imagen previa.
+- La FK `RESTRICT`, el trigger diferido de compatibilidad y el trigger sobre FileAsset impiden eliminar,
+  ocultar, reasignar o cruzar la imagen activa.
 - Bloquear/desbloquear croquis no cambia el estado del FileAsset.
 - Las mesas/zonas usan coordenadas relativas y no se incrustan en los bytes de la imagen.
-- Staff recibe solo la representación necesaria para localizar mesa, sin teléfonos.
+- Staff recibe el contenido autenticado únicamente con Evento `active | event_day`, cache privado
+  `no-store` y proyección necesaria para localizar Mesa, sin teléfonos, `storageKey`, rutas físicas ni
+  checksum completo.
 
 ### Álbum
 

@@ -24,7 +24,7 @@ const checkInCreatedDataSchema = z
             checkInId: uuid,
             assistantId: uuid,
             invitationId: uuid,
-            tableId: z.null()
+            tableId: nullableUuid
           })
           .strict()
       )

@@ -55,6 +55,17 @@ export class PendingAssistantDto {
 
   @ApiProperty({ type: Boolean })
   isPrimary!: boolean;
+
+  @ApiProperty({ type: () => ScannerTableDto, nullable: true })
+  table!: ScannerTableDto | null;
+}
+
+export class ScannerTableDto {
+  @ApiProperty({ type: String, format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ type: String })
+  name!: string;
 }
 
 export class ScannerInvitationResultDto {
@@ -99,6 +110,9 @@ export class CheckedInAssistantDto {
 
   @ApiProperty({ type: String, format: 'date-time' })
   checkedInAt!: string;
+
+  @ApiProperty({ type: ScannerTableDto, nullable: true })
+  table!: ScannerTableDto | null;
 }
 
 export class ScannerCheckInResponseDto {

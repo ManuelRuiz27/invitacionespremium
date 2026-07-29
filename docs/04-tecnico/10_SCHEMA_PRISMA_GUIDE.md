@@ -303,12 +303,23 @@ Campos conceptuales:
 
 ## Croquis shapes
 
-Mesas y zonas en misma entidad con tipo:
+La migración 27 materializa:
 
-- `table`
-- `decorative_zone`
+- `Floorplan`: FK `RESTRICT` a Evento, FileAsset y usuario de lock; índice parcial único para un registro
+  activo por Evento e imagen única;
+- `FloorplanShape`: FK compuesta `(floorplan_id, event_id)`, nombre normalizado único entre activos,
+  `kind` `TABLE | DECORATIVE_ZONE` y `geometry` `RECTANGLE | SQUARE | CIRCLE | POLYGON`;
+- `Assistant.floorplanShapeId`: FK compuesta `(floorplan_shape_id, event_id)`;
+- `SeatingOperation`: acción `ASSIGN | ASSIGN_FAMILY | ASSIGN_GROUP | UPDATE`, llave idempotente global,
+  firma SHA-256 y snapshot JSON de resultado.
 
-Capacidad `0` solo corresponde a zona decorativa no asignable.
+Los checks validan capacidad por `kind`, coordenadas relativas, dimensiones dentro del canvas, rotación
+`[0,360)`, lados iguales y puntos poligonales estrictos. Los triggers validan imagen `READY` del mismo
+Cliente/Evento y owner, protegen el FileAsset referenciado, admiten asignación únicamente a Mesa activa,
+serializan el conteo de capacidad y bloquean borrado o reducción incompatible con la ocupación.
+
+`polygonPoints` es el único JSON de layout: arreglo de 3 a 64 objetos exactos `{x,y}` con números en
+`[0,1]`; para el resto de geometrías es `NULL` SQL.
 
 ## Servicios contratados
 

@@ -752,7 +752,7 @@ revalida credenciales, ownership y estado. El hardening final exige cookie Auth 
 session token en `auth`/query, serializa Staff bajo locks Evento → StaffToken y coordina sockets pendientes
 contra cierre/cancelación. Las carreras deterministas cubren ambos órdenes y la ventana
 autorización–registro. La integración E2E cubre el flujo completo hasta recuperación REST, cierre, bloqueo
-Scanner y rechazo de reconexión. `CODEX-090` permanece sin iniciar.
+Scanner y rechazo de reconexión.
 
 ---
 
@@ -765,6 +765,8 @@ Scanner y rechazo de reconexión. `CODEX-090` permanece sin iniciar.
 **Módulo:** `FloorplanModule`
 
 **Dependencias:** CODEX-060, CODEX-051
+
+**Estado:** completado
 
 **Alcance**
 
@@ -782,6 +784,14 @@ Scanner y rechazo de reconexión. `CODEX-090` permanece sin iniciar.
 - confirmado puede quedar pendiente de mesa mientras Confirmación siga abierta;
 - cambio posterior a check-in se audita;
 - Staff puede ver plano sin teléfonos.
+
+Implementado con migración PostgreSQL 27: `Floorplan`, `FloorplanShape`, referencia compuesta desde
+`Assistant` y `SeatingOperation` idempotente. Constraints, índices y triggers protegen ownership del
+FileAsset, un Croquis activo, geometría, capacidad y pertenencia entre Evento, Mesa y Asistente.
+FloorplanModule expone edición Planner, asignación individual/familiar/Grupo, readiness de activación,
+pendientes al cerrar Confirmación y lectura privada Staff. La auditoría es transaccional y
+`seating.updated` se publica una vez post-commit. El vertical slice cubre creación, activación, RSVP,
+asignación, Scanner, realtime, check-in, cambio post-check-in y cierre. `CODEX-100` permanece sin iniciar.
 
 ---
 

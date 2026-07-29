@@ -376,7 +376,10 @@ export class PublicRsvpService {
           deletedAt: null,
           responseStatus: { not: AssistantResponseStatus.REJECTED }
         },
-        data: { responseStatus: AssistantResponseStatus.REJECTED }
+        data: {
+          responseStatus: AssistantResponseStatus.REJECTED,
+          floorplanShapeId: null
+        }
       });
       changed ||= update.count > 0;
       affectedIds.push(...invitation.assistants.map(({ id }) => id));
@@ -385,7 +388,7 @@ export class PublicRsvpService {
       if (omitted.length > 0) {
         await tx.assistant.updateMany({
           where: { id: { in: omitted.map(({ id }) => id) } },
-          data: { deletedAt: new Date() }
+          data: { deletedAt: new Date(), floorplanShapeId: null }
         });
         affectedIds.push(...omitted.map(({ id }) => id));
         changed = true;
@@ -451,6 +454,26 @@ export class PublicRsvpService {
       }
       if ((close && event.confirmationClosedAt) || (!close && !event.confirmationClosedAt)) {
         return confirmationState(event);
+      }
+      if (close && event.floorplanEnabled) {
+        const pendingSeating = await tx.assistant.count({
+          where: {
+            eventId,
+            deletedAt: null,
+            anonymizedAt: null,
+            responseStatus: AssistantResponseStatus.CONFIRMED,
+            floorplanShapeId: null,
+            invitation: { deletedAt: null, cancelledAt: null }
+          }
+        });
+        if (pendingSeating > 0) {
+          throw new DomainError(
+            'EVENT_FLOORPLAN_PENDING_SEATING',
+            'Confirmed Assistants must be assigned before confirmation closes.',
+            HttpStatus.CONFLICT,
+            { pendingCount: pendingSeating }
+          );
+        }
       }
       const updated = await tx.event.update({
         where: { id: eventId },

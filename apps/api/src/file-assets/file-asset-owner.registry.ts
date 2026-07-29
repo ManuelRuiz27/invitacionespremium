@@ -83,6 +83,19 @@ export class FlipbookPageFileAssetOwnerResolver implements FileAssetOwnerResolve
 }
 
 @Injectable()
+export class FloorplanFileAssetOwnerResolver implements FileAssetOwnerResolver {
+  readonly ownerType = FileAssetOwnerType.FLOORPLAN;
+
+  async resolve(transaction: Prisma.TransactionClient, ownerId: string): Promise<ResolvedFileAssetOwner | null> {
+    const floorplan = await transaction.floorplan.findFirst({
+      where: { id: ownerId, deletedAt: null, event: { deletedAt: null } },
+      select: { eventId: true, event: { select: { clientId: true } } }
+    });
+    return floorplan ? { clientId: floorplan.event.clientId, eventId: floorplan.eventId } : null;
+  }
+}
+
+@Injectable()
 export class FileAssetOwnerRegistry {
   private readonly resolvers = new Map<FileAssetOwnerType, FileAssetOwnerResolver>();
 
@@ -92,11 +105,14 @@ export class FileAssetOwnerRegistry {
     @Inject(FlyerFileAssetOwnerResolver)
     flyerResolver: FlyerFileAssetOwnerResolver,
     @Inject(FlipbookPageFileAssetOwnerResolver)
-    flipbookPageResolver: FlipbookPageFileAssetOwnerResolver
+    flipbookPageResolver: FlipbookPageFileAssetOwnerResolver,
+    @Inject(FloorplanFileAssetOwnerResolver)
+    floorplanResolver: FloorplanFileAssetOwnerResolver
   ) {
     this.register(invitationResolver);
     this.register(flyerResolver);
     this.register(flipbookPageResolver);
+    this.register(floorplanResolver);
   }
 
   register(resolver: FileAssetOwnerResolver): void {

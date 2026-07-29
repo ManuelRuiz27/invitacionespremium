@@ -185,7 +185,8 @@ Reglas:
 - `checkIns` conserva el orden determinista del resultado persistido;
 - `delta === checkIns.length`;
 - `operationId` identifica la operación completa y no se crean IDs derivados;
-- `tableId` permanece `null` hasta `CODEX-090`;
+- `tableId` contiene la Mesa vigente del Asistente al confirmar el check-in o `null` si aún no tiene
+  asignación;
 - no incluir teléfono;
 - no incluir token QR;
 - no incluir nombres en broadcast general;
@@ -278,6 +279,8 @@ Reglas:
 
 - `changes` permite asignaciones individuales, familiares o de grupo sin asumir una sola mesa de origen;
 - `affectedTables` contiene únicamente mesas cuya ocupación cambió;
+- `FloorplanModule` lo publica exclusivamente después del commit a `dashboard`, `scanner` y `floorplan`;
+- replay idempotente y rollback no publican; el fallo de transporte no revierte la asignación confirmada;
 - no incluir nombres ni teléfonos;
 - Staff recibe el cambio mínimo necesario y vuelve a consultar el plano por REST cuando requiera detalle.
 

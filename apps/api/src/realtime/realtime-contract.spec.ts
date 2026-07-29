@@ -30,7 +30,7 @@ describe('Realtime v1 contract', () => {
               checkInId: randomUUID(),
               assistantId: randomUUID(),
               invitationId: randomUUID(),
-              tableId: null
+              tableId: randomUUID()
             }
           ],
           delta: 1
@@ -146,7 +146,7 @@ describe('Realtime v1 contract', () => {
         invitationId: randomUUID(),
         operationId,
         occurredAt,
-        checkIns: [{ checkInId: randomUUID(), assistantId: randomUUID() }]
+        checkIns: [{ checkInId: randomUUID(), assistantId: randomUUID(), tableId: null }]
       })
     ).resolves.toBeUndefined();
     await publisher.publishCheckInCreated({
@@ -154,7 +154,7 @@ describe('Realtime v1 contract', () => {
       invitationId: randomUUID(),
       operationId,
       occurredAt,
-      checkIns: [{ checkInId: randomUUID(), assistantId: randomUUID() }]
+      checkIns: [{ checkInId: randomUUID(), assistantId: randomUUID(), tableId: null }]
     });
 
     expect(emit).toHaveBeenCalledTimes(1);

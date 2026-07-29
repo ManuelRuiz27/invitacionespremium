@@ -25,7 +25,7 @@ export class RealtimePublisherService {
     invitationId: string;
     operationId: string;
     occurredAt: string;
-    checkIns: Array<{ checkInId: string; assistantId: string }>;
+    checkIns: Array<{ checkInId: string; assistantId: string; tableId: string | null }>;
   }): Promise<void> {
     const envelope = checkInCreatedEnvelopeSchema.parse({
       eventName: 'checkin.created',
@@ -37,8 +37,7 @@ export class RealtimePublisherService {
       data: {
         checkIns: input.checkIns.map((item) => ({
           ...item,
-          invitationId: input.invitationId,
-          tableId: null
+          invitationId: input.invitationId
         })),
         delta: input.checkIns.length
       }

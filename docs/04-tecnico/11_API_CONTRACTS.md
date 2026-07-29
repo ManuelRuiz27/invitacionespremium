@@ -263,7 +263,7 @@ internamente con propósito `QR` y nunca aparece en JSON, headers, errores o tex
 
 ## FloorplanModule
 
-Endpoints:
+Endpoints Planner:
 
 - `POST /events/:eventId/floorplan`
 - `GET /events/:eventId/floorplan`
@@ -277,6 +277,32 @@ Endpoints:
 - `POST /events/:eventId/seating/assign-family`
 - `POST /events/:eventId/seating/assign-group`
 - `PATCH /events/:eventId/seating/:assistantId`
+
+Las mutaciones de seating requieren `Idempotency-Key`. Planner independiente opera su Cliente; Admin de
+Organización opera su Organización; Planner de Organización solo Eventos creados por él. Platform Admin,
+Staff y público no usan estas rutas.
+
+Un Croquis reclama un FileAsset `FLOORPLAN/FLOORPLAN_IMAGE` JPG/PNG `READY` del mismo Cliente y Evento.
+El reemplazo reclama primero el nuevo asset, actualiza el Croquis y oculta el anterior en una sola
+transacción. Lock/unlock solo congela imagen y shapes; no bloquea asignaciones.
+
+Las Mesas tienen capacidad positiva; las zonas decorativas capacidad cero y nunca son asignables.
+Asignación individual, familiar y por Grupo selecciona únicamente Asistentes nominales, activos y
+confirmados y aplica el lote completo. `PATCH .../seating/:assistantId` acepta Mesa o `null`. El cambio
+posterior al check-in está permitido y queda señalado en auditoría.
+
+Con `floorplanEnabled=true`, activación exige Croquis, imagen lista y al menos una Mesa; cerrar
+Confirmación falla con `EVENT_FLOORPLAN_PENDING_SEATING` y solo `pendingCount` si quedan confirmados sin
+Mesa. Rechazo de Invitación y borrado de Asistente adicional limpian la asignación en la misma transacción.
+
+Endpoints Staff de solo lectura:
+
+- `GET /scanner/:staffToken/floorplan`
+- `GET /scanner/:staffToken/floorplan/content`
+
+Requieren token válido del mismo Evento `active | event_day`. La respuesta contiene Croquis, shapes,
+capacidad, ocupación y coordenadas sin Contactos, teléfono, rutas ni claves de storage. Los resultados
+Scanner de Invitación/Asistentes agregan únicamente `table: {id,name} | null`.
 
 ## StaffAccessModule
 
@@ -321,8 +347,9 @@ Todos requieren:
 - respuesta sin teléfono, finanzas ni reportes.
 
 Check-in es parcial por Asistente, atómico, idempotente y protegido contra concurrencia. La reversión
-autenticada vive en `POST /events/:eventId/check-ins/:checkInId/revert`. Floorplan y Socket.IO siguen
-diferidos. Contrato normativo: `SCANNER_CHECKIN_CONTRACT.md`.
+autenticada vive en `POST /events/:eventId/check-ins/:checkInId/revert`. Scanner también expone Croquis
+privado y Mesa mínima conforme a `FloorplanModule`; Socket.IO publica los cambios post-commit. Contrato
+normativo de check-in: `SCANNER_CHECKIN_CONTRACT.md`.
 
 ## PhysicalPassesModule
 

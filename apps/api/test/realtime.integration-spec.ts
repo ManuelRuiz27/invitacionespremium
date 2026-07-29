@@ -15,6 +15,8 @@ import {
   ClientStatus,
   ClientType,
   EventStatus,
+  FloorplanGeometry,
+  FloorplanShapeKind,
   HotspotAction,
   HotspotVisualOwnerType,
   InvitationMode,
@@ -37,6 +39,7 @@ interface TestRealtimeEnvelope {
   actorType: string;
   data: {
     checkIns: Array<{ assistantId: string; invitationId: string }>;
+    changes: Array<{ assistantId: string; fromTableId: string | null; toTableId: string | null }>;
     delta: number;
     status: string;
     confirmedAssistants: number;
@@ -250,7 +253,7 @@ describe('Realtime Socket.IO', () => {
       invitationId: first.invitationId,
       operationId: randomUUID(),
       occurredAt: new Date().toISOString(),
-      checkIns: [{ checkInId: randomUUID(), assistantId: first.primaryId }]
+      checkIns: [{ checkInId: randomUUID(), assistantId: first.primaryId, tableId: null }]
     });
     await firstReceived;
     await nextTurn();
@@ -375,7 +378,7 @@ describe('Realtime Socket.IO', () => {
           invitationId: fixture.invitationId,
           operationId: randomUUID(),
           occurredAt: new Date().toISOString(),
-          checkIns: [{ checkInId: randomUUID(), assistantId: fixture.primaryId }]
+          checkIns: [{ checkInId: randomUUID(), assistantId: fixture.primaryId, tableId: null }]
         });
         await nextTurn();
         expect(lateBroadcast).not.toHaveBeenCalled();
@@ -549,6 +552,7 @@ describe('Realtime Socket.IO', () => {
         timeZone: 'America/Mexico_City',
         capacity: 20,
         confirmationEnabled: true,
+        floorplanEnabled: true,
         locationUrl: 'https://example.com/ubicacion',
         giftRegistryUrl: 'https://example.com/regalos'
       })
@@ -572,22 +576,51 @@ describe('Realtime Socket.IO', () => {
     })
       .png()
       .toBuffer();
-    const upload = (fileType: 'FLYER_INITIAL_IMAGE' | 'FLYER_QR_IMAGE') =>
+    const upload = (
+      ownerType: 'FLYER' | 'FLOORPLAN',
+      fileType: 'FLYER_INITIAL_IMAGE' | 'FLYER_QR_IMAGE' | 'FLOORPLAN_IMAGE'
+    ) =>
       request(app.getHttpServer())
         .post(`/api/v1/events/${eventId}/file-assets`)
         .set('Origin', origin)
         .set('Cookie', cookie)
-        .field('ownerType', 'FLYER')
+        .field('ownerType', ownerType)
         .field('fileType', fileType)
         .attach('file', image, { filename: `${fileType}.png`, contentType: 'image/png' });
-    const initial = await upload('FLYER_INITIAL_IMAGE').expect(201);
-    const qrImage = await upload('FLYER_QR_IMAGE').expect(201);
+    const initial = await upload('FLYER', 'FLYER_INITIAL_IMAGE').expect(201);
+    const qrImage = await upload('FLYER', 'FLYER_QR_IMAGE').expect(201);
+    const floorplanImage = await upload('FLOORPLAN', 'FLOORPLAN_IMAGE').expect(201);
     await request(app.getHttpServer())
       .post(`/api/v1/events/${eventId}/design/flyer`)
       .set('Origin', origin)
       .set('Cookie', cookie)
       .send({ initialAssetId: initial.body.id, qrAssetId: qrImage.body.id })
       .expect(201);
+    await request(app.getHttpServer())
+      .post(`/api/v1/events/${eventId}/floorplan`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .send({ imageAssetId: floorplanImage.body.id })
+      .expect(201);
+    const createTable = (name: string, x: number) =>
+      request(app.getHttpServer())
+        .post(`/api/v1/events/${eventId}/floorplan/shapes`)
+        .set('Origin', origin)
+        .set('Cookie', cookie)
+        .send({
+          kind: FloorplanShapeKind.TABLE,
+          geometry: FloorplanGeometry.CIRCLE,
+          name,
+          capacity: 10,
+          x,
+          y: 0.1,
+          width: 0.2,
+          height: 0.2,
+          rotation: 0,
+          polygonPoints: null
+        });
+    const firstTable = await createTable('Mesa uno', 0.1).expect(201);
+    const secondTable = await createTable('Mesa dos', 0.5).expect(201);
     for (const action of [
       HotspotAction.RSVP,
       HotspotAction.LOCATION,
@@ -631,6 +664,13 @@ describe('Realtime Socket.IO', () => {
       .post(`/api/v1/public/invitations/${encodeURIComponent(invitationToken)}/confirm`)
       .send({ additionalAssistants: [] })
       .expect(200);
+    await request(app.getHttpServer())
+      .post(`/api/v1/events/${eventId}/seating/assign`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .set('Idempotency-Key', randomUUID())
+      .send({ assistantIds: [primary.id], tableShapeId: firstTable.body.id })
+      .expect(201);
     const qrSvg = await binaryGet(`/api/v1/public/invitations/${encodeURIComponent(invitationToken)}/qr.svg`).expect(
       200
     );
@@ -649,11 +689,35 @@ describe('Realtime Socket.IO', () => {
       .expect(201);
     const staffToken = staff.body.token as string;
     const staffSocket = await connectStaff(staffToken, 'scanner');
+    const floorplanSocket = await connectStaff(staffToken, 'floorplan');
+    await request(app.getHttpServer())
+      .get(`/api/v1/scanner/${encodeURIComponent(staffToken)}/floorplan`)
+      .expect(200)
+      .expect(({ body }) =>
+        expect(body.shapes).toEqual(
+          expect.arrayContaining([expect.objectContaining({ id: firstTable.body.id, name: 'Mesa uno' })])
+        )
+      );
     const scan = await request(app.getHttpServer())
       .post(`/api/v1/scanner/${encodeURIComponent(staffToken)}/scan`)
       .send({ qrToken: decoded?.data })
       .expect(200);
     expect(scan.body.pendingAssistants).toEqual(expect.arrayContaining([expect.objectContaining({ id: primary.id })]));
+    expect(scan.body.pendingAssistants).toEqual(
+      expect.arrayContaining([expect.objectContaining({ table: { id: firstTable.body.id, name: 'Mesa uno' } })])
+    );
+
+    const moved = onceEvent(floorplanSocket, 'seating.updated');
+    await request(app.getHttpServer())
+      .patch(`/api/v1/events/${eventId}/seating/${primary.id}`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .set('Idempotency-Key', randomUUID())
+      .send({ tableShapeId: secondTable.body.id })
+      .expect(200);
+    expect((await moved).data).toMatchObject({
+      changes: [{ assistantId: primary.id, fromTableId: firstTable.body.id, toTableId: secondTable.body.id }]
+    });
 
     const notification = onceEvent(staffSocket, 'checkin.created');
     await request(app.getHttpServer())
@@ -664,6 +728,22 @@ describe('Realtime Socket.IO', () => {
     expect((await notification).data.checkIns).toEqual([
       expect.objectContaining({ assistantId: primary.id, invitationId: invitation.id })
     ]);
+    const postCheckIn = onceEvent(floorplanSocket, 'seating.updated');
+    await request(app.getHttpServer())
+      .patch(`/api/v1/events/${eventId}/seating/${primary.id}`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .set('Idempotency-Key', randomUUID())
+      .send({ tableShapeId: firstTable.body.id })
+      .expect(200);
+    expect((await postCheckIn).data.changes).toEqual([
+      { assistantId: primary.id, fromTableId: secondTable.body.id, toTableId: firstTable.body.id }
+    ]);
+    expect(
+      await prisma.auditLog.count({
+        where: { eventId, action: 'SEATING_UPDATE', afterData: { path: ['postCheckIn'], equals: true } }
+      })
+    ).toBe(1);
     const after = await request(app.getHttpServer())
       .post(`/api/v1/scanner/${encodeURIComponent(staffToken)}/scan`)
       .send({ qrToken: decoded?.data })
@@ -675,6 +755,7 @@ describe('Realtime Socket.IO', () => {
     await lifecycleRequest('close', eventId, cookie).expect(200);
     expect((await closed).eventName).toBe('event.closed');
     await disconnected;
+    floorplanSocket.disconnect();
     await request(app.getHttpServer())
       .post(`/api/v1/scanner/${encodeURIComponent(staffToken)}/scan`)
       .send({ qrToken: decoded?.data })

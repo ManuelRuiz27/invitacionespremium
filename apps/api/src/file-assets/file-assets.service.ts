@@ -85,7 +85,10 @@ export class FileAssetsService {
       throw fileError('FILE_UNSUPPORTED_TYPE', 'Only JPEG and PNG image uploads are accepted.');
     }
     const event = await this.requireOwnedEvent(eventId, principal);
-    if (!UPLOAD_EVENT_STATUSES.has(event.status)) {
+    const operationalFloorplanUpload =
+      input.fileType === FileAssetType.FLOORPLAN_IMAGE &&
+      (event.status === EventStatus.ACTIVE || event.status === EventStatus.EVENT_DAY);
+    if (!UPLOAD_EVENT_STATUSES.has(event.status) && !operationalFloorplanUpload) {
       throw new ConflictException({
         code: 'FILE_EVENT_STATE_LOCKED',
         message: 'File uploads are locked for the current Event state.'

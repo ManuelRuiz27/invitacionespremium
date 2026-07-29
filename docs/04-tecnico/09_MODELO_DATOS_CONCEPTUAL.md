@@ -238,7 +238,9 @@ los campos de reversión forman un conjunto completo e irreversible.
 
 Pertenece a Evento.
 
-Tiene un FileAsset de imagen activo y shapes relacionados.
+Tiene un FileAsset `FLOORPLAN_IMAGE` JPG/PNG activo, `READY` y reclamado con owner `FLOORPLAN`.
+Solo puede existir un Croquis no eliminado por Evento. Conserva bloqueo opcional de layout, usuario que
+lo aplicó y shapes relacionales; nunca duplica bytes ni `storageKey`.
 
 ## Flyer, Flipbook y Hotspot
 
@@ -266,11 +268,21 @@ Puede ser:
 - mesa asignable con capacidad mayor a cero;
 - zona decorativa con capacidad cero.
 
+La geometría es `RECTANGLE`, `SQUARE`, `CIRCLE` o `POLYGON`. Posición, tamaño y rotación usan
+coordenadas relativas; únicamente el polígono conserva sus puntos variables en JSON validado. El nombre
+normalizado es único entre shapes activos del Croquis. Una FK compuesta impide cruzar Croquis y Evento.
+
 ## Asignación de mesa
 
 Pertenece a Asistente.
 
-Debe permitir cambio auditado, incluso posterior a check-in, conforme a permisos.
+`Assistant.floorplanShapeId` referencia de forma nullable una Mesa activa del mismo Evento. PostgreSQL
+rechaza zonas, cruces de Evento, sobrecupo, reducción por debajo de ocupación y eliminación de Mesas
+ocupadas. La asignación puede ser individual, familiar o por Grupo, siempre all-or-none, y permite
+desasignación o cambio auditado incluso posterior al check-in.
+
+`SeatingOperation` persiste acción, llave idempotente global, firma de solicitud y snapshot mínimo sin
+PII. Un replay compatible devuelve exactamente el snapshot y no repite auditoría ni realtime.
 
 ## StaffToken
 

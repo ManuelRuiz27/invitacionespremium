@@ -6,6 +6,7 @@ import { EventsModule } from '../events/events.module';
 import {
   FileAssetOwnerRegistry,
   FlipbookPageFileAssetOwnerResolver,
+  FloorplanFileAssetOwnerResolver,
   FlyerFileAssetOwnerResolver,
   InvitationFileAssetOwnerResolver
 } from './file-asset-owner.registry';
@@ -37,6 +38,7 @@ import { LocalFileStorage } from './local-file-storage';
     InvitationFileAssetOwnerResolver,
     FlyerFileAssetOwnerResolver,
     FlipbookPageFileAssetOwnerResolver,
+    FloorplanFileAssetOwnerResolver,
     FileAssetOwnerRegistry
   ],
   exports: [FileAssetsService, FileAssetOwnerRegistry, FileStorage]

@@ -9,6 +9,7 @@ import { RequestLoggingMiddleware } from './common/logging/request-logging.middl
 import { AppConfigModule } from './config/app-config.module';
 import { ContactsModule } from './contacts/contacts.module';
 import { FinanceModule } from './finance/finance.module';
+import { FloorplanModule } from './floorplan/floorplan.module';
 import { EventsModule } from './events/events.module';
 import { FileAssetsModule } from './file-assets/file-assets.module';
 import { HealthController } from './health/health.controller';
@@ -39,6 +40,7 @@ import { RealtimeModule } from './realtime/realtime.module';
     PublicRsvpModule,
     StaffAccessModule,
     ScannerModule,
+    FloorplanModule,
     ContactsModule,
     ScheduleModule.forRoot()
   ],

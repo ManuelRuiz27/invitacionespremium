@@ -17,6 +17,7 @@ import {
 } from '../generated/prisma/client';
 import { FinanceService } from '../finance/finance.service';
 import { resolveDesignReadiness } from '../invitation-design/invitation-design.readiness';
+import { resolveFloorplanReadiness } from '../floorplan/floorplan-readiness.service';
 import { ServicesPricingService } from '../services-pricing/services-pricing.service';
 import { EventAccessPolicy, eventNotFound } from './event-access.policy';
 import { resolvePreparationStatus } from './event-status.resolver';
@@ -264,6 +265,17 @@ export class EventsService {
                 'Event public invitation configuration is incomplete.',
                 HttpStatus.CONFLICT,
                 { blockers: publicInvitationBlockers }
+              );
+            }
+          }
+          if (current.floorplanEnabled) {
+            const floorplanReadiness = await resolveFloorplanReadiness(transaction, eventId);
+            if (!floorplanReadiness.complete) {
+              throw new DomainError(
+                'EVENT_FLOORPLAN_INCOMPLETE',
+                'Event Floorplan is incomplete.',
+                HttpStatus.CONFLICT,
+                { blockers: floorplanReadiness.blockers }
               );
             }
           }
