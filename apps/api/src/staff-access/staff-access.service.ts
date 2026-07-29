@@ -23,7 +23,7 @@ export interface ResolvedStaffToken {
   alias: string;
 }
 
-type StaffResolution =
+export type StaffResolution =
   { kind: 'AVAILABLE'; staff: StaffToken; event: Event } | { kind: 'INVALID' } | { kind: 'EVENT_NOT_OPERATIONAL' };
 
 @Injectable()
@@ -141,6 +141,24 @@ export class StaffTokenResolverService {
     };
   }
 
+  async resolveStaffTokenInTransaction(
+    transaction: Prisma.TransactionClient,
+    rawToken: string,
+    knownEventId?: string
+  ): Promise<StaffResolution> {
+    if (!this.technical.isValidSyntax(rawToken)) return { kind: 'INVALID' };
+    const digest = this.technical.digest(rawToken);
+    const eventId = knownEventId ?? (await this.technical.lookupByDigest(transaction, digest))?.eventId;
+    if (!eventId) return { kind: 'INVALID' };
+    await this.lockRows(transaction, eventId, digest);
+    const staff = await this.technical.lookupByDigest(transaction, digest);
+    if (!staff || staff.expiredAt) return { kind: 'INVALID' };
+    const event = await transaction.event.findUnique({ where: { id: staff.eventId } });
+    if (!event || event.deletedAt) return { kind: 'INVALID' };
+    if (!OPERATIONAL_EVENT_STATUSES.has(event.status)) return { kind: 'EVENT_NOT_OPERATIONAL' };
+    return { kind: 'AVAILABLE', staff, event };
+  }
+
   async getPublicSession(rawToken: string): Promise<ScannerSessionResponseDto> {
     const result = await this.resolve(rawToken);
     if (result.kind === 'INVALID') throw invalidStaffToken();
@@ -177,15 +195,10 @@ export class StaffTokenResolverService {
     const context = await this.technical.lookupByDigest(this.prisma, digest);
     if (!context || context.expiredAt) return { kind: 'INVALID' };
 
-    return this.prisma.$transaction(async (transaction) => {
-      await this.lockRows(transaction, context.eventId, digest);
-      const staff = await this.technical.lookupByDigest(transaction, digest);
-      if (!staff || staff.expiredAt) return { kind: 'INVALID' } as const;
-      const event = await transaction.event.findUnique({ where: { id: staff.eventId } });
-      if (!event || event.deletedAt) return { kind: 'INVALID' } as const;
-      if (!OPERATIONAL_EVENT_STATUSES.has(event.status)) return { kind: 'EVENT_NOT_OPERATIONAL' } as const;
-      return { kind: 'AVAILABLE', staff, event } as const;
-    }, CRITICAL_TRANSACTION_OPTIONS);
+    return this.prisma.$transaction(
+      (transaction) => this.resolveStaffTokenInTransaction(transaction, rawToken, context.eventId),
+      CRITICAL_TRANSACTION_OPTIONS
+    );
   }
 
   private async lockRows(transaction: Prisma.TransactionClient, eventId: string, digestSha256: string): Promise<void> {

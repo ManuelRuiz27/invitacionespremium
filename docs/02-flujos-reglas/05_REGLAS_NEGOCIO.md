@@ -126,6 +126,14 @@ Staff:
 
 ## Check-in
 
+- Pertenece a Asistente y conserva historial.
+- Solo Evento `active` o `event_day` admite una nueva entrada.
+- La selección parcial se confirma completa o no crea ningún registro.
+- Un índice parcial impide más de un CheckIn activo por Asistente.
+- StaffToken crea; únicamente un usuario operativo autorizado puede revertir.
+- Una reversión no elimina la fila ni modifica al Asistente.
+- Scan y búsqueda devuelven solo confirmados pendientes, nunca teléfono.
+
 - Un Asistente solo puede tener un check-in válido.
 - Reversión no elimina el registro; lo marca como revertido y audita.
 - No requiere motivo obligatorio.

@@ -127,4 +127,6 @@
 3. La ruta pública de sesión valida el digest y devuelve contexto mínimo del Evento.
 4. Cerrar o cancelar expira todos los tokens activos en la misma transacción.
 5. Reabrir no reactiva secretos anteriores; pueden crearse nuevos respetando el límite.
-6. Scanner, QR y check-in comienzan en `CODEX-081`.
+6. Scanner revalida StaffToken y Evento bajo locks, resuelve QR o búsqueda exacta y muestra solo
+   Asistentes confirmados pendientes.
+7. La selección parcial crea CheckIns individuales en una sola transacción; Staff no puede revertir.

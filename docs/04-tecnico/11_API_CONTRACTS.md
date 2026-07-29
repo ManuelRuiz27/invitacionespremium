@@ -306,7 +306,6 @@ Endpoints públicos:
 - `POST /scanner/:staffToken/scan`
 - `POST /scanner/:staffToken/search`
 - `POST /scanner/:staffToken/check-in`
-- `GET /scanner/:staffToken/floorplan`
 
 Todos requieren:
 
@@ -315,7 +314,9 @@ Todos requieren:
 - recurso perteneciente al mismo Evento;
 - respuesta sin teléfono, finanzas ni reportes.
 
-Check-in debe ser idempotente/protegido contra concurrencia.
+Check-in es parcial por Asistente, atómico, idempotente y protegido contra concurrencia. La reversión
+autenticada vive en `POST /events/:eventId/check-ins/:checkInId/revert`. Floorplan y Socket.IO siguen
+diferidos. Contrato normativo: `SCANNER_CHECKIN_CONTRACT.md`.
 
 ## PhysicalPassesModule
 

@@ -330,6 +330,10 @@ Registro de entrada de un Asistente o uso de PaseFisicoQR.
 - reversible solo por usuario autorizado;
 - reversión conserva auditoría.
 
+El registro persistente conserva Evento, Invitación, Asistente y StaffToken de creación. Puede existir
+historial después de una reversión, pero nunca más de un CheckIn activo por Asistente. Staff solo crea;
+los tres roles operativos revierten bajo su ownership.
+
 ## Crédito
 
 Unidad interna entera usada para activar Eventos y calcular:

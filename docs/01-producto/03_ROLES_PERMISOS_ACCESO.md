@@ -273,6 +273,13 @@ No auditar impersonación porque no existirá.
 ## StaffToken implementado
 
 Los tres roles operativos pueden crear y listar StaffTokens únicamente bajo su ownership normal.
+
+## Scanner y reversión implementados
+
+StaffToken puede resolver sesión, escanear QR, buscar por coincidencia exacta y registrar una selección
+parcial de Asistentes confirmados pendientes dentro de su Evento. Nunca recibe teléfonos ni capacidad
+de reversión. Planner independiente, Admin de Organización y Planner de Organización pueden revertir
+CheckIn bajo el mismo ownership de Evento; Platform Admin queda fuera de esta ruta operativa.
 Platform Admin no usa estas rutas. Staff no es usuario, no tiene subtipo ni permisos configurables: un
 secreto de una sola entrega lo limita al Evento asociado. El listado nunca devuelve secreto o digest.
 No existe revocación manual; cierre/cancelación expiran y reapertura no reactiva.

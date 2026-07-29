@@ -118,6 +118,12 @@ Reversión:
 
 La base de datos debe impedir dos check-ins activos para el mismo Asistente mediante constraint, índice parcial PostgreSQL o estrategia transaccional equivalente probada.
 
+El modelo implementado `CheckIn` agrega pertenencia compuesta a Evento/Invitación/Asistente/StaffToken,
+llave idempotente global, firma y snapshot técnico sin PII. PostgreSQL valida el agregado operativo en
+inserción, autoriza al usuario de reversión, protege campos de creación, hace irreversible la reversión
+y rechaza `DELETE`/`TRUNCATE`. El índice parcial
+`check_in_one_active_per_assistant` materializa la unicidad vigente.
+
 Campos conceptuales:
 
 - `assistant_id`;

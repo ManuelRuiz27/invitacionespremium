@@ -314,8 +314,18 @@ La aplicación normaliza mediante `URL.href`; PostgreSQL solo valida y conserva 
   espera;
 - historial inmutable, auditoría sin secretos y resolución interna para el scanner futuro.
 
-`CODEX-080` quedó completamente cerrado. La siguiente tarea es `CODEX-081 — Scanner y check-in por
-Asistente`; no fue iniciada.
+`CODEX-080` quedó completamente cerrado.
+
+`CODEX-081` agregó Scanner y check-in por Asistente:
+
+- scan de QR y búsqueda exacta acotados al Evento del StaffToken;
+- proyección privada exclusiva de Asistentes confirmados pendientes;
+- check-in parcial atómico, idempotente y con un único registro activo por Asistente;
+- historial y reversión exclusiva de usuarios operativos autorizados;
+- locks deterministas, auditoría transaccional y constraints PostgreSQL de pertenencia e inmutabilidad.
+
+`CODEX-081` quedó completamente cerrado. La siguiente tarea es `CODEX-082 — Tiempo real operativo`;
+no fue iniciada.
 
 ## Fuente de verdad
 

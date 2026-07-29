@@ -95,10 +95,29 @@ export class InvitationQrService {
       });
       if (!context) return null;
       await this.lockRows(tx, context.eventId, verified.invitationId);
-      const invitation = await this.findInvitation(tx, verified, 'QR');
-      if (!invitation || !isInvitationQrAvailable(invitation)) return null;
-      return { eventId: invitation.eventId, invitationId: invitation.id };
+      return this.resolveQrTokenInTransaction(tx, qrToken, context.eventId, true);
     });
+  }
+
+  async resolveQrTokenInTransaction(
+    tx: Prisma.TransactionClient,
+    qrToken: string,
+    expectedEventId?: string,
+    alreadyLocked = false
+  ): Promise<ResolvedInvitationQr | null> {
+    const verified = this.tokens.verify('QR', qrToken);
+    if (!verified) return null;
+    const context = await tx.invitation.findUnique({
+      where: { id: verified.invitationId },
+      select: { eventId: true }
+    });
+    if (!context || (expectedEventId !== undefined && context.eventId !== expectedEventId)) return null;
+    if (!alreadyLocked) {
+      await tx.$queryRaw`SELECT "id" FROM "invitation" WHERE "id" = ${verified.invitationId}::uuid FOR UPDATE`;
+    }
+    const invitation = await this.findInvitation(tx, verified, 'QR');
+    if (!invitation || !isInvitationQrAvailable(invitation)) return null;
+    return { eventId: invitation.eventId, invitationId: invitation.id };
   }
 
   private verifyInvitationToken(invitationToken: string): VerifiedInvitationToken {

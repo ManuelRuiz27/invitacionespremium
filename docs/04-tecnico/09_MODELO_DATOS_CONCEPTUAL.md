@@ -229,6 +229,11 @@ Reglas:
 - actor puede ser StaffToken para entrada o usuario autorizado para reversión;
 - no pertenece a Invitación como unidad de acceso.
 
+Implementación relacional: `Event 1:N CheckIn`, `Invitation 1:N CheckIn`,
+`Assistant 1:N CheckIn`, `StaffToken 1:N CheckIn` y `User 1:N CheckIn` como reverter. Las relaciones
+compuestas y triggers validan el mismo Evento/Invitación. `revertedAt IS NULL` deriva la única entrada vigente;
+los campos de reversión forman un conjunto completo e irreversible.
+
 ## Croquis
 
 Pertenece a Evento.

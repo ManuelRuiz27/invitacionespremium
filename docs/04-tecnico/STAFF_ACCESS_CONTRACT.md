@@ -4,8 +4,8 @@
 
 `StaffAccessModule` administra credenciales efímeras de Staff asociadas a un único Evento. Staff no es
 un usuario permanente, no tiene subtipos, roles configurables ni permisos persistidos. Este contrato
-incluye creación, listado, resolución pública mínima y expiración automática. Scanner, QR, búsqueda,
-check-in, Asistentes y Socket.IO permanecen diferidos a `CODEX-081` y `CODEX-082`.
+incluye creación, listado, resolución pública mínima y expiración automática. Scanner, QR, búsqueda y
+check-in se implementan en `CODEX-081`; Socket.IO permanece diferido a `CODEX-082`.
 
 ## Modelo
 
@@ -48,7 +48,8 @@ y `floorplanEnabled`. No expone id del StaffToken, Cliente, creador, Contactos, 
 teléfonos, diseño, QR, finanzas o auditoría. La lectura no escribe ni audita.
 
 La operación interna `resolveStaffToken(rawToken)` devuelve únicamente `staffTokenId`, `eventId` y
-`alias`, o `null`; queda disponible para `CODEX-081`, sin implementar todavía scanner ni check-in.
+`alias`, o `null`. `resolveStaffTokenInTransaction(tx, rawToken)` aplica la misma resolución bajo los
+locks de la operación Scanner para evitar TOCTOU.
 
 ## Límite, concurrencia y ciclo de vida
 

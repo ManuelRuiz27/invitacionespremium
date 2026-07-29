@@ -205,4 +205,5 @@ Un token no puede reutilizarse como otro tipo de acceso.
 9. Los tokens de Invitación, Álbum, QR y Staff deben ser distintos y no intercambiables.
 10. La creación/listado de StaffTokens está implementada para los tres roles operativos conforme a
     ownership; Platform Admin queda fuera. La sesión pública solo proyecta alias y contexto mínimo del
-    Evento. Scanner, búsqueda y check-in siguen diferidos a `CODEX-081`.
+    Evento. Scanner, búsqueda exacta y check-in por Asistente están implementados por `CODEX-081`;
+    tiempo real permanece diferido.

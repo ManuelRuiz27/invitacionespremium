@@ -6,9 +6,9 @@
 del QR en la vista pública, genera el SVG bajo demanda y expone una resolución interna reutilizable por el
 scanner futuro. No crea entidad `Qr`, tabla, FileAsset, archivo en storage ni timestamp de visualización.
 
-Existe un QR por Invitación. El check-in futuro seguirá siendo individual por Asistente. Quedan fuera
-`StaffToken`, scanner, check-in, mesas, QR de PaseFisicoQR, frontend y cualquier endpoint público que
-valide directamente el token QR.
+Existe un QR por Invitación. El check-in implementado en `CODEX-081` es individual por Asistente.
+Quedan fuera mesas, QR de PaseFisicoQR, frontend y cualquier endpoint público que valide directamente
+el token QR.
 
 ## Token y payload
 
@@ -122,8 +122,8 @@ Invitación vuelve a validar recursos activos, estado operativo, cancelación, C
 nominal. Devuelve `null` para material inválido sin revelar la causa. No existe endpoint HTTP para esta
 operación en CODEX-071.
 
-El scanner de CODEX-081 deberá además comprobar que el `eventId` resuelto coincide con el Evento de su
-`StaffToken`; CODEX-071 no implementa esa autorización todavía.
+El Scanner comprueba dentro de la misma transacción que el `eventId` resuelto coincide con el Evento
+del `StaffToken`; cualquier QR ajeno usa el error no enumerante `SCANNER_QR_NOT_FOUND`.
 
 ## Ciclo de vida
 

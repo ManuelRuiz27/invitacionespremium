@@ -664,7 +664,7 @@ resolución de reapertura permanece independiente.
 
 ### CODEX-081 — Scanner y check-in por Asistente
 
-**Estado:** siguiente tarea; no iniciada.
+**Estado:** completada.
 
 **Repo:** `invitacionespremium-api`
 
@@ -689,6 +689,10 @@ resolución de reapertura permanece independiente.
 - segundo check-in del mismo Asistente se bloquea;
 - evento cerrado/cancelado bloquea operación;
 - QR de otro Evento se rechaza.
+
+Implementado con contrato normativo `SCANNER_CHECKIN_CONTRACT.md`, transacciones `Serializable`, orden
+Evento → StaffToken → Invitación → Asistentes → CheckIns, auditoría sin PII y migración PostgreSQL que
+protege pertenencia, unicidad activa, idempotencia, reversión e inmutabilidad.
 
 ### CODEX-082 — Tiempo real operativo
 

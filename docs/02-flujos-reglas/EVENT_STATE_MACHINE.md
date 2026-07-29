@@ -153,6 +153,13 @@ StaffTokens activos dentro de la transacción del Evento. Un fallo de expiració
 transición. `closed → active|event_day` conserva `expiredAt`; cerrar Confirmación o cancelar una
 Invitación no tiene este efecto.
 
+## Efecto Scanner y CheckIn
+
+`active` y `event_day` permiten scan, búsqueda y nuevas entradas. `closed` bloquea nuevas entradas pero
+permite reversión autenticada; `album_published`, `archived`, `cancelled` y borrado lógico bloquean
+también la reversión. Si una transición obtiene primero el lock del Evento, toda operación Scanner
+posterior vuelve a validar y se rechaza; si el check-in obtuvo primero los locks, concluye atómicamente.
+
 El timestamp persistido se obtiene con `clock_timestamp()` después de adquirir el lock del Evento. El
 mismo valor se usa en todo el lote y en su auditoría, de modo que `expiredAt >= createdAt` aun cuando
 una creación confirme mientras el cierre o la cancelación esperaba el lock. La fecha de resolución de
