@@ -60,6 +60,11 @@ Este documento complementa `05_REGLAS_NEGOCIO.md`. No sustituye la diferencia en
 - Cliente no suspendido;
 - ausencia de bloqueos administrativos aplicables.
 
+El preflight especializado exige además al menos un Pase activo, numeración consistente, total dentro de
+`Event.capacity`, ningún uso antes de activar y, con Croquis, Mesa activa para cada Pase sin sobrecupo
+combinado con Asistentes. No exige Contactos, Invitaciones, Asistentes, Confirmación, diseño digital,
+Hotspots ni Álbum.
+
 ## Tabla de transiciones
 
 | Estado actual       | Acción o condición                                | Estado siguiente       | Actor                                                                                             | Validaciones principales                                                                               | Efectos obligatorios                                                                                                                                                        |

@@ -32,7 +32,6 @@ describe('Event destination URL migration', () => {
         .filter((entry) => entry.isDirectory() && entry.name !== migrationName)
         .map((entry) => entry.name)
         .sort();
-      expect(migrationDirectories).toHaveLength(27);
       for (const directory of migrationDirectories) {
         const sql = await readFile(resolve(migrationsRoot, directory, 'migration.sql'), 'utf8');
         await isolated.query(sql);

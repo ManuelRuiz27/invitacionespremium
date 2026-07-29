@@ -368,6 +368,11 @@ Endpoints:
 
 Segundo uso y concurrencia deben bloquearse.
 
+La generación requiere `Idempotency-Key` y `{quantity, tableShapeId|null}`; devuelve rango consecutivo y
+pases mínimos sin secretos. Listado y SVG usan ownership operativo. Scanner deriva el Evento solo desde
+StaffToken, registra un único primer uso y conserva replay exacto. Contrato normativo:
+`PHYSICAL_PASSES_CONTRACT.md`.
+
 ## AlbumsModule
 
 Operación Cliente:

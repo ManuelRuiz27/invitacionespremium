@@ -23,6 +23,11 @@ export interface ResolvedStaffToken {
   alias: string;
 }
 
+export interface StaffTokenIdentity {
+  staff: StaffToken;
+  event: Event;
+}
+
 export type StaffResolution =
   { kind: 'AVAILABLE'; staff: StaffToken; event: Event } | { kind: 'INVALID' } | { kind: 'EVENT_NOT_OPERATIONAL' };
 
@@ -216,6 +221,21 @@ export class StaffTokenResolverService {
     if (!event || event.deletedAt) return { kind: 'INVALID' };
     if (!OPERATIONAL_EVENT_STATUSES.has(event.status)) return { kind: 'EVENT_NOT_OPERATIONAL' };
     return { kind: 'AVAILABLE', staff, event };
+  }
+
+  async resolveStaffTokenIdentityInTransaction(
+    transaction: Prisma.TransactionClient,
+    rawToken: string
+  ): Promise<StaffTokenIdentity | null> {
+    if (!this.technical.isValidSyntax(rawToken)) return null;
+    const digest = this.technical.digest(rawToken);
+    const context = await this.technical.lookupByDigest(transaction, digest);
+    if (!context) return null;
+    await this.lockRows(transaction, context.eventId, digest);
+    const staff = await this.technical.lookupByDigest(transaction, digest);
+    if (!staff) return null;
+    const event = await transaction.event.findUnique({ where: { id: staff.eventId } });
+    return event ? { staff, event } : null;
   }
 
   async getPublicSession(rawToken: string): Promise<ScannerSessionResponseDto> {

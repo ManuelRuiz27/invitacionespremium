@@ -21,6 +21,7 @@ import { PublicRsvpModule } from './public-rsvp/public-rsvp.module';
 import { StaffAccessModule } from './staff-access/staff-access.module';
 import { ScannerModule } from './scanner/scanner.module';
 import { RealtimeModule } from './realtime/realtime.module';
+import { PhysicalPassesModule } from './physical-passes/physical-passes.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { RealtimeModule } from './realtime/realtime.module';
     StaffAccessModule,
     ScannerModule,
     FloorplanModule,
+    PhysicalPassesModule,
     ContactsModule,
     ScheduleModule.forRoot()
   ],

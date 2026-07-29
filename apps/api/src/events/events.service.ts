@@ -18,6 +18,7 @@ import {
 import { FinanceService } from '../finance/finance.service';
 import { resolveDesignReadiness } from '../invitation-design/invitation-design.readiness';
 import { resolveFloorplanReadiness } from '../floorplan/floorplan-readiness.service';
+import { resolvePhysicalPassReadiness } from '../physical-passes/physical-pass-readiness.service';
 import { ServicesPricingService } from '../services-pricing/services-pricing.service';
 import { EventAccessPolicy, eventNotFound } from './event-access.policy';
 import { resolvePreparationStatus } from './event-status.resolver';
@@ -265,6 +266,17 @@ export class EventsService {
                 'Event public invitation configuration is incomplete.',
                 HttpStatus.CONFLICT,
                 { blockers: publicInvitationBlockers }
+              );
+            }
+          }
+          if (service.code === ServiceCode.PHYSICAL_QR) {
+            const physicalPassReadiness = await resolvePhysicalPassReadiness(transaction, eventId);
+            if (!physicalPassReadiness.complete) {
+              throw new DomainError(
+                'EVENT_PHYSICAL_PASSES_INCOMPLETE',
+                'Event physical passes are incomplete.',
+                HttpStatus.CONFLICT,
+                { blockers: physicalPassReadiness.blockers }
               );
             }
           }

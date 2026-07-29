@@ -354,7 +354,15 @@ Staff bloquea Evento → StaffToken y coordina handshakes pendientes contra cier
 - migraciones PostgreSQL 27 y 28, matriz determinista de concurrencia, integración real y vertical
   slice Socket.IO.
 
-`CODEX-100 — Generación y uso de pases físicos` permanece sin iniciar.
+`CODEX-100 — Generación y uso de pases físicos` quedó completado:
+
+- lotes consecutivos idempotentes para Eventos `PHYSICAL_QR`;
+- QR/SVG privado derivado bajo demanda, sin FileAsset;
+- primer uso Scanner único, auditable y protegido ante concurrencia;
+- readiness propio sin Contactos, Invitaciones, Asistentes, Confirmación ni Álbum;
+- capacidad combinada de Mesas y constraints PostgreSQL en la migración 29.
+
+`CODEX-110 — Álbum post-evento` permanece sin iniciar.
 
 ## Fuente de verdad
 

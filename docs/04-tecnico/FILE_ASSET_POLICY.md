@@ -17,7 +17,7 @@ Todos los archivos deben pasar por API. Ningún frontend guarda archivos directa
 | Foto de álbum | JPG/PNG | Máximo 35 por Álbum |
 | Reporte PDF | PDF generado por sistema | Bajo demanda |
 | QR Invitación | SVG generado bajo demanda por backend | Uno derivado por Invitación; no se persiste como FileAsset |
-| QR Pase físico | SVG generado por backend | Uno por recurso correspondiente; implementación futura |
+| QR Pase físico | SVG generado bajo demanda por backend | Uno derivado por Pase; no se persiste como FileAsset |
 
 PDF subido por usuario se rechaza en MVP temprano. La conversión de PDF de una página a imagen queda fuera del alcance inicial.
 
@@ -85,6 +85,9 @@ Ejemplos válidos para archivos que sí se persisten:
 
 `INVITATION_QR_SVG` permanece como tipo conceptual reservado, pero CODEX-071 no crea el FileAsset: el
 SVG de Invitación se deriva bajo demanda. No debe agregarse una fila o bytes de storage para materializarlo.
+
+`PHYSICAL_PASS_QR_SVG` también permanece reservado: CODEX-100 deriva el SVG autenticado bajo demanda y
+no crea fila, bytes ni `storageKey`.
 
 ## Campos mínimos de FileAsset
 

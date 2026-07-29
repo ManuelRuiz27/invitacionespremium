@@ -150,6 +150,12 @@ Un PaseFisicoQR solo puede usarse una vez.
 
 Debe existir protección de unicidad/idempotencia para impedir doble uso concurrente.
 
+La implementación relacional `PhysicalPass` usa número único por Evento, nonce único, FK compuesta
+nullable a Mesa/Evento y FK compuesta nullable a StaffToken/Evento. Los cinco campos de uso forman un
+conjunto completo e irreversible. `PhysicalPassGenerationOperation` conserva la idempotencia global y
+snapshot mínimo del lote. La migración 29 protege servicio `PHYSICAL_QR`, capacidad de Evento, modo
+Croquis, capacidad combinada de Mesa e inmutabilidad del uso.
+
 ## StaffToken
 
 Campos conceptuales:

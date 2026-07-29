@@ -333,7 +333,7 @@ describe('Event activation', () => {
 
   it('rejects unmet preconditions without ledger, receipt, audit, balance, or state effects', async () => {
     const { service } = await createPricedService(ServiceCode.FLYER, ClientType.PLANNER, 10);
-    const noPriceService = await prisma.service.create({ data: { code: ServiceCode.PHYSICAL_QR } });
+    const noPriceService = await prisma.service.create({ data: { code: ServiceCode.FLIPBOOK } });
     const demo = await prisma.service.create({ data: { code: ServiceCode.DEMO } });
     await prisma.servicePrice.create({
       data: {

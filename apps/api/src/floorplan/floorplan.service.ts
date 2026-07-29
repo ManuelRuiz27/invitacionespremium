@@ -59,7 +59,14 @@ const floorplanInclude = {
   imageAsset: true,
   shapes: {
     where: { deletedAt: null },
-    include: { _count: { select: { assistants: { where: { deletedAt: null } } } } },
+    include: {
+      _count: {
+        select: {
+          assistants: { where: { deletedAt: null } },
+          physicalPasses: { where: { deletedAt: null } }
+        }
+      }
+    },
     orderBy: [{ createdAt: 'asc' as const }, { id: 'asc' as const }]
   }
 } satisfies Prisma.FloorplanInclude;
@@ -259,7 +266,7 @@ export class FloorplanService {
         where: { id: shapeId },
         data: shapeUpdateData(merged.data)
       });
-      const occupancy = await tx.assistant.count({ where: { floorplanShapeId: shapeId, deletedAt: null } });
+      const occupancy = await combinedOccupancy(tx, shapeId);
       await this.recordAudit(tx, event, principal, operationId, 'FLOORPLAN_SHAPE_UPDATE', shapeId, {
         before: shapeAudit(current),
         after: shapeAudit(updated),
@@ -276,7 +283,7 @@ export class FloorplanService {
       const floorplan = await this.lockFloorplan(tx, eventId);
       this.assertUnlocked(floorplan);
       const current = await this.lockShape(tx, eventId, floorplan.id, shapeId);
-      const occupancy = await tx.assistant.count({ where: { floorplanShapeId: shapeId, deletedAt: null } });
+      const occupancy = await combinedOccupancy(tx, shapeId);
       if (occupancy > 0) throw floorplanError('FLOORPLAN_TABLE_OCCUPIED', 'Occupied table cannot be deleted.');
       await tx.floorplanShape.update({ where: { id: shapeId }, data: { deletedAt: new Date() } });
       await this.recordAudit(tx, event, principal, operationId, 'FLOORPLAN_SHAPE_DELETE', shapeId, {
@@ -487,14 +494,17 @@ export class FloorplanService {
           toTableId: resolved.tableShapeId
         }));
       if (table) {
-        const existing = await tx.assistant.count({
+        const existingAssistants = await tx.assistant.count({
           where: {
             floorplanShapeId: table.id,
             deletedAt: null,
             id: { notIn: assistantIds }
           }
         });
-        if (existing + assistants.length > table.capacity) {
+        const existingPasses = await tx.physicalPass.count({
+          where: { floorplanShapeId: table.id, deletedAt: null }
+        });
+        if (existingAssistants + existingPasses + assistants.length > table.capacity) {
           throw floorplanError('SEATING_TABLE_CAPACITY_EXCEEDED', 'Table capacity would be exceeded.');
         }
       }
@@ -614,13 +624,18 @@ export class FloorplanService {
       select: {
         id: true,
         capacity: true,
-        _count: { select: { assistants: { where: { deletedAt: null } } } }
+        _count: {
+          select: {
+            assistants: { where: { deletedAt: null } },
+            physicalPasses: { where: { deletedAt: null } }
+          }
+        }
       },
       orderBy: { id: 'asc' }
     });
     return tables.map(({ id, capacity, _count }) => ({
       tableId: id,
-      occupancy: _count.assistants,
+      occupancy: _count.assistants + _count.physicalPasses,
       capacity
     }));
   }
@@ -764,7 +779,9 @@ export function toFloorplanResponse(floorplan: FloorplanView): FloorplanResponse
     },
     locked: floorplan.lockedAt !== null,
     lockedAt: floorplan.lockedAt?.toISOString() ?? null,
-    shapes: floorplan.shapes.map((shape) => toShapeResponse(shape, shape._count.assistants)),
+    shapes: floorplan.shapes.map((shape) =>
+      toShapeResponse(shape, shape._count.assistants + shape._count.physicalPasses)
+    ),
     createdAt: floorplan.createdAt.toISOString(),
     updatedAt: floorplan.updatedAt.toISOString()
   };
@@ -789,6 +806,14 @@ function toShapeResponse(shape: FloorplanShape, occupancy: number): FloorplanSha
 }
 
 type PolygonPoint = { x: number; y: number };
+
+async function combinedOccupancy(tx: Prisma.TransactionClient, shapeId: string): Promise<number> {
+  const [assistants, physicalPasses] = await Promise.all([
+    tx.assistant.count({ where: { floorplanShapeId: shapeId, deletedAt: null } }),
+    tx.physicalPass.count({ where: { floorplanShapeId: shapeId, deletedAt: null } })
+  ]);
+  return assistants + physicalPasses;
+}
 
 export function requestSignature(eventId: string, action: SeatingAction, input: unknown): string {
   return createHash('sha256').update(JSON.stringify({ eventId, action, input }), 'utf8').digest('hex');

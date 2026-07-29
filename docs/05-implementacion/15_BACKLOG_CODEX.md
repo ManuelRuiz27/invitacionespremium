@@ -791,7 +791,7 @@ FileAsset, un Croquis activo, geometría, capacidad y pertenencia entre Evento, 
 FloorplanModule expone edición Planner, asignación individual/familiar/Grupo, readiness de activación,
 pendientes al cerrar Confirmación y lectura privada Staff. La auditoría es transaccional y
 `seating.updated` se publica una vez post-commit. El vertical slice cubre creación, activación, RSVP,
-asignación, Scanner, realtime, check-in, cambio post-check-in y cierre. `CODEX-100` permanece sin iniciar.
+asignación, Scanner, realtime, check-in, cambio post-check-in y cierre.
 
 El cierre de integridad agrega la migración 28: el trigger de CheckIn exige Mesa activa del mismo
 Croquis cuando `floorplanEnabled=true` y Scanner devuelve
@@ -829,6 +829,10 @@ y reversión en ambos órdenes, sin sleeps.
 - sin croquis muestra QR, número y evento/salón;
 - con mesa resalta mesa;
 - no incluye Confirmación de asistencia ni álbum.
+
+**Estado:** completado. La migración 29, `PhysicalPassesModule`, readiness, SVG derivado, Scanner,
+idempotencia y concurrencia quedan documentados en `PHYSICAL_PASSES_CONTRACT.md`. `CODEX-110` no se ha
+iniciado.
 
 ---
 

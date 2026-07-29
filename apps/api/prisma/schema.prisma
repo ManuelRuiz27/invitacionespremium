@@ -309,6 +309,7 @@ model User {
   createdStaffTokens       StaffToken[]           @relation("StaffTokenCreator")
   revertedCheckIns         CheckIn[]              @relation("CheckInReverter")
   lockedFloorplans         Floorplan[]            @relation("FloorplanLocker")
+  createdPhysicalPasses    PhysicalPass[]         @relation("PhysicalPassCreator")
 
   @@index([clientId])
   @@index([role, deletedAt])
@@ -521,59 +522,61 @@ model DebtPaymentAllocation {
 }
 
 model Event {
-  id                              String                 @id @default(uuid()) @db.Uuid
-  clientId                        String                 @map("client_id") @db.Uuid
-  createdByUserId                 String                 @map("created_by_user_id") @db.Uuid
-  serviceId                       String?                @map("service_id") @db.Uuid
-  name                            String?                @db.VarChar(160)
-  socialType                      EventSocialType?       @map("social_type")
-  status                          EventStatus            @default(DRAFT)
-  eventDateTime                   DateTime?              @map("event_date_time") @db.Timestamptz(6)
-  timeZone                        String?                @map("time_zone") @db.VarChar(100)
-  capacity                        Int?
-  confirmationEnabled             Boolean                @default(false) @map("confirmation_enabled")
-  locationUrl                     String?                @map("location_url") @db.VarChar(2048)
-  giftRegistryUrl                 String?                @map("gift_registry_url") @db.VarChar(2048)
-  confirmationClosedAt            DateTime?              @map("confirmation_closed_at") @db.Timestamptz(6)
-  confirmationClosedByUserId      String?                @map("confirmation_closed_by_user_id") @db.Uuid
-  floorplanEnabled                Boolean                @default(false) @map("floorplan_enabled")
-  activatedAt                     DateTime?              @map("activated_at") @db.Timestamptz(6)
-  activatedByUserId               String?                @map("activated_by_user_id") @db.Uuid
-  activatedServiceId              String?                @map("activated_service_id") @db.Uuid
-  activatedServicePriceId         String?                @map("activated_service_price_id") @db.Uuid
-  baseCostCredits                 Int?                   @map("base_cost_credits")
-  promotionDiscountCredits        Int?                   @map("promotion_discount_credits")
-  finalCostCredits                Int?                   @map("final_cost_credits")
-  purchasedCreditsUsed            Int?                   @map("purchased_credits_used")
-  creditLineCreditsUsed           Int?                   @map("credit_line_credits_used")
-  creditUnitValueMxnCentsSnapshot Int?                   @map("credit_unit_value_mxn_cents_snapshot")
-  activationReceiptId             String?                @unique @map("activation_receipt_id") @db.Uuid
-  activationIdempotencyKey        String?                @unique @map("activation_idempotency_key") @db.VarChar(128)
-  createdAt                       DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                       DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
-  deletedAt                       DateTime?              @map("deleted_at") @db.Timestamptz(6)
-  client                          Client                 @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  createdByUser                   User                   @relation("EventCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
-  activatedByUser                 User?                  @relation("EventActivator", fields: [activatedByUserId], references: [id], onDelete: Restrict)
-  confirmationClosedByUser        User?                  @relation("EventConfirmationCloser", fields: [confirmationClosedByUserId], references: [id], onDelete: Restrict)
-  service                         Service?               @relation("EventConfiguredService", fields: [serviceId], references: [id], onDelete: Restrict)
-  activatedService                Service?               @relation("EventActivatedService", fields: [activatedServiceId], references: [id], onDelete: Restrict)
-  activatedServicePrice           ServicePrice?          @relation(fields: [activatedServicePriceId], references: [id], onDelete: Restrict)
-  activationReceipt               Receipt?               @relation(fields: [activationReceiptId], references: [id], onDelete: Restrict)
-  ledgerEntries                   LedgerEntry[]
-  stateOperations                 EventStateOperation[]
-  contacts                        Contact[]
-  groups                          Group[]
-  contactImportPreviews           ContactImportPreview[]
-  invitations                     Invitation[]
-  assistants                      Assistant[]
-  fileAssets                      FileAsset[]
-  invitationDesigns               InvitationDesign[]
-  staffTokens                     StaffToken[]
-  checkIns                        CheckIn[]
-  floorplans                      Floorplan[]
-  floorplanShapes                 FloorplanShape[]
-  seatingOperations               SeatingOperation[]
+  id                               String                            @id @default(uuid()) @db.Uuid
+  clientId                         String                            @map("client_id") @db.Uuid
+  createdByUserId                  String                            @map("created_by_user_id") @db.Uuid
+  serviceId                        String?                           @map("service_id") @db.Uuid
+  name                             String?                           @db.VarChar(160)
+  socialType                       EventSocialType?                  @map("social_type")
+  status                           EventStatus                       @default(DRAFT)
+  eventDateTime                    DateTime?                         @map("event_date_time") @db.Timestamptz(6)
+  timeZone                         String?                           @map("time_zone") @db.VarChar(100)
+  capacity                         Int?
+  confirmationEnabled              Boolean                           @default(false) @map("confirmation_enabled")
+  locationUrl                      String?                           @map("location_url") @db.VarChar(2048)
+  giftRegistryUrl                  String?                           @map("gift_registry_url") @db.VarChar(2048)
+  confirmationClosedAt             DateTime?                         @map("confirmation_closed_at") @db.Timestamptz(6)
+  confirmationClosedByUserId       String?                           @map("confirmation_closed_by_user_id") @db.Uuid
+  floorplanEnabled                 Boolean                           @default(false) @map("floorplan_enabled")
+  activatedAt                      DateTime?                         @map("activated_at") @db.Timestamptz(6)
+  activatedByUserId                String?                           @map("activated_by_user_id") @db.Uuid
+  activatedServiceId               String?                           @map("activated_service_id") @db.Uuid
+  activatedServicePriceId          String?                           @map("activated_service_price_id") @db.Uuid
+  baseCostCredits                  Int?                              @map("base_cost_credits")
+  promotionDiscountCredits         Int?                              @map("promotion_discount_credits")
+  finalCostCredits                 Int?                              @map("final_cost_credits")
+  purchasedCreditsUsed             Int?                              @map("purchased_credits_used")
+  creditLineCreditsUsed            Int?                              @map("credit_line_credits_used")
+  creditUnitValueMxnCentsSnapshot  Int?                              @map("credit_unit_value_mxn_cents_snapshot")
+  activationReceiptId              String?                           @unique @map("activation_receipt_id") @db.Uuid
+  activationIdempotencyKey         String?                           @unique @map("activation_idempotency_key") @db.VarChar(128)
+  createdAt                        DateTime                          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                        DateTime                          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt                        DateTime?                         @map("deleted_at") @db.Timestamptz(6)
+  client                           Client                            @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  createdByUser                    User                              @relation("EventCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  activatedByUser                  User?                             @relation("EventActivator", fields: [activatedByUserId], references: [id], onDelete: Restrict)
+  confirmationClosedByUser         User?                             @relation("EventConfirmationCloser", fields: [confirmationClosedByUserId], references: [id], onDelete: Restrict)
+  service                          Service?                          @relation("EventConfiguredService", fields: [serviceId], references: [id], onDelete: Restrict)
+  activatedService                 Service?                          @relation("EventActivatedService", fields: [activatedServiceId], references: [id], onDelete: Restrict)
+  activatedServicePrice            ServicePrice?                     @relation(fields: [activatedServicePriceId], references: [id], onDelete: Restrict)
+  activationReceipt                Receipt?                          @relation(fields: [activationReceiptId], references: [id], onDelete: Restrict)
+  ledgerEntries                    LedgerEntry[]
+  stateOperations                  EventStateOperation[]
+  contacts                         Contact[]
+  groups                           Group[]
+  contactImportPreviews            ContactImportPreview[]
+  invitations                      Invitation[]
+  assistants                       Assistant[]
+  fileAssets                       FileAsset[]
+  invitationDesigns                InvitationDesign[]
+  staffTokens                      StaffToken[]
+  checkIns                         CheckIn[]
+  floorplans                       Floorplan[]
+  floorplanShapes                  FloorplanShape[]
+  seatingOperations                SeatingOperation[]
+  physicalPasses                   PhysicalPass[]
+  physicalPassGenerationOperations PhysicalPassGenerationOperation[]
 
   @@index([clientId, status, deletedAt])
   @@index([createdByUserId, status, deletedAt])
@@ -733,6 +736,7 @@ model FloorplanShape {
   floorplan      Floorplan          @relation(fields: [floorplanId, eventId], references: [id, eventId], onDelete: Restrict)
   event          Event              @relation(fields: [eventId], references: [id], onDelete: Restrict)
   assistants     Assistant[]
+  physicalPasses PhysicalPass[]
 
   @@unique([id, eventId])
   @@index([floorplanId, deletedAt])
@@ -755,21 +759,64 @@ model SeatingOperation {
 }
 
 model StaffToken {
-  id                String    @id @default(uuid()) @db.Uuid
-  eventId           String    @map("event_id") @db.Uuid
-  alias             String    @db.VarChar(80)
-  tokenDigestSha256 String    @unique @map("token_digest_sha256") @db.Char(64)
-  tokenVersion      Int       @default(1) @map("token_version")
-  createdByUserId   String    @map("created_by_user_id") @db.Uuid
-  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  expiredAt         DateTime? @map("expired_at") @db.Timestamptz(6)
-  event             Event     @relation(fields: [eventId], references: [id], onDelete: Restrict)
-  createdByUser     User      @relation("StaffTokenCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
-  checkIns          CheckIn[]
+  id                 String         @id @default(uuid()) @db.Uuid
+  eventId            String         @map("event_id") @db.Uuid
+  alias              String         @db.VarChar(80)
+  tokenDigestSha256  String         @unique @map("token_digest_sha256") @db.Char(64)
+  tokenVersion       Int            @default(1) @map("token_version")
+  createdByUserId    String         @map("created_by_user_id") @db.Uuid
+  createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiredAt          DateTime?      @map("expired_at") @db.Timestamptz(6)
+  event              Event          @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  createdByUser      User           @relation("StaffTokenCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  checkIns           CheckIn[]
+  usedPhysicalPasses PhysicalPass[]
 
   @@unique([id, eventId])
   @@index([eventId, expiredAt, createdAt, id])
   @@map("staff_token")
+}
+
+model PhysicalPass {
+  id                  String          @id @default(uuid()) @db.Uuid
+  eventId             String          @map("event_id") @db.Uuid
+  passNumber          Int             @map("pass_number")
+  floorplanShapeId    String?         @map("floorplan_shape_id") @db.Uuid
+  qrTokenNonce        String          @unique @map("qr_token_nonce") @db.VarChar(64)
+  qrTokenVersion      Int             @default(1) @map("qr_token_version")
+  usedAt              DateTime?       @map("used_at") @db.Timestamptz(6)
+  usedByStaffTokenId  String?         @map("used_by_staff_token_id") @db.Uuid
+  useIdempotencyKey   String?         @map("use_idempotency_key") @db.VarChar(128)
+  useRequestSignature String?         @map("use_request_signature") @db.Char(64)
+  useResultSnapshot   Json?           @map("use_result_snapshot")
+  createdByUserId     String          @map("created_by_user_id") @db.Uuid
+  createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt           DateTime?       @map("deleted_at") @db.Timestamptz(6)
+  event               Event           @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  floorplanShape      FloorplanShape? @relation(fields: [floorplanShapeId, eventId], references: [id, eventId], onDelete: Restrict)
+  usedByStaffToken    StaffToken?     @relation(fields: [usedByStaffTokenId, eventId], references: [id, eventId], onDelete: Restrict)
+  createdByUser       User            @relation("PhysicalPassCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([eventId, passNumber])
+  @@unique([id, eventId])
+  @@index([eventId, deletedAt, passNumber])
+  @@index([floorplanShapeId, eventId, deletedAt])
+  @@index([usedByStaffTokenId, eventId])
+  @@map("physical_pass")
+}
+
+model PhysicalPassGenerationOperation {
+  id               String   @id @default(uuid()) @db.Uuid
+  eventId          String   @map("event_id") @db.Uuid
+  idempotencyKey   String   @unique @map("idempotency_key") @db.VarChar(128)
+  requestSignature String   @map("request_signature") @db.Char(64)
+  resultSnapshot   Json     @map("result_snapshot")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  event            Event    @relation(fields: [eventId], references: [id], onDelete: Restrict)
+
+  @@index([eventId, createdAt])
+  @@map("physical_pass_generation_operation")
 }
 
 model Group {

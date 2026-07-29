@@ -319,10 +319,10 @@ Puede tener mesa si existe.
 
 Tiene:
 
-- token QR único;
-- número de pase;
-- estado usado/no usado;
-- timestamp y actor de uso.
+- nonce y versión para derivar un token QR de propósito exclusivo;
+- número consecutivo único por Evento;
+- Mesa opcional mediante relación compuesta al mismo Evento;
+- primer uso completo e irreversible con timestamp, StaffToken, idempotencia, firma y snapshot.
 
 Si no hay croquis/mesa, muestra:
 
@@ -331,6 +331,9 @@ Si no hay croquis/mesa, muestra:
 - nombre del Evento/salón.
 
 No tiene Contacto, Confirmación nominal ni Álbum.
+
+`PhysicalPassGenerationOperation` es una entidad técnica de idempotencia por lote; no es visible como
+recurso comercial. El SVG se deriva bajo demanda y no crea FileAsset.
 
 ## Álbum
 
