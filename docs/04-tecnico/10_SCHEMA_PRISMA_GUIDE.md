@@ -413,6 +413,15 @@ También validar en backend:
 - constraint o índice que impida dos check-ins activos por Asistente.
 - constraint o estrategia transaccional que impida segundo uso de PaseFisicoQR.
 
+## Album implementado
+
+La migración 31 crea `Album`, `AlbumPhoto` y los campos de acceso de Álbum en `Invitation`. Protege un
+Álbum por Evento, máximo 35 fotos activas, posiciones continuas, compatibilidad compuesta
+Álbum/Evento/FileAsset, JSON visual estricto, pares publicación/expiración y nonce/version/expiración,
+además del estado `album_published`. Los checks simples viven en constraints; la coherencia entre tablas
+y el límite del lote usan constraint triggers `DEFERRABLE INITIALLY DEFERRED`. `DELETE` y `TRUNCATE` de
+Album/AlbumPhoto se rechazan fuera de la limpieza controlada de pruebas. Véase `ALBUMS_CONTRACT.md`.
+
 ## StaffToken implementado
 
 La migración 23 crea `staff_token` con UUID, FKs restrictivas, digest SHA-256 único, alias normalizado,

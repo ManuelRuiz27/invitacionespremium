@@ -14,10 +14,12 @@ import {
   EventSocialType,
   EventStateAction,
   EventStatus,
+  FileAssetOwnerType,
   FileAssetStatus,
   FileAssetType,
   LedgerMovementType,
   ServiceCode,
+  StorageProvider,
   UserRole
 } from '../src/generated/prisma/client';
 import { createOpenApiDocument } from '../src/openapi/openapi';
@@ -122,12 +124,8 @@ describe('Event lifecycle', () => {
     const catalog = await createCatalog();
     const cookie = await login(planner.email);
     const closed = await createActivatedEvent(planner, catalog.service.id, catalog.plannerPrice.id, EventStatus.CLOSED);
-    const album = await createActivatedEvent(
-      planner,
-      catalog.service.id,
-      catalog.plannerPrice.id,
-      EventStatus.ALBUM_PUBLISHED
-    );
+    const album = await createActivatedEvent(planner, catalog.service.id, catalog.plannerPrice.id, EventStatus.CLOSED);
+    await makeAlbumPublished(album.id, planner);
 
     await transition(closed.id, 'cancel', cookie, 'lifecycle-closed-cancel-forbidden').expect(409);
     await transition(closed.id, 'archive', cookie, 'lifecycle-archive-closed')
@@ -410,6 +408,59 @@ describe('Event lifecycle', () => {
         activationReceiptId: receipt.id,
         activationIdempotencyKey: idempotencyKey
       }
+    });
+  }
+
+  async function makeAlbumPublished(eventId: string, owner: { clientId: string; userId: string }): Promise<void> {
+    const albumId = randomUUID();
+    const photoId = randomUUID();
+    const fileAssetId = randomUUID();
+    const publishedAt = new Date('2026-02-01T00:00:00.000Z');
+    const expiresAt = new Date('2026-03-03T00:00:00.000Z');
+    await prisma.$transaction(async (transaction) => {
+      await transaction.album.create({
+        data: {
+          id: albumId,
+          eventId,
+          title: 'Álbum fixture',
+          themeSettings: {
+            backgroundColor: '#FFFFFF',
+            textColor: '#111111',
+            accentColor: '#C5A46D'
+          },
+          createdByUserId: owner.userId,
+          publishedAt,
+          expiresAt
+        }
+      });
+      await transaction.fileAsset.create({
+        data: {
+          id: fileAssetId,
+          clientId: owner.clientId,
+          eventId,
+          ownerType: FileAssetOwnerType.ALBUM_PHOTO,
+          ownerId: photoId,
+          fileType: FileAssetType.ALBUM_PHOTO_IMAGE,
+          storageProvider: StorageProvider.LOCAL,
+          storageKey: `album-lifecycle/${randomBytes(32).toString('hex')}`,
+          originalName: 'fixture.png',
+          mimeType: 'image/png',
+          sizeBytes: 32,
+          checksumSha256: randomBytes(32).toString('hex'),
+          width: 1,
+          height: 1,
+          createdByUserId: owner.userId,
+          status: FileAssetStatus.READY,
+          associatedAt: publishedAt
+        }
+      });
+      await transaction.albumPhoto.create({
+        data: { id: photoId, albumId, eventId, fileAssetId, position: 1 }
+      });
+      await transaction.event.update({
+        where: { id: eventId },
+        data: { status: EventStatus.ALBUM_PUBLISHED }
+      });
     });
   }
 

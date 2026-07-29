@@ -126,6 +126,29 @@ export class EventLifecycleService {
           }
 
           const targetStatus = resolveTargetStatus(action, current, stateResolutionAt);
+          if (action === EventStateAction.ARCHIVE && current.status === EventStatus.ALBUM_PUBLISHED) {
+            await transaction.$queryRaw`
+              SELECT "id"
+              FROM "album"
+              WHERE "event_id" = ${eventId}::uuid
+              FOR UPDATE
+            `;
+            await transaction.$queryRaw`
+              SELECT "id"
+              FROM "invitation"
+              WHERE "event_id" = ${eventId}::uuid
+              ORDER BY "id"
+              FOR UPDATE
+            `;
+            await transaction.invitation.updateMany({
+              where: { eventId },
+              data: {
+                albumTokenNonce: null,
+                albumTokenVersion: null,
+                albumAccessExpiresAt: null
+              }
+            });
+          }
           if (targetStatus === EventStatus.CLOSED || targetStatus === EventStatus.CANCELLED) {
             const transitionCommittedAt = await this.getTransitionCommittedAt(transaction);
             await this.staffTokens.expireForEventTransition(
@@ -362,6 +385,9 @@ function resolveTargetStatus(action: EventStateAction, event: Event, at: Date): 
       }
       break;
     case EventStateAction.EVENT_DAY:
+    case EventStateAction.PUBLISH_ALBUM:
+    case EventStateAction.UNPUBLISH_ALBUM:
+    case EventStateAction.EXPIRE_ALBUM:
       break;
   }
 
@@ -383,6 +409,12 @@ function auditAction(action: EventStateAction): string {
       return 'EVENT_ARCHIVE';
     case EventStateAction.EVENT_DAY:
       return 'EVENT_ENTER_EVENT_DAY';
+    case EventStateAction.PUBLISH_ALBUM:
+      return 'ALBUM_PUBLISH';
+    case EventStateAction.UNPUBLISH_ALBUM:
+      return 'ALBUM_UNPUBLISH';
+    case EventStateAction.EXPIRE_ALBUM:
+      return 'ALBUM_EXPIRE';
   }
 }
 

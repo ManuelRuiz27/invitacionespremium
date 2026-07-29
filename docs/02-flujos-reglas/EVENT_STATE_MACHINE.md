@@ -95,6 +95,11 @@ su resolución de preparación propia.
 | `active`            | Cancelar                                          | `cancelled`            | Planner independiente, Admin de Organización o Planner de Organización autorizado                 | Ownership                                                                                              | Cancelar upgrade pendiente si existe, bloquear Confirmación y QR, expirar tokens staff y mostrar mensaje público. Devolución solo manual por Platform Admin.                |
 | `event_day`         | Cancelar                                          | `cancelled`            | Planner independiente, Admin de Organización o Planner de Organización autorizado                 | Ownership                                                                                              | Bloquear check-in, Confirmación y QR; expirar tokens staff y mostrar mensaje público. Devolución solo manual por Platform Admin.                                            |
 
+Las transiciones `closed → album_published`, `album_published → closed` y expiración usan las acciones
+técnicas `PUBLISH_ALBUM`, `UNPUBLISH_ALBUM` y `EXPIRE_ALBUM`. Publicación y despublicación persisten
+snapshot idempotente; archivo y expiración invalidan accesos dentro de la transición. Detalle normativo:
+`ALBUMS_CONTRACT.md`.
+
 ## Workflow sin cambio de estado: Flyer → Flipbook
 
 Con Evento `active` y antes de `event_day`:

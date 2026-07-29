@@ -393,6 +393,7 @@ Operación Cliente:
 Acceso público:
 
 - `GET /public/albums/:albumToken`
+- `GET /public/albums/:albumToken/photos/:photoId/content`
 
 Reglas del token de Álbum:
 
@@ -403,6 +404,9 @@ Reglas del token de Álbum:
 - expira a los 30 días o antes si Evento se archiva/Álbum se despublica;
 - no habilita datos de otras Invitaciones;
 - al expirar 30 días, el proceso de Evento lo archiva conforme a la máquina de estados.
+
+La implementación usa `EventStateOperation` para replay exacto de publicación/despublicación, entrega
+fotos con cache privado `no-store` y aplica el contrato normativo `ALBUMS_CONTRACT.md`.
 
 ## ReportsModule
 

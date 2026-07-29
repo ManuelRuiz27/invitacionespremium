@@ -88,7 +88,14 @@ export class FileAssetsService {
     const operationalFloorplanUpload =
       input.fileType === FileAssetType.FLOORPLAN_IMAGE &&
       (event.status === EventStatus.ACTIVE || event.status === EventStatus.EVENT_DAY);
-    if (!UPLOAD_EVENT_STATUSES.has(event.status) && !operationalFloorplanUpload) {
+    const albumPhotoUpload =
+      input.fileType === FileAssetType.ALBUM_PHOTO_IMAGE &&
+      (event.status === EventStatus.ACTIVE ||
+        event.status === EventStatus.EVENT_DAY ||
+        event.status === EventStatus.CLOSED);
+    const preparationUpload =
+      input.fileType !== FileAssetType.ALBUM_PHOTO_IMAGE && UPLOAD_EVENT_STATUSES.has(event.status);
+    if (!preparationUpload && !operationalFloorplanUpload && !albumPhotoUpload) {
       throw new ConflictException({
         code: 'FILE_EVENT_STATE_LOCKED',
         message: 'File uploads are locked for the current Event state.'

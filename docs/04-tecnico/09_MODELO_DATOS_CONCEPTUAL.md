@@ -356,6 +356,10 @@ Pertenecen a Álbum.
 
 Cada FotoÁlbum se relaciona con un FileAsset y conserva posición/orden.
 
+La implementación persiste `AlbumPhoto` con relación compuesta al mismo Evento, posición activa
+continua y soft delete. El FileAsset asociado usa `ALBUM_PHOTO/ALBUM_PHOTO_IMAGE`; eliminar la foto lo
+oculta sin eliminar sus bytes.
+
 ## Acceso a Álbum
 
 Se determina por Invitación con al menos un Asistente ingresado.
@@ -368,6 +372,10 @@ Al publicar:
 - expira a los 30 días o antes por despublicación/archivado.
 
 La elegibilidad de asistencia se conserva como dato operativo aun después de anonimizar nombres.
+
+El acceso persiste en `Invitation` como nonce, versión y expiración completos o nulos. El token firmado
+no se almacena. Cada nueva publicación rota los nonces y la expiración se fija con el mismo reloj que
+`publishedAt`, exactamente 30 días después.
 
 ## Créditos
 

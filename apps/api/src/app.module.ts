@@ -22,6 +22,7 @@ import { StaffAccessModule } from './staff-access/staff-access.module';
 import { ScannerModule } from './scanner/scanner.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { PhysicalPassesModule } from './physical-passes/physical-passes.module';
+import { AlbumsModule } from './albums/albums.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { PhysicalPassesModule } from './physical-passes/physical-passes.module';
     ScannerModule,
     FloorplanModule,
     PhysicalPassesModule,
+    AlbumsModule,
     ContactsModule,
     ScheduleModule.forRoot()
   ],

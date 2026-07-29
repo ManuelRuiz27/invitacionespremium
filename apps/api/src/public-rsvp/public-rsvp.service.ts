@@ -28,6 +28,7 @@ import type {
   RsvpOverrideInput
 } from './public-rsvp.dto';
 import { isInvitationQrAvailable } from './invitation-qr.service';
+import { AlbumTokenService } from '../albums/album-token.service';
 
 const OPERATIONAL_STATUSES = new Set<EventStatus>([EventStatus.ACTIVE, EventStatus.EVENT_DAY]);
 const CLOSED_MESSAGE = 'La confirmación de asistencia ya fue cerrada. Contacta al organizador.';
@@ -42,6 +43,7 @@ const publicInclude = {
   },
   event: {
     include: {
+      album: true,
       invitationDesigns: {
         where: { deletedAt: null },
         orderBy: [{ createdAt: 'desc' as const }],
@@ -81,7 +83,8 @@ export class PublicRsvpService {
     @Inject(EventAccessPolicy) private readonly eventAccess: EventAccessPolicy,
     @Inject(InvitationTokenService) private readonly tokens: InvitationTokenService,
     @Inject(FileStorage) private readonly storage: FileStorage,
-    @Inject(RealtimePublisherService) private readonly realtime: RealtimePublisherService
+    @Inject(RealtimePublisherService) private readonly realtime: RealtimePublisherService,
+    @Inject(AlbumTokenService) private readonly albumTokens: AlbumTokenService
   ) {}
 
   async resolve(invitationToken: string): Promise<PublicInvitationViewResponseDto> {
@@ -601,8 +604,40 @@ export class PublicRsvpService {
     const event = invitation.event;
     if (invitation.cancelledAt) return { status: 'CANCELLED', message: INVITATION_CANCELLED_MESSAGE };
     if (event.status === EventStatus.CANCELLED) return { status: 'CANCELLED', message: EVENT_CANCELLED_MESSAGE };
-    if (event.status === EventStatus.CLOSED || event.status === EventStatus.ALBUM_PUBLISHED)
-      return { status: 'CLOSED' };
+    if (event.status === EventStatus.CLOSED) return { status: 'CLOSED' };
+    if (event.status === EventStatus.ALBUM_PUBLISHED) {
+      const album = event.album;
+      if (
+        album &&
+        album.deletedAt === null &&
+        album.publishedAt &&
+        album.expiresAt &&
+        invitation.albumTokenNonce &&
+        invitation.albumTokenVersion &&
+        invitation.albumAccessExpiresAt
+      ) {
+        const token = this.albumTokens.issue(
+          album.id,
+          invitation.id,
+          invitation.albumTokenNonce,
+          invitation.albumTokenVersion
+        );
+        return {
+          status: 'CLOSED',
+          album: {
+            state: 'AVAILABLE',
+            contentPath: `/api/v1/public/albums/${encodeURIComponent(token)}`
+          }
+        };
+      }
+      return {
+        status: 'CLOSED',
+        album: {
+          state: 'RESTRICTED',
+          message: 'Álbum disponible solo para asistentes'
+        }
+      };
+    }
     if (!OPERATIONAL_STATUSES.has(event.status)) throw invitationNotFound();
     if (!event.name || !event.eventDateTime || !event.timeZone) throw invitationNotFound();
     const design = event.invitationDesigns[0];

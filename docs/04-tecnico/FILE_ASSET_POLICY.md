@@ -264,10 +264,16 @@ Nunca borrar primero el archivo anterior y después intentar subir el nuevo.
 ### Álbum
 
 - Máximo 35 fotos.
+- La subida `ALBUM_PHOTO/ALBUM_PHOTO_IMAGE` se habilita solo en `active`, `event_day` y `closed`; esta
+  excepción no abre esos estados a Flyer, Flipbook ni Croquis.
+- Los bytes deben ser JPEG o PNG reales y el asset debe estar `READY`, sin owner y en el mismo Cliente
+  y Evento antes de asociarse.
 - El orden se guarda en la relación FotoÁlbum.
 - Publicar/despublicar Álbum no elimina fotos.
 - El acceso público requiere token de Álbum separado por Invitación elegible.
 - Al despublicar, expirar o archivar, los assets dejan de resolverse públicamente.
+- El endpoint público de foto revalida el token y entrega `private, no-store`, `nosniff` y
+  `Referrer-Policy: no-referrer`, sin nombre original, storage key, ruta ni checksum completo.
 
 ### Reportes
 

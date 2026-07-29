@@ -366,7 +366,17 @@ Staff bloquea Evento → StaffToken y coordina handshakes pendientes contra cier
 - recomputación transaccional de readiness al editar el Evento y E2E HTTP con QR rasterizado y
   decodificado, con y sin Croquis.
 
-`CODEX-110 — Álbum post-evento` permanece sin iniciar.
+`CODEX-110 — Álbum postevento` quedó completado:
+
+- `AlbumsModule` para Eventos `FLYER` y `FLIPBOOK`, con configuración visual estricta y hasta 35 fotos;
+- FileAssets JPG/PNG privados, asociación transaccional, soft delete y posiciones continuas;
+- publicación y despublicación idempotentes mediante `EventStateOperation`;
+- token de Álbum separado por Invitación elegible, sin PII ni rutas internas;
+- archivo anticipado y expiración automática a 30 días con invalidación inmediata;
+- constraints y triggers diferidos PostgreSQL en la migración 31;
+- E2E HTTP digital y matriz de concurrencia determinista.
+
+Contrato normativo: `docs/04-tecnico/ALBUMS_CONTRACT.md`. `CODEX-111` permanece sin iniciar.
 
 ## Fuente de verdad
 

@@ -4,6 +4,7 @@ import { AuditModule } from '../audit/audit.module';
 import { AppConfigService } from '../config/app-config.service';
 import { EventsModule } from '../events/events.module';
 import {
+  AlbumPhotoFileAssetOwnerResolver,
   FileAssetOwnerRegistry,
   FlipbookPageFileAssetOwnerResolver,
   FloorplanFileAssetOwnerResolver,
@@ -39,6 +40,7 @@ import { LocalFileStorage } from './local-file-storage';
     FlyerFileAssetOwnerResolver,
     FlipbookPageFileAssetOwnerResolver,
     FloorplanFileAssetOwnerResolver,
+    AlbumPhotoFileAssetOwnerResolver,
     FileAssetOwnerRegistry
   ],
   exports: [FileAssetsService, FileAssetOwnerRegistry, FileStorage]

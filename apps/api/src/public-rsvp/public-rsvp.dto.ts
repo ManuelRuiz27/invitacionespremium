@@ -227,6 +227,17 @@ export class PublicInvitationQrResponseDto {
   contentPath?: string;
 }
 
+export class PublicInvitationAlbumResponseDto {
+  @ApiProperty({ enum: ['AVAILABLE', 'RESTRICTED'] })
+  state!: 'AVAILABLE' | 'RESTRICTED';
+
+  @ApiPropertyOptional({ type: String })
+  contentPath?: string;
+
+  @ApiPropertyOptional({ type: String })
+  message?: string;
+}
+
 export class PublicInvitationViewResponseDto {
   @ApiProperty({ enum: ['AVAILABLE', 'CANCELLED', 'CLOSED'] })
   status!: 'AVAILABLE' | 'CANCELLED' | 'CLOSED';
@@ -254,6 +265,9 @@ export class PublicInvitationViewResponseDto {
 
   @ApiPropertyOptional({ type: PublicInvitationQrResponseDto })
   qr?: PublicInvitationQrResponseDto;
+
+  @ApiPropertyOptional({ type: PublicInvitationAlbumResponseDto })
+  album?: PublicInvitationAlbumResponseDto;
 }
 
 export function parseRsvpAssistants(value: unknown): RsvpAssistantsInput {

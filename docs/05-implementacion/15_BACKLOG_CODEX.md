@@ -864,6 +864,11 @@ PostgreSQL y concurrencia con barreras verificables quedan documentados en
 - archivar oculta inmediatamente;
 - despublicar vuelve a closed según máquina de estados.
 
+**Estado:** completado y cerrado. `AlbumsModule`, token separado por Invitación elegible, FileAssets
+privados, publicación/despublicación idempotente, expiración automática, migración PostgreSQL 31, E2E
+digital y concurrencia determinista quedan documentados en `ALBUMS_CONTRACT.md`. `CODEX-111` no se ha
+iniciado.
+
 ### CODEX-111 — Reportes PDF
 
 **Repo:** `invitacionespremium-api` y frontend solicitante según estrategia final

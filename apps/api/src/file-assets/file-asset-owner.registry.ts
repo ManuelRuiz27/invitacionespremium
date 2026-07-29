@@ -96,6 +96,26 @@ export class FloorplanFileAssetOwnerResolver implements FileAssetOwnerResolver {
 }
 
 @Injectable()
+export class AlbumPhotoFileAssetOwnerResolver implements FileAssetOwnerResolver {
+  readonly ownerType = FileAssetOwnerType.ALBUM_PHOTO;
+
+  async resolve(transaction: Prisma.TransactionClient, ownerId: string): Promise<ResolvedFileAssetOwner | null> {
+    const photo = await transaction.albumPhoto.findFirst({
+      where: {
+        id: ownerId,
+        deletedAt: null,
+        album: { deletedAt: null, event: { deletedAt: null } }
+      },
+      select: {
+        eventId: true,
+        album: { select: { event: { select: { clientId: true } } } }
+      }
+    });
+    return photo ? { clientId: photo.album.event.clientId, eventId: photo.eventId } : null;
+  }
+}
+
+@Injectable()
 export class FileAssetOwnerRegistry {
   private readonly resolvers = new Map<FileAssetOwnerType, FileAssetOwnerResolver>();
 
@@ -107,12 +127,15 @@ export class FileAssetOwnerRegistry {
     @Inject(FlipbookPageFileAssetOwnerResolver)
     flipbookPageResolver: FlipbookPageFileAssetOwnerResolver,
     @Inject(FloorplanFileAssetOwnerResolver)
-    floorplanResolver: FloorplanFileAssetOwnerResolver
+    floorplanResolver: FloorplanFileAssetOwnerResolver,
+    @Inject(AlbumPhotoFileAssetOwnerResolver)
+    albumPhotoResolver: AlbumPhotoFileAssetOwnerResolver
   ) {
     this.register(invitationResolver);
     this.register(flyerResolver);
     this.register(flipbookPageResolver);
     this.register(floorplanResolver);
+    this.register(albumPhotoResolver);
   }
 
   register(resolver: FileAssetOwnerResolver): void {
