@@ -587,7 +587,9 @@ describe('Public RSVP', () => {
         data: { responseStatus: InvitationResponseStatus.CONFIRMED }
       })
     ).rejects.toThrow(/response states must agree/u);
-    await expect(prisma.$executeRawUnsafe('TRUNCATE TABLE "assistant"')).rejects.toThrow(/cannot be truncated/u);
+    await expect(prisma.$executeRawUnsafe('TRUNCATE TABLE "assistant"')).rejects.toThrow(
+      /cannot (?:be truncated|truncate a table referenced)/u
+    );
   });
 
   it('publishes every CODEX-070 operation in OpenAPI', () => {

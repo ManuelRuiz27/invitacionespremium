@@ -9,7 +9,7 @@ Invitación, realiza búsqueda exacta y registra entrada individual por Asistent
 ## Modelo
 
 `CheckIn` conserva `id`, `eventId`, `invitationId`, `assistantId`, `staffTokenId`, `checkedInAt`,
-`idempotencyKey`, firma técnica de solicitud, snapshot técnico sin nombres, campos completos de
+`idempotencyKey`, firma técnica de solicitud, snapshot mínimo estable, campos completos de
 reversión y `createdAt`. Sus relaciones compuestas prueban que Evento, Invitación, Asistente y
 StaffToken pertenecen al mismo agregado. El estado vigente se deriva de `revertedAt IS NULL`; una
 reversión nunca elimina ni modifica la identidad del registro.
@@ -35,8 +35,9 @@ completa se confirma o revierte atómicamente.
 `resolveStaffTokenInTransaction()` y `resolveQrTokenInTransaction()` reutilizan digest, firma, nonce,
 versión y reglas de disponibilidad existentes dentro de la transacción consumidora. El orden es:
 Evento → StaffToken → Invitación → Asistentes por UUID → CheckIns activos. Una lectura preliminar solo
-descubre identificadores; la autorización y el estado se vuelven a evaluar bajo locks. Todas las
-operaciones críticas usan aislamiento `Serializable`.
+descubre identificadores; la autorización y el estado se vuelven a evaluar bajo locks. Check-in y
+reversión usan `Serializable`. Scan y search son lecturas con locks en `READ COMMITTED`, para que una
+lectura que esperó a una mutación ganadora observe su commit en vez de conservar un snapshot anterior.
 
 ## Búsqueda exacta
 
@@ -48,8 +49,10 @@ creación e id.
 ## Idempotencia
 
 La llave de creación identifica globalmente una solicitud. Una firma SHA-256 liga StaffToken, Evento,
-Invitación y selección ordenada; el replay compatible reconstruye la misma respuesta desde el snapshot
-técnico y las relaciones, sin otra fila ni auditoría. Cualquier reutilización incompatible produce
+Invitación y selección ordenada. El snapshot conserva exactamente `status`, `invitationId`, los
+CheckIns creados (`checkInId`, `assistantId`, `name`, `checkedInAt`), los pendientes restantes (`id`,
+`name`, `isPrimary`) y su conteo. El replay valida esa estructura y la devuelve directamente, sin
+consultar nombres o estados actuales, ni crear otra fila o auditoría. Cualquier reutilización incompatible produce
 `409 CHECK_IN_IDEMPOTENCY_CONFLICT`. Las filas adicionales de una selección múltiple reciben llaves
 técnicas derivadas y únicas sin persistir el secreto Staff.
 
@@ -72,6 +75,16 @@ La migración `20260729120000_add_scanner_check_ins` agrega:
 - inmutabilidad de identidad, creación y snapshot;
 - rechazo de `DELETE` y `TRUNCATE`.
 
+La migración `20260729140000_harden_scanner_check_ins`, número 26 acumulado:
+
+- aborta con `P0001` y solo conteos si detecta huérfanos antes de instalar constraints;
+- agrega las FK físicas `check_in_event_fkey`, `check_in_invitation_event_fkey`,
+  `check_in_assistant_event_invitation_fkey`, `check_in_staff_token_event_fkey` y
+  `check_in_reverted_by_user_fkey`, todas `ON DELETE RESTRICT`;
+- reemplaza `validate_check_in_insert()` para bloquear y revalidar Evento → StaffToken → Invitación →
+  Contacto → Asistente;
+- prohíbe crear un CheckIn con cualquier campo de reversión ya establecido.
+
 ## Reversión y permisos
 
 Solo Planner independiente sobre su Cliente, Admin de Organización sobre su Organización y Planner de
@@ -86,8 +99,17 @@ Cada selección, aunque incluya varios Asistentes, genera una sola auditoría `C
 conteos, timestamps y estado técnico. Session, scan y search no auditan.
 
 Ninguna respuesta, snapshot o auditoría contiene teléfono, Cliente, secretos/digest Staff, QR, nonce,
-finanzas, mesa, croquis o payload público completo. Los nombres solo se proyectan al Staff autorizado
-en la respuesta necesaria y nunca se almacenan en el snapshot técnico.
+finanzas, mesa, croquis o payload público completo. Como excepción de idempotencia, el snapshot mínimo
+conserva únicamente los nombres ya entregados al Staff en la respuesta original. Las auditorías nunca
+contienen nombres.
+
+## Carreras verificadas
+
+Con conexiones PostgreSQL y espera real observada en `pg_stat_activity`, INSERT se serializa en ambos
+órdenes contra cierre, cancelación, expiración de StaffToken y cancelación de Invitación. A nivel de
+servicio se cubren esos cambios, scan contra check-in/cancelación, selecciones superpuestas, dos
+reversiones, nuevo check-in tras reversión y lecturas simultáneas. No se usan sleeps ni temporizadores
+arbitrarios.
 
 ## Errores estables
 

@@ -23,6 +23,7 @@ import {
 } from '../generated/prisma/client';
 import { InvitationQrService } from '../public-rsvp/invitation-qr.service';
 import { StaffTokenResolverService, type StaffResolution } from '../staff-access/staff-access.service';
+import { z } from 'zod';
 import type {
   CheckInRevertResponseDto,
   PendingAssistantDto,
@@ -37,6 +38,10 @@ import type {
 
 const REVERTIBLE = new Set<EventStatus>([EventStatus.ACTIVE, EventStatus.EVENT_DAY, EventStatus.CLOSED]);
 const MAX_ATTEMPTS = 20;
+const LOCKED_READ_TRANSACTION_OPTIONS = {
+  ...CRITICAL_TRANSACTION_OPTIONS,
+  isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted
+} as const;
 
 const scannerInvitationInclude = {
   contact: true,
@@ -53,11 +58,35 @@ const scannerInvitationInclude = {
 } satisfies Prisma.InvitationInclude;
 
 type ScannerInvitation = Prisma.InvitationGetPayload<{ include: typeof scannerInvitationInclude }>;
-type TechnicalSnapshot = {
-  invitationId: string;
-  checkedIn: Array<{ checkInId: string; assistantId: string; checkedInAt: string }>;
-  remainingAssistantIds: string[];
-};
+const checkInResultSnapshotSchema = z
+  .object({
+    status: z.literal('CHECKED_IN'),
+    invitationId: z.string().uuid(),
+    checkedIn: z.array(
+      z
+        .object({
+          checkInId: z.string().uuid(),
+          assistantId: z.string().uuid(),
+          name: z.string().min(1).max(160),
+          checkedInAt: z.iso.datetime()
+        })
+        .strict()
+    ),
+    remainingPendingAssistants: z.array(
+      z
+        .object({
+          id: z.string().uuid(),
+          name: z.string().min(1).max(160),
+          isPrimary: z.boolean()
+        })
+        .strict()
+    ),
+    remainingPendingCount: z.number().int().nonnegative()
+  })
+  .strict()
+  .refine(({ remainingPendingAssistants, remainingPendingCount }) => {
+    return remainingPendingAssistants.length === remainingPendingCount;
+  });
 
 @Injectable()
 export class ScannerService {
@@ -70,7 +99,7 @@ export class ScannerService {
   ) {}
 
   async scan(rawStaffToken: string, input: ScannerScanInput): Promise<ScannerScanResponseDto> {
-    return this.serializable(async (tx) => {
+    return this.lockedRead(async (tx) => {
       const resolution = await this.requireStaff(tx, rawStaffToken);
       const resolvedQr = await this.invitationQr.resolveQrTokenInTransaction(
         tx,
@@ -86,7 +115,7 @@ export class ScannerService {
   }
 
   async search(rawStaffToken: string, input: ScannerSearchInput): Promise<ScannerSearchResponseDto> {
-    return this.serializable(async (tx) => {
+    return this.lockedRead(async (tx) => {
       const resolution = await this.requireStaff(tx, rawStaffToken);
       const invitations = await tx.invitation.findMany({
         where: {
@@ -150,7 +179,7 @@ export class ScannerService {
             if (prior.requestSignature !== signature || prior.staffTokenId !== resolution.staff.id) {
               throw idempotencyConflict();
             }
-            return this.responseFromSnapshot(tx, prior);
+            return this.responseFromSnapshot(prior);
           }
 
           await tx.$queryRaw`SELECT "id" FROM "invitation" WHERE "id" = ${input.invitationId}::uuid FOR UPDATE`;
@@ -214,18 +243,25 @@ export class ScannerService {
               responseStatus: AssistantResponseStatus.CONFIRMED,
               checkIns: { none: { revertedAt: null } }
             },
-            select: { id: true },
+            select: { id: true, name: true, isPrimary: true },
             orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }, { id: 'asc' }]
           });
           const checkedIn = assistants.map((assistant) => ({
             checkInId: randomUUID(),
             assistantId: assistant.id,
+            name: requireAssistantName(assistant.name),
             checkedInAt: checkedInAt.toISOString()
           }));
-          const snapshot: TechnicalSnapshot = {
+          const snapshot: ScannerCheckInResponseDto = {
+            status: 'CHECKED_IN',
             invitationId: invitation.id,
             checkedIn,
-            remainingAssistantIds: remaining.map(({ id }) => id)
+            remainingPendingAssistants: remaining.map(({ id, name, isPrimary }) => ({
+              id,
+              name: requireAssistantName(name),
+              isPrimary
+            })),
+            remainingPendingCount: remaining.length
           };
           const firstCheckIn = checkedIn[0];
           if (!firstCheckIn) throw new Error('Check-in selection cannot be empty.');
@@ -242,7 +278,7 @@ export class ScannerService {
                 createdAt: checkedInAt,
                 idempotencyKey: index === 0 ? idempotencyKey : `ci:${batchHash}:${index}`,
                 requestSignature: signature,
-                resultSnapshot: snapshot
+                resultSnapshot: snapshot as unknown as Prisma.InputJsonObject
               }
             });
           }
@@ -266,7 +302,7 @@ export class ScannerService {
             },
             tx
           );
-          return this.responseFromTechnicalSnapshot(tx, snapshot);
+          return snapshot;
         }, CRITICAL_TRANSACTION_OPTIONS);
       } catch (error) {
         if (isActiveCheckInUniqueError(error)) throw assistantAlreadyCheckedIn();
@@ -394,45 +430,16 @@ export class ScannerService {
     });
   }
 
-  private async responseFromSnapshot(
-    tx: Prisma.TransactionClient,
-    checkIn: CheckIn
-  ): Promise<ScannerCheckInResponseDto> {
-    return this.responseFromTechnicalSnapshot(tx, checkIn.resultSnapshot as unknown as TechnicalSnapshot);
+  private responseFromSnapshot(checkIn: CheckIn): ScannerCheckInResponseDto {
+    const parsed = checkInResultSnapshotSchema.safeParse(checkIn.resultSnapshot);
+    if (!parsed.success) throw new Error('Invalid persisted check-in result snapshot.');
+    return parsed.data;
   }
 
-  private async responseFromTechnicalSnapshot(
-    tx: Prisma.TransactionClient,
-    snapshot: TechnicalSnapshot
-  ): Promise<ScannerCheckInResponseDto> {
-    const ids = [...snapshot.checkedIn.map(({ assistantId }) => assistantId), ...snapshot.remainingAssistantIds];
-    const assistants = await tx.assistant.findMany({
-      where: { id: { in: ids } },
-      select: { id: true, name: true, isPrimary: true, createdAt: true }
-    });
-    const byId = new Map(assistants.map((assistant) => [assistant.id, assistant]));
-    const checkedIn = snapshot.checkedIn.map((item) => {
-      const assistant = byId.get(item.assistantId);
-      if (!assistant?.name) throw scannerSelectionNotFound();
-      return { ...item, name: assistant.name };
-    });
-    const remainingPendingAssistants = snapshot.remainingAssistantIds.flatMap((id) => {
-      const assistant = byId.get(id);
-      return assistant?.name ? [{ id, name: assistant.name, isPrimary: assistant.isPrimary }] : [];
-    });
-    return {
-      status: 'CHECKED_IN',
-      invitationId: snapshot.invitationId,
-      checkedIn,
-      remainingPendingAssistants,
-      remainingPendingCount: remainingPendingAssistants.length
-    };
-  }
-
-  private async serializable<T>(work: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+  private async lockedRead<T>(work: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
       try {
-        return await this.prisma.$transaction(work, CRITICAL_TRANSACTION_OPTIONS);
+        return await this.prisma.$transaction(work, LOCKED_READ_TRANSACTION_OPTIONS);
       } catch (error) {
         if (isRetryable(error) && attempt < MAX_ATTEMPTS - 1) continue;
         throw error;
@@ -463,6 +470,11 @@ function requestSignature(staffTokenId: string, eventId: string, invitationId: s
   return createHash('sha256')
     .update(JSON.stringify({ staffTokenId, eventId, invitationId, assistantIds }), 'utf8')
     .digest('hex');
+}
+
+function requireAssistantName(name: string | null): string {
+  if (!name) throw scannerSelectionNotFound();
+  return name;
 }
 
 function scannerQrNotFound(): NotFoundException {

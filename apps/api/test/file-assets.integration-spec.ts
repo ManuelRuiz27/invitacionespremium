@@ -25,15 +25,20 @@ import { createOpenApiDocument } from '../src/openapi/openapi';
 
 const trustedOrigin = 'http://localhost:5173';
 const password = 'correct horse battery staple';
-const isolatedStorageRoot = vi.hoisted(() => {
-  const root = `${process.env.TEMP ?? 'C:\\Windows\\Temp'}\\file-assets-vitest-${process.pid}-${Math.random()
-    .toString(16)
-    .slice(2)}`;
+const isolatedStorage = vi.hoisted(() => {
+  const systemTemp =
+    process.env.RUNNER_TEMP ??
+    process.env.TMPDIR ??
+    process.env.TEMP ??
+    process.env.TMP ??
+    (process.platform === 'win32' ? 'C:\\Windows\\Temp' : '/tmp');
+  const separator = /[\\/]$/u.test(systemTemp) ? '' : process.platform === 'win32' ? '\\' : '/';
+  const root = `${systemTemp}${separator}file-assets-vitest-${process.pid}-${Math.random().toString(16).slice(2)}`;
   process.env.FILE_STORAGE_LOCAL_ROOT = root;
   process.env.FILE_UPLOAD_MAX_BYTES = '10485760';
   process.env.FILE_IMAGE_MAX_PIXELS = '40000000';
   process.env.FILE_ORPHAN_RETENTION_SECONDS = '60';
-  return root;
+  return { root, systemTemp };
 });
 
 describe('FileAssets and local storage', () => {
@@ -48,7 +53,7 @@ describe('FileAssets and local storage', () => {
 
   beforeAll(async () => {
     if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required.');
-    storageRoot = isolatedStorageRoot;
+    storageRoot = isolatedStorage.root;
     await rm(storageRoot, { recursive: true, force: true });
     process.env.NODE_ENV = 'test';
     process.env.SWAGGER_ENABLED = 'true';
@@ -75,8 +80,9 @@ describe('FileAssets and local storage', () => {
     await resetDatabase();
     await app.close();
     const resolved = path.resolve(storageRoot);
-    const systemTemp = path.resolve(process.env.TEMP ?? 'C:\\Windows\\Temp');
-    if (!resolved.startsWith(`${systemTemp}${path.sep}`)) {
+    const resolvedTemp = path.resolve(isolatedStorage.systemTemp);
+    const relative = path.relative(resolvedTemp, resolved);
+    if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) {
       throw new Error('Refusing to remove a non-temporary FileAsset test directory.');
     }
     await rm(resolved, { recursive: true, force: true });

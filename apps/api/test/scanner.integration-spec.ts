@@ -1,11 +1,13 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
+import { Client } from 'pg';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuditService } from '../src/audit/audit.service';
 import { hashPassword } from '../src/auth/password-hasher';
 import { createApp } from '../src/bootstrap/create-app';
 import { PrismaService } from '../src/common/database/prisma.service';
+import { EventLifecycleService } from '../src/events/event-lifecycle.service';
 import {
   AssistantResponseStatus,
   ClientStatus,
@@ -14,12 +16,15 @@ import {
   InvitationMode,
   InvitationResponseStatus,
   LedgerMovementType,
+  Prisma,
   ServiceCode,
   UserRole
 } from '../src/generated/prisma/client';
 import { InvitationTokenService } from '../src/invitations/invitation-token.service';
+import { InvitationsService } from '../src/invitations/invitations.service';
 import { createOpenApiDocument } from '../src/openapi/openapi';
 import { ScannerService } from '../src/scanner/scanner.service';
+import { StaffTokenResolverService } from '../src/staff-access/staff-access.service';
 import { StaffTokenTechnicalService } from '../src/staff-access/staff-token-technical.service';
 
 const origin = 'http://localhost:5173';
@@ -30,6 +35,9 @@ describe('Scanner and CheckIn', () => {
   let prisma: PrismaService;
   let audit: AuditService;
   let scanner: ScannerService;
+  let lifecycle: EventLifecycleService;
+  let invitations: InvitationsService;
+  let staffResolver: StaffTokenResolverService;
   let staffTechnical: StaffTokenTechnicalService;
   let invitationTokens: InvitationTokenService;
 
@@ -47,6 +55,9 @@ describe('Scanner and CheckIn', () => {
     prisma = app.get(PrismaService);
     audit = app.get(AuditService);
     scanner = app.get(ScannerService);
+    lifecycle = app.get(EventLifecycleService);
+    invitations = app.get(InvitationsService);
+    staffResolver = app.get(StaffTokenResolverService);
     staffTechnical = app.get(StaffTokenTechnicalService);
     invitationTokens = app.get(InvitationTokenService);
   });
@@ -139,6 +150,61 @@ describe('Scanner and CheckIn', () => {
     expect(await prisma.checkIn.count({ where: { eventId: fixture.eventId, revertedAt: null } })).toBe(2);
   });
 
+  it('replays the exact persisted response after nominal, pending, check-in and reversal changes', async () => {
+    const scenarios: Array<(fixture: Awaited<ReturnType<typeof createFixture>>, checkInId: string) => Promise<void>> = [
+      async (fixture) => {
+        await prisma.assistant.update({ where: { id: fixture.primaryId }, data: { name: 'Nombre cambiado' } });
+      },
+      async (fixture) => {
+        await prisma.assistant.update({ where: { id: fixture.companionId }, data: { name: 'Pendiente cambiado' } });
+      },
+      async (fixture) => {
+        await prisma.assistant.update({ where: { id: fixture.companionId }, data: { deletedAt: new Date() } });
+      },
+      async (fixture) => {
+        await scanner.checkIn(fixture.staffToken, `pending-${randomUUID()}`, {
+          invitationId: fixture.invitationId,
+          assistantIds: [fixture.companionId]
+        });
+      },
+      async (fixture, checkInId) => {
+        await scanner.revert(fixture.eventId, checkInId, `replay-revert-${randomUUID()}`, principalFor(fixture));
+      }
+    ];
+
+    for (const mutate of scenarios) {
+      const fixture = await createFixture();
+      const key = `stable-${randomUUID()}`;
+      const original = await scanner.checkIn(fixture.staffToken, key, {
+        invitationId: fixture.invitationId,
+        assistantIds: [fixture.primaryId]
+      });
+      const serialized = JSON.stringify(original);
+      await mutate(fixture, original.checkedIn[0]!.checkInId);
+      const before = {
+        rows: await prisma.checkIn.count({ where: { eventId: fixture.eventId } }),
+        audits: await prisma.auditLog.count({ where: { eventId: fixture.eventId } })
+      };
+      const replay = await scanner.checkIn(fixture.staffToken, key, {
+        invitationId: fixture.invitationId,
+        assistantIds: [fixture.primaryId]
+      });
+      expect(JSON.stringify(replay)).toBe(serialized);
+      expect({
+        rows: await prisma.checkIn.count({ where: { eventId: fixture.eventId } }),
+        audits: await prisma.auditLog.count({ where: { eventId: fixture.eventId } })
+      }).toEqual(before);
+      expect(Object.keys(replay).sort()).toEqual([
+        'checkedIn',
+        'invitationId',
+        'remainingPendingAssistants',
+        'remainingPendingCount',
+        'status'
+      ]);
+      expect(serialized).not.toMatch(/phone|clientId|staffToken|digest|qrToken|nonce|ledger|receipt|audit|table/iu);
+    }
+  });
+
   it('serializes concurrent StaffTokens and overlapping selections with all-or-none outcomes', async () => {
     const idempotent = await createFixture();
     const sharedKey = `same-key-${randomUUID()}`;
@@ -199,6 +265,194 @@ describe('Scanner and CheckIn', () => {
     expect(await prisma.checkIn.count({ where: { eventId: overlap.eventId, revertedAt: null } })).toBe(2);
     expect(await prisma.auditLog.count({ where: { eventId: overlap.eventId, action: 'CHECK_IN_CREATE' } })).toBe(1);
   }, 60_000);
+
+  it('serializes Scanner check-in against close and cancellation in both service lock orders', async () => {
+    for (const transition of [
+      {
+        auditAction: 'EVENT_CLOSE',
+        execute: (fixture: Awaited<ReturnType<typeof createFixture>>) =>
+          lifecycle.close(fixture.eventId, `close-${randomUUID()}`, principalFor(fixture))
+      },
+      {
+        auditAction: 'EVENT_CANCEL',
+        execute: (fixture: Awaited<ReturnType<typeof createFixture>>) =>
+          lifecycle.cancel(fixture.eventId, `cancel-${randomUUID()}`, principalFor(fixture))
+      }
+    ]) {
+      const checkInWins = await createFixture();
+      const checkInBarrier = auditBarrier('CHECK_IN_CREATE');
+      const transitionLock = methodCallBarrier(lifecycle, 'lockEvent');
+      try {
+        const checkIn = scanner.checkIn(checkInWins.staffToken, `first-${randomUUID()}`, {
+          invitationId: checkInWins.invitationId,
+          assistantIds: [checkInWins.primaryId]
+        });
+        await checkInBarrier.entered.promise;
+        const stateChange = track(transition.execute(checkInWins));
+        await transitionLock.called.promise;
+        expect(stateChange.isSettled()).toBe(false);
+        checkInBarrier.release.resolve();
+        await Promise.all([checkIn, stateChange.promise]);
+      } finally {
+        checkInBarrier.release.resolve();
+        transitionLock.restore();
+        checkInBarrier.restore();
+      }
+      expect(await prisma.checkIn.count({ where: { eventId: checkInWins.eventId } })).toBe(1);
+      expect(await prisma.auditLog.count({ where: { eventId: checkInWins.eventId, action: 'CHECK_IN_CREATE' } })).toBe(
+        1
+      );
+
+      const transitionWins = await createFixture();
+      const transitionBarrier = auditBarrier(transition.auditAction);
+      const scannerLock = methodCallBarrier(staffResolver, 'lockRows');
+      try {
+        const stateChange = transition.execute(transitionWins);
+        await transitionBarrier.entered.promise;
+        const checkIn = track(
+          scanner.checkIn(transitionWins.staffToken, `second-${randomUUID()}`, {
+            invitationId: transitionWins.invitationId,
+            assistantIds: [transitionWins.primaryId]
+          })
+        );
+        await scannerLock.called.promise;
+        expect(checkIn.isSettled()).toBe(false);
+        transitionBarrier.release.resolve();
+        await stateChange;
+        await expect(checkIn.promise).rejects.toThrow();
+      } finally {
+        transitionBarrier.release.resolve();
+        scannerLock.restore();
+        transitionBarrier.restore();
+      }
+      expect(await prisma.checkIn.count({ where: { eventId: transitionWins.eventId } })).toBe(0);
+      expect(
+        await prisma.auditLog.count({ where: { eventId: transitionWins.eventId, action: 'CHECK_IN_CREATE' } })
+      ).toBe(0);
+    }
+  }, 120_000);
+
+  it('serializes expiry, scans, Invitation cancellation and reversals through service locks', async () => {
+    const expiration = await createFixture();
+    const expirationEntered = deferred<void>();
+    const expirationRelease = deferred<void>();
+    const expirationLock = methodCallBarrier(staffResolver, 'lockRows');
+    try {
+      const expire = prisma.$transaction(async (tx) => {
+        await tx.staffToken.update({ where: { id: expiration.staffTokenId }, data: { expiredAt: new Date() } });
+        expirationEntered.resolve();
+        await expirationRelease.promise;
+      });
+      await expirationEntered.promise;
+      const checkIn = track(
+        scanner.checkIn(expiration.staffToken, `expired-${randomUUID()}`, {
+          invitationId: expiration.invitationId,
+          assistantIds: [expiration.primaryId]
+        })
+      );
+      await expirationLock.called.promise;
+      expect(checkIn.isSettled()).toBe(false);
+      expirationRelease.resolve();
+      await expire;
+      await expect(checkIn.promise).rejects.toThrow();
+    } finally {
+      expirationRelease.resolve();
+      expirationLock.restore();
+    }
+    expect(await prisma.checkIn.count({ where: { eventId: expiration.eventId } })).toBe(0);
+
+    const scanAfterCheckIn = await createFixture();
+    const qrToken = issueQr(scanAfterCheckIn.invitationId, scanAfterCheckIn.qrNonce);
+    const checkInBarrier = auditBarrier('CHECK_IN_CREATE');
+    const scanLock = methodCallBarrier(staffResolver, 'lockRows');
+    try {
+      const checkIn = scanner.checkIn(scanAfterCheckIn.staffToken, `scan-race-${randomUUID()}`, {
+        invitationId: scanAfterCheckIn.invitationId,
+        assistantIds: [scanAfterCheckIn.primaryId]
+      });
+      await checkInBarrier.entered.promise;
+      const scan = track(scanner.scan(scanAfterCheckIn.staffToken, { qrToken }));
+      await scanLock.called.promise;
+      expect(scan.isSettled()).toBe(false);
+      checkInBarrier.release.resolve();
+      await checkIn;
+      const result = await scan.promise;
+      expect(result.pendingAssistants.map(({ id }) => id)).toEqual([scanAfterCheckIn.companionId]);
+    } finally {
+      checkInBarrier.release.resolve();
+      scanLock.restore();
+      checkInBarrier.restore();
+    }
+
+    for (const operation of ['scan', 'check-in'] as const) {
+      const cancelled = await createFixture();
+      const cancellationBarrier = auditBarrier('INVITATION_CANCEL');
+      const scannerLock = methodCallBarrier(staffResolver, 'lockRows');
+      try {
+        const cancellation = invitations.cancel(
+          cancelled.eventId,
+          cancelled.invitationId,
+          `invitation-cancel-${randomUUID()}`,
+          principalFor(cancelled),
+          undefined
+        );
+        await cancellationBarrier.entered.promise;
+        const pendingOperation: Promise<unknown> =
+          operation === 'scan'
+            ? scanner.scan(cancelled.staffToken, {
+                qrToken: issueQr(cancelled.invitationId, cancelled.qrNonce)
+              })
+            : scanner.checkIn(cancelled.staffToken, `cancelled-${randomUUID()}`, {
+                invitationId: cancelled.invitationId,
+                assistantIds: [cancelled.primaryId]
+              });
+        const scannerOperation = track(pendingOperation);
+        await scannerLock.called.promise;
+        expect(scannerOperation.isSettled()).toBe(false);
+        cancellationBarrier.release.resolve();
+        await cancellation;
+        await expect(scannerOperation.promise).rejects.toThrow();
+      } finally {
+        cancellationBarrier.release.resolve();
+        scannerLock.restore();
+        cancellationBarrier.restore();
+      }
+      expect(await prisma.checkIn.count({ where: { eventId: cancelled.eventId } })).toBe(0);
+    }
+
+    const reversal = await createFixture();
+    const created = await scanner.checkIn(reversal.staffToken, `reversal-${randomUUID()}`, {
+      invitationId: reversal.invitationId,
+      assistantIds: [reversal.primaryId]
+    });
+    const checkInId = created.checkedIn[0]!.checkInId;
+    const simultaneous = await Promise.allSettled([
+      scanner.revert(reversal.eventId, checkInId, `reverse-a-${randomUUID()}`, principalFor(reversal)),
+      scanner.revert(reversal.eventId, checkInId, `reverse-b-${randomUUID()}`, principalFor(reversal))
+    ]);
+    expect(simultaneous.filter(({ status }) => status === 'fulfilled')).toHaveLength(1);
+    expect(await prisma.auditLog.count({ where: { eventId: reversal.eventId, action: 'CHECK_IN_REVERT' } })).toBe(1);
+
+    const afterReversal = await scanner.checkIn(reversal.staffToken, `after-reversal-${randomUUID()}`, {
+      invitationId: reversal.invitationId,
+      assistantIds: [reversal.primaryId]
+    });
+    expect(afterReversal.status).toBe('CHECKED_IN');
+    expect(await prisma.checkIn.count({ where: { assistantId: reversal.primaryId, revertedAt: null } })).toBe(1);
+
+    const readOnlyCounts = {
+      checkIns: await prisma.checkIn.count({ where: { eventId: reversal.eventId } }),
+      audits: await prisma.auditLog.count({ where: { eventId: reversal.eventId } })
+    };
+    await Promise.all([
+      scanner.scan(reversal.staffToken, { qrToken: issueQr(reversal.invitationId, reversal.qrNonce) }),
+      scanner.search(reversal.staffToken, { query: 'María López' })
+    ]);
+    expect({
+      checkIns: await prisma.checkIn.count({ where: { eventId: reversal.eventId } }),
+      audits: await prisma.auditLog.count({ where: { eventId: reversal.eventId } })
+    }).toEqual(readOnlyCounts);
+  }, 120_000);
 
   it('allows only owned operational users to reverse, preserves history, and supports a later check-in', async () => {
     const fixture = await createFixture();
@@ -301,6 +555,187 @@ describe('Scanner and CheckIn', () => {
     expect(await prisma.checkIn.count({ where: { eventId: fixture.eventId } })).toBe(1);
   });
 
+  it('installs five physical foreign keys and rejects reverted inserts and referenced-parent deletion', async () => {
+    const expectedConstraints = [
+      'check_in_assistant_event_invitation_fkey',
+      'check_in_event_fkey',
+      'check_in_invitation_event_fkey',
+      'check_in_reverted_by_user_fkey',
+      'check_in_staff_token_event_fkey'
+    ];
+    const constraints = await prisma.$queryRaw<Array<{ name: string; type: string; deleteAction: string }>>`
+      SELECT conname AS "name", contype::text AS "type", confdeltype::text AS "deleteAction"
+      FROM pg_constraint
+      WHERE conrelid = 'check_in'::regclass
+        AND conname = ANY(ARRAY[${Prisma.join(expectedConstraints)}]::text[])
+      ORDER BY conname
+    `;
+    expect(constraints).toEqual(expectedConstraints.map((name) => ({ name, type: 'f', deleteAction: 'r' })));
+
+    const fixture = await createFixture();
+    const original = await scanner.checkIn(fixture.staffToken, `fk-${randomUUID()}`, {
+      invitationId: fixture.invitationId,
+      assistantIds: [fixture.primaryId]
+    });
+    await scanner.revert(
+      fixture.eventId,
+      original.checkedIn[0]!.checkInId,
+      `fk-revert-${randomUUID()}`,
+      principalFor(fixture)
+    );
+
+    const bornRevertedAt = new Date();
+    await expect(
+      prisma.$executeRawUnsafe(
+        `INSERT INTO "check_in" (
+          "id", "event_id", "invitation_id", "assistant_id", "staff_token_id",
+          "checked_in_at", "created_at", "idempotency_key", "request_signature", "result_snapshot",
+          "reverted_at", "reverted_by_user_id", "revert_idempotency_key"
+        ) VALUES (
+          $1::uuid, $2::uuid, $3::uuid, $4::uuid, $5::uuid,
+          $6::timestamptz, $6::timestamptz, $7, $8, $9::jsonb,
+          $6::timestamptz, $10::uuid, $11
+        )`,
+        randomUUID(),
+        fixture.eventId,
+        fixture.invitationId,
+        fixture.companionId,
+        fixture.staffTokenId,
+        bornRevertedAt,
+        `born-reverted-${randomUUID()}`,
+        'a'.repeat(64),
+        JSON.stringify(minimalSnapshot(fixture.invitationId, fixture.companionId, bornRevertedAt)),
+        fixture.userId,
+        `born-reverted-key-${randomUUID()}`
+      )
+    ).rejects.toThrow(/check_in cannot be created as reverted/u);
+
+    for (const [table, id] of [
+      ['event', fixture.eventId],
+      ['invitation', fixture.invitationId],
+      ['assistant', fixture.primaryId],
+      ['staff_token', fixture.staffTokenId],
+      ['app_user', fixture.userId]
+    ] as const) {
+      await expect(prisma.$executeRawUnsafe(`DELETE FROM "${table}" WHERE "id" = $1::uuid`, id)).rejects.toThrow();
+    }
+    expect(await prisma.checkIn.count({ where: { eventId: fixture.eventId } })).toBe(1);
+  });
+
+  it('serializes direct PostgreSQL inserts against Event, StaffToken and Invitation state changes in both orders', async () => {
+    const races = [
+      {
+        name: 'close',
+        mutate: (client: Client, fixture: Awaited<ReturnType<typeof createFixture>>) =>
+          client.query(`UPDATE "event" SET "status" = 'closed' WHERE "id" = $1::uuid`, [fixture.eventId])
+      },
+      {
+        name: 'cancel event',
+        mutate: (client: Client, fixture: Awaited<ReturnType<typeof createFixture>>) =>
+          client.query(`UPDATE "event" SET "status" = 'cancelled' WHERE "id" = $1::uuid`, [fixture.eventId])
+      },
+      {
+        name: 'expire StaffToken',
+        mutate: (client: Client, fixture: Awaited<ReturnType<typeof createFixture>>) =>
+          client.query(`UPDATE "staff_token" SET "expired_at" = clock_timestamp() WHERE "id" = $1::uuid`, [
+            fixture.staffTokenId
+          ])
+      },
+      {
+        name: 'cancel Invitation',
+        mutate: (client: Client, fixture: Awaited<ReturnType<typeof createFixture>>) =>
+          client.query(
+            `UPDATE "invitation"
+             SET "cancelled_at" = clock_timestamp(),
+                 "cancelled_by_user_id" = $2::uuid,
+                 "cancel_idempotency_key" = $3
+             WHERE "id" = $1::uuid`,
+            [fixture.invitationId, fixture.userId, `sql-cancel-${randomUUID()}`]
+          )
+      }
+    ];
+
+    for (const race of races) {
+      const mutationWins = await createFixture();
+      await runSqlMutationFirst(mutationWins, race.mutate);
+      expect(await prisma.checkIn.count({ where: { eventId: mutationWins.eventId } }), race.name).toBe(0);
+      expect(
+        await prisma.auditLog.count({ where: { eventId: mutationWins.eventId, action: 'CHECK_IN_CREATE' } }),
+        race.name
+      ).toBe(0);
+
+      const insertWins = await createFixture();
+      await runSqlInsertFirst(insertWins, race.mutate);
+      expect(await prisma.checkIn.count({ where: { eventId: insertWins.eventId } }), race.name).toBe(1);
+      expect(await prisma.checkIn.count({ where: { assistantId: insertWins.primaryId, revertedAt: null } })).toBe(1);
+    }
+  }, 120_000);
+
+  it('rejects crossed aggregates and every non-operational Assistant state through direct SQL', async () => {
+    const cases: Array<(fixture: Awaited<ReturnType<typeof createFixture>>) => Promise<void>> = [
+      (fixture) =>
+        uncheckedExecute(
+          `UPDATE "assistant" SET "response_status" = 'PENDING' WHERE "id" = $1::uuid`,
+          fixture.primaryId
+        ),
+      (fixture) =>
+        uncheckedExecute(
+          `UPDATE "assistant" SET "response_status" = 'REJECTED' WHERE "id" = $1::uuid`,
+          fixture.primaryId
+        ),
+      (fixture) =>
+        uncheckedExecute(
+          `UPDATE "assistant" SET "deleted_at" = clock_timestamp() WHERE "id" = $1::uuid`,
+          fixture.primaryId
+        ),
+      (fixture) =>
+        uncheckedExecute(
+          `UPDATE "assistant"
+           SET "anonymized_at" = clock_timestamp(), "name" = NULL
+           WHERE "id" = $1::uuid`,
+          fixture.primaryId
+        )
+    ];
+    for (const arrange of cases) {
+      const fixture = await createFixture();
+      await arrange(fixture);
+      const client = await postgresClient();
+      try {
+        await expect(insertDirectCheckIn(client, fixture)).rejects.toThrow();
+      } finally {
+        await client.end();
+      }
+      expect(await prisma.checkIn.count({ where: { eventId: fixture.eventId } })).toBe(0);
+    }
+
+    const local = await createFixture();
+    const foreign = await createFixture();
+    for (const override of [
+      { staffTokenId: foreign.staffTokenId },
+      { invitationId: foreign.invitationId, assistantId: foreign.primaryId },
+      { assistantId: foreign.primaryId }
+    ]) {
+      const client = await postgresClient();
+      try {
+        await expect(insertDirectCheckIn(client, local, override)).rejects.toThrow();
+      } finally {
+        await client.end();
+      }
+    }
+    expect(await prisma.checkIn.count({ where: { eventId: local.eventId } })).toBe(0);
+
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe('SET LOCAL session_replication_role = replica');
+      await tx.event.update({ where: { id: local.eventId }, data: { status: EventStatus.CLOSED } });
+    });
+    const closedClient = await postgresClient();
+    try {
+      await expect(insertDirectCheckIn(closedClient, local)).rejects.toThrow();
+    } finally {
+      await closedClient.end();
+    }
+  });
+
   it('documents all four endpoints without CODEX-082 or floorplan routes', () => {
     const document = createOpenApiDocument(app);
     expect(document.paths).toHaveProperty('/api/v1/scanner/{staffToken}/session');
@@ -321,6 +756,8 @@ describe('Scanner and CheckIn', () => {
     const companionId = randomUUID();
     const qrNonce = randomBytes(32).toString('hex');
     const staff = staffTechnical.generate();
+    const staffTokenId = randomUUID();
+    const contactId = randomUUID();
     await prisma.$transaction(async (tx) => {
       await tx.$executeRawUnsafe('SET LOCAL session_replication_role = replica');
       const service = await tx.service.upsert({
@@ -374,7 +811,7 @@ describe('Scanner and CheckIn', () => {
         }
       });
       const contact = await tx.contact.create({
-        data: { eventId, name: 'Familia López', whatsappPhoneNormalized: '+525500000000' }
+        data: { id: contactId, eventId, name: 'Familia López', whatsappPhoneNormalized: '+525500000000' }
       });
       await tx.invitation.create({
         data: {
@@ -409,6 +846,7 @@ describe('Scanner and CheckIn', () => {
       });
       await tx.staffToken.create({
         data: {
+          id: staffTokenId,
           eventId,
           alias: 'Acceso principal',
           tokenDigestSha256: staff.digestSha256,
@@ -424,6 +862,8 @@ describe('Scanner and CheckIn', () => {
       invitationId,
       primaryId,
       companionId,
+      contactId,
+      staffTokenId,
       qrNonce,
       staffToken: staff.rawToken
     };
@@ -442,6 +882,39 @@ describe('Scanner and CheckIn', () => {
     return prisma.user.create({
       data: { email, passwordHash: await hashPassword(password), role, clientId }
     });
+  }
+
+  function principalFor(
+    fixture: Awaited<ReturnType<typeof createFixture>>,
+    userId = fixture.userId,
+    email = fixture.email
+  ) {
+    return {
+      userId,
+      sessionId: randomUUID(),
+      email,
+      role: UserRole.INDEPENDENT_PLANNER,
+      clientId: fixture.clientId,
+      clientType: ClientType.PLANNER,
+      clientStatus: ClientStatus.ACTIVE
+    } as const;
+  }
+
+  function minimalSnapshot(invitationId: string, assistantId: string, checkedInAt: Date) {
+    return {
+      status: 'CHECKED_IN',
+      invitationId,
+      checkedIn: [
+        {
+          checkInId: randomUUID(),
+          assistantId,
+          name: 'Snapshot',
+          checkedInAt: checkedInAt.toISOString()
+        }
+      ],
+      remainingPendingAssistants: [],
+      remainingPendingCount: 0
+    };
   }
 
   function issueQr(invitationId: string, nonce: string) {
@@ -480,6 +953,190 @@ describe('Scanner and CheckIn', () => {
     const cookie = (Array.isArray(raw) ? raw[0] : raw)?.split(';')[0];
     if (!cookie) throw new Error('Missing cookie.');
     return cookie;
+  }
+
+  function auditBarrier(action: string) {
+    const entered = deferred<void>();
+    const release = deferred<void>();
+    const original = audit.record.bind(audit);
+    let intercepted = false;
+    const spy = vi.spyOn(audit, 'record').mockImplementation(async (input, tx) => {
+      if (!intercepted && input.action === action) {
+        intercepted = true;
+        entered.resolve();
+        await release.promise;
+      }
+      return original(input, tx);
+    });
+    return { entered, release, restore: () => spy.mockRestore() };
+  }
+
+  function methodCallBarrier(service: object, methodName: string) {
+    type AsyncMethod = (...args: unknown[]) => Promise<unknown>;
+    const target = service as Record<string, AsyncMethod>;
+    const method = target[methodName];
+    if (!method) throw new TypeError(`Missing lock method ${methodName}.`);
+    const called = deferred<void>();
+    const original = method.bind(service);
+    const spy = vi.spyOn(target, methodName).mockImplementation((...args) => {
+      called.resolve();
+      return original(...args);
+    });
+    return { called, restore: () => spy.mockRestore() };
+  }
+
+  function deferred<T>() {
+    let resolve!: (value: T | PromiseLike<T>) => void;
+    let reject!: (reason?: unknown) => void;
+    const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+      resolve = resolvePromise;
+      reject = rejectPromise;
+    });
+    return { promise, resolve, reject };
+  }
+
+  async function runSqlMutationFirst(
+    fixture: Awaited<ReturnType<typeof createFixture>>,
+    mutate: (client: Client, fixture: Awaited<ReturnType<typeof createFixture>>) => Promise<unknown>
+  ) {
+    const mutator = await postgresClient();
+    const inserter = await postgresClient();
+    const observer = await postgresClient();
+    try {
+      await mutator.query('BEGIN');
+      await mutator.query('SET LOCAL session_replication_role = replica');
+      await mutate(mutator, fixture);
+      const pid = await backendPid(inserter);
+      const insertion = track(insertDirectCheckIn(inserter, fixture));
+      await waitForDatabaseLock(observer, pid);
+      expect(insertion.isSettled()).toBe(false);
+      await mutator.query('COMMIT');
+      await expect(insertion.promise).rejects.toThrow();
+    } finally {
+      await safelyRollback(mutator);
+      await Promise.all([mutator.end(), inserter.end(), observer.end()]);
+    }
+  }
+
+  async function runSqlInsertFirst(
+    fixture: Awaited<ReturnType<typeof createFixture>>,
+    mutate: (client: Client, fixture: Awaited<ReturnType<typeof createFixture>>) => Promise<unknown>
+  ) {
+    const inserter = await postgresClient();
+    const mutator = await postgresClient();
+    const observer = await postgresClient();
+    try {
+      await inserter.query('BEGIN');
+      await insertDirectCheckIn(inserter, fixture);
+      await mutator.query('BEGIN');
+      await mutator.query('SET LOCAL session_replication_role = replica');
+      const pid = await backendPid(mutator);
+      const mutation = track(mutate(mutator, fixture));
+      await waitForDatabaseLock(observer, pid);
+      expect(mutation.isSettled()).toBe(false);
+      await inserter.query('COMMIT');
+      await mutation.promise;
+      await mutator.query('COMMIT');
+    } finally {
+      await safelyRollback(inserter);
+      await safelyRollback(mutator);
+      await Promise.all([inserter.end(), mutator.end(), observer.end()]);
+    }
+  }
+
+  async function insertDirectCheckIn(
+    client: Client,
+    fixture: Awaited<ReturnType<typeof createFixture>>,
+    override: { invitationId?: string; assistantId?: string; staffTokenId?: string } = {}
+  ) {
+    const id = randomUUID();
+    const checkedInAt = new Date();
+    const invitationId = override.invitationId ?? fixture.invitationId;
+    const assistantId = override.assistantId ?? fixture.primaryId;
+    const staffTokenId = override.staffTokenId ?? fixture.staffTokenId;
+    return client.query(
+      `INSERT INTO "check_in" (
+        "id", "event_id", "invitation_id", "assistant_id", "staff_token_id",
+        "checked_in_at", "created_at", "idempotency_key", "request_signature", "result_snapshot"
+      ) VALUES (
+        $1::uuid, $2::uuid, $3::uuid, $4::uuid, $5::uuid,
+        $6::timestamptz, $6::timestamptz, $7, $8, $9::jsonb
+      )`,
+      [
+        id,
+        fixture.eventId,
+        invitationId,
+        assistantId,
+        staffTokenId,
+        checkedInAt,
+        `sql-race-${randomUUID()}`,
+        'b'.repeat(64),
+        JSON.stringify({
+          status: 'CHECKED_IN',
+          invitationId,
+          checkedIn: [
+            {
+              checkInId: id,
+              assistantId,
+              name: 'María López',
+              checkedInAt: checkedInAt.toISOString()
+            }
+          ],
+          remainingPendingAssistants: [],
+          remainingPendingCount: 0
+        })
+      ]
+    );
+  }
+
+  async function postgresClient() {
+    const databaseUrl = process.env.DATABASE_URL;
+    if (!databaseUrl) throw new Error('DATABASE_URL is required.');
+    const client = new Client({ connectionString: databaseUrl });
+    await client.connect();
+    return client;
+  }
+
+  async function backendPid(client: Client) {
+    const result = await client.query<{ pid: number }>('SELECT pg_backend_pid() AS pid');
+    return result.rows[0]!.pid;
+  }
+
+  async function waitForDatabaseLock(observer: Client, backendPidValue: number) {
+    for (let attempt = 0; attempt < 1_000; attempt += 1) {
+      const result = await observer.query<{ waitEventType: string | null }>(
+        `SELECT "wait_event_type" AS "waitEventType"
+         FROM "pg_stat_activity"
+         WHERE "pid" = $1`,
+        [backendPidValue]
+      );
+      if (result.rows[0]?.waitEventType === 'Lock') return;
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    }
+    throw new Error('PostgreSQL operation did not reach a real lock wait.');
+  }
+
+  function track<T>(promise: Promise<T>) {
+    let settled = false;
+    const tracked = promise.finally(() => {
+      settled = true;
+    });
+    return { promise: tracked, isSettled: () => settled };
+  }
+
+  async function safelyRollback(client: Client) {
+    try {
+      await client.query('ROLLBACK');
+    } catch {
+      // The connection may already be outside a transaction.
+    }
+  }
+
+  async function uncheckedExecute(statement: string, id: string) {
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe('SET LOCAL session_replication_role = replica');
+      await tx.$executeRawUnsafe(statement, id);
+    });
   }
 
   async function resetDatabase() {

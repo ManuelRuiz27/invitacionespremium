@@ -307,6 +307,12 @@ Endpoints públicos:
 - `POST /scanner/:staffToken/search`
 - `POST /scanner/:staffToken/check-in`
 
+Check-in y reversión conservan aislamiento `Serializable`; scan y search usan lecturas bloqueadas
+`READ COMMITTED` para observar la mutación que obtuvo primero el lock. El replay de check-in devuelve
+directamente un snapshot mínimo validado con los nombres ya mostrados originalmente, sin consultar PII
+mutable ni generar otra auditoría. Las cinco FK físicas y el trigger de inserción de la migración 26
+refuerzan pertenencia y orden Evento → StaffToken → Invitación → Contacto → Asistente.
+
 Todos requieren:
 
 - token Staff válido/no expirado;

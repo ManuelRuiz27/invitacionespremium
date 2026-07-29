@@ -119,9 +119,13 @@ Reversión:
 La base de datos debe impedir dos check-ins activos para el mismo Asistente mediante constraint, índice parcial PostgreSQL o estrategia transaccional equivalente probada.
 
 El modelo implementado `CheckIn` agrega pertenencia compuesta a Evento/Invitación/Asistente/StaffToken,
-llave idempotente global, firma y snapshot técnico sin PII. PostgreSQL valida el agregado operativo en
-inserción, autoriza al usuario de reversión, protege campos de creación, hace irreversible la reversión
-y rechaza `DELETE`/`TRUNCATE`. El índice parcial
+llave idempotente global, firma y snapshot mínimo estable. PostgreSQL valida el agregado operativo en
+inserción bajo locks Evento → StaffToken → Invitación → Contacto → Asistente, prohíbe INSERT nacido
+como revertido, autoriza al usuario de reversión, protege campos de creación, hace irreversible la
+reversión y rechaza `DELETE`/`TRUNCATE`. Las FK físicas
+`check_in_event_fkey`, `check_in_invitation_event_fkey`,
+`check_in_assistant_event_invitation_fkey`, `check_in_staff_token_event_fkey` y
+`check_in_reverted_by_user_fkey` usan `ON DELETE RESTRICT`. El índice parcial
 `check_in_one_active_per_assistant` materializa la unicidad vigente.
 
 Campos conceptuales:
