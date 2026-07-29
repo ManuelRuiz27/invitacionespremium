@@ -280,6 +280,8 @@ Endpoints:
 
 ## StaffAccessModule
 
+Contrato normativo: `STAFF_ACCESS_CONTRACT.md`.
+
 Endpoints:
 
 - `GET /events/:eventId/staff-tokens`
@@ -293,6 +295,8 @@ Reglas:
 - expirados no se reactivan al reabrir ni cuentan como activos;
 - no existe revocación manual en MVP;
 - secreto completo se devuelve únicamente al crear/copiar conforme a estrategia segura; no se registra en logs.
+- `GET /scanner/:staffToken/session` ya expone exclusivamente la sesión pública mínima; scan, search y
+  check-in permanecen diferidos a `CODEX-081`.
 
 ## ScannerModule
 

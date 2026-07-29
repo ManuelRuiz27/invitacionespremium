@@ -42,12 +42,12 @@ pnpm dev
 Servicios locales:
 
 | Workspace | Puerto |
-|---|---:|
-| API | 3000 |
-| Client | 5173 |
-| Admin | 5174 |
-| Scanner | 5175 |
-| Landing | 5176 |
+| --------- | -----: |
+| API       |   3000 |
+| Client    |   5173 |
+| Admin     |   5174 |
+| Scanner   |   5175 |
+| Landing   |   5176 |
 
 API disponible:
 
@@ -300,8 +300,19 @@ La aplicación normaliza mediante `URL.href`; PostgreSQL solo valida y conserva 
 - locks Evento → Invitación, estados/cancelación/borrado lógico y carreras serializadas;
 - headers privados, CSP restrictiva, ETag determinista y decodificación independiente probada.
 
-`CODEX-071` quedó completamente cerrado. La siguiente tarea es `CODEX-080 — Tokens staff`; no fue
-iniciada.
+`CODEX-071` quedó completamente cerrado.
+
+`CODEX-080` agregó StaffTokens seguros y acotados por Evento:
+
+- secreto `st1` de una sola entrega y almacenamiento exclusivo por digest SHA-256;
+- máximo de tres tokens activos, protegido ante concurrencia y SQL directo;
+- gestión con ownership de los tres roles operativos y listado sin secretos;
+- sesión pública mínima, sin datos personales, finanzas ni recursos del Evento;
+- expiración transaccional al cerrar/cancelar y no reactivación al reabrir;
+- historial inmutable, auditoría sin secretos y resolución interna para el scanner futuro.
+
+`CODEX-080` quedó completamente cerrado. La siguiente tarea es `CODEX-081 — Scanner y check-in por
+Asistente`; no fue iniciada.
 
 ## Fuente de verdad
 

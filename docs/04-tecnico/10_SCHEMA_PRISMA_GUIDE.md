@@ -369,3 +369,10 @@ También validar en backend:
 - índice para lotes de deuda pendientes por `client_id`, `due_at`, `created_at`.
 - constraint o índice que impida dos check-ins activos por Asistente.
 - constraint o estrategia transaccional que impida segundo uso de PaseFisicoQR.
+
+## StaffToken implementado
+
+La migración 23 crea `staff_token` con UUID, FKs restrictivas, digest SHA-256 único, alias normalizado,
+versión positiva y expiración irreversible. Triggers PostgreSQL serializan por Evento, validan
+estado/ownership/creador, limitan tres activos, expiran al cerrar/cancelar y rechazan mutación,
+`DELETE` y `TRUNCATE`. El estado no usa enum persistido.

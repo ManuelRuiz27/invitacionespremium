@@ -630,6 +630,8 @@ El hardening final de controles URL, entrega privada y concurrencia quedó cerra
 
 ### CODEX-080 — Tokens staff
 
+**Estado:** completado.
+
 **Repo:** `invitacionespremium-api`
 
 **Módulo:** `StaffAccessModule`
@@ -651,7 +653,13 @@ El hardening final de controles URL, entrega privada y concurrencia quedó cerra
 - cerrado/cancelado invalida operación;
 - token secreto no aparece en logs/socket.
 
+Implementado con secreto de una sola entrega, digest SHA-256, límite concurrente de tres activos,
+resolución pública mínima, expiración transaccional e historial protegido por PostgreSQL. Scanner,
+check-in y Socket.IO no forman parte de este cierre.
+
 ### CODEX-081 — Scanner y check-in por Asistente
+
+**Estado:** siguiente tarea; no iniciada.
 
 **Repo:** `invitacionespremium-api`
 

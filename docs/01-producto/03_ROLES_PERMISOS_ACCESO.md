@@ -269,3 +269,10 @@ Auditar:
 - Confirmaciones/check-ins con actor tipo sin guardar tokens secretos.
 
 No auditar impersonación porque no existirá.
+
+## StaffToken implementado
+
+Los tres roles operativos pueden crear y listar StaffTokens únicamente bajo su ownership normal.
+Platform Admin no usa estas rutas. Staff no es usuario, no tiene subtipo ni permisos configurables: un
+secreto de una sola entrega lo limita al Evento asociado. El listado nunca devuelve secreto o digest.
+No existe revocación manual; cierre/cancelación expiran y reapertura no reactiva.

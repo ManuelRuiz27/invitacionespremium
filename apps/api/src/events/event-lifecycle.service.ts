@@ -8,6 +8,7 @@ import { AuditActorType, EventStateAction, EventStatus, Prisma, type Event } fro
 import { EventAccessPolicy, eventNotFound } from './event-access.policy';
 import type { EventResponseDto } from './events.dto';
 import { eventAuditSnapshot, toEventResponse } from './events.service';
+import { StaffTokenExpirationService } from '../staff-access/staff-access.service';
 
 const MAX_TRANSACTION_ATTEMPTS = 20;
 
@@ -16,7 +17,8 @@ export class EventLifecycleService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(AuditService) private readonly audit: AuditService,
-    @Inject(EventAccessPolicy) private readonly accessPolicy: EventAccessPolicy
+    @Inject(EventAccessPolicy) private readonly accessPolicy: EventAccessPolicy,
+    @Inject(StaffTokenExpirationService) private readonly staffTokens: StaffTokenExpirationService
   ) {}
 
   close(
@@ -109,7 +111,7 @@ export class EventLifecycleService {
     for (let attempt = 0; attempt < MAX_TRANSACTION_ATTEMPTS; attempt += 1) {
       try {
         return await this.prisma.$transaction(async (transaction) => {
-          await lockEvent(transaction, eventId);
+          await this.lockEvent(transaction, eventId);
           const current = await this.findOwnedEventForReplay(transaction, eventId, principal);
           const repeated = await this.findResult(eventId, action, idempotencyKey, transaction);
           if (repeated) {
@@ -120,6 +122,9 @@ export class EventLifecycleService {
           }
 
           const targetStatus = resolveTargetStatus(action, current, at);
+          if (targetStatus === EventStatus.CLOSED || targetStatus === EventStatus.CANCELLED) {
+            await this.staffTokens.expireForEventTransition(transaction, current, at, principal, operationId);
+          }
           const event = await transaction.event.update({
             where: { id: eventId },
             data: { status: targetStatus }
@@ -176,7 +181,7 @@ export class EventLifecycleService {
     for (let attempt = 0; attempt < MAX_TRANSACTION_ATTEMPTS; attempt += 1) {
       try {
         return await this.prisma.$transaction(async (transaction) => {
-          await lockEvent(transaction, eventId);
+          await this.lockEvent(transaction, eventId);
           const current = await transaction.event.findFirst({
             where: {
               id: eventId,
@@ -279,6 +284,15 @@ export class EventLifecycleService {
     }
     return operation.resultSnapshot as unknown as EventResponseDto;
   }
+
+  private async lockEvent(transaction: Prisma.TransactionClient, eventId: string): Promise<void> {
+    await transaction.$queryRaw`
+      SELECT "id"
+      FROM "event"
+      WHERE "id" = ${eventId}::uuid
+      FOR UPDATE
+    `;
+  }
 }
 
 function resolveTargetStatus(action: EventStateAction, event: Event, at: Date): EventStatus {
@@ -332,15 +346,6 @@ function auditAction(action: EventStateAction): string {
     case EventStateAction.EVENT_DAY:
       return 'EVENT_ENTER_EVENT_DAY';
   }
-}
-
-async function lockEvent(transaction: Prisma.TransactionClient, eventId: string): Promise<void> {
-  await transaction.$queryRaw`
-    SELECT "id"
-    FROM "event"
-    WHERE "id" = ${eventId}::uuid
-    FOR UPDATE
-  `;
 }
 
 export function isSameLocalDate(left: Date, right: Date, timeZone: string): boolean {

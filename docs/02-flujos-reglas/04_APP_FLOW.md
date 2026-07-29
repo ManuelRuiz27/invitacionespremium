@@ -118,3 +118,13 @@
 4. No activa evento real.
 5. No genera tokens reales.
 6. No envía invitaciones reales.
+
+## Flujo StaffToken
+
+1. Un usuario operativo con ownership crea hasta tres tokens activos en un Evento `active` o
+   `event_day`.
+2. El secreto se muestra una sola vez; los listados muestran solo alias, estado y timestamps.
+3. La ruta pública de sesión valida el digest y devuelve contexto mínimo del Evento.
+4. Cerrar o cancelar expira todos los tokens activos en la misma transacción.
+5. Reabrir no reactiva secretos anteriores; pueden crearse nuevos respetando el límite.
+6. Scanner, QR y check-in comienzan en `CODEX-081`.

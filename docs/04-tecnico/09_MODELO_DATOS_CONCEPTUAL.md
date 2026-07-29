@@ -514,3 +514,10 @@ estado del Evento. `locationUrl` y `giftRegistryUrl` pertenecen al Evento.
 `Invitation.responseStatus` es el agregado general y `Assistant.responseStatus`, su composición nominal.
 Al commit, `CONFIRMED` o `REJECTED` no permiten estados individuales mixtos. La capacidad se cuenta por
 Asistentes activos confirmados, no por número de Invitaciones.
+
+## StaffToken
+
+`Event 1:N StaffToken`. Cada fila conserva alias, digest SHA-256 único, versión positiva, creador y
+timestamps de creación/expiración. No almacena secreto ni estado persistido: activo/expirado se deriva
+de `expiredAt` y de la operatividad del Evento. Evento, creador y material criptográfico son inmutables;
+las filas no se eliminan para conservar trazabilidad.

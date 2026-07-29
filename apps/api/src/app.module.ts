@@ -17,6 +17,7 @@ import { InvitationsModule } from './invitations/invitations.module';
 import { InvitationDesignModule } from './invitation-design/invitation-design.module';
 import { ServicesPricingModule } from './services-pricing/services-pricing.module';
 import { PublicRsvpModule } from './public-rsvp/public-rsvp.module';
+import { StaffAccessModule } from './staff-access/staff-access.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { PublicRsvpModule } from './public-rsvp/public-rsvp.module';
     InvitationDesignModule,
     InvitationsModule,
     PublicRsvpModule,
+    StaffAccessModule,
     ContactsModule,
     ScheduleModule.forRoot()
   ],

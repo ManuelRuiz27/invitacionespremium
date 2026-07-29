@@ -204,3 +204,13 @@ Si aparece una contradicción:
 3. la implementación se detiene si no puede resolverse con esa jerarquía.
 
 No usar esta regla para inventar una decisión faltante.
+
+## StaffTokens
+
+- pertenecen exactamente a un Evento y no representan usuarios permanentes;
+- usan secretos `st1` aleatorios de 32 bytes, almacenados solo como digest SHA-256;
+- existen como máximo tres activos por Evento; expirados no cuentan;
+- solo se crean y resuelven en `active` o `event_day`;
+- cierre/cancelación expiran todos; reapertura no reactiva;
+- no hay subtipos, permisos configurables, edición, rotación o revocación manual en MVP;
+- la sesión pública es mínima y no expone datos personales ni financieros.
