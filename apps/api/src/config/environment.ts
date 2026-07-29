@@ -43,7 +43,7 @@ export const environmentSchema = z
       .default('ip_session'),
     AUTH_COOKIE_SECURE: booleanFromEnvironment.optional(),
     AUTH_COOKIE_SAME_SITE: z.enum(['strict', 'lax', 'none']).default('lax'),
-    AUTH_COOKIE_PATH: z.string().startsWith('/').default('/api/v1'),
+    AUTH_COOKIE_PATH: z.literal('/').default('/'),
     LOCAL_ADMIN_EMAIL: z
       .string()
       .email()

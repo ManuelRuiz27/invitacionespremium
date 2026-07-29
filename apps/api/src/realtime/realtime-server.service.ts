@@ -20,10 +20,17 @@ type RealtimeSocket = Socket<
   RealtimeSocketMetadata
 >;
 
+interface PendingStaffConnection {
+  socket: RealtimeSocket;
+  authorization: Awaited<ReturnType<RealtimeAuthService['authorize']>>;
+  invalidated: boolean;
+}
+
 @Injectable()
 export class RealtimeServerService implements OnApplicationBootstrap, OnApplicationShutdown {
   private io: Server | undefined;
   private namespace: Namespace | undefined;
+  private readonly pendingStaffConnections = new Map<string, PendingStaffConnection>();
 
   constructor(
     @Inject(HttpAdapterHost) private readonly adapterHost: HttpAdapterHost,
@@ -52,9 +59,27 @@ export class RealtimeServerService implements OnApplicationBootstrap, OnApplicat
           query: socket.handshake.query
         });
         socket.data = authorization.metadata;
-        await socket.join(authorization.room);
+        if (authorization.metadata.actorMode === 'STAFF_TOKEN') {
+          const pending: PendingStaffConnection = {
+            socket: socket as RealtimeSocket,
+            authorization,
+            invalidated: false
+          };
+          this.pendingStaffConnections.set(socket.id, pending);
+          await this.auth.revalidateStaffAuthorization(authorization);
+          await this.assertPendingStaffConnection(pending);
+          await socket.join(authorization.room);
+          await this.assertPendingStaffConnection(pending);
+        } else {
+          await socket.join(authorization.room);
+        }
         next();
       } catch (error) {
+        const pending = this.pendingStaffConnections.get(socket.id);
+        if (pending) {
+          await socket.leave(pending.authorization.room);
+          this.pendingStaffConnections.delete(socket.id);
+        }
         const code = error instanceof RealtimeConnectionError ? error.code : 'SOCKET_UNAUTHORIZED';
         next(socketConnectionError(code));
       }
@@ -63,6 +88,9 @@ export class RealtimeServerService implements OnApplicationBootstrap, OnApplicat
       socket.onAny(() => {
         socket.disconnect(true);
       });
+      if (socket.data.actorMode === 'STAFF_TOKEN') {
+        void this.finalizeStaffConnection(socket);
+      }
     });
   }
 
@@ -74,6 +102,12 @@ export class RealtimeServerService implements OnApplicationBootstrap, OnApplicat
   }
 
   disconnectStaff(eventId: string): void {
+    for (const pending of this.pendingStaffConnections.values()) {
+      if (pending.authorization.metadata.eventId === eventId) {
+        pending.invalidated = true;
+        void pending.socket.leave(pending.authorization.room);
+      }
+    }
     for (const socket of this.namespace?.sockets.values() ?? []) {
       const metadata = socket.data as RealtimeSocketMetadata;
       if (metadata.actorMode === 'STAFF_TOKEN' && metadata.eventId === eventId) {
@@ -86,9 +120,35 @@ export class RealtimeServerService implements OnApplicationBootstrap, OnApplicat
     const io = this.io;
     this.namespace = undefined;
     this.io = undefined;
+    this.pendingStaffConnections.clear();
     if (!io) return;
     await new Promise<void>((resolve) => {
       io.close(() => resolve());
     });
+  }
+
+  private async assertPendingStaffConnection(pending: PendingStaffConnection): Promise<void> {
+    if (!pending.invalidated) return;
+    await this.auth.revalidateStaffAuthorization(pending.authorization);
+    throw new RealtimeConnectionError('SOCKET_UNAUTHORIZED');
+  }
+
+  private async finalizeStaffConnection(socket: RealtimeSocket): Promise<void> {
+    const pending = this.pendingStaffConnections.get(socket.id);
+    if (!pending) {
+      socket.disconnect(true);
+      return;
+    }
+    try {
+      await this.auth.revalidateStaffAuthorization(pending.authorization);
+      await this.assertPendingStaffConnection(pending);
+    } catch {
+      await socket.leave(pending.authorization.room);
+      socket.disconnect(true);
+    } finally {
+      if (this.pendingStaffConnections.get(socket.id) === pending) {
+        this.pendingStaffConnections.delete(socket.id);
+      }
+    }
   }
 }

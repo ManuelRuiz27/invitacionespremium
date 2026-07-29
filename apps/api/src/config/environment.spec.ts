@@ -18,6 +18,7 @@ describe('validateEnvironment', () => {
     expect(environment.SWAGGER_ENABLED).toBe(false);
     expect(environment.AUTH_SESSION_TTL_SECONDS).toBe(3600);
     expect(environment.AUTH_COOKIE_SECURE).toBe(false);
+    expect(environment.AUTH_COOKIE_PATH).toBe('/');
     expect(environment.CREDIT_UNIT_VALUE_MXN_CENTS).toBe(2000);
     expect(environment.PHONE_DEFAULT_REGION).toBe('MX');
     expect(environment.CONTACT_IMPORT_PREVIEW_TTL_SECONDS).toBe(1800);
@@ -54,6 +55,16 @@ describe('validateEnvironment', () => {
         AUTH_COOKIE_SAME_SITE: 'none'
       })
     ).toThrow(/none requires AUTH_COOKIE_SECURE=true/);
+  });
+
+  it('requires the Auth cookie at the root path for Realtime', () => {
+    expect(() =>
+      validateEnvironment({
+        NODE_ENV: 'test',
+        DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/app',
+        AUTH_COOKIE_PATH: '/api/v1'
+      })
+    ).toThrow(/AUTH_COOKIE_PATH/);
   });
 
   it('requires local admin seed credentials as a pair', () => {

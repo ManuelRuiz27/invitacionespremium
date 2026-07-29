@@ -336,7 +336,10 @@ completamente cerrado.
 por Evento, sesión Auth o StaffToken revalidada en cada conexión, publicación post-commit, deduplicación
 por `eventName + operationId`, invalidación Staff al cerrar/cancelar y recuperación de estado por REST.
 La integración vertical prueba desde login y creación del Evento hasta RSVP, QR SVG, check-in realtime
-y cierre. La siguiente tarea es `CODEX-090 — Croquis, mesas y zonas`; no fue iniciada.
+y cierre. El hardening final fija la cookie Auth `HttpOnly` en `Path=/` para que el navegador la envíe al
+path `/socket.io`; el token de sesión nunca se copia a JavaScript ni viaja en `auth` o query. La resolución
+Staff bloquea Evento → StaffToken y coordina handshakes pendientes contra cierre/cancelación. La siguiente
+tarea es `CODEX-090 — Croquis, mesas y zonas`; no fue iniciada.
 
 ## Fuente de verdad
 

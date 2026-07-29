@@ -38,6 +38,7 @@ export interface RealtimeSocketMetadata {
 export interface RealtimeAuthorization {
   metadata: RealtimeSocketMetadata;
   room: string;
+  staffTokenId?: string;
 }
 
 export interface RealtimeHandshake {
@@ -61,6 +62,9 @@ export class RealtimeAuthService {
       throw new RealtimeConnectionError('SOCKET_PAYLOAD_VERSION_UNSUPPORTED');
     }
     if (hasCredentialInQuery(handshake.query)) {
+      throw new RealtimeConnectionError('SOCKET_UNAUTHORIZED');
+    }
+    if (hasSessionCredentialInAuth(auth)) {
       throw new RealtimeConnectionError('SOCKET_UNAUTHORIZED');
     }
     if (auth.actorMode === 'USER') {
@@ -128,7 +132,24 @@ export class RealtimeAuthService {
     if (parsed.data.roomType === 'floorplan' && !resolution.event.floorplanEnabled) {
       throw new RealtimeConnectionError('SOCKET_ROOM_FORBIDDEN');
     }
-    return authorization('STAFF_TOKEN', resolution.event.id, parsed.data.roomType);
+    return {
+      ...authorization('STAFF_TOKEN', resolution.event.id, parsed.data.roomType),
+      staffTokenId: resolution.staff.id
+    };
+  }
+
+  async revalidateStaffAuthorization(authorization: RealtimeAuthorization): Promise<void> {
+    if (authorization.metadata.actorMode !== 'STAFF_TOKEN' || !authorization.staffTokenId) {
+      throw new RealtimeConnectionError('SOCKET_UNAUTHORIZED');
+    }
+    const resolution = await this.staffTokens.revalidateRealtimeStaffToken(
+      authorization.staffTokenId,
+      authorization.metadata.eventId
+    );
+    assertStaffAvailable(resolution);
+    if (authorization.metadata.roomType === 'floorplan' && !resolution.event.floorplanEnabled) {
+      throw new RealtimeConnectionError('SOCKET_ROOM_FORBIDDEN');
+    }
   }
 }
 
@@ -170,4 +191,8 @@ function record(value: unknown): Record<string, unknown> | null {
 
 function hasCredentialInQuery(query: Record<string, unknown>): boolean {
   return ['token', 'staffToken', 'sessionToken', 'eventId'].some((key) => key in query);
+}
+
+function hasSessionCredentialInAuth(auth: Record<string, unknown>): boolean {
+  return ['token', 'sessionToken', 'session'].some((key) => key in auth);
 }

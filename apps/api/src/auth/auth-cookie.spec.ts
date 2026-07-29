@@ -3,7 +3,7 @@ import { buildClearedSessionCookie, buildSessionCookie, readCookie } from './aut
 
 const config = {
   authCookieName: 'ip_session',
-  authCookiePath: '/api/v1',
+  authCookiePath: '/',
   authCookieSameSite: 'lax' as const,
   authCookieSecure: true,
   authSessionTtlSeconds: 3600
@@ -15,7 +15,7 @@ describe('auth cookies', () => {
 
     expect(cookie).toContain('ip_session=opaque%2Ftoken');
     expect(cookie).toContain('Max-Age=3600');
-    expect(cookie).toContain('Path=/api/v1');
+    expect(cookie).toContain('Path=/');
     expect(cookie).toContain('HttpOnly');
     expect(cookie).toContain('SameSite=Lax');
     expect(cookie).toContain('Secure');
@@ -27,6 +27,6 @@ describe('auth cookies', () => {
     const cleared = buildClearedSessionCookie(config);
     expect(cleared).toContain('ip_session=');
     expect(cleared).toContain('Max-Age=0');
-    expect(cleared).toContain('Path=/api/v1');
+    expect(cleared).toContain('Path=/');
   });
 });

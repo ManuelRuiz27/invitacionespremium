@@ -27,8 +27,11 @@ path: /socket.io
 protocolVersion: 1
 ```
 
-La conexión usa los mismos orígenes CORS de la API y credenciales habilitadas. No existe `join-room`: cada
-conexión se autentica, autoriza y une a un solo room de negocio.
+La conexión usa los mismos orígenes CORS de la API y credenciales habilitadas. Los clientes web conectan
+con credenciales para que el navegador envíe la cookie Auth `HttpOnly`, cuyo alcance obligatorio es
+`Path=/` porque Socket.IO atiende en `/socket.io`. El session token nunca se copia a JavaScript ni se
+envía en `handshake.auth`, query string, URL o almacenamiento local. No existe `join-room`: cada conexión
+se autentica, autoriza y une a un solo room de negocio.
 
 Usuario autenticado:
 
@@ -370,13 +373,23 @@ En particular, no emitir por Socket.IO:
 
 ### Staff por token
 
-1. Validar token.
-2. Verificar que no esté expirado.
-3. Verificar que el Evento esté `active` o `event_day`.
-4. Resolver `event_id` desde token.
-5. Permitir únicamente rooms `scanner` y `floorplan` del mismo Evento.
-6. Nunca aceptar `event_id` alterno enviado por cliente.
-7. Nunca permitir room `dashboard`.
+1. Validar sintaxis y digest del token.
+2. Resolver y bloquear en una transacción PostgreSQL con orden Evento → StaffToken.
+3. Revaluar bajo locks existencia, borrado lógico, estado exacto, pertenencia, expiración y
+   `floorplanEnabled`.
+4. Preservar la prioridad de error: token inválido; Evento cerrado/cancelado; otro estado no operativo;
+   token expirado en Evento operativo.
+5. Resolver `event_id` desde token.
+6. Permitir únicamente rooms `scanner` y `floorplan` del mismo Evento.
+7. Nunca aceptar `event_id` alterno enviado por cliente.
+8. Nunca permitir room `dashboard`.
+
+El servidor registra internamente todo handshake Staff autorizado como pendiente antes de completar la
+conexión y conserva solo el identificador técnico del StaffToken, nunca su secreto. Revalida inmediatamente
+antes y después del registro Socket.IO. Cierre/cancelación invalida tanto sockets conectados como pendientes:
+si la conexión gana recibe el evento terminal y se desconecta; si la transición gana, el handshake falla o
+se desconecta antes de quedar operativo. Ningún socket Staff permanece estable en un Evento cerrado o
+cancelado.
 
 ### Platform Admin
 
@@ -436,6 +449,10 @@ Errores de autorización de socket deben usar códigos estables:
 - payload no contiene teléfono, nombre ni token prohibido;
 - eventos duplicados se deduplican por `operationId`;
 - reconexión vuelve a validar permisos y estado;
+- cookie de login y limpieza de logout usan exactamente `Path=/`;
+- session token en `handshake.auth` o query se rechaza;
+- carreras Staff contra cierre/cancelación cubren conexión ganadora, transición ganadora y la ventana
+  autorización–registro con barreras deterministas;
 - pérdida de un evento se recupera mediante snapshot REST.
 
 La integración E2E cubre login, creación y configuración mínima del Evento, Contacto e Invitación,

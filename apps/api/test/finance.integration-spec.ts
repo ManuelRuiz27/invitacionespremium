@@ -35,7 +35,7 @@ describe('Finance core', () => {
     process.env.CORS_ORIGINS = trustedOrigin;
     process.env.AUTH_COOKIE_SECURE = 'false';
     process.env.AUTH_COOKIE_SAME_SITE = 'lax';
-    process.env.AUTH_COOKIE_PATH = '/api/v1';
+    process.env.AUTH_COOKIE_PATH = '/';
     process.env.AUTH_SESSION_TTL_SECONDS = '3600';
 
     app = await createApp();

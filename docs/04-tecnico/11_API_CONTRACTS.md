@@ -463,6 +463,8 @@ El handshake declara en `auth` exactamente un modo:
   token y no se acepta `eventId` del cliente.
 
 No existe `join-room`, room público, credencial en query string ni evento de dominio entrante.
+La cookie Auth es `HttpOnly` y usa obligatoriamente `Path=/` para cubrir `/socket.io`; los clientes web
+conectan con credenciales y nunca copian el session token a `auth`, query o JavaScript.
 
 Canales:
 
@@ -478,6 +480,9 @@ replay histórico: ante pérdida o reconexión se recupera el snapshot por REST.
 
 No enviar teléfonos, nombres, finanzas ni tokens. Cerrar o cancelar notifica primero y después
 desconecta los sockets Staff; toda reconexión vuelve a validar token, ownership y estado del Evento.
+La resolución Staff se serializa bajo locks Evento → StaffToken. Los handshakes autorizados pero aún no
+registrados se coordinan como conexiones pendientes y se revalidan antes y después del registro, de modo
+que cierre/cancelación observa sockets conectados y pendientes sin dejar acceso Staff estable.
 
 ## DemoModule
 

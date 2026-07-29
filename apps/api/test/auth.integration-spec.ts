@@ -23,7 +23,7 @@ describe('Local authentication', () => {
     process.env.CORS_ORIGINS = trustedOrigin;
     process.env.AUTH_COOKIE_SECURE = 'false';
     process.env.AUTH_COOKIE_SAME_SITE = 'lax';
-    process.env.AUTH_COOKIE_PATH = '/api/v1';
+    process.env.AUTH_COOKIE_PATH = '/';
     process.env.AUTH_SESSION_TTL_SECONDS = '3600';
 
     app = await createApp();
@@ -78,7 +78,7 @@ describe('Local authentication', () => {
     expect(cookieHeader).toContain('ip_session=');
     expect(cookieHeader).toContain('HttpOnly');
     expect(cookieHeader).toContain('SameSite=Lax');
-    expect(cookieHeader).toContain('Path=/api/v1');
+    expect(cookieHeader?.split(';').map((attribute: string) => attribute.trim())).toContain('Path=/');
     expect(cookieHeader).not.toContain('Secure');
 
     const sessionCookie = cookieHeader?.split(';')[0];
@@ -104,7 +104,9 @@ describe('Local authentication', () => {
       .expect(204);
 
     const clearedCookie = logoutResponse.headers['set-cookie'];
-    expect(Array.isArray(clearedCookie) ? clearedCookie[0] : clearedCookie).toContain('Max-Age=0');
+    const clearedCookieHeader = Array.isArray(clearedCookie) ? clearedCookie[0] : clearedCookie;
+    expect(clearedCookieHeader).toContain('Max-Age=0');
+    expect(clearedCookieHeader?.split(';').map((attribute: string) => attribute.trim())).toContain('Path=/');
 
     await request(app.getHttpServer())
       .get('/api/v1/auth/me')

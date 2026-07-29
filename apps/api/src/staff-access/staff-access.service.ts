@@ -151,15 +151,53 @@ export class StaffTokenResolverService {
 
   async resolveRealtimeStaffToken(rawToken: string): Promise<RealtimeStaffResolution> {
     if (!this.technical.isValidSyntax(rawToken)) return { kind: 'INVALID' };
-    const staff = await this.technical.lookupByDigest(this.prisma, this.technical.digest(rawToken));
-    if (!staff) return { kind: 'INVALID' };
-    const event = await this.prisma.event.findUnique({ where: { id: staff.eventId } });
-    if (!event || event.deletedAt) return { kind: 'INVALID' };
-    if (event.status === EventStatus.CLOSED) return { kind: 'CLOSED' };
-    if (event.status === EventStatus.CANCELLED) return { kind: 'CANCELLED' };
-    if (!OPERATIONAL_EVENT_STATUSES.has(event.status)) return { kind: 'EVENT_NOT_OPERATIONAL' };
-    if (staff.expiredAt) return { kind: 'EXPIRED' };
-    return { kind: 'AVAILABLE', staff, event };
+    const digest = this.technical.digest(rawToken);
+    return this.resolveRealtimeWithRetry(async (transaction) => {
+      const eventRows = await transaction.$queryRaw<Array<{ id: string }>>`
+        SELECT event_row."id"
+        FROM "event" AS event_row
+        INNER JOIN "staff_token" AS staff_row
+          ON staff_row."event_id" = event_row."id"
+        WHERE staff_row."token_digest_sha256" = ${digest}
+        FOR UPDATE OF event_row
+      `;
+      const eventId = eventRows[0]?.id;
+      if (!eventId) return { kind: 'INVALID' };
+
+      await transaction.$queryRaw`
+        SELECT "id"
+        FROM "staff_token"
+        WHERE "token_digest_sha256" = ${digest}
+        FOR UPDATE
+      `;
+      const staff = await this.technical.lookupByDigest(transaction, digest);
+      if (!staff || staff.eventId !== eventId) return { kind: 'INVALID' };
+      const event = await transaction.event.findUnique({ where: { id: eventId } });
+      return evaluateRealtimeStaff(staff, event);
+    });
+  }
+
+  async revalidateRealtimeStaffToken(staffTokenId: string, eventId: string): Promise<RealtimeStaffResolution> {
+    return this.resolveRealtimeWithRetry(async (transaction) => {
+      const eventRows = await transaction.$queryRaw<Array<{ id: string }>>`
+        SELECT "id"
+        FROM "event"
+        WHERE "id" = ${eventId}::uuid
+        FOR UPDATE
+      `;
+      if (!eventRows[0]) return { kind: 'INVALID' };
+
+      await transaction.$queryRaw`
+        SELECT "id"
+        FROM "staff_token"
+        WHERE "id" = ${staffTokenId}::uuid
+        FOR UPDATE
+      `;
+      const staff = await transaction.staffToken.findUnique({ where: { id: staffTokenId } });
+      if (!staff || staff.eventId !== eventId) return { kind: 'INVALID' };
+      const event = await transaction.event.findUnique({ where: { id: eventId } });
+      return evaluateRealtimeStaff(staff, event);
+    });
   }
 
   async resolveStaffTokenInTransaction(
@@ -222,6 +260,20 @@ export class StaffTokenResolverService {
     );
   }
 
+  private async resolveRealtimeWithRetry(
+    resolve: (transaction: Prisma.TransactionClient) => Promise<RealtimeStaffResolution>
+  ): Promise<RealtimeStaffResolution> {
+    for (let attempt = 0; attempt < MAX_TRANSACTION_ATTEMPTS; attempt += 1) {
+      try {
+        return await this.prisma.$transaction(resolve, CRITICAL_TRANSACTION_OPTIONS);
+      } catch (error) {
+        if (isRetryableTransactionError(error) && attempt < MAX_TRANSACTION_ATTEMPTS - 1) continue;
+        throw error;
+      }
+    }
+    return { kind: 'INVALID' };
+  }
+
   private async lockRows(transaction: Prisma.TransactionClient, eventId: string, digestSha256: string): Promise<void> {
     await transaction.$queryRaw`
       SELECT "id"
@@ -236,6 +288,15 @@ export class StaffTokenResolverService {
       FOR UPDATE
     `;
   }
+}
+
+function evaluateRealtimeStaff(staff: StaffToken, event: Event | null): RealtimeStaffResolution {
+  if (!event || event.deletedAt) return { kind: 'INVALID' };
+  if (event.status === EventStatus.CLOSED) return { kind: 'CLOSED' };
+  if (event.status === EventStatus.CANCELLED) return { kind: 'CANCELLED' };
+  if (!OPERATIONAL_EVENT_STATUSES.has(event.status)) return { kind: 'EVENT_NOT_OPERATIONAL' };
+  if (staff.expiredAt) return { kind: 'EXPIRED' };
+  return { kind: 'AVAILABLE', staff, event };
 }
 
 @Injectable()

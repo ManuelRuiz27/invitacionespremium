@@ -26,6 +26,7 @@ import {
 import { InvitationTokenService } from '../src/invitations/invitation-token.service';
 import { RealtimePublisherService } from '../src/realtime/realtime-publisher.service';
 import { RealtimeServerService } from '../src/realtime/realtime-server.service';
+import { StaffTokenResolverService } from '../src/staff-access/staff-access.service';
 import { StaffTokenTechnicalService } from '../src/staff-access/staff-token-technical.service';
 
 const origin = 'http://localhost:5173';
@@ -50,6 +51,7 @@ describe('Realtime Socket.IO', () => {
   let invitationTokens: InvitationTokenService;
   let publisher: RealtimePublisherService;
   let realtimeServer: RealtimeServerService;
+  let staffResolver: StaffTokenResolverService;
   let audit: AuditService;
   let baseUrl: string;
   const sockets = new Set<Socket>();
@@ -60,7 +62,7 @@ describe('Realtime Socket.IO', () => {
     process.env.CORS_ORIGINS = origin;
     process.env.AUTH_COOKIE_SECURE = 'false';
     process.env.AUTH_COOKIE_SAME_SITE = 'lax';
-    process.env.AUTH_COOKIE_PATH = '/api/v1';
+    process.env.AUTH_COOKIE_PATH = '/';
     process.env.AUTH_SESSION_TTL_SECONDS = '3600';
     process.env.INVITATION_TOKEN_SIGNING_SECRET = 'integration-realtime-secret-at-least-32-bytes';
     process.env.PUBLIC_INVITATION_BASE_URL = 'https://public.example/invitacion';
@@ -73,6 +75,7 @@ describe('Realtime Socket.IO', () => {
     invitationTokens = app.get(InvitationTokenService);
     publisher = app.get(RealtimePublisherService);
     realtimeServer = app.get(RealtimeServerService);
+    staffResolver = app.get(StaffTokenResolverService);
     audit = app.get(AuditService);
   });
 
@@ -144,6 +147,32 @@ describe('Realtime Socket.IO', () => {
       },
       undefined,
       'SOCKET_UNAUTHORIZED'
+    );
+    const credentialCookie = await login(independent.email);
+    const sessionToken = decodeURIComponent(credentialCookie.slice(credentialCookie.indexOf('=') + 1));
+    await expectConnectionError(
+      {
+        protocolVersion: 1,
+        actorMode: 'USER',
+        roomType: 'dashboard',
+        eventId: ownEvent.id,
+        administrative: false,
+        sessionToken
+      },
+      undefined,
+      'SOCKET_UNAUTHORIZED'
+    );
+    await expectConnectionError(
+      {
+        protocolVersion: 1,
+        actorMode: 'USER',
+        roomType: 'dashboard',
+        eventId: ownEvent.id,
+        administrative: false
+      },
+      undefined,
+      'SOCKET_UNAUTHORIZED',
+      { sessionToken }
     );
     const rejectedInbound = onceDisconnected(ownDashboard);
     ownDashboard.emit('checkin.created', {});
@@ -258,6 +287,105 @@ describe('Realtime Socket.IO', () => {
     expect(cancelledPublisher).toHaveBeenCalledTimes(1);
     expect(cancelledDashboard.connected).toBe(true);
     await expectStaffError(cancelled.staffToken, 'scanner', 'SOCKET_EVENT_CANCELLED');
+  });
+
+  it('rejects Staff handshakes when close or cancel wins before registration or while pending', async () => {
+    const scenarios = [
+      {
+        action: 'close' as const,
+        roomType: 'scanner' as const,
+        barrier: 'before-registration' as const,
+        code: 'SOCKET_EVENT_CLOSED'
+      },
+      {
+        action: 'cancel' as const,
+        roomType: 'floorplan' as const,
+        barrier: 'pending-revalidation' as const,
+        code: 'SOCKET_EVENT_CANCELLED'
+      }
+    ];
+
+    for (const scenario of scenarios) {
+      const fixture = await createScannerFixture();
+      if (scenario.roomType === 'floorplan') {
+        await prisma.event.update({ where: { id: fixture.eventId }, data: { floorplanEnabled: true } });
+      }
+      const cookie = await login(fixture.email);
+      const reached = deferred<void>();
+      const release = deferred<void>();
+      let gated = false;
+      const lateBroadcast = vi.fn();
+      const spy =
+        scenario.barrier === 'before-registration'
+          ? vi.spyOn(staffResolver, 'resolveRealtimeStaffToken').mockImplementation(async (rawToken) => {
+              const result = await originalResolveRealtimeStaffToken(rawToken);
+              if (!gated && result.kind === 'AVAILABLE' && result.event.id === fixture.eventId) {
+                gated = true;
+                reached.resolve();
+                await release.promise;
+              }
+              return result;
+            })
+          : vi
+              .spyOn(staffResolver, 'revalidateRealtimeStaffToken')
+              .mockImplementation(async (staffTokenId, eventId) => {
+                const result = await originalRevalidateRealtimeStaffToken(staffTokenId, eventId);
+                if (!gated && result.kind === 'AVAILABLE' && eventId === fixture.eventId) {
+                  gated = true;
+                  reached.resolve();
+                  await release.promise;
+                }
+                return result;
+              });
+      const socket = socketClient(
+        {
+          protocolVersion: 1,
+          actorMode: 'STAFF_TOKEN',
+          roomType: scenario.roomType,
+          staffToken: fixture.staffToken
+        },
+        undefined,
+        undefined,
+        false
+      );
+      sockets.add(socket);
+      socket.on('checkin.created', lateBroadcast);
+      const outcome = connectionOutcome(socket);
+      socket.connect();
+
+      try {
+        await reached.promise;
+        expect(pendingStaffCount()).toBe(scenario.barrier === 'pending-revalidation' ? 1 : 0);
+        await lifecycleRequest(scenario.action, fixture.eventId, cookie).expect(200);
+        if (scenario.barrier === 'pending-revalidation') {
+          expect(pendingStaffWasInvalidated(fixture.eventId)).toBe(true);
+        }
+        release.resolve();
+
+        const connection = await outcome;
+        expect(connection.kind).toBe('error');
+        if (connection.kind !== 'error') throw new Error('Staff socket unexpectedly connected.');
+        expect(connection.code).toBe(scenario.code);
+        expect(socket.connected).toBe(false);
+        expect(pendingStaffCount()).toBe(0);
+        expect(realtimeRoomSize(fixture.eventId, scenario.roomType)).toBe(0);
+
+        await publisher.publishCheckInCreated({
+          eventId: fixture.eventId,
+          invitationId: fixture.invitationId,
+          operationId: randomUUID(),
+          occurredAt: new Date().toISOString(),
+          checkIns: [{ checkInId: randomUUID(), assistantId: fixture.primaryId }]
+        });
+        await nextTurn();
+        expect(lateBroadcast).not.toHaveBeenCalled();
+        await expectStaffError(fixture.staffToken, scenario.roomType, scenario.code);
+      } finally {
+        release.resolve();
+        spy.mockRestore();
+        socket.close();
+      }
+    }
   });
 
   it('emits committed domain changes once, suppresses replay/no-op and exposes no sensitive keys', async () => {
@@ -756,7 +884,9 @@ describe('Realtime Socket.IO', () => {
       .send({ email, password })
       .expect(200);
     const raw = response.headers['set-cookie'];
-    const cookie = (Array.isArray(raw) ? raw[0] : raw)?.split(';')[0];
+    const cookieHeader = Array.isArray(raw) ? raw[0] : raw;
+    expect(cookieHeader?.split(';').map((attribute: string) => attribute.trim())).toContain('Path=/');
+    const cookie = cookieHeader?.split(';')[0];
     if (!cookie) throw new Error('Missing authentication cookie.');
     return cookie;
   }
@@ -831,8 +961,13 @@ describe('Realtime Socket.IO', () => {
     );
   }
 
-  async function expectConnectionError(auth: Record<string, unknown>, cookie: string | undefined, code: string) {
-    const socket = socketClient(auth, cookie);
+  async function expectConnectionError(
+    auth: Record<string, unknown>,
+    cookie: string | undefined,
+    code: string,
+    query?: Record<string, string>
+  ) {
+    const socket = socketClient(auth, cookie, query);
     sockets.add(socket);
     const error = await new Promise<Error & { data?: { code?: string } }>((resolve, reject) => {
       socket.once('connect', () => reject(new Error('Socket unexpectedly connected.')));
@@ -842,16 +977,72 @@ describe('Realtime Socket.IO', () => {
     socket.close();
   }
 
-  function socketClient(auth: Record<string, unknown>, cookie?: string) {
+  function socketClient(
+    auth: Record<string, unknown>,
+    cookie?: string,
+    query?: Record<string, string>,
+    autoConnect = true
+  ) {
     return io(`${baseUrl}/realtime`, {
       path: '/socket.io',
       transports: ['websocket'],
       forceNew: true,
       reconnection: false,
+      autoConnect,
       auth,
+      ...(query ? { query } : {}),
       ...(cookie ? { extraHeaders: { Cookie: cookie } } : {})
     });
   }
+
+  function connectionOutcome(socket: Socket) {
+    return new Promise<{ kind: 'connected' } | { kind: 'error'; code: string | undefined }>((resolve) => {
+      socket.once('connect', () => resolve({ kind: 'connected' }));
+      socket.once('connect_error', (error: Error & { data?: { code?: string } }) =>
+        resolve({ kind: 'error', code: error.data?.code })
+      );
+    });
+  }
+
+  function pendingStaffCount(): number {
+    return (
+      realtimeServer as unknown as {
+        pendingStaffConnections: Map<
+          string,
+          { invalidated: boolean; authorization: { metadata: { eventId: string } } }
+        >;
+      }
+    ).pendingStaffConnections.size;
+  }
+
+  function pendingStaffWasInvalidated(eventId: string): boolean {
+    const pending = (
+      realtimeServer as unknown as {
+        pendingStaffConnections: Map<
+          string,
+          { invalidated: boolean; authorization: { metadata: { eventId: string } } }
+        >;
+      }
+    ).pendingStaffConnections;
+    return [...pending.values()].some(
+      (connection) => connection.authorization.metadata.eventId === eventId && connection.invalidated
+    );
+  }
+
+  function realtimeRoomSize(eventId: string, roomType: 'scanner' | 'floorplan'): number {
+    const namespace = (
+      realtimeServer as unknown as {
+        namespace?: { adapter: { rooms: Map<string, Set<string>> } };
+      }
+    ).namespace;
+    return namespace?.adapter.rooms.get(`event:${eventId}:${roomType}`)?.size ?? 0;
+  }
+
+  const originalResolveRealtimeStaffToken = (rawToken: string) =>
+    StaffTokenResolverService.prototype.resolveRealtimeStaffToken.call(staffResolver, rawToken);
+
+  const originalRevalidateRealtimeStaffToken = (staffTokenId: string, eventId: string) =>
+    StaffTokenResolverService.prototype.revalidateRealtimeStaffToken.call(staffResolver, staffTokenId, eventId);
 
   function onceEvent(socket: Socket, eventName: string) {
     return new Promise<TestRealtimeEnvelope>((resolve) => {
@@ -962,3 +1153,13 @@ describe('Realtime Socket.IO', () => {
     `);
   }
 });
+
+function deferred<T>() {
+  let resolvePromise!: (value: T | PromiseLike<T>) => void;
+  let rejectPromise!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolve, reject) => {
+    resolvePromise = resolve;
+    rejectPromise = reject;
+  });
+  return { promise, resolve: resolvePromise, reject: rejectPromise };
+}
