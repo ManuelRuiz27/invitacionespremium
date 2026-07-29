@@ -4,7 +4,8 @@ import jsQR from 'jsqr';
 import { Client as PgClient } from 'pg';
 import request from 'supertest';
 import sharp from 'sharp';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { AuditService } from '../src/audit/audit.service';
 import { hashPassword } from '../src/auth/password-hasher';
 import { createApp } from '../src/bootstrap/create-app';
 import { PrismaService } from '../src/common/database/prisma.service';
@@ -32,6 +33,7 @@ const password = 'correct horse battery staple';
 
 describe('PhysicalPasses', () => {
   let app: INestApplication;
+  let audit: AuditService;
   let prisma: PrismaService;
   let tokens: PhysicalPassTokenService;
 
@@ -46,11 +48,13 @@ describe('PhysicalPasses', () => {
     process.env.PUBLIC_INVITATION_BASE_URL = 'https://public.example/invitacion';
     app = await createApp();
     await app.init();
+    audit = app.get(AuditService);
     prisma = app.get(PrismaService);
     tokens = app.get(PhysicalPassTokenService);
   });
 
   beforeEach(resetDatabase, 60_000);
+  afterEach(() => vi.restoreAllMocks());
   afterAll(async () => {
     await resetDatabase();
     await app.close();
@@ -163,6 +167,99 @@ describe('PhysicalPasses', () => {
     );
   }, 60_000);
 
+  it('serializes generation against table reduction and deletion in both winning orders', async () => {
+    const generationWins = await createFixture(EventStatus.CONFIGURED, 2, true);
+    const generationWinsTable = await createFloorplanTable(generationWins, 2);
+    const generationWinsCookie = await login(generationWins.email);
+    const generationBarrier = auditBarrier('PHYSICAL_PASS_GENERATE');
+    const generatedPromise = Promise.resolve(
+      generate(
+        generationWins.eventId,
+        generationWinsCookie,
+        'physical-table-reduction-generation-wins',
+        2,
+        generationWinsTable.id
+      )
+    );
+    await generationBarrier.entered.promise;
+    const rejectedReductionPromise = capture(
+      prisma.floorplanShape.update({ where: { id: generationWinsTable.id }, data: { capacity: 1 } })
+    );
+    await waitForVerifiedLockWaiters(1);
+    generationBarrier.release.resolve();
+    const [generated, rejectedReduction] = await Promise.all([generatedPromise, rejectedReductionPromise]);
+    generationBarrier.restore();
+    expect(generated.status).toBe(200);
+    expect(rejectedReduction.ok).toBe(false);
+    expect((await prisma.floorplanShape.findUniqueOrThrow({ where: { id: generationWinsTable.id } })).capacity).toBe(2);
+
+    const reductionWins = await createFixture(EventStatus.CONFIGURED, 2, true);
+    const reductionWinsTable = await createFloorplanTable(reductionWins, 2);
+    const reductionWinsCookie = await login(reductionWins.email);
+    const [reduced, rejectedGeneration] = await startBehindVerifiedRowLock(
+      'floorplan_shape',
+      reductionWinsTable.id,
+      () => [
+        capture(prisma.floorplanShape.update({ where: { id: reductionWinsTable.id }, data: { capacity: 1 } })),
+        generate(
+          reductionWins.eventId,
+          reductionWinsCookie,
+          'physical-table-reduction-mutation-wins',
+          2,
+          reductionWinsTable.id
+        )
+      ]
+    );
+    expect(reduced.ok).toBe(true);
+    expect(rejectedGeneration.status).toBe(409);
+    expect(await prisma.physicalPass.count({ where: { eventId: reductionWins.eventId } })).toBe(0);
+
+    const generationBeforeDelete = await createFixture(EventStatus.CONFIGURED, 1, true);
+    const generationBeforeDeleteTable = await createFloorplanTable(generationBeforeDelete, 1);
+    const generationBeforeDeleteCookie = await login(generationBeforeDelete.email);
+    const deleteGenerationBarrier = auditBarrier('PHYSICAL_PASS_GENERATE');
+    const generatedBeforeDeletePromise = Promise.resolve(
+      generate(
+        generationBeforeDelete.eventId,
+        generationBeforeDeleteCookie,
+        'physical-table-delete-generation-wins',
+        1,
+        generationBeforeDeleteTable.id
+      )
+    );
+    await deleteGenerationBarrier.entered.promise;
+    const rejectedDeletePromise = capture(
+      prisma.floorplanShape.update({
+        where: { id: generationBeforeDeleteTable.id },
+        data: { deletedAt: new Date() }
+      })
+    );
+    await waitForVerifiedLockWaiters(1);
+    deleteGenerationBarrier.release.resolve();
+    const [generatedBeforeDelete, rejectedDelete] = await Promise.all([
+      generatedBeforeDeletePromise,
+      rejectedDeletePromise
+    ]);
+    deleteGenerationBarrier.restore();
+    expect(generatedBeforeDelete.status).toBe(200);
+    expect(rejectedDelete.ok).toBe(false);
+
+    const deleteWins = await createFixture(EventStatus.CONFIGURED, 1, true);
+    const deleteWinsTable = await createFloorplanTable(deleteWins, 1);
+    const deleteWinsCookie = await login(deleteWins.email);
+    const [deleted, rejectedAfterDelete] = await startBehindVerifiedRowLock(
+      'floorplan_shape',
+      deleteWinsTable.id,
+      () => [
+        capture(prisma.floorplanShape.update({ where: { id: deleteWinsTable.id }, data: { deletedAt: new Date() } })),
+        generate(deleteWins.eventId, deleteWinsCookie, 'physical-table-delete-mutation-wins', 1, deleteWinsTable.id)
+      ]
+    );
+    expect(deleted.ok).toBe(true);
+    expect(rejectedAfterDelete.status).toBe(409);
+    expect(await prisma.physicalPass.count({ where: { eventId: deleteWins.eventId } })).toBe(0);
+  }, 60_000);
+
   it('replays the same concurrent generation key exactly once behind a verified lock barrier', async () => {
     const fixture = await createFixture(EventStatus.CONFIGURED, 2);
     const cookie = await login(fixture.email);
@@ -176,6 +273,42 @@ describe('PhysicalPasses', () => {
     expect(await prisma.physicalPass.count({ where: { eventId: fixture.eventId } })).toBe(1);
     expect(await prisma.auditLog.count({ where: { eventId: fixture.eventId, action: 'PHYSICAL_PASS_GENERATE' } })).toBe(
       1
+    );
+  }, 60_000);
+
+  it('serializes generation against activation in both winning orders', async () => {
+    const generationWins = await createFixture(EventStatus.CONFIGURED, 1);
+    await ensureFreeActivationPrice(generationWins.eventId);
+    const generationWinsCookie = await login(generationWins.email);
+    const [generated, activatedAfterGeneration] = await startBehindVerifiedEventLock(generationWins.eventId, () => [
+      generate(generationWins.eventId, generationWinsCookie, 'physical-race-generation-before-activation', 1),
+      activate(generationWins.eventId, generationWinsCookie, 'physical-race-activation-after-generation')
+    ]);
+    expect(generated.status).toBe(200);
+    expect(activatedAfterGeneration.status).toBe(200);
+    expect((await prisma.event.findUniqueOrThrow({ where: { id: generationWins.eventId } })).status).toBe(
+      EventStatus.ACTIVE
+    );
+
+    const activationWinsLock = await createFixture(EventStatus.CONFIGURED, 1);
+    await ensureFreeActivationPrice(activationWinsLock.eventId);
+    const activationWinsLockCookie = await login(activationWinsLock.email);
+    const [rejectedActivation, generatedAfterPreflight] = await startBehindVerifiedEventLock(
+      activationWinsLock.eventId,
+      () => [
+        activate(activationWinsLock.eventId, activationWinsLockCookie, 'physical-race-activation-before-generation'),
+        generate(
+          activationWinsLock.eventId,
+          activationWinsLockCookie,
+          'physical-race-generation-after-activation-preflight',
+          1
+        )
+      ]
+    );
+    expect(rejectedActivation.status).toBe(409);
+    expect(generatedAfterPreflight.status).toBe(200);
+    expect((await prisma.event.findUniqueOrThrow({ where: { id: activationWinsLock.eventId } })).status).toBe(
+      EventStatus.READY_TO_ACTIVATE
     );
   }, 60_000);
 
@@ -294,6 +427,162 @@ describe('PhysicalPasses', () => {
     expect(right.status).toBe(200);
     expect(left.body).toEqual(right.body);
     expect(await prisma.auditLog.count({ where: { resourceId: pass.id, action: 'PHYSICAL_PASS_USE' } })).toBe(1);
+  }, 60_000);
+
+  it.each(['close', 'cancel'] as const)(
+    'serializes use against %s in both winning orders',
+    async (action) => {
+      const useWins = await createUseRaceFixture(`${action}-use-wins`);
+      const [used, transitionedAfterUse] = await startBehindVerifiedEventLock(useWins.eventId, () => [
+        scan(useWins.staffToken, `physical-race-${action}-use-wins`, useWins.qrToken),
+        transition(useWins.eventId, useWins.cookie, action, `physical-race-${action}-after-use`)
+      ]);
+      expect(used.status).toBe(200);
+      expect(transitionedAfterUse.status).toBe(200);
+      expect((await prisma.physicalPass.findUniqueOrThrow({ where: { id: useWins.pass.id } })).usedAt).not.toBeNull();
+      expect((await prisma.event.findUniqueOrThrow({ where: { id: useWins.eventId } })).status).toBe(
+        action === 'close' ? EventStatus.CLOSED : EventStatus.CANCELLED
+      );
+
+      const lifecycleWins = await createUseRaceFixture(`${action}-lifecycle-wins`);
+      const [transitionedBeforeUse, rejectedUse] = await startBehindVerifiedEventLock(lifecycleWins.eventId, () => [
+        transition(lifecycleWins.eventId, lifecycleWins.cookie, action, `physical-race-${action}-before-use`),
+        scan(lifecycleWins.staffToken, `physical-race-${action}-rejected`, lifecycleWins.qrToken)
+      ]);
+      expect(transitionedBeforeUse.status).toBe(200);
+      expect(rejectedUse.status).toBe(409);
+      expect((await prisma.physicalPass.findUniqueOrThrow({ where: { id: lifecycleWins.pass.id } })).usedAt).toBeNull();
+      expect(
+        await prisma.auditLog.count({ where: { resourceId: lifecycleWins.pass.id, action: 'PHYSICAL_PASS_USE' } })
+      ).toBe(0);
+    },
+    60_000
+  );
+
+  it('serializes first use against StaffToken expiration and pass soft delete in both winning orders', async () => {
+    const useBeforeExpiration = await createUseRaceFixture('use-before-expiration');
+    const useBarrier = auditBarrier('PHYSICAL_PASS_USE');
+    const usedBeforeExpirationPromise = Promise.resolve(
+      scan(useBeforeExpiration.staffToken, 'physical-race-use-before-expiration', useBeforeExpiration.qrToken)
+    );
+    await useBarrier.entered.promise;
+    const expiredAfterUsePromise = capture(
+      prisma.staffToken.update({
+        where: { id: useBeforeExpiration.staff.id },
+        data: { expiredAt: new Date() }
+      })
+    );
+    await waitForVerifiedLockWaiters(1);
+    useBarrier.release.resolve();
+    const [usedBeforeExpiration, expiredAfterUse] = await Promise.all([
+      usedBeforeExpirationPromise,
+      expiredAfterUsePromise
+    ]);
+    useBarrier.restore();
+    expect(usedBeforeExpiration.status).toBe(200);
+    expect(expiredAfterUse.ok).toBe(true);
+
+    const expirationBeforeUse = await createUseRaceFixture('expiration-before-use');
+    const [expiredBeforeUse, rejectedExpiredUse] = await startBehindVerifiedRowLock(
+      'staff_token',
+      expirationBeforeUse.staff.id,
+      () => [
+        capture(
+          prisma.staffToken.update({
+            where: { id: expirationBeforeUse.staff.id },
+            data: { expiredAt: new Date() }
+          })
+        ),
+        scan(expirationBeforeUse.staffToken, 'physical-race-expired-before-use', expirationBeforeUse.qrToken)
+      ]
+    );
+    expect(expiredBeforeUse.ok).toBe(true);
+    expect(rejectedExpiredUse.status).toBe(401);
+    expect(
+      (await prisma.physicalPass.findUniqueOrThrow({ where: { id: expirationBeforeUse.pass.id } })).usedAt
+    ).toBeNull();
+
+    const useBeforeDelete = await createUseRaceFixture('use-before-delete');
+    const deleteUseBarrier = auditBarrier('PHYSICAL_PASS_USE');
+    const usedBeforeDeletePromise = Promise.resolve(
+      scan(useBeforeDelete.staffToken, 'physical-race-use-before-delete', useBeforeDelete.qrToken)
+    );
+    await deleteUseBarrier.entered.promise;
+    const rejectedDeletePromise = capture(
+      prisma.physicalPass.update({
+        where: { id: useBeforeDelete.pass.id },
+        data: { deletedAt: new Date() }
+      })
+    );
+    await waitForVerifiedLockWaiters(1);
+    deleteUseBarrier.release.resolve();
+    const [usedBeforeDelete, rejectedDelete] = await Promise.all([usedBeforeDeletePromise, rejectedDeletePromise]);
+    deleteUseBarrier.restore();
+    expect(usedBeforeDelete.status).toBe(200);
+    expect(rejectedDelete.ok).toBe(false);
+
+    const deleteBeforeUse = await createUseRaceFixture('delete-before-use');
+    const [deletedBeforeUse, rejectedDeletedUse] = await startBehindVerifiedRowLock(
+      'physical_pass',
+      deleteBeforeUse.pass.id,
+      () => [
+        capture(
+          prisma.physicalPass.update({
+            where: { id: deleteBeforeUse.pass.id },
+            data: { deletedAt: new Date() }
+          })
+        ),
+        scan(deleteBeforeUse.staffToken, 'physical-race-delete-before-use', deleteBeforeUse.qrToken)
+      ]
+    );
+    expect(deletedBeforeUse.ok).toBe(true);
+    expect(rejectedDeletedUse.status).toBe(404);
+    expect(
+      await prisma.auditLog.count({ where: { resourceId: deleteBeforeUse.pass.id, action: 'PHYSICAL_PASS_USE' } })
+    ).toBe(0);
+  }, 60_000);
+
+  it('serializes first use against table modification and deletion without invalidating the used pass', async () => {
+    const useBeforeTableMutation = await createUseRaceFixture('use-before-table-mutation', true);
+    const [used, tableReduced] = await startBehindVerifiedRowLock(
+      'floorplan_shape',
+      useBeforeTableMutation.table!.id,
+      () => [
+        scan(
+          useBeforeTableMutation.staffToken,
+          'physical-race-use-before-table-mutation',
+          useBeforeTableMutation.qrToken
+        ),
+        capture(
+          prisma.floorplanShape.update({
+            where: { id: useBeforeTableMutation.table!.id },
+            data: { capacity: 1 }
+          })
+        )
+      ]
+    );
+    expect(used.status).toBe(200);
+    expect(tableReduced.ok).toBe(true);
+
+    const deleteBeforeUse = await createUseRaceFixture('table-delete-before-use', true);
+    const [rejectedTableDelete, usedAfterRejectedDelete] = await startBehindVerifiedRowLock(
+      'floorplan_shape',
+      deleteBeforeUse.table!.id,
+      () => [
+        capture(
+          prisma.floorplanShape.update({
+            where: { id: deleteBeforeUse.table!.id },
+            data: { deletedAt: new Date() }
+          })
+        ),
+        scan(deleteBeforeUse.staffToken, 'physical-race-use-after-rejected-table-delete', deleteBeforeUse.qrToken)
+      ]
+    );
+    expect(rejectedTableDelete.ok).toBe(false);
+    expect(usedAfterRejectedDelete.status).toBe(200);
+    expect(
+      (await prisma.physicalPass.findUniqueOrThrow({ where: { id: deleteBeforeUse.pass.id } })).usedAt
+    ).not.toBeNull();
   }, 60_000);
 
   it('counts PhysicalPass and Assistant occupancy together and rejects table reduction/deletion', async () => {
@@ -720,6 +1009,57 @@ describe('PhysicalPasses', () => {
     return response.body.token as string;
   }
 
+  async function createUseRaceFixture(label: string, floorplanEnabled = false) {
+    const fixture = await createFixture(EventStatus.ACTIVE, 2, floorplanEnabled);
+    const cookie = await login(fixture.email);
+    const table = floorplanEnabled ? await createFloorplanTable(fixture, 2) : null;
+    const generated = await generate(
+      fixture.eventId,
+      cookie,
+      `physical-race-generation-${label}`,
+      1,
+      table?.id ?? null
+    ).expect(200);
+    const staffToken = await createStaff(fixture.eventId, cookie, `Puerta ${label}`);
+    const staff = await prisma.staffToken.findFirstOrThrow({ where: { eventId: fixture.eventId, expiredAt: null } });
+    const pass = await prisma.physicalPass.findUniqueOrThrow({
+      where: { id: generated.body.passes[0].id as string }
+    });
+    return {
+      ...fixture,
+      cookie,
+      table,
+      staff,
+      staffToken,
+      pass,
+      qrToken: tokens.issue(pass.id, pass.qrTokenNonce)
+    };
+  }
+
+  function transition(eventId: string, cookie: string[], action: 'close' | 'cancel', key: string) {
+    return request(app.getHttpServer())
+      .post(`/api/v1/events/${eventId}/${action}`)
+      .set('Cookie', cookie)
+      .set('Origin', origin)
+      .set('Idempotency-Key', key);
+  }
+
+  function auditBarrier(action: 'PHYSICAL_PASS_GENERATE' | 'PHYSICAL_PASS_USE') {
+    const entered = deferred<void>();
+    const release = deferred<void>();
+    const original = audit.record.bind(audit);
+    let intercepted = false;
+    const spy = vi.spyOn(audit, 'record').mockImplementation(async (input, tx) => {
+      if (!intercepted && input.action === action) {
+        intercepted = true;
+        entered.resolve();
+        await release.promise;
+      }
+      return original(input, tx);
+    });
+    return { entered, release, restore: () => spy.mockRestore() };
+  }
+
   async function createClientOwner(type: ClientType, role: UserRole) {
     const client = await prisma.client.create({
       data: { type, name: `Cliente ${randomUUID()}`, status: ClientStatus.ACTIVE }
@@ -905,6 +1245,31 @@ describe('PhysicalPasses', () => {
     });
   }
 
+  async function ensureFreeActivationPrice(eventId: string): Promise<void> {
+    const event = await prisma.event.findUniqueOrThrow({
+      where: { id: eventId },
+      include: { client: { select: { type: true } } }
+    });
+    if (!event.serviceId) throw new Error('Physical Event service is required.');
+    const existing = await prisma.servicePrice.findFirst({
+      where: {
+        serviceId: event.serviceId,
+        clientType: event.client.type,
+        validFrom: new Date('2020-01-01T00:00:00.000Z')
+      }
+    });
+    if (!existing) {
+      await prisma.servicePrice.create({
+        data: {
+          serviceId: event.serviceId,
+          clientType: event.client.type,
+          credits: 0,
+          validFrom: new Date('2020-01-01T00:00:00.000Z')
+        }
+      });
+    }
+  }
+
   async function createUser(role: UserRole, clientId: string | null) {
     const email = `${randomUUID()}@example.test`;
     return prisma.user.create({
@@ -938,27 +1303,57 @@ describe('PhysicalPasses', () => {
   }
 });
 
-async function startBehindVerifiedEventLock<T>(
+async function startBehindVerifiedEventLock<A, B>(
   eventId: string,
-  start: () => [PromiseLike<T>, PromiseLike<T>]
-): Promise<[Awaited<T>, Awaited<T>]> {
+  start: () => [PromiseLike<A>, PromiseLike<B>]
+): Promise<[Awaited<A>, Awaited<B>]> {
+  return startBehindVerifiedLock(
+    (client) => client.query('SELECT "id" FROM "event" WHERE "id" = $1::uuid FOR UPDATE', [eventId]),
+    start
+  );
+}
+
+async function startBehindVerifiedRowLock<A, B>(
+  table: 'floorplan_shape' | 'physical_pass' | 'staff_token',
+  rowId: string,
+  start: () => [PromiseLike<A>, PromiseLike<B>]
+): Promise<[Awaited<A>, Awaited<B>]> {
+  const lock = {
+    floorplan_shape: 'SELECT "id" FROM "floorplan_shape" WHERE "id" = $1::uuid FOR UPDATE',
+    physical_pass: 'SELECT "id" FROM "physical_pass" WHERE "id" = $1::uuid FOR UPDATE',
+    staff_token: 'SELECT "id" FROM "staff_token" WHERE "id" = $1::uuid FOR UPDATE'
+  }[table];
+  return startBehindVerifiedLock((client) => client.query(lock, [rowId]), start);
+}
+
+async function startBehindVerifiedLock<A, B>(
+  acquire: (client: PgClient) => Promise<unknown>,
+  start: () => [PromiseLike<A>, PromiseLike<B>]
+): Promise<[Awaited<A>, Awaited<B>]> {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) throw new Error('DATABASE_URL is required.');
   const blocker = new PgClient({ connectionString: databaseUrl });
   const observer = new PgClient({ connectionString: databaseUrl });
   await Promise.all([blocker.connect(), observer.connect()]);
   let committed = false;
+  let first: Promise<Awaited<A>> | undefined;
+  let second: Promise<Awaited<B>> | undefined;
   try {
     await blocker.query('BEGIN');
-    await blocker.query('SELECT "id" FROM "event" WHERE "id" = $1::uuid FOR UPDATE', [eventId]);
+    await acquire(blocker);
     const pending = start();
-    const operations = [Promise.resolve(pending[0]), Promise.resolve(pending[1])] as const;
-    await waitForLockWaiters(observer, operations.length);
+    first = Promise.resolve(pending[0]);
+    await waitForLockWaiters(observer, 1);
+    second = Promise.resolve(pending[1]);
+    await waitForLockWaiters(observer, 2);
     await blocker.query('COMMIT');
     committed = true;
-    return await Promise.all(operations);
+    return await Promise.all([first, second]);
   } finally {
     if (!committed) await blocker.query('ROLLBACK').catch(() => undefined);
+    if (!committed) {
+      await Promise.allSettled([first, second].filter((operation) => operation !== undefined));
+    }
     await Promise.all([blocker.end(), observer.end()]);
   }
 }
@@ -976,4 +1371,34 @@ async function waitForLockWaiters(observer: PgClient, expected: number): Promise
     await new Promise<void>((resolve) => setImmediate(resolve));
   }
   throw new Error(`Expected ${expected} PostgreSQL lock waiters before releasing the race barrier.`);
+}
+
+async function waitForVerifiedLockWaiters(expected: number): Promise<void> {
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) throw new Error('DATABASE_URL is required.');
+  const observer = new PgClient({ connectionString: databaseUrl });
+  await observer.connect();
+  try {
+    await waitForLockWaiters(observer, expected);
+  } finally {
+    await observer.end();
+  }
+}
+
+async function capture<T>(operation: PromiseLike<T>): Promise<{ ok: true; value: T } | { ok: false; error: unknown }> {
+  try {
+    return { ok: true, value: await operation };
+  } catch (error) {
+    return { ok: false, error };
+  }
+}
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
 }

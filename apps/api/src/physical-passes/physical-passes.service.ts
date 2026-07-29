@@ -255,13 +255,10 @@ export class PhysicalPassesService {
             }
             return parseUseSnapshot(replay.useResultSnapshot);
           }
-          if (
-            identity.staff.expiredAt ||
-            identity.event.deletedAt ||
-            !OPERATIONAL_STATUSES.has(identity.event.status)
-          ) {
+          if (identity.event.deletedAt || !OPERATIONAL_STATUSES.has(identity.event.status)) {
             throw physicalPassError('STAFF_EVENT_NOT_OPERATIONAL', 'The StaffToken Event is not operational.');
           }
+          if (identity.staff.expiredAt) throw invalidStaff();
           const service = await tx.service.findUnique({ where: { id: identity.event.serviceId ?? '' } });
           if (service?.code !== ServiceCode.PHYSICAL_QR) throw physicalPassNotFound();
           await tx.$queryRaw`SELECT "id" FROM "physical_pass" WHERE "id" = ${verified.physicalPassId}::uuid FOR UPDATE`;
