@@ -706,6 +706,8 @@ desde su snapshot aunque el estado operativo cambie después.
 
 **Dependencias:** CODEX-081
 
+**Estado:** completado
+
 **Documentos específicos**
 
 - `REALTIME_PAYLOADS.md`
@@ -742,6 +744,12 @@ Crear Evento
 ```
 
 Este hito debe demostrarse E2E antes de continuar con módulos secundarios.
+
+Implementado con Socket.IO v1 sobre el servidor HTTP de NestJS, rooms estrictos por Evento, autenticación
+Auth/StaffToken, envelopes Zod sin PII, publicación post-commit y deduplicación por
+`eventName + operationId`. Cierre y cancelación notifican antes de desconectar Staff y toda reconexión
+revalida credenciales, ownership y estado. La integración E2E cubre el flujo completo hasta recuperación
+REST, cierre, bloqueo Scanner y rechazo de reconexión. `CODEX-090` permanece sin iniciar.
 
 ---
 

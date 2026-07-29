@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { HttpStatus, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
 import type { AuthPrincipal } from '../auth/auth.types';
@@ -26,6 +26,7 @@ import type {
   RsvpOverrideInput
 } from './public-rsvp.dto';
 import { isInvitationQrAvailable } from './invitation-qr.service';
+import { RealtimePublisherService } from '../realtime/realtime-publisher.service';
 
 const OPERATIONAL_STATUSES = new Set<EventStatus>([EventStatus.ACTIVE, EventStatus.EVENT_DAY]);
 const CLOSED_MESSAGE = 'La confirmación de asistencia ya fue cerrada. Contacta al organizador.';
@@ -78,7 +79,8 @@ export class PublicRsvpService {
     @Inject(AuditService) private readonly audit: AuditService,
     @Inject(EventAccessPolicy) private readonly eventAccess: EventAccessPolicy,
     @Inject(InvitationTokenService) private readonly tokens: InvitationTokenService,
-    @Inject(FileStorage) private readonly storage: FileStorage
+    @Inject(FileStorage) private readonly storage: FileStorage,
+    @Inject(RealtimePublisherService) private readonly realtime: RealtimePublisherService
   ) {}
 
   async resolve(invitationToken: string): Promise<PublicInvitationViewResponseDto> {
@@ -176,12 +178,13 @@ export class PublicRsvpService {
     principal: AuthPrincipal,
     operationId?: string
   ): Promise<RsvpMutationResponseDto> {
-    return this.serializable(async (tx) => {
+    const effectiveOperationId = operationId ?? randomUUID();
+    const outcome = await this.serializable(async (tx) => {
       const event = await this.lockOwnedEvent(tx, eventId, principal);
       this.assertOperational(event);
       await this.lockInvitation(tx, invitationId);
       const invitation = await this.requireInvitation(tx, eventId, invitationId);
-      const beforeCount = invitation.assistants.length;
+      const beforeCount = confirmedAssistantCount(invitation.assistants);
       const result = await this.reconcile(
         tx,
         event,
@@ -205,13 +208,33 @@ export class PublicRsvpService {
               activeAssistantCount: result.response.assistants.length,
               affectedAssistantIds: result.affectedIds
             },
-            ...(operationId ? { operationId } : {})
+            operationId: effectiveOperationId
           },
           tx
         );
       }
-      return result.response;
+      return {
+        response: result.response,
+        realtime: result.changed
+          ? {
+              eventId,
+              invitationId,
+              operationId: effectiveOperationId,
+              actorType: 'USER' as const,
+              status: result.response.responseStatus,
+              confirmedAssistants: confirmedAssistantCount(result.response.assistants),
+              previousConfirmedAssistants: beforeCount
+            }
+          : null
+      };
     });
+    if (outcome.realtime) {
+      await this.realtime.publishRsvpUpdated({
+        ...outcome.realtime,
+        occurredAt: new Date().toISOString()
+      });
+    }
+    return outcome.response;
   }
 
   private async publicMutation(
@@ -221,9 +244,10 @@ export class PublicRsvpService {
     operationId?: string,
     requireConfirmed = false
   ): Promise<RsvpMutationResponseDto> {
+    const effectiveOperationId = operationId ?? randomUUID();
     const verified = this.verify(invitationToken);
     const fingerprint = tokenFingerprint(invitationToken);
-    return this.serializable(async (tx) => {
+    const outcome = await this.serializable(async (tx) => {
       await this.lockInvitationContext(tx, verified.invitationId);
       const invitation = await this.resolveVerifiedInvitation(tx, verified);
       const event = invitation.event;
@@ -231,7 +255,7 @@ export class PublicRsvpService {
       if (requireConfirmed && invitation.responseStatus !== InvitationResponseStatus.CONFIRMED) {
         throw rsvpError('RSVP_NOT_AVAILABLE', 'Invitation must be confirmed before assistants can be modified.');
       }
-      const beforeCount = invitation.assistants.length;
+      const beforeCount = confirmedAssistantCount(invitation.assistants);
       const result = await this.reconcile(
         tx,
         event,
@@ -255,13 +279,33 @@ export class PublicRsvpService {
               activeAssistantCount: result.response.assistants.length,
               affectedAssistantIds: result.affectedIds
             },
-            ...(operationId ? { operationId } : {})
+            operationId: effectiveOperationId
           },
           tx
         );
       }
-      return result.response;
+      return {
+        response: result.response,
+        realtime: result.changed
+          ? {
+              eventId: event.id,
+              invitationId: invitation.id,
+              operationId: effectiveOperationId,
+              actorType: 'PUBLIC_TOKEN' as const,
+              status: result.response.responseStatus,
+              confirmedAssistants: confirmedAssistantCount(result.response.assistants),
+              previousConfirmedAssistants: beforeCount
+            }
+          : null
+      };
     });
+    if (outcome.realtime) {
+      await this.realtime.publishRsvpUpdated({
+        ...outcome.realtime,
+        occurredAt: new Date().toISOString()
+      });
+    }
+    return outcome.response;
   }
 
   private async reconcile(
@@ -643,6 +687,10 @@ function mutationResponse(invitation: PublicInvitation): RsvpMutationResponseDto
     responseStatus: invitation.responseStatus,
     assistants: invitation.assistants.map(publicAssistant)
   };
+}
+
+function confirmedAssistantCount(assistants: Array<{ responseStatus: AssistantResponseStatus }>): number {
+  return assistants.filter(({ responseStatus }) => responseStatus === AssistantResponseStatus.CONFIRMED).length;
 }
 
 function confirmationState(event: Event): ConfirmationStateResponseDto {

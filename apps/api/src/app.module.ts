@@ -19,6 +19,7 @@ import { ServicesPricingModule } from './services-pricing/services-pricing.modul
 import { PublicRsvpModule } from './public-rsvp/public-rsvp.module';
 import { StaffAccessModule } from './staff-access/staff-access.module';
 import { ScannerModule } from './scanner/scanner.module';
+import { RealtimeModule } from './realtime/realtime.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { ScannerModule } from './scanner/scanner.module';
     DatabaseModule,
     AuditModule,
     AuthModule,
+    RealtimeModule,
     ClientsModule,
     ClientUsersModule,
     ServicesPricingModule,

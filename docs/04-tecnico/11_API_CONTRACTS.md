@@ -448,7 +448,21 @@ internos. Detalle completo en `FILE_ASSETS_CONTRACT.md`.
 
 ## RealtimeModule
 
-Socket.IO con canales por Evento.
+Socket.IO v1 conectado al servidor HTTP existente:
+
+```text
+namespace: /realtime
+path: /socket.io
+```
+
+El handshake declara en `auth` exactamente un modo:
+
+- `USER`: `protocolVersion`, `actorMode`, `roomType`, `eventId`, `administrative`; la sesión se obtiene
+  únicamente de la cookie Auth;
+- `STAFF_TOKEN`: `protocolVersion`, `actorMode`, `roomType`, `staffToken`; el Evento se resuelve desde el
+  token y no se acepta `eventId` del cliente.
+
+No existe `join-room`, room público, credencial en query string ni evento de dominio entrante.
 
 Canales:
 
@@ -458,7 +472,12 @@ Canales:
 
 Eventos/payloads únicamente conforme a `REALTIME_PAYLOADS.md`.
 
-No enviar teléfonos, nombres, finanzas ni tokens.
+Las mutaciones siguen siendo REST y fuente de verdad. El broadcast se realiza después del commit,
+se deduplica por `eventName + operationId` y no revierte la operación si falla el transporte. No hay
+replay histórico: ante pérdida o reconexión se recupera el snapshot por REST.
+
+No enviar teléfonos, nombres, finanzas ni tokens. Cerrar o cancelar notifica primero y después
+desconecta los sockets Staff; toda reconexión vuelve a validar token, ownership y estado del Evento.
 
 ## DemoModule
 

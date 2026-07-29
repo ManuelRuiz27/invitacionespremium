@@ -330,7 +330,13 @@ La aplicación normaliza mediante `URL.href`; PostgreSQL solo valida y conserva 
   lectura y reversión.
 
 El hardening de integridad quedó cerrado con la migración PostgreSQL 26. `CODEX-081` quedó
-completamente cerrado. La siguiente tarea es `CODEX-082 — Tiempo real operativo`; no fue iniciada.
+completamente cerrado.
+
+`CODEX-082 — Tiempo real operativo` quedó completado con Socket.IO v1 en `/realtime`, rooms autorizados
+por Evento, sesión Auth o StaffToken revalidada en cada conexión, publicación post-commit, deduplicación
+por `eventName + operationId`, invalidación Staff al cerrar/cancelar y recuperación de estado por REST.
+La integración vertical prueba desde login y creación del Evento hasta RSVP, QR SVG, check-in realtime
+y cierre. La siguiente tarea es `CODEX-090 — Croquis, mesas y zonas`; no fue iniciada.
 
 ## Fuente de verdad
 

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { ConflictException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
 import type { AuthPrincipal } from '../auth/auth.types';
@@ -9,6 +10,7 @@ import { EventAccessPolicy, eventNotFound } from './event-access.policy';
 import type { EventResponseDto } from './events.dto';
 import { eventAuditSnapshot, toEventResponse } from './events.service';
 import { StaffTokenExpirationService } from '../staff-access/staff-access.service';
+import { RealtimePublisherService } from '../realtime/realtime-publisher.service';
 
 const MAX_TRANSACTION_ATTEMPTS = 20;
 
@@ -18,7 +20,8 @@ export class EventLifecycleService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(AuditService) private readonly audit: AuditService,
     @Inject(EventAccessPolicy) private readonly accessPolicy: EventAccessPolicy,
-    @Inject(StaffTokenExpirationService) private readonly staffTokens: StaffTokenExpirationService
+    @Inject(StaffTokenExpirationService) private readonly staffTokens: StaffTokenExpirationService,
+    @Inject(RealtimePublisherService) private readonly realtime: RealtimePublisherService
   ) {}
 
   close(
@@ -99,6 +102,7 @@ export class EventLifecycleService {
     operationId?: string,
     stateResolutionAt: Date = new Date()
   ): Promise<EventResponseDto> {
+    const effectiveOperationId = operationId ?? randomUUID();
     const replayEvent = await this.findOwnedEventForReplay(this.prisma, eventId, principal);
     const prior = await this.findResult(eventId, action, idempotencyKey);
     if (prior) {
@@ -110,12 +114,12 @@ export class EventLifecycleService {
 
     for (let attempt = 0; attempt < MAX_TRANSACTION_ATTEMPTS; attempt += 1) {
       try {
-        return await this.prisma.$transaction(async (transaction) => {
+        const outcome = await this.prisma.$transaction(async (transaction) => {
           await this.lockEvent(transaction, eventId);
           const current = await this.findOwnedEventForReplay(transaction, eventId, principal);
           const repeated = await this.findResult(eventId, action, idempotencyKey, transaction);
           if (repeated) {
-            return repeated;
+            return { response: repeated, realtime: null };
           }
           if (current.deletedAt !== null) {
             throw eventNotFound();
@@ -129,7 +133,7 @@ export class EventLifecycleService {
               current,
               transitionCommittedAt,
               principal,
-              operationId
+              effectiveOperationId
             );
           }
           const event = await transaction.event.update({
@@ -147,7 +151,7 @@ export class EventLifecycleService {
               action: auditAction(action),
               beforeData: eventAuditSnapshot(current),
               afterData: eventAuditSnapshot(event),
-              ...(operationId === undefined ? {} : { operationId })
+              operationId: effectiveOperationId
             },
             transaction
           );
@@ -159,8 +163,25 @@ export class EventLifecycleService {
               resultSnapshot: result as unknown as Prisma.InputJsonObject
             }
           });
-          return result;
+          return {
+            response: result,
+            realtime:
+              action === EventStateAction.CLOSE || action === EventStateAction.CANCEL
+                ? {
+                    action,
+                    eventId,
+                    operationId: effectiveOperationId,
+                    occurredAt: event.updatedAt.toISOString()
+                  }
+                : null
+          };
         }, CRITICAL_TRANSACTION_OPTIONS);
+        if (outcome.realtime?.action === EventStateAction.CLOSE) {
+          await this.realtime.publishEventClosed(outcome.realtime);
+        } else if (outcome.realtime?.action === EventStateAction.CANCEL) {
+          await this.realtime.publishEventCancelled(outcome.realtime);
+        }
+        return outcome.response;
       } catch (error) {
         if (hasPrismaCode(error, 'P2002')) {
           await this.findOwnedEventForReplay(this.prisma, eventId, principal);

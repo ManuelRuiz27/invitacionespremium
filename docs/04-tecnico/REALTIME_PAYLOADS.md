@@ -17,6 +17,48 @@ Definir canales, autorización, eventos y payloads mínimos de Socket.IO para ev
 9. No existen rooms públicos de Invitación o Álbum en MVP.
 10. Una falla de emisión no revierte una transacción ya confirmada; debe registrarse técnicamente y los clientes deben recuperar estado por REST.
 
+## Transporte y handshake v1
+
+Socket.IO se conecta directamente al servidor HTTP de NestJS con:
+
+```text
+namespace: /realtime
+path: /socket.io
+protocolVersion: 1
+```
+
+La conexión usa los mismos orígenes CORS de la API y credenciales habilitadas. No existe `join-room`: cada
+conexión se autentica, autoriza y une a un solo room de negocio.
+
+Usuario autenticado:
+
+```json
+{
+  "protocolVersion": 1,
+  "actorMode": "USER",
+  "roomType": "dashboard",
+  "eventId": "uuid",
+  "administrative": false
+}
+```
+
+La sesión se acepta exclusivamente desde la cookie Auth. No se aceptan credenciales en `auth`, query string
+o URL. `administrative=true` está reservado al Platform Admin y solo permite `dashboard`.
+
+Staff:
+
+```json
+{
+  "protocolVersion": 1,
+  "actorMode": "STAFF_TOKEN",
+  "roomType": "scanner",
+  "staffToken": "secreto-opaco"
+}
+```
+
+El StaffToken se acepta exclusivamente en `handshake.auth`; el backend resuelve el Evento y rechaza cualquier
+`eventId` proporcionado por el cliente. El secreto no se conserva en `socket.data`.
+
 ## Canales autorizados
 
 ### `event:{eventId}:dashboard`
@@ -70,7 +112,7 @@ Uso:
 | Planner independiente autorizado | Sí | No | Sí |
 | Admin de Organización autorizado | Sí | No | Sí |
 | Planner de Organización autorizado | Sí | No | Sí |
-| Platform Admin | Lectura administrativa | No | Solo lectura administrativa si aplica |
+| Platform Admin | Lectura administrativa explícita | No | No |
 | StaffToken válido | No | Sí | Sí, lectura |
 | Público por token | No | No | No |
 
@@ -121,10 +163,14 @@ Se emite después de persistir un check-in válido.
   "operationId": "uuid",
   "actorType": "STAFF_TOKEN",
   "data": {
-    "checkInId": "uuid",
-    "assistantId": "uuid",
-    "invitationId": "uuid",
-    "tableId": "uuid-or-null",
+    "checkIns": [
+      {
+        "checkInId": "uuid",
+        "assistantId": "uuid",
+        "invitationId": "uuid",
+        "tableId": null
+      }
+    ],
     "delta": 1
   }
 }
@@ -132,7 +178,11 @@ Se emite después de persistir un check-in válido.
 
 Reglas:
 
-- `delta` representa el cambio producido por esta operación, no el total del Evento;
+- se emite un solo envelope por operación HTTP, aunque se registren varios Asistentes;
+- `checkIns` conserva el orden determinista del resultado persistido;
+- `delta === checkIns.length`;
+- `operationId` identifica la operación completa y no se crean IDs derivados;
+- `tableId` permanece `null` hasta `CODEX-090`;
 - no incluir teléfono;
 - no incluir token QR;
 - no incluir nombres en broadcast general;
@@ -175,7 +225,7 @@ Se emite cuando cambia la Confirmación de asistencia o la lista nominal dentro 
   "actorType": "PUBLIC_TOKEN",
   "data": {
     "invitationId": "uuid",
-    "status": "confirmed",
+    "status": "CONFIRMED",
     "confirmedAssistants": 3,
     "previousConfirmedAssistants": 2
   }
@@ -251,7 +301,7 @@ Se emite después de confirmar el cierre del Evento y expirar sus tokens Staff a
 Orden operativo:
 
 1. confirmar transacción de cierre y expiración de tokens;
-2. emitir a sockets ya conectados en `scanner` y `dashboard`;
+2. emitir a sockets ya conectados en `dashboard`, `scanner` y `floorplan`;
 3. bloquear nuevas operaciones;
 4. desconectar o invalidar sockets Staff.
 
@@ -353,6 +403,8 @@ Si el cliente detecta un salto, evento duplicado o estado incompatible, debe des
 Consumidores deben usar `operationId` para ignorar eventos repetidos.
 
 Backend debe emitir una sola vez después de confirmar la transacción. Si existe retry técnico, conservar el mismo `operationId`.
+La clave de deduplicación es `eventName + operationId`; el proceso mantiene una ventana acotada en memoria.
+No existe persistencia, outbox ni replay histórico en este MVP.
 
 `operationId` identifica la operación de dominio, no la conexión Socket.IO.
 
@@ -385,3 +437,8 @@ Errores de autorización de socket deben usar códigos estables:
 - eventos duplicados se deduplican por `operationId`;
 - reconexión vuelve a validar permisos y estado;
 - pérdida de un evento se recupera mediante snapshot REST.
+
+La integración E2E cubre login, creación y configuración mínima del Evento, Contacto e Invitación,
+activación, RSVP público, generación y decodificación del QR SVG, creación del StaffToken, conexión
+Socket.IO, scan, selección, check-in, recepción de `checkin.created`, recuperación REST y cierre con
+`event.closed`, desconexión e invalidación del Staff.

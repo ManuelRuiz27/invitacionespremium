@@ -26,6 +26,14 @@ export interface ResolvedStaffToken {
 export type StaffResolution =
   { kind: 'AVAILABLE'; staff: StaffToken; event: Event } | { kind: 'INVALID' } | { kind: 'EVENT_NOT_OPERATIONAL' };
 
+export type RealtimeStaffResolution =
+  | { kind: 'AVAILABLE'; staff: StaffToken; event: Event }
+  | { kind: 'INVALID' }
+  | { kind: 'EXPIRED' }
+  | { kind: 'CLOSED' }
+  | { kind: 'CANCELLED' }
+  | { kind: 'EVENT_NOT_OPERATIONAL' };
+
 @Injectable()
 export class StaffTokenManagementService {
   constructor(
@@ -139,6 +147,19 @@ export class StaffTokenResolverService {
       eventId: result.staff.eventId,
       alias: result.staff.alias
     };
+  }
+
+  async resolveRealtimeStaffToken(rawToken: string): Promise<RealtimeStaffResolution> {
+    if (!this.technical.isValidSyntax(rawToken)) return { kind: 'INVALID' };
+    const staff = await this.technical.lookupByDigest(this.prisma, this.technical.digest(rawToken));
+    if (!staff) return { kind: 'INVALID' };
+    const event = await this.prisma.event.findUnique({ where: { id: staff.eventId } });
+    if (!event || event.deletedAt) return { kind: 'INVALID' };
+    if (event.status === EventStatus.CLOSED) return { kind: 'CLOSED' };
+    if (event.status === EventStatus.CANCELLED) return { kind: 'CANCELLED' };
+    if (!OPERATIONAL_EVENT_STATUSES.has(event.status)) return { kind: 'EVENT_NOT_OPERATIONAL' };
+    if (staff.expiredAt) return { kind: 'EXPIRED' };
+    return { kind: 'AVAILABLE', staff, event };
   }
 
   async resolveStaffTokenInTransaction(

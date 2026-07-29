@@ -23,6 +23,7 @@ import {
 } from '../generated/prisma/client';
 import { InvitationQrService } from '../public-rsvp/invitation-qr.service';
 import { StaffTokenResolverService, type StaffResolution } from '../staff-access/staff-access.service';
+import { RealtimePublisherService } from '../realtime/realtime-publisher.service';
 import { z } from 'zod';
 import type {
   CheckInRevertResponseDto,
@@ -95,7 +96,8 @@ export class ScannerService {
     @Inject(StaffTokenResolverService) private readonly staffTokens: StaffTokenResolverService,
     @Inject(InvitationQrService) private readonly invitationQr: InvitationQrService,
     @Inject(AuditService) private readonly audit: AuditService,
-    @Inject(EventAccessPolicy) private readonly eventAccess: EventAccessPolicy
+    @Inject(EventAccessPolicy) private readonly eventAccess: EventAccessPolicy,
+    @Inject(RealtimePublisherService) private readonly realtime: RealtimePublisherService
   ) {}
 
   async scan(rawStaffToken: string, input: ScannerScanInput): Promise<ScannerScanResponseDto> {
@@ -163,10 +165,11 @@ export class ScannerService {
     input: ScannerCheckInInput,
     operationId?: string
   ): Promise<ScannerCheckInResponseDto> {
+    const effectiveOperationId = operationId ?? randomUUID();
     const sortedIds = [...input.assistantIds].sort();
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
       try {
-        return await this.prisma.$transaction(async (tx) => {
+        const outcome = await this.prisma.$transaction(async (tx) => {
           const resolution = await this.requireStaff(tx, rawStaffToken);
           const signature = requestSignature(
             resolution.staff.id,
@@ -179,7 +182,10 @@ export class ScannerService {
             if (prior.requestSignature !== signature || prior.staffTokenId !== resolution.staff.id) {
               throw idempotencyConflict();
             }
-            return this.responseFromSnapshot(prior);
+            return {
+              response: this.responseFromSnapshot(prior),
+              realtime: null
+            };
           }
 
           await tx.$queryRaw`SELECT "id" FROM "invitation" WHERE "id" = ${input.invitationId}::uuid FOR UPDATE`;
@@ -298,12 +304,28 @@ export class ScannerService {
                 checkedInAt: checkedInAt.toISOString(),
                 status: 'CHECKED_IN'
               },
-              ...(operationId === undefined ? {} : { operationId })
+              operationId: effectiveOperationId
             },
             tx
           );
-          return snapshot;
+          return {
+            response: snapshot,
+            realtime: {
+              eventId: invitation.eventId,
+              invitationId: invitation.id,
+              operationId: effectiveOperationId,
+              occurredAt: checkedInAt.toISOString(),
+              checkIns: checkedIn.map(({ checkInId, assistantId }) => ({
+                checkInId,
+                assistantId
+              }))
+            }
+          };
         }, CRITICAL_TRANSACTION_OPTIONS);
+        if (outcome.realtime) {
+          await this.realtime.publishCheckInCreated(outcome.realtime);
+        }
+        return outcome.response;
       } catch (error) {
         if (isActiveCheckInUniqueError(error)) throw assistantAlreadyCheckedIn();
         if (isRetryable(error) && attempt < MAX_ATTEMPTS - 1) continue;
@@ -325,9 +347,10 @@ export class ScannerService {
     principal: AuthPrincipal,
     operationId?: string
   ): Promise<CheckInRevertResponseDto> {
+    const effectiveOperationId = operationId ?? randomUUID();
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
       try {
-        return await this.prisma.$transaction(async (tx) => {
+        const outcome = await this.prisma.$transaction(async (tx) => {
           await tx.$queryRaw`SELECT "id" FROM "event" WHERE "id" = ${eventId}::uuid FOR UPDATE`;
           const event = await tx.event.findFirst({
             where: { id: eventId, deletedAt: null, ...this.eventAccess.ownedWhere(principal) }
@@ -348,7 +371,10 @@ export class ScannerService {
           if (!checkIn) throw checkInNotFound();
           if (checkIn.revertedAt) {
             if (checkIn.revertIdempotencyKey !== idempotencyKey) throw checkInAlreadyReverted();
-            return toRevertResponse(checkIn);
+            return {
+              response: toRevertResponse(checkIn),
+              realtime: null
+            };
           }
           const timestampRows = await tx.$queryRaw<Array<{ revertedAt: Date }>>`
             SELECT clock_timestamp() AS "revertedAt"
@@ -374,12 +400,26 @@ export class ScannerService {
                 status: 'REVERTED',
                 revertedAt: revertedAt.toISOString()
               },
-              ...(operationId === undefined ? {} : { operationId })
+              operationId: effectiveOperationId
             },
             tx
           );
-          return toRevertResponse(updated);
+          return {
+            response: toRevertResponse(updated),
+            realtime: {
+              eventId,
+              invitationId: checkIn.invitationId,
+              operationId: effectiveOperationId,
+              occurredAt: revertedAt.toISOString(),
+              checkInId: checkIn.id,
+              assistantId: checkIn.assistantId
+            }
+          };
         }, CRITICAL_TRANSACTION_OPTIONS);
+        if (outcome.realtime) {
+          await this.realtime.publishCheckInReverted(outcome.realtime);
+        }
+        return outcome.response;
       } catch (error) {
         if ((isRetryable(error) || isRevertKeyUniqueError(error)) && attempt < MAX_ATTEMPTS - 1) continue;
         throw error;
