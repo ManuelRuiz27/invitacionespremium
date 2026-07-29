@@ -23,7 +23,7 @@ import {
   useIdempotencyConflict
 } from './physical-pass-errors';
 import { PhysicalPassQrService, type PhysicalPassSvgContent } from './physical-pass-qr.service';
-import { resolvePhysicalPassReadiness } from './physical-pass-readiness.service';
+import { recomputePhysicalPassPreparationStatus } from './physical-pass-readiness.service';
 import { PhysicalPassTokenService } from './physical-pass-token.service';
 
 const GENERATION_STATUSES = new Set<EventStatus>([
@@ -72,6 +72,7 @@ export class PhysicalPassesService {
             if (replay.eventId !== eventId || replay.requestSignature !== signature) {
               throw generationIdempotencyConflict();
             }
+            await recomputePhysicalPassPreparationStatus(tx, eventId);
             return parseGenerationSnapshot(replay.resultSnapshot);
           }
           if (event.service?.code !== ServiceCode.PHYSICAL_QR) {
@@ -159,10 +160,7 @@ export class PhysicalPassesService {
               resultSnapshot: response as unknown as Prisma.InputJsonObject
             }
           });
-          const readiness = await resolvePhysicalPassReadiness(tx, eventId);
-          if (readiness.complete && event.status === EventStatus.CONFIGURED) {
-            await tx.event.update({ where: { id: eventId }, data: { status: EventStatus.READY_TO_ACTIVATE } });
-          }
+          await recomputePhysicalPassPreparationStatus(tx, eventId);
           await this.audit.record(
             {
               actor: { type: AuditActorType.USER, id: principal.userId },
@@ -416,6 +414,15 @@ function mapDatabaseError(error: unknown): unknown {
   }
   if (text.includes('PHYSICAL_PASS_SERVICE_MISMATCH') || text.includes('physical_pass_service_mismatch')) {
     return physicalPassError('PHYSICAL_PASS_SERVICE_MISMATCH', 'Event service does not support physical passes.');
+  }
+  if (text.includes('physical_pass_generation_state')) {
+    return physicalPassError('PHYSICAL_PASS_EVENT_NOT_MUTABLE', 'Physical passes cannot be generated in this state.');
+  }
+  if (text.includes('physical_pass_use_event_not_operational')) {
+    return physicalPassError('STAFF_EVENT_NOT_OPERATIONAL', 'The StaffToken Event is not operational.');
+  }
+  if (text.includes('physical_pass_use_staff_expired')) {
+    return invalidStaff();
   }
   return error;
 }

@@ -373,6 +373,11 @@ pases mínimos sin secretos. Listado y SVG usan ownership operativo. Scanner der
 StaffToken, registra un único primer uso y conserva replay exacto. Contrato normativo:
 `PHYSICAL_PASSES_CONTRACT.md`.
 
+La edición del Evento y la generación —incluido replay— recomputan la proyección física de readiness en
+la transacción. PostgreSQL rechaza generación terminal con `physical_pass_generation_state`, primer uso
+fuera de `active|event_day` con `physical_pass_use_event_not_operational` y StaffToken expirado con
+`physical_pass_use_staff_expired`; la API los traduce a errores de dominio estables.
+
 ## AlbumsModule
 
 Operación Cliente:

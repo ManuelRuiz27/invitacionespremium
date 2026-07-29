@@ -65,6 +65,12 @@ El preflight especializado exige además al menos un Pase activo, numeración co
 combinado con Asistentes. No exige Contactos, Invitaciones, Asistentes, Confirmación, diseño digital,
 Hotspots ni Álbum.
 
+Cada actualización autenticada del Evento recalcula esta proyección dentro de la misma transacción. Un
+Evento físico con datos básicos incompletos queda `draft`; con datos completos y readiness incompleto,
+`configured`; y con readiness completo, `ready_to_activate`. Editar nombre, fecha o zona horaria de un
+Evento físico listo no lo degrada mientras las invariantes sigan completas. Flyer y Flipbook conservan
+su resolución de preparación propia.
+
 ## Tabla de transiciones
 
 | Estado actual       | Acción o condición                                | Estado siguiente       | Actor                                                                                             | Validaciones principales                                                                               | Efectos obligatorios                                                                                                                                                        |

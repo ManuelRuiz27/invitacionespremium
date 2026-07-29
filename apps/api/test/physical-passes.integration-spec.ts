@@ -1,6 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
+import jsQR from 'jsqr';
+import { Client as PgClient } from 'pg';
 import request from 'supertest';
+import sharp from 'sharp';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { hashPassword } from '../src/auth/password-hasher';
 import { createApp } from '../src/bootstrap/create-app';
@@ -110,7 +113,7 @@ describe('PhysicalPasses', () => {
   it('serializes concurrent generation into unique non-overlapping ranges', async () => {
     const fixture = await createFixture(EventStatus.CONFIGURED, 10);
     const cookie = await login(fixture.email);
-    const [left, right] = await Promise.all([
+    const [left, right] = await startBehindVerifiedEventLock(fixture.eventId, () => [
       generate(fixture.eventId, cookie, 'physical-concurrent-a', 3),
       generate(fixture.eventId, cookie, 'physical-concurrent-b', 3)
     ]);
@@ -130,6 +133,50 @@ describe('PhysicalPasses', () => {
         ({ passNumber }) => passNumber
       )
     ).toEqual([1, 2, 3, 4, 5, 6]);
+  }, 60_000);
+
+  it('serializes two batches over the final Event capacity without partial ranges', async () => {
+    const fixture = await createFixture(EventStatus.CONFIGURED, 1);
+    const cookie = await login(fixture.email);
+    const results = await startBehindVerifiedEventLock(fixture.eventId, () => [
+      generate(fixture.eventId, cookie, 'physical-last-event-capacity-a', 1),
+      generate(fixture.eventId, cookie, 'physical-last-event-capacity-b', 1)
+    ]);
+    expect(results.map(({ status }) => status).sort()).toEqual([200, 409]);
+    expect(await prisma.physicalPass.count({ where: { eventId: fixture.eventId } })).toBe(1);
+    expect(await prisma.auditLog.count({ where: { eventId: fixture.eventId, action: 'PHYSICAL_PASS_GENERATE' } })).toBe(
+      1
+    );
+  }, 60_000);
+
+  it('serializes two batches over the final table capacity without partial ranges', async () => {
+    const fixture = await createFixture(EventStatus.CONFIGURED, 2, true);
+    const table = await createFloorplanTable(fixture, 1);
+    const cookie = await login(fixture.email);
+    const results = await startBehindVerifiedEventLock(fixture.eventId, () => [
+      generate(fixture.eventId, cookie, 'physical-last-table-capacity-a', 1, table.id),
+      generate(fixture.eventId, cookie, 'physical-last-table-capacity-b', 1, table.id)
+    ]);
+    expect(results.map(({ status }) => status).sort()).toEqual([200, 409]);
+    expect(await prisma.physicalPass.count({ where: { eventId: fixture.eventId, floorplanShapeId: table.id } })).toBe(
+      1
+    );
+  }, 60_000);
+
+  it('replays the same concurrent generation key exactly once behind a verified lock barrier', async () => {
+    const fixture = await createFixture(EventStatus.CONFIGURED, 2);
+    const cookie = await login(fixture.email);
+    const [left, right] = await startBehindVerifiedEventLock(fixture.eventId, () => [
+      generate(fixture.eventId, cookie, 'physical-same-generation-key', 1),
+      generate(fixture.eventId, cookie, 'physical-same-generation-key', 1)
+    ]);
+    expect(left.status).toBe(200);
+    expect(right.status).toBe(200);
+    expect(left.body).toEqual(right.body);
+    expect(await prisma.physicalPass.count({ where: { eventId: fixture.eventId } })).toBe(1);
+    expect(await prisma.auditLog.count({ where: { eventId: fixture.eventId, action: 'PHYSICAL_PASS_GENERATE' } })).toBe(
+      1
+    );
   }, 60_000);
 
   it('records only one first use, replays exactly, blocks second use and protects the confirmed row in PostgreSQL', async () => {
@@ -198,7 +245,7 @@ describe('PhysicalPasses', () => {
       where: { id: generated.body.passes[0].id as string }
     });
     const qrToken = tokens.issue(firstPass.id, firstPass.qrTokenNonce);
-    const [left, right] = await Promise.all([
+    const [left, right] = await startBehindVerifiedEventLock(fixture.eventId, () => [
       scan(leftStaff, 'physical-race-left', qrToken),
       scan(rightStaff, 'physical-race-right', qrToken)
     ]);
@@ -228,6 +275,25 @@ describe('PhysicalPasses', () => {
     await scan(winner.token, 'physical-after-close', tokens.issue(secondPass.id, secondPass.qrTokenNonce))
       .expect(409)
       .expect(({ body }) => expect(body.code).toBe('STAFF_EVENT_NOT_OPERATIONAL'));
+  }, 60_000);
+
+  it('replays the same concurrent use key exactly once behind a verified lock barrier', async () => {
+    const fixture = await createFixture(EventStatus.ACTIVE, 1);
+    const cookie = await login(fixture.email);
+    const generated = await generate(fixture.eventId, cookie, 'physical-same-use-generation', 1).expect(200);
+    const staffToken = await createStaff(fixture.eventId, cookie, 'Misma puerta');
+    const pass = await prisma.physicalPass.findUniqueOrThrow({
+      where: { id: generated.body.passes[0].id as string }
+    });
+    const qrToken = tokens.issue(pass.id, pass.qrTokenNonce);
+    const [left, right] = await startBehindVerifiedEventLock(fixture.eventId, () => [
+      scan(staffToken, 'physical-same-use-key', qrToken),
+      scan(staffToken, 'physical-same-use-key', qrToken)
+    ]);
+    expect(left.status).toBe(200);
+    expect(right.status).toBe(200);
+    expect(left.body).toEqual(right.body);
+    expect(await prisma.auditLog.count({ where: { resourceId: pass.id, action: 'PHYSICAL_PASS_USE' } })).toBe(1);
   }, 60_000);
 
   it('counts PhysicalPass and Assistant occupancy together and rejects table reduction/deletion', async () => {
@@ -285,8 +351,310 @@ describe('PhysicalPasses', () => {
       .expect(409)
       .expect(({ body }) => expect(body.code).toBe('PHYSICAL_PASS_SERVICE_MISMATCH'));
 
+    const foreignOwned = await generate(
+      foreign.eventId,
+      await login(foreign.email),
+      'physical-platform-fixture',
+      1
+    ).expect(200);
     const platform = await createUser(UserRole.PLATFORM_ADMIN, null);
-    await generate(foreign.eventId, await login(platform.email), 'physical-platform-001', 1).expect(403);
+    const platformCookie = await login(platform.email);
+    await generate(foreign.eventId, platformCookie, 'physical-platform-001', 1).expect(403);
+    await request(app.getHttpServer())
+      .get(`/api/v1/events/${foreign.eventId}/physical-passes`)
+      .set('Cookie', platformCookie)
+      .expect(403);
+    await getSvg(foreign.eventId, foreignOwned.body.passes[0].id, platformCookie).expect(403);
+
+    await resetDatabase();
+    const organization = await prisma.client.create({
+      data: { type: ClientType.ORGANIZATION, name: 'Organización pases', status: ClientStatus.ACTIVE }
+    });
+    const admin = await createUser(UserRole.ORGANIZATION_ADMIN, organization.id);
+    const plannerOne = await createUser(UserRole.ORGANIZATION_PLANNER, organization.id);
+    const plannerTwo = await createUser(UserRole.ORGANIZATION_PLANNER, organization.id);
+    const physical = await prisma.service.create({ data: { code: ServiceCode.PHYSICAL_QR } });
+    const ownedEvent = await prisma.event.create({
+      data: {
+        clientId: organization.id,
+        createdByUserId: plannerOne.id,
+        serviceId: physical.id,
+        name: 'Evento organización',
+        socialType: EventSocialType.OTHER,
+        status: EventStatus.CONFIGURED,
+        eventDateTime: new Date('2030-01-01T18:00:00.000Z'),
+        timeZone: 'America/Mexico_City',
+        capacity: 3
+      }
+    });
+    const plannerOneCookie = await login(plannerOne.email);
+    const plannerTwoCookie = await login(plannerTwo.email);
+    const adminCookie = await login(admin.email);
+    const owned = await generate(ownedEvent.id, plannerOneCookie, 'physical-org-owner', 1).expect(200);
+    await request(app.getHttpServer())
+      .get(`/api/v1/events/${ownedEvent.id}/physical-passes`)
+      .set('Cookie', plannerOneCookie)
+      .expect(200);
+    await getSvg(ownedEvent.id, owned.body.passes[0].id, plannerOneCookie).expect(200);
+    await generate(ownedEvent.id, plannerTwoCookie, 'physical-org-foreign', 1).expect(404);
+    await request(app.getHttpServer())
+      .get(`/api/v1/events/${ownedEvent.id}/physical-passes`)
+      .set('Cookie', plannerTwoCookie)
+      .expect(404);
+    await getSvg(ownedEvent.id, owned.body.passes[0].id, plannerTwoCookie).expect(404);
+    await generate(ownedEvent.id, adminCookie, 'physical-org-admin', 1).expect(200);
+    await request(app.getHttpServer())
+      .get(`/api/v1/events/${ownedEvent.id}/physical-passes`)
+      .set('Cookie', adminCookie)
+      .expect(200);
+    await getSvg(ownedEvent.id, owned.body.passes[0].id, adminCookie).expect(200);
+  }, 60_000);
+
+  it('runs the real HTTP lifecycle without a Floorplan and repairs readiness from Event updates and generation replay', async () => {
+    const owner = await createClientOwner(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
+    const service = await createPhysicalServiceWithPrice(ClientType.PLANNER);
+    const cookie = await login(owner.email);
+    const created = await request(app.getHttpServer())
+      .post('/api/v1/events')
+      .set('Cookie', cookie)
+      .set('Origin', origin)
+      .send({ serviceId: service.id, capacity: 2 })
+      .expect(201);
+    expect(created.body.status).toBe(EventStatus.DRAFT);
+
+    const generated = await generate(created.body.id, cookie, 'physical-e2e-without-floorplan', 2).expect(200);
+    expect((await prisma.event.findUniqueOrThrow({ where: { id: created.body.id } })).status).toBe(EventStatus.DRAFT);
+    const ready = await updateEvent(created.body.id, cookie, {
+      name: 'Acceso físico sin Croquis',
+      socialType: EventSocialType.OTHER,
+      eventDateTime: '2030-01-01T18:00:00.000Z',
+      timeZone: 'America/Mexico_City'
+    }).expect(200);
+    expect(ready.body.status).toBe(EventStatus.READY_TO_ACTIVATE);
+    await updateEvent(created.body.id, cookie, { name: 'Acceso físico actualizado' })
+      .expect(200)
+      .expect(({ body }) => expect(body.status).toBe(EventStatus.READY_TO_ACTIVATE));
+
+    await prisma.event.update({ where: { id: created.body.id }, data: { status: EventStatus.CONFIGURED } });
+    const replay = await generate(created.body.id, cookie, 'physical-e2e-without-floorplan', 2).expect(200);
+    expect(replay.body).toEqual(generated.body);
+    expect((await prisma.event.findUniqueOrThrow({ where: { id: created.body.id } })).status).toBe(
+      EventStatus.READY_TO_ACTIVATE
+    );
+    expect(await prisma.auditLog.count({ where: { eventId: created.body.id, action: 'PHYSICAL_PASS_GENERATE' } })).toBe(
+      1
+    );
+
+    await activate(created.body.id, cookie, 'physical-e2e-activate-without-floorplan').expect(200);
+    const svg = await getSvg(created.body.id, generated.body.passes[0].id, cookie).expect(200);
+    const decodedToken = await decodeSvgQr(svg.body as Buffer);
+    const staffToken = await createStaff(created.body.id, cookie, 'Acceso sin Croquis');
+    await scan(staffToken, 'physical-e2e-use-without-floorplan', decodedToken)
+      .expect(200)
+      .expect(({ body }) => expect(body.table).toBeNull());
+    expect(await prisma.contact.count({ where: { eventId: created.body.id } })).toBe(0);
+    expect(await prisma.invitation.count({ where: { eventId: created.body.id } })).toBe(0);
+    expect(await prisma.assistant.count({ where: { eventId: created.body.id } })).toBe(0);
+    expect(await prisma.invitationDesign.count({ where: { eventId: created.body.id } })).toBe(0);
+    expect(await prisma.hotspot.count({ where: { eventId: created.body.id } })).toBe(0);
+  }, 60_000);
+
+  it('runs the real HTTP lifecycle with upload, Floorplan, table, decoded QR, use, replay and close', async () => {
+    const owner = await createClientOwner(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
+    const service = await createPhysicalServiceWithPrice(ClientType.PLANNER);
+    const cookie = await login(owner.email);
+    const created = await request(app.getHttpServer())
+      .post('/api/v1/events')
+      .set('Cookie', cookie)
+      .set('Origin', origin)
+      .send({
+        name: 'Acceso físico con Croquis',
+        serviceId: service.id,
+        socialType: EventSocialType.WEDDING,
+        eventDateTime: '2030-01-01T18:00:00.000Z',
+        timeZone: 'America/Mexico_City',
+        capacity: 2,
+        floorplanEnabled: true
+      })
+      .expect(201);
+    const image = await sharp({
+      create: { width: 64, height: 64, channels: 3, background: '#334155' }
+    })
+      .png()
+      .toBuffer();
+    const asset = await request(app.getHttpServer())
+      .post(`/api/v1/events/${created.body.id}/file-assets`)
+      .set('Cookie', cookie)
+      .set('Origin', origin)
+      .field('ownerType', 'FLOORPLAN')
+      .field('fileType', 'FLOORPLAN_IMAGE')
+      .attach('file', image, { filename: 'croquis.png', contentType: 'image/png' })
+      .expect(201);
+    await request(app.getHttpServer())
+      .post(`/api/v1/events/${created.body.id}/floorplan`)
+      .set('Cookie', cookie)
+      .set('Origin', origin)
+      .send({ imageAssetId: asset.body.id })
+      .expect(201);
+    const table = await request(app.getHttpServer())
+      .post(`/api/v1/events/${created.body.id}/floorplan/shapes`)
+      .set('Cookie', cookie)
+      .set('Origin', origin)
+      .send({
+        kind: FloorplanShapeKind.TABLE,
+        geometry: FloorplanGeometry.CIRCLE,
+        name: 'Mesa E2E',
+        capacity: 2,
+        x: 0.1,
+        y: 0.1,
+        width: 0.2,
+        height: 0.2,
+        rotation: 0,
+        polygonPoints: null
+      })
+      .expect(201);
+    const generated = await generate(created.body.id, cookie, 'physical-e2e-with-floorplan', 2, table.body.id).expect(
+      200
+    );
+    expect((await prisma.event.findUniqueOrThrow({ where: { id: created.body.id } })).status).toBe(
+      EventStatus.READY_TO_ACTIVATE
+    );
+    await activate(created.body.id, cookie, 'physical-e2e-activate-with-floorplan').expect(200);
+    const staffToken = await createStaff(created.body.id, cookie, 'Acceso Croquis');
+    const firstSvg = await getSvg(created.body.id, generated.body.passes[0].id, cookie).expect(200);
+    const firstToken = await decodeSvgQr(firstSvg.body as Buffer);
+    const used = await scan(staffToken, 'physical-e2e-use-with-floorplan', firstToken).expect(200);
+    expect(used.body.table).toEqual({ id: table.body.id, name: 'Mesa E2E' });
+    expect((await scan(staffToken, 'physical-e2e-use-with-floorplan', firstToken).expect(200)).body).toEqual(used.body);
+    await scan(staffToken, 'physical-e2e-use-with-floorplan-second', firstToken)
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('PHYSICAL_PASS_ALREADY_USED'));
+    await request(app.getHttpServer())
+      .post(`/api/v1/events/${created.body.id}/close`)
+      .set('Cookie', cookie)
+      .set('Origin', origin)
+      .set('Idempotency-Key', 'physical-e2e-close')
+      .expect(200);
+    const secondSvg = await getSvg(created.body.id, generated.body.passes[1].id, cookie).expect(200);
+    await scan(staffToken, 'physical-e2e-after-close', await decodeSvgQr(secondSvg.body as Buffer))
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('STAFF_EVENT_NOT_OPERATIONAL'));
+  }, 60_000);
+
+  it('keeps incomplete physical Events configured and leaves Flyer and Flipbook preparation behavior unchanged', async () => {
+    const owner = await createClientOwner(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
+    const physical = await createPhysicalServiceWithPrice(ClientType.PLANNER);
+    const flyer = await prisma.service.create({ data: { code: ServiceCode.FLYER } });
+    const flipbook = await prisma.service.create({ data: { code: ServiceCode.FLIPBOOK } });
+    const cookie = await login(owner.email);
+    const complete = {
+      name: 'Evento preparado',
+      socialType: EventSocialType.OTHER,
+      eventDateTime: '2030-01-01T18:00:00.000Z',
+      timeZone: 'America/Mexico_City',
+      capacity: 2
+    };
+    for (const [serviceId, expected] of [
+      [physical.id, EventStatus.CONFIGURED],
+      [flyer.id, EventStatus.CONFIGURED],
+      [flipbook.id, EventStatus.CONFIGURED]
+    ] as const) {
+      const event = await request(app.getHttpServer())
+        .post('/api/v1/events')
+        .set('Cookie', cookie)
+        .set('Origin', origin)
+        .send({ serviceId })
+        .expect(201);
+      await updateEvent(event.body.id, cookie, complete)
+        .expect(200)
+        .expect(({ body }) => expect(body.status).toBe(expected));
+    }
+
+    const inconsistent = await request(app.getHttpServer())
+      .post('/api/v1/events')
+      .set('Cookie', cookie)
+      .set('Origin', origin)
+      .send({ ...complete, serviceId: physical.id })
+      .expect(201);
+    await insertPhysicalPass({ eventId: inconsistent.body.id, userId: owner.userId }, 2);
+    await updateEvent(inconsistent.body.id, cookie, { name: 'Numeración inconsistente' })
+      .expect(200)
+      .expect(({ body }) => expect(body.status).toBe(EventStatus.CONFIGURED));
+
+    const incompleteFloorplan = await request(app.getHttpServer())
+      .post('/api/v1/events')
+      .set('Cookie', cookie)
+      .set('Origin', origin)
+      .send({ ...complete, serviceId: physical.id, floorplanEnabled: true })
+      .expect(201);
+    await updateEvent(incompleteFloorplan.body.id, cookie, { name: 'Croquis incompleto' })
+      .expect(200)
+      .expect(({ body }) => expect(body.status).toBe(EventStatus.CONFIGURED));
+  }, 60_000);
+
+  it('enforces generation state, first-use operational checks and identity immutability in PostgreSQL', async () => {
+    for (const status of [EventStatus.CLOSED, EventStatus.CANCELLED, EventStatus.ARCHIVED]) {
+      const fixture = await createFixture(EventStatus.ACTIVE, 2);
+      await prisma.$transaction(async (tx) => {
+        await tx.$executeRawUnsafe('SET LOCAL session_replication_role = replica');
+        await tx.event.update({ where: { id: fixture.eventId }, data: { status } });
+      });
+      await expect(insertPhysicalPass(fixture, 1)).rejects.toThrow('PHYSICAL_PASS_EVENT_NOT_MUTABLE');
+    }
+    const active = await createFixture(EventStatus.ACTIVE, 3);
+    await insertPhysicalPass(active, 1);
+    const cookie = await login(active.email);
+    const staffToken = await createStaff(active.eventId, cookie, 'SQL válido');
+    const staff = await prisma.staffToken.findFirstOrThrow({ where: { eventId: active.eventId } });
+    const pass = await prisma.physicalPass.findFirstOrThrow({ where: { eventId: active.eventId } });
+    const usedAt = new Date();
+    await setUseBySql(pass.id, staff.id, 'physical-sql-valid', usedAt);
+    await expect(prisma.physicalPass.update({ where: { id: pass.id }, data: { passNumber: 8 } })).rejects.toThrow(
+      'PHYSICAL_PASS_IDENTITY_IMMUTABLE'
+    );
+    await expect(prisma.physicalPass.update({ where: { id: pass.id }, data: { usedAt: new Date() } })).rejects.toThrow(
+      'PHYSICAL_PASS_USED_IMMUTABLE'
+    );
+
+    const beforeUse = await createFixture(EventStatus.ACTIVE, 3);
+    await insertPhysicalPass(beforeUse, 1);
+    const unused = await prisma.physicalPass.findFirstOrThrow({ where: { eventId: beforeUse.eventId } });
+    await expect(
+      prisma.physicalPass.update({ where: { id: unused.id }, data: { qrTokenNonce: 'f'.repeat(64) } })
+    ).rejects.toThrow('PHYSICAL_PASS_IDENTITY_IMMUTABLE');
+
+    for (const status of [EventStatus.CLOSED, EventStatus.CANCELLED]) {
+      const fixture = await createFixture(EventStatus.ACTIVE, 2);
+      await insertPhysicalPass(fixture, 1);
+      const fixtureCookie = await login(fixture.email);
+      await createStaff(fixture.eventId, fixtureCookie, `SQL ${status}`);
+      const fixtureStaff = await prisma.staffToken.findFirstOrThrow({ where: { eventId: fixture.eventId } });
+      const fixturePass = await prisma.physicalPass.findFirstOrThrow({ where: { eventId: fixture.eventId } });
+      await prisma.event.update({ where: { id: fixture.eventId }, data: { status } });
+      await expect(setUseBySql(fixturePass.id, fixtureStaff.id, `physical-sql-${status}`, new Date())).rejects.toThrow(
+        'PHYSICAL_PASS_USE_EVENT_NOT_OPERATIONAL'
+      );
+    }
+
+    const expired = await createFixture(EventStatus.ACTIVE, 2);
+    await insertPhysicalPass(expired, 1);
+    const expiredCookie = await login(expired.email);
+    await createStaff(expired.eventId, expiredCookie, 'SQL expirado');
+    const expiredStaff = await prisma.staffToken.findFirstOrThrow({ where: { eventId: expired.eventId } });
+    const expiredPass = await prisma.physicalPass.findFirstOrThrow({ where: { eventId: expired.eventId } });
+    await prisma.staffToken.update({ where: { id: expiredStaff.id }, data: { expiredAt: new Date() } });
+    await expect(setUseBySql(expiredPass.id, expiredStaff.id, 'physical-sql-expired', new Date())).rejects.toThrow(
+      'PHYSICAL_PASS_USE_STAFF_EXPIRED'
+    );
+
+    const other = await createFixture(EventStatus.ACTIVE, 2);
+    const otherCookie = await login(other.email);
+    await createStaff(other.eventId, otherCookie, 'SQL otro Evento');
+    const otherStaff = await prisma.staffToken.findFirstOrThrow({ where: { eventId: other.eventId } });
+    await expect(setUseBySql(unused.id, otherStaff.id, 'physical-sql-other-event', new Date())).rejects.toThrow(
+      'PHYSICAL_PASS_STAFF_INVALID'
+    );
+    expect(staffToken).toMatch(/^st1\./u);
   }, 60_000);
 
   function generate(
@@ -311,6 +679,37 @@ describe('PhysicalPasses', () => {
       .send({ qrToken });
   }
 
+  function updateEvent(eventId: string, cookie: string[], body: Record<string, unknown>) {
+    return request(app.getHttpServer())
+      .patch(`/api/v1/events/${eventId}`)
+      .set('Cookie', cookie)
+      .set('Origin', origin)
+      .send(body);
+  }
+
+  function activate(eventId: string, cookie: string[], key: string) {
+    return request(app.getHttpServer())
+      .post(`/api/v1/events/${eventId}/activate`)
+      .set('Cookie', cookie)
+      .set('Origin', origin)
+      .set('Idempotency-Key', key);
+  }
+
+  function getSvg(eventId: string, passId: string, cookie: string[]) {
+    return request(app.getHttpServer())
+      .get(`/api/v1/events/${eventId}/physical-passes/${passId}/svg`)
+      .set('Cookie', cookie);
+  }
+
+  async function decodeSvgQr(svg: Buffer): Promise<string> {
+    const raster = await sharp(svg).ensureAlpha().raw().toBuffer({
+      resolveWithObject: true
+    });
+    const decoded = jsQR(new Uint8ClampedArray(raster.data), raster.info.width, raster.info.height);
+    if (!decoded?.data) throw new Error('PhysicalPass SVG QR could not be decoded.');
+    return decoded.data;
+  }
+
   async function createStaff(eventId: string, cookie: string[], alias: string): Promise<string> {
     const response = await request(app.getHttpServer())
       .post(`/api/v1/events/${eventId}/staff-tokens`)
@@ -319,6 +718,61 @@ describe('PhysicalPasses', () => {
       .send({ alias })
       .expect(201);
     return response.body.token as string;
+  }
+
+  async function createClientOwner(type: ClientType, role: UserRole) {
+    const client = await prisma.client.create({
+      data: { type, name: `Cliente ${randomUUID()}`, status: ClientStatus.ACTIVE }
+    });
+    const user = await createUser(role, client.id);
+    return { clientId: client.id, userId: user.id, email: user.email };
+  }
+
+  async function createPhysicalServiceWithPrice(clientType: ClientType) {
+    const service = await prisma.service.create({ data: { code: ServiceCode.PHYSICAL_QR } });
+    await prisma.servicePrice.create({
+      data: {
+        serviceId: service.id,
+        clientType,
+        credits: 0,
+        validFrom: new Date('2020-01-01T00:00:00.000Z')
+      }
+    });
+    return service;
+  }
+
+  async function insertPhysicalPass(fixture: { eventId: string; userId: string }, passNumber: number): Promise<void> {
+    const nonce = randomUUID().replaceAll('-', '').repeat(2);
+    await prisma.$executeRaw`
+      INSERT INTO "physical_pass" (
+        "id", "event_id", "pass_number", "qr_token_nonce", "qr_token_version",
+        "created_by_user_id", "updated_at"
+      )
+      VALUES (
+        gen_random_uuid(), ${fixture.eventId}::uuid, ${passNumber}, ${nonce}, 1,
+        ${fixture.userId}::uuid, clock_timestamp()
+      )
+    `;
+  }
+
+  async function setUseBySql(passId: string, staffTokenId: string, key: string, usedAt: Date): Promise<void> {
+    const snapshot = JSON.stringify({
+      status: 'USED',
+      physicalPassId: passId,
+      passNumber: 1,
+      usedAt: usedAt.toISOString(),
+      table: null
+    });
+    await prisma.$executeRaw`
+      UPDATE "physical_pass"
+      SET
+        "used_at" = ${usedAt},
+        "used_by_staff_token_id" = ${staffTokenId}::uuid,
+        "use_idempotency_key" = ${key},
+        "use_request_signature" = ${'e'.repeat(64)},
+        "use_result_snapshot" = ${snapshot}::jsonb
+      WHERE "id" = ${passId}::uuid
+    `;
   }
 
   async function createFixture(status: EventStatus, capacity: number, floorplanEnabled = false) {
@@ -332,14 +786,22 @@ describe('PhysicalPasses', () => {
     if (status === EventStatus.ACTIVE) {
       const event = await prisma.$transaction(async (tx) => {
         await tx.$executeRawUnsafe('SET LOCAL session_replication_role = replica');
-        const price = await tx.servicePrice.create({
-          data: {
-            serviceId: serviceRecord.id,
-            clientType: ClientType.PLANNER,
-            credits: 0,
-            validFrom: new Date('2020-01-01T00:00:00.000Z')
-          }
-        });
+        const price =
+          (await tx.servicePrice.findFirst({
+            where: {
+              serviceId: serviceRecord.id,
+              clientType: ClientType.PLANNER,
+              validFrom: new Date('2020-01-01T00:00:00.000Z')
+            }
+          })) ??
+          (await tx.servicePrice.create({
+            data: {
+              serviceId: serviceRecord.id,
+              clientType: ClientType.PLANNER,
+              credits: 0,
+              validFrom: new Date('2020-01-01T00:00:00.000Z')
+            }
+          }));
         const key = `physical-activation-${randomUUID()}`;
         const receipt = await tx.receipt.create({
           data: {
@@ -475,3 +937,43 @@ describe('PhysicalPasses', () => {
     `);
   }
 });
+
+async function startBehindVerifiedEventLock<T>(
+  eventId: string,
+  start: () => [PromiseLike<T>, PromiseLike<T>]
+): Promise<[Awaited<T>, Awaited<T>]> {
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) throw new Error('DATABASE_URL is required.');
+  const blocker = new PgClient({ connectionString: databaseUrl });
+  const observer = new PgClient({ connectionString: databaseUrl });
+  await Promise.all([blocker.connect(), observer.connect()]);
+  let committed = false;
+  try {
+    await blocker.query('BEGIN');
+    await blocker.query('SELECT "id" FROM "event" WHERE "id" = $1::uuid FOR UPDATE', [eventId]);
+    const pending = start();
+    const operations = [Promise.resolve(pending[0]), Promise.resolve(pending[1])] as const;
+    await waitForLockWaiters(observer, operations.length);
+    await blocker.query('COMMIT');
+    committed = true;
+    return await Promise.all(operations);
+  } finally {
+    if (!committed) await blocker.query('ROLLBACK').catch(() => undefined);
+    await Promise.all([blocker.end(), observer.end()]);
+  }
+}
+
+async function waitForLockWaiters(observer: PgClient, expected: number): Promise<void> {
+  const deadline = Date.now() + 5_000;
+  while (Date.now() < deadline) {
+    const result = await observer.query<{ count: string }>(`
+      SELECT count(*)::text AS "count"
+      FROM pg_stat_activity
+      WHERE pid <> pg_backend_pid()
+        AND wait_event_type = 'Lock'
+    `);
+    if (Number(result.rows[0]?.count ?? 0) >= expected) return;
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  }
+  throw new Error(`Expected ${expected} PostgreSQL lock waiters before releasing the race barrier.`);
+}

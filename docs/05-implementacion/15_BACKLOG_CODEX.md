@@ -830,9 +830,10 @@ y reversión en ambos órdenes, sin sleeps.
 - con mesa resalta mesa;
 - no incluye Confirmación de asistencia ni álbum.
 
-**Estado:** completado. La migración 29, `PhysicalPassesModule`, readiness, SVG derivado, Scanner,
-idempotencia y concurrencia quedan documentados en `PHYSICAL_PASSES_CONTRACT.md`. `CODEX-110` no se ha
-iniciado.
+**Estado:** completado y cerrado. Las migraciones 29 y 30, `PhysicalPassesModule`, recomputación
+transaccional de readiness desde Evento, SVG derivado y decodificado, Scanner, idempotencia, integridad
+PostgreSQL y concurrencia con barreras verificables quedan documentados en
+`PHYSICAL_PASSES_CONTRACT.md`. `CODEX-110` no se ha iniciado.
 
 ---
 

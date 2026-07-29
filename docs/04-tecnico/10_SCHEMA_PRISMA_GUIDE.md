@@ -156,6 +156,12 @@ conjunto completo e irreversible. `PhysicalPassGenerationOperation` conserva la 
 snapshot mínimo del lote. La migración 29 protege servicio `PHYSICAL_QR`, capacidad de Evento, modo
 Croquis, capacidad combinada de Mesa e inmutabilidad del uso.
 
+La migración 30 endurece `validate_physical_pass()` y `protect_physical_pass()`: un INSERT bloquea el
+Evento y solo admite `draft|configured|ready_to_activate|active|event_day`; el primer uso bloquea Evento
+y StaffToken y exige Evento `active|event_day`, no eliminado, servicio físico y StaffToken no expirado.
+La identidad `eventId`, `passNumber`, `qrTokenNonce`, `qrTokenVersion`, `createdByUserId` y `createdAt`
+es inmutable desde la creación, incluso antes del uso.
+
 ## StaffToken
 
 Campos conceptuales:

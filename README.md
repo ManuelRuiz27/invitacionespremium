@@ -360,7 +360,11 @@ Staff bloquea Evento → StaffToken y coordina handshakes pendientes contra cier
 - QR/SVG privado derivado bajo demanda, sin FileAsset;
 - primer uso Scanner único, auditable y protegido ante concurrencia;
 - readiness propio sin Contactos, Invitaciones, Asistentes, Confirmación ni Álbum;
-- capacidad combinada de Mesas y constraints PostgreSQL en la migración 29.
+- capacidad combinada de Mesas y constraints PostgreSQL en la migración 29;
+- hardening final en la migración 30: estados de generación, primer uso operativo, StaffToken no
+  expirado e identidad inmutable desde la creación;
+- recomputación transaccional de readiness al editar el Evento y E2E HTTP con QR rasterizado y
+  decodificado, con y sin Croquis.
 
 `CODEX-110 — Álbum post-evento` permanece sin iniciar.
 

@@ -1,5 +1,5 @@
 import type { Prisma } from '../generated/prisma/client';
-import { FileAssetStatus, FloorplanShapeKind, ServiceCode } from '../generated/prisma/client';
+import { EventStatus, FileAssetStatus, FloorplanShapeKind, ServiceCode } from '../generated/prisma/client';
 
 export const PHYSICAL_PASS_READINESS_BLOCKERS = {
   SERVICE_MISMATCH: 'PHYSICAL_PASS_SERVICE_MISMATCH',
@@ -18,6 +18,39 @@ export interface PhysicalPassReadiness {
   activePassCount: number;
 }
 
+const PHYSICAL_PASS_PREPARATION_STATUSES = new Set<EventStatus>([
+  EventStatus.DRAFT,
+  EventStatus.CONFIGURED,
+  EventStatus.READY_TO_ACTIVATE
+]);
+
+export async function recomputePhysicalPassPreparationStatus(
+  tx: Prisma.TransactionClient,
+  eventId: string
+): Promise<EventStatus | null> {
+  const event = await tx.event.findUnique({
+    where: { id: eventId },
+    include: { service: { select: { code: true } } }
+  });
+  if (
+    !event ||
+    event.service?.code !== ServiceCode.PHYSICAL_QR ||
+    !PHYSICAL_PASS_PREPARATION_STATUSES.has(event.status)
+  ) {
+    return event?.status ?? null;
+  }
+
+  const target = !hasCompletePhysicalPassBasicData(event)
+    ? EventStatus.DRAFT
+    : (await resolvePhysicalPassReadiness(tx, eventId)).complete
+      ? EventStatus.READY_TO_ACTIVATE
+      : EventStatus.CONFIGURED;
+  if (target !== event.status) {
+    await tx.event.update({ where: { id: eventId }, data: { status: target } });
+  }
+  return target;
+}
+
 export async function resolvePhysicalPassReadiness(
   tx: Prisma.TransactionClient,
   eventId: string
@@ -34,14 +67,7 @@ export async function resolvePhysicalPassReadiness(
   });
   const blockers: string[] = [];
   if (event.service?.code !== ServiceCode.PHYSICAL_QR) blockers.push(PHYSICAL_PASS_READINESS_BLOCKERS.SERVICE_MISMATCH);
-  if (
-    !event.name?.trim() ||
-    !event.socialType ||
-    !event.eventDateTime ||
-    !event.timeZone ||
-    event.capacity === null ||
-    event.capacity <= 0
-  ) {
+  if (!hasCompletePhysicalPassBasicData(event)) {
     blockers.push(PHYSICAL_PASS_READINESS_BLOCKERS.BASIC_DATA);
   }
   if (passes.length === 0) blockers.push(PHYSICAL_PASS_READINESS_BLOCKERS.MISSING);
@@ -86,4 +112,21 @@ export async function resolvePhysicalPassReadiness(
     blockers.push(PHYSICAL_PASS_READINESS_BLOCKERS.TABLE);
   }
   return { complete: blockers.length === 0, blockers: [...new Set(blockers)], activePassCount: passes.length };
+}
+
+function hasCompletePhysicalPassBasicData(event: {
+  name: string | null;
+  socialType: unknown;
+  eventDateTime: Date | null;
+  timeZone: string | null;
+  capacity: number | null;
+}): boolean {
+  return Boolean(
+    event.name?.trim() &&
+    event.socialType &&
+    event.eventDateTime &&
+    event.timeZone &&
+    event.capacity !== null &&
+    event.capacity > 0
+  );
 }

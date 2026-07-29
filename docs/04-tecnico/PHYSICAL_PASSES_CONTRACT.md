@@ -17,6 +17,9 @@ Los campos `usedAt`, `usedByStaffTokenId`, `useIdempotencyKey`, `useRequestSigna
 `useResultSnapshot` son todos nulos o todos completos. Una vez usados son inmutables; PostgreSQL rechaza
 segundo uso, cambio de identidad/Mesa/token/actor/timestamp/snapshot y hard delete.
 
+La identidad `eventId`, `passNumber`, `qrTokenNonce`, `qrTokenVersion`, `createdByUserId` y `createdAt`
+queda congelada desde el INSERT y tampoco puede cambiar antes del primer uso.
+
 `PhysicalPassGenerationOperation` es técnica e inmutable. Conserva Evento, llave global, firma SHA-256,
 snapshot mínimo y fecha. No es un recurso comercial ni expone tokens.
 
@@ -109,6 +112,11 @@ La generación puede promover `configured → ready_to_activate`. La activación
 readiness dentro de su transacción antes de finanzas. Flyer/Flipbook conservan su preflight; Demo no se
 activa.
 
+`EventsService.update()` reutiliza la misma recomputación en su transacción: datos básicos incompletos
+producen `draft`; datos completos con blockers producen `configured`; readiness completo produce
+`ready_to_activate`. La generación y su replay también reparan exclusivamente esta proyección derivada;
+el replay no crea pases ni auditoría.
+
 ## Auditoría, PostgreSQL y concurrencia
 
 Cada lote registra una sola `PHYSICAL_PASS_GENERATE`; el primer uso, una sola `PHYSICAL_PASS_USE` con
@@ -120,9 +128,19 @@ completitud de uso, índices únicos y triggers para servicio, capacidad del Eve
 capacidad combinada, inmutabilidad y configuración del Evento. Las operaciones usan aislamiento
 `Serializable`, orden de locks estable y reintento de `40001`, `40P01` y colisiones idempotentes.
 
-Las pruebas PostgreSQL cubren rangos concurrentes, último cupo, primer uso concurrente, replay después de
-cierre, capacidad combinada, reducción/eliminación de Mesa, SQL incompatible, ownership, privacidad del
-listado/SVG y ausencia de FileAsset.
+La migración 30 reemplaza las funciones conservando triggers, constraints e índices. El INSERT bloquea y
+revalida el Evento y solo admite `draft|configured|ready_to_activate|active|event_day`
+(`physical_pass_generation_state`). El primer uso exige Evento no eliminado `active|event_day`, servicio
+`PHYSICAL_QR`, StaffToken del mismo Evento y no expirado
+(`physical_pass_use_event_not_operational`, `physical_pass_use_staff_expired`). Identidad y uso quedan
+protegidos por triggers.
+
+Las carreras se arrancan detrás de locks PostgreSQL reales y la prueba verifica los waiters mediante
+`pg_stat_activity`; cubren rangos concurrentes, último cupo de Evento y Mesa, misma llave concurrente y
+dos StaffTokens sobre un Pase, además de los locks cruzados con configuración de Evento/Mesa. Las
+integraciones SQL prueban estados terminales, expiración, ownership cruzado, inmutabilidad y rollback sin
+auditoría. Los vertical slices HTTP con y sin Croquis descargan el SVG, lo rasterizan, decodifican el QR
+con `jsQR` y usan el token decodificado; no crean FileAsset de QR.
 
 ## Fuera de alcance
 

@@ -18,7 +18,10 @@ import {
 import { FinanceService } from '../finance/finance.service';
 import { resolveDesignReadiness } from '../invitation-design/invitation-design.readiness';
 import { resolveFloorplanReadiness } from '../floorplan/floorplan-readiness.service';
-import { resolvePhysicalPassReadiness } from '../physical-passes/physical-pass-readiness.service';
+import {
+  recomputePhysicalPassPreparationStatus,
+  resolvePhysicalPassReadiness
+} from '../physical-passes/physical-pass-readiness.service';
 import { ServicesPricingService } from '../services-pricing/services-pricing.service';
 import { EventAccessPolicy, eventNotFound } from './event-access.policy';
 import { resolvePreparationStatus } from './event-status.resolver';
@@ -131,13 +134,15 @@ export class EventsService {
       mutate: async (transaction) => {
         const merged = mergePreparationData(current, input);
         await this.requireAvailableService(transaction, merged.serviceId);
-        const event = await transaction.event.update({
+        await transaction.event.update({
           where: { id: eventId },
           data: {
             ...updateData(input),
             status: resolvePreparationStatus(merged)
           }
         });
+        await recomputePhysicalPassPreparationStatus(transaction, eventId);
+        const event = await transaction.event.findUniqueOrThrow({ where: { id: eventId } });
         return auditedResult(toEventResponse(event), eventAuditSnapshot(event));
       }
     });

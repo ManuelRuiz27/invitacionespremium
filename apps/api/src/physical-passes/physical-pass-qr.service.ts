@@ -25,7 +25,10 @@ export class PhysicalPassQrService {
       color: { dark: '#111827', light: '#FFFFFF' }
     });
     const paths = [...qr.matchAll(/<path ([^>]+)\/>/gu)].map((match) => `<path ${match[1]}/>`);
-    if (paths.length !== 2 || qr.includes(input.qrToken)) throw new Error('Unsafe QR output.');
+    const viewBox = qr.match(/viewBox="0 0 ([1-9]\d{0,2}) \1"/u);
+    if (paths.length !== 2 || !viewBox || qr.includes(input.qrToken)) {
+      throw new Error('Unsafe QR output.');
+    }
     const eventName = escapeXml(input.eventName);
     const table =
       input.tableName === null
@@ -34,7 +37,7 @@ export class PhysicalPassQrService {
     const svg =
       `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="360" viewBox="0 0 800 360">` +
       `<rect width="800" height="360" fill="#FFFFFF"/>` +
-      `<g transform="translate(24 24) scale(8)">${paths.join('')}</g>` +
+      `<svg x="24" y="24" width="312" height="312" viewBox="0 0 ${viewBox[1]} ${viewBox[1]}" shape-rendering="crispEdges">${paths.join('')}</svg>` +
       `<text x="350" y="90" font-family="sans-serif" font-size="30" font-weight="700" fill="#111827">${eventName}</text>` +
       `<text x="350" y="205" font-family="sans-serif" font-size="58" font-weight="700" fill="#111827">Pase ${input.passNumber}</text>` +
       table +
