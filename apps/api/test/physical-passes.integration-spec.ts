@@ -522,20 +522,30 @@ describe('PhysicalPasses', () => {
     expect(rejectedDelete.ok).toBe(false);
 
     const deleteBeforeUse = await createUseRaceFixture('delete-before-use');
-    const [deletedBeforeUse, rejectedDeletedUse] = await startBehindVerifiedRowLock(
-      'physical_pass',
-      deleteBeforeUse.pass.id,
-      () => [
-        capture(
-          prisma.physicalPass.update({
-            where: { id: deleteBeforeUse.pass.id },
-            data: { deletedAt: new Date() }
-          })
-        ),
+    const databaseUrl = process.env.DATABASE_URL;
+    if (!databaseUrl) throw new Error('DATABASE_URL is required.');
+    const deleter = new PgClient({ connectionString: databaseUrl });
+    await deleter.connect();
+    let deleteCommitted = false;
+    let rejectedDeletedUse: Awaited<ReturnType<typeof scan>> | undefined;
+    try {
+      await deleter.query('BEGIN');
+      await deleter.query(
+        'UPDATE "physical_pass" SET "deleted_at" = clock_timestamp(), "updated_at" = clock_timestamp() WHERE "id" = $1::uuid',
+        [deleteBeforeUse.pass.id]
+      );
+      const rejectedDeletedUsePromise = Promise.resolve(
         scan(deleteBeforeUse.staffToken, 'physical-race-delete-before-use', deleteBeforeUse.qrToken)
-      ]
-    );
-    expect(deletedBeforeUse.ok).toBe(true);
+      );
+      await waitForVerifiedLockWaiters(1);
+      await deleter.query('COMMIT');
+      deleteCommitted = true;
+      rejectedDeletedUse = await rejectedDeletedUsePromise;
+    } finally {
+      if (!deleteCommitted) await deleter.query('ROLLBACK').catch(() => undefined);
+      await deleter.end();
+    }
+    if (!rejectedDeletedUse) throw new Error('The concurrent scan did not complete.');
     expect(rejectedDeletedUse.status).toBe(404);
     expect(
       await prisma.auditLog.count({ where: { resourceId: deleteBeforeUse.pass.id, action: 'PHYSICAL_PASS_USE' } })
