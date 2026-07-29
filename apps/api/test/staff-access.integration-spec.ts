@@ -1,5 +1,6 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
+import { Client } from 'pg';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuditService } from '../src/audit/audit.service';
@@ -20,7 +21,11 @@ import {
 import { InvitationsService } from '../src/invitations/invitations.service';
 import { createOpenApiDocument } from '../src/openapi/openapi';
 import { PublicRsvpService } from '../src/public-rsvp/public-rsvp.service';
-import { StaffTokenManagementService, StaffTokenResolverService } from '../src/staff-access/staff-access.service';
+import {
+  StaffTokenExpirationService,
+  StaffTokenManagementService,
+  StaffTokenResolverService
+} from '../src/staff-access/staff-access.service';
 import { StaffTokenTechnicalService } from '../src/staff-access/staff-token-technical.service';
 
 const origin = 'http://localhost:5173';
@@ -33,6 +38,7 @@ describe('StaffAccess', () => {
   let lifecycle: EventLifecycleService;
   let management: StaffTokenManagementService;
   let resolver: StaffTokenResolverService;
+  let expiration: StaffTokenExpirationService;
   let technical: StaffTokenTechnicalService;
   let confirmations: PublicRsvpService;
   let invitations: InvitationsService;
@@ -53,6 +59,7 @@ describe('StaffAccess', () => {
     lifecycle = app.get(EventLifecycleService);
     management = app.get(StaffTokenManagementService);
     resolver = app.get(StaffTokenResolverService);
+    expiration = app.get(StaffTokenExpirationService);
     technical = app.get(StaffTokenTechnicalService);
     confirmations = app.get(PublicRsvpService);
     invitations = app.get(InvitationsService);
@@ -275,7 +282,7 @@ describe('StaffAccess', () => {
     expect(await resolver.resolveStaffToken(unaffected.token)).not.toBeNull();
   }, 60_000);
 
-  it('rolls back creation and lifecycle transitions when StaffToken auditing fails', async () => {
+  it('rolls back creation, expiration, Event auditing, and StaffToken update failures', async () => {
     const creation = await createFixture(UserRole.INDEPENDENT_PLANNER, ClientType.PLANNER);
     const creationPrincipal = toPrincipal(creation);
     const original = audit.record.bind(audit);
@@ -283,11 +290,14 @@ describe('StaffAccess', () => {
       if (input.action === 'STAFF_TOKEN_CREATE') throw new Error('forced staff creation audit failure');
       return original(input, client);
     });
-    await expect(management.create(creation.eventId, { alias: 'Rollback' }, creationPrincipal)).rejects.toThrow(
-      'forced staff creation audit failure'
-    );
+    try {
+      await expect(management.create(creation.eventId, { alias: 'Rollback' }, creationPrincipal)).rejects.toThrow(
+        'forced staff creation audit failure'
+      );
+    } finally {
+      createSpy.mockRestore();
+    }
     expect(await prisma.staffToken.count({ where: { eventId: creation.eventId } })).toBe(0);
-    createSpy.mockRestore();
 
     for (const action of ['close', 'cancel'] as const) {
       const fixture = await createFixture(UserRole.INDEPENDENT_PLANNER, ClientType.PLANNER);
@@ -297,12 +307,15 @@ describe('StaffAccess', () => {
         if (input.action === 'STAFF_TOKENS_EXPIRE') throw new Error('forced expiration audit failure');
         return original(input, client);
       });
-      await expect(
-        action === 'close'
-          ? lifecycle.close(fixture.eventId, `${action}-${randomUUID()}`, principal)
-          : lifecycle.cancel(fixture.eventId, `${action}-${randomUUID()}`, principal)
-      ).rejects.toThrow('forced expiration audit failure');
-      expirationSpy.mockRestore();
+      try {
+        await expect(
+          action === 'close'
+            ? lifecycle.close(fixture.eventId, `${action}-${randomUUID()}`, principal)
+            : lifecycle.cancel(fixture.eventId, `${action}-${randomUUID()}`, principal)
+        ).rejects.toThrow('forced expiration audit failure');
+      } finally {
+        expirationSpy.mockRestore();
+      }
       expect(await prisma.event.findUniqueOrThrow({ where: { id: fixture.eventId } })).toMatchObject({
         status: EventStatus.ACTIVE
       });
@@ -310,7 +323,146 @@ describe('StaffAccess', () => {
         expiredAt: null
       });
     }
+
+    const eventAuditFixture = await createFixture(UserRole.INDEPENDENT_PLANNER, ClientType.PLANNER);
+    const eventAuditPrincipal = toPrincipal(eventAuditFixture);
+    await management.create(eventAuditFixture.eventId, { alias: 'Event audit rollback' }, eventAuditPrincipal);
+    const eventAuditSpy = vi.spyOn(audit, 'record').mockImplementation((input, client) => {
+      if (input.action === 'EVENT_CLOSE') throw new Error('forced Event audit failure');
+      return original(input, client);
+    });
+    try {
+      await expect(
+        lifecycle.close(eventAuditFixture.eventId, `event-audit-${randomUUID()}`, eventAuditPrincipal)
+      ).rejects.toThrow('forced Event audit failure');
+    } finally {
+      eventAuditSpy.mockRestore();
+    }
+    expect(await prisma.event.findUniqueOrThrow({ where: { id: eventAuditFixture.eventId } })).toMatchObject({
+      status: EventStatus.ACTIVE
+    });
+    expect(await prisma.staffToken.findFirstOrThrow({ where: { eventId: eventAuditFixture.eventId } })).toMatchObject({
+      expiredAt: null
+    });
+    expect(
+      await prisma.auditLog.count({
+        where: { eventId: eventAuditFixture.eventId, action: 'STAFF_TOKENS_EXPIRE' }
+      })
+    ).toBe(0);
+
+    const updateFixture = await createFixture(UserRole.INDEPENDENT_PLANNER, ClientType.PLANNER);
+    const updatePrincipal = toPrincipal(updateFixture);
+    await management.create(updateFixture.eventId, { alias: 'Update rollback' }, updatePrincipal);
+    const expirationUpdateSpy = vi
+      .spyOn(expiration, 'expireForEventTransition')
+      .mockImplementation(async (transaction, event) => {
+        await transaction.staffToken.updateMany({
+          where: { eventId: event.id, expiredAt: null },
+          data: { expiredAt: new Date(0) }
+        });
+        return 1;
+      });
+    try {
+      await expect(
+        lifecycle.close(updateFixture.eventId, `update-failure-${randomUUID()}`, updatePrincipal)
+      ).rejects.toThrow();
+    } finally {
+      expirationUpdateSpy.mockRestore();
+    }
+    expect(await prisma.event.findUniqueOrThrow({ where: { id: updateFixture.eventId } })).toMatchObject({
+      status: EventStatus.ACTIVE
+    });
+    expect(await prisma.staffToken.findFirstOrThrow({ where: { eventId: updateFixture.eventId } })).toMatchObject({
+      expiredAt: null
+    });
   }, 60_000);
+
+  it.each([
+    {
+      action: 'close' as const,
+      targetStatus: EventStatus.CLOSED,
+      transitionAuditAction: 'EVENT_CLOSE'
+    },
+    {
+      action: 'cancel' as const,
+      targetStatus: EventStatus.CANCELLED,
+      transitionAuditAction: 'EVENT_CANCEL'
+    }
+  ])(
+    'uses one post-lock PostgreSQL timestamp when $action starts before creation wins the lock',
+    async ({ action, targetStatus, transitionAuditAction }) => {
+      const fixture = await createFixture(UserRole.INDEPENDENT_PLANNER, ClientType.PLANNER);
+      const principal = toPrincipal(fixture);
+      const preexistingDigest = technical.digest(`st1.${randomBytes(32).toString('base64url')}`);
+      await prisma.$executeRaw`INSERT INTO "staff_token"
+        ("event_id", "alias", "token_digest_sha256", "token_version", "created_by_user_id")
+        VALUES (${fixture.eventId}::uuid, ${`${action} preexisting`}, ${preexistingDigest}, 1, ${fixture.userId}::uuid)`;
+      const transitionBeforeLock = methodHoldBarrier(lifecycle, 'lockEvent', 1);
+      const creationAudit = auditBarrier('STAFF_TOKEN_CREATE');
+      let created: Awaited<ReturnType<StaffTokenManagementService['create']>> | undefined;
+      try {
+        const transition =
+          action === 'close'
+            ? lifecycle.close(fixture.eventId, `${action}-create-wins-${randomUUID()}`, principal)
+            : lifecycle.cancel(fixture.eventId, `${action}-create-wins-${randomUUID()}`, principal);
+        const transitionSettled = Promise.allSettled([transition]);
+        await transitionBeforeLock.entered.promise;
+
+        const creation = management.create(fixture.eventId, { alias: `${action} create wins` }, principal);
+        const creationSettled = Promise.allSettled([creation]);
+        await creationAudit.entered.promise;
+        creationAudit.release.resolve();
+        const [creationResult] = await creationSettled;
+        expect(creationResult).toMatchObject({ status: 'fulfilled' });
+        if (creationResult?.status !== 'fulfilled') {
+          throw creationResult?.reason;
+        }
+        created = creationResult.value;
+
+        transitionBeforeLock.release.resolve();
+        const [transitionResult] = await transitionSettled;
+        expect(transitionResult).toMatchObject({
+          status: 'fulfilled',
+          value: expect.objectContaining({ status: targetStatus })
+        });
+      } finally {
+        creationAudit.release.resolve();
+        transitionBeforeLock.release.resolve();
+        creationAudit.restore();
+        transitionBeforeLock.restore();
+      }
+
+      expect(created).toBeDefined();
+      const tokens = await prisma.staffToken.findMany({ where: { eventId: fixture.eventId } });
+      expect(tokens).toHaveLength(2);
+      expect(tokens.every(({ expiredAt }) => expiredAt instanceof Date)).toBe(true);
+      expect(tokens.every(({ createdAt, expiredAt }) => expiredAt!.getTime() >= createdAt.getTime())).toBe(true);
+      expect(new Set(tokens.map(({ expiredAt }) => expiredAt?.toISOString())).size).toBe(1);
+      expect(await prisma.staffToken.count({ where: { eventId: fixture.eventId, expiredAt: null } })).toBe(0);
+      expect(await prisma.event.findUniqueOrThrow({ where: { id: fixture.eventId } })).toMatchObject({
+        status: targetStatus
+      });
+      expect(await prisma.auditLog.count({ where: { eventId: fixture.eventId, action: 'STAFF_TOKEN_CREATE' } })).toBe(
+        1
+      );
+      expect(await prisma.auditLog.count({ where: { eventId: fixture.eventId, action: 'STAFF_TOKENS_EXPIRE' } })).toBe(
+        1
+      );
+      const expirationAudit = await prisma.auditLog.findFirstOrThrow({
+        where: { eventId: fixture.eventId, action: 'STAFF_TOKENS_EXPIRE' }
+      });
+      expect(expirationAudit.afterData).toMatchObject({
+        expiredAt: tokens[0]!.expiredAt!.toISOString()
+      });
+      expect(await prisma.auditLog.count({ where: { eventId: fixture.eventId, action: transitionAuditAction } })).toBe(
+        1
+      );
+      const auditJson = JSON.stringify(await prisma.auditLog.findMany({ where: { eventId: fixture.eventId } }));
+      expect(auditJson).not.toContain(created!.token);
+      expect(auditJson).not.toContain(technical.digest(created!.token));
+    },
+    60_000
+  );
 
   it('serializes creation, lifecycle and public-session races using real lock contention', async () => {
     // Creation wins the Event lock, so close subsequently expires the newly committed token.
@@ -521,6 +673,75 @@ describe('StaffAccess', () => {
 
     await prisma.$executeRaw`UPDATE "event" SET "status" = 'closed' WHERE "id" = ${fixture.eventId}::uuid`;
     expect(await prisma.staffToken.count({ where: { eventId: fixture.eventId, expiredAt: null } })).toBe(0);
+  }, 60_000);
+
+  it('uses clock_timestamp in the SQL trigger after an older transaction waits for token creation', async () => {
+    const databaseUrl = process.env.DATABASE_URL;
+    if (!databaseUrl) throw new Error('DATABASE_URL is required.');
+    const fixture = await createFixture(UserRole.INDEPENDENT_PLANNER, ClientType.PLANNER);
+    const transactionA = new Client({ connectionString: databaseUrl });
+    const transactionB = new Client({ connectionString: databaseUrl });
+    const observer = new Client({ connectionString: databaseUrl });
+    let transactionAOpen = false;
+    let transactionBOpen = false;
+
+    try {
+      await Promise.all([transactionA.connect(), transactionB.connect(), observer.connect()]);
+      await transactionA.query('BEGIN');
+      transactionAOpen = true;
+      const transactionContext = await transactionA.query<{ transactionStartedAt: Date; backendPid: number }>(
+        `SELECT transaction_timestamp() AS "transactionStartedAt", pg_backend_pid() AS "backendPid"`
+      );
+      const transactionStartedAt = transactionContext.rows[0]?.transactionStartedAt;
+      const backendPid = transactionContext.rows[0]?.backendPid;
+      if (!transactionStartedAt || backendPid === undefined) {
+        throw new Error('PostgreSQL did not return the old transaction context.');
+      }
+
+      await waitForPostgresClockAfter(observer, transactionStartedAt);
+      await transactionB.query('BEGIN');
+      transactionBOpen = true;
+      await transactionB.query('SELECT "id" FROM "event" WHERE "id" = $1::uuid FOR UPDATE', [fixture.eventId]);
+      const digest = technical.digest(`st1.${randomBytes(32).toString('base64url')}`);
+      const inserted = await transactionB.query<{ createdAt: Date }>(
+        `INSERT INTO "staff_token"
+          ("event_id", "alias", "token_digest_sha256", "token_version", "created_by_user_id")
+         VALUES ($1::uuid, $2, $3, 1, $4::uuid)
+         RETURNING "created_at" AS "createdAt"`,
+        [fixture.eventId, 'SQL clock race', digest, fixture.userId]
+      );
+      const createdAt = inserted.rows[0]?.createdAt;
+      if (!createdAt) throw new Error('PostgreSQL did not return StaffToken.createdAt.');
+
+      const transition = transactionA.query(`UPDATE "event" SET "status" = 'closed' WHERE "id" = $1::uuid`, [
+        fixture.eventId
+      ]);
+      await waitForDatabaseLock(observer, backendPid);
+      expect(transactionStartedAt.getTime()).toBeLessThan(createdAt.getTime());
+
+      await transactionB.query('COMMIT');
+      transactionBOpen = false;
+      await transition;
+      await transactionA.query('COMMIT');
+      transactionAOpen = false;
+
+      const token = await prisma.staffToken.findFirstOrThrow({ where: { eventId: fixture.eventId } });
+      expect(token.expiredAt).toBeInstanceOf(Date);
+      expect(token.expiredAt!.getTime()).toBeGreaterThanOrEqual(token.createdAt.getTime());
+      expect(token.expiredAt!.getTime()).toBeGreaterThan(transactionStartedAt.getTime());
+      expect(await prisma.event.findUniqueOrThrow({ where: { id: fixture.eventId } })).toMatchObject({
+        status: EventStatus.CLOSED
+      });
+      expect(await prisma.staffToken.count({ where: { eventId: fixture.eventId, expiredAt: null } })).toBe(0);
+    } finally {
+      if (transactionBOpen) await transactionB.query('ROLLBACK').catch(() => undefined);
+      if (transactionAOpen) await transactionA.query('ROLLBACK').catch(() => undefined);
+      await Promise.all([
+        transactionA.end().catch(() => undefined),
+        transactionB.end().catch(() => undefined),
+        observer.end().catch(() => undefined)
+      ]);
+    }
   }, 60_000);
 
   it('publishes the three CODEX-080 endpoints and response boundaries in OpenAPI', () => {
@@ -784,6 +1005,29 @@ describe('StaffAccess', () => {
       reject = rejectPromise;
     });
     return { promise, resolve, reject };
+  }
+
+  async function waitForDatabaseLock(observer: Client, backendPid: number): Promise<void> {
+    for (let attempt = 0; attempt < 1_000; attempt += 1) {
+      const result = await observer.query<{ waitEventType: string | null }>(
+        `SELECT "wait_event_type" AS "waitEventType"
+         FROM "pg_stat_activity"
+         WHERE "pid" = $1`,
+        [backendPid]
+      );
+      if (result.rows[0]?.waitEventType === 'Lock') return;
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    }
+    throw new Error('PostgreSQL transition did not reach a real lock wait.');
+  }
+
+  async function waitForPostgresClockAfter(observer: Client, timestamp: Date): Promise<void> {
+    for (let attempt = 0; attempt < 1_000; attempt += 1) {
+      const result = await observer.query<{ clock: Date }>(`SELECT clock_timestamp() AS "clock"`);
+      if (result.rows[0]!.clock.getTime() > timestamp.getTime()) return;
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    }
+    throw new Error('PostgreSQL clock did not advance beyond the old transaction timestamp.');
   }
 
   async function resetDatabase() {

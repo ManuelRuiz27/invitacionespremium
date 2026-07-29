@@ -657,6 +657,11 @@ Implementado con secreto de una sola entrega, digest SHA-256, límite concurrent
 resolución pública mínima, expiración transaccional e historial protegido por PostgreSQL. Scanner,
 check-in y Socket.IO no forman parte de este cierre.
 
+El hardening del reloj concurrente queda cerrado con una migración 24 y pruebas deterministas de
+`close`/`cancel` iniciados antes de una creación que gana el lock. Aplicación y trigger obtienen un
+único `clock_timestamp()` después del lock, conservando siempre `expiredAt >= createdAt`; la fecha de
+resolución de reapertura permanece independiente.
+
 ### CODEX-081 — Scanner y check-in por Asistente
 
 **Estado:** siguiente tarea; no iniciada.

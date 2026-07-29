@@ -376,3 +376,8 @@ La migración 23 crea `staff_token` con UUID, FKs restrictivas, digest SHA-256 �
 versión positiva y expiración irreversible. Triggers PostgreSQL serializan por Evento, validan
 estado/ownership/creador, limitan tres activos, expiran al cerrar/cancelar y rechazan mutación,
 `DELETE` y `TRUNCATE`. El estado no usa enum persistido.
+
+La migración 24 reemplaza el reloj de expiración del trigger: captura una sola vez
+`clock_timestamp()` después de que la actualización obtuvo el lock del Evento y lo aplica a todo el
+lote. No usa el timestamp de inicio de la transacción; así preserva `expired_at >= created_at` frente a
+una creación concurrente que confirma durante la espera.

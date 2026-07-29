@@ -97,7 +97,7 @@ export class EventLifecycleService {
     idempotencyKey: string,
     principal: AuthPrincipal,
     operationId?: string,
-    at: Date = new Date()
+    stateResolutionAt: Date = new Date()
   ): Promise<EventResponseDto> {
     const replayEvent = await this.findOwnedEventForReplay(this.prisma, eventId, principal);
     const prior = await this.findResult(eventId, action, idempotencyKey);
@@ -121,9 +121,16 @@ export class EventLifecycleService {
             throw eventNotFound();
           }
 
-          const targetStatus = resolveTargetStatus(action, current, at);
+          const targetStatus = resolveTargetStatus(action, current, stateResolutionAt);
           if (targetStatus === EventStatus.CLOSED || targetStatus === EventStatus.CANCELLED) {
-            await this.staffTokens.expireForEventTransition(transaction, current, at, principal, operationId);
+            const transitionCommittedAt = await this.getTransitionCommittedAt(transaction);
+            await this.staffTokens.expireForEventTransition(
+              transaction,
+              current,
+              transitionCommittedAt,
+              principal,
+              operationId
+            );
           }
           const event = await transaction.event.update({
             where: { id: eventId },
@@ -292,6 +299,16 @@ export class EventLifecycleService {
       WHERE "id" = ${eventId}::uuid
       FOR UPDATE
     `;
+  }
+
+  private async getTransitionCommittedAt(transaction: Prisma.TransactionClient): Promise<Date> {
+    const [clock] = await transaction.$queryRaw<Array<{ transitionAt: Date }>>`
+      SELECT clock_timestamp() AS "transitionAt"
+    `;
+    if (!clock) {
+      throw new Error('PostgreSQL did not return the Event transition clock.');
+    }
+    return clock.transitionAt;
   }
 }
 

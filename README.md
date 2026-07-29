@@ -309,6 +309,9 @@ La aplicación normaliza mediante `URL.href`; PostgreSQL solo valida y conserva 
 - gestión con ownership de los tres roles operativos y listado sin secretos;
 - sesión pública mínima, sin datos personales, finanzas ni recursos del Evento;
 - expiración transaccional al cerrar/cancelar y no reactivación al reabrir;
+- reloj de expiración obtenido con `clock_timestamp()` después del lock del Evento, único para todo el
+  lote y nunca anterior a `createdAt`, incluso si una creación gana el lock mientras la transición
+  espera;
 - historial inmutable, auditoría sin secretos y resolución interna para el scanner futuro.
 
 `CODEX-080` quedó completamente cerrado. La siguiente tarea es `CODEX-081 — Scanner y check-in por

@@ -152,3 +152,8 @@ Las transiciones operativas a `closed` o `cancelled` expiran, con un solo timest
 StaffTokens activos dentro de la transacción del Evento. Un fallo de expiración/auditoría revierte la
 transición. `closed → active|event_day` conserva `expiredAt`; cerrar Confirmación o cancelar una
 Invitación no tiene este efecto.
+
+El timestamp persistido se obtiene con `clock_timestamp()` después de adquirir el lock del Evento. El
+mismo valor se usa en todo el lote y en su auditoría, de modo que `expiredAt >= createdAt` aun cuando
+una creación confirme mientras el cierre o la cancelación esperaba el lock. La fecha de resolución de
+una reapertura permanece separada de este reloj de commit.

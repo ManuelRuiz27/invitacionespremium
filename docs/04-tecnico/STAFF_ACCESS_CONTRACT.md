@@ -62,6 +62,12 @@ tokens activos, dentro de la misma transacción del cambio de estado. Solo se re
 Cerrar Confirmación, cancelar una Invitación o consultar QR no expira tokens. Reabrir conserva el
 historial expirado y permite crear nuevos tokens hasta el límite.
 
+El workflow separa `stateResolutionAt`, usado exclusivamente para decidir si una reapertura termina en
+`ACTIVE` o `EVENT_DAY`, de `transitionCommittedAt`. Este último se obtiene desde PostgreSQL mediante
+`clock_timestamp()` después de adquirir el lock del Evento. Es el único timestamp aplicado a todas las
+filas del lote y al snapshot `STAFF_TOKENS_EXPIRE`; por ello nunca puede preceder el `createdAt` de un
+token cuya creación se confirmó mientras la transición esperaba.
+
 ## PostgreSQL
 
 La migración `20260729000000_add_staff_tokens` agrega:
@@ -75,6 +81,10 @@ La migración `20260729000000_add_staff_tokens` agrega:
   `expiredAt`;
 - rechazo estable de `DELETE` y `TRUNCATE`;
 - trigger de Evento que expira filas activas al cerrar o cancelar, también ante SQL directo.
+
+La migración `20260729010000_fix_staff_token_expiration_clock` reemplaza la función del trigger para
+capturar una sola vez `clock_timestamp()`. No usa `transaction_timestamp()` ni `CURRENT_TIMESTAMP`,
+porque ambos pueden representar el inicio de una transacción anterior a la espera del lock.
 
 ## Auditoría
 
