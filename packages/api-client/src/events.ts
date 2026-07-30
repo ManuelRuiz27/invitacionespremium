@@ -4,10 +4,16 @@ import { isRecord, isRecordArray, type ApiRequester } from './api-client';
 export type Event = components['schemas']['EventResponseDto'];
 export type EventStatus = Event['status'];
 export type EventSocialType = NonNullable<Event['socialType']>;
+export type CreateEventInput = components['schemas']['CreateEventRequestDto'];
+export type UpdateEventInput = components['schemas']['UpdateEventRequestDto'];
+export type EventActivation = components['schemas']['EventActivationResponseDto'];
 
 export interface EventsClient {
   list(signal?: AbortSignal): Promise<Event[]>;
   get(eventId: string, signal?: AbortSignal): Promise<Event>;
+  create(input: CreateEventInput, signal?: AbortSignal): Promise<Event>;
+  update(eventId: string, input: UpdateEventInput, signal?: AbortSignal): Promise<Event>;
+  activate(eventId: string, idempotencyKey: string, signal?: AbortSignal): Promise<EventActivation>;
 }
 
 export function createEventsClient(request: ApiRequester): EventsClient {
@@ -21,8 +27,36 @@ export function createEventsClient(request: ApiRequester): EventsClient {
           ...(signal ? { signal } : {})
         },
         isEvent
+      ),
+    create: (body, signal) =>
+      request({ method: 'POST', path: '/events', body, response: 'json', ...(signal ? { signal } : {}) }, isEvent),
+    update: (eventId, body, signal) =>
+      request(
+        {
+          method: 'PATCH',
+          path: `/events/${encodeURIComponent(eventId)}`,
+          body,
+          response: 'json',
+          ...(signal ? { signal } : {})
+        },
+        isEvent
+      ),
+    activate: (eventId, idempotencyKey, signal) =>
+      request<EventActivation>(
+        {
+          method: 'POST',
+          path: `/events/${encodeURIComponent(eventId)}/activate`,
+          headers: { 'Idempotency-Key': idempotencyKey },
+          response: 'json',
+          ...(signal ? { signal } : {})
+        },
+        isEventActivation
       )
   };
+}
+
+function isEventActivation(value: unknown): value is EventActivation {
+  return isRecord(value) && isEvent(value.event);
 }
 
 function isEventArray(value: unknown): value is Event[] {

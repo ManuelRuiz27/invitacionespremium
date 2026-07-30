@@ -90,7 +90,7 @@ describe('generated API client runtime', () => {
       timeZone: null,
       updatedAt: '2026-07-30T18:00:00.000Z'
     };
-    const fetchImpl = mockJson(event);
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async () => jsonResponse(event));
     await createApiClient({ baseUrl: 'https://api.example.com/api/v1', fetchImpl }).events.get('event/id');
     expect(fetchImpl.mock.calls[0]?.[0]).toBe('https://api.example.com/api/v1/events/event%2Fid');
   });
@@ -146,6 +146,85 @@ describe('generated API client runtime', () => {
       fetchImpl: vi.fn<typeof fetch>().mockRejectedValue(networkError)
     }).events.list();
     await expect(network).rejects.toBe(networkError);
+  });
+
+  it('supports POST and PATCH JSON for Event creation and autosave', async () => {
+    const event = { id: 'event-1', status: 'DRAFT', name: 'Boda', timeZone: 'UTC', updatedAt: 'now' };
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async () => jsonResponse(event));
+    const client = createApiClient({ baseUrl: 'https://api.example.com/api/v1', fetchImpl });
+    await client.events.create({
+      name: 'Boda',
+      confirmationEnabled: false,
+      floorplanEnabled: false
+    });
+    await client.events.update('event-1', {
+      name: 'Boda',
+      confirmationEnabled: true,
+      floorplanEnabled: false
+    });
+    expect(fetchImpl.mock.calls.map(([, init]) => init?.method)).toEqual(['POST', 'PATCH']);
+    expect(fetchImpl.mock.calls[1]?.[1]?.body).toContain('"confirmationEnabled":true');
+  });
+
+  it('supports DELETE and 204 responses', async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 204 }));
+    await createApiClient({ baseUrl: 'https://api.example.com/api/v1', fetchImpl }).contacts.remove('event', 'contact');
+    expect(fetchImpl.mock.calls[0]?.[1]?.method).toBe('DELETE');
+  });
+
+  it('sends multipart bodies without setting Content-Type manually', async () => {
+    const asset = { id: 'asset-1' };
+    const fetchImpl = mockJson(asset);
+    await createApiClient({ baseUrl: 'https://api.example.com/api/v1', fetchImpl }).fileAssets.upload(
+      'event',
+      new Blob(['image']),
+      'FLYER_INITIAL_IMAGE',
+      'FLYER'
+    );
+    const init = fetchImpl.mock.calls[0]?.[1];
+    expect(init?.body).toBeInstanceOf(FormData);
+    expect(new Headers(init?.headers).has('Content-Type')).toBe(false);
+  });
+
+  it('reads Blob, text and ArrayBuffer-compatible binary responses', async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response('csv'))
+      .mockResolvedValueOnce(new Response('<svg/>'))
+      .mockResolvedValueOnce(new Response('bytes'));
+    const client = createApiClient({ baseUrl: 'https://api.example.com/api/v1', fetchImpl });
+    expect(await (await client.contacts.template('event')).text()).toBe('csv');
+    expect(await client.physicalPasses.svg('event', 'pass')).toBe('<svg/>');
+    expect(await (await client.fileAssets.content('event', 'asset')).arrayBuffer()).toBeInstanceOf(ArrayBuffer);
+  });
+
+  it('sends stable idempotency headers for activation, CSV commit and pass generation', async () => {
+    const activation = { event: { id: 'event', status: 'ACTIVE', name: null, timeZone: null, updatedAt: 'now' } };
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse(activation))
+      .mockResolvedValueOnce(jsonResponse({ contacts: [], createdContacts: 0, createdGroups: 0 }))
+      .mockResolvedValueOnce(jsonResponse({ eventId: 'event', passes: [], quantity: 1 }));
+    const client = createApiClient({ baseUrl: 'https://api.example.com/api/v1', fetchImpl });
+    await client.events.activate('event', 'activation-key');
+    await client.contacts.commit('event', 'preview', 'csv-key');
+    await client.physicalPasses.generate('event', { quantity: 1 }, 'passes-key');
+    expect(fetchImpl.mock.calls.map(([, init]) => new Headers(init?.headers).get('Idempotency-Key'))).toEqual([
+      'activation-key',
+      'csv-key',
+      'passes-key'
+    ]);
+  });
+
+  it('encodes resource identifiers and query values in wizard endpoints', async () => {
+    const fetchImpl = mockJson([]);
+    await createApiClient({ baseUrl: 'https://api.example.com/api/v1', fetchImpl }).contacts.list(
+      'event/id',
+      'Ana & Luis'
+    );
+    expect(fetchImpl.mock.calls[0]?.[0]).toBe(
+      'https://api.example.com/api/v1/events/event%2Fid/contacts?search=Ana%20%26%20Luis'
+    );
   });
 });
 

@@ -24,6 +24,7 @@ import {
 import { getEventStatusPresentation, type EventGroup } from '../shared/event-status';
 import { formatEventDate, socialTypeLabels } from '../shared/formatters';
 import { EventCard } from './EventCard';
+import { Link } from 'react-router-dom';
 
 type Filter = 'all' | EventGroup;
 
@@ -129,7 +130,13 @@ export function EventsList({ events }: { events: Event[] }) {
                       <TableCell align="right">{event.capacity ?? 'Pendiente'}</TableCell>
                       <TableCell>{formatEventDate(event.updatedAt, event.timeZone, true)}</TableCell>
                       <TableCell align="right">
-                        <Button onClick={() => setSelected(event)}>Ver evento</Button>
+                        {getEventStatusPresentation(event.status).group === 'preparation' ? (
+                          <Button component={Link} to={`/eventos/${event.id}/configuracion/datos`}>
+                            Continuar
+                          </Button>
+                        ) : (
+                          <Button onClick={() => setSelected(event)}>Ver evento</Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   );

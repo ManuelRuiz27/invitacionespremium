@@ -185,4 +185,5 @@ VITE_LANDING_URL
 Son obligatorias y se validan en producción. Los defaults documentados solo aplican al desarrollo local.
 CODEX-120 conserva `VITE_SOCKET_URL`, pero no inicia la integración de tiempo real.
 
-CODEX-121 no fue iniciado.
+CODEX-121 quedó implementado conforme a `EVENT_WIZARD_CONTRACT.md`. El shell incorpora las rutas
+`/eventos/nuevo` y `/eventos/:eventId/configuracion/:step`; CODEX-122 no fue iniciado.

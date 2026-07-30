@@ -6,14 +6,15 @@ export interface ApiClientRuntimeConfig {
 }
 
 export interface ApiRequest {
-  method?: 'GET' | 'POST';
+  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   path: string;
   body?: unknown;
+  headers?: Record<string, string>;
   signal?: AbortSignal;
-  response: 'json' | 'empty';
+  response: 'json' | 'empty' | 'text' | 'blob' | 'arrayBuffer';
 }
 
-export type ApiRequester = <T>(request: ApiRequest, validate: (payload: unknown) => payload is T) => Promise<T>;
+export type ApiRequester = <T>(request: ApiRequest, validate?: (payload: unknown) => payload is T) => Promise<T>;
 
 export function normalizeApiBaseUrl(baseUrl: string): string {
   const normalized = baseUrl.trim().replace(/\/+$/, '');
@@ -38,12 +39,21 @@ export function createRequester(config: ApiClientRuntimeConfig): ApiRequester {
 
   if (!fetchImpl) throw new TypeError('A fetch implementation is required.');
 
-  return async <T>(request: ApiRequest, validate: (payload: unknown) => payload is T): Promise<T> => {
+  return async <T>(request: ApiRequest, validate?: (payload: unknown) => payload is T): Promise<T> => {
+    const isMultipart = typeof FormData !== 'undefined' && request.body instanceof FormData;
+    const headers: Record<string, string> = {
+      Accept: request.response === 'json' ? 'application/json' : '*/*',
+      ...request.headers
+    };
+    if (request.body !== undefined && !isMultipart) headers['Content-Type'] = 'application/json';
+
     const response = await fetchImpl(`${baseUrl}${request.path}`, {
       method: request.method ?? 'GET',
       credentials: 'include',
-      headers: request.body === undefined ? { Accept: 'application/json' } : jsonHeaders,
-      ...(request.body === undefined ? {} : { body: JSON.stringify(request.body) }),
+      headers,
+      ...(request.body === undefined
+        ? {}
+        : { body: (isMultipart ? request.body : JSON.stringify(request.body)) as BodyInit }),
       ...(request.signal === undefined ? {} : { signal: request.signal })
     });
 
@@ -51,18 +61,16 @@ export function createRequester(config: ApiClientRuntimeConfig): ApiRequester {
       throw createApiError(response.status, await readOptionalJson(response));
     }
 
-    if (request.response === 'empty') return undefined as T;
+    if (request.response === 'empty' || response.status === 204) return undefined as T;
+    if (request.response === 'text') return (await response.text()) as T;
+    if (request.response === 'blob') return (await response.blob()) as T;
+    if (request.response === 'arrayBuffer') return (await response.arrayBuffer()) as T;
 
     const payload = await readRequiredJson(response);
-    if (!validate(payload)) throw unexpectedResponse();
+    if (!validate?.(payload)) throw unexpectedResponse();
     return payload;
   };
 }
-
-const jsonHeaders = {
-  Accept: 'application/json',
-  'Content-Type': 'application/json'
-} as const;
 
 async function readRequiredJson(response: Response): Promise<unknown> {
   const text = await response.text();

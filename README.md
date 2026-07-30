@@ -425,8 +425,19 @@ Contrato normativo: `docs/04-tecnico/REPORTS_CONTRACT.md`.
 - estados de carga, vacío, error, sesión expirada y conectividad;
 - shared UI accesible y pruebas de SDK/componentes.
 
-Contrato normativo: `docs/04-tecnico/CLIENT_APP_CONTRACT.md`. La siguiente tarea es
-`CODEX-121 — Wizard de Evento`; no fue iniciada por este corte.
+Contrato normativo: `docs/04-tecnico/CLIENT_APP_CONTRACT.md`.
+
+`CODEX-121 — Wizard de Evento` quedó completado:
+
+- creación diferida y reanudación por URL;
+- pasos dinámicos para servicios digitales y `PHYSICAL_QR`;
+- autosave serial con guardado manual y protección al salir;
+- contactos manuales/CSV, diseño privado, hotspots, confirmación, croquis y pases;
+- revisión autoritativa, permisos financieros y activación idempotente reconciliable;
+- SDK ampliado y pruebas de runtime, modelo y flujos integrados.
+
+Contrato normativo: `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md`. La siguiente tarea es
+`CODEX-122 — Invitación y álbum públicos`; no fue iniciada por este corte.
 
 ## Fuente de verdad
 

@@ -14,3 +14,5 @@ Componentes disponibles:
 
 El sistema usa Material UI, foco visible, contraste suficiente y reducción de movimiento. Las apps
 aportan navegación, permisos y datos; este paquete permanece puramente presentacional.
+
+El wizard reutiliza estos estados, encabezados y chips sin trasladar reglas de Evento a este paquete.

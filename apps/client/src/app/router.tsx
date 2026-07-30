@@ -10,6 +10,7 @@ import { DashboardPage } from '../dashboard/DashboardPage';
 import { FinancePage } from '../finance/FinancePage';
 import { ClientShell } from '../layout/ClientShell';
 import { financeRoles } from '../shared/roles';
+import { WizardPage } from '../wizard/WizardPage';
 
 export interface RouterDependencies {
   apiClient: ApiClient;
@@ -50,6 +51,11 @@ function createRoutes(dependencies: RouterDependencies): RouteObject[] {
               children: [
                 { index: true, element: <Navigate to="/eventos" replace /> },
                 { path: '/eventos', element: <DashboardPage apiClient={dependencies.apiClient} /> },
+                { path: '/eventos/nuevo', element: <WizardPage apiClient={dependencies.apiClient} /> },
+                {
+                  path: '/eventos/:eventId/configuracion/:step',
+                  element: <WizardPage apiClient={dependencies.apiClient} />
+                },
                 {
                   element: <RoleRoute allowed={financeRoles} />,
                   children: [{ path: '/finanzas', element: <FinancePage apiClient={dependencies.apiClient} /> }]

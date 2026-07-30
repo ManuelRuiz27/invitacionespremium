@@ -946,6 +946,8 @@ iniciado.
 
 **Repo:** `invitacionespremium-client`
 
+**Estado:** completado.
+
 **Dependencias:** APIs CODEX-040 a CODEX-070
 
 **Alcance**

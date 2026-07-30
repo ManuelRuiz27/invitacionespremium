@@ -6,6 +6,8 @@ Aplicación Cliente para Planner independiente, Admin de Organización y Planner
 
 - `/login`: acceso único y restauración de sesión;
 - `/eventos`: dashboard autorizado de Eventos;
+- `/eventos/nuevo`: creación diferida de un Evento;
+- `/eventos/:eventId/configuracion/:step`: wizard reanudable con paso en la URL;
 - `/finanzas`: balance, movimientos y comprobantes para roles financieros.
 
 La sesión usa exclusivamente la cookie HttpOnly emitida por la API. No se persisten tokens, contraseñas
@@ -30,7 +32,9 @@ VITE_LANDING_URL=http://localhost:5176
 Todas son obligatorias en producción. `VITE_SOCKET_URL` queda reservada para una integración posterior;
 CODEX-120 no conecta Socket.IO.
 
-CODEX-121 no fue iniciado.
+CODEX-121 está implementado. El wizard deriva sus pasos del servicio, obtiene el estado desde la API,
+guarda cambios en serie y usa llaves estables para CSV, pases y activación. Solo `DRAFT`, `CONFIGURED` y
+`READY_TO_ACTIVATE` son editables. Véase `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md`.
 
 ## Comandos
 

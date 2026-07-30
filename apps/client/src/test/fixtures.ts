@@ -151,12 +151,81 @@ export function mockApiClient(user: AuthUser = independentUser): ApiClient {
     },
     events: {
       list: vi.fn().mockResolvedValue([configuredEvent, activeEvent]),
-      get: vi.fn().mockResolvedValue(configuredEvent)
+      get: vi.fn().mockResolvedValue(configuredEvent),
+      create: vi.fn().mockResolvedValue(configuredEvent),
+      update: vi.fn().mockResolvedValue(configuredEvent),
+      activate: vi.fn().mockResolvedValue({ event: activeEvent })
     },
     finance: {
       balance: vi.fn().mockResolvedValue(financeBalance),
       movements: vi.fn().mockResolvedValue([movement]),
       receipts: vi.fn().mockResolvedValue([receipt])
-    }
+    },
+    services: {
+      listAvailable: vi.fn().mockResolvedValue([
+        { id: 'service-flyer', code: 'FLYER', credits: 5, validFrom: '2026-01-01T00:00:00.000Z', validUntil: null },
+        {
+          id: 'service-physical',
+          code: 'PHYSICAL_QR',
+          credits: 3,
+          validFrom: '2026-01-01T00:00:00.000Z',
+          validUntil: null
+        }
+      ])
+    },
+    contacts: {
+      list: vi.fn().mockResolvedValue([]),
+      create: vi.fn(),
+      update: vi.fn(),
+      remove: vi.fn(),
+      groups: vi.fn().mockResolvedValue([]),
+      createGroup: vi.fn(),
+      updateGroup: vi.fn(),
+      template: vi.fn(),
+      preview: vi.fn(),
+      commit: vi.fn()
+    },
+    invitations: {
+      list: vi.fn().mockResolvedValue([]),
+      get: vi.fn(),
+      update: vi.fn(),
+      addAssistant: vi.fn(),
+      updateAssistant: vi.fn(),
+      removeAssistant: vi.fn()
+    },
+    fileAssets: {
+      list: vi.fn().mockResolvedValue([]),
+      get: vi.fn(),
+      upload: vi.fn(),
+      remove: vi.fn(),
+      content: vi.fn()
+    },
+    design: {
+      get: vi.fn(),
+      readiness: vi.fn().mockResolvedValue({ complete: true, blockers: [], designType: 'FLYER' }),
+      createFlyer: vi.fn(),
+      replaceFlyerInitial: vi.fn(),
+      replaceFlyerQr: vi.fn(),
+      createFlipbook: vi.fn(),
+      addPage: vi.fn(),
+      reorderPages: vi.fn(),
+      replacePage: vi.fn(),
+      removePage: vi.fn(),
+      hotspots: vi.fn().mockResolvedValue([]),
+      createHotspot: vi.fn(),
+      updateHotspot: vi.fn(),
+      removeHotspot: vi.fn()
+    },
+    floorplan: {
+      get: vi.fn(),
+      setImage: vi.fn(),
+      replaceImage: vi.fn(),
+      addShape: vi.fn(),
+      updateShape: vi.fn(),
+      removeShape: vi.fn(),
+      lock: vi.fn(),
+      unlock: vi.fn()
+    },
+    physicalPasses: { list: vi.fn().mockResolvedValue([]), generate: vi.fn(), svg: vi.fn() }
   };
 }

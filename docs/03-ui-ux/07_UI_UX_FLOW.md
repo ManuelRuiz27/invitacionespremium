@@ -487,3 +487,9 @@ Estados visibles:
 No mostrar términos técnicos como `draft`, `active`, `archived`.
 
 `configured` permanece dentro de “En preparación” y no necesita etiqueta visible separada.
+# Implementación CODEX-121
+
+El wizard operativo usa un stepper horizontal en escritorio y tabs desplazables en móvil. La URL
+conserva el paso actual, el estado de guardado se anuncia sin depender del color y cada editor visual
+ofrece una alternativa de campos. Las secuencias por servicio, creación diferida y estados de solo
+lectura están normados en `../04-tecnico/EVENT_WIZARD_CONTRACT.md`.

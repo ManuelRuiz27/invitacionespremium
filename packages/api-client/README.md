@@ -14,7 +14,9 @@ pnpm --filter @invitaciones/api-client test
 pnpm --filter @invitaciones/api-client build
 ```
 
-`createApiClient({ baseUrl, fetchImpl? })` expone `auth`, `events` y `finance`. Toda solicitud usa
+`createApiClient({ baseUrl, fetchImpl? })` expone `auth`, `events`, `finance`, `services`, `contacts`,
+`invitations`, `fileAssets`, `design`, `floorplan` y `physicalPasses`. El runtime admite JSON, multipart,
+texto, `Blob`, `ArrayBuffer`, respuestas `204`, abortos y llaves idempotentes. Toda solicitud usa
 `credentials: 'include'`; el SDK no lee ni escribe localStorage, sessionStorage o IndexedDB.
 
 `API_CLIENT_STATUS` identifica al cliente generado como operativo. CI regenera los tipos y rechaza drift.

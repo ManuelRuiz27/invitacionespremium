@@ -3,6 +3,7 @@ import { StatusChip } from '@invitaciones/ui';
 import { Box, Button, Divider, Stack, Typography } from '@mui/material';
 import { getEventStatusPresentation } from '../shared/event-status';
 import { formatEventDate, socialTypeLabels } from '../shared/formatters';
+import { Link } from 'react-router-dom';
 
 export function EventCard({ event, onView }: { event: Event; onView: (event: Event) => void }) {
   const presentation = getEventStatusPresentation(event.status);
@@ -39,9 +40,15 @@ export function EventCard({ event, onView }: { event: Event; onView: (event: Eve
           <dd>{event.capacity ?? 'Pendiente'}</dd>
         </Box>
       </Box>
-      <Button variant="text" onClick={() => onView(event)}>
-        Ver evento
-      </Button>
+      {presentation.group === 'preparation' ? (
+        <Button component={Link} to={`/eventos/${event.id}/configuracion/datos`} variant="text">
+          Continuar
+        </Button>
+      ) : (
+        <Button variant="text" onClick={() => onView(event)}>
+          Ver evento
+        </Button>
+      )}
       <Divider sx={{ mt: 2.5 }} />
     </Box>
   );
