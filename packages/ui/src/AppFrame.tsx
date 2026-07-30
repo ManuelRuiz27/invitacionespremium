@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import { Box, Chip, Container, CssBaseline, Paper, Stack, ThemeProvider, Typography } from '@mui/material';
-import { appTheme } from './theme';
+import { Box, Chip, Container, Paper, Stack, Typography } from '@mui/material';
+import { AppThemeProvider } from './AppThemeProvider';
 
 export interface AppFrameProps {
   appName: string;
@@ -11,8 +11,7 @@ export interface AppFrameProps {
 
 export function AppFrame({ appName, title, description, children }: AppFrameProps) {
   return (
-    <ThemeProvider theme={appTheme}>
-      <CssBaseline />
+    <AppThemeProvider>
       <Box component="main" sx={{ minHeight: '100vh', py: { xs: 4, md: 8 } }}>
         <Container maxWidth="md">
           <Paper variant="outlined" sx={{ p: { xs: 3, md: 5 } }}>
@@ -29,6 +28,6 @@ export function AppFrame({ appName, title, description, children }: AppFrameProp
           </Paper>
         </Container>
       </Box>
-    </ThemeProvider>
+    </AppThemeProvider>
   );
 }

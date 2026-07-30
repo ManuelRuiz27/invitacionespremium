@@ -7,3 +7,4 @@ coverage/
 pnpm-lock.yaml
 graphify-out/
 apps/api/prisma/schema.prisma
+packages/api-client/src/generated/

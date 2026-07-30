@@ -1,0 +1,164 @@
+# Contrato de la aplicación Cliente
+
+## Alcance
+
+`apps/client` es la aplicación autenticada de:
+
+- Planner independiente;
+- Admin de Organización;
+- Planner de Organización.
+
+CODEX-120 implementa shell, sesión, navegación, dashboard de Eventos y consulta financiera. No implementa
+creación, edición, wizard, activación, recursos hijos, páginas públicas, Scanner, Platform Admin,
+Socket.IO frontend ni CODEX-121.
+
+## Cliente API
+
+`packages/api-client` se genera desde el OpenAPI producido por `apps/api`:
+
+```text
+API OpenAPI → openapi-typescript → src/generated/schema.ts → wrappers de runtime
+```
+
+Los tipos generados son la única definición frontend de DTOs. Los wrappers implementados cubren:
+
+- `POST /auth/login`;
+- `POST /auth/logout`;
+- `GET /auth/me`;
+- `GET /events`;
+- `GET /events/:eventId`;
+- `GET /finance/balance`;
+- `GET /finance/movements`;
+- `GET /finance/receipts`.
+
+Todos los requests usan `credentials: include`, aceptan `AbortSignal` y traducen el error uniforme a
+`ApiError { status, code, message, operationId? }`. Una respuesta exitosa vacía, no JSON o incompatible
+se rechaza como `UNEXPECTED_API_RESPONSE`. El JSON OpenAPI no se incluye en el build productivo.
+
+Generación y drift:
+
+```bash
+pnpm --filter @invitaciones/api openapi:generate
+pnpm --filter @invitaciones/api-client generate
+pnpm --filter @invitaciones/api-client generate:check
+```
+
+CI regenera el SDK y comprueba que `generated/schema.ts` no cambie respecto del commit.
+
+## Sesión
+
+La credencial es exclusivamente la cookie HttpOnly emitida por AuthModule. La app nunca almacena cookie,
+session token, contraseña o bearer token en localStorage, sessionStorage, IndexedDB, estado persistido o
+logs.
+
+Al iniciar se ejecuta `GET /auth/me` y la sesión adopta uno de estos estados:
+
+- `loading`;
+- `authenticated`;
+- `anonymous`;
+- `forbidden`.
+
+Login muestra un error no enumerante: `Correo o contraseña incorrectos.` Logout revoca la sesión, limpia
+TanStack Query y el usuario en memoria, y redirige a `/login`.
+
+Un `401` durante una consulta autenticada limpia sesión/caché y conserva un `returnTo` interno. Se
+rechazan URLs absolutas, protocol-relative, con backslash o de otro origen para evitar redirecciones
+abiertas y ciclos.
+
+## Roles y rutas
+
+| Ruta | Planner independiente | Admin Organización | Planner Organización | Platform Admin |
+| --- | --- | --- | --- | --- |
+| `/login` | Sí | Sí | Sí | redirección Admin |
+| `/eventos` | propio | Organización | creados | no |
+| `/finanzas` | propio | Organización | no | no |
+
+La API conserva la autorización final. Platform Admin se redirige a `VITE_ADMIN_APP_URL` y nunca monta
+el dashboard Cliente. Un rol incompatible cierra sesión y muestra acceso no permitido.
+
+La arquitectura mantiene `/login` fuera de `ProtectedRoute`; por ello rutas públicas futuras podrán
+agregarse sin quedar bajo la sesión Cliente. `/` redirige a `/eventos` y `*` presenta 404.
+
+## Navegación y shell
+
+Desktop/tablet usan sidebar persistente. Móvil usa AppBar y Drawer temporal. El shell muestra
+`InvitacionesPremium`, correo, rol y logout. La navegación agrega `aria-current`, conserva foco visible,
+usa targets táctiles suficientes y evita scroll horizontal.
+
+Planner de Organización solo recibe navegación Eventos. La ruta Finanzas queda protegida antes de montar
+sus componentes, de modo que ese rol ejecuta cero requests financieros.
+
+## Dashboard de Eventos
+
+`GET /events` ya devuelve el alcance autorizado. El frontend no filtra permisos y no muestra IDs,
+ownership, claves de idempotencia ni referencias financieras.
+
+Indicadores derivados de la respuesta:
+
+- En preparación: `DRAFT`, `CONFIGURED`, `READY_TO_ACTIVATE`;
+- Activos: `ACTIVE`, `EVENT_DAY`;
+- Finalizados: `CLOSED`, `ALBUM_PUBLISHED`, `ARCHIVED`;
+- `CANCELLED` no cuenta como finalizado.
+
+La lista usa tabla desde desktop y cards en móvil. Ofrece filtros locales, búsqueda por nombre y panel de
+resumen de solo lectura. No crea ni modifica Eventos.
+
+Estados visibles:
+
+| Estado API | Texto |
+| --- | --- |
+| `DRAFT`, `CONFIGURED` | En preparación |
+| `READY_TO_ACTIVATE` | Listo para activar |
+| `ACTIVE` | Activo |
+| `EVENT_DAY` | Día del evento |
+| `CLOSED` | Cerrado |
+| `ALBUM_PUBLISHED` | Álbum publicado |
+| `ARCHIVED` | Archivado |
+| `CANCELLED` | Cancelado |
+
+Tipos sociales: Boda, XV años, Corporativo, Cumpleaños y Otro. Las fechas usan `es-MX` y
+`Event.timeZone`; si fecha o zona están pendientes no se reinterpreta el instante.
+
+## Finanzas
+
+Solo Planner independiente y Admin de Organización consultan en paralelo:
+
+```http
+GET /finance/balance
+GET /finance/movements?limit=20
+GET /finance/receipts?limit=20
+```
+
+La vista muestra saldo comprado, deuda en créditos/MXN, línea disponible/utilizada, movimientos y
+comprobantes. Créditos se presentan como enteros y MXN se deriva únicamente de centavos recibidos. No se
+recalcula deuda ni se ofrecen mutaciones.
+
+Alertas permitidas:
+
+- deuda mayor a cero;
+- línea suspendida;
+- línea expirada;
+- saldo comprado cero.
+
+No existe umbral inventado de saldo bajo.
+
+## Estados, errores y accesibilidad
+
+Dashboard y Finanzas contemplan carga, vacío, éxito, error, conectividad, `401`, `403` y reintento seguro.
+`operationId` puede mostrarse como referencia secundaria, nunca como mensaje principal.
+
+La aplicación usa landmarks, headings jerárquicos, labels asociados, navegación por teclado, foco
+visible, `aria-current`, menús/drawers administrados por MUI y textos que no dependen solo del color.
+El tema respeta `prefers-reduced-motion`.
+
+## Variables
+
+```text
+VITE_API_BASE_URL
+VITE_SOCKET_URL
+VITE_ADMIN_APP_URL
+VITE_LANDING_URL
+```
+
+Son obligatorias y se validan en producción. Los defaults documentados solo aplican al desarrollo local.
+CODEX-120 conserva `VITE_SOCKET_URL`, pero no inicia la integración de tiempo real.

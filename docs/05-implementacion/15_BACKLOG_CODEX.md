@@ -933,6 +933,11 @@ distintos, recuperación tras caída y cierre de pools. Las migraciones permanec
 - mobile/tablet/desktop;
 - componentes salen de `shared-ui` cuando sean comunes.
 
+**Estado:** completado y cerrado. `apps/client` implementa sesión por cookie HttpOnly, login/logout,
+guards, retorno interno seguro, redirección Platform Admin, shell responsive, dashboard de Eventos y
+Finanzas por rol. `packages/api-client` genera tipos desde OpenAPI con control de drift y `packages/ui`
+aporta los componentes presentacionales comunes. Contrato normativo: `CLIENT_APP_CONTRACT.md`.
+
 ### CODEX-121 — Wizard de Evento
 
 **Repo:** `invitacionespremium-client`

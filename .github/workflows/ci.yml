@@ -90,6 +90,17 @@ jobs:
       - name: Apply Prisma migrations
         run: pnpm --filter @invitaciones/api db:migrate:deploy
 
+      - name: Generate OpenAPI
+        run: pnpm --filter @invitaciones/api openapi:generate
+
+      - name: Generate typed API client
+        run: pnpm --filter @invitaciones/api-client generate
+
+      - name: Check typed API client drift
+        run: |
+          pnpm --filter @invitaciones/api-client generate:check
+          git diff --exit-code -- packages/api-client/src/generated/schema.ts
+
       - name: Format check
         id: format
         continue-on-error: true
@@ -144,25 +155,6 @@ jobs:
 
       - name: API integration tests
         run: pnpm --filter @invitaciones/api test:integration
-
-      - name: Generate OpenAPI
-        id: openapi
-        continue-on-error: true
-        run: pnpm --filter @invitaciones/api openapi:generate > openapi-generate.log 2>&1
-
-      - name: Upload OpenAPI diagnostics
-        if: steps.openapi.outcome == 'failure'
-        uses: actions/upload-artifact@v7
-        with:
-          name: openapi-diagnostics
-          path: openapi-generate.log
-          retention-days: 3
-
-      - name: Stop after OpenAPI failure
-        if: steps.openapi.outcome == 'failure'
-        run: |
-          cat openapi-generate.log
-          exit 1
 
       - name: Upload OpenAPI artifact
         uses: actions/upload-artifact@v7

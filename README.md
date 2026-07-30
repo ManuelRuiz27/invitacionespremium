@@ -412,7 +412,21 @@ El hardening final de `CODEX-111` agregó:
 - recuperación de reservas `UPLOADING` después de una caída de proceso, sin transacción abierta durante
   la escritura de storage y sin mutex en memoria.
 
-Contrato normativo: `docs/04-tecnico/REPORTS_CONTRACT.md`. `CODEX-120` no fue iniciado.
+Contrato normativo: `docs/04-tecnico/REPORTS_CONTRACT.md`.
+
+`CODEX-120 — Shell, login único y dashboard cliente` quedó completado:
+
+- SDK tipado reproducible generado desde OpenAPI, con control de drift en CI;
+- sesión exclusiva mediante cookie HttpOnly, login, logout y restauración con `/auth/me`;
+- guards, retorno interno seguro y redirección de Platform Admin a la app administrativa;
+- shell responsive y navegación autorizada para los tres roles Cliente;
+- dashboard de Eventos con estados visibles, filtros, búsqueda y resumen de solo lectura;
+- vista financiera exclusiva de Planner independiente y Admin de Organización;
+- estados de carga, vacío, error, sesión expirada y conectividad;
+- shared UI accesible y pruebas de SDK/componentes.
+
+Contrato normativo: `docs/04-tecnico/CLIENT_APP_CONTRACT.md`. La siguiente tarea es
+`CODEX-121 — Wizard de Evento`; no fue iniciada por este corte.
 
 ## Fuente de verdad
 

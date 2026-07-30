@@ -1,0 +1,86 @@
+import type { ApiClient } from '@invitaciones/api-client';
+import type { QueryClient } from '@tanstack/react-query';
+import { Button, Stack, Typography } from '@mui/material';
+import { Link, Navigate, Outlet, createBrowserRouter, createMemoryRouter, type RouteObject } from 'react-router-dom';
+import { AuthProvider } from '../auth/AuthProvider';
+import { LoginPage } from '../auth/LoginPage';
+import { ProtectedRoute } from '../auth/ProtectedRoute';
+import { RoleRoute } from '../auth/RoleRoute';
+import { DashboardPage } from '../dashboard/DashboardPage';
+import { FinancePage } from '../finance/FinancePage';
+import { ClientShell } from '../layout/ClientShell';
+import { financeRoles } from '../shared/roles';
+
+export interface RouterDependencies {
+  apiClient: ApiClient;
+  queryClient: QueryClient;
+  adminAppUrl: string;
+  landingUrl: string;
+  navigateExternal?: (url: string) => void;
+}
+
+export function createClientRouter(dependencies: RouterDependencies) {
+  return createBrowserRouter(createRoutes(dependencies));
+}
+
+export function createClientMemoryRouter(dependencies: RouterDependencies, initialEntries: string[]) {
+  return createMemoryRouter(createRoutes(dependencies), { initialEntries });
+}
+
+function createRoutes(dependencies: RouterDependencies): RouteObject[] {
+  return [
+    {
+      element: (
+        <AuthProvider
+          apiClient={dependencies.apiClient}
+          queryClient={dependencies.queryClient}
+          adminAppUrl={dependencies.adminAppUrl}
+          {...(dependencies.navigateExternal ? { navigateExternal: dependencies.navigateExternal } : {})}
+        >
+          <Outlet />
+        </AuthProvider>
+      ),
+      children: [
+        { path: '/login', element: <LoginPage landingUrl={dependencies.landingUrl} /> },
+        {
+          element: <ProtectedRoute />,
+          children: [
+            {
+              element: <ClientShell />,
+              children: [
+                { index: true, element: <Navigate to="/eventos" replace /> },
+                { path: '/eventos', element: <DashboardPage apiClient={dependencies.apiClient} /> },
+                {
+                  element: <RoleRoute allowed={financeRoles} />,
+                  children: [{ path: '/finanzas', element: <FinancePage apiClient={dependencies.apiClient} /> }]
+                }
+              ]
+            }
+          ]
+        },
+        { path: '*', element: <NotFoundPage /> }
+      ]
+    }
+  ];
+}
+
+function NotFoundPage() {
+  return (
+    <Stack
+      component="main"
+      spacing={2}
+      sx={{ minHeight: '100svh', p: 4, justifyContent: 'center', alignItems: 'center' }}
+    >
+      <Typography component="p" color="primary.main" variant="h3">
+        404
+      </Typography>
+      <Typography component="h1" variant="h2">
+        Página no encontrada
+      </Typography>
+      <Typography color="text.secondary">La ruta que buscas no está disponible.</Typography>
+      <Button component={Link} to="/eventos" variant="contained">
+        Ir a Eventos
+      </Button>
+    </Stack>
+  );
+}
