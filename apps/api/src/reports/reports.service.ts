@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
 import type { AuthPrincipal } from '../auth/auth.types';
@@ -29,7 +29,10 @@ import type {
 } from './reports.dto';
 import type { UploadedPdf } from './reports-pdf.service';
 import { ReportsPdfService } from './reports-pdf.service';
+import { aggregateReportDataset, projectGeneratedReportAt, sha256, stableStringify } from './reports-projection';
 import { reportError, reportNotFound } from './report-errors';
+
+export { stableStringify } from './reports-projection';
 
 const TEMPLATE_VERSION = 1;
 const REPORT_EVENT_STATUSES = new Set<EventStatus>([
@@ -44,6 +47,16 @@ type ReportRecord =
 
 @Injectable()
 export class ReportsService {
+  private readonly uploadFlights = new Map<
+    string,
+    {
+      checksum: string;
+      promise: Promise<void>;
+      resolve: () => void;
+      reject: (error: unknown) => void;
+    }
+  >();
+
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(AuditService) private readonly audit: AuditService,
@@ -78,7 +91,7 @@ export class ReportsService {
       where: { eventId },
       orderBy: [{ createdAt: 'desc' }, { id: 'asc' }]
     });
-    return reports.map((report) => toListItem(report, now));
+    return reports.map((report) => toListItem(report, projectGeneratedReportAt(report, now)));
   }
 
   async listAdmin(eventId?: string): Promise<AdminReportListItem[]> {
@@ -88,7 +101,7 @@ export class ReportsService {
       orderBy: [{ createdAt: 'desc' }, { id: 'asc' }]
     });
     return reports.map((report) => ({
-      ...toListItem(report, now, false),
+      ...toListItem(report, projectGeneratedReportAt(report, now), false),
       clientId: report.clientId,
       eventId: report.eventId,
       requestedByUserId: report.requestedByUserId
@@ -104,7 +117,13 @@ export class ReportsService {
     operationId?: string
   ): Promise<ReportListItem> {
     const initial = await this.requireOwnedReport(this.prisma, eventId, reportId, principal);
-    if (input.templateVersion !== initial.templateVersion || input.datasetHashSha256 !== initial.datasetHashSha256) {
+    const initialNow = await databaseClock(this.prisma);
+    const initialProjection = projectGeneratedReportAt(initial, initialNow);
+    assertUploadWindow(initial, initialProjection, initialNow);
+    if (
+      input.templateVersion !== initial.templateVersion ||
+      input.datasetHashSha256 !== initialProjection.datasetHashSha256
+    ) {
       throw reportError('REPORT_FILE_BINDING_INVALID', 'PDF binding does not match the authorized report.');
     }
     await this.pdf.validate(file, reportId, input.templateVersion, input.datasetHashSha256);
@@ -113,41 +132,55 @@ export class ReportsService {
 
     const existing = await this.findAttachedResult(eventId, reportId, checksum, principal);
     if (existing) return existing;
+    assertUploadable(initial, initialProjection);
+
+    const flight = this.acquireUploadFlight(reportId, checksum);
+    if (!flight.leader) {
+      await flight.promise;
+      const result = await this.findAttachedResult(eventId, reportId, checksum, principal);
+      if (result) return result;
+      throw reportError('REPORT_FILE_ALREADY_ATTACHED', 'A different PDF is already attached to this report.');
+    }
 
     const storageKey = this.storage.generateKey();
     let stagedId: string | undefined;
     try {
       const reservation = await this.reserveUpload(eventId, reportId, checksum, bytes.length, storageKey, principal);
-      if (!reservation.shouldWrite) {
-        return this.awaitConcurrentUpload(eventId, reportId, checksum, principal);
-      }
       stagedId = reservation.assetId;
       await this.storage.write({ storageKey, bytes });
-      return await this.finalizeUpload(eventId, reportId, stagedId, checksum, principal, operationId);
+      const result = await this.finalizeUpload(eventId, reportId, stagedId, checksum, principal, operationId);
+      flight.resolve();
+      return result;
     } catch (error) {
       if (stagedId) {
         await this.storage.delete(storageKey).catch(() => undefined);
-        await this.failUpload(stagedId).catch(() => undefined);
+        await this.failUpload(eventId, reportId, stagedId).catch(() => undefined);
       }
-      if (isUniqueConflict(error)) {
-        return this.awaitConcurrentUpload(eventId, reportId, checksum, principal);
+      const mapped = mapDatabaseError(error);
+      flight.reject(mapped);
+      throw mapped;
+    } finally {
+      if (this.uploadFlights.get(reportId) === flight.entry) {
+        this.uploadFlights.delete(reportId);
       }
-      throw mapDatabaseError(error);
     }
   }
 
   async download(eventId: string, reportId: string, principal: AuthPrincipal) {
     const report = await this.requireOwnedReport(this.prisma, eventId, reportId, principal, true);
     const now = await databaseClock(this.prisma);
-    if (
-      report.status === GeneratedReportStatus.HIDDEN ||
-      report.status === GeneratedReportStatus.EXPIRED ||
-      now >= report.retentionUntil ||
-      (report.privacyMode === GeneratedReportPrivacyMode.DETAILED && now >= report.detailedUntil)
-    ) {
-      throw reportError('REPORT_CONTENT_EXPIRED', 'Report content is no longer available.', HttpStatus.GONE);
+    const projection = projectGeneratedReportAt(report, now);
+    if (!projection.contentAvailable) {
+      if (
+        projection.retentionExpired ||
+        projection.detailExpired ||
+        projection.status === GeneratedReportStatus.HIDDEN ||
+        projection.status === GeneratedReportStatus.EXPIRED
+      ) {
+        throw reportError('REPORT_CONTENT_EXPIRED', 'Report content is no longer available.', HttpStatus.GONE);
+      }
     }
-    if (report.status !== GeneratedReportStatus.READY || !report.fileAssetId) {
+    if (projection.status !== GeneratedReportStatus.READY || !report.fileAssetId) {
       throw reportError('REPORT_FILE_NOT_READY', 'Report file is not ready.');
     }
     const asset = await this.prisma.fileAsset.findFirst({
@@ -223,7 +256,11 @@ export class ReportsService {
           throw reportError('REPORT_IDEMPOTENCY_CONFLICT', 'Idempotency key belongs to another report request.');
         }
         const now = await databaseClock(transaction);
-        return toAuthorization(replay, safeDataset(replay, now), now);
+        const projection = projectGeneratedReportAt(replay, now);
+        if (projection.retentionExpired) {
+          throw reportError('REPORT_CONTENT_EXPIRED', 'The report retention window has ended.', HttpStatus.GONE);
+        }
+        return toAuthorization(replay, projection);
       }
       if (!REPORT_EVENT_STATUSES.has(event.status)) {
         throw reportError('REPORT_EVENT_STATE_INVALID', 'Reports require a closed or archived Event.');
@@ -281,15 +318,18 @@ export class ReportsService {
             reportType: type,
             privacyMode: privacy,
             templateVersion: TEMPLATE_VERSION,
-            datasetHashSha256: hash,
+            status: GeneratedReportStatus.AUTHORIZED,
+            generatedAtSnapshot: clock.now.toISOString(),
             detailedUntil: clock.detailedUntil.toISOString(),
-            retentionUntil: clock.retentionUntil.toISOString()
+            retentionUntil: clock.retentionUntil.toISOString(),
+            fileAttached: false,
+            aggregateCounts: dataset.summary as Prisma.InputJsonValue
           },
           operationId
         ),
         transaction
       );
-      return toAuthorization(report, dataset, clock.now);
+      return toAuthorization(report, projectGeneratedReportAt(report, clock.now));
     });
   }
 
@@ -300,7 +340,7 @@ export class ReportsService {
     sizeBytes: number,
     storageKey: string,
     principal: AuthPrincipal
-  ): Promise<{ assetId: string; shouldWrite: boolean }> {
+  ): Promise<{ assetId: string }> {
     return this.serializable(async (transaction) => {
       await lockEvent(transaction, eventId);
       await lockReport(transaction, reportId);
@@ -310,12 +350,23 @@ export class ReportsService {
         where: { ownerType: FileAssetOwnerType.GENERATED_REPORT, ownerId: reportId }
       });
       if (existing) {
-        if (existing.checksumSha256 === checksum) {
-          return { assetId: existing.id, shouldWrite: false };
+        if (existing.status === FileAssetStatus.UPLOADING) {
+          await transaction.fileAsset.update({
+            where: { id: existing.id },
+            data: {
+              status: FileAssetStatus.FAILED,
+              failureCode: 'REPORT_UPLOAD_REPLACED',
+              ownerId: null,
+              associatedAt: null
+            }
+          });
+        } else {
+          throw reportError('REPORT_FILE_ALREADY_ATTACHED', 'A PDF is already attached to this report.');
         }
-        throw reportError('REPORT_FILE_ALREADY_ATTACHED', 'A PDF is already attached to this report.');
       }
-      assertUploadable(report, now);
+      const projection = projectGeneratedReportAt(report, now);
+      assertUploadWindow(report, projection, now);
+      assertUploadable(report, projection);
       const staged = await transaction.fileAsset.create({
         data: {
           id: randomUUID(),
@@ -326,10 +377,7 @@ export class ReportsService {
           fileType: FileAssetType.GENERATED_REPORT_PDF,
           storageProvider: StorageProvider.LOCAL,
           storageKey,
-          originalName:
-            report.type === GeneratedReportType.ATTENDANCE
-              ? `attendance-${eventId}-${reportId}.pdf`
-              : `physical-passes-${eventId}-${reportId}.pdf`,
+          originalName: report.type === GeneratedReportType.ATTENDANCE ? 'attendance-report.pdf' : 'passes-report.pdf',
           mimeType: 'application/pdf',
           sizeBytes,
           checksumSha256: checksum,
@@ -338,7 +386,7 @@ export class ReportsService {
           status: FileAssetStatus.UPLOADING
         }
       });
-      return { assetId: staged.id, shouldWrite: true };
+      return { assetId: staged.id };
     });
   }
 
@@ -357,9 +405,11 @@ export class ReportsService {
       const report = await this.requireOwnedReport(transaction, eventId, reportId, principal);
       const now = await databaseClock(transaction);
       if (report.status === GeneratedReportStatus.READY && report.fileAssetId === assetId) {
-        return toListItem(report, now);
+        return toListItem(report, projectGeneratedReportAt(report, now));
       }
-      assertUploadable(report, now);
+      const projection = projectGeneratedReportAt(report, now);
+      assertUploadWindow(report, projection, now);
+      assertUploadable(report, projection);
       const asset = await transaction.fileAsset.findUnique({ where: { id: assetId } });
       if (
         !asset ||
@@ -383,16 +433,21 @@ export class ReportsService {
           'REPORT_FILE_ATTACH',
           {
             reportType: report.type,
+            privacyMode: report.privacyMode,
             templateVersion: report.templateVersion,
-            datasetHashSha256: report.datasetHashSha256,
-            fileChecksumSha256: checksum,
-            sizeBytes: asset.sizeBytes
+            status: GeneratedReportStatus.READY,
+            generatedAtSnapshot: report.generatedAtSnapshot.toISOString(),
+            detailedUntil: report.detailedUntil.toISOString(),
+            retentionUntil: report.retentionUntil.toISOString(),
+            fileAttached: true,
+            sizeBytes: asset.sizeBytes,
+            aggregateCounts: (report.datasetSnapshot as Record<string, unknown>).summary as Prisma.InputJsonValue
           },
           operationId
         ),
         transaction
       );
-      return toListItem(ready, now);
+      return toListItem(ready, projectGeneratedReportAt(ready, now));
     });
   }
 
@@ -408,27 +463,53 @@ export class ReportsService {
     if (asset?.checksumSha256 !== checksum) {
       throw reportError('REPORT_FILE_ALREADY_ATTACHED', 'A different PDF is already attached to this report.');
     }
-    return toListItem(report, await databaseClock(this.prisma));
+    const now = await databaseClock(this.prisma);
+    return toListItem(report, projectGeneratedReportAt(report, now));
   }
 
-  private async awaitConcurrentUpload(
-    eventId: string,
-    reportId: string,
-    checksum: string,
-    principal: AuthPrincipal
-  ): Promise<ReportListItem> {
-    for (let attempt = 0; attempt < 100; attempt += 1) {
-      const result = await this.findAttachedResult(eventId, reportId, checksum, principal);
-      if (result) return result;
-      await new Promise((resolve) => setTimeout(resolve, 20));
+  private acquireUploadFlight(reportId: string, checksum: string) {
+    const current = this.uploadFlights.get(reportId);
+    if (current) {
+      return { leader: false as const, promise: current.promise };
     }
-    throw reportError('REPORT_FILE_ALREADY_ATTACHED', 'A PDF upload is already in progress.');
+    let resolve!: () => void;
+    let reject!: (error: unknown) => void;
+    const promise = new Promise<void>((resolvePromise, rejectPromise) => {
+      resolve = resolvePromise;
+      reject = rejectPromise;
+    });
+    void promise.catch(() => undefined);
+    const entry = { checksum, promise, resolve, reject };
+    this.uploadFlights.set(reportId, entry);
+    return { leader: true as const, promise, resolve, reject, entry };
   }
 
-  private async failUpload(assetId: string): Promise<void> {
-    await this.prisma.fileAsset.updateMany({
-      where: { id: assetId, status: FileAssetStatus.UPLOADING },
-      data: { status: FileAssetStatus.FAILED, failureCode: 'REPORT_UPLOAD_FAILED' }
+  private async failUpload(eventId: string, reportId: string, assetId: string): Promise<void> {
+    await this.serializable(async (transaction) => {
+      await lockEvent(transaction, eventId);
+      await lockReport(transaction, reportId);
+      await lockFileAsset(transaction, assetId);
+      const report = await transaction.generatedReport.findUnique({ where: { id: reportId } });
+      const asset = await transaction.fileAsset.findUnique({ where: { id: assetId } });
+      if (
+        !report ||
+        !asset ||
+        report.fileAssetId === assetId ||
+        asset.status !== FileAssetStatus.UPLOADING ||
+        asset.ownerType !== FileAssetOwnerType.GENERATED_REPORT ||
+        asset.ownerId !== reportId
+      ) {
+        return;
+      }
+      await transaction.fileAsset.update({
+        where: { id: assetId },
+        data: {
+          status: FileAssetStatus.FAILED,
+          failureCode: 'REPORT_UPLOAD_FAILED',
+          ownerId: null,
+          associatedAt: null
+        }
+      });
     });
   }
 
@@ -439,21 +520,21 @@ export class ReportsService {
       const report = await transaction.generatedReport.findUnique({ where: { id: reportId } });
       if (!report || report.status === GeneratedReportStatus.EXPIRED) return null;
       if (report.fileAssetId) await lockFileAsset(transaction, report.fileAssetId);
-      if (at >= report.retentionUntil) {
+      const projection = projectGeneratedReportAt(report, at);
+      if (projection.retentionExpired) {
         if (report.fileAssetId) {
           await transaction.fileAsset.updateMany({
             where: { id: report.fileAssetId, status: FileAssetStatus.READY },
             data: { status: FileAssetStatus.HIDDEN }
           });
         }
-        const dataset = this.datasets.aggregate(report.datasetSnapshot as Record<string, unknown>);
         await transaction.generatedReport.update({
           where: { id: reportId },
           data: {
             status: GeneratedReportStatus.EXPIRED,
             privacyMode: GeneratedReportPrivacyMode.AGGREGATE,
-            datasetSnapshot: dataset as Prisma.InputJsonObject,
-            datasetHashSha256: sha256(stableStringify(dataset)),
+            datasetSnapshot: projection.dataset as Prisma.InputJsonObject,
+            datasetHashSha256: projection.datasetHashSha256,
             expiredAt: at,
             ...(report.hiddenAt ? {} : { hiddenAt: report.fileAssetId ? at : null })
           }
@@ -461,24 +542,19 @@ export class ReportsService {
         await this.audit.record(systemReportAudit(report, 'REPORT_RETENTION_EXPIRE', at), transaction);
         return 'retained';
       }
-      if (
-        report.type === GeneratedReportType.ATTENDANCE &&
-        report.privacyMode === GeneratedReportPrivacyMode.DETAILED &&
-        at >= report.detailedUntil
-      ) {
+      if (projection.detailExpired) {
         if (report.fileAssetId) {
           await transaction.fileAsset.updateMany({
             where: { id: report.fileAssetId, status: FileAssetStatus.READY },
             data: { status: FileAssetStatus.HIDDEN }
           });
         }
-        const dataset = this.datasets.aggregate(report.datasetSnapshot as Record<string, unknown>);
         await transaction.generatedReport.update({
           where: { id: reportId },
           data: {
             privacyMode: GeneratedReportPrivacyMode.AGGREGATE,
-            datasetSnapshot: dataset as Prisma.InputJsonObject,
-            datasetHashSha256: sha256(stableStringify(dataset)),
+            datasetSnapshot: projection.dataset as Prisma.InputJsonObject,
+            datasetHashSha256: projection.datasetHashSha256,
             ...(report.fileAssetId ? { status: GeneratedReportStatus.HIDDEN, hiddenAt: at } : {})
           }
         });
@@ -538,58 +614,59 @@ function assertService(type: GeneratedReportType, code: ServiceCode | undefined)
   if (!compatible) throw reportError('REPORT_SERVICE_MISMATCH', 'Report type is incompatible with the Event service.');
 }
 
-function assertUploadable(report: ReportRecord, now: Date): void {
-  if (now >= report.retentionUntil || now >= report.uploadExpiresAt) {
-    throw reportError('REPORT_CONTENT_EXPIRED', 'Report upload authorization has expired.', HttpStatus.GONE);
+function assertUploadable(report: ReportRecord, projection: ReturnType<typeof projectGeneratedReportAt>): void {
+  if (projection.retentionExpired || projection.detailExpired) {
+    throw reportError('REPORT_CONTENT_EXPIRED', 'Report content has expired.', HttpStatus.GONE);
   }
-  if (report.privacyMode === GeneratedReportPrivacyMode.DETAILED && now >= report.detailedUntil) {
-    throw reportError('REPORT_CONTENT_EXPIRED', 'Detailed report content has expired.', HttpStatus.GONE);
-  }
-  if (report.status !== GeneratedReportStatus.AUTHORIZED || report.fileAssetId) {
+  if (report.status !== GeneratedReportStatus.AUTHORIZED || report.fileAssetId !== null) {
     throw reportError('REPORT_FILE_ALREADY_ATTACHED', 'A PDF is already attached to this report.');
+  }
+}
+
+function assertUploadWindow(
+  report: ReportRecord,
+  projection: ReturnType<typeof projectGeneratedReportAt>,
+  now: Date
+): void {
+  if (projection.retentionExpired || projection.detailExpired || now >= report.uploadExpiresAt) {
+    throw reportError('REPORT_CONTENT_EXPIRED', 'Report upload authorization has expired.', HttpStatus.GONE);
   }
 }
 
 function toAuthorization(
   report: ReportRecord,
-  dataset: Record<string, unknown>,
-  now: Date
+  projection: ReturnType<typeof projectGeneratedReportAt>
 ): ReportAuthorizationResponse {
   return {
     reportId: report.id,
     reportType: report.type,
-    status: report.status,
-    privacyMode: now >= report.detailedUntil ? GeneratedReportPrivacyMode.AGGREGATE : report.privacyMode,
+    status: projection.status,
+    privacyMode: projection.privacyMode,
     templateVersion: report.templateVersion,
     generatedAtSnapshot: report.generatedAtSnapshot.toISOString(),
     detailedUntil: report.detailedUntil.toISOString(),
     retentionUntil: report.retentionUntil.toISOString(),
     uploadExpiresAt: report.uploadExpiresAt.toISOString(),
-    datasetHashSha256: sha256(stableStringify(dataset)),
-    dataset,
+    datasetHashSha256: projection.datasetHashSha256,
+    dataset: projection.dataset,
     parameters: report.parameters as unknown as ReportParameters,
-    fileUploadPath: `/api/v1/events/${report.eventId}/reports/${report.id}/file`
+    ...(projection.uploadAvailable
+      ? { fileUploadPath: `/api/v1/events/${report.eventId}/reports/${report.id}/file` }
+      : {})
   };
 }
 
-function safeDataset(report: ReportRecord, now: Date): Record<string, unknown> {
-  const dataset = report.datasetSnapshot as Record<string, unknown>;
-  return report.type === GeneratedReportType.ATTENDANCE && now >= report.detailedUntil
-    ? { ...dataset, rows: [] }
-    : dataset;
-}
-
-function toListItem(report: ReportRecord, now: Date, download = true): ReportListItem {
-  const available =
-    download &&
-    report.status === GeneratedReportStatus.READY &&
-    now < report.retentionUntil &&
-    !(report.privacyMode === GeneratedReportPrivacyMode.DETAILED && now >= report.detailedUntil);
+function toListItem(
+  report: ReportRecord,
+  projection: ReturnType<typeof projectGeneratedReportAt>,
+  download = true
+): ReportListItem {
+  const available = download && projection.contentAvailable;
   return {
     id: report.id,
     type: report.type,
-    status: report.status,
-    privacyMode: report.privacyMode,
+    status: projection.status,
+    privacyMode: projection.privacyMode,
     templateVersion: report.templateVersion,
     generatedAtSnapshot: report.generatedAtSnapshot.toISOString(),
     detailedUntil: report.detailedUntil.toISOString(),
@@ -663,6 +740,7 @@ function reportAudit(
 }
 
 function systemReportAudit(report: ReportRecord, action: string, at: Date) {
+  const dataset = aggregateReportDataset(report.datasetSnapshot as Record<string, unknown>);
   return {
     actor: { type: AuditActorType.SYSTEM },
     clientId: report.clientId,
@@ -674,24 +752,15 @@ function systemReportAudit(report: ReportRecord, action: string, at: Date) {
       reportType: report.type,
       templateVersion: report.templateVersion,
       privacyMode: GeneratedReportPrivacyMode.AGGREGATE,
-      expiredAt: at.toISOString()
+      status: action === 'REPORT_RETENTION_EXPIRE' ? GeneratedReportStatus.EXPIRED : GeneratedReportStatus.HIDDEN,
+      generatedAtSnapshot: report.generatedAtSnapshot.toISOString(),
+      detailedUntil: report.detailedUntil.toISOString(),
+      retentionUntil: report.retentionUntil.toISOString(),
+      fileAttached: report.fileAssetId !== null,
+      aggregateCounts: dataset.summary as Prisma.InputJsonValue,
+      transitionedAt: at.toISOString()
     }
   };
-}
-
-export function stableStringify(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
-  if (value && typeof value === 'object') {
-    return `{${Object.entries(value)
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([key, entry]) => `${JSON.stringify(key)}:${stableStringify(entry)}`)
-      .join(',')}}`;
-  }
-  return JSON.stringify(value);
-}
-
-function sha256(value: string | Buffer): string {
-  return createHash('sha256').update(value).digest('hex');
 }
 
 function isUniqueConflict(error: unknown): boolean {

@@ -462,7 +462,8 @@ El endpoint de archivo:
 - rechaza reuso entre Eventos/Clientes;
 - almacena FileAsset tipo `GENERATED_REPORT_PDF`;
 - marca reporte `ready` únicamente después de almacenamiento exitoso;
-- es idempotente o bloquea carga duplicada según estado;
+- coordina cargas iguales sin polling y bloquea bytes distintos después de que exista un ganador;
+- una carga fallida elimina bytes, libera el owner de la reserva y permite un FileAsset nuevo;
 - no permite que frontend cambie dataset/template/actor.
 
 Descarga:
@@ -473,6 +474,11 @@ Descarga:
 - reportes detallados con nombres dejan de estar disponibles 30 días post-Evento;
 - historial de seis meses conserva metadata y versiones agregadas/anónimas;
 - nunca incluye teléfonos.
+
+`GENERATED_REPORT_PDF` no aparece ni se resuelve mediante `/events/:eventId/file-assets/**`. La única
+lectura binaria permitida es el endpoint de descarga del Reporte. Autorización, replay, listados, carga
+y descarga aplican la misma proyección basada en reloj PostgreSQL aun si el scheduler todavía no
+persistió `HIDDEN` o `EXPIRED`. `fileUploadPath` solo existe durante una autorización utilizable.
 
 Estas rutas administrativas/Cliente no implican impersonación.
 

@@ -2,13 +2,17 @@ import { randomUUID } from 'node:crypto';
 import { rm } from 'node:fs/promises';
 import path from 'node:path';
 import type { INestApplication } from '@nestjs/common';
+import jsQR from 'jsqr';
 import { PDFDocument } from 'pdf-lib';
 import { Client as PgClient } from 'pg';
+import sharp from 'sharp';
 import request from 'supertest';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { AuditService } from '../src/audit/audit.service';
 import { hashPassword } from '../src/auth/password-hasher';
 import { createApp } from '../src/bootstrap/create-app';
 import { PrismaService } from '../src/common/database/prisma.service';
+import { FileStorage } from '../src/file-assets/file-storage';
 import {
   ClientStatus,
   ClientType,
@@ -16,9 +20,13 @@ import {
   EventStatus,
   GeneratedReportPrivacyMode,
   GeneratedReportStatus,
+  GeneratedReportType,
+  HotspotAction,
+  HotspotVisualOwnerType,
   ServiceCode,
   UserRole
 } from '../src/generated/prisma/client';
+import { InvitationTokenService } from '../src/invitations/invitation-token.service';
 import { ReportsService } from '../src/reports/reports.service';
 
 const origin = 'http://localhost:5173';
@@ -40,6 +48,9 @@ describe('Generated reports', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let reports: ReportsService;
+  let storage: FileStorage;
+  let audit: AuditService;
+  let invitationTokens: InvitationTokenService;
 
   beforeAll(async () => {
     if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required.');
@@ -59,6 +70,9 @@ describe('Generated reports', () => {
     await app.init();
     prisma = app.get(PrismaService);
     reports = app.get(ReportsService);
+    storage = app.get(FileStorage);
+    audit = app.get(AuditService);
+    invitationTokens = app.get(InvitationTokenService);
   });
 
   beforeEach(resetDatabase, 60_000);
@@ -105,6 +119,28 @@ describe('Generated reports', () => {
     expect(same.body).toEqual(uploaded.body);
     expect(await prisma.fileAsset.count()).toBe(1);
     expect(await prisma.auditLog.count({ where: { action: 'REPORT_FILE_ATTACH' } })).toBe(1);
+    const asset = await prisma.fileAsset.findFirstOrThrow({
+      where: { ownerId: reportId, fileType: 'GENERATED_REPORT_PDF' }
+    });
+
+    const genericList = await request(app.getHttpServer())
+      .get(`/api/v1/events/${fixture.eventId}/file-assets`)
+      .set('Cookie', cookie)
+      .expect(200);
+    expect(genericList.body).toEqual([]);
+    await request(app.getHttpServer())
+      .get(`/api/v1/events/${fixture.eventId}/file-assets/${asset.id}`)
+      .set('Cookie', cookie)
+      .expect(404);
+    await request(app.getHttpServer())
+      .get(`/api/v1/events/${fixture.eventId}/file-assets/${asset.id}/content`)
+      .set('Cookie', cookie)
+      .expect(404);
+    await request(app.getHttpServer())
+      .delete(`/api/v1/events/${fixture.eventId}/file-assets/${asset.id}`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .expect(404);
 
     const download = await request(app.getHttpServer())
       .get(`/api/v1/events/${fixture.eventId}/reports/${reportId}/download`)
@@ -136,19 +172,278 @@ describe('Generated reports', () => {
     });
     expect(JSON.stringify(adminList.body)).not.toMatch(/dataset|downloadPath|storage|assistantName/iu);
 
-    const stored = await prisma.generatedReport.findUniqueOrThrow({ where: { id: reportId } });
-    await reports.expirePrivacy(stored.detailedUntil);
+    const boundary = await forceReportBoundary(reportId, 'detailed');
+    const projectedReplay = await authorize(fixture.eventId, cookie, 'reports-attendance-001', 'attendance-pdf').expect(
+      200
+    );
+    expect(projectedReplay.body).toMatchObject({
+      status: 'HIDDEN',
+      privacyMode: 'AGGREGATE',
+      dataset: { rows: [] }
+    });
+    expect(projectedReplay.body).not.toHaveProperty('fileUploadPath');
+    expect(projectedReplay.body.datasetHashSha256).not.toBe(authorized.body.datasetHashSha256);
+    expect(JSON.stringify(projectedReplay.body)).not.toContain('Persona Invitada');
+    await request(app.getHttpServer())
+      .get(`/api/v1/events/${fixture.eventId}/reports/${reportId}/download`)
+      .set('Cookie', cookie)
+      .expect(410);
+
+    await reports.expirePrivacy(boundary);
     const expired = await prisma.generatedReport.findUniqueOrThrow({ where: { id: reportId } });
     expect(expired).toMatchObject({
       status: GeneratedReportStatus.HIDDEN,
       privacyMode: GeneratedReportPrivacyMode.AGGREGATE
     });
     expect((expired.datasetSnapshot as { rows: unknown[] }).rows).toEqual([]);
+    expect(await prisma.fileAsset.findUniqueOrThrow({ where: { id: asset.id } })).toMatchObject({ status: 'HIDDEN' });
+    expect(await prisma.auditLog.count({ where: { action: 'REPORT_PRIVACY_EXPIRE' } })).toBe(1);
+    await reports.expirePrivacy(boundary);
+    expect(await prisma.auditLog.count({ where: { action: 'REPORT_PRIVACY_EXPIRE' } })).toBe(1);
+    const reportAudits = await prisma.auditLog.findMany({
+      where: { resourceType: 'GENERATED_REPORT' },
+      select: { metadata: true }
+    });
+    expect(JSON.stringify(reportAudits)).not.toMatch(
+      new RegExp(`${authorized.body.datasetHashSha256}|${asset.checksumSha256}|storageKey|originalName`, 'iu')
+    );
     await request(app.getHttpServer())
       .get(`/api/v1/events/${fixture.eventId}/reports/${reportId}/download`)
       .set('Cookie', cookie)
       .expect(410);
   }, 60_000);
+
+  it('runs the real Attendance HTTP flow from Event creation through RSVP, scanner, close and private PDF', async () => {
+    const owner = await createClientUser();
+    const cookie = await login(owner.email);
+    const service = await prisma.service.create({ data: { code: ServiceCode.FLYER } });
+    await prisma.servicePrice.create({
+      data: {
+        serviceId: service.id,
+        clientType: ClientType.PLANNER,
+        credits: 0,
+        validFrom: new Date('2020-01-01T00:00:00.000Z')
+      }
+    });
+    const created = await request(app.getHttpServer())
+      .post('/api/v1/events')
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .send({
+        name: 'Boda reportes E2E',
+        serviceId: service.id,
+        socialType: EventSocialType.WEDDING,
+        eventDateTime: '2030-01-01T18:00:00.000Z',
+        timeZone: 'America/Mexico_City',
+        capacity: 10,
+        confirmationEnabled: true,
+        locationUrl: 'https://example.com/ubicacion',
+        giftRegistryUrl: 'https://example.com/regalos'
+      })
+      .expect(201);
+    const eventId = created.body.id as string;
+
+    for (const [name, phone] of [
+      ['Ingreso activo', '+525511223341'],
+      ['Ingreso revertido', '+525511223342'],
+      ['Invitación cancelada', '+525511223343']
+    ]) {
+      await request(app.getHttpServer())
+        .post(`/api/v1/events/${eventId}/contacts`)
+        .set('Origin', origin)
+        .set('Cookie', cookie)
+        .send({ name, whatsappPhone: phone })
+        .expect(201);
+    }
+    const invitations = await prisma.invitation.findMany({
+      where: { eventId },
+      include: { assistants: true },
+      orderBy: { createdAt: 'asc' }
+    });
+    expect(invitations).toHaveLength(3);
+
+    const initial = await uploadRealImage(eventId, cookie, 'FLYER', 'FLYER_INITIAL_IMAGE');
+    const qr = await uploadRealImage(eventId, cookie, 'FLYER', 'FLYER_QR_IMAGE');
+    await request(app.getHttpServer())
+      .post(`/api/v1/events/${eventId}/design/flyer`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .send({ initialAssetId: initial, qrAssetId: qr })
+      .expect(201);
+    for (const action of [
+      HotspotAction.RSVP,
+      HotspotAction.LOCATION,
+      HotspotAction.GIFT_REGISTRY,
+      HotspotAction.QR_AREA
+    ]) {
+      await request(app.getHttpServer())
+        .post(`/api/v1/events/${eventId}/hotspots`)
+        .set('Origin', origin)
+        .set('Cookie', cookie)
+        .send({
+          visualOwnerType: HotspotVisualOwnerType.FLYER,
+          action,
+          x: 0.1,
+          y: 0.1,
+          width: 0.2,
+          height: 0.2,
+          priority: 1
+        })
+        .expect(201);
+    }
+    await request(app.getHttpServer())
+      .post(`/api/v1/events/${eventId}/activate`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .set('Idempotency-Key', 'reports-e2e-attendance-activate')
+      .send({})
+      .expect(200);
+
+    for (const invitation of invitations) {
+      const token = invitationTokens.issue('INVITATION', invitation.id, invitation.invitationTokenNonce);
+      await request(app.getHttpServer())
+        .post(`/api/v1/public/invitations/${encodeURIComponent(token)}/confirm`)
+        .send({ additionalAssistants: [] })
+        .expect(200);
+    }
+    const staff = await request(app.getHttpServer())
+      .post(`/api/v1/events/${eventId}/staff-tokens`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .send({ alias: 'Reportes E2E' })
+      .expect(201);
+    for (const index of [0, 1]) {
+      const invitation = invitations[index]!;
+      const assistant = invitation.assistants.find(({ isPrimary }) => isPrimary)!;
+      await request(app.getHttpServer())
+        .post(`/api/v1/scanner/${encodeURIComponent(staff.body.token as string)}/check-in`)
+        .set('Idempotency-Key', `reports-e2e-check-in-${index}`)
+        .send({ invitationId: invitation.id, assistantIds: [assistant.id] })
+        .expect(200);
+    }
+    const reverted = await prisma.checkIn.findFirstOrThrow({
+      where: { assistantId: invitations[1]!.assistants[0]!.id, revertedAt: null }
+    });
+    await request(app.getHttpServer())
+      .post(`/api/v1/events/${eventId}/check-ins/${reverted.id}/revert`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .set('Idempotency-Key', 'reports-e2e-revert')
+      .expect(200);
+    await request(app.getHttpServer())
+      .post(`/api/v1/events/${eventId}/invitations/${invitations[2]!.id}/cancel`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .set('Idempotency-Key', 'reports-e2e-cancel')
+      .expect(200);
+    await request(app.getHttpServer())
+      .post(`/api/v1/events/${eventId}/close`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .set('Idempotency-Key', 'reports-e2e-attendance-close')
+      .expect(200);
+
+    const authorized = await authorize(eventId, cookie, 'reports-e2e-attendance', 'attendance-pdf').expect(200);
+    expect(authorized.body.dataset).toMatchObject({
+      summary: {
+        invitations: { total: 3, confirmed: 2, cancelled: 1 },
+        assistants: { confirmed: 2, checkedIn: 1, notCheckedIn: 1 },
+        checkIns: { active: 1, reverted: 1 }
+      },
+      incidents: { revertedCheckIns: 1, cancelledInvitations: 1 }
+    });
+    expect(
+      authorized.body.dataset.rows.map((row: { attendanceStatus: string }) => row.attendanceStatus).sort()
+    ).toEqual(['CHECKED_IN', 'NO_SHOW']);
+    expect(JSON.stringify(authorized.body.dataset)).not.toMatch(
+      /52551122334|contactId|assistantId|invitationId|staffToken|qrToken/iu
+    );
+    const pdf = await boundPdf(authorized.body.reportId, authorized.body.datasetHashSha256);
+    await uploadPdf(eventId, authorized.body.reportId, cookie, pdf, authorized.body.datasetHashSha256).expect(200);
+    await request(app.getHttpServer())
+      .get(`/api/v1/events/${eventId}/reports/${authorized.body.reportId}/download`)
+      .set('Cookie', cookie)
+      .expect(200)
+      .expect('Content-Type', 'application/pdf');
+  }, 90_000);
+
+  it('runs the real Physical Passes HTTP flow through generation, QR use, close, report and retention', async () => {
+    const owner = await createClientUser();
+    const cookie = await login(owner.email);
+    const service = await prisma.service.create({ data: { code: ServiceCode.PHYSICAL_QR } });
+    await prisma.servicePrice.create({
+      data: {
+        serviceId: service.id,
+        clientType: ClientType.PLANNER,
+        credits: 0,
+        validFrom: new Date('2020-01-01T00:00:00.000Z')
+      }
+    });
+    const created = await request(app.getHttpServer())
+      .post('/api/v1/events')
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .send({
+        name: 'Pases reportes E2E',
+        serviceId: service.id,
+        socialType: EventSocialType.OTHER,
+        eventDateTime: '2030-01-01T18:00:00.000Z',
+        timeZone: 'America/Mexico_City',
+        capacity: 2
+      })
+      .expect(201);
+    const eventId = created.body.id as string;
+    const generated = await request(app.getHttpServer())
+      .post(`/api/v1/events/${eventId}/physical-passes/generate`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .set('Idempotency-Key', 'reports-e2e-physical-generate')
+      .send({ quantity: 2 })
+      .expect(200);
+    await request(app.getHttpServer())
+      .post(`/api/v1/events/${eventId}/activate`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .set('Idempotency-Key', 'reports-e2e-physical-activate')
+      .send({})
+      .expect(200);
+    const svg = await request(app.getHttpServer())
+      .get(`/api/v1/events/${eventId}/physical-passes/${generated.body.passes[0].id}/svg`)
+      .set('Cookie', cookie)
+      .expect(200);
+    const staff = await request(app.getHttpServer())
+      .post(`/api/v1/events/${eventId}/staff-tokens`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .send({ alias: 'Pases E2E' })
+      .expect(201);
+    await request(app.getHttpServer())
+      .post(`/api/v1/scanner/${encodeURIComponent(staff.body.token as string)}/physical-passes/scan`)
+      .set('Idempotency-Key', 'reports-e2e-physical-use')
+      .send({ qrToken: await decodeSvgQr(svg.body as Buffer) })
+      .expect(200);
+    await request(app.getHttpServer())
+      .post(`/api/v1/events/${eventId}/close`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .set('Idempotency-Key', 'reports-e2e-physical-close')
+      .expect(200);
+
+    const authorized = await authorize(eventId, cookie, 'reports-e2e-physical', 'physical-passes-pdf').expect(200);
+    expect(authorized.body.dataset).toMatchObject({ summary: { total: 2, used: 1, unused: 1 } });
+    const pdf = await boundPdf(authorized.body.reportId, authorized.body.datasetHashSha256);
+    await uploadPdf(eventId, authorized.body.reportId, cookie, pdf, authorized.body.datasetHashSha256).expect(200);
+    await request(app.getHttpServer())
+      .get(`/api/v1/events/${eventId}/reports/${authorized.body.reportId}/download`)
+      .set('Cookie', cookie)
+      .expect(200);
+    await forceReportBoundary(authorized.body.reportId, 'retention');
+    await authorize(eventId, cookie, 'reports-e2e-physical', 'physical-passes-pdf').expect(410);
+    await request(app.getHttpServer())
+      .get(`/api/v1/events/${eventId}/reports/${authorized.body.reportId}/download`)
+      .set('Cookie', cookie)
+      .expect(410);
+  }, 90_000);
 
   it('enforces service, ownership, idempotency, PDF binding and PostgreSQL immutability', async () => {
     const fixture = await createFixture(ServiceCode.PHYSICAL_QR);
@@ -193,6 +488,9 @@ describe('Generated reports', () => {
     await uploadPdf(fixture.eventId, reportId, cookie, wrongPdf, authorized.body.datasetHashSha256)
       .expect(409)
       .expect(({ body }) => expect(body.code).toBe('REPORT_FILE_BINDING_INVALID'));
+    const validPdf = await boundPdf(reportId, authorized.body.datasetHashSha256 as string);
+    await uploadPdf(fixture.eventId, reportId, cookie, validPdf, authorized.body.datasetHashSha256).expect(200);
+    const readyAsset = await prisma.fileAsset.findFirstOrThrow({ where: { ownerId: reportId, status: 'READY' } });
 
     const databaseUrl = process.env.DATABASE_URL!;
     const client = new PgClient({ connectionString: databaseUrl });
@@ -205,21 +503,129 @@ describe('Generated reports', () => {
         /generated_report_immutable_delete/iu
       );
       await expect(client.query('TRUNCATE generated_report')).rejects.toThrow(/generated_report_immutable_truncate/iu);
+      await expectTransactionFailure(
+        client,
+        [
+          {
+            text: `UPDATE generated_report
+              SET status = 'HIDDEN', hidden_at = clock_timestamp()
+              WHERE id = $1`,
+            values: [reportId]
+          }
+        ],
+        /generated_report_private_asset_hidden/iu
+      );
+      await expectTransactionFailure(
+        client,
+        [
+          {
+            text: `UPDATE generated_report
+              SET status = 'EXPIRED', expired_at = clock_timestamp()
+              WHERE id = $1`,
+            values: [reportId]
+          }
+        ],
+        /generated_report_private_asset_hidden/iu
+      );
+      await expectTransactionFailure(
+        client,
+        [{ text: `UPDATE file_asset SET status = 'HIDDEN' WHERE id = $1`, values: [readyAsset.id] }],
+        /generated_report_file_asset_hidden_match/iu
+      );
+      await expectTransactionFailure(
+        client,
+        [
+          {
+            text: `INSERT INTO file_asset (
+                id, client_id, event_id, owner_type, owner_id, file_type, storage_provider, storage_key,
+                original_name, mime_type, size_bytes, checksum_sha256, created_by_user_id, status,
+                associated_at, created_at, updated_at
+              )
+              SELECT $2::uuid, client_id, event_id, owner_type, owner_id, file_type, storage_provider,
+                repeat('f', 64), 'report.pdf', mime_type, size_bytes, checksum_sha256, created_by_user_id,
+                'UPLOADING', clock_timestamp(), clock_timestamp(), clock_timestamp()
+              FROM file_asset WHERE id = $1`,
+            values: [readyAsset.id, randomUUID()]
+          }
+        ],
+        /file_asset_generated_report_owner_key|duplicate key/iu
+      );
+      await expectTransactionFailure(
+        client,
+        [{ text: `UPDATE file_asset SET file_type = 'INVITATION_QR_SVG' WHERE id = $1`, values: [readyAsset.id] }],
+        /file asset identity is immutable/iu
+      );
     } finally {
       await client.end();
     }
+    const residue = await prisma.fileAsset.create({
+      data: {
+        clientId: fixture.clientId,
+        eventId: fixture.eventId,
+        ownerType: 'GENERATED_REPORT',
+        fileType: 'GENERATED_REPORT_PDF',
+        storageKey: 'e'.repeat(64),
+        originalName: 'failed-report.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 0,
+        createdByUserId: fixture.userId,
+        status: 'FAILED',
+        failureCode: 'REPORT_UPLOAD_FAILED'
+      }
+    });
+    expect(residue).toMatchObject({ ownerId: null, status: 'FAILED' });
+    await expect(
+      prisma.fileAsset.create({
+        data: {
+          clientId: fixture.clientId,
+          eventId: fixture.eventId,
+          ownerType: 'GENERATED_REPORT',
+          fileType: 'GENERATED_REPORT_PDF',
+          storageKey: 'd'.repeat(64),
+          originalName: 'ready-report.pdf',
+          mimeType: 'application/pdf',
+          sizeBytes: 1,
+          checksumSha256: 'c'.repeat(64),
+          createdByUserId: fixture.userId,
+          status: 'READY'
+        }
+      })
+    ).rejects.toThrow(/generated_report_file_asset_residue/iu);
     expect(await prisma.generatedReport.count({ where: { id: reportId } })).toBe(1);
-    const stored = await prisma.generatedReport.findUniqueOrThrow({ where: { id: reportId } });
-    await reports.expirePrivacy(stored.retentionUntil);
+    const retentionBoundary = await forceReportBoundary(reportId, 'retention');
+    await authorize(fixture.eventId, cookie, 'reports-physical-001', 'physical-passes-pdf')
+      .expect(410)
+      .expect(({ body }) => expect(body.code).toBe('REPORT_CONTENT_EXPIRED'));
+    const clientList = await request(app.getHttpServer())
+      .get(`/api/v1/events/${fixture.eventId}/reports`)
+      .set('Cookie', cookie)
+      .expect(200);
+    expect(clientList.body[0]).toMatchObject({ status: 'EXPIRED', privacyMode: 'AGGREGATE' });
+    expect(clientList.body[0]).not.toHaveProperty('downloadPath');
+    const adminCookie = await createAdminAndLogin();
+    const adminList = await request(app.getHttpServer())
+      .get(`/api/v1/admin/reports/events/${fixture.eventId}`)
+      .set('Cookie', adminCookie)
+      .expect(200);
+    expect(adminList.body[0]).toMatchObject({ status: 'EXPIRED', privacyMode: 'AGGREGATE' });
+    await request(app.getHttpServer())
+      .get(`/api/v1/events/${fixture.eventId}/reports/${reportId}/download`)
+      .set('Cookie', cookie)
+      .expect(410);
+
+    await reports.expirePrivacy(retentionBoundary);
     const retained = await prisma.generatedReport.findUniqueOrThrow({ where: { id: reportId } });
     expect(retained.status).toBe(GeneratedReportStatus.EXPIRED);
     expect((retained.datasetSnapshot as { passes: unknown[] }).passes).toEqual([]);
+    expect(await prisma.auditLog.count({ where: { action: 'REPORT_RETENTION_EXPIRE' } })).toBe(1);
+    await reports.expirePrivacy(retentionBoundary);
+    expect(await prisma.auditLog.count({ where: { action: 'REPORT_RETENTION_EXPIRE' } })).toBe(1);
   }, 60_000);
 
   it('serializes concurrent authorization and identical PDF attachment into one durable result', async () => {
     const fixture = await createFixture(ServiceCode.FLYER);
     const cookie = await login(fixture.email);
-    const authorizations = await Promise.all([
+    const authorizations = await startBehindVerifiedEventLock(fixture.eventId, () => [
       authorize(fixture.eventId, cookie, 'reports-concurrent-001', 'attendance-pdf'),
       authorize(fixture.eventId, cookie, 'reports-concurrent-001', 'attendance-pdf')
     ]);
@@ -238,6 +644,177 @@ describe('Generated reports', () => {
     expect(uploads[0].body).toEqual(uploads[1].body);
     expect(await prisma.fileAsset.count()).toBe(1);
     expect(await prisma.auditLog.count({ where: { action: 'REPORT_FILE_ATTACH' } })).toBe(1);
+
+    const distinct = await startBehindVerifiedEventLock(fixture.eventId, () => [
+      authorize(fixture.eventId, cookie, 'reports-concurrent-002-a', 'attendance-pdf'),
+      authorize(fixture.eventId, cookie, 'reports-concurrent-002-b', 'attendance-pdf')
+    ]);
+    expect(distinct.map(({ status }) => status)).toEqual([200, 200]);
+    expect(distinct[0].body.reportId).not.toBe(distinct[1].body.reportId);
+    expect(
+      await prisma.generatedReport.count({
+        where: { eventId: fixture.eventId, type: GeneratedReportType.ATTENDANCE }
+      })
+    ).toBe(3);
+    expect(
+      await prisma.auditLog.count({
+        where: { eventId: fixture.eventId, action: 'REPORT_AUTHORIZE' }
+      })
+    ).toBe(3);
+  }, 60_000);
+
+  it('recovers storage and audit failures without leaving an owner that blocks the next upload', async () => {
+    const fixture = await createFixture(ServiceCode.FLYER);
+    const cookie = await login(fixture.email);
+    const authorized = await authorize(fixture.eventId, cookie, 'reports-recovery-001', 'attendance-pdf').expect(200);
+    const pdf = await boundPdf(authorized.body.reportId, authorized.body.datasetHashSha256);
+
+    const writeFailure = vi.spyOn(storage, 'write').mockRejectedValueOnce(new Error('storage unavailable'));
+    await uploadPdf(fixture.eventId, authorized.body.reportId, cookie, pdf, authorized.body.datasetHashSha256).expect(
+      500
+    );
+    writeFailure.mockRestore();
+
+    const failedAfterStorage = await prisma.fileAsset.findFirstOrThrow({
+      where: { fileType: 'GENERATED_REPORT_PDF', status: 'FAILED' }
+    });
+    expect(failedAfterStorage).toMatchObject({
+      ownerId: null,
+      associatedAt: null,
+      failureCode: 'REPORT_UPLOAD_FAILED'
+    });
+
+    const auditFailure = vi.spyOn(audit, 'record').mockRejectedValueOnce(new Error('audit unavailable'));
+    await uploadPdf(fixture.eventId, authorized.body.reportId, cookie, pdf, authorized.body.datasetHashSha256).expect(
+      500
+    );
+    auditFailure.mockRestore();
+
+    const failedAssets = await prisma.fileAsset.findMany({
+      where: { fileType: 'GENERATED_REPORT_PDF', status: 'FAILED' }
+    });
+    expect(failedAssets).toHaveLength(2);
+    expect(failedAssets.every((asset) => asset.ownerId === null && asset.associatedAt === null)).toBe(true);
+
+    const retry = await uploadPdf(
+      fixture.eventId,
+      authorized.body.reportId,
+      cookie,
+      pdf,
+      authorized.body.datasetHashSha256
+    ).expect(200);
+    expect(retry.body).toMatchObject({ status: 'READY' });
+    expect(
+      await prisma.fileAsset.count({
+        where: { ownerId: authorized.body.reportId, status: 'READY', fileType: 'GENERATED_REPORT_PDF' }
+      })
+    ).toBe(1);
+    expect(await prisma.auditLog.count({ where: { action: 'REPORT_FILE_ATTACH' } })).toBe(1);
+  }, 60_000);
+
+  it('serializes equal and different concurrent uploads with a deterministic storage barrier', async () => {
+    const fixture = await createFixture(ServiceCode.FLYER);
+    const cookie = await login(fixture.email);
+    const first = await authorize(fixture.eventId, cookie, 'reports-upload-barrier-1', 'attendance-pdf').expect(200);
+    const firstPdf = await boundPdf(first.body.reportId, first.body.datasetHashSha256);
+    const originalWrite = storage.write.bind(storage);
+    const entered = deferred();
+    const release = deferred();
+    const write = vi.spyOn(storage, 'write').mockImplementationOnce(async (input) => {
+      entered.resolve();
+      await release.promise;
+      await originalWrite(input);
+    });
+
+    const equalA = uploadPdf(fixture.eventId, first.body.reportId, cookie, firstPdf, first.body.datasetHashSha256);
+    const equalAPromise = equalA.then((response) => response);
+    await entered.promise;
+    const equalBPromise = uploadPdf(
+      fixture.eventId,
+      first.body.reportId,
+      cookie,
+      firstPdf,
+      first.body.datasetHashSha256
+    ).then((response) => response);
+    release.resolve();
+    const equal = await Promise.all([equalAPromise, equalBPromise]);
+    expect(equal.map(({ status }) => status)).toEqual([200, 200]);
+    expect(equal[0].body).toEqual(equal[1].body);
+    write.mockRestore();
+
+    const second = await authorize(fixture.eventId, cookie, 'reports-upload-barrier-2', 'attendance-pdf').expect(200);
+    const winningPdf = await boundPdf(second.body.reportId, second.body.datasetHashSha256, 'winner');
+    const losingPdf = await boundPdf(second.body.reportId, second.body.datasetHashSha256, 'loser');
+    const enteredDifferent = deferred();
+    const releaseDifferent = deferred();
+    const differentWrite = vi.spyOn(storage, 'write').mockImplementationOnce(async (input) => {
+      enteredDifferent.resolve();
+      await releaseDifferent.promise;
+      await originalWrite(input);
+    });
+    const winnerPromise = uploadPdf(
+      fixture.eventId,
+      second.body.reportId,
+      cookie,
+      winningPdf,
+      second.body.datasetHashSha256
+    ).then((response) => response);
+    await enteredDifferent.promise;
+    const loserPromise = uploadPdf(
+      fixture.eventId,
+      second.body.reportId,
+      cookie,
+      losingPdf,
+      second.body.datasetHashSha256
+    ).then((response) => response);
+    releaseDifferent.resolve();
+    const [winner, loser] = await Promise.all([winnerPromise, loserPromise]);
+    expect(winner.status).toBe(200);
+    expect(loser.status).toBe(409);
+    expect(loser.body.code).toBe('REPORT_FILE_ALREADY_ATTACHED');
+    differentWrite.mockRestore();
+    expect(
+      await prisma.fileAsset.count({
+        where: { ownerId: second.body.reportId, status: 'READY', fileType: 'GENERATED_REPORT_PDF' }
+      })
+    ).toBe(1);
+  }, 60_000);
+
+  it('cleans a reserved upload when privacy expires while storage is in flight', async () => {
+    const fixture = await createFixture(ServiceCode.FLYER);
+    const cookie = await login(fixture.email);
+    const authorized = await authorize(fixture.eventId, cookie, 'reports-privacy-race', 'attendance-pdf').expect(200);
+    const pdf = await boundPdf(authorized.body.reportId, authorized.body.datasetHashSha256);
+    const originalWrite = storage.write.bind(storage);
+    const entered = deferred();
+    const release = deferred();
+    const write = vi.spyOn(storage, 'write').mockImplementationOnce(async (input) => {
+      entered.resolve();
+      await release.promise;
+      await originalWrite(input);
+    });
+    const uploadPromise = uploadPdf(
+      fixture.eventId,
+      authorized.body.reportId,
+      cookie,
+      pdf,
+      authorized.body.datasetHashSha256
+    ).then((response) => response);
+    await entered.promise;
+    await forceReportBoundary(authorized.body.reportId, 'detailed');
+    release.resolve();
+    const response = await uploadPromise;
+    write.mockRestore();
+    expect(response.status).toBe(410);
+    expect(await prisma.fileAsset.findFirstOrThrow({ where: { fileType: 'GENERATED_REPORT_PDF' } })).toMatchObject({
+      status: 'FAILED',
+      ownerId: null,
+      associatedAt: null
+    });
+    expect(await prisma.generatedReport.findUniqueOrThrow({ where: { id: authorized.body.reportId } })).toMatchObject({
+      status: 'AUTHORIZED',
+      fileAssetId: null
+    });
   }, 60_000);
 
   async function createFixture(code: ServiceCode) {
@@ -378,6 +955,28 @@ describe('Generated reports', () => {
       .attach('file', pdf, { filename: 'rendered.pdf', contentType: 'application/pdf' });
   }
 
+  async function uploadRealImage(
+    eventId: string,
+    cookie: string[],
+    ownerType: string,
+    fileType: string
+  ): Promise<string> {
+    const image = await sharp({
+      create: { width: 64, height: 64, channels: 3, background: '#334155' }
+    })
+      .png()
+      .toBuffer();
+    const response = await request(app.getHttpServer())
+      .post(`/api/v1/events/${eventId}/file-assets`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .field('ownerType', ownerType)
+      .field('fileType', fileType)
+      .attach('file', image, { filename: 'visual.png', contentType: 'image/png' })
+      .expect(201);
+    return response.body.id as string;
+  }
+
   async function resetDatabase() {
     if (!prisma) return;
     await prisma.$executeRawUnsafe(`
@@ -393,12 +992,119 @@ describe('Generated reports', () => {
       COMMIT;
     `);
   }
+
+  async function forceReportBoundary(reportId: string, boundary: 'detailed' | 'retention'): Promise<Date> {
+    const [clock] = await prisma.$queryRaw<Array<{ now: Date }>>`
+      SELECT clock_timestamp() - interval '1 millisecond' AS "now"
+    `;
+    const at = clock!.now;
+    await prisma.$transaction(async (transaction) => {
+      await transaction.$executeRawUnsafe('SET LOCAL session_replication_role = replica');
+      if (boundary === 'detailed') {
+        await transaction.generatedReport.update({
+          where: { id: reportId },
+          data: { detailedUntil: at }
+        });
+      } else {
+        await transaction.generatedReport.update({
+          where: { id: reportId },
+          data: { detailedUntil: new Date(at.getTime() - 1), retentionUntil: at }
+        });
+      }
+    });
+    return at;
+  }
 });
 
-async function boundPdf(reportId: string, hash: string): Promise<Buffer> {
+async function startBehindVerifiedEventLock<A, B>(
+  eventId: string,
+  start: () => [PromiseLike<A>, PromiseLike<B>]
+): Promise<[Awaited<A>, Awaited<B>]> {
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) throw new Error('DATABASE_URL is required.');
+  const blocker = new PgClient({ connectionString: databaseUrl });
+  const observer = new PgClient({ connectionString: databaseUrl });
+  await Promise.all([blocker.connect(), observer.connect()]);
+  let committed = false;
+  let first: Promise<Awaited<A>> | undefined;
+  let second: Promise<Awaited<B>> | undefined;
+  try {
+    await blocker.query('BEGIN');
+    await blocker.query('SELECT "id" FROM "event" WHERE "id" = $1::uuid FOR UPDATE', [eventId]);
+    const pending = start();
+    first = Promise.resolve(pending[0]);
+    await waitForLockWaiters(observer, 1);
+    second = Promise.resolve(pending[1]);
+    await waitForLockWaiters(observer, 2);
+    await blocker.query('COMMIT');
+    committed = true;
+    return await Promise.all([first, second]);
+  } finally {
+    if (!committed) await blocker.query('ROLLBACK').catch(() => undefined);
+    if (!committed) {
+      await Promise.allSettled([first, second].filter((operation) => operation !== undefined));
+    }
+    await Promise.all([blocker.end(), observer.end()]);
+  }
+}
+
+async function waitForLockWaiters(observer: PgClient, expected: number): Promise<void> {
+  const deadline = Date.now() + 5_000;
+  while (Date.now() < deadline) {
+    const result = await observer.query<{ count: string }>(`
+      SELECT count(*)::text AS "count"
+      FROM pg_stat_activity
+      WHERE pid <> pg_backend_pid()
+        AND wait_event_type = 'Lock'
+    `);
+    if (Number(result.rows[0]?.count ?? 0) >= expected) return;
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  }
+  throw new Error(`Expected ${expected} PostgreSQL lock waiters before releasing the race barrier.`);
+}
+
+async function boundPdf(reportId: string, hash: string, title?: string): Promise<Buffer> {
   const document = await PDFDocument.create();
   document.addPage([595, 842]);
   document.setSubject(`InvitacionesPremium Report ${reportId}`);
   document.setKeywords(['template:1', `dataset:${hash}`]);
+  if (title) document.setTitle(title);
   return Buffer.from(await document.save());
+}
+
+async function decodeSvgQr(svg: Buffer): Promise<string> {
+  const raster = await sharp(svg).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const decoded = jsQR(new Uint8ClampedArray(raster.data), raster.info.width, raster.info.height);
+  if (!decoded?.data) throw new Error('Could not decode generated physical pass QR.');
+  return decoded.data;
+}
+
+function deferred() {
+  let resolve!: () => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<void>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
+
+async function expectTransactionFailure(
+  client: PgClient,
+  statements: Array<{ text: string; values?: unknown[] }>,
+  pattern: RegExp
+): Promise<void> {
+  let failure: unknown;
+  await client.query('BEGIN');
+  try {
+    for (const statement of statements) {
+      await client.query(statement.text, statement.values);
+    }
+    await client.query('SET CONSTRAINTS ALL IMMEDIATE');
+    await client.query('COMMIT');
+  } catch (error) {
+    failure = error;
+    await client.query('ROLLBACK');
+  }
+  expect(String(failure)).toMatch(pattern);
 }

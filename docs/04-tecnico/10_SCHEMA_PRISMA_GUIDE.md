@@ -431,6 +431,12 @@ inmediatos impiden cambiar identidad, retroceder estado o privacidad, sustituir 
 truncar. El índice parcial de owner garantiza un único FileAsset por reporte. Véase
 `REPORTS_CONTRACT.md`.
 
+La migración 33 endurece la relación en ambos sentidos. Un Reporte `READY` exige FileAsset
+`GENERATED_REPORT_PDF/READY` del mismo Cliente y Evento; `HIDDEN|EXPIRED` solo admite asset
+`HIDDEN|DELETED`. Un asset operativo exige el estado y `fileAssetId` correspondientes del Reporte.
+Solo residuos técnicos `FAILED|DELETED` pueden quedar sin `ownerId` y `associatedAt`, liberando la
+unicidad para una nueva reserva. Los constraint triggers son `DEFERRABLE INITIALLY DEFERRED`.
+
 ## StaffToken implementado
 
 La migración 23 crea `staff_token` con UUID, FKs restrictivas, digest SHA-256 único, alias normalizado,

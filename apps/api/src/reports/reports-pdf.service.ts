@@ -25,7 +25,8 @@ export class ReportsPdfService {
       file.mimetype !== 'application/pdf' ||
       file.buffer.length === 0 ||
       file.buffer.length > this.config.fileUploadMaxBytes ||
-      !file.buffer.subarray(0, 5).equals(Buffer.from('%PDF-'))
+      !file.buffer.subarray(0, 5).equals(Buffer.from('%PDF-')) ||
+      file.buffer.includes(Buffer.from('/Encrypt'))
     ) {
       throw reportError('REPORT_FILE_INVALID', 'A valid PDF file is required.');
     }
@@ -39,8 +40,13 @@ export class ReportsPdfService {
       if (pages < 1 || pages > 200 || document.getSubject() !== `InvitacionesPremium Report ${reportId}`) {
         throw new Error('PDF binding mismatch');
       }
-      const keywords = document.getKeywords() ?? '';
-      if (!keywords.includes(`template:${templateVersion}`) || !keywords.includes(`dataset:${hash}`)) {
+      const keywords = new Set(
+        (document.getKeywords() ?? '')
+          .split(/[\s,;]+/u)
+          .map((keyword) => keyword.trim())
+          .filter(Boolean)
+      );
+      if (!keywords.has(`template:${templateVersion}`) || !keywords.has(`dataset:${hash}`)) {
         throw new Error('PDF binding mismatch');
       }
     } catch {

@@ -280,8 +280,14 @@ Nunca borrar primero el archivo anterior y después intentar subir el nuevo.
 - El backend autoriza el dataset y el frontend autenticado renderiza el PDF.
 - La carga especializada valida estructura, límite de 200 páginas y binding de metadata al reporte.
 - El FileAsset queda `GENERATED_REPORT/GENERATED_REPORT_PDF`, asociado al mismo Cliente y Evento.
-- La descarga es privada y nunca expone storage key, nombre interno o checksum completo.
+- La descarga es privada y existe exclusivamente en
+  `GET /events/:eventId/reports/:reportId/download`; list, get, content y delete genéricos responden
+  como archivo inexistente y nunca exponen su ID, owner, nombre original o metadata.
 - El PDF nominal se oculta a los 30 días post-Evento; metadata y agregado mínimo se retienen seis meses.
+- La política temporal se proyecta antes del scheduler, por lo que un asset todavía `READY` en storage
+  tampoco puede obtenerse después del límite.
+- Una reserva fallida se conserva como residuo técnico `FAILED|DELETED`, sin `ownerId` ni
+  `associatedAt`; no es operativa y no bloquea una reserva posterior.
 - El contrato completo vive en `REPORTS_CONTRACT.md`.
 
 ### QR SVG

@@ -155,7 +155,7 @@ export class FileAssetsService {
   async list(eventId: string, principal: AuthPrincipal): Promise<FileAssetResponseDto[]> {
     await this.requireOwnedEvent(eventId, principal);
     const assets = await this.prisma.fileAsset.findMany({
-      where: { eventId, deletedAt: null },
+      where: { eventId, deletedAt: null, fileType: { not: FileAssetType.GENERATED_REPORT_PDF } },
       orderBy: [{ createdAt: 'desc' }, { id: 'asc' }]
     });
     return assets.map(toFileAssetResponse);
@@ -202,6 +202,9 @@ export class FileAssetsService {
         where: { id: fileAssetId, eventId }
       });
       if (!current) {
+        throw fileAssetNotFound();
+      }
+      if (current.fileType === FileAssetType.GENERATED_REPORT_PDF) {
         throw fileAssetNotFound();
       }
       if (current.status === FileAssetStatus.DELETED && current.deletedAt !== null) {
@@ -478,6 +481,7 @@ export class FileAssetsService {
       where: {
         id: fileAssetId,
         eventId,
+        fileType: { not: FileAssetType.GENERATED_REPORT_PDF },
         ...(includeDeleted ? {} : { deletedAt: null })
       }
     });

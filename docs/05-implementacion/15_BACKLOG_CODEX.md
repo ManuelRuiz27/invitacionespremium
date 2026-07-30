@@ -899,9 +899,10 @@ de concurrencia demuestran efecto financiero cero cuando la última mutación in
 - no existe export CSV/Excel MVP;
 - PDF no es público por defecto.
 
-**Estado:** completado y cerrado. `ReportsModule`, snapshots autoritativos, binding de PDF, FileAsset
-privado, ventanas de privacidad/retención, idempotencia, scheduler, migración PostgreSQL 32 e
-integración real quedan documentados en `REPORTS_CONTRACT.md`. `CODEX-120` no se ha iniciado.
+**Estado:** completado y cerrado. `ReportsModule`, snapshots autoritativos, binding exacto de PDF,
+aislamiento de FileAssets genéricos, proyección temporal previa al scheduler, recuperación de cargas,
+idempotencia sin polling, migraciones PostgreSQL 32–33 y pruebas deterministas quedan documentados en
+`REPORTS_CONTRACT.md`. `CODEX-120` no se ha iniciado.
 
 ---
 

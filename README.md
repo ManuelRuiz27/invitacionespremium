@@ -396,6 +396,18 @@ Contrato normativo: `docs/04-tecnico/ALBUMS_CONTRACT.md`.
 - endpoints Cliente y listados administrativos sin dataset ni descarga;
 - migración PostgreSQL 32, pruebas unitarias, integración real y OpenAPI.
 
+El hardening final de `CODEX-111` agregó:
+
+- aislamiento total de `GENERATED_REPORT_PDF` respecto de listados, metadata, contenido y borrado
+  genéricos de FileAssets;
+- proyección temporal única aplicada antes del scheduler a autorización, replay, listados, carga y
+  descarga;
+- recuperación de reservas tras fallos de storage, transacción o auditoría, sin owner residual que
+  bloquee el siguiente intento;
+- binding PDF mediante tokens exactos y auditoría sin hashes completos ni nombres internos;
+- integridad bidireccional Reporte–FileAsset mediante la migración PostgreSQL 33 y pruebas de carreras
+  con barreras deterministas.
+
 Contrato normativo: `docs/04-tecnico/REPORTS_CONTRACT.md`. `CODEX-120` no fue iniciado.
 
 ## Fuente de verdad

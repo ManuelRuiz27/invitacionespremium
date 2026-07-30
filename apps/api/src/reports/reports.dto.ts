@@ -34,7 +34,7 @@ export interface ReportAuthorizationResponse {
   datasetHashSha256: string;
   dataset: Record<string, unknown>;
   parameters: ReportParameters;
-  fileUploadPath: string;
+  fileUploadPath?: string;
 }
 
 export interface ReportListItem {
@@ -72,7 +72,7 @@ export class ReportAuthorizationResponseDto {
   @ApiProperty({ type: String }) datasetHashSha256!: string;
   @ApiProperty({ type: Object }) dataset!: Record<string, unknown>;
   @ApiProperty({ type: Object }) parameters!: ReportParameters;
-  @ApiProperty({ type: String }) fileUploadPath!: string;
+  @ApiPropertyOptional({ type: String }) fileUploadPath?: string;
 }
 
 export class ReportListItemDto {
