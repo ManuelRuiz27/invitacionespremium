@@ -390,7 +390,9 @@ describe('Event activation', () => {
         code: 'CLIENT_NOT_ACTIVE'
       },
       {
-        event: await createReadyEvent(notReady, service.id, EventStatus.CONFIGURED),
+        event: await createReadyEvent(notReady, service.id, EventStatus.CONFIGURED, {
+          confirmationEnabled: false
+        }),
         cookie: await login(notReady.email),
         key: 'activation-not-ready',
         status: 409,
@@ -637,7 +639,8 @@ describe('Event activation', () => {
   async function createReadyEvent(
     owner: { clientId: string; userId: string },
     serviceId: string,
-    status: EventStatus = EventStatus.READY_TO_ACTIVATE
+    status: EventStatus = EventStatus.READY_TO_ACTIVATE,
+    overrides: { confirmationEnabled?: boolean } = {}
   ) {
     const event = await prisma.event.create({
       data: {
@@ -650,7 +653,7 @@ describe('Event activation', () => {
         eventDateTime: new Date(Date.now() + 86_400_000),
         timeZone: 'America/Mexico_City',
         capacity: 100,
-        confirmationEnabled: true,
+        confirmationEnabled: overrides.confirmationEnabled ?? true,
         locationUrl: 'https://maps.google.com/?q=19.4326,-99.1332',
         giftRegistryUrl: 'https://example.com/mesa-regalos'
       }

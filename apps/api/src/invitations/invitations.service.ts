@@ -6,6 +6,7 @@ import { PrismaService } from '../common/database/prisma.service';
 import { CRITICAL_TRANSACTION_OPTIONS } from '../common/database/transaction-policy';
 import { AuditActorType, EventStatus, Prisma, type Assistant, type Event } from '../generated/prisma/client';
 import { EventAccessPolicy, eventNotFound } from '../events/event-access.policy';
+import { recomputeDigitalEventPreparationStatus } from '../events/digital-event-readiness.service';
 import type { SeatingUpdatedEnvelope } from '../realtime/realtime-contract';
 import { RealtimePublisherService } from '../realtime/realtime-publisher.service';
 import type {
@@ -281,6 +282,7 @@ export class InvitationsService {
         },
         select: { id: true, eventId: true, cancelledAt: true }
       });
+      await recomputeDigitalEventPreparationStatus(tx, eventId);
       await this.recordAudit(tx, principal, event, effectiveOperationId, 'INVITATION_CANCEL', invitationId, {
         id: invitationId,
         eventId,

@@ -869,6 +869,12 @@ privados, publicación/despublicación idempotente, expiración automática, mig
 digital y concurrencia determinista quedan documentados en `ALBUMS_CONTRACT.md`. `CODEX-111` no se ha
 iniciado.
 
+El cierre de readiness integra un resolver compartido para Flyer/Flipbook en las mutaciones de Evento,
+Contactos, Invitaciones, diseño y Croquis. La activación lo ejecuta nuevamente bajo lock antes de todo
+efecto financiero. El E2E principal alcanza `READY_TO_ACTIVATE` sin bypass y la vista pública de
+Invitación oculta el Álbum en el límite exacto de expiración, aun antes del scheduler. Las regresiones
+de concurrencia demuestran efecto financiero cero cuando la última mutación invalida el checklist.
+
 ### CODEX-111 — Reportes PDF
 
 **Repo:** `invitacionespremium-api` y frontend solicitante según estrategia final

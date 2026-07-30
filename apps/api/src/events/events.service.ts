@@ -24,6 +24,7 @@ import {
 } from '../physical-passes/physical-pass-readiness.service';
 import { ServicesPricingService } from '../services-pricing/services-pricing.service';
 import { EventAccessPolicy, eventNotFound } from './event-access.policy';
+import { recomputeDigitalEventPreparationStatus } from './digital-event-readiness.service';
 import { resolvePreparationStatus } from './event-status.resolver';
 import type { CreateEventInput, EventActivationResponseDto, EventResponseDto, UpdateEventInput } from './events.dto';
 
@@ -86,7 +87,7 @@ export class EventsService {
 
     return this.prisma.$transaction(async (transaction) => {
       await this.requireAvailableService(transaction, prepared.serviceId);
-      const event = await transaction.event.create({
+      const created = await transaction.event.create({
         data: {
           clientId,
           createdByUserId: principal.userId,
@@ -94,6 +95,9 @@ export class EventsService {
           status: resolvePreparationStatus(prepared)
         }
       });
+      await recomputeDigitalEventPreparationStatus(transaction, created.id);
+      await recomputePhysicalPassPreparationStatus(transaction, created.id);
+      const event = await transaction.event.findUniqueOrThrow({ where: { id: created.id } });
       await this.audit.record(
         {
           actor: { type: AuditActorType.USER, id: principal.userId },
@@ -141,6 +145,7 @@ export class EventsService {
             status: resolvePreparationStatus(merged)
           }
         });
+        await recomputeDigitalEventPreparationStatus(transaction, eventId);
         await recomputePhysicalPassPreparationStatus(transaction, eventId);
         const event = await transaction.event.findUniqueOrThrow({ where: { id: eventId } });
         return auditedResult(toEventResponse(event), eventAuditSnapshot(event));
@@ -197,7 +202,7 @@ export class EventsService {
             WHERE "id" = ${eventId}::uuid
             FOR UPDATE
           `;
-          const current = await this.findOwnedEventForReplay(transaction, eventId, principal);
+          let current = await this.findOwnedEventForReplay(transaction, eventId, principal);
           const repeated = await this.findActivationResult(eventId, idempotencyKey, transaction);
           if (repeated) {
             return repeated;
@@ -205,10 +210,6 @@ export class EventsService {
           if (current.deletedAt !== null) {
             throw eventNotFound();
           }
-          if (current.status !== EventStatus.READY_TO_ACTIVATE) {
-            throw invalidEventState('Only a ready Event may be activated.');
-          }
-
           const client = await transaction.client.findFirst({
             where: { id: current.clientId, deletedAt: null },
             select: { type: true, status: true }
@@ -244,6 +245,20 @@ export class EventsService {
               'Demo service cannot be activated as a real Event.',
               HttpStatus.CONFLICT
             );
+          }
+          if (
+            (service.code === ServiceCode.FLYER || service.code === ServiceCode.FLIPBOOK) &&
+            PREPARATION_STATUSES.includes(current.status)
+          ) {
+            await recomputeDigitalEventPreparationStatus(transaction, eventId);
+            current = await this.findOwnedEventForReplay(transaction, eventId, principal);
+          }
+          if (service.code === ServiceCode.PHYSICAL_QR && PREPARATION_STATUSES.includes(current.status)) {
+            await recomputePhysicalPassPreparationStatus(transaction, eventId);
+            current = await this.findOwnedEventForReplay(transaction, eventId, principal);
+          }
+          if (current.status !== EventStatus.READY_TO_ACTIVATE) {
+            throw invalidEventState('Only a ready Event may be activated.');
           }
           if (service.code === ServiceCode.FLYER || service.code === ServiceCode.FLIPBOOK) {
             const designReadiness = await resolveDesignReadiness(transaction, eventId, service.code);

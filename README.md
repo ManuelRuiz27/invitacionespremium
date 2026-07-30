@@ -376,6 +376,15 @@ Staff bloquea Evento → StaffToken y coordina handshakes pendientes contra cier
 - constraints y triggers diferidos PostgreSQL en la migración 31;
 - E2E HTTP digital y matriz de concurrencia determinista.
 
+El cierre final de `CODEX-110` agregó:
+
+- resolver compartido de readiness para Flyer y Flipbook;
+- recomputación transaccional desde Evento, Contactos, Invitaciones, diseño y Croquis;
+- activación como última barrera antes de cualquier efecto financiero;
+- E2E digital sin modificación manual de estado o snapshots de activación;
+- ocultamiento inmediato de Invitación, Álbum y fotos públicas al alcanzar la expiración, incluso antes
+  de que el scheduler persista el archivo.
+
 Contrato normativo: `docs/04-tecnico/ALBUMS_CONTRACT.md`. `CODEX-111` permanece sin iniciar.
 
 ## Fuente de verdad

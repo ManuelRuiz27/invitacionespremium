@@ -82,7 +82,10 @@ describe('Albums', () => {
   });
 
   beforeEach(resetDatabase, 60_000);
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
   afterAll(async () => {
     await resetDatabase();
     await app.close();
@@ -175,13 +178,12 @@ describe('Albums', () => {
       .set('Cookie', cookie)
       .expect(200);
     expect(readiness.body).toMatchObject({ complete: true, blockers: [] });
-    await prisma.$transaction(async (transaction) => {
-      await transaction.$executeRawUnsafe('SET LOCAL session_replication_role = replica');
-      await transaction.event.update({
-        where: { id: eventId },
-        data: { status: EventStatus.READY_TO_ACTIVATE }
-      });
-    });
+    const readyEvent = await request(app.getHttpServer())
+      .get(`/api/v1/events/${eventId}`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .expect(200);
+    expect(readyEvent.body.status).toBe(EventStatus.READY_TO_ACTIVATE);
     await request(app.getHttpServer())
       .post(`/api/v1/events/${eventId}/activate`)
       .set('Origin', origin)
@@ -320,11 +322,240 @@ describe('Albums', () => {
     expect(await prisma.fileAsset.count({ where: { eventId, status: FileAssetStatus.READY } })).toBeGreaterThan(0);
 
     const expiry = await createPublishedFixture('expiry');
-    const expired = await albums.expirePublishedAlbums(new Date(expiry.expiresAt.getTime() + 1));
+    const expiryAlbum = await request(app.getHttpServer()).get(expiry.albumPath).expect(200);
+    const expiryPhotoPath = expiryAlbum.body.album.photos[0].contentPath as string;
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(expiry.expiresAt);
+    await request(app.getHttpServer()).get(expiry.albumPath).expect(404);
+    await publicInvitation(expiry.invitationToken).expect(404);
+    await request(app.getHttpServer()).get(expiryPhotoPath).expect(404);
+    vi.useRealTimers();
+    expect((await prisma.event.findUniqueOrThrow({ where: { id: expiry.eventId } })).status).toBe(
+      EventStatus.ALBUM_PUBLISHED
+    );
+    const expired = await albums.expirePublishedAlbums(expiry.expiresAt);
     expect(expired).toBe(1);
     expect((await prisma.event.findUniqueOrThrow({ where: { id: expiry.eventId } })).status).toBe(EventStatus.ARCHIVED);
     await request(app.getHttpServer()).get(expiry.albumPath).expect(404);
     expect(await prisma.auditLog.count({ where: { eventId: expiry.eventId, action: 'ALBUM_EXPIRE' } })).toBe(1);
+    expect(
+      await prisma.eventStateOperation.count({
+        where: { eventId: expiry.eventId, action: 'EXPIRE_ALBUM' }
+      })
+    ).toBe(1);
+    expect(
+      await prisma.invitation.count({
+        where: {
+          eventId: expiry.eventId,
+          OR: [
+            { albumTokenNonce: { not: null } },
+            { albumTokenVersion: { not: null } },
+            { albumAccessExpiresAt: { not: null } }
+          ]
+        }
+      })
+    ).toBe(0);
+  }, 120_000);
+
+  it('projects complete Flyer and Flipbook readiness and keeps incomplete activation financially inert under races', async () => {
+    const flyerService = await createService(ServiceCode.FLYER);
+    const flipbookService = await createService(ServiceCode.FLIPBOOK);
+    const physicalService = await createService(ServiceCode.PHYSICAL_QR);
+    const demoService = await createService(ServiceCode.DEMO);
+    await createFreePrice(flyerService.id);
+    const owner = await createClientUser(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
+    const cookie = await login(owner.email);
+
+    const draft = await request(app.getHttpServer())
+      .post('/api/v1/events')
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .send({ serviceId: flyerService.id })
+      .expect(201);
+    expect(draft.body.status).toBe(EventStatus.DRAFT);
+    const eventId = draft.body.id as string;
+    const configured = await request(app.getHttpServer())
+      .patch(`/api/v1/events/${eventId}`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .send(digitalEventData(flyerService.id, false, null, null))
+      .expect(200);
+    expect(configured.body.status).toBe(EventStatus.CONFIGURED);
+
+    const firstContact = await request(app.getHttpServer())
+      .post(`/api/v1/events/${eventId}/contacts`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .send({ name: 'Readiness', whatsappPhone: '+525511220001' })
+      .expect(201);
+    expect((await prisma.event.findUniqueOrThrow({ where: { id: eventId } })).status).toBe(EventStatus.CONFIGURED);
+    const initial = await uploadImage(eventId, cookie, 'FLYER', 'FLYER_INITIAL_IMAGE').expect(201);
+    const qr = await uploadImage(eventId, cookie, 'FLYER', 'FLYER_QR_IMAGE').expect(201);
+    await request(app.getHttpServer())
+      .post(`/api/v1/events/${eventId}/design/flyer`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .send({ initialAssetId: initial.body.id, qrAssetId: qr.body.id })
+      .expect(201);
+    const hotspotIds: Record<string, string> = {};
+    for (const action of [
+      HotspotAction.RSVP,
+      HotspotAction.LOCATION,
+      HotspotAction.GIFT_REGISTRY,
+      HotspotAction.QR_AREA
+    ]) {
+      const hotspot = await createFlyerHotspot(eventId, cookie, action).expect(201);
+      hotspotIds[action] = hotspot.body.id as string;
+    }
+    expect((await prisma.event.findUniqueOrThrow({ where: { id: eventId } })).status).toBe(EventStatus.CONFIGURED);
+    await patchEvent(eventId, cookie, { confirmationEnabled: true }).expect(200);
+    expect((await prisma.event.findUniqueOrThrow({ where: { id: eventId } })).status).toBe(EventStatus.CONFIGURED);
+    await patchEvent(eventId, cookie, { locationUrl: 'https://example.com/ubicacion' }).expect(200);
+    expect((await prisma.event.findUniqueOrThrow({ where: { id: eventId } })).status).toBe(EventStatus.CONFIGURED);
+    await patchEvent(eventId, cookie, { giftRegistryUrl: 'https://example.com/regalos' })
+      .expect(200)
+      .expect(({ body }) => expect(body.status).toBe(EventStatus.READY_TO_ACTIVATE));
+
+    await request(app.getHttpServer())
+      .delete(`/api/v1/events/${eventId}/contacts/${firstContact.body.id as string}`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .expect(204);
+    expect((await prisma.event.findUniqueOrThrow({ where: { id: eventId } })).status).toBe(EventStatus.CONFIGURED);
+    await request(app.getHttpServer())
+      .post(`/api/v1/events/${eventId}/contacts`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .send({ name: 'Readiness restaurado', whatsappPhone: '+525511220002' })
+      .expect(201);
+    expect((await prisma.event.findUniqueOrThrow({ where: { id: eventId } })).status).toBe(
+      EventStatus.READY_TO_ACTIVATE
+    );
+    await request(app.getHttpServer())
+      .delete(`/api/v1/events/${eventId}/hotspots/${hotspotIds[HotspotAction.QR_AREA]}`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .expect(204);
+    expect((await prisma.event.findUniqueOrThrow({ where: { id: eventId } })).status).toBe(EventStatus.CONFIGURED);
+    await createFlyerHotspot(eventId, cookie, HotspotAction.QR_AREA).expect(201);
+    expect((await prisma.event.findUniqueOrThrow({ where: { id: eventId } })).status).toBe(
+      EventStatus.READY_TO_ACTIVATE
+    );
+    await request(app.getHttpServer())
+      .post(`/api/v1/events/${eventId}/activate`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .set('Idempotency-Key', randomUUID())
+      .expect(200)
+      .expect(({ body }) => expect(body.event.status).toBe(EventStatus.ACTIVE));
+
+    const flipbook = await createDigitalEvent(flipbookService.id, cookie);
+    await request(app.getHttpServer())
+      .post(`/api/v1/events/${flipbook.id}/contacts`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .send({ name: 'Flipbook', whatsappPhone: '+525511220003' })
+      .expect(201);
+    await request(app.getHttpServer())
+      .post(`/api/v1/events/${flipbook.id}/design/flipbook`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .expect(201);
+    const pageAsset = await uploadImage(flipbook.id, cookie, 'FLIPBOOK_PAGE', 'FLIPBOOK_PAGE_IMAGE').expect(201);
+    const withPage = await request(app.getHttpServer())
+      .post(`/api/v1/events/${flipbook.id}/design/flipbook/pages`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .send({ fileAssetId: pageAsset.body.id })
+      .expect(201);
+    const pageId = withPage.body.pages[0].id as string;
+    for (const action of [
+      HotspotAction.RSVP,
+      HotspotAction.LOCATION,
+      HotspotAction.GIFT_REGISTRY,
+      HotspotAction.QR_AREA
+    ]) {
+      await request(app.getHttpServer())
+        .post(`/api/v1/events/${flipbook.id}/hotspots`)
+        .set('Origin', origin)
+        .set('Cookie', cookie)
+        .send({
+          visualOwnerType: HotspotVisualOwnerType.FLIPBOOK_PAGE,
+          flipbookPageId: pageId,
+          action,
+          x: 0.1,
+          y: 0.1,
+          width: 0.2,
+          height: 0.2,
+          priority: 1
+        })
+        .expect(201);
+    }
+    expect((await prisma.event.findUniqueOrThrow({ where: { id: flipbook.id } })).status).toBe(
+      EventStatus.READY_TO_ACTIVATE
+    );
+
+    for (const serviceId of [physicalService.id, demoService.id]) {
+      const nonDigital = await createDigitalEvent(serviceId, cookie);
+      expect(nonDigital.status).toBe(EventStatus.CONFIGURED);
+    }
+
+    const incomplete = await createDigitalEvent(flyerService.id, cookie);
+    await prisma.event.update({
+      where: { id: incomplete.id },
+      data: { status: EventStatus.READY_TO_ACTIVATE }
+    });
+    const financialBefore = {
+      ledger: await prisma.ledgerEntry.count({ where: { eventId: incomplete.id } }),
+      receipts: await prisma.receipt.count({ where: { operationReference: incomplete.id } })
+    };
+    await request(app.getHttpServer())
+      .post(`/api/v1/events/${incomplete.id}/activate`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .set('Idempotency-Key', randomUUID())
+      .expect(409);
+    expect({
+      ledger: await prisma.ledgerEntry.count({ where: { eventId: incomplete.id } }),
+      receipts: await prisma.receipt.count({ where: { operationReference: incomplete.id } })
+    }).toEqual(financialBefore);
+    expect((await prisma.event.findUniqueOrThrow({ where: { id: incomplete.id } })).activatedAt).toBeNull();
+
+    const contactRace = await createReadyFlyerHttp(flyerService.id, cookie, '+525511220010');
+    const [deletedBeforeActivation, rejectedActivation] = await startOrderedBehindVerifiedEventLock(
+      contactRace.eventId,
+      () =>
+        request(app.getHttpServer())
+          .delete(`/api/v1/events/${contactRace.eventId}/contacts/${contactRace.contactId}`)
+          .set('Origin', origin)
+          .set('Cookie', cookie),
+      () =>
+        request(app.getHttpServer())
+          .post(`/api/v1/events/${contactRace.eventId}/activate`)
+          .set('Origin', origin)
+          .set('Cookie', cookie)
+          .set('Idempotency-Key', randomUUID())
+    );
+    expect([deletedBeforeActivation.status, rejectedActivation.status]).toEqual([204, 409]);
+    expect(await prisma.ledgerEntry.count({ where: { eventId: contactRace.eventId } })).toBe(0);
+
+    const hotspotRace = await createReadyFlyerHttp(flyerService.id, cookie, '+525511220011');
+    const [hotspotDeletedBeforeActivation, hotspotActivationRejected] = await startOrderedBehindVerifiedEventLock(
+      hotspotRace.eventId,
+      () =>
+        request(app.getHttpServer())
+          .delete(`/api/v1/events/${hotspotRace.eventId}/hotspots/${hotspotRace.qrHotspotId}`)
+          .set('Origin', origin)
+          .set('Cookie', cookie),
+      () =>
+        request(app.getHttpServer())
+          .post(`/api/v1/events/${hotspotRace.eventId}/activate`)
+          .set('Origin', origin)
+          .set('Cookie', cookie)
+          .set('Idempotency-Key', randomUUID())
+    );
+    expect([hotspotDeletedBeforeActivation.status, hotspotActivationRejected.status]).toEqual([204, 409]);
+    expect(await prisma.ledgerEntry.count({ where: { eventId: hotspotRace.eventId } })).toBe(0);
   }, 120_000);
 
   it('enforces service, ownership, SQL integrity, the 35-photo limit and contiguous compaction', async () => {
@@ -943,6 +1174,95 @@ describe('Albums', () => {
     });
   }
 
+  function digitalEventData(
+    serviceId: string,
+    confirmationEnabled = true,
+    locationUrl: string | null = 'https://example.com/ubicacion',
+    giftRegistryUrl: string | null = 'https://example.com/regalos'
+  ) {
+    return {
+      name: 'Evento readiness digital',
+      serviceId,
+      socialType: EventSocialType.WEDDING,
+      eventDateTime: '2030-01-01T18:00:00.000Z',
+      timeZone: 'America/Mexico_City',
+      capacity: 20,
+      confirmationEnabled,
+      locationUrl,
+      giftRegistryUrl
+    };
+  }
+
+  function patchEvent(eventId: string, cookie: string[], body: Record<string, unknown>) {
+    return request(app.getHttpServer())
+      .patch(`/api/v1/events/${eventId}`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .send(body);
+  }
+
+  async function createDigitalEvent(serviceId: string, cookie: string[]) {
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/events')
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .send(digitalEventData(serviceId))
+      .expect(201);
+    return response.body as { id: string; status: EventStatus };
+  }
+
+  function createFlyerHotspot(eventId: string, cookie: string[], action: HotspotAction) {
+    return request(app.getHttpServer())
+      .post(`/api/v1/events/${eventId}/hotspots`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .send({
+        visualOwnerType: HotspotVisualOwnerType.FLYER,
+        action,
+        x: 0.1,
+        y: 0.1,
+        width: 0.2,
+        height: 0.2,
+        priority: 1
+      });
+  }
+
+  async function createReadyFlyerHttp(serviceId: string, cookie: string[], phone: string) {
+    const event = await createDigitalEvent(serviceId, cookie);
+    const contact = await request(app.getHttpServer())
+      .post(`/api/v1/events/${event.id}/contacts`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .send({ name: 'Carrera readiness', whatsappPhone: phone })
+      .expect(201);
+    const initial = await uploadImage(event.id, cookie, 'FLYER', 'FLYER_INITIAL_IMAGE').expect(201);
+    const qr = await uploadImage(event.id, cookie, 'FLYER', 'FLYER_QR_IMAGE').expect(201);
+    await request(app.getHttpServer())
+      .post(`/api/v1/events/${event.id}/design/flyer`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .send({ initialAssetId: initial.body.id, qrAssetId: qr.body.id })
+      .expect(201);
+    let qrHotspotId = '';
+    for (const action of [
+      HotspotAction.RSVP,
+      HotspotAction.LOCATION,
+      HotspotAction.GIFT_REGISTRY,
+      HotspotAction.QR_AREA
+    ]) {
+      const hotspot = await createFlyerHotspot(event.id, cookie, action).expect(201);
+      if (action === HotspotAction.QR_AREA) qrHotspotId = hotspot.body.id as string;
+    }
+    expect((await prisma.event.findUniqueOrThrow({ where: { id: event.id } })).status).toBe(
+      EventStatus.READY_TO_ACTIVATE
+    );
+    return {
+      eventId: event.id,
+      contactId: contact.body.id as string,
+      qrHotspotId
+    };
+  }
+
   async function createClientUser(type: ClientType, role: UserRole) {
     const client = await prisma.client.create({
       data: { type, name: `Cliente ${randomUUID()}`, status: ClientStatus.ACTIVE }
@@ -1005,8 +1325,8 @@ describe('Albums', () => {
   function uploadImage(
     eventId: string,
     cookie: string[],
-    ownerType: 'FLYER' | 'ALBUM_PHOTO',
-    fileType: 'FLYER_INITIAL_IMAGE' | 'FLYER_QR_IMAGE' | 'ALBUM_PHOTO_IMAGE',
+    ownerType: 'FLYER' | 'FLIPBOOK_PAGE' | 'ALBUM_PHOTO',
+    fileType: 'FLYER_INITIAL_IMAGE' | 'FLYER_QR_IMAGE' | 'FLIPBOOK_PAGE_IMAGE' | 'ALBUM_PHOTO_IMAGE',
     format: 'png' | 'jpeg' = 'png'
   ) {
     return request(app.getHttpServer())

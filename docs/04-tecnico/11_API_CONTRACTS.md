@@ -144,7 +144,11 @@ Reglas:
 - transiciones exactas según `EVENT_STATE_MACHINE.md`;
 - activación requiere `Idempotency-Key`;
 - `PATCH` no permite cambiar status arbitrariamente;
-- zona horaria del Evento es parte de datos operativos.
+- zona horaria del Evento es parte de datos operativos;
+- `POST /events` y `PATCH /events/:eventId` recomputan la proyección de readiness digital para
+  `FLYER|FLIPBOOK`;
+- activación bloquea el Evento, recomputa readiness y exige `READY_TO_ACTIVATE` antes de resolver precio
+  o producir ledger, recibo y cambio de balance.
 
 ## ContactsModule
 
@@ -166,7 +170,9 @@ Reglas:
 - preview no persiste Contactos definitivos;
 - commit usa un preview válido/no expirado o payload validado equivalente;
 - archivo que excede 150 se bloquea completo;
-- teléfono nunca llega a Staff/Socket.IO/reportes.
+- teléfono nunca llega a Staff/Socket.IO/reportes;
+- crear el primer Contacto, eliminar el último y confirmar un import CSV recomputan readiness digital
+  dentro de la transacción causante.
 
 ## InvitationsModule
 
@@ -184,6 +190,8 @@ Cada Contacto se aprovisiona transaccionalmente con una Invitación individual y
 Las mutaciones de modo, límite y Asistentes adicionales solo operan durante la preparación. La cancelación
 es irreversible, requiere `Idempotency-Key`, conserva el link para renderizar el mensaje de cancelación y
 bloquea Confirmación, edición pública y QR.
+Cancelar una Invitación durante preparación recomputa readiness digital en la misma transacción; una
+Invitación cancelada no cuenta como activa.
 
 `POST /events/:eventId/invitations/:invitationId/cancel` devuelve únicamente `invitationId`, `eventId`,
 `status = CANCELLED` y `cancelledAt`. El replay autorizado conserva exactamente esos valores incluso tras
@@ -233,6 +241,8 @@ Reglas:
 - `PATCH` con `url` exige acción actual o resultante `EXTERNAL_LINK`; no acepta `null` ni descarta el campo;
 - Hotspots de Flipbook solo operan sobre portada o página QR y nunca sobre páginas eliminadas;
 - la activación recalcula readiness antes de cualquier efecto financiero;
+- todas las mutaciones de Flyer, Flipbook, páginas y Hotspots recomputan la proyección digital completa,
+  por lo que pueden promover o degradar el Evento;
 - detalle completo en `INVITATION_DESIGN_CONTRACT.md`.
 
 ## PublicRsvpModule
@@ -305,6 +315,10 @@ Endpoints Staff de solo lectura:
 Requieren token válido del mismo Evento `active | event_day`. La respuesta contiene Croquis, shapes,
 capacidad, ocupación y coordenadas sin Contactos, teléfono, rutas ni claves de storage. Los resultados
 Scanner de Invitación/Asistentes agregan únicamente `table: {id,name} | null`.
+
+Las mutaciones estructurales del Croquis —creación, reemplazo de imagen y alta, edición o eliminación de
+Mesa/shape— recomputan readiness digital cuando `floorplanEnabled=true`. Los cambios de seating que no
+alteran la validez estructural no recalculan la proyección.
 
 ## StaffAccessModule
 

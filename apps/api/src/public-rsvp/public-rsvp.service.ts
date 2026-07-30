@@ -89,7 +89,7 @@ export class PublicRsvpService {
 
   async resolve(invitationToken: string): Promise<PublicInvitationViewResponseDto> {
     const invitation = await this.resolvePublicInvitation(this.prisma, invitationToken);
-    return this.toPublicView(invitation, invitationToken);
+    return this.toPublicView(invitation, invitationToken, new Date());
   }
 
   async content(invitationToken: string, fileAssetId: string): Promise<PublicAssetContent> {
@@ -600,7 +600,11 @@ export class PublicRsvpService {
     return invitation;
   }
 
-  private toPublicView(invitation: PublicInvitation, invitationToken: string): PublicInvitationViewResponseDto {
+  private toPublicView(
+    invitation: PublicInvitation,
+    invitationToken: string,
+    now: Date
+  ): PublicInvitationViewResponseDto {
     const event = invitation.event;
     if (invitation.cancelledAt) return { status: 'CANCELLED', message: INVITATION_CANCELLED_MESSAGE };
     if (event.status === EventStatus.CANCELLED) return { status: 'CANCELLED', message: EVENT_CANCELLED_MESSAGE };
@@ -608,14 +612,27 @@ export class PublicRsvpService {
     if (event.status === EventStatus.ALBUM_PUBLISHED) {
       const album = event.album;
       if (
-        album &&
-        album.deletedAt === null &&
-        album.publishedAt &&
-        album.expiresAt &&
+        !album ||
+        album.deletedAt !== null ||
+        !album.publishedAt ||
+        !album.expiresAt ||
+        album.expiresAt.getTime() <= now.getTime()
+      ) {
+        throw invitationNotFound();
+      }
+      const hasAnyAlbumAccess =
+        invitation.albumTokenNonce !== null ||
+        invitation.albumTokenVersion !== null ||
+        invitation.albumAccessExpiresAt !== null;
+      if (
         invitation.albumTokenNonce &&
         invitation.albumTokenVersion &&
+        invitation.albumTokenVersion > 0 &&
         invitation.albumAccessExpiresAt
       ) {
+        if (invitation.albumAccessExpiresAt.getTime() <= now.getTime()) {
+          throw invitationNotFound();
+        }
         const token = this.albumTokens.issue(
           album.id,
           invitation.id,
@@ -629,6 +646,9 @@ export class PublicRsvpService {
             contentPath: `/api/v1/public/albums/${encodeURIComponent(token)}`
           }
         };
+      }
+      if (hasAnyAlbumAccess) {
+        throw invitationNotFound();
       }
       return {
         status: 'CLOSED',

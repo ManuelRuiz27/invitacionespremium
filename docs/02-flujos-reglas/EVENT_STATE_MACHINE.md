@@ -45,6 +45,7 @@ Este documento complementa `05_REGLAS_NEGOCIO.md`. No sustituye la diferencia en
 - invitación configurada;
 - al menos un Contacto/Invitación cargado;
 - Confirmación de asistencia configurada;
+- URL de ubicación y URL de mesa de regalos presentes y válidas;
 - croquis/mesas válidos si el módulo fue activado;
 - saldo comprado suficiente o línea de crédito disponible;
 - Cliente no suspendido;
@@ -59,6 +60,21 @@ Este documento complementa `05_REGLAS_NEGOCIO.md`. No sustituye la diferencia en
 - saldo comprado suficiente o línea de crédito disponible;
 - Cliente no suspendido;
 - ausencia de bloqueos administrativos aplicables.
+
+La proyección funcional digital usa un resolver compartido. Los datos básicos determinan `draft`; con
+datos completos y cualquier requisito funcional pendiente resulta `configured`; con diseño compatible,
+al menos una Invitación y Contacto activos, Confirmación habilitada, ambas URLs y Croquis válido cuando
+aplica resulta `ready_to_activate`. El resolver reutiliza las reglas de diseño y Croquis existentes y no
+consulta ni modifica ledger, precio, promociones, saldo o recibos.
+
+La proyección se recomputa dentro de la transacción que crea o edita el Evento, crea/elimina/importa
+Contactos, cancela Invitaciones durante preparación, muta Flyer/Flipbook/Hotspots o cambia la estructura
+del Croquis. Solo puede modificar `draft`, `configured` o `ready_to_activate`; nunca altera estados
+operativos o terminales.
+
+La activación bloquea el Evento, vuelve a recomputar la proyección digital y exige
+`ready_to_activate` antes de ejecutar preflights financieros. Una proyección obsoleta nunca permite
+activar ni cobrar un Evento funcionalmente incompleto.
 
 El preflight especializado exige además al menos un Pase activo, numeración consistente, total dentro de
 `Event.capacity`, ningún uso antes de activar y, con Croquis, Mesa activa para cada Pase sin sobrecupo

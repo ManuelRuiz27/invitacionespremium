@@ -7,6 +7,7 @@ import { CRITICAL_TRANSACTION_OPTIONS } from '../common/database/transaction-pol
 import { AppConfigService } from '../config/app-config.service';
 import { AuditActorType, EventStatus, Prisma, type Contact, type Group, type Event } from '../generated/prisma/client';
 import { EventAccessPolicy, eventNotFound } from '../events/event-access.policy';
+import { recomputeDigitalEventPreparationStatus } from '../events/digital-event-readiness.service';
 import { InvitationProvisioningService } from '../invitations/invitation-provisioning.service';
 import {
   collapseWhitespace,
@@ -76,6 +77,7 @@ export class ContactsService {
         }
       });
       const provisioned = await this.invitations.provisionForContact(tx, contact);
+      await recomputeDigitalEventPreparationStatus(tx, eventId);
 
       await this.recordUserAudit(tx, principal, event, operationId, 'CONTACT_CREATE', 'Contact', contact.id, {
         id: contact.id,
@@ -149,6 +151,7 @@ export class ContactsService {
         data: { deletedAt }
       });
       await this.invitations.softDeleteForContact(tx, contactId, deletedAt);
+      await recomputeDigitalEventPreparationStatus(tx, eventId);
       await this.recordUserAudit(
         tx,
         principal,
@@ -397,6 +400,7 @@ export class ContactsService {
           await this.invitations.provisionForContact(tx, contact);
           contacts.push(contact);
         }
+        await recomputeDigitalEventPreparationStatus(tx, eventId);
 
         const result: CommitImportResponseDto = {
           createdContacts: contacts.length,

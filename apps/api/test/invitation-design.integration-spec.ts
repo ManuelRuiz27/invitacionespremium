@@ -667,7 +667,7 @@ describe('InvitationDesignModule', () => {
     await mutate('post', `/events/${event.id}/activate`, cookie)
       .set('Idempotency-Key', randomUUID())
       .expect(409)
-      .expect(({ body }) => expect(body.code).toBe('EVENT_INVITATION_DESIGN_INCOMPLETE'));
+      .expect(({ body }) => expect(body.code).toBe('EVENT_INVALID_STATE_TRANSITION'));
     expect(await prisma.ledgerEntry.count()).toBe(0);
     expect(await prisma.receipt.count()).toBe(0);
 

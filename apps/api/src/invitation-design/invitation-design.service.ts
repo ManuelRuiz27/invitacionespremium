@@ -6,6 +6,7 @@ import { PrismaService } from '../common/database/prisma.service';
 import { CRITICAL_TRANSACTION_OPTIONS } from '../common/database/transaction-policy';
 import { DomainError } from '../common/errors/domain-error';
 import { EventAccessPolicy, eventNotFound } from '../events/event-access.policy';
+import { recomputeDigitalEventPreparationStatus } from '../events/digital-event-readiness.service';
 import { FileAssetsService } from '../file-assets/file-assets.service';
 import {
   AuditActorType,
@@ -182,6 +183,7 @@ export class InvitationDesignService {
       const design = await transaction.invitationDesign.create({
         data: { eventId, type: InvitationDesignType.FLIPBOOK }
       });
+      await recomputeDigitalEventPreparationStatus(transaction, eventId);
       await this.record(
         transaction,
         principal,
@@ -946,14 +948,9 @@ export class InvitationDesignService {
     after: DesignReadiness,
     operationId?: string
   ): Promise<void> {
+    await recomputeDigitalEventPreparationStatus(transaction, eventId);
     if (before.complete === after.complete && sameStrings(before.blockers, after.blockers)) {
       return;
-    }
-    if (!after.complete) {
-      await transaction.event.updateMany({
-        where: { id: eventId, status: EventStatus.READY_TO_ACTIVATE },
-        data: { status: EventStatus.CONFIGURED }
-      });
     }
     await this.record(
       transaction,

@@ -169,6 +169,13 @@ Una Invitación sin ingreso recibe:
 { "album": { "state": "RESTRICTED", "message": "Álbum disponible solo para asistentes" } }
 ```
 
+Cada resolución usa un único instante. `AVAILABLE` exige Álbum activo y publicado con `expiresAt > now`,
+además de nonce, versión positiva y `albumAccessExpiresAt > now` para la Invitación. La comparación es
+estricta: cuando `now === expiresAt` o `now === albumAccessExpiresAt`, el acceso ya venció. En ese caso
+la vista pública de Invitación responde `404`, aunque el scheduler todavía no haya persistido
+`archived`; `RESTRICTED` se reserva para una Invitación no elegible mientras la publicación sigue
+vigente.
+
 ## Endpoints públicos
 
 | Método | Ruta | Resultado |
@@ -228,5 +235,12 @@ Las pruebas de integración coordinan carreras mediante locks PostgreSQL y `pg_s
 temporizadores arbitrarios. Verifican creación única, máximo 35, mutaciones contra publicación,
 reversión/reapertura en ambos órdenes, archivo, expiración, idempotencia y acceso público contra
 invalidación.
+
+El E2E digital crea Evento, Contactos, FileAssets, Flyer y Hotspots mediante HTTP, observa
+`ready_to_activate` derivado y activa por el endpoint real. No modifica manualmente `status`,
+`activatedAt` ni snapshots de activación. Las regresiones adicionales serializan la última mutación de
+readiness, eliminación del último Contacto y eliminación de Hotspot obligatorio contra activación; el
+resultado nunca activa ni cobra un Evento incompleto. También verifican que Invitación, Álbum y foto
+respondan `404` exactamente en el límite de expiración antes de ejecutar el scheduler.
 
 CODEX-110 no agrega eventos Socket.IO.

@@ -5,6 +5,7 @@ import type { AuthPrincipal } from '../auth/auth.types';
 import { PrismaService } from '../common/database/prisma.service';
 import { CRITICAL_TRANSACTION_OPTIONS } from '../common/database/transaction-policy';
 import { DomainError } from '../common/errors/domain-error';
+import { recomputeDigitalEventPreparationStatus } from '../events/digital-event-readiness.service';
 import { FileAssetsService } from '../file-assets/file-assets.service';
 import { FileStorage } from '../file-assets/file-storage';
 import {
@@ -117,6 +118,7 @@ export class FloorplanService {
         floorplanId: id,
         imageAssetId: input.imageAssetId
       });
+      await recomputeDigitalEventPreparationStatus(tx, eventId);
       return toFloorplanResponse(await this.requireView(tx, eventId));
     });
   }
@@ -204,6 +206,7 @@ export class FloorplanService {
         fromImageAssetId: current.imageAssetId,
         toImageAssetId: input.imageAssetId
       });
+      await recomputeDigitalEventPreparationStatus(tx, eventId);
       return toFloorplanResponse(await this.requireView(tx, eventId));
     });
   }
@@ -229,6 +232,7 @@ export class FloorplanService {
       this.assertUnlocked(floorplan);
       const shape = await tx.floorplanShape.create({ data: shapeCreateData(floorplan.id, eventId, input) });
       await this.recordAudit(tx, event, principal, operationId, 'FLOORPLAN_SHAPE_CREATE', shape.id, shapeAudit(shape));
+      await recomputeDigitalEventPreparationStatus(tx, eventId);
       return toShapeResponse(shape, 0);
     });
   }
@@ -272,6 +276,7 @@ export class FloorplanService {
         after: shapeAudit(updated),
         occupancy
       });
+      await recomputeDigitalEventPreparationStatus(tx, eventId);
       return toShapeResponse(updated, occupancy);
     });
   }
@@ -290,6 +295,7 @@ export class FloorplanService {
         ...shapeAudit(current),
         occupancy
       });
+      await recomputeDigitalEventPreparationStatus(tx, eventId);
     });
   }
 
