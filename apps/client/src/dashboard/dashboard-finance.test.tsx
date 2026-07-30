@@ -128,6 +128,17 @@ describe('Client dashboard and financial visibility', () => {
     expect(router.state.location.search).toContain('returnTo=%2Feventos');
   });
 
+  it('keeps the Dashboard session mounted when a query returns 500', async () => {
+    const api = mockApiClient();
+    vi.mocked(api.events.list).mockRejectedValue(new ApiError(500, 'INTERNAL_ERROR', 'Server error'));
+    const { router } = renderApp(api, '/eventos');
+
+    expect(await screen.findByText('El servicio no está disponible por el momento.')).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/eventos');
+    expect(screen.queryByRole('heading', { name: 'Iniciar sesión' })).not.toBeInTheDocument();
+    expect(api.auth.logout).not.toHaveBeenCalled();
+  });
+
   it('renders finance alerts only from backend facts', async () => {
     const api = mockApiClient();
     vi.mocked(api.finance.balance).mockResolvedValue({

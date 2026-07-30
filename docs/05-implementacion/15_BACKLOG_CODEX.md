@@ -935,8 +935,12 @@ distintos, recuperación tras caída y cierre de pools. Las migraciones permanec
 
 **Estado:** completado y cerrado. `apps/client` implementa sesión por cookie HttpOnly, login/logout,
 guards, retorno interno seguro, redirección Platform Admin, shell responsive, dashboard de Eventos y
-Finanzas por rol. `packages/api-client` genera tipos desde OpenAPI con control de drift y `packages/ui`
-aporta los componentes presentacionales comunes. Contrato normativo: `CLIENT_APP_CONTRACT.md`.
+Finanzas por rol. La restauración distingue `anonymous`, `forbidden` y `unavailable`: solo `401`
+confirma ausencia o expiración; red, `429`, `5xx` y respuestas inesperadas no ejecutan logout ni
+redirigen a login. Roles incompatibles muestran acceso no permitido también desde `/login`.
+`packages/api-client` genera tipos desde OpenAPI con control de drift y `packages/ui` aporta los
+componentes presentacionales comunes. Contrato normativo: `CLIENT_APP_CONTRACT.md`. CODEX-121 no fue
+iniciado.
 
 ### CODEX-121 — Wizard de Evento
 

@@ -9,7 +9,14 @@ Aplicación Cliente para Planner independiente, Admin de Organización y Planner
 - `/finanzas`: balance, movimientos y comprobantes para roles financieros.
 
 La sesión usa exclusivamente la cookie HttpOnly emitida por la API. No se persisten tokens, contraseñas
-ni cookies en storage del navegador. Platform Admin se redirige a `VITE_ADMIN_APP_URL`.
+ni cookies en storage del navegador. Sus estados visibles son `loading`, `authenticated`, `anonymous`,
+`forbidden` y `unavailable`.
+
+Solo un `401` de `GET /auth/me` demuestra ausencia de sesión. Un error de red, `429`, `5xx`, una
+respuesta inesperada o cualquier error que no demuestre ausencia muestra “No pudimos verificar tu
+sesión” y permite reintentar exclusivamente `/auth/me`; no ejecuta logout ni redirige al formulario.
+Un rol incompatible muestra acceso no permitido incluso si fue recibido en `/login`. Platform Admin se
+redirige a `VITE_ADMIN_APP_URL` sin cerrar su sesión.
 
 ## Variables
 
@@ -22,6 +29,8 @@ VITE_LANDING_URL=http://localhost:5176
 
 Todas son obligatorias en producción. `VITE_SOCKET_URL` queda reservada para una integración posterior;
 CODEX-120 no conecta Socket.IO.
+
+CODEX-121 no fue iniciado.
 
 ## Comandos
 

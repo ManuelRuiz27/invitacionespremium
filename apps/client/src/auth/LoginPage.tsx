@@ -3,7 +3,9 @@ import { ApiError } from '@invitaciones/api-client';
 import { AppThemeProvider, LoadingState } from '@invitaciones/ui';
 import { Alert, Box, Button, Container, Link as MuiLink, Paper, Stack, TextField, Typography } from '@mui/material';
 import { Navigate, useSearchParams } from 'react-router-dom';
+import { AccessDeniedPage } from './AccessDeniedPage';
 import { safeReturnTo, useAuth } from './AuthProvider';
+import { SessionUnavailablePage } from './SessionUnavailablePage';
 
 export function LoginPage({ landingUrl }: { landingUrl: string }) {
   const auth = useAuth();
@@ -16,9 +18,12 @@ export function LoginPage({ landingUrl }: { landingUrl: string }) {
   const [submitting, setSubmitting] = useState(false);
 
   if (auth.status === 'loading') return <LoadingState label="Restaurando tu sesión…" />;
+  if (auth.status === 'redirecting') return <LoadingState label="Redirigiendo…" />;
   if (auth.status === 'authenticated') {
     return <Navigate to={safeReturnTo(searchParams.get('returnTo'))} replace />;
   }
+  if (auth.status === 'forbidden') return <AccessDeniedPage />;
+  if (auth.status === 'unavailable') return <SessionUnavailablePage />;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

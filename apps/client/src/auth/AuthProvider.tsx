@@ -4,11 +4,12 @@ import { ApiError } from '@invitaciones/api-client';
 import type { QueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 
-export type AuthStatus = 'loading' | 'authenticated' | 'anonymous' | 'forbidden';
+export type AuthStatus = 'loading' | 'authenticated' | 'anonymous' | 'forbidden' | 'unavailable' | 'redirecting';
 
 interface AuthContextValue {
   status: AuthStatus;
   user: AuthUser | null;
+  restoreSession(signal?: AbortSignal): Promise<void>;
   login(input: LoginInput, returnTo?: string): Promise<void>;
   logout(): Promise<void>;
   expireSession(returnTo: string): void;
@@ -31,7 +32,7 @@ export function AuthProvider({ apiClient, queryClient, adminAppUrl, navigateExte
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [user, setUser] = useState<AuthUser | null>(null);
 
-  const clearSession = useCallback(() => {
+  const clearPrivateState = useCallback(() => {
     queryClient.clear();
     setUser(null);
   }, [queryClient]);
@@ -39,15 +40,15 @@ export function AuthProvider({ apiClient, queryClient, adminAppUrl, navigateExte
   const acceptUser = useCallback(
     async (candidate: AuthUser, returnTo?: string, navigateAfter = true) => {
       if (candidate.role === 'PLATFORM_ADMIN') {
-        clearSession();
-        setStatus('forbidden');
+        setUser(null);
+        setStatus('redirecting');
         externalNavigation(adminAppUrl);
         return;
       }
 
       if (!clientRoles.has(candidate.role)) {
         await apiClient.auth.logout().catch(() => undefined);
-        clearSession();
+        clearPrivateState();
         setStatus('forbidden');
         return;
       }
@@ -56,26 +57,48 @@ export function AuthProvider({ apiClient, queryClient, adminAppUrl, navigateExte
       setStatus('authenticated');
       if (navigateAfter) navigate(safeReturnTo(returnTo), { replace: true });
     },
-    [adminAppUrl, apiClient, clearSession, externalNavigation, navigate]
+    [adminAppUrl, apiClient, clearPrivateState, externalNavigation, navigate]
+  );
+
+  const restoreSession = useCallback(
+    async (signal?: AbortSignal) => {
+      setStatus('loading');
+      try {
+        const candidate = await apiClient.auth.me(signal);
+        if (signal?.aborted) return;
+        await acceptUser(candidate, undefined, false);
+      } catch (error: unknown) {
+        if (signal?.aborted) return;
+
+        if (error instanceof ApiError && error.status === 401) {
+          clearPrivateState();
+          setStatus('anonymous');
+          return;
+        }
+
+        if (error instanceof ApiError && error.status === 403) {
+          clearPrivateState();
+          setStatus('forbidden');
+          return;
+        }
+
+        setStatus('unavailable');
+      }
+    },
+    [acceptUser, apiClient, clearPrivateState]
   );
 
   useEffect(() => {
     const controller = new AbortController();
-    void apiClient.auth
-      .me(controller.signal)
-      .then((candidate) => acceptUser(candidate, undefined, false))
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return;
-        clearSession();
-        setStatus(error instanceof ApiError && error.status === 403 ? 'forbidden' : 'anonymous');
-      });
+    void restoreSession(controller.signal);
     return () => controller.abort();
-  }, [acceptUser, apiClient, clearSession]);
+  }, [restoreSession]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       status,
       user,
+      restoreSession,
       login: async (input, returnTo) => {
         const result = await apiClient.auth.login(input);
         await acceptUser(result.user, returnTo);
@@ -84,19 +107,19 @@ export function AuthProvider({ apiClient, queryClient, adminAppUrl, navigateExte
         try {
           await apiClient.auth.logout();
         } finally {
-          clearSession();
+          clearPrivateState();
           setStatus('anonymous');
           navigate('/login', { replace: true });
         }
       },
       expireSession: (returnTo) => {
-        clearSession();
+        clearPrivateState();
         setStatus('anonymous');
         const safe = safeReturnTo(returnTo);
         navigate(`/login?returnTo=${encodeURIComponent(safe)}`, { replace: true });
       }
     }),
-    [acceptUser, apiClient, clearSession, navigate, status, user]
+    [acceptUser, apiClient, clearPrivateState, navigate, restoreSession, status, user]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

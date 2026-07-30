@@ -56,14 +56,34 @@ Al iniciar se ejecuta `GET /auth/me` y la sesión adopta uno de estos estados:
 - `loading`;
 - `authenticated`;
 - `anonymous`;
-- `forbidden`.
+- `forbidden`;
+- `unavailable`.
+
+La restauración inicial y el reintento manual comparten `restoreSession()` y propagan un `AbortSignal`.
+Una respuesta abortada al desmontar no modifica el estado. No existen reintentos automáticos.
+
+| Resultado de `GET /auth/me` | Estado o efecto |
+| --- | --- |
+| `200` con rol Cliente compatible | `authenticated` |
+| `200` con `PLATFORM_ADMIN` | redirección externa a Admin |
+| `200` con rol incompatible | logout best-effort, limpieza de cache y `forbidden` |
+| `401` | limpieza de cache y `anonymous` |
+| `403` | `forbidden` |
+| error de red, `429`, `5xx` o `UNEXPECTED_API_RESPONSE` | `unavailable` |
+| otro error que no demuestre ausencia de sesión | `unavailable` |
+
+`unavailable` muestra una pantalla sin campos de credenciales, con el mensaje “No pudimos verificar tu
+sesión” y la acción `Reintentar`. Esa acción vuelve a ejecutar únicamente `GET /auth/me`. Una falla de
+infraestructura no ejecuta logout, no elimina la cookie, no limpia Query Cache, no monta rutas privadas y
+no redirige a `/login`.
 
 Login muestra un error no enumerante: `Correo o contraseña incorrectos.` Logout revoca la sesión, limpia
 TanStack Query y el usuario en memoria, y redirige a `/login`.
 
-Un `401` durante una consulta autenticada limpia sesión/caché y conserva un `returnTo` interno. Se
-rechazan URLs absolutas, protocol-relative, con backslash o de otro origen para evitar redirecciones
-abiertas y ciclos.
+Solo un `401` durante una consulta autenticada se clasifica como sesión expirada: limpia sesión/caché y
+conserva un `returnTo` interno. Errores de red, `5xx` y payloads inválidos permanecen en Dashboard o
+Finanzas con su estado de error y acción de reintento. Se rechazan URLs absolutas, protocol-relative, con
+backslash o de otro origen para evitar redirecciones abiertas y ciclos.
 
 ## Roles y rutas
 
@@ -73,8 +93,10 @@ abiertas y ciclos.
 | `/eventos` | propio | Organización | creados | no |
 | `/finanzas` | propio | Organización | no | no |
 
-La API conserva la autorización final. Platform Admin se redirige a `VITE_ADMIN_APP_URL` y nunca monta
-el dashboard Cliente. Un rol incompatible cierra sesión y muestra acceso no permitido.
+La API conserva la autorización final. Platform Admin se redirige a `VITE_ADMIN_APP_URL` tanto desde
+restauración como desde login, sin cerrar su sesión y sin montar login, acceso no permitido o dashboard
+Cliente. Un rol incompatible recibido desde cualquiera de esos dos flujos ejecuta logout best-effort,
+limpia la cache y muestra acceso no permitido, incluso en `/login`.
 
 La arquitectura mantiene `/login` fuera de `ProtectedRoute`; por ello rutas públicas futuras podrán
 agregarse sin quedar bajo la sesión Cliente. `/` redirige a `/eventos` y `*` presenta 404.
@@ -162,3 +184,5 @@ VITE_LANDING_URL
 
 Son obligatorias y se validan en producción. Los defaults documentados solo aplican al desarrollo local.
 CODEX-120 conserva `VITE_SOCKET_URL`, pero no inicia la integración de tiempo real.
+
+CODEX-121 no fue iniciado.
