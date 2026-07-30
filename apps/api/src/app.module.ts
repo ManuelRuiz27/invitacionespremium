@@ -23,6 +23,7 @@ import { ScannerModule } from './scanner/scanner.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { PhysicalPassesModule } from './physical-passes/physical-passes.module';
 import { AlbumsModule } from './albums/albums.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { AlbumsModule } from './albums/albums.module';
     FloorplanModule,
     PhysicalPassesModule,
     AlbumsModule,
+    ReportsModule,
     ContactsModule,
     ScheduleModule.forRoot()
   ],

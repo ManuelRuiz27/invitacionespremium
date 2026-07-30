@@ -385,7 +385,18 @@ El cierre final de `CODEX-110` agregó:
 - ocultamiento inmediato de Invitación, Álbum y fotos públicas al alcanzar la expiración, incluso antes
   de que el scheduler persista el archivo.
 
-Contrato normativo: `docs/04-tecnico/ALBUMS_CONTRACT.md`. `CODEX-111` permanece sin iniciar.
+Contrato normativo: `docs/04-tecnico/ALBUMS_CONTRACT.md`.
+
+`CODEX-111 — Reportes PDF` quedó completado:
+
+- `ReportsModule` con snapshots autoritativos de asistencia y pases físicos;
+- privacidad nominal de 30 días y retención agregada de seis meses;
+- PDF privado vinculado criptográficamente al reporte y almacenado como FileAsset;
+- idempotencia, locks PostgreSQL, auditoría y scheduler de retención;
+- endpoints Cliente y listados administrativos sin dataset ni descarga;
+- migración PostgreSQL 32, pruebas unitarias, integración real y OpenAPI.
+
+Contrato normativo: `docs/04-tecnico/REPORTS_CONTRACT.md`. `CODEX-120` no fue iniciado.
 
 ## Fuente de verdad
 

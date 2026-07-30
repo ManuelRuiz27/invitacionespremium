@@ -170,6 +170,10 @@ Un token no puede reutilizarse como otro tipo de acceso.
 | `/events/:eventId/reports/**`          | Lectura global/admin                                | Propio                | Organización       | Creados              | No                                       |
 | `/admin/reports/**`                    | Sí                                                  | No                    | No                 | No                   | No                                       |
 
+Platform Admin solo recibe metadata en `/admin/reports/**`: no obtiene dataset, nombres, PDF,
+`downloadPath` ni storage. Las rutas Cliente de reportes revalidan ownership en autorización, carga y
+descarga; Planner de Organización conserva el filtro por creador del Evento.
+
 ### Público y Scanner
 
 | Endpoint                                         | Regla de acceso                                                                                                                                                                                                             |

@@ -476,6 +476,9 @@ Descarga:
 
 Estas rutas administrativas/Cliente no implican impersonación.
 
+La implementación normativa, errores estables, datasets v1, binding PDF, ventanas `[inicio, fin)`,
+idempotencia y triggers PostgreSQL se detallan en `REPORTS_CONTRACT.md`.
+
 ## AuditModule
 
 Endpoints:

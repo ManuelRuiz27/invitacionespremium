@@ -541,6 +541,14 @@ Se conservan:
 - historial de seis meses conserva metadata y reportes agregados/anónimos, no nombres ni teléfonos;
 - un PDF no puede utilizarse para evadir la política de anonimización.
 
+### GeneratedReport
+
+`Cliente 1:N GeneratedReport`, `Evento 1:N GeneratedReport`, `Usuario 1:N GeneratedReport` y
+`GeneratedReport 0..1:1 FileAsset`. El snapshot JSON y su hash son autoritativos; el PDF es una
+representación vinculada a ese snapshot, no la fuente de verdad. Estados `AUTHORIZED`, `READY`,
+`HIDDEN`, `EXPIRED` y privacidad `DETAILED|AGGREGATE` avanzan de forma irreversible. La idempotencia es
+global y enlaza Evento, tipo y versión de plantilla.
+
 ## Confirmación pública
 
 La Confirmación no es una entidad separada. `Event.confirmationEnabled` indica configuración;

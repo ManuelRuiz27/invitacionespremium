@@ -9,6 +9,7 @@ import {
   FlipbookPageFileAssetOwnerResolver,
   FloorplanFileAssetOwnerResolver,
   FlyerFileAssetOwnerResolver,
+  GeneratedReportFileAssetOwnerResolver,
   InvitationFileAssetOwnerResolver
 } from './file-asset-owner.registry';
 import { FileImageValidator } from './file-image-validator';
@@ -41,6 +42,7 @@ import { LocalFileStorage } from './local-file-storage';
     FlipbookPageFileAssetOwnerResolver,
     FloorplanFileAssetOwnerResolver,
     AlbumPhotoFileAssetOwnerResolver,
+    GeneratedReportFileAssetOwnerResolver,
     FileAssetOwnerRegistry
   ],
   exports: [FileAssetsService, FileAssetOwnerRegistry, FileStorage]

@@ -116,6 +116,19 @@ export class AlbumPhotoFileAssetOwnerResolver implements FileAssetOwnerResolver 
 }
 
 @Injectable()
+export class GeneratedReportFileAssetOwnerResolver implements FileAssetOwnerResolver {
+  readonly ownerType = FileAssetOwnerType.GENERATED_REPORT;
+
+  async resolve(transaction: Prisma.TransactionClient, ownerId: string): Promise<ResolvedFileAssetOwner | null> {
+    const report = await transaction.generatedReport.findUnique({
+      where: { id: ownerId },
+      select: { clientId: true, eventId: true }
+    });
+    return report;
+  }
+}
+
+@Injectable()
 export class FileAssetOwnerRegistry {
   private readonly resolvers = new Map<FileAssetOwnerType, FileAssetOwnerResolver>();
 
@@ -129,13 +142,16 @@ export class FileAssetOwnerRegistry {
     @Inject(FloorplanFileAssetOwnerResolver)
     floorplanResolver: FloorplanFileAssetOwnerResolver,
     @Inject(AlbumPhotoFileAssetOwnerResolver)
-    albumPhotoResolver: AlbumPhotoFileAssetOwnerResolver
+    albumPhotoResolver: AlbumPhotoFileAssetOwnerResolver,
+    @Inject(GeneratedReportFileAssetOwnerResolver)
+    generatedReportResolver: GeneratedReportFileAssetOwnerResolver
   ) {
     this.register(invitationResolver);
     this.register(flyerResolver);
     this.register(flipbookPageResolver);
     this.register(floorplanResolver);
     this.register(albumPhotoResolver);
+    this.register(generatedReportResolver);
   }
 
   register(resolver: FileAssetOwnerResolver): void {

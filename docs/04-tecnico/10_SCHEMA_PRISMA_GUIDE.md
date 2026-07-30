@@ -422,6 +422,15 @@ además del estado `album_published`. Los checks simples viven en constraints; l
 y el límite del lote usan constraint triggers `DEFERRABLE INITIALLY DEFERRED`. `DELETE` y `TRUNCATE` de
 Album/AlbumPhoto se rechazan fuera de la limpieza controlada de pruebas. Véase `ALBUMS_CONTRACT.md`.
 
+## GeneratedReport implementado
+
+La migración 32 crea `GeneratedReport` y los enums de tipo, estado y privacidad. Incluye FKs
+restrictivas, unicidad de `idempotencyKey` y `fileAssetId`, checks de hashes, JSON, cronología y forma
+de estados. Un constraint trigger diferido valida Cliente/Evento, servicio y FileAsset; triggers
+inmediatos impiden cambiar identidad, retroceder estado o privacidad, sustituir el PDF, eliminar o
+truncar. El índice parcial de owner garantiza un único FileAsset por reporte. Véase
+`REPORTS_CONTRACT.md`.
+
 ## StaffToken implementado
 
 La migración 23 crea `staff_token` con UUID, FKs restrictivas, digest SHA-256 único, alias normalizado,
