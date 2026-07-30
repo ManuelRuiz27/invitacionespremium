@@ -63,11 +63,22 @@ Las operaciones críticas usan transacciones `Serializable` y el orden de locks:
 3. GeneratedReport;
 4. FileAsset.
 
-La carga reserva un FileAsset `GENERATED_REPORT/GENERATED_REPORT_PDF`, escribe storage fuera de la
-transacción y confirma después bajo locks. Una barrera diferida por Reporte coordina solicitudes
-concurrentes sin polling ni transacciones abiertas durante I/O. Los mismos bytes reproducen el
-resultado; bytes distintos reciben `REPORT_FILE_ALREADY_ATTACHED`. Solo el ganador crea asset
-operativo y auditoría.
+La carga adquiere primero un advisory lock PostgreSQL de sesión derivado con
+`hashtextextended('InvitacionesPremium:GENERATED_REPORT_UPLOAD:{reportId}', 0)`. Cada instancia usa su
+propio `pg.Pool`; adquisición y liberación ocurren sobre la misma conexión, que siempre se devuelve al
+pool en `finally`. El pool se cierra durante `OnModuleDestroy`.
+
+Bajo el advisory lock, una transacción corta bloquea y relee Evento → GeneratedReport → FileAsset,
+recalcula la proyección con reloj PostgreSQL y decide entre replay, rechazo o reserva. La transacción
+termina antes de escribir storage. Después se escriben los bytes y una segunda transacción corta
+confirma FileAsset, reporte y auditoría. No existe `Map`, mutex de proceso, polling ni transacción
+Prisma abierta durante I/O.
+
+Los mismos bytes reproducen el resultado `READY` existente con `200`, sin escritura, asset o auditoría
+adicional. Bytes distintos reciben `409 REPORT_FILE_ALREADY_ATTACHED`. Una reserva `UPLOADING`
+encontrada después de adquirir el lock es residuo de una sesión desaparecida: se marca `FAILED`, se
+liberan `ownerId` y `associatedAt`, y puede reservarse un asset nuevo. PostgreSQL libera
+automáticamente el advisory lock si la conexión de una instancia cae.
 
 Si storage, transacción final, auditoría o expiración concurrente impiden confirmar, el backend elimina
 los bytes y vuelve a bloquear Evento → Reporte → FileAsset. La reserva queda `FAILED`, sin `ownerId` ni
@@ -144,5 +155,8 @@ Los constraint triggers son `DEFERRABLE INITIALLY DEFERRED`. La limpieza control
 `session_replication_role=replica`.
 
 Las integraciones cubren proyección previa al scheduler, aislamiento FileAsset, recovery de
-storage/auditoría, cargas iguales/distintas y SQL directo. Las carreras usan barreras verificables y
-promesas diferidas, no sleeps arbitrarios.
+storage/auditoría, cargas iguales/distintas y SQL directo. Dos aplicaciones Nest independientes,
+storage y PostgreSQL compartidos demuestran el lock distribuido: `pg_stat_activity` observa la segunda
+instancia esperando `advisory`, los mismos bytes producen una sola escritura y bytes distintos dejan
+un ganador. También se simula la caída de la sesión propietaria y la privacidad vencida mientras otra
+instancia espera. Al cerrar ambas aplicaciones quedan cero sesiones del pool y cero advisory locks.

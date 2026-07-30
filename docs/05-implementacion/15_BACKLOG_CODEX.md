@@ -901,8 +901,10 @@ de concurrencia demuestran efecto financiero cero cuando la última mutación in
 
 **Estado:** completado y cerrado. `ReportsModule`, snapshots autoritativos, binding exacto de PDF,
 aislamiento de FileAssets genéricos, proyección temporal previa al scheduler, recuperación de cargas,
-idempotencia sin polling, migraciones PostgreSQL 32–33 y pruebas deterministas quedan documentados en
-`REPORTS_CONTRACT.md`. `CODEX-120` no se ha iniciado.
+idempotencia sin polling y advisory lock PostgreSQL de sesión quedan documentados en
+`REPORTS_CONTRACT.md`. Dos instancias Nest verifican replay de bytes iguales, rechazo de bytes
+distintos, recuperación tras caída y cierre de pools. Las migraciones permanecen exactamente en
+32–33. `CODEX-120` no se ha iniciado.
 
 ---
 

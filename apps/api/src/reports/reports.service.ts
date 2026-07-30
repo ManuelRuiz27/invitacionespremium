@@ -31,6 +31,7 @@ import type { UploadedPdf } from './reports-pdf.service';
 import { ReportsPdfService } from './reports-pdf.service';
 import { aggregateReportDataset, projectGeneratedReportAt, sha256, stableStringify } from './reports-projection';
 import { reportError, reportNotFound } from './report-errors';
+import { ReportUploadLockService } from './report-upload-lock.service';
 
 export { stableStringify } from './reports-projection';
 
@@ -47,23 +48,14 @@ type ReportRecord =
 
 @Injectable()
 export class ReportsService {
-  private readonly uploadFlights = new Map<
-    string,
-    {
-      checksum: string;
-      promise: Promise<void>;
-      resolve: () => void;
-      reject: (error: unknown) => void;
-    }
-  >();
-
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(AuditService) private readonly audit: AuditService,
     @Inject(EventAccessPolicy) private readonly access: EventAccessPolicy,
     @Inject(ReportsDatasetService) private readonly datasets: ReportsDatasetService,
     @Inject(ReportsPdfService) private readonly pdf: ReportsPdfService,
-    @Inject(FileStorage) private readonly storage: FileStorage
+    @Inject(FileStorage) private readonly storage: FileStorage,
+    @Inject(ReportUploadLockService) private readonly uploadLocks: ReportUploadLockService
   ) {}
 
   authorizeAttendance(
@@ -119,7 +111,7 @@ export class ReportsService {
     const initial = await this.requireOwnedReport(this.prisma, eventId, reportId, principal);
     const initialNow = await databaseClock(this.prisma);
     const initialProjection = projectGeneratedReportAt(initial, initialNow);
-    assertUploadWindow(initial, initialProjection, initialNow);
+    assertContentWindow(initialProjection);
     if (
       input.templateVersion !== initial.templateVersion ||
       input.datasetHashSha256 !== initialProjection.datasetHashSha256
@@ -130,40 +122,31 @@ export class ReportsService {
     const bytes = file!.buffer;
     const checksum = sha256(bytes);
 
-    const existing = await this.findAttachedResult(eventId, reportId, checksum, principal);
-    if (existing) return existing;
-    assertUploadable(initial, initialProjection);
-
-    const flight = this.acquireUploadFlight(reportId, checksum);
-    if (!flight.leader) {
-      await flight.promise;
-      const result = await this.findAttachedResult(eventId, reportId, checksum, principal);
-      if (result) return result;
-      throw reportError('REPORT_FILE_ALREADY_ATTACHED', 'A different PDF is already attached to this report.');
-    }
-
-    const storageKey = this.storage.generateKey();
-    let stagedId: string | undefined;
-    try {
-      const reservation = await this.reserveUpload(eventId, reportId, checksum, bytes.length, storageKey, principal);
-      stagedId = reservation.assetId;
-      await this.storage.write({ storageKey, bytes });
-      const result = await this.finalizeUpload(eventId, reportId, stagedId, checksum, principal, operationId);
-      flight.resolve();
-      return result;
-    } catch (error) {
-      if (stagedId) {
-        await this.storage.delete(storageKey).catch(() => undefined);
-        await this.failUpload(eventId, reportId, stagedId).catch(() => undefined);
+    return this.uploadLocks.withLock(reportId, async () => {
+      const storageKey = this.storage.generateKey();
+      let stagedId: string | undefined;
+      try {
+        const reservation = await this.reserveUpload(
+          eventId,
+          reportId,
+          input,
+          checksum,
+          bytes.length,
+          storageKey,
+          principal
+        );
+        if (reservation.existing) return reservation.existing;
+        stagedId = reservation.assetId;
+        await this.storage.write({ storageKey, bytes });
+        return await this.finalizeUpload(eventId, reportId, stagedId, checksum, principal, operationId);
+      } catch (error) {
+        if (stagedId) {
+          await this.storage.delete(storageKey).catch(() => undefined);
+          await this.failUpload(eventId, reportId, stagedId).catch(() => undefined);
+        }
+        throw mapDatabaseError(error);
       }
-      const mapped = mapDatabaseError(error);
-      flight.reject(mapped);
-      throw mapped;
-    } finally {
-      if (this.uploadFlights.get(reportId) === flight.entry) {
-        this.uploadFlights.delete(reportId);
-      }
-    }
+    });
   }
 
   async download(eventId: string, reportId: string, principal: AuthPrincipal) {
@@ -336,19 +319,49 @@ export class ReportsService {
   private async reserveUpload(
     eventId: string,
     reportId: string,
+    input: ReportFileUploadInput,
     checksum: string,
     sizeBytes: number,
     storageKey: string,
     principal: AuthPrincipal
-  ): Promise<{ assetId: string }> {
+  ): Promise<{ existing: ReportListItem; assetId?: never } | { existing?: never; assetId: string }> {
     return this.serializable(async (transaction) => {
       await lockEvent(transaction, eventId);
       await lockReport(transaction, reportId);
       const report = await this.requireOwnedReport(transaction, eventId, reportId, principal);
       const now = await databaseClock(transaction);
-      const existing = await transaction.fileAsset.findFirst({
+      const projection = projectGeneratedReportAt(report, now);
+      assertContentWindow(projection);
+      if (
+        input.templateVersion !== report.templateVersion ||
+        input.datasetHashSha256 !== projection.datasetHashSha256
+      ) {
+        throw reportError('REPORT_FILE_BINDING_INVALID', 'PDF binding does not match the authorized report.');
+      }
+
+      if (report.fileAssetId) {
+        await lockFileAsset(transaction, report.fileAssetId);
+        const attached = await transaction.fileAsset.findUnique({ where: { id: report.fileAssetId } });
+        if (
+          report.status === GeneratedReportStatus.READY &&
+          attached?.status === FileAssetStatus.READY &&
+          attached.ownerId === reportId
+        ) {
+          if (attached.checksumSha256 !== checksum) {
+            throw reportError('REPORT_FILE_ALREADY_ATTACHED', 'A different PDF is already attached to this report.');
+          }
+          return { existing: toListItem(report, projection) };
+        }
+        throw reportError('REPORT_FILE_ALREADY_ATTACHED', 'A PDF is already attached to this report.');
+      }
+
+      let existing = await transaction.fileAsset.findFirst({
         where: { ownerType: FileAssetOwnerType.GENERATED_REPORT, ownerId: reportId }
       });
+      if (existing) {
+        await lockFileAsset(transaction, existing.id);
+        existing = await transaction.fileAsset.findUnique({ where: { id: existing.id } });
+      }
       if (existing) {
         if (existing.status === FileAssetStatus.UPLOADING) {
           await transaction.fileAsset.update({
@@ -364,7 +377,6 @@ export class ReportsService {
           throw reportError('REPORT_FILE_ALREADY_ATTACHED', 'A PDF is already attached to this report.');
         }
       }
-      const projection = projectGeneratedReportAt(report, now);
       assertUploadWindow(report, projection, now);
       assertUploadable(report, projection);
       const staged = await transaction.fileAsset.create({
@@ -449,39 +461,6 @@ export class ReportsService {
       );
       return toListItem(ready, projectGeneratedReportAt(ready, now));
     });
-  }
-
-  private async findAttachedResult(
-    eventId: string,
-    reportId: string,
-    checksum: string,
-    principal: AuthPrincipal
-  ): Promise<ReportListItem | null> {
-    const report = await this.requireOwnedReport(this.prisma, eventId, reportId, principal, true);
-    if (!report.fileAssetId) return null;
-    const asset = await this.prisma.fileAsset.findUnique({ where: { id: report.fileAssetId } });
-    if (asset?.checksumSha256 !== checksum) {
-      throw reportError('REPORT_FILE_ALREADY_ATTACHED', 'A different PDF is already attached to this report.');
-    }
-    const now = await databaseClock(this.prisma);
-    return toListItem(report, projectGeneratedReportAt(report, now));
-  }
-
-  private acquireUploadFlight(reportId: string, checksum: string) {
-    const current = this.uploadFlights.get(reportId);
-    if (current) {
-      return { leader: false as const, promise: current.promise };
-    }
-    let resolve!: () => void;
-    let reject!: (error: unknown) => void;
-    const promise = new Promise<void>((resolvePromise, rejectPromise) => {
-      resolve = resolvePromise;
-      reject = rejectPromise;
-    });
-    void promise.catch(() => undefined);
-    const entry = { checksum, promise, resolve, reject };
-    this.uploadFlights.set(reportId, entry);
-    return { leader: true as const, promise, resolve, reject, entry };
   }
 
   private async failUpload(eventId: string, reportId: string, assetId: string): Promise<void> {
@@ -615,11 +594,20 @@ function assertService(type: GeneratedReportType, code: ServiceCode | undefined)
 }
 
 function assertUploadable(report: ReportRecord, projection: ReturnType<typeof projectGeneratedReportAt>): void {
-  if (projection.retentionExpired || projection.detailExpired) {
-    throw reportError('REPORT_CONTENT_EXPIRED', 'Report content has expired.', HttpStatus.GONE);
-  }
+  assertContentWindow(projection);
   if (report.status !== GeneratedReportStatus.AUTHORIZED || report.fileAssetId !== null) {
     throw reportError('REPORT_FILE_ALREADY_ATTACHED', 'A PDF is already attached to this report.');
+  }
+}
+
+function assertContentWindow(projection: ReturnType<typeof projectGeneratedReportAt>): void {
+  if (
+    projection.retentionExpired ||
+    projection.detailExpired ||
+    projection.status === GeneratedReportStatus.HIDDEN ||
+    projection.status === GeneratedReportStatus.EXPIRED
+  ) {
+    throw reportError('REPORT_CONTENT_EXPIRED', 'Report content has expired.', HttpStatus.GONE);
   }
 }
 
@@ -628,7 +616,8 @@ function assertUploadWindow(
   projection: ReturnType<typeof projectGeneratedReportAt>,
   now: Date
 ): void {
-  if (projection.retentionExpired || projection.detailExpired || now >= report.uploadExpiresAt) {
+  assertContentWindow(projection);
+  if (now >= report.uploadExpiresAt) {
     throw reportError('REPORT_CONTENT_EXPIRED', 'Report upload authorization has expired.', HttpStatus.GONE);
   }
 }

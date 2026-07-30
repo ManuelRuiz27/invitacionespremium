@@ -406,7 +406,11 @@ El hardening final de `CODEX-111` agregó:
   bloquee el siguiente intento;
 - binding PDF mediante tokens exactos y auditoría sin hashes completos ni nombres internos;
 - integridad bidireccional Reporte–FileAsset mediante la migración PostgreSQL 33 y pruebas de carreras
-  con barreras deterministas.
+  con barreras deterministas;
+- serialización distribuida de cargas mediante advisory lock PostgreSQL de sesión, comprobada con dos
+  instancias Nest independientes;
+- recuperación de reservas `UPLOADING` después de una caída de proceso, sin transacción abierta durante
+  la escritura de storage y sin mutex en memoria.
 
 Contrato normativo: `docs/04-tecnico/REPORTS_CONTRACT.md`. `CODEX-120` no fue iniciado.
 

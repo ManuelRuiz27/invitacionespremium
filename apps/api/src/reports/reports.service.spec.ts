@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { GeneratedReportPrivacyMode, GeneratedReportStatus, GeneratedReportType } from '../generated/prisma/client';
 import { projectGeneratedReportAt } from './reports-projection';
@@ -78,5 +79,11 @@ describe('report canonical datasets', () => {
       retentionUntil
     );
     expect(projection.dataset).toEqual({ summary: { total: 1 }, passes: [] });
+  });
+
+  it('uses PostgreSQL coordination without a process-local upload mutex', () => {
+    const source = readFileSync(__filename.replace(/\.spec\.ts$/u, '.ts'), 'utf8');
+    expect(source).toContain('ReportUploadLockService');
+    expect(source).not.toMatch(/uploadFlights|new Map\s*</u);
   });
 });

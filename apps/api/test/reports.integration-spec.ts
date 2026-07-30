@@ -27,6 +27,7 @@ import {
   UserRole
 } from '../src/generated/prisma/client';
 import { InvitationTokenService } from '../src/invitations/invitation-token.service';
+import { reportUploadLockDomain } from '../src/reports/report-upload-lock.service';
 import { ReportsService } from '../src/reports/reports.service';
 
 const origin = 'http://localhost:5173';
@@ -46,6 +47,7 @@ const isolatedStorage = (() => {
 
 describe('Generated reports', () => {
   let app: INestApplication;
+  let appB: INestApplication;
   let prisma: PrismaService;
   let reports: ReportsService;
   let storage: FileStorage;
@@ -68,6 +70,8 @@ describe('Generated reports', () => {
     process.env.PUBLIC_INVITATION_BASE_URL = 'https://public.example/invitacion';
     app = await createApp();
     await app.init();
+    appB = await createApp();
+    await appB.init();
     prisma = app.get(PrismaService);
     reports = app.get(ReportsService);
     storage = app.get(FileStorage);
@@ -79,7 +83,23 @@ describe('Generated reports', () => {
 
   afterAll(async () => {
     await resetDatabase();
-    await app.close();
+    await Promise.all([app.close(), appB.close()]);
+    const observer = new PgClient({ connectionString: process.env.DATABASE_URL });
+    await observer.connect();
+    const sessions = await observer.query<{ count: string }>(`
+      SELECT count(*)::text AS "count"
+      FROM pg_stat_activity
+      WHERE datname = current_database()
+        AND application_name = 'invitacionespremium-report-upload-lock'
+    `);
+    const advisoryLocks = await observer.query<{ count: string }>(`
+      SELECT count(*)::text AS "count"
+      FROM pg_locks
+      WHERE locktype = 'advisory'
+    `);
+    await observer.end();
+    expect(Number(sessions.rows[0]?.count ?? -1)).toBe(0);
+    expect(Number(advisoryLocks.rows[0]?.count ?? -1)).toBe(0);
     const resolved = path.resolve(isolatedStorage.root);
     const relative = path.relative(path.resolve(isolatedStorage.systemTemp), resolved);
     if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) {
@@ -734,13 +754,23 @@ describe('Generated reports', () => {
       first.body.reportId,
       cookie,
       firstPdf,
-      first.body.datasetHashSha256
+      first.body.datasetHashSha256,
+      appB
     ).then((response) => response);
+    await waitForAdvisoryLockWaiters(1);
     release.resolve();
     const equal = await Promise.all([equalAPromise, equalBPromise]);
     expect(equal.map(({ status }) => status)).toEqual([200, 200]);
     expect(equal[0].body).toEqual(equal[1].body);
+    expect(write).toHaveBeenCalledTimes(1);
     write.mockRestore();
+    expect(await prisma.generatedReport.count({ where: { id: first.body.reportId } })).toBe(1);
+    expect(await prisma.fileAsset.count({ where: { ownerId: first.body.reportId, status: 'READY' } })).toBe(1);
+    expect(
+      await prisma.auditLog.count({
+        where: { resourceId: first.body.reportId, action: 'REPORT_FILE_ATTACH' }
+      })
+    ).toBe(1);
 
     const second = await authorize(fixture.eventId, cookie, 'reports-upload-barrier-2', 'attendance-pdf').expect(200);
     const winningPdf = await boundPdf(second.body.reportId, second.body.datasetHashSha256, 'winner');
@@ -765,19 +795,143 @@ describe('Generated reports', () => {
       second.body.reportId,
       cookie,
       losingPdf,
-      second.body.datasetHashSha256
+      second.body.datasetHashSha256,
+      appB
     ).then((response) => response);
+    await waitForAdvisoryLockWaiters(1);
     releaseDifferent.resolve();
     const [winner, loser] = await Promise.all([winnerPromise, loserPromise]);
     expect(winner.status).toBe(200);
     expect(loser.status).toBe(409);
     expect(loser.body.code).toBe('REPORT_FILE_ALREADY_ATTACHED');
+    expect(differentWrite).toHaveBeenCalledTimes(1);
     differentWrite.mockRestore();
     expect(
       await prisma.fileAsset.count({
         where: { ownerId: second.body.reportId, status: 'READY', fileType: 'GENERATED_REPORT_PDF' }
       })
     ).toBe(1);
+    expect(
+      await prisma.auditLog.count({
+        where: { resourceId: second.body.reportId, action: 'REPORT_FILE_ATTACH' }
+      })
+    ).toBe(1);
+    expect(
+      await prisma.fileAsset.count({
+        where: { ownerId: second.body.reportId, status: 'UPLOADING' }
+      })
+    ).toBe(0);
+  }, 60_000);
+
+  it('recovers an UPLOADING reservation after the PostgreSQL session holding the advisory lock disappears', async () => {
+    const fixture = await createFixture(ServiceCode.FLYER);
+    const cookie = await login(fixture.email);
+    const authorized = await authorize(fixture.eventId, cookie, 'reports-crashed-instance', 'attendance-pdf').expect(
+      200
+    );
+    const pdf = await boundPdf(authorized.body.reportId, authorized.body.datasetHashSha256);
+    const crashed = new PgClient({ connectionString: process.env.DATABASE_URL });
+    await crashed.connect();
+    let connected = true;
+    try {
+      await crashed.query('SELECT pg_advisory_lock(hashtextextended($1, 0))', [
+        reportUploadLockDomain(authorized.body.reportId)
+      ]);
+      const stale = await prisma.fileAsset.create({
+        data: {
+          clientId: fixture.clientId,
+          eventId: fixture.eventId,
+          ownerType: 'GENERATED_REPORT',
+          ownerId: authorized.body.reportId,
+          fileType: 'GENERATED_REPORT_PDF',
+          storageProvider: 'LOCAL',
+          storageKey: storage.generateKey(),
+          originalName: 'attendance-report.pdf',
+          mimeType: 'application/pdf',
+          sizeBytes: pdf.length,
+          checksumSha256: '0'.repeat(64),
+          createdByUserId: fixture.userId,
+          associatedAt: new Date(),
+          status: 'UPLOADING'
+        }
+      });
+
+      const uploadPromise = uploadPdf(
+        fixture.eventId,
+        authorized.body.reportId,
+        cookie,
+        pdf,
+        authorized.body.datasetHashSha256,
+        appB
+      ).then((response) => response);
+      await waitForAdvisoryLockWaiters(1);
+      await crashed.end();
+      connected = false;
+
+      const uploaded = await uploadPromise;
+      expect(uploaded.status).toBe(200);
+      expect(await prisma.fileAsset.findUniqueOrThrow({ where: { id: stale.id } })).toMatchObject({
+        status: 'FAILED',
+        ownerId: null,
+        associatedAt: null,
+        failureCode: 'REPORT_UPLOAD_REPLACED'
+      });
+      expect(
+        await prisma.fileAsset.count({
+          where: { ownerId: authorized.body.reportId, status: 'READY', fileType: 'GENERATED_REPORT_PDF' }
+        })
+      ).toBe(1);
+      expect(
+        await prisma.auditLog.count({
+          where: { resourceId: authorized.body.reportId, action: 'REPORT_FILE_ATTACH' }
+        })
+      ).toBe(1);
+    } finally {
+      if (connected) await crashed.end().catch(() => undefined);
+    }
+  }, 60_000);
+
+  it('recomputes privacy after waiting for another instance advisory lock without creating a reservation', async () => {
+    const fixture = await createFixture(ServiceCode.FLYER);
+    const cookie = await login(fixture.email);
+    const authorized = await authorize(fixture.eventId, cookie, 'reports-lock-privacy', 'attendance-pdf').expect(200);
+    const pdf = await boundPdf(authorized.body.reportId, authorized.body.datasetHashSha256);
+    const blocker = new PgClient({ connectionString: process.env.DATABASE_URL });
+    await blocker.connect();
+    let connected = true;
+    try {
+      await blocker.query('SELECT pg_advisory_lock(hashtextextended($1, 0))', [
+        reportUploadLockDomain(authorized.body.reportId)
+      ]);
+      const uploadPromise = uploadPdf(
+        fixture.eventId,
+        authorized.body.reportId,
+        cookie,
+        pdf,
+        authorized.body.datasetHashSha256,
+        appB
+      ).then((response) => response);
+      await waitForAdvisoryLockWaiters(1);
+      await forceReportBoundary(authorized.body.reportId, 'detailed');
+      await blocker.end();
+      connected = false;
+
+      const response = await uploadPromise;
+      expect(response.status).toBe(410);
+      expect(response.body.code).toBe('REPORT_CONTENT_EXPIRED');
+      expect(
+        await prisma.fileAsset.count({
+          where: { ownerType: 'GENERATED_REPORT', ownerId: authorized.body.reportId }
+        })
+      ).toBe(0);
+      expect(
+        await prisma.auditLog.count({
+          where: { resourceId: authorized.body.reportId, action: 'REPORT_FILE_ATTACH' }
+        })
+      ).toBe(0);
+    } finally {
+      if (connected) await blocker.end().catch(() => undefined);
+    }
   }, 60_000);
 
   it('cleans a reserved upload when privacy expires while storage is in flight', async () => {
@@ -945,8 +1099,15 @@ describe('Generated reports', () => {
       .set('Idempotency-Key', key);
   }
 
-  function uploadPdf(eventId: string, reportId: string, cookie: string[], pdf: Buffer, hash: string) {
-    return request(app.getHttpServer())
+  function uploadPdf(
+    eventId: string,
+    reportId: string,
+    cookie: string[],
+    pdf: Buffer,
+    hash: string,
+    targetApp: INestApplication = app
+  ) {
+    return request(targetApp.getHttpServer())
       .post(`/api/v1/events/${eventId}/reports/${reportId}/file`)
       .set('Origin', origin)
       .set('Cookie', cookie)
@@ -1061,6 +1222,33 @@ async function waitForLockWaiters(observer: PgClient, expected: number): Promise
     await new Promise<void>((resolve) => setImmediate(resolve));
   }
   throw new Error(`Expected ${expected} PostgreSQL lock waiters before releasing the race barrier.`);
+}
+
+async function waitForAdvisoryLockWaiters(expected: number): Promise<void> {
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) throw new Error('DATABASE_URL is required.');
+  const observer = new PgClient({ connectionString: databaseUrl });
+  await observer.connect();
+  try {
+    const deadline = Date.now() + 5_000;
+    while (Date.now() < deadline) {
+      const result = await observer.query<{ count: string }>(`
+        SELECT count(*)::text AS "count"
+        FROM pg_stat_activity
+        WHERE datname = current_database()
+          AND application_name = 'invitacionespremium-report-upload-lock'
+          AND state = 'active'
+          AND wait_event_type = 'Lock'
+          AND wait_event = 'advisory'
+          AND query LIKE 'SELECT pg_advisory_lock(%'
+      `);
+      if (Number(result.rows[0]?.count ?? 0) >= expected) return;
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    }
+  } finally {
+    await observer.end();
+  }
+  throw new Error(`Expected ${expected} PostgreSQL advisory lock waiters before releasing the barrier.`);
 }
 
 async function boundPdf(reportId: string, hash: string, title?: string): Promise<Buffer> {
