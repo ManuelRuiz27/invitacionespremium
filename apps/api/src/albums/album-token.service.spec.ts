@@ -29,7 +29,8 @@ describe('AlbumTokenService', () => {
       '1fbc468d-51cb-442b-8591-a4d80cf6efbc',
       service.createNonce()
     );
-    expect(service.verify(`${token.slice(0, -1)}A`)).toBeNull();
+    const alteredLastCharacter = token.endsWith('A') ? 'B' : 'A';
+    expect(service.verify(`${token.slice(0, -1)}${alteredLastCharacter}`)).toBeNull();
     expect(service.verify(token.replace(/^al1/u, 'al2'))).toBeNull();
   });
 });
