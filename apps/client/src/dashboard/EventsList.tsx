@@ -132,7 +132,7 @@ export function EventsList({ events }: { events: Event[] }) {
                       <TableCell align="right">
                         {['DRAFT', 'CONFIGURED'].includes(event.status) ? (
                           <Button component={Link} to={`/eventos/${event.id}/configuracion/datos`}>
-                            Continuar configuraciÃ³n
+                            Continuar configuración
                           </Button>
                         ) : event.status === 'READY_TO_ACTIVATE' ? (
                           <Button component={Link} to={`/eventos/${event.id}/configuracion/revision`}>

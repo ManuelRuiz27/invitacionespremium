@@ -122,7 +122,10 @@ describe('integrated Event wizard flows', () => {
     );
   });
 
-  it('preserves a Cancun wall-clock independently from the browser zone', async () => {
+  it('preserves a Cancun wall-clock and submits a Tijuana zone change atomically', async () => {
+    const supportedZones = vi
+      .spyOn(Intl, 'supportedValuesOf')
+      .mockReturnValue(['America/Mexico_City', 'America/Cancun', 'America/Tijuana', 'UTC']);
     const api = mockApiClient();
     vi.mocked(api.events.get).mockResolvedValue({
       ...configuredEvent,
@@ -132,9 +135,51 @@ describe('integrated Event wizard flows', () => {
     renderApp(api, `/eventos/${configuredEvent.id}/configuracion/datos`);
     const date = await screen.findByLabelText('Fecha y hora del Evento');
     fireEvent.change(date, { target: { value: '2026-01-15T18:30' } });
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Zona horaria IANA' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'America/Tijuana' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cambiar zona' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     await userEvent.click(screen.getByRole('button', { name: 'Guardar y continuar' }));
     await waitFor(() => expect(api.events.update).toHaveBeenCalled());
-    expect(vi.mocked(api.events.update).mock.calls.at(-1)?.[1].eventDateTime).toBe('2026-01-15T23:30:00.000Z');
+    expect(vi.mocked(api.events.update).mock.calls.at(-1)?.[1]).toMatchObject({
+      timeZone: 'America/Tijuana',
+      eventDateTime: '2026-01-16T02:30:00.000Z'
+    });
+    supportedZones.mockRestore();
+  });
+
+  it('keeps an uncertain pass attempt when another planner increases the global maximum', async () => {
+    const api = mockApiClient();
+    vi.mocked(api.events.get).mockResolvedValue(physicalEvent);
+    const otherPlannerPass = {
+      id: 'pass-b',
+      eventId: physicalEvent.id,
+      passNumber: 20,
+      status: 'UNUSED' as const,
+      table: null,
+      usedAt: null,
+      createdAt: '2026-01-01T00:00:00Z'
+    };
+    vi.mocked(api.physicalPasses.list).mockResolvedValueOnce([]).mockResolvedValue([otherPlannerPass]);
+    vi.mocked(api.physicalPasses.generate).mockRejectedValueOnce(new TypeError('network')).mockResolvedValueOnce({
+      eventId: physicalEvent.id,
+      firstPassNumber: 21,
+      lastPassNumber: 21,
+      generationOperationId: 'batch-a',
+      quantity: 1,
+      passes: [],
+      table: null
+    });
+    renderApp(api, `/eventos/${physicalEvent.id}/configuracion/pases`);
+    await userEvent.click(await screen.findByRole('button', { name: 'Generar lote' }));
+    expect(await screen.findByRole('button', { name: 'Reintentar lote incierto' })).toBeInTheDocument();
+    expect(screen.getByText(/No conocemos el resultado/)).toBeInTheDocument();
+    const firstCall = vi.mocked(api.physicalPasses.generate).mock.calls[0]!;
+    await userEvent.click(screen.getByRole('button', { name: 'Reintentar lote incierto' }));
+    await waitFor(() => expect(api.physicalPasses.generate).toHaveBeenCalledTimes(2));
+    const retryCall = vi.mocked(api.physicalPasses.generate).mock.calls[1]!;
+    expect(retryCall[1]).toEqual(firstCall[1]);
+    expect(retryCall[2]).toBe(firstCall[2]);
   });
 
   it('does zero financial requests for an Organization Planner during review', async () => {

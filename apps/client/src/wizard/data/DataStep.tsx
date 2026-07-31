@@ -11,7 +11,7 @@ import {
   TextField,
   Typography
 } from '@mui/material';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { instantToWallClock, supportedTimeZones, wallClockToInstant } from './timezone';
 
 export function DataStep({
@@ -30,6 +30,10 @@ export function DataStep({
   const [wallClock, setWallClock] = useState(() => instantToWallClock(draft.eventDateTime, zone));
   const [dateError, setDateError] = useState<string>();
   const [pendingZone, setPendingZone] = useState<string>();
+  const [editingWallClock, setEditingWallClock] = useState(false);
+  useEffect(() => {
+    if (!editingWallClock && !pendingZone) setWallClock(instantToWallClock(draft.eventDateTime, zone));
+  }, [draft.eventDateTime, editingWallClock, pendingZone, zone]);
   const commitDate = (value: string, targetZone = zone) => {
     setWallClock(value);
     if (!value) {
@@ -95,6 +99,8 @@ export function DataStep({
         error={Boolean(dateError)}
         helperText={dateError ?? `Hora local en ${zone}`}
         slotProps={{ inputLabel: { shrink: true } }}
+        onFocus={() => setEditingWallClock(true)}
+        onBlur={() => setEditingWallClock(false)}
         onChange={(e) => commitDate(e.target.value)}
       />
       <TextField
@@ -137,6 +143,7 @@ export function DataStep({
         <DialogTitle id="zone-title">Cambiar zona horaria</DialogTitle>
         <DialogContent>
           La hora escrita se conservará y se reinterpretará en {pendingZone}. Confirma este cambio.
+          {dateError ? <Alert severity="error">{dateError}</Alert> : null}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setPendingZone(undefined)}>Cancelar</Button>
@@ -145,9 +152,14 @@ export function DataStep({
             onClick={() => {
               const next = pendingZone;
               if (!next) return;
-              onChange({ timeZone: next });
-              commitDate(wallClock, next);
-              setPendingZone(undefined);
+              try {
+                const eventDateTime = wallClock ? wallClockToInstant(wallClock, next) : null;
+                onChange({ timeZone: next, eventDateTime });
+                setDateError(undefined);
+                setPendingZone(undefined);
+              } catch (error) {
+                setDateError(error instanceof Error ? error.message : 'Fecha inválida.');
+              }
             }}
           >
             Cambiar zona

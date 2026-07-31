@@ -1,8 +1,9 @@
 import type { ApiClient, Event, FloorplanShape, FloorplanShapeInput, UpdateEventInput } from '@invitaciones/api-client';
 import { Alert, Box, Button, Checkbox, FormControlLabel, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { useCallback, useEffect, useState } from 'react';
-import { errorMessage, normalizeRect } from '../wizard-utils';
+import { errorMessage } from '../wizard-utils';
 import { usePrivateAssetUrl } from '../design/usePrivateAssetUrl';
+import { FloorplanShapeValidationError, normalizeFloorplanShape, polygonClipPath } from './floorplan-geometry';
 
 const newShape: FloorplanShapeInput = {
   name: 'Nueva Mesa',
@@ -62,19 +63,6 @@ export function FloorplanStep({
     if (selected) setShape(editable(selected));
   }, [selected]);
   const valid = shape.kind === 'TABLE' ? shape.capacity > 0 : shape.capacity === 0;
-  const normalized = {
-    ...shape,
-    ...normalizeRect(shape),
-    ...(shape.polygonPoints
-      ? {
-          polygonPoints: shape.polygonPoints.map((point) => ({
-            x: Math.min(1, Math.max(0, point.x)),
-            y: Math.min(1, Math.max(0, point.y))
-          }))
-        }
-      : {}),
-    ...(shape.geometry === 'SQUARE' || shape.geometry === 'CIRCLE' ? { height: shape.width } : {})
-  };
   const save = async () => {
     if (!valid) {
       setMessage(
@@ -83,13 +71,14 @@ export function FloorplanStep({
       return;
     }
     try {
+      const normalized = normalizeFloorplanShape(shape);
       if (selected) await apiClient.floorplan.updateShape(event.id, selected.id, normalized);
       else await apiClient.floorplan.addShape(event.id, normalized);
       setSelectedId(undefined);
       setShape(newShape);
       await refresh();
     } catch (reason) {
-      setMessage(errorMessage(reason));
+      setMessage(reason instanceof FloorplanShapeValidationError ? reason.message : errorMessage(reason));
     }
   };
   const pointer = (ev: React.PointerEvent, source: FloorplanShape, mode: 'move' | 'resize' = 'move') => {
@@ -97,26 +86,29 @@ export function FloorplanStep({
     setSelectedId(source.id);
     const target = ev.currentTarget as HTMLElement;
     target.setPointerCapture?.(ev.pointerId);
-    const bounds = target.parentElement!.getBoundingClientRect();
+    const canvas = target.closest('[aria-label="Canvas del Croquis"]') as HTMLElement | null;
+    if (!canvas) return;
+    const bounds = canvas.getBoundingClientRect();
     const startX = ev.clientX,
       startY = ev.clientY,
       start = editable(source);
-    const move = (next: PointerEvent) =>
-      setShape({
+    const move = (next: PointerEvent) => {
+      const deltaX = (next.clientX - startX) / bounds.width;
+      const deltaY = (next.clientY - startY) / bounds.height;
+      const nextShape = {
         ...start,
-        ...normalizeRect({
-          ...start,
-          ...(mode === 'move'
-            ? {
-                x: start.x + (next.clientX - startX) / bounds.width,
-                y: start.y + (next.clientY - startY) / bounds.height
-              }
-            : {
-                width: start.width + (next.clientX - startX) / bounds.width,
-                height: start.height + (next.clientY - startY) / bounds.height
-              })
-        })
-      });
+        ...(mode === 'move'
+          ? { x: start.x + deltaX, y: start.y + deltaY }
+          : start.geometry === 'SQUARE' || start.geometry === 'CIRCLE'
+            ? { width: start.width + Math.max(deltaX, deltaY), height: start.height + Math.max(deltaX, deltaY) }
+            : { width: start.width + deltaX, height: start.height + deltaY })
+      };
+      try {
+        setShape(normalizeFloorplanShape(nextShape));
+      } catch {
+        // Keep the last valid geometry while the pointer is outside the editable range.
+      }
+    };
     const up = () => {
       target.removeEventListener('pointermove', move);
       target.removeEventListener('pointerup', up);
@@ -184,6 +176,11 @@ export function FloorplanStep({
                 component="button"
                 type="button"
                 key={item.id}
+                data-geometry={item.geometry}
+                style={{
+                  borderRadius: item.geometry === 'CIRCLE' ? '50%' : '0',
+                  clipPath: item.geometry === 'POLYGON' ? polygonClipPath(item.polygonPoints) : undefined
+                }}
                 aria-label={`Seleccionar ${item.kind === 'TABLE' ? 'Mesa' : 'Zona'} ${item.name}`}
                 onClick={() => setSelectedId(item.id)}
                 onPointerDown={(e) => pointer(e, item)}
@@ -197,6 +194,7 @@ export function FloorplanStep({
                   border: selectedId === item.id ? 3 : 2,
                   borderColor: item.kind === 'TABLE' ? 'primary.main' : 'secondary.main',
                   borderRadius: item.geometry === 'CIRCLE' ? '50%' : 0,
+                  clipPath: item.geometry === 'POLYGON' ? polygonClipPath(item.polygonPoints) : undefined,
                   bgcolor: 'rgba(255,255,255,.55)'
                 }}
               >

@@ -102,6 +102,7 @@ describe('Client dashboard and financial visibility', () => {
     expect(within(table).getAllByText(/31 dic 2025/i).length).toBeGreaterThan(0);
     expect(screen.getByLabelText('Eventos en tarjetas')).toBeInTheDocument();
     expect(screen.getAllByRole('article').length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: 'Continuar configuración' })).toHaveLength(2);
   });
 
   it('routes READY_TO_ACTIVATE to Review from table and cards', async () => {

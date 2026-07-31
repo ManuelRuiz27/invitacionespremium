@@ -435,6 +435,7 @@ Contrato normativo: `docs/04-tecnico/CLIENT_APP_CONTRACT.md`.
 - contactos/CSV por preview, editores Flyer/Flipbook, Hotspots, Croquis y lotes de pases;
 - wall-clock por zona IANA, Revisión global y activación mediante diálogo accesible;
 - llaves por intento incierto, sin llaves resueltas en Web Storage;
+- hardening de zona horaria atómica, geometrías normalizadas y reintento de pases sin atribución por rangos globales;
 - SDK ampliado y pruebas de runtime, modelo y flujos integrados.
 
 Contrato normativo: `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md`. La siguiente tarea es

@@ -42,7 +42,7 @@ export function EventCard({ event, onView }: { event: Event; onView: (event: Eve
       </Box>
       {['DRAFT', 'CONFIGURED'].includes(event.status) ? (
         <Button component={Link} to={`/eventos/${event.id}/configuracion/datos`} variant="text">
-          Continuar configuraciÃ³n
+          Continuar configuración
         </Button>
       ) : event.status === 'READY_TO_ACTIVATE' ? (
         <Button component={Link} to={`/eventos/${event.id}/configuracion/revision`} variant="text">

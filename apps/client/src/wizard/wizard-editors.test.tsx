@@ -233,6 +233,107 @@ describe('visual wizard editors', () => {
     expect(screen.getByRole('button', { name: 'Bloquear Croquis' })).toBeInTheDocument();
   });
 
+  it('renders geometry-specific shapes and saves a bounded square near the bottom-right corner', async () => {
+    const api = mockApiClient();
+    vi.mocked(api.floorplan.get).mockResolvedValue({
+      ...floorplan,
+      shapes: [
+        floorplan.shapes[0]!,
+        {
+          ...floorplan.shapes[0]!,
+          id: 'square-1',
+          name: 'Cuadro',
+          geometry: 'SQUARE',
+          x: 0.4,
+          width: 0.15,
+          height: 0.15
+        },
+        {
+          ...floorplan.shapes[0]!,
+          id: 'polygon-1',
+          name: 'Triángulo',
+          geometry: 'POLYGON',
+          polygonPoints: [
+            { x: 0, y: 0 },
+            { x: 1, y: 0 },
+            { x: 0.5, y: 1 }
+          ]
+        }
+      ]
+    });
+    vi.mocked(api.floorplan.addShape).mockResolvedValue(floorplan.shapes[0]!);
+    vi.mocked(api.fileAssets.content).mockResolvedValue(new Blob(['image'], { type: 'image/png' }));
+    render(
+      <FloorplanStep
+        apiClient={api}
+        event={{ ...configuredEvent, floorplanEnabled: true }}
+        draft={{ confirmationEnabled: false, floorplanEnabled: true }}
+        disabled={false}
+        onChange={vi.fn()}
+      />
+    );
+    const circle = await screen.findByRole('button', { name: /Seleccionar Mesa Mesa principal/ });
+    const square = screen.getByRole('button', { name: /Seleccionar Mesa Cuadro/ });
+    const polygon = screen.getByRole('button', { name: /Seleccionar Mesa Triángulo/ });
+    expect(circle).toHaveStyle({ borderRadius: '50%' });
+    expect(square).toHaveAttribute('data-geometry', 'SQUARE');
+    expect(polygon.style.clipPath).toBe('polygon(0% 0%, 100% 0%, 50% 100%)');
+
+    const canvas = screen.getByLabelText('Canvas del Croquis');
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: 1000,
+      bottom: 750,
+      width: 1000,
+      height: 750,
+      toJSON: () => ({})
+    });
+    const squareHandle = screen.getByLabelText('Redimensionar Cuadro');
+    fireEvent.pointerDown(squareHandle, { pointerId: 1, clientX: 400, clientY: 300 });
+    fireEvent.pointerMove(squareHandle, { pointerId: 1, clientX: 500, clientY: 375 });
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar forma' }));
+    const resized = vi.mocked(api.floorplan.updateShape).mock.calls.at(-1)?.[2];
+    expect(resized?.width).toBe(resized?.height);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Nueva Zona' }));
+    await userEvent.click(screen.getByRole('combobox', { name: 'Geometría' }));
+    await userEvent.click(screen.getByRole('option', { name: 'SQUARE' }));
+    fireEvent.change(screen.getByLabelText('x'), { target: { value: '0.9' } });
+    fireEvent.change(screen.getByLabelText('y'), { target: { value: '0.85' } });
+    fireEvent.change(screen.getByLabelText('width'), { target: { value: '0.3' } });
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar forma' }));
+    const payload = vi.mocked(api.floorplan.addShape).mock.calls.at(-1)?.[1];
+    expect(payload?.width).toBe(payload?.height);
+    expect((payload?.x ?? 0) + (payload?.width ?? 0)).toBeLessThanOrEqual(1);
+    expect((payload?.y ?? 0) + (payload?.height ?? 0)).toBeLessThanOrEqual(1);
+  });
+
+  it('shows invalid polygon geometry before making an API request', async () => {
+    const api = mockApiClient();
+    vi.mocked(api.floorplan.get).mockResolvedValue(floorplan);
+    vi.mocked(api.fileAssets.content).mockResolvedValue(new Blob(['image'], { type: 'image/png' }));
+    render(
+      <FloorplanStep
+        apiClient={api}
+        event={{ ...configuredEvent, floorplanEnabled: true }}
+        draft={{ confirmationEnabled: false, floorplanEnabled: true }}
+        disabled={false}
+        onChange={vi.fn()}
+      />
+    );
+    await screen.findByLabelText('Canvas del Croquis');
+    await userEvent.click(screen.getByRole('button', { name: 'Nueva Zona' }));
+    await userEvent.click(screen.getByRole('combobox', { name: 'Geometría' }));
+    await userEvent.click(screen.getByRole('option', { name: 'POLYGON' }));
+    fireEvent.change(screen.getByLabelText(/Puntos del polígono/), { target: { value: '0,0; 0.5,0.5; 1,1' } });
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar forma' }));
+    expect(await screen.findByText(/degenerado/i)).toBeInTheDocument();
+    expect(api.floorplan.addShape).not.toHaveBeenCalled();
+  });
+
   it('downloads a pass SVG with the pass number filename', async () => {
     const api = mockApiClient();
     vi.mocked(api.physicalPasses.list).mockResolvedValue([

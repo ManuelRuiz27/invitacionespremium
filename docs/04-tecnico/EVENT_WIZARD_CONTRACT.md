@@ -36,15 +36,18 @@ Las llaves no se persisten en Web Storage. `AttemptManager` conserva solo un res
 
 - CSV: la identidad es `previewId`; éxito o fallo definitivo limpia la llave y otro preview rota llave;
 - pases: cada clic intencional crea llave nueva aunque cantidad/Mesa coincidan; un retry incierto conserva
-  llave y payload, y el listado/rango reconcilia el resultado;
+  exactamente llave y payload. Recargar el listado actualiza la vista, pero nunca atribuye a ese intento
+  un rango que pudo generar otro Planner; solo la respuesta idempotente del backend confirma el lote;
 - activación: una llave por intento; red/timeout la conserva hasta reconciliar `GET /events/:id`; `ACTIVE`
   o un fallo definitivo la elimina.
 
 ## Datos, Contactos y CSV
 
 `datetime-local` representa el wall-clock del Evento. La conversión busca el instante de la zona IANA de
-`draft.timeZone`, no la zona del navegador. Horas inexistentes o ambiguas por DST se rechazan. Cambiar la
-zona requiere un diálogo y conserva explícitamente la hora escrita.
+`draft.timeZone`, no la zona del navegador. Horas inexistentes o ambiguas por DST se rechazan sin cerrar el
+diálogo ni alterar el borrador. Cambiar la zona conserva explícitamente la hora escrita y emite un único
+patch atómico con `timeZone` y `eventDateTime`. Los parches síncronos se acumulan sobre la referencia más
+reciente del draft y el wall-clock adopta cambios autoritativos cuando no existe una edición activa.
 
 Contactos permite alta, edición de nombre/WhatsApp/Grupo y eliminación confirmada. La capacidad visible se
 basa en Asistentes nominales autorizados de Invitaciones, no en el número de Contactos. El preview presenta
@@ -64,8 +67,10 @@ autoritativas de portada/página. Los blockers de readiness se traducen a lengua
 ## Croquis y pases
 
 El Croquis tiene canvas y panel para `TABLE` y `DECORATIVE_ZONE` (Zona), con `RECTANGLE`, `SQUARE`,
-`CIRCLE` y `POLYGON`. Permite crear, seleccionar, mover, redimensionar, editar y eliminar; normaliza el
-rectángulo al canvas, iguala lados en cuadrado/círculo y limita puntos de polígono. Mesa exige capacidad
+`CIRCLE` y `POLYGON`. Permite crear, seleccionar, mover, redimensionar, editar y eliminar; normaliza cada
+forma dentro del canvas, conserva un solo lado en cuadrado/círculo y valida puntos finitos, rango, cantidad
+y área no degenerada del polígono antes del request. Círculos y polígonos se representan con su geometría
+real y las interacciones operan sobre esa representación visible. Mesa exige capacidad
 positiva y Zona capacidad cero. Lock impide edición hasta un unlock explícito y se muestra capacidad total.
 
 Pases permite cantidad y Mesa opcional, conserva varios lotes y rangos, lista usados/no usados y Mesa, y
@@ -88,6 +93,7 @@ como referencia secundaria. `401` conserva `returnTo`; red o `500` no expiran la
 ## Verificación
 
 Las pruebas de componentes cubren creación concurrente, pasos incompatibles, CSV sucesivos, lotes iguales,
-zona distinta al navegador, Flyer/Flipbook, CRUD de Hotspots y páginas, Object URLs, Mesa/Zona, SVG,
+retry incierto frente a concurrencia ajena, zona distinta al navegador, DST, patches atómicos,
+Flyer/Flipbook, CRUD de Hotspots y páginas, Object URLs, geometrías de Mesa/Zona, SVG,
 Revisión digital/física, permisos financieros, diálogo y activación. Los tipos proceden exclusivamente de
 OpenAPI mediante `@invitaciones/api-client`.

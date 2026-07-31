@@ -41,6 +41,11 @@ const toDraft = (event: Event): UpdateEventInput => ({
   floorplanEnabled: event.floorplanEnabled
 });
 
+export const applyDraftPatch = (draft: UpdateEventInput, patch: Partial<UpdateEventInput>): UpdateEventInput => ({
+  ...draft,
+  ...patch
+});
+
 export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
   const { eventId, step = 'datos' } = useParams();
   const navigate = useNavigate();
@@ -48,6 +53,7 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
   const [services, setServices] = useState<AvailableService[]>();
   const [event, setEvent] = useState<Event>();
   const [draft, setDraft] = useState<UpdateEventInput>(emptyDraft);
+  const draftRef = useRef<UpdateEventInput>(emptyDraft);
   const [loadError, setLoadError] = useState<unknown>();
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [message, setMessage] = useState<string>();
@@ -83,7 +89,9 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
         setServices(available.filter((item) => item.code !== 'DEMO'));
         if (loaded) {
           setEvent(loaded);
-          setDraft(toDraft(loaded));
+          const loadedDraft = toDraft(loaded);
+          draftRef.current = loadedDraft;
+          setDraft(loadedDraft);
         }
       })
       .catch((reason) => {
@@ -100,9 +108,10 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
       navigate(`/eventos/${event.id}/configuracion/${selectedStep}`, { replace: true });
   }, [event, navigate, selectedStep, step]);
   const changeDraft = (patch: Partial<UpdateEventInput>) => {
-    const next = { ...draft, ...patch };
+    const next = applyDraftPatch(draftRef.current, patch);
+    draftRef.current = next;
     setDraft(next);
-    if (event && editable) autosave.schedule(next);
+    if (eventRef.current && isEditableEvent(eventRef.current.status)) autosave.schedule(next);
   };
   const ensureEvent = async (): Promise<Event | undefined> => {
     if (eventRef.current) {
@@ -113,17 +122,20 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
       return eventRef.current;
     }
     if (createPromiseRef.current) return createPromiseRef.current;
-    if (!isMeaningfulDraft(draft)) {
+    const currentDraft = draftRef.current;
+    if (!isMeaningfulDraft(currentDraft)) {
       setMessage('Captura al menos el servicio o un dato principal antes de guardar.');
       return;
     }
     setCreating(true);
     setSaveState('saving');
     const promise = apiClient.events
-      .create(draft)
+      .create(currentDraft)
       .then((created) => {
         setEvent(created);
-        setDraft(toDraft(created));
+        const createdDraft = toDraft(created);
+        draftRef.current = createdDraft;
+        setDraft(createdDraft);
         setSaveState('saved');
         return created;
       })
@@ -145,7 +157,9 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
   };
   const onReload = useCallback((next: Event) => {
     setEvent(next);
-    setDraft(toDraft(next));
+    const reloadedDraft = toDraft(next);
+    draftRef.current = reloadedDraft;
+    setDraft(reloadedDraft);
   }, []);
   if (!services && !loadError) return <LoadingState label="Cargando configuración del Evento…" />;
   if (loadError) return <ErrorState title="No pudimos cargar el Evento." message={errorMessage(loadError)} />;

@@ -117,6 +117,12 @@ producen `draft`; datos completos con blockers producen `configured`; readiness 
 `ready_to_activate`. La generación y su replay también reparan exclusivamente esta proyección derivada;
 el replay no crea pases ni auditoría.
 
+En el Wizard cliente, una falla de red o timeout deja el intento como incierto y conserva exactamente la
+misma `Idempotency-Key`, cantidad y Mesa para el retry. Una recarga del listado puede reflejar lotes
+concurrentes, pero un incremento del máximo global nunca confirma ni atribuye un lote al intento local;
+solo la respuesta idempotente de `generate` resuelve la operación. Dos generaciones intencionales con la
+misma cantidad continúan usando llaves nuevas.
+
 ## Auditoría, PostgreSQL y concurrencia
 
 Cada lote registra una sola `PHYSICAL_PASS_GENERATE`; el primer uso, una sola `PHYSICAL_PASS_USE` con

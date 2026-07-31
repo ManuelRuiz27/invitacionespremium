@@ -21,7 +21,7 @@ export function PhysicalPassesStep({
   const [tables, setTables] = useState<{ id: string; name: string }[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [uncertain, setUncertain] = useState<
-    { key: string; identity: string; beforeMax: number; quantity: number; tableShapeId: string } | undefined
+    { key: string; identity: string; quantity: number; tableShapeId: string } | undefined
   >();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string>();
@@ -46,7 +46,6 @@ export function PhysicalPassesStep({
       retry && uncertain
         ? attempts.current.start('passes', uncertain.identity)
         : attempts.current.start('passes', identity, true);
-    const beforeMax = retry && uncertain ? uncertain.beforeMax : Math.max(0, ...passes.map((pass) => pass.passNumber));
     try {
       const result = await apiClient.physicalPasses.generate(
         event.id,
@@ -71,36 +70,17 @@ export function PhysicalPassesStep({
         try {
           const latest = await apiClient.physicalPasses.list(event.id);
           setPasses(latest);
-          const afterMax = Math.max(0, ...latest.map((pass) => pass.passNumber));
-          if (afterMax > beforeMax) {
-            attempts.current.clear('passes', attempt.key);
-            setUncertain(undefined);
-            setBatches((current) => [
-              ...current,
-              {
-                id: attempt.key,
-                first: beforeMax + 1,
-                last: afterMax,
-                quantity: afterMax - beforeMax,
-                table: tables.find((table) => table.id === attemptedTable)?.name ?? null
-              }
-            ]);
-            setMessage('El lote fue reconciliado con el listado del servidor.');
-          } else {
-            setUncertain({
-              key: attempt.key,
-              identity,
-              beforeMax,
-              quantity: attemptedQuantity,
-              tableShapeId: attemptedTable
-            });
-            setMessage('No conocemos el resultado. Reintenta este mismo intento para conservar la llave.');
-          }
+          setUncertain({
+            key: attempt.key,
+            identity,
+            quantity: attemptedQuantity,
+            tableShapeId: attemptedTable
+          });
+          setMessage('No conocemos el resultado. Reintenta este mismo intento para conservar la llave.');
         } catch {
           setUncertain({
             key: attempt.key,
             identity,
-            beforeMax,
             quantity: attemptedQuantity,
             tableShapeId: attemptedTable
           });
