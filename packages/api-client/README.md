@@ -15,9 +15,14 @@ pnpm --filter @invitaciones/api-client build
 ```
 
 `createApiClient({ baseUrl, fetchImpl? })` expone `auth`, `events`, `finance`, `services`, `contacts`,
-`invitations`, `fileAssets`, `design`, `floorplan` y `physicalPasses`. El runtime admite JSON, multipart,
+`invitations`, `fileAssets`, `design`, `floorplan`, `physicalPasses`, `publicInvitation` y `publicAlbum`.
+El runtime admite JSON, multipart,
 texto, `Blob`, `ArrayBuffer`, respuestas `204`, abortos y llaves idempotentes. Toda solicitud usa
-`credentials: 'include'`; el SDK no lee ni escribe localStorage, sessionStorage o IndexedDB.
+`credentials: 'include'` por defecto; los wrappers públicos fuerzan `credentials: 'omit'`. El SDK no lee
+ni escribe localStorage, sessionStorage o IndexedDB.
+
+Los wrappers públicos cubren resolución, Confirmación, rechazo, acompañantes, assets, QR SVG, Álbum y
+fotos con los DTO generados. Codifican segmentos, propagan `AbortSignal` y no activan manejo de sesión.
 
 El wizard consume estos wrappers sin DTOs paralelos. Las llaves de CSV, pases y activación se entregan por
 request; el SDK no decide su ciclo de vida ni las persiste.

@@ -261,13 +261,14 @@ describe('Client authentication and routing', () => {
     expect(safeReturnTo('/finanzas?tab=balance')).toBe('/finanzas?tab=balance');
   });
 
-  it('renders a 404 route and supports keyboard focus on its action', async () => {
+  it('renders a neutral public 404 without restoring session and supports keyboard focus', async () => {
     const api = mockApiClient();
     const user = userEvent.setup();
     renderApp(api, '/ruta-inexistente');
 
-    expect(await screen.findByRole('heading', { name: 'Página no encontrada' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Esta página no está disponible.' })).toBeInTheDocument();
+    expect(api.auth.me).not.toHaveBeenCalled();
     await user.tab();
-    expect(screen.getByRole('link', { name: 'Ir a Eventos' })).toHaveFocus();
+    expect(screen.getByRole('link', { name: 'Ir al inicio' })).toHaveFocus();
   });
 });

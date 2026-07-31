@@ -498,3 +498,15 @@ lectura están normados en `../04-tecnico/EVENT_WIZARD_CONTRACT.md`.
 privados, canvas de Hotspots y panel numérico; Croquis ofrece canvas más inspector de Mesa/Zona. Los cambios
 de zona horaria, eliminación de Contactos y activación usan confirmaciones accesibles. Revisión recarga el
 estado autoritativo y solo habilita Activar cuando la API devuelve `READY_TO_ACTIVATE`.
+
+# Implementación CODEX-122
+
+`/invitacion/:invitationToken` y `/album/:albumToken` son experiencias públicas visuales, mobile-first y
+sin shell operativo. La Invitación usa el diseño publicado como plano dominante; los Hotspots conservan
+coordenadas relativas, foco visible y acciones HTTPS seguras. Flipbook admite botones, flechas y swipe.
+
+Confirmación presenta el principal inmutable y acompañantes nominales editables en diálogo con foco
+contenido. QR aparece solo después de confirmar, se solicita bajo demanda y ofrece pantalla completa. El
+Álbum usa tema validado, grid progresivo y preview con teclado/swipe. Cancelación, cierre, restricción y
+no disponibilidad usan mensajes públicos no enumerantes. Detalle normativo en
+`../04-tecnico/PUBLIC_CLIENT_CONTRACT.md`.

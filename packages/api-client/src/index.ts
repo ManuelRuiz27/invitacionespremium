@@ -2,6 +2,7 @@ import { createRequester, type ApiClientRuntimeConfig } from './api-client';
 import { createAuthClient } from './auth';
 import { createEventsClient } from './events';
 import { createFinanceClient } from './finance';
+import { createPublicAlbumClient, createPublicInvitationClient } from './public';
 import {
   createContactsClient,
   createDesignClient,
@@ -26,6 +27,14 @@ export type {
   UpdateEventInput
 } from './events';
 export type { FinanceBalance, FinanceClient, FinanceListOptions, LedgerMovement, Receipt } from './finance';
+export type {
+  PublicAlbum,
+  PublicAlbumPhoto,
+  PublicInvitationView,
+  PublicRsvpAssistant,
+  PublicRsvpAssistantInput,
+  PublicRsvpMutation
+} from './public';
 export type * from './wizard';
 
 export const API_CLIENT_STATUS = 'Operational typed client generated from the API OpenAPI document.';
@@ -42,7 +51,9 @@ export function createApiClient(config: ApiClientRuntimeConfig) {
     fileAssets: createFileAssetsClient(request),
     design: createDesignClient(request),
     floorplan: createFloorplanClient(request),
-    physicalPasses: createPhysicalPassesClient(request)
+    physicalPasses: createPhysicalPassesClient(request),
+    publicInvitation: createPublicInvitationClient(request),
+    publicAlbum: createPublicAlbumClient(request)
   };
 }
 

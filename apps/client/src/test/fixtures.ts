@@ -226,6 +226,15 @@ export function mockApiClient(user: AuthUser = independentUser): ApiClient {
       lock: vi.fn(),
       unlock: vi.fn()
     },
-    physicalPasses: { list: vi.fn().mockResolvedValue([]), generate: vi.fn(), svg: vi.fn() }
+    physicalPasses: { list: vi.fn().mockResolvedValue([]), generate: vi.fn(), svg: vi.fn() },
+    publicInvitation: {
+      resolve: vi.fn(),
+      confirm: vi.fn(),
+      reject: vi.fn(),
+      updateAssistants: vi.fn(),
+      asset: vi.fn(),
+      qr: vi.fn()
+    },
+    publicAlbum: { resolve: vi.fn(), photo: vi.fn() }
   };
 }

@@ -438,8 +438,18 @@ Contrato normativo: `docs/04-tecnico/CLIENT_APP_CONTRACT.md`.
 - hardening de zona horaria atómica, geometrías normalizadas y reintento de pases sin atribución por rangos globales;
 - SDK ampliado y pruebas de runtime, modelo y flujos integrados.
 
-Contrato normativo: `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md`. La siguiente tarea es
-`CODEX-122 — Invitación y álbum públicos`; no fue iniciada por este corte.
+Contrato normativo: `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md`.
+
+`CODEX-122 — Invitación y álbum públicos` quedó completado:
+
+- rutas públicas fuera de sesión para Invitación y Álbum;
+- Flyer/Flipbook responsivos, Hotspots seguros y assets mediante Object URLs revocados;
+- Confirmación individual y familiar nominal, rechazo y reconciliación de resultados inciertos;
+- QR bajo demanda con diálogo accesible y pantalla completa;
+- Álbum elegible por token separado, tema validado y galería progresiva;
+- requester público sin cookies, tokens no persistidos y errores no enumerantes.
+
+Contrato normativo: `docs/04-tecnico/PUBLIC_CLIENT_CONTRACT.md`. `CODEX-130` no fue iniciado.
 
 ## Fuente de verdad
 

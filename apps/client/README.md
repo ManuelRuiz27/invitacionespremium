@@ -4,6 +4,8 @@ Aplicación Cliente para Planner independiente, Admin de Organización y Planner
 
 ## Rutas
 
+- `/invitacion/:invitationToken`: Invitación pública, Confirmación y QR;
+- `/album/:albumToken`: Álbum postevento público elegible;
 - `/login`: acceso único y restauración de sesión;
 - `/eventos`: dashboard autorizado de Eventos;
 - `/eventos/nuevo`: creación diferida de un Evento;
@@ -13,6 +15,10 @@ Aplicación Cliente para Planner independiente, Admin de Organización y Planner
 La sesión usa exclusivamente la cookie HttpOnly emitida por la API. No se persisten tokens, contraseñas
 ni cookies en storage del navegador. Sus estados visibles son `loading`, `authenticated`, `anonymous`,
 `forbidden` y `unavailable`.
+
+Las dos rutas públicas son hermanas del árbol autenticado: no montan `AuthProvider`, `ClientShell` ni
+guards, y no consultan sesión, Eventos o Finanzas. Sus tokens portadores permanecen en memoria, sus
+requests usan `credentials: omit` y sus assets/SVG se liberan mediante `URL.revokeObjectURL`.
 
 Solo un `401` de `GET /auth/me` demuestra ausencia de sesión. Un error de red, `429`, `5xx`, una
 respuesta inesperada o cualquier error que no demuestre ausencia muestra “No pudimos verificar tu
@@ -37,6 +43,10 @@ una sola creación en vuelo y usa llaves por intento solo mientras el resultado 
 editores visuales Flyer/Flipbook/Hotspots/Croquis, wall-clock IANA, pases por lotes y Revisión global.
 Solo `DRAFT`, `CONFIGURED` y `READY_TO_ACTIVATE` son editables. Véase
 `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md`.
+
+CODEX-122 implementa Flyer/Flipbook, Hotspots HTTPS, Confirmación nominal, QR bajo demanda y galería de
+Álbum. Su contrato de privacidad, routing, errores y accesibilidad está en
+`docs/04-tecnico/PUBLIC_CLIENT_CONTRACT.md`.
 
 ## Comandos
 

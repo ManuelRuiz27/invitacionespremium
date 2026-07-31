@@ -978,6 +978,8 @@ iniciado.
 
 ### CODEX-122 — Invitación y álbum públicos
 
+**Estado:** COMPLETADO
+
 **Repo:** `invitacionespremium-client`
 
 **Dependencias:** CODEX-070, CODEX-110
@@ -998,6 +1000,18 @@ iniciado.
 - no filtra datos de otros Contactos;
 - QR solo después de confirmar;
 - álbum restringido correctamente.
+
+**Implementado**
+
+- routing público separado de sesión, shell y cache privada;
+- SDK generado con requester público sin cookies para Invitación, RSVP, QR, assets, Álbum y fotos;
+- Flyer/Flipbook, Hotspots HTTPS, navegación táctil/teclado y reduced motion;
+- Confirmación individual/familiar nominal, rechazo, edición y reconciliación de red incierta;
+- QR Blob bajo demanda con pantalla completa y Object URL revocado;
+- Álbum por token separado, `contentPath` estricto, tema validado y galería progresiva hasta 35 fotos;
+- tokens no persistidos, `no-referrer`, errores no enumerantes y pruebas de SDK/componentes/routing.
+
+Contrato normativo: `docs/04-tecnico/PUBLIC_CLIENT_CONTRACT.md`. CODEX-130 no fue iniciado.
 
 ---
 

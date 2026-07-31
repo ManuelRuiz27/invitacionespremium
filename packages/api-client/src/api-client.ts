@@ -11,6 +11,7 @@ export interface ApiRequest {
   body?: unknown;
   headers?: Record<string, string>;
   signal?: AbortSignal;
+  credentials?: RequestCredentials;
   response: 'json' | 'empty' | 'text' | 'blob' | 'arrayBuffer';
 }
 
@@ -49,7 +50,7 @@ export function createRequester(config: ApiClientRuntimeConfig): ApiRequester {
 
     const response = await fetchImpl(`${baseUrl}${request.path}`, {
       method: request.method ?? 'GET',
-      credentials: 'include',
+      credentials: request.credentials ?? 'include',
       headers,
       ...(request.body === undefined
         ? {}

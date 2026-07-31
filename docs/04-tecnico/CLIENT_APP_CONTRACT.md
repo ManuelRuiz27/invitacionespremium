@@ -2,15 +2,15 @@
 
 ## Alcance
 
-`apps/client` es la aplicación autenticada de:
+`apps/client` contiene la aplicación autenticada de:
 
 - Planner independiente;
 - Admin de Organización;
 - Planner de Organización.
 
-CODEX-120 implementa shell, sesión, navegación, dashboard de Eventos y consulta financiera. No implementa
-creación, edición, wizard, activación, recursos hijos, páginas públicas, Scanner, Platform Admin,
-Socket.IO frontend ni CODEX-121.
+CODEX-120 implementa shell, sesión, navegación, dashboard de Eventos y consulta financiera. CODEX-121
+agrega el wizard y CODEX-122 agrega dos experiencias públicas aisladas. Scanner, Platform Admin y
+Socket.IO frontend permanecen fuera de alcance.
 
 ## Cliente API
 
@@ -31,7 +31,8 @@ Los tipos generados son la única definición frontend de DTOs. Los wrappers imp
 - `GET /finance/movements`;
 - `GET /finance/receipts`.
 
-Todos los requests usan `credentials: include`, aceptan `AbortSignal` y traducen el error uniforme a
+Los requests autenticados usan `credentials: include`; los públicos usan `credentials: omit`. Todos
+aceptan `AbortSignal` y traducen el error uniforme a
 `ApiError { status, code, message, operationId? }`. Una respuesta exitosa vacía, no JSON o incompatible
 se rechaza como `UNEXPECTED_API_RESPONSE`. El JSON OpenAPI no se incluye en el build productivo.
 
@@ -98,8 +99,9 @@ restauración como desde login, sin cerrar su sesión y sin montar login, acceso
 Cliente. Un rol incompatible recibido desde cualquiera de esos dos flujos ejecuta logout best-effort,
 limpia la cache y muestra acceso no permitido, incluso en `/login`.
 
-La arquitectura mantiene `/login` fuera de `ProtectedRoute`; por ello rutas públicas futuras podrán
-agregarse sin quedar bajo la sesión Cliente. `/` redirige a `/eventos` y `*` presenta 404.
+La arquitectura mantiene `/invitacion/:invitationToken`, `/album/:albumToken` y el 404 público fuera de
+`AuthProvider`. `/login` queda dentro de sesión pero fuera de `ProtectedRoute`; `/` redirige a
+`/eventos` únicamente después de pasar los guards privados.
 
 ## Navegación y shell
 
@@ -189,4 +191,7 @@ CODEX-121 quedó implementado conforme a `EVENT_WIZARD_CONTRACT.md`. El shell in
 `/eventos/nuevo` y `/eventos/:eventId/configuracion/:step`; su dashboard lleva `DRAFT`/`CONFIGURED` a
 Datos, `READY_TO_ACTIVATE` a Revisión y estados posteriores al resumen. La creación concurrente comparte
 una promesa; las llaves existen solo durante intentos no resueltos. `PHYSICAL_QR` no monta ni consulta
-módulos digitales y Planner de Organización no consulta Finanzas. CODEX-122 no fue iniciado.
+módulos digitales y Planner de Organización no consulta Finanzas.
+
+CODEX-122 quedó implementado conforme a `PUBLIC_CLIENT_CONTRACT.md`: rutas públicas fuera de sesión,
+tokens no persistidos, requester sin cookies, RSVP nominal, QR bajo demanda y Object URLs revocables.

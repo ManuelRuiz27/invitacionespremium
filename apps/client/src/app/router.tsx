@@ -1,7 +1,6 @@
 import type { ApiClient } from '@invitaciones/api-client';
 import type { QueryClient } from '@tanstack/react-query';
-import { Button, Stack, Typography } from '@mui/material';
-import { Link, Navigate, Outlet, createBrowserRouter, createMemoryRouter, type RouteObject } from 'react-router-dom';
+import { Navigate, Outlet, createBrowserRouter, createMemoryRouter, type RouteObject } from 'react-router-dom';
 import { AuthProvider } from '../auth/AuthProvider';
 import { LoginPage } from '../auth/LoginPage';
 import { ProtectedRoute } from '../auth/ProtectedRoute';
@@ -9,6 +8,9 @@ import { RoleRoute } from '../auth/RoleRoute';
 import { DashboardPage } from '../dashboard/DashboardPage';
 import { FinancePage } from '../finance/FinancePage';
 import { ClientShell } from '../layout/ClientShell';
+import { PublicAlbumPage } from '../public/album/PublicAlbumPage';
+import { PublicInvitationPage } from '../public/invitation/PublicInvitationPage';
+import { PublicNotFoundPage } from '../public/PublicNotFoundPage';
 import { financeRoles } from '../shared/roles';
 import { WizardPage } from '../wizard/WizardPage';
 
@@ -30,6 +32,8 @@ export function createClientMemoryRouter(dependencies: RouterDependencies, initi
 
 function createRoutes(dependencies: RouterDependencies): RouteObject[] {
   return [
+    { path: '/invitacion/:invitationToken', element: <PublicInvitationPage apiClient={dependencies.apiClient} /> },
+    { path: '/album/:albumToken', element: <PublicAlbumPage apiClient={dependencies.apiClient} /> },
     {
       element: (
         <AuthProvider
@@ -63,30 +67,9 @@ function createRoutes(dependencies: RouterDependencies): RouteObject[] {
               ]
             }
           ]
-        },
-        { path: '*', element: <NotFoundPage /> }
+        }
       ]
-    }
+    },
+    { path: '*', element: <PublicNotFoundPage /> }
   ];
-}
-
-function NotFoundPage() {
-  return (
-    <Stack
-      component="main"
-      spacing={2}
-      sx={{ minHeight: '100svh', p: 4, justifyContent: 'center', alignItems: 'center' }}
-    >
-      <Typography component="p" color="primary.main" variant="h3">
-        404
-      </Typography>
-      <Typography component="h1" variant="h2">
-        Página no encontrada
-      </Typography>
-      <Typography color="text.secondary">La ruta que buscas no está disponible.</Typography>
-      <Button component={Link} to="/eventos" variant="contained">
-        Ir a Eventos
-      </Button>
-    </Stack>
-  );
 }

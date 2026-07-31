@@ -228,6 +228,91 @@ describe('generated API client runtime', () => {
   });
 });
 
+describe('public API client', () => {
+  it('resolves invitations and sends public RSVP mutations without cookies', async () => {
+    const invitation = { status: 'AVAILABLE' };
+    const mutation = { invitationId: 'invitation', responseStatus: 'CONFIRMED', assistants: [] };
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse(invitation))
+      .mockResolvedValueOnce(jsonResponse(mutation))
+      .mockResolvedValueOnce(jsonResponse(mutation))
+      .mockResolvedValueOnce(jsonResponse(mutation));
+    const client = createApiClient({ baseUrl: 'https://api.example.com/api/v1', fetchImpl });
+    const signal = new AbortController().signal;
+
+    await client.publicInvitation.resolve('token/value', signal);
+    await client.publicInvitation.confirm('token/value', [{ name: 'Ana' }]);
+    await client.publicInvitation.updateAssistants('token/value', [{ id: 'assistant', name: 'Ana María' }]);
+    await client.publicInvitation.reject('token/value');
+
+    expect(fetchImpl.mock.calls.map(([url]) => url)).toEqual([
+      'https://api.example.com/api/v1/public/invitations/token%2Fvalue',
+      'https://api.example.com/api/v1/public/invitations/token%2Fvalue/confirm',
+      'https://api.example.com/api/v1/public/invitations/token%2Fvalue/assistants',
+      'https://api.example.com/api/v1/public/invitations/token%2Fvalue/reject'
+    ]);
+    expect(fetchImpl.mock.calls.every(([, init]) => init?.credentials === 'omit')).toBe(true);
+    expect(fetchImpl.mock.calls[0]?.[1]?.signal).toBe(signal);
+    expect(fetchImpl.mock.calls[1]?.[1]?.body).toBe(JSON.stringify({ additionalAssistants: [{ name: 'Ana' }] }));
+  });
+
+  it('downloads invitation assets and QR bytes as Blob only when requested', async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response('image'))
+      .mockResolvedValueOnce(new Response('<svg/>', { headers: { 'Content-Type': 'image/svg+xml' } }));
+    const client = createApiClient({ baseUrl: 'https://api.example.com/api/v1', fetchImpl });
+
+    expect(await client.publicInvitation.asset('token', 'asset/id')).toBeInstanceOf(Blob);
+    expect(await client.publicInvitation.qr('token')).toBeInstanceOf(Blob);
+    expect(fetchImpl.mock.calls.map(([url]) => url)).toEqual([
+      'https://api.example.com/api/v1/public/invitations/token/assets/asset%2Fid/content',
+      'https://api.example.com/api/v1/public/invitations/token/qr.svg'
+    ]);
+  });
+
+  it('resolves albums and downloads an encoded photo without credentials', async () => {
+    const album = {
+      status: 'AVAILABLE',
+      event: { name: 'Evento' },
+      album: { title: 'Álbum', expiresAt: 'now', publishedAt: 'now', photos: [], theme: {} }
+    };
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse(album))
+      .mockResolvedValueOnce(new Response('photo'));
+    const client = createApiClient({ baseUrl: 'https://api.example.com/api/v1', fetchImpl });
+
+    await client.publicAlbum.resolve('album/token');
+    expect(await client.publicAlbum.photo('album/token', 'photo/id')).toBeInstanceOf(Blob);
+    expect(fetchImpl.mock.calls.map(([url]) => url)).toEqual([
+      'https://api.example.com/api/v1/public/albums/album%2Ftoken',
+      'https://api.example.com/api/v1/public/albums/album%2Ftoken/photos/photo%2Fid/content'
+    ]);
+    expect(fetchImpl.mock.calls.every(([, init]) => init?.credentials === 'omit')).toBe(true);
+  });
+
+  it('keeps public tokens out of storage and propagates JSON and non-JSON errors', async () => {
+    const storageSpy = vi.fn(() => {
+      throw new Error('storage must not be used');
+    });
+    Object.defineProperty(globalThis, 'localStorage', { configurable: true, get: storageSpy });
+    Object.defineProperty(globalThis, 'sessionStorage', { configurable: true, get: storageSpy });
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse({ code: 'INVITATION_NOT_FOUND', message: 'hidden token' }, 404))
+      .mockResolvedValueOnce(new Response('gateway detail', { status: 502 }));
+    const client = createApiClient({ baseUrl: 'https://api.example.com/api/v1', fetchImpl });
+
+    await expect(client.publicInvitation.resolve('secret-token')).rejects.toMatchObject({
+      code: 'INVITATION_NOT_FOUND'
+    });
+    await expect(client.publicAlbum.resolve('secret-album')).rejects.toMatchObject({ code: 'HTTP_502' });
+    expect(storageSpy).not.toHaveBeenCalled();
+  });
+});
+
 function mockJson(payload: unknown): ReturnType<typeof vi.fn<typeof fetch>> {
   return vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(payload));
 }
