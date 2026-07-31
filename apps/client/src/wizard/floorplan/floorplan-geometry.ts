@@ -2,6 +2,7 @@ import type { FloorplanShapeInput } from '@invitaciones/api-client';
 
 const MIN_SIZE = 0.001;
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+const round = (value: number) => Math.round(value * 1_000_000) / 1_000_000;
 
 export class FloorplanShapeValidationError extends Error {}
 
@@ -38,7 +39,8 @@ export function normalizeFloorplanShape(shape: FloorplanShapeInput): FloorplanSh
     ['rotation', shape.rotation]
   ] as const)
     requireFinite(value, label);
-  if (shape.width <= 0 || shape.height <= 0)
+  const equalSides = shape.geometry === 'SQUARE' || shape.geometry === 'CIRCLE';
+  if (shape.width <= 0 || (!equalSides && shape.height <= 0))
     throw new FloorplanShapeValidationError('El ancho y el alto deben ser mayores que cero.');
 
   const x = clamp(shape.x, 0, 1 - MIN_SIZE);
@@ -52,8 +54,9 @@ export function normalizeFloorplanShape(shape: FloorplanShapeInput): FloorplanSh
     rotation: ((shape.rotation % 360) + 360) % 360
   };
 
-  if (shape.geometry === 'SQUARE' || shape.geometry === 'CIRCLE') {
-    const side = clamp(Math.max(shape.width, shape.height), MIN_SIZE, Math.min(maxWidth, maxHeight));
+  if (equalSides) {
+    // The inspector exposes width as the single authoritative side for squares and circles.
+    const side = round(clamp(shape.width, MIN_SIZE, Math.min(maxWidth, maxHeight)));
     return { ...base, width: side, height: side, polygonPoints: null };
   }
 

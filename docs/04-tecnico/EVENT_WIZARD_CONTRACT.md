@@ -68,8 +68,9 @@ autoritativas de portada/página. Los blockers de readiness se traducen a lengua
 
 El Croquis tiene canvas y panel para `TABLE` y `DECORATIVE_ZONE` (Zona), con `RECTANGLE`, `SQUARE`,
 `CIRCLE` y `POLYGON`. Permite crear, seleccionar, mover, redimensionar, editar y eliminar; normaliza cada
-forma dentro del canvas, conserva un solo lado en cuadrado/círculo y valida puntos finitos, rango, cantidad
-y área no degenerada del polígono antes del request. Círculos y polígonos se representan con su geometría
+forma dentro del canvas, usa `width` como lado autoritativo y sincroniza `height` en cuadrado/círculo, y
+valida puntos finitos, rango, cantidad y área no degenerada del polígono antes del request. Círculos y
+polígonos se representan con su geometría
 real y las interacciones operan sobre esa representación visible. Mesa exige capacidad
 positiva y Zona capacidad cero. Lock impide edición hasta un unlock explícito y se muestra capacidad total.
 

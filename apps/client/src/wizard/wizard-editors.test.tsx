@@ -77,6 +77,33 @@ const floorplan: Floorplan = {
   updatedAt: '2026-01-01T00:00:00Z'
 };
 
+const geometryShape = (
+  geometry: Floorplan['shapes'][number]['geometry'],
+  overrides: Partial<Floorplan['shapes'][number]> = {}
+): Floorplan['shapes'][number] => ({
+  ...floorplan.shapes[0]!,
+  geometry,
+  polygonPoints: null,
+  ...overrides
+});
+
+function renderFloorplanEditor(shape: Floorplan['shapes'][number]) {
+  const api = mockApiClient();
+  vi.mocked(api.floorplan.get).mockResolvedValue({ ...floorplan, shapes: [shape] });
+  vi.mocked(api.floorplan.updateShape).mockResolvedValue(shape);
+  vi.mocked(api.fileAssets.content).mockResolvedValue(new Blob(['image'], { type: 'image/png' }));
+  render(
+    <FloorplanStep
+      apiClient={api}
+      event={{ ...configuredEvent, floorplanEnabled: true }}
+      draft={{ confirmationEnabled: false, floorplanEnabled: true }}
+      disabled={false}
+      onChange={vi.fn()}
+    />
+  );
+  return api;
+}
+
 describe('visual wizard editors', () => {
   beforeEach(() => {
     Object.defineProperty(URL, 'createObjectURL', {
@@ -310,6 +337,89 @@ describe('visual wizard editors', () => {
     expect((payload?.x ?? 0) + (payload?.width ?? 0)).toBeLessThanOrEqual(1);
     expect((payload?.y ?? 0) + (payload?.height ?? 0)).toBeLessThanOrEqual(1);
   });
+
+  it.each([
+    ['SQUARE', 0.1],
+    ['CIRCLE', 0.08]
+  ] as const)('reduces an existing %s through its authoritative side field', async (geometry, side) => {
+    const source = geometryShape(geometry, { name: geometry, width: 0.2, height: 0.2 });
+    const api = renderFloorplanEditor(source);
+    await userEvent.click(await screen.findByRole('button', { name: new RegExp(`Seleccionar Mesa ${geometry}`) }));
+    await waitFor(() => expect(screen.getByLabelText('width')).toHaveValue(0.2));
+
+    fireEvent.change(screen.getByLabelText('width'), { target: { value: String(side) } });
+    expect(screen.getByLabelText('width')).toHaveValue(side);
+    expect(screen.getByLabelText('height')).toHaveValue(side);
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar forma' }));
+
+    expect(api.floorplan.updateShape).toHaveBeenCalledWith(
+      configuredEvent.id,
+      source.id,
+      expect.objectContaining({ geometry, width: side, height: side })
+    );
+  });
+
+  it('initializes equal visible sides when converting Rectangle to Circle and persists later edits exactly', async () => {
+    const source = geometryShape('RECTANGLE', { name: 'Rectángulo', width: 0.2, height: 0.15 });
+    const api = renderFloorplanEditor(source);
+    await userEvent.click(await screen.findByRole('button', { name: /Seleccionar Mesa Rectángulo/ }));
+    await waitFor(() => expect(screen.getByLabelText('height')).toHaveValue(0.15));
+
+    await userEvent.click(screen.getByRole('combobox', { name: 'Geometría' }));
+    await userEvent.click(screen.getByRole('option', { name: 'CIRCLE' }));
+    expect(screen.getByLabelText('width')).toHaveValue(0.2);
+    expect(screen.getByLabelText('height')).toHaveValue(0.2);
+    fireEvent.change(screen.getByLabelText('width'), { target: { value: '0.1' } });
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar forma' }));
+
+    expect(api.floorplan.updateShape).toHaveBeenCalledWith(
+      configuredEvent.id,
+      source.id,
+      expect.objectContaining({ geometry: 'CIRCLE', width: 0.1, height: 0.1 })
+    );
+  });
+
+  it.each([
+    ['SQUARE', 'reduce', 400, 300, 300, 225, 0.1],
+    ['SQUARE', 'expand', 400, 300, 500, 375, 0.3],
+    ['CIRCLE', 'reduce', 400, 300, 300, 225, 0.1],
+    ['CIRCLE', 'expand', 400, 300, 500, 375, 0.3]
+  ] as const)(
+    '%s pointer resize can %s while keeping equal positive sides inside the canvas',
+    async (geometry, _, x1, y1, x2, y2, side) => {
+      const source = geometryShape(geometry, {
+        name: 'Pointer shape',
+        x: 0.4,
+        y: 0.4,
+        width: 0.2,
+        height: 0.2
+      });
+      const api = renderFloorplanEditor(source);
+      const canvas = await screen.findByLabelText('Canvas del Croquis');
+      vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
+        x: 0,
+        y: 0,
+        left: 0,
+        top: 0,
+        right: 1000,
+        bottom: 750,
+        width: 1000,
+        height: 750,
+        toJSON: () => ({})
+      });
+      const handle = screen.getByLabelText('Redimensionar Pointer shape');
+      fireEvent.pointerDown(handle, { pointerId: 1, clientX: x1, clientY: y1 });
+      fireEvent.pointerMove(handle, { pointerId: 1, clientX: x2, clientY: y2 });
+      await waitFor(() => expect(screen.getByLabelText('width')).toHaveValue(side));
+      expect(screen.getByLabelText('height')).toHaveValue(side);
+      await userEvent.click(screen.getByRole('button', { name: 'Guardar forma' }));
+      const payload = vi.mocked(api.floorplan.updateShape).mock.calls.at(-1)?.[2];
+      expect(payload?.width).toBe(payload?.height);
+      expect(payload?.width).toBeGreaterThan(0);
+      expect((payload?.x ?? 0) + (payload?.width ?? 0)).toBeLessThanOrEqual(1);
+      expect((payload?.y ?? 0) + (payload?.height ?? 0)).toBeLessThanOrEqual(1);
+    }
+  );
 
   it('shows invalid polygon geometry before making an API request', async () => {
     const api = mockApiClient();

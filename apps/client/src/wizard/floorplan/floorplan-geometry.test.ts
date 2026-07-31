@@ -38,6 +38,12 @@ describe('floorplan geometry normalization', () => {
     expect(result.y + result.height).toBeLessThanOrEqual(1);
   });
 
+  it.each(['SQUARE', 'CIRCLE'] as const)('uses width as the authoritative side for %s', (geometry) => {
+    const result = normalizeFloorplanShape({ ...shape(geometry), x: 0.1, y: 0.1, width: 0.1, height: 0.2 });
+    expect(result.width).toBe(0.1);
+    expect(result.height).toBe(0.1);
+  });
+
   it('rejects missing, out-of-range and degenerate polygons before the API', () => {
     expect(() => normalizeFloorplanShape({ ...shape('POLYGON'), polygonPoints: [] })).toThrow(/tres puntos/i);
     expect(() =>

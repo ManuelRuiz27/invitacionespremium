@@ -62,6 +62,22 @@ export function FloorplanStep({
   useEffect(() => {
     if (selected) setShape(editable(selected));
   }, [selected]);
+  const hasEqualSides = shape.geometry === 'SQUARE' || shape.geometry === 'CIRCLE';
+  const changeGeometry = (geometry: FloorplanShapeInput['geometry']) => {
+    const next = { ...shape, geometry };
+    if (geometry === 'SQUARE' || geometry === 'CIRCLE') {
+      setShape(normalizeFloorplanShape({ ...next, height: shape.width }));
+      return;
+    }
+    setShape(geometry === 'POLYGON' ? next : { ...next, polygonPoints: null });
+  };
+  const changeDimension = (field: 'x' | 'y' | 'width' | 'height' | 'rotation', value: number) => {
+    if (field === 'width' && hasEqualSides) {
+      setShape({ ...shape, width: value, height: value });
+      return;
+    }
+    setShape({ ...shape, [field]: value });
+  };
   const valid = shape.kind === 'TABLE' ? shape.capacity > 0 : shape.capacity === 0;
   const save = async () => {
     if (!valid) {
@@ -277,7 +293,7 @@ export function FloorplanStep({
                   select
                   label="Geometría"
                   value={shape.geometry}
-                  onChange={(e) => setShape({ ...shape, geometry: e.target.value as FloorplanShapeInput['geometry'] })}
+                  onChange={(e) => changeGeometry(e.target.value as FloorplanShapeInput['geometry'])}
                 >
                   {['RECTANGLE', 'SQUARE', 'CIRCLE', 'POLYGON'].map((value) => (
                     <MenuItem key={value} value={value}>
@@ -299,8 +315,8 @@ export function FloorplanStep({
                     type="number"
                     label={field}
                     value={shape[field]}
-                    disabled={field === 'height' && (shape.geometry === 'SQUARE' || shape.geometry === 'CIRCLE')}
-                    onChange={(e) => setShape({ ...shape, [field]: Number(e.target.value) })}
+                    disabled={field === 'height' && hasEqualSides}
+                    onChange={(e) => changeDimension(field, Number(e.target.value))}
                   />
                 ))}
               </Stack>
