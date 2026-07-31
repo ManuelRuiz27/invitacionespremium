@@ -19,4 +19,7 @@ pnpm --filter @invitaciones/api-client build
 texto, `Blob`, `ArrayBuffer`, respuestas `204`, abortos y llaves idempotentes. Toda solicitud usa
 `credentials: 'include'`; el SDK no lee ni escribe localStorage, sessionStorage o IndexedDB.
 
+El wizard consume estos wrappers sin DTOs paralelos. Las llaves de CSV, pases y activación se entregan por
+request; el SDK no decide su ciclo de vida ni las persiste.
+
 `API_CLIENT_STATUS` identifica al cliente generado como operativo. CI regenera los tipos y rechaza drift.

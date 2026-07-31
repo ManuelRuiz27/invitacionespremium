@@ -429,11 +429,12 @@ Contrato normativo: `docs/04-tecnico/CLIENT_APP_CONTRACT.md`.
 
 `CODEX-121 — Wizard de Evento` quedó completado:
 
-- creación diferida y reanudación por URL;
-- pasos dinámicos para servicios digitales y `PHYSICAL_QR`;
+- creación diferida coordinada por una única promesa y reanudación por URL;
+- pasos digitales completos y `PHYSICAL_QR` sin Contactos ni requests digitales;
 - autosave serial con guardado manual y protección al salir;
-- contactos manuales/CSV, diseño privado, hotspots, confirmación, croquis y pases;
-- revisión autoritativa, permisos financieros y activación idempotente reconciliable;
+- contactos/CSV por preview, editores Flyer/Flipbook, Hotspots, Croquis y lotes de pases;
+- wall-clock por zona IANA, Revisión global y activación mediante diálogo accesible;
+- llaves por intento incierto, sin llaves resueltas en Web Storage;
 - SDK ampliado y pruebas de runtime, modelo y flujos integrados.
 
 Contrato normativo: `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md`. La siguiente tarea es

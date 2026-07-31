@@ -130,9 +130,13 @@ export function EventsList({ events }: { events: Event[] }) {
                       <TableCell align="right">{event.capacity ?? 'Pendiente'}</TableCell>
                       <TableCell>{formatEventDate(event.updatedAt, event.timeZone, true)}</TableCell>
                       <TableCell align="right">
-                        {getEventStatusPresentation(event.status).group === 'preparation' ? (
+                        {['DRAFT', 'CONFIGURED'].includes(event.status) ? (
                           <Button component={Link} to={`/eventos/${event.id}/configuracion/datos`}>
-                            Continuar
+                            Continuar configuraciÃ³n
+                          </Button>
+                        ) : event.status === 'READY_TO_ACTIVATE' ? (
+                          <Button component={Link} to={`/eventos/${event.id}/configuracion/revision`}>
+                            Activar evento
                           </Button>
                         ) : (
                           <Button onClick={() => setSelected(event)}>Ver evento</Button>

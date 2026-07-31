@@ -16,3 +16,4 @@ El sistema usa Material UI, foco visible, contraste suficiente y reducción de m
 aportan navegación, permisos y datos; este paquete permanece puramente presentacional.
 
 El wizard reutiliza estos estados, encabezados y chips sin trasladar reglas de Evento a este paquete.
+Los canvas, gestores de intentos, pasos y diálogos operativos permanecen en `apps/client`.

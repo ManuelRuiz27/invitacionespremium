@@ -1,65 +1,93 @@
 # Contrato del Wizard de Evento
 
-## Alcance
+## Alcance y autoridad
 
-`CODEX-121` implementa en `apps/client` la creación, reanudación, configuración y activación de un
-Evento usando exclusivamente contratos de la API. La API conserva autoridad sobre ownership, estados,
-capacidad, readiness, cobro, saldo e idempotencia. El wizard no implementa la vista pública ni el álbum.
+`CODEX-121` implementa en `apps/client` la creación, reanudación, configuración y activación de Eventos.
+La API sigue siendo la autoridad de ownership, estado, capacidad, readiness, precio, cobro e idempotencia.
+El cliente no implementa páginas públicas ni `CODEX-122`.
 
-## Rutas y navegación
+La orquestación vive en `wizard/WizardPage.tsx` y `WizardLayout.tsx`; autosave, datos, Contactos, diseño,
+Confirmación, Croquis, pases y Revisión tienen módulos separados. Ninguna regla se mueve a `packages/ui`.
 
-- `/eventos/nuevo` inicia una captura local y no crea un borrador vacío.
-- `/eventos/:eventId/configuracion/:step` recupera el Evento y usa `:step` como fuente de verdad.
-- pasos digitales: `datos`, `contactos`, `invitacion`, `confirmacion`, `croquis`, `revision`;
-- pasos `PHYSICAL_QR`: `datos`, `contactos`, `croquis`, `pases`, `revision`.
+## Rutas, servicios y dashboard
 
-Los servicios vienen de `GET /services`; `DEMO` no se ofrece. Solo `DRAFT`, `CONFIGURED` y
-`READY_TO_ACTIVATE` son editables. Los estados posteriores son de solo lectura.
+- `/eventos/nuevo` conserva la captura local hasta que existe información significativa;
+- `/eventos/:eventId/configuracion/:step` reanuda por URL;
+- digital: `datos`, `contactos`, `invitacion`, `confirmacion`, `croquis`, `revision`;
+- `PHYSICAL_QR`: `datos`, `croquis`, `pases`, `revision`.
 
-## Creación y guardado
+Una ruta incompatible se sustituye por `datos` antes de montar el paso. Physical QR no consulta
+Contactos, Grupos, Invitaciones, Design ni Hotspots. El dashboard usa exactamente:
 
-La ruta nueva mantiene datos en memoria hasta un guardado significativo. Nombre, servicio, fecha o
-capacidad habilitan la creación. Tras `POST /events`, la URL adopta el identificador retornado y los
-guardados siguientes usan `PATCH /events/:eventId`.
+| Estado | Acción | Destino |
+| --- | --- | --- |
+| `DRAFT`, `CONFIGURED` | Continuar configuración | `configuracion/datos` |
+| `READY_TO_ACTIVATE` | Activar evento | `configuracion/revision` |
+| `ACTIVE` y posteriores | Ver evento | resumen autorizado |
 
-El autosave espera 900 ms, consolida cambios, serializa escrituras, conserva el último snapshot ante
-error y expone `pending`, `saving`, `saved` y `error`. `Guardar y continuar` y `Guardar y salir` vacían
-la cola. `beforeunload` advierte mientras existe trabajo pendiente.
+## Creación, autosave e intentos
 
-## Operaciones por etapa
+`createPromiseRef` coordina el único `POST /events`: clics y navegación concurrentes comparten la
+promesa, bloquean controles y liberan la reserva ante error. El éxito adopta el Evento una vez. El
+autosave consolida durante 900 ms, serializa `PATCH`, retiene el último valor fallido y se vacía antes de
+cambiar de paso o salir.
 
-| Etapa | Operaciones |
-| --- | --- |
-| Datos | Servicio vigente, nombre, tipo social, fecha, zona IANA, capacidad y URLs HTTPS |
-| Contactos | CRUD, búsqueda, grupos, plantilla CSV, preview y commit idempotente |
-| Invitación | archivos privados, flyer/flipbook, páginas, hotspots normalizados y readiness |
-| Confirmación | `confirmationEnabled` mediante actualización del Evento |
-| Croquis | activación opcional, imagen y shapes con enums del backend |
-| Pases | generación idempotente, listado y recuperación tras resultado incierto |
-| Revisión | readiness autoritativo, cobro vigente, balance autorizado y activación idempotente |
+Las llaves no se persisten en Web Storage. `AttemptManager` conserva solo un resultado incierto:
 
-El hotspot dispone de campos numéricos para `x`, `y`, `width` y `height`, normalizados entre 0 y 1. Los
-objetos privados se descargan como `Blob`; el cliente no construye URLs de storage.
+- CSV: la identidad es `previewId`; éxito o fallo definitivo limpia la llave y otro preview rota llave;
+- pases: cada clic intencional crea llave nueva aunque cantidad/Mesa coincidan; un retry incierto conserva
+  llave y payload, y el listado/rango reconcilia el resultado;
+- activación: una llave por intento; red/timeout la conserva hasta reconciliar `GET /events/:id`; `ACTIVE`
+  o un fallo definitivo la elimina.
 
-## Idempotencia, conectividad y permisos
+## Datos, Contactos y CSV
 
-Las llaves de importación CSV, generación de pases y activación se crean una vez por Evento y operación
-y se conservan durante la sesión. Después de un resultado de activación desconocido, el cliente consulta
-el Evento: `ACTIVE` confirma éxito; otro estado conserva una acción reintentable.
+`datetime-local` representa el wall-clock del Evento. La conversión busca el instante de la zona IANA de
+`draft.timeZone`, no la zona del navegador. Horas inexistentes o ambiguas por DST se rechazan. Cambiar la
+zona requiere un diálogo y conserva explícitamente la hora escrita.
 
-Los tres roles Cliente pueden configurar Eventos autorizados. El detalle financiero solo se solicita
-para Planner independiente y Admin de Organización. Planner de Organización ve el costo, pero no saldo,
-movimientos ni comprobantes.
+Contactos permite alta, edición de nombre/WhatsApp/Grupo y eliminación confirmada. La capacidad visible se
+basa en Asistentes nominales autorizados de Invitaciones, no en el número de Contactos. El preview presenta
+todas las filas y errores antes del commit.
 
-## Accesibilidad, SDK y pruebas
+## Flyer, Flipbook y Hotspots
 
-El stepper tiene alternativa desplazable en pantallas pequeñas, controles con nombre accesible, regiones
-vivas, navegación por teclado, foco visible y alternativa numérica al editor visual.
+Los previews descargan blobs privados y revocan cada Object URL. Flyer acepta solo JPG/PNG, presenta imagen
+inicial y QR, y permite sustituir ambas. Flipbook administra de 1 a 10 páginas, portada, selección, alta,
+sustitución, eliminación y orden persistido.
 
-`@invitaciones/api-client` soporta `GET`, `POST`, `PATCH`, `DELETE`, JSON, `FormData`, texto, `Blob`,
-`ArrayBuffer`, `204`, `AbortSignal`, cookies e `Idempotency-Key`; no fija `Content-Type` para multipart.
-Los tipos continúan generándose desde OpenAPI y `generate:check` detecta drift.
+El canvas permite seleccionar, mover y redimensionar Hotspots mediante pointer, con alternativa numérica
+para `x`, `y`, `width`, `height` y prioridad. Acciones: RSVP, ubicación, mesa de regalos, área QR y enlace
+adicional HTTPS. En Flipbook los Hotspots pertenecen a la página activa y se respetan las restricciones
+autoritativas de portada/página. Los blockers de readiness se traducen a lenguaje visible.
 
-Las pruebas cubren transporte, binarios, multipart, errores, abortos, idempotencia, secuencias por
-servicio, estados editables, creación diferida, autosave, reanudación por URL, permisos financieros y
-reconciliación de activación.
+## Croquis y pases
+
+El Croquis tiene canvas y panel para `TABLE` y `DECORATIVE_ZONE` (Zona), con `RECTANGLE`, `SQUARE`,
+`CIRCLE` y `POLYGON`. Permite crear, seleccionar, mover, redimensionar, editar y eliminar; normaliza el
+rectángulo al canvas, iguala lados en cuadrado/círculo y limita puntos de polígono. Mesa exige capacidad
+positiva y Zona capacidad cero. Lock impide edición hasta un unlock explícito y se muestra capacidad total.
+
+Pases permite cantidad y Mesa opcional, conserva varios lotes y rangos, lista usados/no usados y Mesa, y
+descarga SVG como `pase-0001.svg`.
+
+## Revisión y activación
+
+Entrar a Revisión vacía autosave, recarga el Evento y consulta recursos del servicio. Digital consulta
+Contactos, Invitaciones, Design Readiness y Croquis opcional. Physical QR consulta pases y Croquis, nunca
+Design Readiness. El checklist es informativo; el botón solo se habilita con
+`event.status === READY_TO_ACTIVATE`.
+
+El diálogo accesible muestra costo vigente, estimación, saldo comprado y línea utilizada/disponible. Planner
+de Organización recibe texto específico y realiza cero requests financieros. El botón bloquea doble envío y
+la reconciliación resuelve resultados inciertos.
+
+Los códigos publicados se traducen sin mostrar mensajes técnicos por defecto; `operationId` aparece solo
+como referencia secundaria. `401` conserva `returnTo`; red o `500` no expiran la sesión.
+
+## Verificación
+
+Las pruebas de componentes cubren creación concurrente, pasos incompatibles, CSV sucesivos, lotes iguales,
+zona distinta al navegador, Flyer/Flipbook, CRUD de Hotspots y páginas, Object URLs, Mesa/Zona, SVG,
+Revisión digital/física, permisos financieros, diálogo y activación. Los tipos proceden exclusivamente de
+OpenAPI mediante `@invitaciones/api-client`.

@@ -186,4 +186,7 @@ Son obligatorias y se validan en producción. Los defaults documentados solo apl
 CODEX-120 conserva `VITE_SOCKET_URL`, pero no inicia la integración de tiempo real.
 
 CODEX-121 quedó implementado conforme a `EVENT_WIZARD_CONTRACT.md`. El shell incorpora las rutas
-`/eventos/nuevo` y `/eventos/:eventId/configuracion/:step`; CODEX-122 no fue iniciado.
+`/eventos/nuevo` y `/eventos/:eventId/configuracion/:step`; su dashboard lleva `DRAFT`/`CONFIGURED` a
+Datos, `READY_TO_ACTIVATE` a Revisión y estados posteriores al resumen. La creación concurrente comparte
+una promesa; las llaves existen solo durante intentos no resueltos. `PHYSICAL_QR` no monta ni consulta
+módulos digitales y Planner de Organización no consulta Finanzas. CODEX-122 no fue iniciado.

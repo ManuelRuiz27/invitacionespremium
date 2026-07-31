@@ -493,3 +493,8 @@ El wizard operativo usa un stepper horizontal en escritorio y tabs desplazables 
 conserva el paso actual, el estado de guardado se anuncia sin depender del color y cada editor visual
 ofrece una alternativa de campos. Las secuencias por servicio, creación diferida y estados de solo
 lectura están normados en `../04-tecnico/EVENT_WIZARD_CONTRACT.md`.
+
+`PHYSICAL_QR` muestra únicamente Datos, Croquis, Pases y Revisión. Flyer y Flipbook disponen de previews
+privados, canvas de Hotspots y panel numérico; Croquis ofrece canvas más inspector de Mesa/Zona. Los cambios
+de zona horaria, eliminación de Contactos y activación usan confirmaciones accesibles. Revisión recarga el
+estado autoritativo y solo habilita Activar cuando la API devuelve `READY_TO_ACTIVATE`.

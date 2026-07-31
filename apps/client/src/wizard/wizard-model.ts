@@ -13,7 +13,7 @@ export type WizardStep = (typeof wizardSteps)[number];
 export type SaveState = 'idle' | 'pending' | 'saving' | 'saved' | 'error';
 
 const digitalSteps: WizardStep[] = ['datos', 'contactos', 'invitacion', 'confirmacion', 'croquis', 'revision'];
-const physicalSteps: WizardStep[] = ['datos', 'contactos', 'croquis', 'pases', 'revision'];
+const physicalSteps: WizardStep[] = ['datos', 'croquis', 'pases', 'revision'];
 
 export function stepsForService(code: AvailableService['code'] | undefined): WizardStep[] {
   return code === 'PHYSICAL_QR' ? physicalSteps : digitalSteps;
@@ -27,66 +27,29 @@ export function isMeaningfulDraft(input: UpdateEventInput): boolean {
   return Boolean(input.serviceId || input.name?.trim() || input.eventDateTime || input.capacity);
 }
 
-export function createOperationKey(scope: string, eventId: string): string {
-  const storageKey = `event-wizard:${scope}:${eventId}`;
-  const existing = sessionStorage.getItem(storageKey);
-  if (existing) return existing;
-  const value = globalThis.crypto.randomUUID();
-  sessionStorage.setItem(storageKey, value);
-  return value;
+export type Attempt = { identity: string; key: string };
+
+/** Keeps only an unresolved operation attempt. Resolved keys are never persisted. */
+export class AttemptManager {
+  private readonly attempts = new Map<string, Attempt>();
+
+  start(scope: string, identity: string, forceNew = false): Attempt {
+    const current = this.attempts.get(scope);
+    if (!forceNew && current?.identity === identity) return current;
+    const attempt = { identity, key: globalThis.crypto.randomUUID() };
+    this.attempts.set(scope, attempt);
+    return attempt;
+  }
+
+  current(scope: string): Attempt | undefined {
+    return this.attempts.get(scope);
+  }
+
+  clear(scope: string, key?: string): void {
+    if (!key || this.attempts.get(scope)?.key === key) this.attempts.delete(scope);
+  }
 }
 
-export class SerialAutosave<T> {
-  private timer: ReturnType<typeof setTimeout> | undefined;
-  private queued: T | undefined;
-  private running: Promise<void> | undefined;
-  private disposed = false;
-
-  constructor(
-    private readonly save: (value: T) => Promise<void>,
-    private readonly onState: (state: SaveState) => void,
-    private readonly delay = 900
-  ) {}
-
-  schedule(value: T): void {
-    if (this.disposed) return;
-    this.queued = value;
-    if (this.timer) clearTimeout(this.timer);
-    this.onState('pending');
-    this.timer = setTimeout(() => void this.flush(), this.delay);
-  }
-
-  async flush(): Promise<boolean> {
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = undefined;
-    if (this.running) await this.running;
-    const value = this.queued;
-    this.queued = undefined;
-    if (value === undefined || this.disposed) return true;
-    this.onState('saving');
-    let failed = false;
-    this.running = this.save(value)
-      .then(() => this.onState('saved'))
-      .catch(() => {
-        failed = true;
-        this.queued = value;
-        this.onState('error');
-      })
-      .finally(() => {
-        this.running = undefined;
-      });
-    await this.running;
-    if (failed) return false;
-    if (this.queued !== undefined && !this.disposed) return this.flush();
-    return true;
-  }
-
-  hasPending(): boolean {
-    return this.queued !== undefined || this.running !== undefined;
-  }
-
-  dispose(): void {
-    this.disposed = true;
-    if (this.timer) clearTimeout(this.timer);
-  }
+export function isUncertainFailure(error: unknown): boolean {
+  return error instanceof TypeError || (error instanceof DOMException && error.name === 'TimeoutError');
 }

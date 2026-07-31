@@ -1,18 +1,13 @@
 import type { Event, UpdateEventInput } from '@invitaciones/api-client';
 import { describe, expect, it, vi } from 'vitest';
-import {
-  createOperationKey,
-  isEditableEvent,
-  isMeaningfulDraft,
-  SerialAutosave,
-  stepsForService
-} from './wizard-model';
+import { SerialAutosave } from './autosave/serial-autosave';
+import { AttemptManager, isEditableEvent, isMeaningfulDraft, stepsForService } from './wizard-model';
 
 describe('Event wizard model scenarios', () => {
   it.each([
     ['FLYER', ['datos', 'contactos', 'invitacion', 'confirmacion', 'croquis', 'revision']],
     ['FLIPBOOK', ['datos', 'contactos', 'invitacion', 'confirmacion', 'croquis', 'revision']],
-    ['PHYSICAL_QR', ['datos', 'contactos', 'croquis', 'pases', 'revision']],
+    ['PHYSICAL_QR', ['datos', 'croquis', 'pases', 'revision']],
     [undefined, ['datos', 'contactos', 'invitacion', 'confirmacion', 'croquis', 'revision']]
   ] as const)('derives the authoritative navigation for %s', (service, expected) => {
     expect(stepsForService(service)).toEqual(expected);
@@ -58,7 +53,7 @@ describe('Event wizard model scenarios', () => {
     ['FLIPBOOK', 'croquis', true],
     ['FLIPBOOK', 'pases', false],
     ['PHYSICAL_QR', 'datos', true],
-    ['PHYSICAL_QR', 'contactos', true],
+    ['PHYSICAL_QR', 'contactos', false],
     ['PHYSICAL_QR', 'invitacion', false],
     ['PHYSICAL_QR', 'confirmacion', false],
     ['PHYSICAL_QR', 'pases', true],
@@ -70,12 +65,13 @@ describe('Event wizard model scenarios', () => {
     expect(stepsForService(service).includes(step)).toBe(expected);
   });
 
-  it('reuses operation keys per scope and isolates different operations', () => {
-    sessionStorage.clear();
-    const first = createOperationKey('activate', 'event');
-    expect(createOperationKey('activate', 'event')).toBe(first);
-    expect(createOperationKey('csv', 'event')).not.toBe(first);
-    expect(createOperationKey('activate', 'other')).not.toBe(first);
+  it('keeps only unresolved attempts and rotates keys for intentional operations', () => {
+    const manager = new AttemptManager();
+    const first = manager.start('activate', 'event');
+    expect(manager.start('activate', 'event')).toEqual(first);
+    expect(manager.start('activate', 'event', true).key).not.toBe(first.key);
+    manager.clear('activate');
+    expect(manager.current('activate')).toBeUndefined();
   });
 
   it('debounces, consolidates and serializes autosaves', async () => {

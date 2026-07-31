@@ -966,6 +966,16 @@ iniciado.
 - errores de backend se traducen a UI clara;
 - no duplica reglas críticas: backend manda.
 
+**Cierre verificado**
+
+- módulos separados para Datos, Contactos, Diseño, Confirmación, Croquis, Pases y Revisión;
+- secuencia Physical QR sin Contactos ni requests digitales;
+- creación única en vuelo y llaves por intento incierto sin persistencia en Web Storage;
+- editores Flyer/Flipbook/Hotspots y Croquis con canvas más alternativa numérica;
+- Contactos/CSV, wall-clock IANA, lotes de pases y SVG con nombre correcto;
+- Revisión por servicio, diálogo de activación accesible y cero requests financieros para Planner de Organización;
+- pruebas de componentes para concurrencia, idempotencia, editores, dashboard, sesión y los tres servicios.
+
 ### CODEX-122 — Invitación y álbum públicos
 
 **Repo:** `invitacionespremium-client`

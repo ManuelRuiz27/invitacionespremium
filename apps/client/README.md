@@ -32,9 +32,11 @@ VITE_LANDING_URL=http://localhost:5176
 Todas son obligatorias en producción. `VITE_SOCKET_URL` queda reservada para una integración posterior;
 CODEX-120 no conecta Socket.IO.
 
-CODEX-121 está implementado. El wizard deriva sus pasos del servicio, obtiene el estado desde la API,
-guarda cambios en serie y usa llaves estables para CSV, pases y activación. Solo `DRAFT`, `CONFIGURED` y
-`READY_TO_ACTIVATE` son editables. Véase `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md`.
+CODEX-121 está implementado. El wizard separa cada dominio, excluye Contactos de `PHYSICAL_QR`, coordina
+una sola creación en vuelo y usa llaves por intento solo mientras el resultado sea incierto. Incluye
+editores visuales Flyer/Flipbook/Hotspots/Croquis, wall-clock IANA, pases por lotes y Revisión global.
+Solo `DRAFT`, `CONFIGURED` y `READY_TO_ACTIVATE` son editables. Véase
+`docs/04-tecnico/EVENT_WIZARD_CONTRACT.md`.
 
 ## Comandos
 

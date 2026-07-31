@@ -104,6 +104,15 @@ describe('Client dashboard and financial visibility', () => {
     expect(screen.getAllByRole('article').length).toBeGreaterThan(0);
   });
 
+  it('routes READY_TO_ACTIVATE to Review from table and cards', async () => {
+    const api = mockApiClient();
+    vi.mocked(api.events.list).mockResolvedValue([{ ...configuredEvent, status: 'READY_TO_ACTIVATE' }]);
+    renderApp(api, '/eventos');
+    const actions = await screen.findAllByRole('link', { name: 'Activar evento' });
+    expect(actions).toHaveLength(2);
+    expect(actions.every((link) => link.getAttribute('href')?.endsWith('/configuracion/revision'))).toBe(true);
+  });
+
   it('calculates summary groups from authorized events and excludes cancelled from finished', async () => {
     const api = mockApiClient();
     const cancelled = {
