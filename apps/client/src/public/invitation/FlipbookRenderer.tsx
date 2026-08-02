@@ -3,6 +3,7 @@ import type { ApiClient, PublicInvitationView } from '@invitaciones/api-client';
 import { Box, Button, Stack, Typography } from '@mui/material';
 import { HotspotLayer } from './HotspotLayer';
 import { PublicAssetImage } from './FlyerRenderer';
+import { useReducedMotion } from '../useReducedMotion';
 
 export function FlipbookRenderer({
   apiClient,
@@ -22,6 +23,7 @@ export function FlipbookRenderer({
   const pages = [...(view.design?.pages ?? [])].sort((a, b) => a.position - b.position);
   const [index, setIndex] = useState(0);
   const [touchX, setTouchX] = useState<number | null>(null);
+  const reducedMotion = useReducedMotion();
   const go = (next: number) => setIndex(Math.max(0, Math.min(pages.length - 1, next)));
   const page = pages[index];
   if (!page) return <Typography>No pudimos cargar este contenido.</Typography>;
@@ -50,7 +52,7 @@ export function FlipbookRenderer({
           overflow: 'hidden',
           bgcolor: '#fff',
           boxShadow: '0 28px 90px rgba(30,23,12,.2)',
-          transition: 'opacity .22s ease'
+          transition: reducedMotion ? 'none' : 'opacity .22s ease'
         }}
       >
         <PublicAssetImage

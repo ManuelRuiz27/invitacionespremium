@@ -23,6 +23,8 @@ ni escribe localStorage, sessionStorage o IndexedDB.
 
 Los wrappers públicos cubren resolución, Confirmación, rechazo, acompañantes, assets, QR SVG, Álbum y
 fotos con los DTO generados. Codifican segmentos, propagan `AbortSignal` y no activan manejo de sesión.
+Sus validadores discriminan `AVAILABLE`, `CANCELLED` y `CLOSED`, verifican las formas mínimas de
+Invitación/Álbum/mutaciones y convierten cualquier `200` mal formado en `UNEXPECTED_API_RESPONSE`.
 
 El wizard consume estos wrappers sin DTOs paralelos. Las llaves de CSV, pases y activación se entregan por
 request; el SDK no decide su ciclo de vida ni las persiste.

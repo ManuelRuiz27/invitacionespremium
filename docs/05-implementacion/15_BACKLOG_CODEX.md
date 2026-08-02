@@ -1010,6 +1010,11 @@ iniciado.
 - QR Blob bajo demanda con pantalla completa y Object URL revocado;
 - Álbum por token separado, `contentPath` estricto, tema validado y galería progresiva hasta 35 fotos;
 - tokens no persistidos, `no-referrer`, errores no enumerantes y pruebas de SDK/componentes/routing.
+- coordinador por token/generación con abort, descarte de respuestas obsoletas y retries latest-wins;
+- mutaciones RSVP abortables y protegidas contra doble envío;
+- recuperación local de QR/assets y errores de formulario limpiados por intención;
+- pool LRU de ocho fotos con reutilización en preview y revocación total;
+- validadores de respuestas públicas y reduced motion efectivo probado.
 
 Contrato normativo: `docs/04-tecnico/PUBLIC_CLIENT_CONTRACT.md`. CODEX-130 no fue iniciado.
 

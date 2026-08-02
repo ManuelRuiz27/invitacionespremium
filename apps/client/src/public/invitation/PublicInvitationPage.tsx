@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ApiClient, PublicInvitationView, PublicRsvpAssistantInput } from '@invitaciones/api-client';
 import { Alert, Box, Button, Chip, Skeleton, Stack, Typography } from '@mui/material';
 import { Link, useParams } from 'react-router-dom';
 import { PublicLayout } from '../PublicLayout';
 import { isUncertainNetworkResult, publicErrorMessage } from '../errors/public-error-message';
+import { isAbortError, usePublicOperationScope } from '../operations/usePublicOperationScope';
 import { albumTokenFromContentPath } from '../routing/public-content-path';
 import { InvitationRenderer } from './InvitationRenderer';
 import { invitationStatusLabel, nominalIntentMatches } from './invitation-state';
@@ -21,68 +22,98 @@ export function PublicInvitationPage({ apiClient }: { apiClient: ApiClient }) {
   const [rsvpOpen, setRsvpOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ message: string; severity: 'success' | 'info' } | null>(null);
   const [rsvpError, setRsvpError] = useState<string>();
+  const scope = usePublicOperationScope(invitationToken);
+  const mutationSignalRef = useRef<AbortSignal | null>(null);
 
-  const load = useCallback(
-    async (signal?: AbortSignal) => apiClient.publicInvitation.resolve(invitationToken, signal),
-    [apiClient, invitationToken]
+  const reload = useCallback(
+    (showLoading = true) => {
+      const operation = scope.begin('resolve');
+      if (showLoading) setState({ kind: 'loading' });
+      void apiClient.publicInvitation
+        .resolve(invitationToken, operation.signal)
+        .then(
+          (view) => {
+            if (operation.isCurrent()) setState({ kind: 'ready', view });
+          },
+          (error: unknown) => {
+            if (!operation.isCurrent() || isAbortError(error)) return;
+            const display = publicErrorMessage(error, 'Esta invitación no está disponible.');
+            setState({ kind: 'error', ...display });
+          }
+        )
+        .finally(operation.finish);
+    },
+    [apiClient, invitationToken, scope]
   );
-  const reload = useCallback(() => {
-    const controller = new AbortController();
-    setState({ kind: 'loading' });
-    void load(controller.signal).then(
-      (view) => setState({ kind: 'ready', view }),
-      (error: unknown) => {
-        if (controller.signal.aborted) return;
-        const display = publicErrorMessage(error, 'Esta invitación no está disponible.');
-        setState({ kind: 'error', ...display });
-      }
-    );
-    return controller;
-  }, [load]);
 
   useEffect(() => {
     setRsvpOpen(false);
     setQrOpen(false);
     setNotice(null);
-    const controller = reload();
-    return () => controller.abort();
-  }, [invitationToken, reload]);
+    setRsvpError(undefined);
+    setBusy(false);
+    mutationSignalRef.current = null;
+    reload();
+    return scope.abortAll;
+  }, [invitationToken, reload, scope]);
 
   const mutate = async (intent: 'CONFIRMED' | 'REJECTED', assistants: PublicRsvpAssistantInput[] = []) => {
-    if (state.kind !== 'ready') return;
+    if (state.kind !== 'ready' || mutationSignalRef.current) return;
+    const action =
+      intent === 'REJECTED'
+        ? 'reject'
+        : state.view.invitation?.responseStatus === 'CONFIRMED'
+          ? 'updateAssistants'
+          : 'confirm';
+    const operation = scope.begin(`mutation:${action}`);
+    mutationSignalRef.current = operation.signal;
     setBusy(true);
     setRsvpError(undefined);
     try {
-      if (intent === 'REJECTED') await apiClient.publicInvitation.reject(invitationToken);
+      if (intent === 'REJECTED') await apiClient.publicInvitation.reject(invitationToken, operation.signal);
       else if (state.view.invitation?.responseStatus === 'CONFIRMED')
-        await apiClient.publicInvitation.updateAssistants(invitationToken, assistants);
-      else await apiClient.publicInvitation.confirm(invitationToken, assistants);
-      const view = await load();
+        await apiClient.publicInvitation.updateAssistants(invitationToken, assistants, operation.signal);
+      else await apiClient.publicInvitation.confirm(invitationToken, assistants, operation.signal);
+      if (!operation.isCurrent()) return;
+      const view = await apiClient.publicInvitation.resolve(invitationToken, operation.signal);
+      if (!operation.isCurrent()) return;
       setState({ kind: 'ready', view });
       setRsvpOpen(false);
-      setNotice(intent === 'CONFIRMED' ? 'Tu confirmación quedó guardada.' : 'Registramos que no asistirás.');
+      setNotice({
+        severity: 'success',
+        message: intent === 'CONFIRMED' ? 'Tu confirmación quedó guardada.' : 'Registramos que no asistirás.'
+      });
     } catch (error) {
+      if (!operation.isCurrent() || isAbortError(error)) return;
       if (isUncertainNetworkResult(error)) {
         try {
-          const view = await load();
+          const view = await apiClient.publicInvitation.resolve(invitationToken, operation.signal);
+          if (!operation.isCurrent()) return;
           setState({ kind: 'ready', view });
           if (nominalIntentMatches(view, intent, assistants)) {
             setRsvpOpen(false);
-            setNotice(intent === 'CONFIRMED' ? 'Tu confirmación quedó guardada.' : 'Registramos que no asistirás.');
+            setNotice({
+              severity: 'success',
+              message: intent === 'CONFIRMED' ? 'Tu confirmación quedó guardada.' : 'Registramos que no asistirás.'
+            });
             return;
           }
-        } catch {
+        } catch (reloadError) {
+          if (!operation.isCurrent() || isAbortError(reloadError)) return;
           // The original intention remains retryable; no local nominal state is committed.
         }
       }
+      if (!operation.isCurrent()) return;
       setRsvpError(
         publicErrorMessage(error, 'No pudimos confirmar el resultado. Revisa tu conexión e inténtalo nuevamente.')
           .message
       );
     } finally {
-      setBusy(false);
+      if (mutationSignalRef.current === operation.signal) mutationSignalRef.current = null;
+      if (operation.isCurrent()) setBusy(false);
+      operation.finish();
     }
   };
 
@@ -96,7 +127,7 @@ export function PublicInvitationPage({ apiClient }: { apiClient: ApiClient }) {
           </Typography>
           <Alert severity="info">{state.message}</Alert>
           {state.operationId ? <Typography variant="caption">Referencia: {state.operationId}</Typography> : null}
-          <Button variant="outlined" onClick={() => reload()}>
+          <Button variant="outlined" onClick={() => reload(false)}>
             Reintentar
           </Button>
         </Stack>
@@ -109,9 +140,8 @@ export function PublicInvitationPage({ apiClient }: { apiClient: ApiClient }) {
       <PublicLayout>
         <Stack sx={{ minHeight: '75svh', justifyContent: 'center', maxWidth: 680 }} spacing={2}>
           <Typography component="h1" variant="h1">
-            Invitación cancelada
+            {view.message}
           </Typography>
-          <Typography variant="h4">{view.message}</Typography>
         </Stack>
       </PublicLayout>
     );
@@ -141,20 +171,30 @@ export function PublicInvitationPage({ apiClient }: { apiClient: ApiClient }) {
           />
         </Box>
         {notice ? (
-          <Alert severity="success" aria-live="polite">
-            {notice}
+          <Alert severity={notice.severity} aria-live="polite">
+            {notice.message}
           </Alert>
         ) : null}
         <InvitationRenderer
           apiClient={apiClient}
           token={invitationToken}
           view={view}
-          onRsvp={() => setRsvpOpen(true)}
+          onRsvp={() => {
+            if (view.confirmation?.open) setRsvpOpen(true);
+            else
+              setNotice({
+                severity: 'info',
+                message: 'La confirmación de asistencia ya fue cerrada. Contacta al organizador.'
+              });
+          }}
           onQr={() => setQrOpen(true)}
           onUnavailableQr={() =>
-            setNotice(
-              view.confirmation?.open ? 'Confirma tu asistencia para ver tu QR.' : 'El QR ya no está disponible.'
-            )
+            setNotice({
+              severity: 'info',
+              message: view.confirmation?.open
+                ? 'Confirma tu asistencia para ver tu QR.'
+                : 'El QR ya no está disponible.'
+            })
           }
         />
         <Stack
@@ -192,7 +232,11 @@ export function PublicInvitationPage({ apiClient }: { apiClient: ApiClient }) {
         view={view}
         busy={busy}
         {...(rsvpError ? { error: rsvpError } : {})}
-        onClose={() => setRsvpOpen(false)}
+        onClose={() => {
+          setRsvpOpen(false);
+          setRsvpError(undefined);
+        }}
+        onFormChange={() => setRsvpError(undefined)}
         onConfirm={(value) => void mutate('CONFIRMED', value)}
         onReject={() => void mutate('REJECTED')}
       />

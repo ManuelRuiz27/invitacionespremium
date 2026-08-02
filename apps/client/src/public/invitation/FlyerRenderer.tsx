@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import type { ApiClient, PublicInvitationView } from '@invitaciones/api-client';
-import { Box, CircularProgress, Typography } from '@mui/material';
+import { Box, Button, CircularProgress, Stack, Typography } from '@mui/material';
 import { usePublicAssetUrl } from '../assets/usePublicAssetUrl';
 import { invitationAssetIdFromPath } from '../routing/public-content-path';
 import { HotspotLayer } from './HotspotLayer';
@@ -26,9 +26,17 @@ export function PublicAssetImage({
       assetId ? apiClient.publicInvitation.asset(token, assetId, signal) : Promise.reject(new Error('invalid path')),
     [apiClient, assetId, token]
   );
-  const state = usePublicAssetUrl(load, `${token.length}:${asset.id}`);
+  const state = usePublicAssetUrl(load, `${token}:${asset.id}`);
   if (state.loading) return <CircularProgress aria-label="Cargando imagen" size={28} sx={{ m: 6 }} />;
-  if (state.error || !state.url) return <Typography sx={{ p: 4 }}>No pudimos cargar este contenido.</Typography>;
+  if (state.error || !state.url)
+    return (
+      <Stack sx={{ p: 4, alignItems: 'flex-start' }} spacing={1}>
+        <Typography>No pudimos cargar este contenido.</Typography>
+        <Button variant="outlined" onClick={state.retry}>
+          Reintentar
+        </Button>
+      </Stack>
+    );
   return (
     <Box
       component="img"

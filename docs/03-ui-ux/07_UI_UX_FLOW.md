@@ -381,6 +381,9 @@ Equilibrio:
 - acción clara;
 - animación/experiencia visual;
 - carga rápida y responsive.
+- reintentos locales sin perder el contexto visual;
+- respuestas tardías de otro token nunca sustituyen la vista vigente;
+- `prefers-reduced-motion` elimina transiciones sin quitar teclado o swipe.
 
 ### Comportamiento por estado
 
@@ -408,6 +411,9 @@ Solo visible cuando:
 - Invitación y Evento no cancelados;
 - acceso no archivado.
 
+Un fallo de generación mantiene abierto el diálogo y ofrece `Reintentar` y `Cerrar`; el reintento
+solicita exclusivamente el SVG vigente.
+
 ## Álbum público
 
 Ruta:
@@ -431,6 +437,8 @@ Reglas de UX:
 - Evento archivado/despublicado: acceso no disponible;
 - mostrar fecha de disponibilidad cuando sea útil;
 - responsive y optimización de imágenes.
+- carga progresiva con pool LRU de hasta ocho Object URLs;
+- reintento individual de foto y revocación total al abandonar la ruta.
 
 ## Reportes PDF
 

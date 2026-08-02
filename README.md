@@ -447,7 +447,10 @@ Contrato normativo: `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md`.
 - Confirmación individual y familiar nominal, rechazo y reconciliación de resultados inciertos;
 - QR bajo demanda con diálogo accesible y pantalla completa;
 - Álbum elegible por token separado, tema validado y galería progresiva;
-- requester público sin cookies, tokens no persistidos y errores no enumerantes.
+- requester público sin cookies, tokens no persistidos y errores no enumerantes;
+- operaciones aisladas por token/generación, abortables y latest-wins;
+- reintentos locales de QR/assets y galería LRU limitada a ocho Object URLs;
+- reduced motion efectivo en Flipbook y diálogos públicos.
 
 Contrato normativo: `docs/04-tecnico/PUBLIC_CLIENT_CONTRACT.md`. `CODEX-130` no fue iniciado.
 

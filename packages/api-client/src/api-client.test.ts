@@ -230,7 +230,7 @@ describe('generated API client runtime', () => {
 
 describe('public API client', () => {
   it('resolves invitations and sends public RSVP mutations without cookies', async () => {
-    const invitation = { status: 'AVAILABLE' };
+    const invitation = validPublicInvitation();
     const mutation = { invitationId: 'invitation', responseStatus: 'CONFIRMED', assistants: [] };
     const fetchImpl = vi
       .fn<typeof fetch>()
@@ -276,7 +276,13 @@ describe('public API client', () => {
     const album = {
       status: 'AVAILABLE',
       event: { name: 'Evento' },
-      album: { title: 'Álbum', expiresAt: 'now', publishedAt: 'now', photos: [], theme: {} }
+      album: {
+        title: 'Álbum',
+        expiresAt: 'now',
+        publishedAt: 'now',
+        photos: [],
+        theme: { backgroundColor: '#000000', textColor: '#ffffff', accentColor: '#aaaaaa' }
+      }
     };
     const fetchImpl = vi
       .fn<typeof fetch>()
@@ -311,7 +317,48 @@ describe('public API client', () => {
     await expect(client.publicAlbum.resolve('secret-album')).rejects.toMatchObject({ code: 'HTTP_502' });
     expect(storageSpy).not.toHaveBeenCalled();
   });
+
+  it.each([
+    [{ status: 'AVAILABLE' }, 'invitation'],
+    [
+      {
+        status: 'AVAILABLE',
+        event: { name: 'Evento' },
+        album: { title: 'Álbum', publishedAt: 'now', expiresAt: 'later', theme: {}, photos: [] }
+      },
+      'album'
+    ]
+  ])('rejects malformed successful public %s responses', async (payload, kind) => {
+    const client = createApiClient({ baseUrl: 'https://api.example.com/api/v1', fetchImpl: mockJson(payload) });
+    const result =
+      kind === 'invitation' ? client.publicInvitation.resolve('token') : client.publicAlbum.resolve('token');
+    await expect(result).rejects.toMatchObject({ code: 'UNEXPECTED_API_RESPONSE' });
+  });
 });
+
+function validPublicInvitation() {
+  return {
+    status: 'AVAILABLE',
+    event: { name: 'Evento', eventDateTime: '2026-08-01T00:00:00.000Z', timeZone: 'America/Mexico_City' },
+    invitation: {
+      id: 'invitation',
+      mode: 'INDIVIDUAL',
+      responseStatus: 'PENDING',
+      additionalAssistantLimit: 0,
+      cancelled: false
+    },
+    confirmation: { open: true },
+    assistants: [{ id: 'assistant', name: 'Principal', isPrimary: true, responseStatus: 'PENDING' }],
+    designType: 'FLYER',
+    design: {
+      type: 'FLYER',
+      flyerInitialAsset: { id: 'asset', contentPath: '/public/asset' },
+      pages: [],
+      hotspots: []
+    },
+    qr: { available: false }
+  };
+}
 
 function mockJson(payload: unknown): ReturnType<typeof vi.fn<typeof fetch>> {
   return vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(payload));

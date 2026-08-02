@@ -3,6 +3,7 @@ import type { PublicInvitationView, PublicRsvpAssistantInput } from '@invitacion
 import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, Typography } from '@mui/material';
 import { additionalAssistants } from './invitation-state';
 import { AssistantsEditor } from './AssistantsEditor';
+import { useReducedMotion } from '../useReducedMotion';
 
 export function RsvpDialog({
   open,
@@ -10,6 +11,7 @@ export function RsvpDialog({
   busy,
   error,
   onClose,
+  onFormChange,
   onConfirm,
   onReject
 }: {
@@ -18,11 +20,13 @@ export function RsvpDialog({
   busy: boolean;
   error?: string;
   onClose: () => void;
+  onFormChange: () => void;
   onConfirm: (assistants: PublicRsvpAssistantInput[]) => void;
   onReject: () => void;
 }) {
   const [assistants, setAssistants] = useState<PublicRsvpAssistantInput[]>([]);
   const [confirmReject, setConfirmReject] = useState(false);
+  const reducedMotion = useReducedMotion();
   const primary = view.assistants?.find((assistant) => assistant.isPrimary);
   const invitation = view.invitation;
   useEffect(() => {
@@ -35,7 +39,14 @@ export function RsvpDialog({
   const invalid =
     assistants.some((assistant) => !assistant.name.trim()) || assistants.length > invitation.additionalAssistantLimit;
   return (
-    <Dialog open={open} onClose={busy ? undefined : onClose} fullWidth maxWidth="sm" aria-labelledby="rsvp-title">
+    <Dialog
+      open={open}
+      onClose={busy ? undefined : onClose}
+      fullWidth
+      maxWidth="sm"
+      aria-labelledby="rsvp-title"
+      transitionDuration={reducedMotion ? 0 : undefined}
+    >
       <DialogTitle id="rsvp-title">Confirmación de asistencia</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>
@@ -47,7 +58,10 @@ export function RsvpDialog({
             assistants={assistants}
             limit={invitation.additionalAssistantLimit}
             disabled={busy}
-            onChange={setAssistants}
+            onChange={(value) => {
+              onFormChange();
+              setAssistants(value);
+            }}
           />
           {error ? (
             <Alert severity="error" aria-live="assertive">
@@ -72,7 +86,14 @@ export function RsvpDialog({
         <Button onClick={onClose} disabled={busy}>
           Cerrar
         </Button>
-        <Button color="inherit" onClick={() => setConfirmReject(true)} disabled={busy}>
+        <Button
+          color="inherit"
+          onClick={() => {
+            onFormChange();
+            setConfirmReject(true);
+          }}
+          disabled={busy}
+        >
           No asistiré
         </Button>
         <Button

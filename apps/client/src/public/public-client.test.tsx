@@ -1,4 +1,4 @@
-import type { ApiClient, PublicAlbum, PublicInvitationView } from '@invitaciones/api-client';
+import { ApiError, type ApiClient, type PublicAlbum, type PublicInvitationView } from '@invitaciones/api-client';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -153,11 +153,58 @@ describe('public invitation', () => {
     async (message) => {
       const api = publicApi({ status: 'CANCELLED', message });
       renderApp(api, `/invitacion/${token}`);
-      expect(await screen.findByText(message)).toBeVisible();
+      expect(await screen.findByRole('heading', { name: message })).toBeVisible();
+      if (message.startsWith('Este evento')) expect(screen.queryByText('Invitación cancelada')).not.toBeInTheDocument();
       expect(screen.queryByText('Confirmar asistencia')).not.toBeInTheDocument();
       expect(api.publicInvitation.asset).not.toHaveBeenCalled();
     }
   );
+
+  it('renders CLOSED and closed RSVP without exposing active controls', async () => {
+    const api = publicApi({ status: 'CLOSED' });
+    renderApp(api, `/invitacion/${token}`);
+    expect(await screen.findByRole('heading', { name: 'Este evento ha finalizado.' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Confirmar asistencia' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Ver mi QR' })).not.toBeInTheDocument();
+  });
+
+  it('explains a closed confirmation window and enforces the assistant limit in the form', async () => {
+    const closed = availableView({ confirmation: { open: false } });
+    const closedApi = publicApi(closed);
+    const first = renderApp(closedApi, `/invitacion/${token}`);
+    expect(
+      await screen.findByText('La confirmación de asistencia ya fue cerrada. Contacta al organizador.')
+    ).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar asistencia' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getAllByText('La confirmación de asistencia ya fue cerrada. Contacta al organizador.')).toHaveLength(
+      2
+    );
+    first.unmount();
+
+    const api = publicApi();
+    renderApp(api, `/invitacion/${token}`);
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Confirmar asistencia' })).at(-1)!);
+    const dialog = screen.getByRole('dialog');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Agregar acompañante' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Agregar acompañante' }));
+    expect(within(dialog).getByText('Máximo de acompañantes alcanzado.')).toBeVisible();
+    expect(within(dialog).queryByRole('button', { name: 'Agregar acompañante' })).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['RSVP_ASSISTANT_LIMIT_EXCEEDED', 'Alcanzaste el máximo de acompañantes permitidos.'],
+    ['RSVP_EVENT_CAPACITY_EXCEEDED', 'Ya no hay lugares suficientes disponibles para completar esta confirmación.'],
+    ['RSVP_ASSISTANT_MISMATCH', 'No pudimos verificar a uno de los acompañantes.']
+  ])('maps %s without leaking the API payload', async (code, message) => {
+    const api = publicApi();
+    vi.mocked(api.publicInvitation.confirm).mockRejectedValue(new ApiError(409, code, 'secret backend detail'));
+    renderApp(api, `/invitacion/${token}`);
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Confirmar asistencia' })).at(-1)!);
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Confirmar asistencia' }));
+    expect(await screen.findByText(message)).toBeVisible();
+    expect(screen.queryByText('secret backend detail')).not.toBeInTheDocument();
+  });
 
   it('confirms a nominal family, refreshes authority and exposes QR only afterward', async () => {
     const pending = availableView();
@@ -188,7 +235,11 @@ describe('public invitation', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Confirmar asistencia' }));
 
     await waitFor(() =>
-      expect(api.publicInvitation.confirm).toHaveBeenCalledWith(token, [{ name: 'Acompañante Uno' }])
+      expect(api.publicInvitation.confirm).toHaveBeenCalledWith(
+        token,
+        [{ name: 'Acompañante Uno' }],
+        expect.any(AbortSignal)
+      )
     );
     expect(await screen.findByRole('button', { name: 'Ver mi QR' })).toBeVisible();
     expect(api.publicInvitation.qr).not.toHaveBeenCalled();
@@ -224,7 +275,11 @@ describe('public invitation', () => {
     await userEvent.type(within(dialog).getByLabelText(/^Acompañante 1/), 'Editado');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Guardar cambios' }));
     await waitFor(() =>
-      expect(api.publicInvitation.updateAssistants).toHaveBeenCalledWith(token, [{ id: additionalId, name: 'Editado' }])
+      expect(api.publicInvitation.updateAssistants).toHaveBeenCalledWith(
+        token,
+        [{ id: additionalId, name: 'Editado' }],
+        expect.any(AbortSignal)
+      )
     );
   });
 
@@ -248,7 +303,9 @@ describe('public invitation', () => {
     const dialog = screen.getByRole('dialog');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Retirar' }));
     await userEvent.click(within(dialog).getByRole('button', { name: 'Guardar cambios' }));
-    await waitFor(() => expect(api.publicInvitation.updateAssistants).toHaveBeenCalledWith(token, []));
+    await waitFor(() =>
+      expect(api.publicInvitation.updateAssistants).toHaveBeenCalledWith(token, [], expect.any(AbortSignal))
+    );
   });
 
   it('reconciles an uncertain confirmation against authoritative nominal state without duplicating', async () => {
@@ -353,7 +410,7 @@ describe('public invitation', () => {
 describe('public album', () => {
   it('applies theme content, loads photos progressively and opens an accessible preview', async () => {
     const api = publicApi();
-    renderApp(api, '/album/album-token');
+    const app = renderApp(api, '/album/album-token');
     expect(await screen.findByRole('heading', { name: 'Nuestro gran día' })).toBeVisible();
     expect(screen.getByText('Gracias por acompañarnos')).toBeVisible();
     const external = screen.getByRole('link', { name: 'Ver video' });
@@ -362,7 +419,10 @@ describe('public album', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Abrir foto 1' }));
     expect(screen.getByRole('dialog')).toBeVisible();
     expect(screen.getByText('Foto 1 de 1')).toBeVisible();
+    expect(api.publicAlbum.photo).toHaveBeenCalledTimes(1);
     await userEvent.click(screen.getByRole('button', { name: 'Cerrar' }));
+    expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+    app.unmount();
     expect(URL.revokeObjectURL).toHaveBeenCalled();
   });
 

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { isAbortError, usePublicOperationScope } from '../operations/usePublicOperationScope';
 
 interface AssetState {
   url: string | null;
@@ -9,32 +10,39 @@ interface AssetState {
 export function usePublicAssetUrl(load: (signal: AbortSignal) => Promise<Blob>, identity: string) {
   const [state, setState] = useState<AssetState>({ url: null, loading: true, error: false });
   const urlRef = useRef<string | null>(null);
+  const scope = usePublicOperationScope(identity);
 
   const revoke = useCallback(() => {
     if (urlRef.current) URL.revokeObjectURL(urlRef.current);
     urlRef.current = null;
   }, []);
 
-  useEffect(() => {
-    const controller = new AbortController();
+  const retry = useCallback(() => {
+    const operation = scope.begin('asset');
     revoke();
     setState({ url: null, loading: true, error: false });
-    void load(controller.signal).then(
-      (blob) => {
-        if (controller.signal.aborted) return;
-        const url = URL.createObjectURL(blob);
-        urlRef.current = url;
-        setState({ url, loading: false, error: false });
-      },
-      () => {
-        if (!controller.signal.aborted) setState({ url: null, loading: false, error: true });
-      }
-    );
+    void load(operation.signal)
+      .then(
+        (blob) => {
+          if (!operation.isCurrent()) return;
+          const url = URL.createObjectURL(blob);
+          urlRef.current = url;
+          setState({ url, loading: false, error: false });
+        },
+        (error: unknown) => {
+          if (operation.isCurrent() && !isAbortError(error)) setState({ url: null, loading: false, error: true });
+        }
+      )
+      .finally(operation.finish);
+  }, [load, revoke, scope]);
+
+  useEffect(() => {
+    retry();
     return () => {
-      controller.abort();
+      scope.abortAll();
       revoke();
     };
-  }, [identity, load, revoke]);
+  }, [identity, retry, revoke, scope]);
 
-  return state;
+  return { ...state, retry };
 }

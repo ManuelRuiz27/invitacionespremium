@@ -12,6 +12,7 @@ import {
   Typography
 } from '@mui/material';
 import { usePublicSvgUrl } from '../assets/usePublicSvgUrl';
+import { useReducedMotion } from '../useReducedMotion';
 
 export function PublicQrDialog({
   apiClient,
@@ -23,15 +24,35 @@ export function PublicQrDialog({
   onClose: () => void;
 }) {
   const [fullScreen, setFullScreen] = useState(false);
+  const reducedMotion = useReducedMotion();
   const load = useCallback((signal: AbortSignal) => apiClient.publicInvitation.qr(token, signal), [apiClient, token]);
-  const qr = usePublicSvgUrl(load, `qr:${token.length}`);
+  const qr = usePublicSvgUrl(load, `qr:${token}`);
   return (
-    <Dialog open onClose={onClose} fullScreen={fullScreen} fullWidth maxWidth="sm" aria-labelledby="qr-title">
+    <Dialog
+      open
+      onClose={onClose}
+      fullScreen={fullScreen}
+      fullWidth
+      maxWidth="sm"
+      aria-labelledby="qr-title"
+      transitionDuration={reducedMotion ? 0 : undefined}
+    >
       <DialogTitle id="qr-title">Mi acceso al evento</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ alignItems: 'center' }}>
           {qr.loading ? <Typography role="status">Preparando QR…</Typography> : null}
-          {qr.error ? <Alert severity="error">No pudimos preparar el QR. Inténtalo nuevamente.</Alert> : null}
+          {qr.error ? (
+            <Alert
+              severity="error"
+              action={
+                <Button color="inherit" onClick={qr.retry}>
+                  Reintentar
+                </Button>
+              }
+            >
+              No pudimos preparar el QR.
+            </Alert>
+          ) : null}
           {qr.url ? (
             <Box
               component="img"

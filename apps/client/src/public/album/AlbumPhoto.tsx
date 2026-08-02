@@ -1,18 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ApiClient, PublicAlbumPhoto as Photo } from '@invitaciones/api-client';
 import { Box, Button, Skeleton, Typography } from '@mui/material';
-import { usePublicAssetUrl } from '../assets/usePublicAssetUrl';
 import { albumPhotoIdFromPath } from '../routing/public-content-path';
+import { PublicPhotoPool, type PhotoPoolState } from './photo-pool';
 
 export function AlbumPhoto({
   apiClient,
   token,
   photo,
+  pool,
   onOpen
 }: {
   apiClient: ApiClient;
   token: string;
   photo: Photo;
+  pool: PublicPhotoPool;
   onOpen: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -24,10 +26,7 @@ export function AlbumPhoto({
     }
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          setVisible(true);
-          observer.disconnect();
-        }
+        setVisible(entries.some((entry) => entry.isIntersecting));
       },
       { rootMargin: '240px' }
     );
@@ -37,7 +36,7 @@ export function AlbumPhoto({
   return (
     <Box ref={ref} sx={{ minHeight: 220 }}>
       {visible ? (
-        <LoadedPhoto apiClient={apiClient} token={token} photo={photo} onOpen={onOpen} />
+        <LoadedPhoto apiClient={apiClient} token={token} photo={photo} pool={pool} onOpen={onOpen} />
       ) : (
         <Skeleton variant="rounded" height={260} />
       )}
@@ -49,12 +48,14 @@ export function LoadedPhoto({
   apiClient,
   token,
   photo,
+  pool,
   onOpen,
   preview = false
 }: {
   apiClient: ApiClient;
   token: string;
   photo: Photo;
+  pool: PublicPhotoPool;
   onOpen?: () => void;
   preview?: boolean;
 }) {
@@ -64,9 +65,17 @@ export function LoadedPhoto({
       photoId ? apiClient.publicAlbum.photo(token, photoId, signal) : Promise.reject(new Error('invalid path')),
     [apiClient, photoId, token]
   );
-  const state = usePublicAssetUrl(load, `${token.length}:${photo.id}`);
+  const state = usePhotoPoolState(pool, `${token}:${photo.id}`, load);
   if (state.loading) return <Skeleton variant="rounded" height={preview ? 520 : 260} />;
-  if (state.error || !state.url) return <Typography sx={{ p: 3 }}>No pudimos cargar este contenido.</Typography>;
+  if (state.error || !state.url)
+    return (
+      <Box sx={{ p: 3 }}>
+        <Typography>No pudimos cargar este contenido.</Typography>
+        <Button variant="outlined" onClick={state.retry} sx={{ mt: 1 }}>
+          Reintentar
+        </Button>
+      </Box>
+    );
   const image = (
     <Box
       component="img"
@@ -92,4 +101,18 @@ export function LoadedPhoto({
   ) : (
     image
   );
+}
+
+function usePhotoPoolState(
+  pool: PublicPhotoPool,
+  key: string,
+  load: (signal: AbortSignal) => Promise<Blob>
+): PhotoPoolState & { retry: () => void } {
+  const [state, setState] = useState<PhotoPoolState>({ url: null, loading: true, error: false });
+  useEffect(() => {
+    const unsubscribe = pool.subscribe(key, setState);
+    pool.load(key, load);
+    return unsubscribe;
+  }, [key, load, pool]);
+  return { ...state, retry: () => pool.load(key, load, true) };
 }

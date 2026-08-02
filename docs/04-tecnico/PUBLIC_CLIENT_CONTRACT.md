@@ -35,7 +35,21 @@ GET   /public/albums/:albumToken/photos/:photoId/content
 
 El requester público codifica cada segmento, propaga `AbortSignal`, usa `credentials: omit` y admite
 JSON, `Blob`, texto, errores JSON/no JSON y `204`. No participa en expiración de sesión ni modifica cache
-privada. Cambiar de token o desmontar aborta la lectura en vuelo.
+privada. Los validadores comprueban las formas mínimas discriminadas de Invitación, mutación y Álbum;
+un `200` incompleto o incompatible se rechaza como `UNEXPECTED_API_RESPONSE` antes de llegar a React.
+
+## Aislamiento y concurrencia en memoria
+
+Cada ruta mantiene un coordinador efímero con token, generación, estado montado y controllers por tipo
+de operación. Antes de cualquier `setState`, la respuesta demuestra que el componente sigue montado,
+el token y la generación siguen vigentes, el request no fue abortado y su controller continúa siendo el
+último registrado. Cambiar de token o desmontar aborta lectura, retry, mutación y reconciliación; además
+cierra diálogos y limpia errores/notices anteriores.
+
+Los reintentos siguen `latest-wins`: iniciar uno aborta el anterior y sólo la generación más reciente
+puede presentar resultado. `confirm`, `reject` y `updateAssistants` reciben un `AbortSignal` específico y
+una referencia síncrona bloquea dos envíos de la misma intención antes de que React pinte `busy`. Un
+aborto por navegación se descarta sin mensaje.
 
 ## Estados de Invitación
 
@@ -54,11 +68,14 @@ no sean necesarios para enviar de vuelta un acompañante conservado.
 
 Los assets se obtienen solo mediante un `contentPath` con forma exacta del endpoint público y token
 actual. El frontend extrae el UUID permitido, solicita bytes, crea un Object URL y lo revoca al reemplazar
-o desmontar. Nunca construye storage keys ni usa proxies externos.
+o desmontar. Flyer, página Flipbook y foto muestran `No pudimos cargar este contenido.` y permiten
+reintentar únicamente ese asset; el retry aborta el intento anterior y revoca cualquier URL reemplazada.
+Nunca construye storage keys ni usa proxies externos.
 
 Flyer conserva proporción y superpone coordenadas relativas. Flipbook ordena por la posición recibida,
 carga la página actual, ofrece anterior/siguiente, flechas y swipe, y mantiene Hotspots en la página
-correspondiente. `prefers-reduced-motion` elimina transiciones prolongadas.
+correspondiente. `prefers-reduced-motion: reduce` elimina la transición del Flipbook y fija en cero la
+duración de los diálogos RSVP, QR y preview, sin quitar swipe, teclado ni estados.
 
 Acciones: `RSVP` abre Confirmación; `QR_AREA` abre QR o explica su indisponibilidad; `LOCATION`,
 `GIFT_REGISTRY` y `EXTERNAL_LINK` solo abren HTTPS. Todo enlace externo usa `noopener noreferrer` y
@@ -80,14 +97,17 @@ Invitación confirmada puede modificar acompañantes mientras `confirmation.open
 
 Después de toda mutación se vuelve a resolver la Invitación. Ante error de red o `5xx`, se consulta el
 estado autoritativo y se compara estado/conjunto nominal: si coincide, se acepta; de lo contrario la
-intención queda disponible para reintento, sin duplicación ni persistencia.
+intención queda disponible para reintento, sin duplicación ni persistencia. Mutación y reconciliación
+conservan el token/generación originales; si cambia la ruta, ambos resultados se descartan. Editar el
+formulario, cerrarlo o cambiar de token limpia el error anterior.
 
 ## QR
 
 El botón “Ver mi QR” y el Hotspot operativo existen únicamente con `qr.available === true`. El SVG se
 solicita bajo demanda, se presenta como Blob/Object URL y nunca se inserta como HTML. El diálogo de MUI
 contiene foco, cierra con Escape, ofrece vista de pantalla completa, presenta la leyenda obligatoria y
-revoca el URL al cerrar.
+revoca el URL al cerrar. Un fallo muestra `No pudimos preparar el QR.`, `Reintentar` y `Cerrar`; el
+reintento mantiene abierto el diálogo, aborta el intento previo y solicita exclusivamente el SVG.
 
 ## Álbum
 
@@ -99,8 +119,10 @@ URLs externas, query, fragment, traversal y paths arbitrarios se rechazan. `REST
 La ruta de Álbum resuelve exclusivamente su token. Aplica colores `#RRGGBB` validados, nombre público,
 título, agradecimiento, hasta 35 fotos autorizadas y botón HTTPS opcional. Las fotos se activan por
 intersección, preservan proporción y se abren en diálogo con flechas, swipe, Escape, foco y posición. Cada
-preview usa un Object URL revocable. Token inválido, vencimiento, despublicación, archivo o recurso ajeno
-comparten “Este álbum no está disponible.”
+preview reutiliza el Object URL del grid cuando sigue disponible. Un pool LRU mantiene como máximo ocho
+Object URLs de fotos: al exceder el límite revoca las más antiguas, conserva la seleccionada cuando está
+en el pool y revoca todas al abandonar el Álbum. No existe cache persistente. Token inválido, vencimiento,
+despublicación, archivo o recurso ajeno comparten “Este álbum no está disponible.”
 
 ## Errores y accesibilidad
 
@@ -115,7 +137,9 @@ focus trap y Escape. Los `alt` son neutrales y no contienen PII.
 
 Las pruebas cubren requester sin cookies, codificación, abortos, JSON/Blob/errores, rutas sin sesión,
 cancelación, Flyer/Flipbook, Hotspots HTTPS, Confirmación individual/familiar, edición y rechazo, QR bajo
-demanda, revocación, `contentPath`, estados de Álbum, tema, galería, teclado y preview.
+demanda, revocación, `contentPath`, estados de Álbum, tema, galería, teclado y preview. Promesas diferidas
+demuestran carreras entre tokens, retries latest-wins, abort de las tres mutaciones, reconciliación
+obsoleta, retry de QR/assets, doble clic, reduced motion y límite/revocación del pool con 35 fotos.
 
 No se implementan gestión autenticada del Álbum, Scanner, check-in, StaffTokens, Admin, Landing,
 Socket.IO frontend, PWA, analytics ni `CODEX-130`.

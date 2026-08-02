@@ -19,6 +19,10 @@ ni cookies en storage del navegador. Sus estados visibles son `loading`, `authen
 Las dos rutas públicas son hermanas del árbol autenticado: no montan `AuthProvider`, `ClientShell` ni
 guards, y no consultan sesión, Eventos o Finanzas. Sus tokens portadores permanecen en memoria, sus
 requests usan `credentials: omit` y sus assets/SVG se liberan mediante `URL.revokeObjectURL`.
+Cada ruta pública coordina lecturas y mutaciones por token y generación: al navegar, desmontar o
+reintentar se aborta la operación anterior y una respuesta obsoleta no puede actualizar React. Las
+mutaciones RSVP tienen protección síncrona contra doble envío. QR, Flyer, Flipbook y fotos ofrecen
+reintento local sin recargar la ruta; el Álbum conserva como máximo ocho Object URLs en un pool LRU.
 
 Solo un `401` de `GET /auth/me` demuestra ausencia de sesión. Un error de red, `429`, `5xx`, una
 respuesta inesperada o cualquier error que no demuestre ausencia muestra “No pudimos verificar tu
@@ -45,7 +49,7 @@ Solo `DRAFT`, `CONFIGURED` y `READY_TO_ACTIVATE` son editables. Véase
 `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md`.
 
 CODEX-122 implementa Flyer/Flipbook, Hotspots HTTPS, Confirmación nominal, QR bajo demanda y galería de
-Álbum. Su contrato de privacidad, routing, errores y accesibilidad está en
+Álbum, con aislamiento latest-wins y reduced motion real. Su contrato de privacidad, routing, errores y accesibilidad está en
 `docs/04-tecnico/PUBLIC_CLIENT_CONTRACT.md`.
 
 ## Comandos

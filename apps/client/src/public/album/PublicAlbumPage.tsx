@@ -4,6 +4,7 @@ import { Alert, Box, Button, Skeleton, Stack, Typography } from '@mui/material';
 import { useParams } from 'react-router-dom';
 import { PublicLayout } from '../PublicLayout';
 import { publicErrorMessage } from '../errors/public-error-message';
+import { isAbortError, usePublicOperationScope } from '../operations/usePublicOperationScope';
 import { safeHttpsUrl } from '../routing/public-content-path';
 import { AlbumGallery } from './AlbumGallery';
 import { safeThemeColor } from './album-state';
@@ -13,23 +14,31 @@ type AlbumState = { kind: 'loading' } | { kind: 'error'; operationId?: string } 
 export function PublicAlbumPage({ apiClient }: { apiClient: ApiClient }) {
   const { albumToken = '' } = useParams();
   const [state, setState] = useState<AlbumState>({ kind: 'loading' });
-  const load = useCallback(() => {
-    const controller = new AbortController();
-    setState({ kind: 'loading' });
-    void apiClient.publicAlbum.resolve(albumToken, controller.signal).then(
-      (album) => setState({ kind: 'ready', album }),
-      (error: unknown) => {
-        if (controller.signal.aborted) return;
-        const display = publicErrorMessage(error, 'Este álbum no está disponible.');
-        setState({ kind: 'error', ...(display.operationId ? { operationId: display.operationId } : {}) });
-      }
-    );
-    return controller;
-  }, [albumToken, apiClient]);
+  const scope = usePublicOperationScope(albumToken);
+  const load = useCallback(
+    (showLoading = true) => {
+      const operation = scope.begin('resolve');
+      if (showLoading) setState({ kind: 'loading' });
+      void apiClient.publicAlbum
+        .resolve(albumToken, operation.signal)
+        .then(
+          (album) => {
+            if (operation.isCurrent()) setState({ kind: 'ready', album });
+          },
+          (error: unknown) => {
+            if (!operation.isCurrent() || isAbortError(error)) return;
+            const display = publicErrorMessage(error, 'Este álbum no está disponible.');
+            setState({ kind: 'error', ...(display.operationId ? { operationId: display.operationId } : {}) });
+          }
+        )
+        .finally(operation.finish);
+    },
+    [albumToken, apiClient, scope]
+  );
   useEffect(() => {
-    const controller = load();
-    return () => controller.abort();
-  }, [load]);
+    load();
+    return scope.abortAll;
+  }, [load, scope]);
 
   if (state.kind === 'loading') {
     return (
@@ -50,7 +59,7 @@ export function PublicAlbumPage({ apiClient }: { apiClient: ApiClient }) {
           </Typography>
           <Alert severity="info">El enlace ya no puede mostrar este contenido.</Alert>
           {state.operationId ? <Typography variant="caption">Referencia: {state.operationId}</Typography> : null}
-          <Button variant="outlined" color="inherit" onClick={() => load()}>
+          <Button variant="outlined" color="inherit" onClick={() => load(false)}>
             Reintentar
           </Button>
         </Stack>

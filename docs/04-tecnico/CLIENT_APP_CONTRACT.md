@@ -46,6 +46,11 @@ pnpm --filter @invitaciones/api-client generate:check
 
 CI regenera el SDK y comprueba que `generated/schema.ts` no cambie respecto del commit.
 
+Las operaciones públicas usan un scope por token y generación. Cada lectura o mutación conserva su
+`AbortController`; cambiar de token, repetir o desmontar invalida la generación, aborta lo anterior y
+descarta cualquier resolución tardía. Los validadores públicos comprueban la forma mínima discriminada
+antes de entregar un `200` a React.
+
 ## Sesión
 
 La credencial es exclusivamente la cookie HttpOnly emitida por AuthModule. La app nunca almacena cookie,
@@ -194,4 +199,5 @@ una promesa; las llaves existen solo durante intentos no resueltos. `PHYSICAL_QR
 módulos digitales y Planner de Organización no consulta Finanzas.
 
 CODEX-122 quedó implementado conforme a `PUBLIC_CLIENT_CONTRACT.md`: rutas públicas fuera de sesión,
-tokens no persistidos, requester sin cookies, RSVP nominal, QR bajo demanda y Object URLs revocables.
+tokens no persistidos, requester sin cookies, RSVP nominal, QR bajo demanda, operaciones latest-wins,
+assets reintentables y Object URLs revocables/acotados.

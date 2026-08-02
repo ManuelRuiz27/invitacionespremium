@@ -1,12 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ApiClient, PublicAlbumPhoto as Photo } from '@invitaciones/api-client';
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, Typography } from '@mui/material';
 import { AlbumPhoto, LoadedPhoto } from './AlbumPhoto';
+import { PublicPhotoPool } from './photo-pool';
+import { useReducedMotion } from '../useReducedMotion';
 
 export function AlbumGallery({ apiClient, token, photos }: { apiClient: ApiClient; token: string; photos: Photo[] }) {
   const ordered = [...photos].sort((a, b) => a.position - b.position).slice(0, 35);
+  const pool = useMemo(() => new PublicPhotoPool(8), [token]);
   const [selected, setSelected] = useState<number | null>(null);
   const [touchX, setTouchX] = useState<number | null>(null);
+  const reducedMotion = useReducedMotion();
+  useEffect(() => {
+    setSelected(null);
+    return () => pool.dispose();
+  }, [pool]);
   const go = (next: number) => setSelected(Math.max(0, Math.min(ordered.length - 1, next)));
   const photo = selected === null ? undefined : ordered[selected];
   return (
@@ -24,6 +32,7 @@ export function AlbumGallery({ apiClient, token, photos }: { apiClient: ApiClien
               apiClient={apiClient}
               token={token}
               photo={item}
+              pool={pool}
               onOpen={() => setSelected(index)}
             />
           ))}
@@ -34,6 +43,7 @@ export function AlbumGallery({ apiClient, token, photos }: { apiClient: ApiClien
         onClose={() => setSelected(null)}
         fullScreen
         aria-labelledby="photo-title"
+        transitionDuration={reducedMotion ? 0 : undefined}
         onKeyDown={(event) => {
           if (event.key === 'ArrowLeft' && selected !== null) go(selected - 1);
           if (event.key === 'ArrowRight' && selected !== null) go(selected + 1);
@@ -52,7 +62,7 @@ export function AlbumGallery({ apiClient, token, photos }: { apiClient: ApiClien
           }}
           sx={{ display: 'grid', placeItems: 'center', bgcolor: '#111' }}
         >
-          {photo ? <LoadedPhoto apiClient={apiClient} token={token} photo={photo} preview /> : null}
+          {photo ? <LoadedPhoto apiClient={apiClient} token={token} photo={photo} pool={pool} preview /> : null}
         </DialogContent>
         <DialogActions sx={{ justifyContent: 'space-between' }}>
           <Button disabled={selected === 0} onClick={() => selected !== null && go(selected - 1)}>
