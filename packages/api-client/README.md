@@ -14,7 +14,7 @@ pnpm --filter @invitaciones/api-client test
 pnpm --filter @invitaciones/api-client build
 ```
 
-`createApiClient({ baseUrl, fetchImpl? })` expone `auth`, `events`, `finance`, `services`, `contacts`,
+`createApiClient({ baseUrl, fetchImpl? })` expone `auth`, `adminClients`, `adminEvents`, `adminFinance`, `events`, `finance`, `services`, `contacts`,
 `invitations`, `fileAssets`, `design`, `floorplan`, `physicalPasses`, `publicInvitation` y `publicAlbum`.
 El runtime admite JSON, multipart,
 texto, `Blob`, `ArrayBuffer`, respuestas `204`, abortos y llaves idempotentes. Toda solicitud usa
@@ -30,3 +30,7 @@ El wizard consume estos wrappers sin DTOs paralelos. Las llaves de CSV, pases y 
 request; el SDK no decide su ciclo de vida ni las persiste.
 
 `API_CLIENT_STATUS` identifica al cliente generado como operativo. CI regenera los tipos y rechaza drift.
+
+Los wrappers administrativos derivan todos sus DTO de `generated/schema.ts`, codifican segmentos,
+propagan `AbortSignal` y agregan `Idempotency-Key` solo en las cuatro mutaciones financieras que lo
+exigen. No exponen rutas operativas de Cliente ni rutas de auditoria, refund o reversal inexistentes.

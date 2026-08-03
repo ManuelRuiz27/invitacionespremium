@@ -455,7 +455,12 @@ Contrato normativo: `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md`.
 - reconciliación autoritativa de cierres, cancelaciones y eliminación durante cualquier mutación RSVP;
 - reduced motion efectivo en Flipbook y diálogos públicos.
 
-Contrato normativo: `docs/04-tecnico/PUBLIC_CLIENT_CONTRACT.md`. `CODEX-130` no fue iniciado.
+Contrato normativo: `docs/04-tecnico/PUBLIC_CLIENT_CONTRACT.md`.
+
+`CODEX-130 — Platform Admin` esta **EN PROGRESO**. El corte A quedo completado con sesion exclusiva,
+shell responsive, dashboard real, Clientes y usuarios, Eventos administrativos y finanzas por Cliente.
+Servicios/precios/promociones, reportes, auditoria y configuracion permanecen pendientes; Auditoria
+requiere endpoints publicados en OpenAPI. Contrato: `docs/04-tecnico/ADMIN_APP_CONTRACT.md`.
 
 ## Fuente de verdad
 

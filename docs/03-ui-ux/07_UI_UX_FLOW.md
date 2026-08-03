@@ -523,3 +523,15 @@ contenido. QR aparece solo después de confirmar, se solicita bajo demanda y ofr
 Álbum usa tema validado, grid progresivo y preview con teclado/swipe. Cancelación, cierre, restricción y
 no disponibilidad usan mensajes públicos no enumerantes. Detalle normativo en
 `../04-tecnico/PUBLIC_CLIENT_CONTRACT.md`.
+
+# Implementacion CODEX-130A
+
+La app Admin usa una composicion desktop/tablet de alta densidad controlada: navegacion azul petroleo,
+superficies claras y acento dorado reservado. En movil el drawer es temporal. El header comunica la
+identidad Platform Admin, sesion verificada y logout; no muestra `clientId` ni enlaces de Cliente.
+
+El flujo actual contiene Resumen, Clientes y Eventos. Clientes concentra cuenta, usuarios y finanzas;
+las mutaciones sensibles usan dialogos accesibles sin `window.confirm`. Eventos es una proyeccion global
+de solo lectura con restauracion explicita. Loading, vacio, error/retry, acceso denegado e
+indisponibilidad de sesion son estados distintos. El contrato completo vive en
+`../04-tecnico/ADMIN_APP_CONTRACT.md`.

@@ -1,4 +1,5 @@
 import { createRequester, type ApiClientRuntimeConfig } from './api-client';
+import { createAdminClientsClient, createAdminEventsClient, createAdminFinanceClient } from './admin';
 import { createAuthClient } from './auth';
 import { createEventsClient } from './events';
 import { createFinanceClient } from './finance';
@@ -36,6 +37,7 @@ export type {
   PublicRsvpMutation
 } from './public';
 export type * from './wizard';
+export type * from './admin';
 
 export const API_CLIENT_STATUS = 'Operational typed client generated from the API OpenAPI document.';
 
@@ -43,6 +45,9 @@ export function createApiClient(config: ApiClientRuntimeConfig) {
   const request = createRequester(config);
   return {
     auth: createAuthClient(request),
+    adminClients: createAdminClientsClient(request),
+    adminEvents: createAdminEventsClient(request),
+    adminFinance: createAdminFinanceClient(request),
     events: createEventsClient(request),
     finance: createFinanceClient(request),
     services: createServicesClient(request),

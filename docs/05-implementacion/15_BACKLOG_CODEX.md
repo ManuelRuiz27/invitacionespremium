@@ -1027,6 +1027,13 @@ Contrato normativo: `docs/04-tecnico/PUBLIC_CLIENT_CONTRACT.md`. CODEX-130 no fu
 
 ### CODEX-130 — Platform Admin
 
+**Estado:** EN PROGRESO
+
+**Corte A completado:** shell, sesion, Clientes, Eventos y finanzas por Cliente.
+
+Pendientes de cortes posteriores: servicios/precios/promociones, reportes, auditoria y configuracion.
+Auditoria requiere primero endpoints presentes en OpenAPI.
+
 **Repo:** `invitacionespremium-admin`
 
 **Dependencias:** APIs de Clientes, Finanzas, Eventos, Reportes y Auditoría
