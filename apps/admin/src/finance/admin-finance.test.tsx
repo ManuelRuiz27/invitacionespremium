@@ -42,7 +42,8 @@ describe('Admin Client finance', () => {
     const api = mockAdminApi();
     const user = userEvent.setup();
     renderAdminApp(api, '/clientes/client-a');
-    await user.click(await screen.findByRole('button', { name: 'Asignar creditos gratuitos' }));
+    expect(await screen.findByText(formatMxn(adminBalance.debtMxnCents))).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Asignar creditos gratuitos' }));
     await user.type(screen.getByLabelText('Creditos'), '5');
     await user.type(screen.getByLabelText('Motivo'), 'Cortesia contractual');
     expect(api.adminFinance.assignCredits).not.toHaveBeenCalled();
