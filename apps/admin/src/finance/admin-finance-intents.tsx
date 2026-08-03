@@ -13,6 +13,7 @@ export interface AdminFinanceIntent {
 
 export interface AdminFinanceIntentRegistry {
   list(clientId: string): AdminFinanceIntent[];
+  find(clientId: string, fingerprint: string): AdminFinanceIntent | undefined;
   record(intent: AdminFinanceIntent): void;
   discard(clientId: string, fingerprint: string): void;
   clear(): void;
@@ -31,6 +32,7 @@ export function createAdminFinanceIntentRegistry(): AdminFinanceIntentRegistry {
   const id = (clientId: string, fingerprint: string) => `${clientId}\u0000${fingerprint}`;
   return {
     list: (clientId) => [...intents.values()].filter((intent) => intent.clientId === clientId),
+    find: (clientId, fingerprint) => intents.get(id(clientId, fingerprint)),
     record: (intent) => {
       intents.set(id(intent.clientId, intent.fingerprint), intent);
       emit();

@@ -87,9 +87,20 @@ Cada intencion financiera genera una llave en memoria. Un bloqueo sincrono impid
 fingerprint del payload, llave y estado `uncertain`. El registro esta aislado por Cliente, nunca se
 persiste ni muestra la llave completa, y sobrevive a la navegacion dentro de la sesion. Al volver al
 mismo Cliente se consulta el balance autoritativo y el Admin puede reintentar exactamente la misma
-intencion con la misma llave o descartarla de forma explicita. Un payload materialmente distinto genera
-otra llave; un exito autoritativo elimina la intencion. Un `401` tiene prioridad y vacia el registro junto
-con el resto de datos privados. No hay retry automatico ni actualizacion optimista del balance.
+intencion con la misma llave o descartarla de forma explicita.
+
+El registro es la unica fuente de verdad de llaves retenidas: el hook local solo bloquea el request en
+vuelo. Un retry inmediato obtiene la llave por `clientId + fingerprint`; el retry de la alerta usa el
+`body`, fingerprint y llave almacenados, sin reconstruir el payload desde campos del formulario. Un
+segundo resultado incierto reemplaza la misma entrada y conserva la llave. Un payload materialmente
+distinto genera otra llave. El exito o el descarte eliminan la entrada y liberan la llave, de modo que una
+captura posterior identica crea una llave nueva. Cerrar una operacion exitosa, descartada o cancelada
+antes de enviar desmonta su dialogo y limpia el borrador; cerrar una operacion incierta conserva el
+payload necesario dentro del registro.
+
+Descartar no llama al backend, no modifica el balance y solo afecta la entrada del Cliente seleccionado.
+Un `401`, logout o cambio de sesion vacia el registro completo junto con el resto de datos privados. No
+hay retry automatico, Web Storage, cookies, parametros URL ni actualizacion optimista del balance.
 
 La UI traduce los codigos de autorizacion, Cliente, usuario, Evento, balance, idempotencia, validacion y
 respuesta inesperada. Puede mostrar `operationId`, pero no payloads, stack, secretos o detalles Prisma.

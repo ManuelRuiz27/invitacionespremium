@@ -79,7 +79,15 @@ export function AdminClientFinancePanel({ apiClient, clientId }: { apiClient: Ap
               >
                 Reintentar
               </Button>
-              <Button color="inherit" size="small" onClick={() => intentRegistry.discard(clientId, intent.fingerprint)}>
+              <Button
+                color="inherit"
+                size="small"
+                onClick={() => {
+                  intentRegistry.discard(clientId, intent.fingerprint);
+                  setRetryIntent(null);
+                  setAction(null);
+                }}
+              >
                 Descartar
               </Button>
             </Stack>
@@ -175,17 +183,19 @@ export function AdminClientFinancePanel({ apiClient, clientId }: { apiClient: Ap
           </Typography>
         </Box>
       </Stack>
-      <FinanceActionDialog
-        action={action}
-        retryIntent={retryIntent}
-        onClose={() => {
-          setAction(null);
-          setRetryIntent(null);
-        }}
-        apiClient={apiClient}
-        clientId={clientId}
-        balance={data}
-      />
+      {action ? (
+        <FinanceActionDialog
+          action={action}
+          retryIntent={retryIntent}
+          onClose={() => {
+            setAction(null);
+            setRetryIntent(null);
+          }}
+          apiClient={apiClient}
+          clientId={clientId}
+          balance={data}
+        />
+      ) : null}
     </Stack>
   );
 }
@@ -267,13 +277,13 @@ function FinanceActionDialog({
             key: request.key,
             status: 'uncertain'
           });
-        stable.finish({ retain: uncertain });
+        stable.finish();
         throw cause;
       }
     },
     onSuccess: async (_result, request) => {
       intentRegistry.discard(clientId, request.fingerprint);
-      stable.finish({ retain: false });
+      stable.finish();
       if (!request.operation.isCurrent()) {
         request.operation.finish();
         return;
@@ -345,7 +355,8 @@ function FinanceActionDialog({
       const selectedAction = retryIntent?.action ?? action;
       const body = retryIntent ? retryIntent.body : buildBody(selectedAction);
       const fingerprint = retryIntent?.fingerprint ?? JSON.stringify({ action: selectedAction, body });
-      const key = stable.begin(fingerprint, retryIntent?.key);
+      const existingIntent = intentRegistry.find(clientId, fingerprint);
+      const key = stable.begin(retryIntent?.key ?? existingIntent?.key);
       if (!key) {
         operation.finish();
         return;

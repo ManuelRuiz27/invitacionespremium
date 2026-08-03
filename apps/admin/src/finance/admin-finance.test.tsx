@@ -20,6 +20,7 @@ describe('Admin Client finance', () => {
   it('expires the session and hides loaded finance when balance refetch returns 401', async () => {
     const api = mockAdminApi();
     const view = renderAdminApp(api, '/clientes/client-a');
+    view.financeIntentRegistry.record(uncertainIntent('client-a', 'expired-key'));
     await waitForFinancePanel();
     expect(screen.getByText(formatMxn(adminBalance.debtMxnCents))).toBeInTheDocument();
     vi.mocked(api.adminFinance.balance).mockImplementationOnce(() => {
@@ -31,7 +32,21 @@ describe('Admin Client finance', () => {
     await waitFor(() => expect(view.router.state.location.pathname).toBe('/login'));
     expect(screen.queryByText(formatMxn(adminBalance.debtMxnCents))).not.toBeInTheDocument();
     expect(screen.queryByText(organization.name)).not.toBeInTheDocument();
+    expect(view.financeIntentRegistry.list('client-a')).toHaveLength(0);
     expect(api.auth.logout).not.toHaveBeenCalled();
+  });
+
+  it('clears financial intents and their keys on explicit logout', async () => {
+    const api = mockAdminApi();
+    const view = renderAdminApp(api, '/clientes/client-a');
+    view.financeIntentRegistry.record(uncertainIntent('client-a', 'logout-key'));
+    await waitForFinancePanel();
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Cerrar sesion' }));
+
+    await waitFor(() => expect(view.router.state.location.pathname).toBe('/login'));
+    expect(view.financeIntentRegistry.list('client-a')).toHaveLength(0);
+    expect(api.auth.logout).toHaveBeenCalledTimes(1);
   });
 
   it('parses MXN into integer cents without accepting excess decimals', () => {
@@ -77,43 +92,178 @@ describe('Admin Client finance', () => {
     fireEvent.click(confirm);
     fireEvent.click(confirm);
     await waitFor(() => expect(api.adminFinance.rebuildBalance).toHaveBeenCalledTimes(1));
-    resolve({
-      balance: adminBalance,
-      movement: null,
-      payment: null,
-      receipt: {
-        id: 'r',
-        folio: '1',
-        clientId: 'client-a',
-        operationType: 'BALANCE_REBUILD',
-        operationReference: 'r',
-        createdAt: adminBalance.updatedAt
-      }
-    });
+    resolve(financeMutationResult());
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
-  it('reuses an in-memory key after uncertain failure and changes it for the next intention', async () => {
+  it('uses the registered key for an immediate retry after an uncertain failure', async () => {
     const api = mockAdminApi();
-    vi.mocked(api.adminFinance.assignCredits).mockRejectedValueOnce(new ApiError(500, 'INTERNAL_ERROR', 'uncertain'));
+    const first = deferred<Awaited<ReturnType<typeof api.adminFinance.assignCredits>>>();
+    vi.mocked(api.adminFinance.assignCredits).mockReturnValueOnce(first.promise);
     const user = userEvent.setup();
-    renderAdminApp(api, '/clientes/client-a');
+    const view = renderAdminApp(api, '/clientes/client-a');
     await user.click(await waitForFinancePanel());
     await user.type(screen.getByLabelText('Creditos'), '2');
     await user.type(screen.getByLabelText('Motivo'), 'Ajuste');
     await user.click(screen.getByRole('button', { name: 'Confirmar' }));
+    await waitFor(() => expect(api.adminFinance.assignCredits).toHaveBeenCalledTimes(1));
+    await act(() => first.reject(new ApiError(500, 'INTERNAL_ERROR', 'uncertain')));
     expect(await screen.findByText(/resultado no pudo confirmarse/i)).toBeInTheDocument();
+    const firstKey = vi.mocked(api.adminFinance.assignCredits).mock.calls[0]?.[2];
+    expect(view.financeIntentRegistry.list('client-a')).toHaveLength(1);
+    expect(view.financeIntentRegistry.list('client-a')[0]?.key).toBe(firstKey);
+
     await user.click(screen.getByRole('button', { name: 'Confirmar' }));
     await waitFor(() => expect(api.adminFinance.assignCredits).toHaveBeenCalledTimes(2));
-    const firstKey = vi.mocked(api.adminFinance.assignCredits).mock.calls[0]?.[2];
     expect(vi.mocked(api.adminFinance.assignCredits).mock.calls[1]?.[2]).toBe(firstKey);
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    await user.click(screen.getByRole('button', { name: 'Asignar creditos gratuitos' }));
-    await user.type(screen.getByLabelText('Creditos'), '3');
-    await user.type(screen.getByLabelText('Motivo'), 'Nuevo');
+    expect(view.financeIntentRegistry.list('client-a')).toHaveLength(0);
+  });
+
+  it('releases a discarded key and creates a new key for the same captured payload', async () => {
+    const api = mockAdminApi();
+    const first = deferred<Awaited<ReturnType<typeof api.adminFinance.assignCredits>>>();
+    vi.mocked(api.adminFinance.assignCredits).mockReturnValueOnce(first.promise);
+    const user = userEvent.setup();
+    const view = renderAdminApp(api, '/clientes/client-a');
+    await user.click(await waitForFinancePanel());
+    await user.type(screen.getByLabelText('Creditos'), '2');
+    await user.type(screen.getByLabelText('Motivo'), 'Mismo payload');
     await user.click(screen.getByRole('button', { name: 'Confirmar' }));
-    await waitFor(() => expect(api.adminFinance.assignCredits).toHaveBeenCalledTimes(3));
-    expect(vi.mocked(api.adminFinance.assignCredits).mock.calls[2]?.[2]).not.toBe(firstKey);
+    await waitFor(() => expect(api.adminFinance.assignCredits).toHaveBeenCalledTimes(1));
+    await act(() => first.reject(new ApiError(500, 'INTERNAL_ERROR', 'uncertain')));
+    expect(await screen.findByText(/resultado no pudo confirmarse/i)).toBeInTheDocument();
+    const firstCall = vi.mocked(api.adminFinance.assignCredits).mock.calls[0]!;
+
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+    const balanceCallsBeforeDiscard = vi.mocked(api.adminFinance.balance).mock.calls.length;
+    await user.click(screen.getByRole('button', { name: 'Descartar' }));
+    expect(view.financeIntentRegistry.list('client-a')).toHaveLength(0);
+    expect(api.adminFinance.assignCredits).toHaveBeenCalledTimes(1);
+    expect(api.adminFinance.balance).toHaveBeenCalledTimes(balanceCallsBeforeDiscard);
+
+    await user.click(screen.getByRole('button', { name: 'Asignar creditos gratuitos' }));
+    expect(screen.getByLabelText('Creditos')).toHaveValue('');
+    expect(screen.getByLabelText('Motivo')).toHaveValue('');
+    await user.type(screen.getByLabelText('Creditos'), '2');
+    await user.type(screen.getByLabelText('Motivo'), 'Mismo payload');
+    await user.click(screen.getByRole('button', { name: 'Confirmar' }));
+    await waitFor(() => expect(api.adminFinance.assignCredits).toHaveBeenCalledTimes(2));
+    const secondCall = vi.mocked(api.adminFinance.assignCredits).mock.calls[1]!;
+    expect(secondCall[1]).toEqual(firstCall[1]);
+    expect(secondCall[2]).not.toBe(firstCall[2]);
+  });
+
+  it('retries from the warning with the exact stored payload and key', async () => {
+    const api = mockAdminApi();
+    const first = deferred<Awaited<ReturnType<typeof api.adminFinance.assignCredits>>>();
+    vi.mocked(api.adminFinance.assignCredits).mockReturnValueOnce(first.promise);
+    const user = userEvent.setup();
+    renderAdminApp(api, '/clientes/client-a');
+    await user.click(await waitForFinancePanel());
+    await user.type(screen.getByLabelText('Creditos'), '7');
+    await user.type(screen.getByLabelText('Motivo'), 'Payload almacenado');
+    await user.click(screen.getByRole('button', { name: 'Confirmar' }));
+    await waitFor(() => expect(api.adminFinance.assignCredits).toHaveBeenCalledTimes(1));
+    await act(() => first.reject(new ApiError(500, 'INTERNAL_ERROR', 'uncertain')));
+    expect(await screen.findByText(/resultado no pudo confirmarse/i)).toBeInTheDocument();
+    const firstCall = vi.mocked(api.adminFinance.assignCredits).mock.calls[0]!;
+
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await user.click(screen.getByRole('button', { name: 'Reintentar' }));
+    expect(screen.queryByLabelText('Creditos')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Confirmar' }));
+
+    await waitFor(() => expect(api.adminFinance.assignCredits).toHaveBeenCalledTimes(2));
+    const retryCall = vi.mocked(api.adminFinance.assignCredits).mock.calls[1]!;
+    expect(retryCall[1]).toEqual(firstCall[1]);
+    expect(retryCall[2]).toBe(firstCall[2]);
+  });
+
+  it('releases a successful key and clears the draft before an identical new operation', async () => {
+    const api = mockAdminApi();
+    const user = userEvent.setup();
+    renderAdminApp(api, '/clientes/client-a');
+    await user.click(await waitForFinancePanel());
+    await user.type(screen.getByLabelText('Creditos'), '4');
+    await user.type(screen.getByLabelText('Motivo'), 'Operacion repetible');
+    await user.click(screen.getByRole('button', { name: 'Confirmar' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    const firstCall = vi.mocked(api.adminFinance.assignCredits).mock.calls[0]!;
+
+    await user.click(screen.getByRole('button', { name: 'Asignar creditos gratuitos' }));
+    expect(screen.getByLabelText('Creditos')).toHaveValue('');
+    expect(screen.getByLabelText('Motivo')).toHaveValue('');
+    await user.type(screen.getByLabelText('Creditos'), '4');
+    await user.type(screen.getByLabelText('Motivo'), 'Operacion repetible');
+    await user.click(screen.getByRole('button', { name: 'Confirmar' }));
+
+    await waitFor(() => expect(api.adminFinance.assignCredits).toHaveBeenCalledTimes(2));
+    const secondCall = vi.mocked(api.adminFinance.assignCredits).mock.calls[1]!;
+    expect(secondCall[1]).toEqual(firstCall[1]);
+    expect(secondCall[2]).not.toBe(firstCall[2]);
+  });
+
+  it('clears an unsubmitted draft when the dialog is cancelled', async () => {
+    const user = userEvent.setup();
+    renderAdminApp(mockAdminApi(), '/clientes/client-a');
+    await user.click(await waitForFinancePanel());
+    await user.type(screen.getByLabelText('Creditos'), '9');
+    await user.type(screen.getByLabelText('Motivo'), 'Borrador cancelado');
+
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await user.click(screen.getByRole('button', { name: 'Asignar creditos gratuitos' }));
+
+    expect(screen.getByLabelText('Creditos')).toHaveValue('');
+    expect(screen.getByLabelText('Motivo')).toHaveValue('');
+  });
+
+  it('keeps one registered intent and the same key after a second uncertain result', async () => {
+    const api = mockAdminApi();
+    const first = deferred<Awaited<ReturnType<typeof api.adminFinance.assignCredits>>>();
+    const second = deferred<Awaited<ReturnType<typeof api.adminFinance.assignCredits>>>();
+    vi.mocked(api.adminFinance.assignCredits).mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+    const user = userEvent.setup();
+    const view = renderAdminApp(api, '/clientes/client-a');
+    await user.click(await waitForFinancePanel());
+    await user.type(screen.getByLabelText('Creditos'), '6');
+    await user.type(screen.getByLabelText('Motivo'), 'Dos fallos');
+    await user.click(screen.getByRole('button', { name: 'Confirmar' }));
+    await waitFor(() => expect(api.adminFinance.assignCredits).toHaveBeenCalledTimes(1));
+    await act(() => first.reject(new ApiError(500, 'INTERNAL_ERROR', 'first uncertain')));
+    expect(await screen.findByText(/resultado no pudo confirmarse/i)).toBeInTheDocument();
+    const firstKey = vi.mocked(api.adminFinance.assignCredits).mock.calls[0]?.[2];
+
+    await user.click(screen.getByRole('button', { name: 'Confirmar' }));
+    await waitFor(() => expect(api.adminFinance.assignCredits).toHaveBeenCalledTimes(2));
+    await act(() => second.reject(new TypeError('second uncertain')));
+    await waitFor(() => expect(view.financeIntentRegistry.list('client-a')).toHaveLength(1));
+    expect(vi.mocked(api.adminFinance.assignCredits).mock.calls[1]?.[2]).toBe(firstKey);
+    expect(view.financeIntentRegistry.list('client-a')).toHaveLength(1);
+    expect(view.financeIntentRegistry.list('client-a')[0]?.key).toBe(firstKey);
+  });
+
+  it('creates a new key when the payload changes materially', async () => {
+    const api = mockAdminApi();
+    const first = deferred<Awaited<ReturnType<typeof api.adminFinance.assignCredits>>>();
+    vi.mocked(api.adminFinance.assignCredits).mockReturnValueOnce(first.promise);
+    const user = userEvent.setup();
+    renderAdminApp(api, '/clientes/client-a');
+    await user.click(await waitForFinancePanel());
+    await user.type(screen.getByLabelText('Creditos'), '2');
+    await user.type(screen.getByLabelText('Motivo'), 'Version uno');
+    await user.click(screen.getByRole('button', { name: 'Confirmar' }));
+    await waitFor(() => expect(api.adminFinance.assignCredits).toHaveBeenCalledTimes(1));
+    await act(() => first.reject(new ApiError(500, 'INTERNAL_ERROR', 'uncertain')));
+    expect(await screen.findByText(/resultado no pudo confirmarse/i)).toBeInTheDocument();
+    const firstKey = vi.mocked(api.adminFinance.assignCredits).mock.calls[0]?.[2];
+
+    await user.clear(screen.getByLabelText('Motivo'));
+    await user.type(screen.getByLabelText('Motivo'), 'Version dos');
+    await user.click(screen.getByRole('button', { name: 'Confirmar' }));
+
+    await waitFor(() => expect(api.adminFinance.assignCredits).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(api.adminFinance.assignCredits).mock.calls[1]?.[2]).not.toBe(firstKey);
   });
 
   it('offers no refund or ledger reversal controls', async () => {
@@ -124,7 +274,8 @@ describe('Admin Client finance', () => {
 
   it('passes AbortSignal and synchronously locks credit-line and manual-payment operations', async () => {
     const lineApi = mockAdminApi();
-    vi.mocked(lineApi.adminFinance.configureCreditLine).mockReturnValue(new Promise(() => undefined));
+    const linePending = deferred<Awaited<ReturnType<typeof lineApi.adminFinance.configureCreditLine>>>();
+    vi.mocked(lineApi.adminFinance.configureCreditLine).mockReturnValue(linePending.promise);
     const lineUser = userEvent.setup();
     const lineView = renderAdminApp(lineApi, '/clientes/client-a');
     await waitForFinancePanel();
@@ -134,10 +285,13 @@ describe('Admin Client finance', () => {
     fireEvent.click(lineConfirm);
     await waitFor(() => expect(lineApi.adminFinance.configureCreditLine).toHaveBeenCalledTimes(1));
     expect(vi.mocked(lineApi.adminFinance.configureCreditLine).mock.calls[0]?.[3]).toEqual(expect.any(AbortSignal));
+    await act(() => linePending.resolve(financeMutationResult()));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     lineView.unmount();
 
     const paymentApi = mockAdminApi();
-    vi.mocked(paymentApi.adminFinance.manualPayment).mockReturnValue(new Promise(() => undefined));
+    const paymentPending = deferred<Awaited<ReturnType<typeof paymentApi.adminFinance.manualPayment>>>();
+    vi.mocked(paymentApi.adminFinance.manualPayment).mockReturnValue(paymentPending.promise);
     const paymentUser = userEvent.setup();
     const paymentView = renderAdminApp(paymentApi, '/clientes/client-a');
     await waitForFinancePanel();
@@ -151,6 +305,8 @@ describe('Admin Client finance', () => {
     fireEvent.click(paymentConfirm);
     await waitFor(() => expect(paymentApi.adminFinance.manualPayment).toHaveBeenCalledTimes(1));
     expect(vi.mocked(paymentApi.adminFinance.manualPayment).mock.calls[0]?.[3]).toEqual(expect.any(AbortSignal));
+    await act(() => paymentPending.resolve(financeMutationResult()));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     paymentView.unmount();
   });
 
@@ -195,21 +351,24 @@ describe('Admin Client finance', () => {
     await waitFor(() => expect(financeIntentRegistry.list('client-a')).toHaveLength(0));
   });
 
-  it('discards uncertain intents only through the explicit action', async () => {
+  it('discards only the selected Client intent without exposing or affecting another Client key', async () => {
     const api = mockAdminApi();
     const view = renderAdminApp(api, '/clientes/client-a');
-    view.financeIntentRegistry.record({
-      clientId: 'client-a',
-      action: 'rebuild',
-      body: undefined,
-      fingerprint: 'rebuild-intent',
-      key: 'hidden-key',
-      status: 'uncertain'
-    });
+    view.financeIntentRegistry.record(uncertainIntent('client-a', 'hidden-key-a'));
+    view.financeIntentRegistry.record(uncertainIntent('client-b', 'hidden-key-b'));
     await waitForFinancePanel();
     expect(screen.getByText(/resultado no confirmado para este Cliente/i)).toBeInTheDocument();
+    expect(screen.queryByText('hidden-key-a')).not.toBeInTheDocument();
+    expect(screen.queryByText('hidden-key-b')).not.toBeInTheDocument();
+    const balanceCalls = vi.mocked(api.adminFinance.balance).mock.calls.length;
     await userEvent.setup().click(screen.getByRole('button', { name: 'Descartar' }));
     expect(view.financeIntentRegistry.list('client-a')).toHaveLength(0);
+    expect(view.financeIntentRegistry.list('client-b')).toEqual([uncertainIntent('client-b', 'hidden-key-b')]);
+    expect(api.adminFinance.balance).toHaveBeenCalledTimes(balanceCalls);
+    expect(api.adminFinance.assignCredits).not.toHaveBeenCalled();
+    expect(api.adminFinance.configureCreditLine).not.toHaveBeenCalled();
+    expect(api.adminFinance.manualPayment).not.toHaveBeenCalled();
+    expect(api.adminFinance.rebuildBalance).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -260,4 +419,41 @@ describe('Admin Client finance', () => {
 // authoritative Client/users/balance queries that make the finance panel actionable.
 function waitForFinancePanel() {
   return screen.findByRole('button', { name: 'Asignar creditos gratuitos' }, { timeout: 5_000 });
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((nextResolve, nextReject) => {
+    resolve = nextResolve;
+    reject = nextReject;
+  });
+  return { promise, reject, resolve };
+}
+
+function uncertainIntent(clientId: string, key: string) {
+  return {
+    clientId,
+    action: 'rebuild' as const,
+    body: undefined,
+    fingerprint: `rebuild-${clientId}`,
+    key,
+    status: 'uncertain' as const
+  };
+}
+
+function financeMutationResult() {
+  return {
+    balance: adminBalance,
+    movement: null,
+    payment: null,
+    receipt: {
+      id: 'r',
+      folio: '1',
+      clientId: 'client-a',
+      operationType: 'BALANCE_REBUILD',
+      operationReference: 'r',
+      createdAt: adminBalance.updatedAt
+    }
+  };
 }
