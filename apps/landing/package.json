@@ -11,14 +11,21 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
     "@invitaciones/ui": "workspace:*",
+    "@mui/icons-material": "^9.2.0",
+    "@mui/material": "^9.2.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.2.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^6.0.3",
+    "jsdom": "^26.0.0",
     "vite": "^8.1.5",
     "vitest": "^4.1.10"
   }

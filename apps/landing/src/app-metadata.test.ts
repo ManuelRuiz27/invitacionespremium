@@ -4,5 +4,6 @@ import { appMetadata } from './app-metadata';
 describe('landing metadata', () => {
   it('declares its app identity', () => {
     expect(appMetadata.appName).toBe('Landing');
+    expect(appMetadata.title).toContain('InvitacionesPremium');
   });
 });
