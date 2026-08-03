@@ -22,7 +22,12 @@ requests usan `credentials: omit` y sus assets/SVG se liberan mediante `URL.revo
 Cada ruta pública coordina lecturas y mutaciones por token y generación: al navegar, desmontar o
 reintentar se aborta la operación anterior y una respuesta obsoleta no puede actualizar React. Las
 mutaciones RSVP tienen protección síncrona contra doble envío. QR, Flyer, Flipbook y fotos ofrecen
-reintento local sin recargar la ruta; el Álbum conserva como máximo ocho Object URLs en un pool LRU.
+reintento local sin recargar la ruta. El estado y el subárbol visual pertenecen expresamente al token:
+una navegación pinta loading neutro antes de efectos y nunca reutiliza metadata, diálogos o assets del
+recurso anterior. El Álbum conserva como máximo ocho Object URLs y cuatro descargas concurrentes; su
+pool distingue `idle`, `loading`, `ready`, `error` y `evicted`, y prioriza preview, viewport y cercanía.
+Los errores RSVP que invalidan la proyección resuelven nuevamente el token original y proyectan
+autoritativamente Confirmación cerrada, cancelación, cierre o recurso no disponible.
 
 Solo un `401` de `GET /auth/me` demuestra ausencia de sesión. Un error de red, `429`, `5xx`, una
 respuesta inesperada o cualquier error que no demuestre ausencia muestra “No pudimos verificar tu

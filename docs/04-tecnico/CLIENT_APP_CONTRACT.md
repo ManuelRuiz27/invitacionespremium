@@ -49,7 +49,9 @@ CI regenera el SDK y comprueba que `generated/schema.ts` no cambie respecto del 
 Las operaciones públicas usan un scope por token y generación. Cada lectura o mutación conserva su
 `AbortController`; cambiar de token, repetir o desmontar invalida la generación, aborta lo anterior y
 descarta cualquier resolución tardía. Los validadores públicos comprueban la forma mínima discriminada
-antes de entregar un `200` a React.
+antes de entregar un `200` a React. Además, cada estado cargado conserva su token propietario y el
+subárbol público se remonta con ese token: durante la navegación se muestra loading neutro sin esperar a
+un efecto y no se renderiza metadata, diálogo o asset del recurso anterior.
 
 ## Sesión
 
@@ -200,4 +202,5 @@ módulos digitales y Planner de Organización no consulta Finanzas.
 
 CODEX-122 quedó implementado conforme a `PUBLIC_CLIENT_CONTRACT.md`: rutas públicas fuera de sesión,
 tokens no persistidos, requester sin cookies, RSVP nominal, QR bajo demanda, operaciones latest-wins,
-assets reintentables y Object URLs revocables/acotados.
+assets reintentables, transiciones RSVP autoritativas y pool de fotos con URLs/cargas concurrentes
+acotadas, prioridad visible y expulsión sin falso error.

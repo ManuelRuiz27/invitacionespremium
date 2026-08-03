@@ -9,26 +9,37 @@ import { safeHttpsUrl } from '../routing/public-content-path';
 import { AlbumGallery } from './AlbumGallery';
 import { safeThemeColor } from './album-state';
 
-type AlbumState = { kind: 'loading' } | { kind: 'error'; operationId?: string } | { kind: 'ready'; album: PublicAlbum };
+type AlbumState =
+  | { kind: 'loading'; token: string }
+  | { kind: 'error'; token: string; operationId?: string }
+  | { kind: 'ready'; token: string; album: PublicAlbum };
 
 export function PublicAlbumPage({ apiClient }: { apiClient: ApiClient }) {
   const { albumToken = '' } = useParams();
-  const [state, setState] = useState<AlbumState>({ kind: 'loading' });
+  return <PublicAlbumTokenPage key={albumToken} apiClient={apiClient} albumToken={albumToken} />;
+}
+
+function PublicAlbumTokenPage({ apiClient, albumToken }: { apiClient: ApiClient; albumToken: string }) {
+  const [state, setState] = useState<AlbumState>({ kind: 'loading', token: albumToken });
   const scope = usePublicOperationScope(albumToken);
   const load = useCallback(
     (showLoading = true) => {
       const operation = scope.begin('resolve');
-      if (showLoading) setState({ kind: 'loading' });
+      if (showLoading) setState({ kind: 'loading', token: albumToken });
       void apiClient.publicAlbum
         .resolve(albumToken, operation.signal)
         .then(
           (album) => {
-            if (operation.isCurrent()) setState({ kind: 'ready', album });
+            if (operation.isCurrent()) setState({ kind: 'ready', token: albumToken, album });
           },
           (error: unknown) => {
             if (!operation.isCurrent() || isAbortError(error)) return;
             const display = publicErrorMessage(error, 'Este álbum no está disponible.');
-            setState({ kind: 'error', ...(display.operationId ? { operationId: display.operationId } : {}) });
+            setState({
+              kind: 'error',
+              token: albumToken,
+              ...(display.operationId ? { operationId: display.operationId } : {})
+            });
           }
         )
         .finally(operation.finish);
@@ -40,7 +51,7 @@ export function PublicAlbumPage({ apiClient }: { apiClient: ApiClient }) {
     return scope.abortAll;
   }, [load, scope]);
 
-  if (state.kind === 'loading') {
+  if (state.token !== albumToken || state.kind === 'loading') {
     return (
       <PublicLayout tone="dark">
         <Stack role="status" aria-label="Cargando álbum" spacing={3}>
@@ -105,7 +116,7 @@ export function PublicAlbumPage({ apiClient }: { apiClient: ApiClient }) {
               </Typography>
             ) : null}
           </Box>
-          <AlbumGallery apiClient={apiClient} token={albumToken} photos={album.photos} />
+          <AlbumGallery key={albumToken} apiClient={apiClient} token={albumToken} photos={album.photos} />
           {external && album.externalButton?.label ? (
             <Button
               component="a"

@@ -449,7 +449,10 @@ Contrato normativo: `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md`.
 - Álbum elegible por token separado, tema validado y galería progresiva;
 - requester público sin cookies, tokens no persistidos y errores no enumerantes;
 - operaciones aisladas por token/generación, abortables y latest-wins;
-- reintentos locales de QR/assets y galería LRU limitada a ocho Object URLs;
+- estado visual y subárboles ligados al token, sin un solo render del recurso anterior al navegar;
+- reintentos locales de QR/assets y galería con ocho Object URLs y cuatro descargas concurrentes como máximo;
+- pool con estados `idle/loading/ready/error/evicted`, prioridad de preview/viewport y expulsión sin falsos errores;
+- reconciliación autoritativa de cierres, cancelaciones y eliminación durante cualquier mutación RSVP;
 - reduced motion efectivo en Flipbook y diálogos públicos.
 
 Contrato normativo: `docs/04-tecnico/PUBLIC_CLIENT_CONTRACT.md`. `CODEX-130` no fue iniciado.

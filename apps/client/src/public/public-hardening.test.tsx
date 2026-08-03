@@ -1,6 +1,6 @@
 import type { ApiClient, PublicAlbum, PublicInvitationView } from '@invitaciones/api-client';
 import { ApiError } from '@invitaciones/api-client';
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockApiClient } from '../test/fixtures';
@@ -8,6 +8,12 @@ import { renderApp } from '../test/render-app';
 
 const assetId = '2e07a475-7865-4782-9916-04dba57fb2ef';
 const primaryId = 'fa94fd76-65f6-4216-a73f-913a94c12412';
+let autoIntersect = true;
+let observed: Array<{
+  target: Element;
+  callback: IntersectionObserverCallback;
+  observer: IntersectionObserver;
+}> = [];
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -56,6 +62,38 @@ function publicApi(): ApiClient {
   return api;
 }
 
+type MutationKind = 'confirm' | 'reject' | 'update';
+
+async function startInvalidatingMutation(
+  kind: MutationKind,
+  errorCode: string,
+  authoritative: PublicInvitationView | 'NOT_FOUND'
+): Promise<ApiClient> {
+  const api = publicApi();
+  const initial = invitation('A', 'Proyección anterior', kind === 'update');
+  vi.mocked(api.publicInvitation.resolve).mockResolvedValueOnce(initial);
+  if (authoritative === 'NOT_FOUND')
+    vi.mocked(api.publicInvitation.resolve).mockRejectedValueOnce(new ApiError(404, 'INVITATION_NOT_FOUND', 'hidden'));
+  else vi.mocked(api.publicInvitation.resolve).mockResolvedValueOnce(authoritative);
+  const mutation = api.publicInvitation[kind === 'update' ? 'updateAssistants' : kind];
+  vi.mocked(mutation).mockRejectedValue(new ApiError(409, errorCode, 'hidden'));
+  renderApp(api, '/invitacion/A');
+  const openName = kind === 'update' ? 'Modificar acompañantes' : 'Confirmar asistencia';
+  await userEvent.click((await screen.findAllByRole('button', { name: openName })).at(-1)!);
+  const dialog = screen.getByRole('dialog');
+  if (kind === 'reject') {
+    await userEvent.click(within(dialog).getByRole('button', { name: 'No asistiré' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Sí, rechazar' }));
+  } else {
+    await userEvent.click(
+      within(dialog).getByRole('button', {
+        name: kind === 'update' ? 'Guardar cambios' : 'Confirmar asistencia'
+      })
+    );
+  }
+  return api;
+}
+
 beforeEach(() => {
   let objectUrl = 0;
   Object.defineProperty(URL, 'createObjectURL', {
@@ -76,13 +114,20 @@ beforeEach(() => {
       dispatchEvent: vi.fn()
     }))
   });
-  class VisibleObserver {
+  autoIntersect = true;
+  observed = [];
+  class ControlledObserver {
     constructor(private readonly callback: IntersectionObserverCallback) {}
     observe(target: Element) {
-      this.callback([{ isIntersecting: true, target } as IntersectionObserverEntry], this as never);
+      observed.push({ target, callback: this.callback, observer: this as never });
+      if (autoIntersect) this.callback([{ isIntersecting: true, target } as IntersectionObserverEntry], this as never);
     }
-    disconnect() {}
-    unobserve() {}
+    disconnect() {
+      observed = observed.filter((item) => item.observer !== (this as never));
+    }
+    unobserve(target: Element) {
+      observed = observed.filter((item) => item.target !== target || item.observer !== (this as never));
+    }
     takeRecords() {
       return [];
     }
@@ -90,8 +135,17 @@ beforeEach(() => {
     rootMargin = '0px';
     thresholds = [0];
   }
-  Object.defineProperty(window, 'IntersectionObserver', { configurable: true, value: VisibleObserver });
+  Object.defineProperty(window, 'IntersectionObserver', { configurable: true, value: ControlledObserver });
 });
+
+function intersect(position: number, isIntersecting: boolean) {
+  const target = document.querySelector(`[data-photo-position="${position}"]`);
+  if (!target) throw new Error(`Photo ${position} is not registered.`);
+  const registrations = observed.filter((item) => item.target === target);
+  if (registrations.length === 0) throw new Error(`Photo ${position} is not observed.`);
+  for (const registration of registrations)
+    registration.callback([{ isIntersecting, target } as IntersectionObserverEntry], registration.observer);
+}
 
 describe('token-scoped public reads', () => {
   it('aborts a pending public read when the route unmounts', async () => {
@@ -105,6 +159,76 @@ describe('token-scoped public reads', () => {
     await waitFor(() => expect(signal).toBeDefined());
     app.unmount();
     expect(signal?.aborted).toBe(true);
+  });
+
+  it('removes invitation A and its open QR in the first render of pending token B', async () => {
+    const pendingB = deferred<PublicInvitationView>();
+    const api = publicApi();
+    const viewA = invitation('A', 'Evento secreto A', true);
+    viewA.design!.hotspots = [
+      {
+        id: 'hotspot-a',
+        action: 'EXTERNAL_LINK',
+        destination: 'https://example.com/a',
+        visualOwnerType: 'FLYER',
+        flipbookPageId: null,
+        x: 0,
+        y: 0,
+        width: 0.2,
+        height: 0.2,
+        priority: 1
+      }
+    ];
+    vi.mocked(api.publicInvitation.resolve).mockImplementation((value) =>
+      value === 'A' ? Promise.resolve(viewA) : pendingB.promise
+    );
+    const { router } = renderApp(api, '/invitacion/A');
+    expect(await screen.findByRole('heading', { name: 'Evento secreto A' })).toBeVisible();
+    expect(await screen.findByRole('link', { name: 'Abrir enlace' })).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Ver mi QR' }));
+    expect(await screen.findByRole('dialog')).toBeVisible();
+
+    await act(async () => router.navigate('/invitacion/B'));
+
+    expect(router.state.location.pathname).toBe('/invitacion/B');
+    expect(screen.getByLabelText('Cargando invitación')).toBeVisible();
+    expect(screen.queryByText('Evento secreto A')).not.toBeInTheDocument();
+    expect(screen.queryByText('Principal')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Abrir enlace' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByAltText('Diseño de la invitación')).not.toBeInTheDocument();
+
+    pendingB.resolve(invitation('B', 'Evento B'));
+    expect(await screen.findByRole('heading', { name: 'Evento B' })).toBeVisible();
+    expect(screen.queryByText('Evento secreto A')).not.toBeInTheDocument();
+  });
+
+  it('removes album A metadata, photos and preview in the first render of pending token B', async () => {
+    const pendingB = deferred<PublicAlbum>();
+    const api = publicApi();
+    vi.mocked(api.publicAlbum.resolve).mockImplementation((value) =>
+      value === 'A' ? Promise.resolve(album('A', 'Álbum confidencial A', 1)) : pendingB.promise
+    );
+    const { router } = renderApp(api, '/album/A');
+    expect(await screen.findByRole('heading', { name: 'Álbum confidencial A' })).toBeVisible();
+    expect(screen.getByText('Gracias A')).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Video A' })).toBeVisible();
+    await userEvent.click(await screen.findByRole('button', { name: 'Abrir foto 1' }));
+    expect(screen.getByRole('dialog')).toBeVisible();
+
+    await act(async () => router.navigate('/album/B'));
+
+    expect(router.state.location.pathname).toBe('/album/B');
+    expect(screen.getByLabelText('Cargando álbum')).toBeVisible();
+    expect(screen.queryByText('Álbum confidencial A')).not.toBeInTheDocument();
+    expect(screen.queryByText('Gracias A')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Video A' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Abrir foto 1' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    pendingB.resolve(album('B', 'Álbum B', 1));
+    expect(await screen.findByRole('heading', { name: 'Álbum B' })).toBeVisible();
+    expect(screen.queryByText('Álbum confidencial A')).not.toBeInTheDocument();
   });
   it('discards an invitation retry from token A after token B wins and aborts A', async () => {
     const retryA = deferred<PublicInvitationView>();
@@ -224,6 +348,84 @@ describe('token-scoped RSVP mutations', () => {
     mutation.reject(new ApiError(500, 'INTERNAL_ERROR', 'hidden'));
     await waitFor(() => expect(api.publicInvitation.resolve).toHaveBeenCalledTimes(2));
   });
+
+  it.each(
+    (['confirm', 'reject', 'update'] as const).flatMap((kind) =>
+      (['RSVP_CLOSED', 'RSVP_NOT_AVAILABLE'] as const).map((code) => [kind, code] as const)
+    )
+  )(
+    'reconciles an unavailable confirmation after %s (%s) and keeps only the authoritative projection',
+    async (kind, code) => {
+      const closed = invitation('A', 'Diseño permitido', kind === 'update');
+      closed.confirmation = { open: false };
+      const api = await startInvalidatingMutation(kind, code, closed);
+      expect(
+        await screen.findByText('La confirmación de asistencia ya fue cerrada. Contacta al organizador.')
+      ).toBeVisible();
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(
+        screen.queryByRole('button', { name: /Confirmar asistencia|Modificar acompañantes/ })
+      ).not.toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Diseño permitido' })).toBeVisible();
+      expect(api.publicInvitation.resolve).toHaveBeenCalledTimes(2);
+    }
+  );
+
+  it.each(['confirm', 'reject', 'update'] as const)(
+    'reconciles event cancellation after %s and removes every previous control',
+    async (kind) => {
+      await startInvalidatingMutation(kind, 'RSVP_EVENT_CANCELLED', {
+        status: 'CANCELLED',
+        message: 'Este evento ha sido cancelado por el organizador.'
+      });
+      expect(
+        await screen.findByRole('heading', { name: 'Este evento ha sido cancelado por el organizador.' })
+      ).toBeVisible();
+      expect(screen.queryByText('Proyección anterior')).not.toBeInTheDocument();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Ver mi QR' })).not.toBeInTheDocument();
+      expect(screen.queryByAltText('Diseño de la invitación')).not.toBeInTheDocument();
+    }
+  );
+
+  it.each(['confirm', 'reject', 'update'] as const)(
+    'reconciles invitation cancellation after %s with its specific authorized message',
+    async (kind) => {
+      await startInvalidatingMutation(kind, 'RSVP_INVITATION_CANCELLED', {
+        status: 'CANCELLED',
+        message: 'Esta invitación fue cancelada por el organizador.'
+      });
+      expect(
+        await screen.findByRole('heading', { name: 'Esta invitación fue cancelada por el organizador.' })
+      ).toBeVisible();
+      expect(screen.queryByText('Proyección anterior')).not.toBeInTheDocument();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    }
+  );
+
+  it.each(['confirm', 'reject', 'update'] as const)(
+    'reconciles an event closure after %s and retains only the allowed album projection',
+    async (kind) => {
+      await startInvalidatingMutation(kind, 'RSVP_EVENT_STATE_INVALID', {
+        status: 'CLOSED',
+        album: { state: 'AVAILABLE', contentPath: '/api/v1/public/albums/album-A' }
+      });
+      expect(await screen.findByRole('heading', { name: 'Este evento ha finalizado.' })).toBeVisible();
+      expect(screen.getByRole('link', { name: 'Ver álbum del evento' })).toHaveAttribute('href', '/album/album-A');
+      expect(screen.queryByText('Proyección anterior')).not.toBeInTheDocument();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    }
+  );
+
+  it.each(['confirm', 'reject', 'update'] as const)(
+    'reconciles a removed invitation after %s as a neutral unavailable resource',
+    async (kind) => {
+      await startInvalidatingMutation(kind, 'INVITATION_NOT_FOUND', 'NOT_FOUND');
+      expect(await screen.findByRole('heading', { name: 'Esta invitación no está disponible.' })).toBeVisible();
+      expect(screen.queryByText('Proyección anterior')).not.toBeInTheDocument();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    }
+  );
 });
 
 describe('local public media recovery', () => {
@@ -286,16 +488,62 @@ describe('local public media recovery', () => {
     expect(api.publicAlbum.resolve).toHaveBeenCalledTimes(1);
   });
 
-  it('bounds 35 gallery photos to eight active Object URLs and revokes all on unmount', async () => {
+  it('loads only the controlled visible window, evicts without false errors and reloads on scroll back', async () => {
+    autoIntersect = false;
     const api = publicApi();
     vi.mocked(api.publicAlbum.resolve).mockResolvedValue(album('A', 'Álbum grande', 35));
     const app = renderApp(api, '/album/A');
     await screen.findByRole('heading', { name: 'Álbum grande' });
-    await waitFor(() => expect(api.publicAlbum.photo).toHaveBeenCalledTimes(35));
-    await waitFor(() => expect(vi.mocked(URL.createObjectURL).mock.calls.length).toBe(35));
+    expect(document.querySelectorAll('[data-photo-position]')).toHaveLength(35);
+    expect(api.publicAlbum.photo).not.toHaveBeenCalled();
+
+    act(() => {
+      for (let position = 1; position <= 9; position += 1) intersect(position, true);
+    });
+    await waitFor(() => expect(api.publicAlbum.photo).toHaveBeenCalledTimes(9));
+    await waitFor(() => expect(vi.mocked(URL.createObjectURL).mock.calls.length).toBe(9));
+    expect(vi.mocked(URL.createObjectURL).mock.calls.length - vi.mocked(URL.revokeObjectURL).mock.calls.length).toBe(8);
+    expect(screen.queryByText('No pudimos cargar este contenido.')).not.toBeInTheDocument();
+
+    act(() => intersect(1, false));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Abrir foto 1' })).not.toBeInTheDocument());
+    act(() => intersect(1, true));
+    await waitFor(() => expect(api.publicAlbum.photo).toHaveBeenCalledTimes(10));
+    expect(screen.queryByText('No pudimos cargar este contenido.')).not.toBeInTheDocument();
+
+    act(() => {
+      for (let position = 1; position <= 9; position += 1) intersect(position, false);
+      for (let position = 10; position <= 18; position += 1) intersect(position, true);
+    });
+    await waitFor(() => expect(api.publicAlbum.photo).toHaveBeenCalledTimes(19));
     expect(vi.mocked(URL.createObjectURL).mock.calls.length - vi.mocked(URL.revokeObjectURL).mock.calls.length).toBe(8);
     app.unmount();
-    expect(vi.mocked(URL.revokeObjectURL).mock.calls.length).toBe(35);
+    expect(vi.mocked(URL.createObjectURL).mock.calls.length).toBe(vi.mocked(URL.revokeObjectURL).mock.calls.length);
+  });
+
+  it('reuses and pins the selected photo URL while the preview is open', async () => {
+    autoIntersect = false;
+    const api = publicApi();
+    vi.mocked(api.publicAlbum.resolve).mockResolvedValue(album('A', 'Álbum con preview', 12));
+    renderApp(api, '/album/A');
+    await screen.findByRole('heading', { name: 'Álbum con preview' });
+    act(() => {
+      for (let position = 1; position <= 8; position += 1) intersect(position, true);
+    });
+    const first = await screen.findByRole('button', { name: 'Abrir foto 1' });
+    const selectedUrl = within(first).getByRole('img').getAttribute('src');
+    const callsBeforePreview = vi.mocked(api.publicAlbum.photo).mock.calls.length;
+    await userEvent.click(first);
+    expect(within(screen.getByRole('dialog')).getByRole('img')).toHaveAttribute('src', selectedUrl);
+    expect(api.publicAlbum.photo).toHaveBeenCalledTimes(callsBeforePreview);
+
+    act(() => {
+      intersect(1, false);
+      for (let position = 9; position <= 12; position += 1) intersect(position, true);
+    });
+    await waitFor(() => expect(api.publicAlbum.photo).toHaveBeenCalledTimes(callsBeforePreview + 4));
+    expect(URL.revokeObjectURL).not.toHaveBeenCalledWith(selectedUrl);
+    expect(within(screen.getByRole('dialog')).getByRole('img')).toHaveAttribute('src', selectedUrl);
   });
 
   it('removes Flipbook transitions when reduced motion is requested', async () => {
@@ -330,6 +578,8 @@ function album(token: string, title: string, photoCount: number): PublicAlbum {
     event: { name: `Evento ${token}` },
     album: {
       title,
+      thankYouMessage: `Gracias ${token}`,
+      externalButton: { label: `Video ${token}`, url: 'https://example.com/video' },
       publishedAt: '2026-08-01T00:00:00.000Z',
       expiresAt: '2026-09-01T00:00:00.000Z',
       theme: { backgroundColor: '#111111', textColor: '#ffffff', accentColor: '#cbaE71' },

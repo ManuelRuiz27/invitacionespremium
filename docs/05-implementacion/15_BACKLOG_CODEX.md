@@ -1015,6 +1015,9 @@ iniciado.
 - recuperación local de QR/assets y errores de formulario limpiados por intención;
 - pool LRU de ocho fotos con reutilización en preview y revocación total;
 - validadores de respuestas públicas y reduced motion efectivo probado.
+- estado y árbol visual ligados al token, con loading neutro inmediato y cero render cruzado;
+- pool `idle/loading/ready/error/evicted`, ocho URLs, cuatro cargas y prioridad preview/visible/cercana;
+- reconciliación autoritativa de cierre, cancelación y `404` desde las tres mutaciones RSVP.
 
 Contrato normativo: `docs/04-tecnico/PUBLIC_CLIENT_CONTRACT.md`. CODEX-130 no fue iniciado.
 

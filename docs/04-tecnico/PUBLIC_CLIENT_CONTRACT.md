@@ -46,6 +46,12 @@ el token y la generación siguen vigentes, el request no fue abortado y su contr
 último registrado. Cambiar de token o desmontar aborta lectura, retry, mutación y reconciliación; además
 cierra diálogos y limpia errores/notices anteriores.
 
+Cada variante `loading/error/ready` conserva también el token propietario y la regla de render exige que
+coincida con el parámetro actual. Un boundary con `key={token}` remonta el árbol completo de Invitación o
+Álbum en el mismo commit de navegación. Por ello, antes del siguiente efecto ya existe loading neutro y
+no pueden aparecer nombre, datos nominales, diseño, Hotspots, QR, notices, errores, selección, preview o
+assets pertenecientes al token anterior.
+
 Los reintentos siguen `latest-wins`: iniciar uno aborta el anterior y sólo la generación más reciente
 puede presentar resultado. `confirm`, `reject` y `updateAssistants` reciben un `AbortSignal` específico y
 una referencia síncrona bloquea dos envíos de la misma intención antes de que React pinte `busy`. Un
@@ -101,6 +107,14 @@ intención queda disponible para reintento, sin duplicación ni persistencia. Mu
 conservan el token/generación originales; si cambia la ruta, ambos resultados se descartan. Editar el
 formulario, cerrarlo o cambiar de token limpia el error anterior.
 
+`RSVP_ASSISTANT_LIMIT_EXCEEDED`, `RSVP_EVENT_CAPACITY_EXCEEDED`, `RSVP_ASSISTANT_NOT_FOUND` y
+`RSVP_ASSISTANT_MISMATCH` son recuperables y permanecen en el formulario. `INVITATION_NOT_FOUND`,
+`RSVP_NOT_AVAILABLE`, `RSVP_CLOSED`, `RSVP_INVITATION_CANCELLED`, `RSVP_EVENT_CANCELLED` y
+`RSVP_EVENT_STATE_INVALID` invalidan la proyección: `confirm`, `reject` y `updateAssistants` ejecutan una
+resolución autoritativa con el token, generación y `AbortSignal` originales. El resultado cierra RSVP y,
+según corresponda, muestra AVAILABLE sin Confirmación abierta, solo CANCELLED, CLOSED con su Álbum
+permitido o el estado no disponible ante `404`. No existe loop automático.
+
 ## QR
 
 El botón “Ver mi QR” y el Hotspot operativo existen únicamente con `qr.available === true`. El SVG se
@@ -119,9 +133,13 @@ URLs externas, query, fragment, traversal y paths arbitrarios se rechazan. `REST
 La ruta de Álbum resuelve exclusivamente su token. Aplica colores `#RRGGBB` validados, nombre público,
 título, agradecimiento, hasta 35 fotos autorizadas y botón HTTPS opcional. Las fotos se activan por
 intersección, preservan proporción y se abren en diálogo con flechas, swipe, Escape, foco y posición. Cada
-preview reutiliza el Object URL del grid cuando sigue disponible. Un pool LRU mantiene como máximo ocho
-Object URLs de fotos: al exceder el límite revoca las más antiguas, conserva la seleccionada cuando está
-en el pool y revoca todas al abandonar el Álbum. No existe cache persistente. Token inválido, vencimiento,
+preview reutiliza el Object URL del grid cuando sigue disponible. El pool distingue expresamente
+`idle`, `loading`, `ready`, `error` y `evicted`; una expulsión revoca su URL y vuelve a placeholder, nunca
+a error. Mantiene como máximo ocho Object URLs y cuatro loaders en vuelo. La cola prioriza la foto
+seleccionada, después las visibles y finalmente las cercanas mediante dos observadores; entre iguales
+aplica LRU. La seleccionada queda fijada mientras el diálogo está abierto. Salir del viewport permite
+liberar URLs y volver recarga un `evicted` sin ciclo automático. Abandonar el Álbum aborta cargas, vacía
+cola, elimina listeners y revoca todo. No existe cache persistente. Token inválido, vencimiento,
 despublicación, archivo o recurso ajeno comparten “Este álbum no está disponible.”
 
 ## Errores y accesibilidad
@@ -139,7 +157,10 @@ Las pruebas cubren requester sin cookies, codificación, abortos, JSON/Blob/erro
 cancelación, Flyer/Flipbook, Hotspots HTTPS, Confirmación individual/familiar, edición y rechazo, QR bajo
 demanda, revocación, `contentPath`, estados de Álbum, tema, galería, teclado y preview. Promesas diferidas
 demuestran carreras entre tokens, retries latest-wins, abort de las tres mutaciones, reconciliación
-obsoleta, retry de QR/assets, doble clic, reduced motion y límite/revocación del pool con 35 fotos.
+obsoleta, retry de QR/assets, doble clic y reduced motion. Un `IntersectionObserver` controlable prueba
+35 fotos con ventana parcial, límites de ocho URLs/cuatro cargas, scroll en ambos sentidos, pinning,
+preview compartida, `evicted` neutro, error real/retry y limpieza total. La matriz RSVP prueba
+confirmación cerrada, cancelaciones, cierre y `404` desde las tres mutaciones.
 
 No se implementan gestión autenticada del Álbum, Scanner, check-in, StaffTokens, Admin, Landing,
 Socket.IO frontend, PWA, analytics ni `CODEX-130`.

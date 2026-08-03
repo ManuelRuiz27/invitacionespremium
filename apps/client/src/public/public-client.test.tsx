@@ -195,6 +195,7 @@ describe('public invitation', () => {
   it.each([
     ['RSVP_ASSISTANT_LIMIT_EXCEEDED', 'Alcanzaste el máximo de acompañantes permitidos.'],
     ['RSVP_EVENT_CAPACITY_EXCEEDED', 'Ya no hay lugares suficientes disponibles para completar esta confirmación.'],
+    ['RSVP_ASSISTANT_NOT_FOUND', 'No pudimos actualizar a uno de los acompañantes.'],
     ['RSVP_ASSISTANT_MISMATCH', 'No pudimos verificar a uno de los acompañantes.']
   ])('maps %s without leaking the API payload', async (code, message) => {
     const api = publicApi();

@@ -18,25 +18,43 @@ export function AlbumPhoto({
   onOpen: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const [nearby, setNearby] = useState(false);
   const [visible, setVisible] = useState(false);
   useEffect(() => {
     if (!('IntersectionObserver' in window)) {
+      setNearby(true);
       setVisible(true);
       return;
     }
-    const observer = new IntersectionObserver(
+    const nearObserver = new IntersectionObserver(
       (entries) => {
-        setVisible(entries.some((entry) => entry.isIntersecting));
+        setNearby(entries.some((entry) => entry.isIntersecting));
       },
       { rootMargin: '240px' }
     );
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
+    const visibleObserver = new IntersectionObserver((entries) => {
+      setVisible(entries.some((entry) => entry.isIntersecting));
+    });
+    if (ref.current) {
+      nearObserver.observe(ref.current);
+      visibleObserver.observe(ref.current);
+    }
+    return () => {
+      nearObserver.disconnect();
+      visibleObserver.disconnect();
+    };
   }, []);
   return (
-    <Box ref={ref} sx={{ minHeight: 220 }}>
-      {visible ? (
-        <LoadedPhoto apiClient={apiClient} token={token} photo={photo} pool={pool} onOpen={onOpen} />
+    <Box ref={ref} data-photo-position={photo.position} sx={{ minHeight: 220 }}>
+      {nearby ? (
+        <LoadedPhoto
+          apiClient={apiClient}
+          token={token}
+          photo={photo}
+          pool={pool}
+          priority={visible ? 2 : 1}
+          onOpen={onOpen}
+        />
       ) : (
         <Skeleton variant="rounded" height={260} />
       )}
@@ -50,7 +68,8 @@ export function LoadedPhoto({
   photo,
   pool,
   onOpen,
-  preview = false
+  preview = false,
+  priority = preview ? 3 : 1
 }: {
   apiClient: ApiClient;
   token: string;
@@ -58,6 +77,7 @@ export function LoadedPhoto({
   pool: PublicPhotoPool;
   onOpen?: () => void;
   preview?: boolean;
+  priority?: number;
 }) {
   const photoId = albumPhotoIdFromPath(photo.contentPath, token);
   const load = useCallback(
@@ -65,9 +85,10 @@ export function LoadedPhoto({
       photoId ? apiClient.publicAlbum.photo(token, photoId, signal) : Promise.reject(new Error('invalid path')),
     [apiClient, photoId, token]
   );
-  const state = usePhotoPoolState(pool, `${token}:${photo.id}`, load);
-  if (state.loading) return <Skeleton variant="rounded" height={preview ? 520 : 260} />;
-  if (state.error || !state.url)
+  const state = usePhotoPoolState(pool, `${token}:${photo.id}`, load, priority);
+  if (state.status === 'idle' || state.status === 'loading' || state.status === 'evicted')
+    return <Skeleton variant="rounded" height={preview ? 520 : 260} />;
+  if (state.status === 'error')
     return (
       <Box sx={{ p: 3 }}>
         <Typography>No pudimos cargar este contenido.</Typography>
@@ -106,13 +127,14 @@ export function LoadedPhoto({
 function usePhotoPoolState(
   pool: PublicPhotoPool,
   key: string,
-  load: (signal: AbortSignal) => Promise<Blob>
+  load: (signal: AbortSignal) => Promise<Blob>,
+  priority: number
 ): PhotoPoolState & { retry: () => void } {
-  const [state, setState] = useState<PhotoPoolState>({ url: null, loading: true, error: false });
+  const [state, setState] = useState<PhotoPoolState>({ status: 'idle', url: null });
   useEffect(() => {
-    const unsubscribe = pool.subscribe(key, setState);
+    const unsubscribe = pool.subscribe(key, setState, priority);
     pool.load(key, load);
     return unsubscribe;
-  }, [key, load, pool]);
+  }, [key, load, pool, priority]);
   return { ...state, retry: () => pool.load(key, load, true) };
 }

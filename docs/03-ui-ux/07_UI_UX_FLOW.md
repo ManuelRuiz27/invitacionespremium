@@ -383,6 +383,8 @@ Equilibrio:
 - carga rápida y responsive.
 - reintentos locales sin perder el contexto visual;
 - respuestas tardías de otro token nunca sustituyen la vista vigente;
+- al cambiar el token, el primer render es loading neutro y no conserva diseño, nombres, Hotspots, QR,
+  notices, errores o diálogos del recurso anterior;
 - `prefers-reduced-motion` elimina transiciones sin quitar teclado o swipe.
 
 ### Comportamiento por estado
@@ -438,6 +440,9 @@ Reglas de UX:
 - mostrar fecha de disponibilidad cuando sea útil;
 - responsive y optimización de imágenes.
 - carga progresiva con pool LRU de hasta ocho Object URLs;
+- máximo de cuatro descargas simultáneas, priorizando preview seleccionada, fotos visibles y cercanas;
+- `evicted` vuelve a placeholder neutro y puede recargarse al regresar al viewport; solo un fallo real
+  muestra el error de contenido;
 - reintento individual de foto y revocación total al abandonar la ruta.
 
 ## Reportes PDF

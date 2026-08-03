@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ApiClient, PublicInvitationView, PublicRsvpAssistantInput } from '@invitaciones/api-client';
+import {
+  ApiError,
+  type ApiClient,
+  type PublicInvitationView,
+  type PublicRsvpAssistantInput
+} from '@invitaciones/api-client';
 import { Alert, Box, Button, Chip, Skeleton, Stack, Typography } from '@mui/material';
 import { Link, useParams } from 'react-router-dom';
 import { PublicLayout } from '../PublicLayout';
@@ -12,15 +17,19 @@ import { PublicQrDialog } from './PublicQrDialog';
 import { RsvpDialog } from './RsvpDialog';
 
 type LoadState =
-  | { kind: 'loading' }
-  | { kind: 'error'; message: string; operationId?: string }
-  | { kind: 'ready'; view: PublicInvitationView };
+  | { kind: 'loading'; token: string }
+  | { kind: 'error'; token: string; message: string; operationId?: string }
+  | { kind: 'ready'; token: string; view: PublicInvitationView };
 
 export function PublicInvitationPage({ apiClient }: { apiClient: ApiClient }) {
   const { invitationToken = '' } = useParams();
-  const [state, setState] = useState<LoadState>({ kind: 'loading' });
-  const [rsvpOpen, setRsvpOpen] = useState(false);
-  const [qrOpen, setQrOpen] = useState(false);
+  return <PublicInvitationTokenPage key={invitationToken} apiClient={apiClient} invitationToken={invitationToken} />;
+}
+
+function PublicInvitationTokenPage({ apiClient, invitationToken }: { apiClient: ApiClient; invitationToken: string }) {
+  const [state, setState] = useState<LoadState>({ kind: 'loading', token: invitationToken });
+  const [rsvpOpen, setRsvpOpen] = useState<string | null>(null);
+  const [qrOpen, setQrOpen] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ message: string; severity: 'success' | 'info' } | null>(null);
   const [rsvpError, setRsvpError] = useState<string>();
@@ -30,17 +39,17 @@ export function PublicInvitationPage({ apiClient }: { apiClient: ApiClient }) {
   const reload = useCallback(
     (showLoading = true) => {
       const operation = scope.begin('resolve');
-      if (showLoading) setState({ kind: 'loading' });
+      if (showLoading) setState({ kind: 'loading', token: invitationToken });
       void apiClient.publicInvitation
         .resolve(invitationToken, operation.signal)
         .then(
           (view) => {
-            if (operation.isCurrent()) setState({ kind: 'ready', view });
+            if (operation.isCurrent()) setState({ kind: 'ready', token: invitationToken, view });
           },
           (error: unknown) => {
             if (!operation.isCurrent() || isAbortError(error)) return;
             const display = publicErrorMessage(error, 'Esta invitación no está disponible.');
-            setState({ kind: 'error', ...display });
+            setState({ kind: 'error', token: invitationToken, ...display });
           }
         )
         .finally(operation.finish);
@@ -49,8 +58,8 @@ export function PublicInvitationPage({ apiClient }: { apiClient: ApiClient }) {
   );
 
   useEffect(() => {
-    setRsvpOpen(false);
-    setQrOpen(false);
+    setRsvpOpen(null);
+    setQrOpen(null);
     setNotice(null);
     setRsvpError(undefined);
     setBusy(false);
@@ -79,21 +88,43 @@ export function PublicInvitationPage({ apiClient }: { apiClient: ApiClient }) {
       if (!operation.isCurrent()) return;
       const view = await apiClient.publicInvitation.resolve(invitationToken, operation.signal);
       if (!operation.isCurrent()) return;
-      setState({ kind: 'ready', view });
-      setRsvpOpen(false);
+      setState({ kind: 'ready', token: invitationToken, view });
+      setRsvpOpen(null);
       setNotice({
         severity: 'success',
         message: intent === 'CONFIRMED' ? 'Tu confirmación quedó guardada.' : 'Registramos que no asistirás.'
       });
     } catch (error) {
       if (!operation.isCurrent() || isAbortError(error)) return;
-      if (isUncertainNetworkResult(error)) {
+      if (invalidatesProjection(error)) {
         try {
           const view = await apiClient.publicInvitation.resolve(invitationToken, operation.signal);
           if (!operation.isCurrent()) return;
-          setState({ kind: 'ready', view });
+          setState({ kind: 'ready', token: invitationToken, view });
+          setRsvpOpen(null);
+          if (view.status !== 'AVAILABLE') setQrOpen(null);
+          return;
+        } catch (reloadError) {
+          if (!operation.isCurrent() || isAbortError(reloadError)) return;
+          if (reloadError instanceof ApiError && reloadError.status === 404) {
+            setState({
+              kind: 'error',
+              token: invitationToken,
+              message: 'Esta invitación no está disponible.',
+              ...(reloadError.operationId ? { operationId: reloadError.operationId } : {})
+            });
+            setRsvpOpen(null);
+            setQrOpen(null);
+            return;
+          }
+        }
+      } else if (isUncertainNetworkResult(error)) {
+        try {
+          const view = await apiClient.publicInvitation.resolve(invitationToken, operation.signal);
+          if (!operation.isCurrent()) return;
+          setState({ kind: 'ready', token: invitationToken, view });
           if (nominalIntentMatches(view, intent, assistants)) {
-            setRsvpOpen(false);
+            setRsvpOpen(null);
             setNotice({
               severity: 'success',
               message: intent === 'CONFIRMED' ? 'Tu confirmación quedó guardada.' : 'Registramos que no asistirás.'
@@ -117,7 +148,7 @@ export function PublicInvitationPage({ apiClient }: { apiClient: ApiClient }) {
     }
   };
 
-  if (state.kind === 'loading') return <InvitationLoading />;
+  if (state.token !== invitationToken || state.kind === 'loading') return <InvitationLoading />;
   if (state.kind === 'error') {
     return (
       <PublicLayout>
@@ -180,14 +211,14 @@ export function PublicInvitationPage({ apiClient }: { apiClient: ApiClient }) {
           token={invitationToken}
           view={view}
           onRsvp={() => {
-            if (view.confirmation?.open) setRsvpOpen(true);
+            if (view.confirmation?.open) setRsvpOpen(invitationToken);
             else
               setNotice({
                 severity: 'info',
                 message: 'La confirmación de asistencia ya fue cerrada. Contacta al organizador.'
               });
           }}
-          onQr={() => setQrOpen(true)}
+          onQr={() => setQrOpen(invitationToken)}
           onUnavailableQr={() =>
             setNotice({
               severity: 'info',
@@ -210,12 +241,12 @@ export function PublicInvitationPage({ apiClient }: { apiClient: ApiClient }) {
             <Alert severity="info">La confirmación de asistencia ya fue cerrada. Contacta al organizador.</Alert>
           ) : null}
           {view.confirmation?.open ? (
-            <Button variant="contained" onClick={() => setRsvpOpen(true)} sx={{ width: 'fit-content' }}>
+            <Button variant="contained" onClick={() => setRsvpOpen(invitationToken)} sx={{ width: 'fit-content' }}>
               {response === 'CONFIRMED' ? 'Modificar acompañantes' : 'Confirmar asistencia'}
             </Button>
           ) : null}
           {view.qr?.available ? (
-            <Button variant="outlined" onClick={() => setQrOpen(true)} sx={{ width: 'fit-content' }}>
+            <Button variant="outlined" onClick={() => setQrOpen(invitationToken)} sx={{ width: 'fit-content' }}>
               Ver mi QR
             </Button>
           ) : null}
@@ -228,23 +259,36 @@ export function PublicInvitationPage({ apiClient }: { apiClient: ApiClient }) {
         </Stack>
       </Stack>
       <RsvpDialog
-        open={rsvpOpen}
+        open={rsvpOpen === invitationToken}
         view={view}
         busy={busy}
         {...(rsvpError ? { error: rsvpError } : {})}
         onClose={() => {
-          setRsvpOpen(false);
+          setRsvpOpen(null);
           setRsvpError(undefined);
         }}
         onFormChange={() => setRsvpError(undefined)}
         onConfirm={(value) => void mutate('CONFIRMED', value)}
         onReject={() => void mutate('REJECTED')}
       />
-      {qrOpen && view.qr?.available ? (
-        <PublicQrDialog apiClient={apiClient} token={invitationToken} onClose={() => setQrOpen(false)} />
+      {qrOpen === invitationToken && view.qr?.available ? (
+        <PublicQrDialog apiClient={apiClient} token={invitationToken} onClose={() => setQrOpen(null)} />
       ) : null}
     </PublicLayout>
   );
+}
+
+const projectionInvalidatingCodes = new Set([
+  'INVITATION_NOT_FOUND',
+  'RSVP_NOT_AVAILABLE',
+  'RSVP_CLOSED',
+  'RSVP_INVITATION_CANCELLED',
+  'RSVP_EVENT_CANCELLED',
+  'RSVP_EVENT_STATE_INVALID'
+]);
+
+function invalidatesProjection(error: unknown): boolean {
+  return error instanceof ApiError && projectionInvalidatingCodes.has(error.code);
 }
 
 function ClosedInvitation({ view }: { view: PublicInvitationView }) {
