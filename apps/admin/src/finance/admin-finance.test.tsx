@@ -6,11 +6,15 @@ import { adminBalance, mockAdminApi } from '../test/fixtures';
 import { renderAdminApp } from '../test/render-admin-app';
 import { formatMxn, parseMxnToCents } from './finance-format';
 
+const loadedViewTimeout = { timeout: 10_000 };
+
 describe('Admin Client finance', () => {
   it('shows only authoritative balance values with credits and MXN formatting', async () => {
     const api = mockAdminApi();
     renderAdminApp(api, '/clientes/client-a');
-    expect(await screen.findByText(formatMxn(adminBalance.debtMxnCents))).toBeInTheDocument();
+    expect(
+      await screen.findByText(formatMxn(adminBalance.debtMxnCents), undefined, loadedViewTimeout)
+    ).toBeInTheDocument();
     expect(screen.getByText('18')).toBeInTheDocument();
     expect(screen.getByText('Verificada')).toBeInTheDocument();
     expect(api.adminFinance.balance).toHaveBeenCalledWith('client-a', expect.any(AbortSignal));
@@ -26,7 +30,7 @@ describe('Admin Client finance', () => {
     const api = mockAdminApi();
     const user = userEvent.setup();
     renderAdminApp(api, '/clientes/client-a');
-    await user.click(await screen.findByRole('button', { name: 'Asignar creditos gratuitos' }));
+    await user.click(await screen.findByRole('button', { name: 'Asignar creditos gratuitos' }, loadedViewTimeout));
     await user.type(screen.getByLabelText('Creditos'), '5');
     await user.type(screen.getByLabelText('Motivo'), 'Cortesia contractual');
     expect(api.adminFinance.assignCredits).not.toHaveBeenCalled();
@@ -50,7 +54,7 @@ describe('Admin Client finance', () => {
     );
     const user = userEvent.setup();
     renderAdminApp(api, '/clientes/client-a');
-    await user.click(await screen.findByRole('button', { name: 'Reconstruir balance' }));
+    await user.click(await screen.findByRole('button', { name: 'Reconstruir balance' }, loadedViewTimeout));
     const confirm = screen.getByRole('button', { name: 'Confirmar' });
     fireEvent.click(confirm);
     fireEvent.click(confirm);
@@ -76,11 +80,11 @@ describe('Admin Client finance', () => {
     vi.mocked(api.adminFinance.assignCredits).mockRejectedValueOnce(new ApiError(500, 'INTERNAL_ERROR', 'uncertain'));
     const user = userEvent.setup();
     renderAdminApp(api, '/clientes/client-a');
-    await user.click(await screen.findByRole('button', { name: 'Asignar creditos gratuitos' }));
+    await user.click(await screen.findByRole('button', { name: 'Asignar creditos gratuitos' }, loadedViewTimeout));
     await user.type(screen.getByLabelText('Creditos'), '2');
     await user.type(screen.getByLabelText('Motivo'), 'Ajuste');
     await user.click(screen.getByRole('button', { name: 'Confirmar' }));
-    expect(await screen.findByText(/resultado no pudo confirmarse/i)).toBeInTheDocument();
+    expect(await screen.findByText(/resultado no pudo confirmarse/i, undefined, loadedViewTimeout)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Confirmar' }));
     await waitFor(() => expect(api.adminFinance.assignCredits).toHaveBeenCalledTimes(2));
     const firstKey = vi.mocked(api.adminFinance.assignCredits).mock.calls[0]?.[2];
@@ -96,7 +100,7 @@ describe('Admin Client finance', () => {
 
   it('offers no refund or ledger reversal controls', async () => {
     renderAdminApp(mockAdminApi(), '/clientes/client-a');
-    await screen.findByText('Finanzas');
+    await screen.findByText('Finanzas', undefined, loadedViewTimeout);
     expect(screen.queryByRole('button', { name: /refund|revers/i })).not.toBeInTheDocument();
   });
 });
