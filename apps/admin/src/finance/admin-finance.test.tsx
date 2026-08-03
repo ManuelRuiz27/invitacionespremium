@@ -10,7 +10,8 @@ describe('Admin Client finance', () => {
   it('shows only authoritative balance values with credits and MXN formatting', async () => {
     const api = mockAdminApi();
     renderAdminApp(api, '/clientes/client-a');
-    expect(await screen.findByText(formatMxn(adminBalance.debtMxnCents))).toBeInTheDocument();
+    await waitForFinancePanel();
+    expect(screen.getByText(formatMxn(adminBalance.debtMxnCents))).toBeInTheDocument();
     expect(screen.getByText('18')).toBeInTheDocument();
     expect(screen.getByText('Verificada')).toBeInTheDocument();
     expect(api.adminFinance.balance).toHaveBeenCalledWith('client-a', expect.any(AbortSignal));
@@ -19,7 +20,8 @@ describe('Admin Client finance', () => {
   it('expires the session and hides loaded finance when balance refetch returns 401', async () => {
     const api = mockAdminApi();
     const view = renderAdminApp(api, '/clientes/client-a');
-    expect(await screen.findByText(formatMxn(adminBalance.debtMxnCents))).toBeInTheDocument();
+    await waitForFinancePanel();
+    expect(screen.getByText(formatMxn(adminBalance.debtMxnCents))).toBeInTheDocument();
     vi.mocked(api.adminFinance.balance).mockImplementationOnce(() => {
       view.unauthorizedController.notify();
       return Promise.reject(new ApiError(401, 'UNAUTHORIZED', 'expired'));
@@ -42,8 +44,7 @@ describe('Admin Client finance', () => {
     const api = mockAdminApi();
     const user = userEvent.setup();
     renderAdminApp(api, '/clientes/client-a');
-    expect(await screen.findByText(formatMxn(adminBalance.debtMxnCents))).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Asignar creditos gratuitos' }));
+    await user.click(await waitForFinancePanel());
     await user.type(screen.getByLabelText('Creditos'), '5');
     await user.type(screen.getByLabelText('Motivo'), 'Cortesia contractual');
     expect(api.adminFinance.assignCredits).not.toHaveBeenCalled();
@@ -70,7 +71,8 @@ describe('Admin Client finance', () => {
     );
     const user = userEvent.setup();
     renderAdminApp(api, '/clientes/client-a');
-    await user.click(await screen.findByRole('button', { name: 'Reconstruir balance' }));
+    await waitForFinancePanel();
+    await user.click(screen.getByRole('button', { name: 'Reconstruir balance' }));
     const confirm = screen.getByRole('button', { name: 'Confirmar' });
     fireEvent.click(confirm);
     fireEvent.click(confirm);
@@ -96,7 +98,7 @@ describe('Admin Client finance', () => {
     vi.mocked(api.adminFinance.assignCredits).mockRejectedValueOnce(new ApiError(500, 'INTERNAL_ERROR', 'uncertain'));
     const user = userEvent.setup();
     renderAdminApp(api, '/clientes/client-a');
-    await user.click(await screen.findByRole('button', { name: 'Asignar creditos gratuitos' }));
+    await user.click(await waitForFinancePanel());
     await user.type(screen.getByLabelText('Creditos'), '2');
     await user.type(screen.getByLabelText('Motivo'), 'Ajuste');
     await user.click(screen.getByRole('button', { name: 'Confirmar' }));
@@ -116,7 +118,7 @@ describe('Admin Client finance', () => {
 
   it('offers no refund or ledger reversal controls', async () => {
     renderAdminApp(mockAdminApi(), '/clientes/client-a');
-    await screen.findByText('Finanzas');
+    await waitForFinancePanel();
     expect(screen.queryByRole('button', { name: /refund|revers/i })).not.toBeInTheDocument();
   });
 
@@ -125,7 +127,8 @@ describe('Admin Client finance', () => {
     vi.mocked(lineApi.adminFinance.configureCreditLine).mockReturnValue(new Promise(() => undefined));
     const lineUser = userEvent.setup();
     const lineView = renderAdminApp(lineApi, '/clientes/client-a');
-    await lineUser.click(await screen.findByRole('button', { name: 'Configurar linea' }));
+    await waitForFinancePanel();
+    await lineUser.click(screen.getByRole('button', { name: 'Configurar linea' }));
     const lineConfirm = screen.getByRole('button', { name: 'Confirmar' });
     fireEvent.click(lineConfirm);
     fireEvent.click(lineConfirm);
@@ -137,7 +140,8 @@ describe('Admin Client finance', () => {
     vi.mocked(paymentApi.adminFinance.manualPayment).mockReturnValue(new Promise(() => undefined));
     const paymentUser = userEvent.setup();
     const paymentView = renderAdminApp(paymentApi, '/clientes/client-a');
-    await paymentUser.click(await screen.findByRole('button', { name: 'Registrar pago manual' }));
+    await waitForFinancePanel();
+    await paymentUser.click(screen.getByRole('button', { name: 'Registrar pago manual' }));
     await paymentUser.type(screen.getByLabelText('Monto MXN'), '100.00');
     await paymentUser.type(screen.getByLabelText('Referencia externa'), 'manual-1');
     await paymentUser.type(screen.getByLabelText('Creditos'), '5');
@@ -163,20 +167,20 @@ describe('Admin Client finance', () => {
     );
     const user = userEvent.setup();
     const { router, financeIntentRegistry } = renderAdminApp(api, '/clientes/client-a');
-    await user.click(await screen.findByRole('button', { name: 'Asignar creditos gratuitos' }));
+    await user.click(await waitForFinancePanel());
     await user.type(screen.getByLabelText('Creditos'), '2');
     await user.type(screen.getByLabelText('Motivo'), 'Ajuste incierto');
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
     await waitFor(() => expect(api.adminFinance.assignCredits).toHaveBeenCalledTimes(1));
     const firstCall = vi.mocked(api.adminFinance.assignCredits).mock.calls[0]!;
-    await router.navigate('/clientes/client-b');
+    await act(() => router.navigate('/clientes/client-b'));
     expect(await screen.findByRole('heading', { name: suspendedPlanner.name, level: 1 })).toBeInTheDocument();
     expect(firstCall[3]?.aborted).toBe(true);
     await waitFor(() => expect(financeIntentRegistry.list('client-a')).toHaveLength(1));
     expect(financeIntentRegistry.list('client-b')).toHaveLength(0);
     expect(screen.queryByText(/resultado no confirmado para este Cliente/i)).not.toBeInTheDocument();
 
-    await router.navigate('/clientes/client-a');
+    await act(() => router.navigate('/clientes/client-a'));
     expect(await screen.findByText(/resultado no confirmado para este Cliente/i)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Consultar balance' }));
     await waitFor(() =>
@@ -202,7 +206,8 @@ describe('Admin Client finance', () => {
       key: 'hidden-key',
       status: 'uncertain'
     });
-    expect(await screen.findByText(/resultado no confirmado para este Cliente/i)).toBeInTheDocument();
+    await waitForFinancePanel();
+    expect(screen.getByText(/resultado no confirmado para este Cliente/i)).toBeInTheDocument();
     await userEvent.setup().click(screen.getByRole('button', { name: 'Descartar' }));
     expect(view.financeIntentRegistry.list('client-a')).toHaveLength(0);
   });
@@ -216,7 +221,7 @@ describe('Admin Client finance', () => {
     vi.mocked(api.adminFinance.assignCredits).mockRejectedValueOnce(failure);
     const user = userEvent.setup();
     const view = renderAdminApp(api, '/clientes/client-a');
-    await user.click(await screen.findByRole('button', { name: 'Asignar creditos gratuitos' }));
+    await user.click(await waitForFinancePanel());
     await user.type(screen.getByLabelText('Creditos'), '2');
     await user.type(screen.getByLabelText('Motivo'), 'Resultado incierto');
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
@@ -236,7 +241,7 @@ describe('Admin Client finance', () => {
       view.unauthorizedController.notify();
       return Promise.reject(new ApiError(401, 'UNAUTHORIZED', 'expired'));
     });
-    await user.click(await screen.findByRole('button', { name: 'Asignar creditos gratuitos' }));
+    await user.click(await waitForFinancePanel());
     await user.type(screen.getByLabelText('Creditos'), '2');
     await user.type(screen.getByLabelText('Motivo'), 'Ajuste');
     const confirm = screen.getByRole('button', { name: 'Confirmar' });
@@ -250,3 +255,9 @@ describe('Admin Client finance', () => {
     expect(api.auth.logout).not.toHaveBeenCalled();
   });
 });
+
+// GitHub Actions runs every workspace suite concurrently; this waits only for the three
+// authoritative Client/users/balance queries that make the finance panel actionable.
+function waitForFinancePanel() {
+  return screen.findByRole('button', { name: 'Asignar creditos gratuitos' }, { timeout: 5_000 });
+}
