@@ -94,7 +94,7 @@ describe('catalogo administrativo', () => {
     await waitFor(() => expect(api.adminCatalog.createPrice).toHaveBeenCalledTimes(1));
     expect(vi.mocked(api.adminCatalog.createPrice).mock.calls[0]?.[0]).toMatchObject({
       serviceId: service.id,
-      validFrom: '2026-08-03T18:00:00.000Z'
+      validFrom: new Date('2026-08-03T12:00:00').toISOString()
     });
 
     await userEvent.click(screen.getByRole('tab', { name: 'Promociones' }));
