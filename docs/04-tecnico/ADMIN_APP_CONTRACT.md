@@ -2,12 +2,13 @@
 
 ## Estado y alcance
 
-CODEX-130 permanece **EN PROGRESO** y el corte CODEX-130A permanece pendiente de aceptacion. Este corte
-entrega shell, sesion, Clientes, Eventos y finanzas por Cliente. `apps/admin` es exclusiva para una
+CODEX-130 permanece **EN PROGRESO**. CODEX-130A esta aceptado y CODEX-130B esta implementado, pendiente
+de aceptacion. Los cortes entregan shell, sesion, Clientes, Eventos, finanzas por Cliente, Catalogo,
+cortes financieros y metadata de reportes. `apps/admin` es exclusiva para una
 identidad `PLATFORM_ADMIN` cuyo `clientId` es `null`; no representa ni impersona a un Cliente.
 
-Quedan diferidos a cortes posteriores: servicios/precios/promociones, reportes, auditoria y
-configuracion. Auditoria depende primero de endpoints publicados por OpenAPI. Tambien quedan fuera
+Quedan diferidos a cortes posteriores: auditoria y configuracion. Auditoria depende primero de
+endpoints publicados por OpenAPI. Tambien quedan fuera
 Scanner, Landing, Socket.IO, refunds, reversals y acciones operativas de Planner.
 
 ## Sesion y autorizacion
@@ -32,8 +33,9 @@ Los requests publicos con `credentials: omit` no notifican al controlador.
 
 ## Navegacion y propiedad de datos
 
-Rutas: `/login`, `/`, `/clientes`, `/clientes/:clientId`, `/eventos` y `/eventos/:eventId`. El shell
-muestra solamente Resumen, Clientes y Eventos. Cada detalle usa una query key ligada al parametro de
+Rutas: `/login`, `/`, `/clientes`, `/clientes/:clientId`, `/eventos`, `/eventos/:eventId`, `/catalogo`,
+`/reportes` y `/reportes/eventos/:eventId`. El shell muestra Resumen, Clientes, Eventos, Catalogo y
+Reportes. Cada detalle usa una query key ligada al parametro de
 URL; las respuestas obsoletas son abortables y no se muestran bajo otro Cliente o Evento.
 
 Las mutaciones usan un scope reutilizable con tipo e identificador de entidad, generacion,
@@ -54,6 +56,9 @@ TanStack Query opera exclusivamente en memoria con las claves `admin-session`, `
 - `adminClients`: listado/detalle, creacion de Organizacion, edicion, suspension, restauracion y usuarios;
 - `adminEvents`: listado global, detalle y restauracion;
 - `adminFinance`: balance, asignacion gratuita, linea, pago manual y reconstruccion.
+- `adminCatalog`: creacion/estado de Servicio, lista/creacion/cierre de precios y gestion de promociones;
+- `adminReports`: listados global y por Evento de metadata;
+- `adminFinance`: tambien cortes diarios y mensuales sin parametros no publicados.
 
 Se consumen exclusivamente estas rutas:
 
@@ -61,6 +66,11 @@ Se consumen exclusivamente estas rutas:
 GET/PATCH/POST /admin/clients/**
 GET/POST       /admin/events/**
 GET/POST       /admin/finance/clients/**
+POST/PATCH     /admin/services/**
+GET/POST/PATCH /admin/prices/**
+GET/POST/PATCH /admin/promotions/**
+GET            /admin/finance/cuts/daily|monthly
+GET            /admin/reports y /admin/reports/events/:eventId
 ```
 
 Los wrappers codifican segmentos, propagan `AbortSignal`, usan el requester con cookies y validan una
@@ -79,6 +89,20 @@ Finanzas presenta el balance autoritativo: creditos comprados, linea, deuda en c
 y reconciliacion. Los centavos se construyen con parsing decimal exacto y se presentan con `Intl`.
 Asignacion gratuita, linea, pago manual y reconstruccion requieren dialogo y confirmacion; no hay saldo
 optimista. La reconstruccion modifica solo el cache desde el ledger.
+
+Catalogo no consume el endpoint Cliente `/services`. Como OpenAPI no publica `GET /admin/services`, la
+vista Servicios referenciados se deriva y deduplica exclusivamente desde referencias autoritativas de
+precios y respuestas de mutacion; nunca se presenta como listado completo. Crear Servicio usa el enum
+cerrado y actualizar solo cambia `isActive` con un UUID recibido del API.
+
+El historial de precios es inmutable: una fila existente solo puede cerrar su intervalo `[validFrom,
+validUntil)`. Una nueva vigencia crea otra fila, exige creditos enteros no negativos y Demo igual a
+cero. La UI evita solapamientos aparentes, pero PostgreSQL/API conservan la autoridad final.
+
+Las promociones modelan solo elegibilidad, vigencia y acumulacion. No contienen porcentaje, monto,
+bonos, cupones o formulas economicas. Los cortes diario y mensual muestran exactamente
+`FinanceCutResponseDto` sin recalcular ni sumar totales. Los listados Admin de reportes muestran solo
+`AdminReportListItemDto`: no hay dataset, nombres, PDF, descarga, hash completo o storage.
 
 ## Idempotencia y errores
 
@@ -104,3 +128,8 @@ hay retry automatico, Web Storage, cookies, parametros URL ni actualizacion opti
 
 La UI traduce los codigos de autorizacion, Cliente, usuario, Evento, balance, idempotencia, validacion y
 respuesta inesperada. Puede mostrar `operationId`, pero no payloads, stack, secretos o detalles Prisma.
+
+Servicios, precios y promociones no inventan idempotencia. Usan scopes abortables, lock sincronico y
+sin estado optimista. Red, timeout, `429` o `5xx` dejan el dialogo abierto y comunican que el resultado
+no pudo confirmarse; no repiten automaticamente. Cuando existe una coleccion de lectura, se vuelve a
+consultar antes de permitir que el operador decida una accion posterior.

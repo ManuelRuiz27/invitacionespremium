@@ -14,6 +14,8 @@ import { AdminEventDetailPage } from '../events/AdminEventDetailPage';
 import { AdminEventsPage } from '../events/AdminEventsPage';
 import { AdminFinanceIntentProvider, type AdminFinanceIntentRegistry } from '../finance/admin-finance-intents';
 import { AdminShell } from '../layout/AdminShell';
+import { AdminCatalogPage } from '../catalog/AdminCatalogPage';
+import { AdminEventReportsRoute, AdminReportsPage } from '../reports/AdminReportsPage';
 
 export interface AdminRouterDependencies {
   apiClient: ApiClient;
@@ -66,6 +68,9 @@ function createRoutes({
                     { path: 'clientes/:clientId', element: <AdminClientDetailPage apiClient={apiClient} /> },
                     { path: 'eventos', element: <AdminEventsPage apiClient={apiClient} /> },
                     { path: 'eventos/:eventId', element: <AdminEventDetailPage apiClient={apiClient} /> },
+                    { path: 'catalogo', element: <AdminCatalogPage apiClient={apiClient} /> },
+                    { path: 'reportes', element: <AdminReportsPage apiClient={apiClient} /> },
+                    { path: 'reportes/eventos/:eventId', element: <AdminEventReportsRoute apiClient={apiClient} /> },
                     { path: '*', element: <NotFound /> }
                   ]
                 }

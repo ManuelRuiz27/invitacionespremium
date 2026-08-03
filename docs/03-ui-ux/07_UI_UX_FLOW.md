@@ -535,3 +535,15 @@ las mutaciones sensibles usan dialogos accesibles sin `window.confirm`. Eventos 
 de solo lectura con restauracion explicita. Loading, vacio, error/retry, acceso denegado e
 indisponibilidad de sesion son estados distintos. El contrato completo vive en
 `../04-tecnico/ADMIN_APP_CONTRACT.md`.
+
+# Implementacion CODEX-130B
+
+La navegacion protegida agrega Catalogo y Reportes. Catalogo separa Servicios referenciados, historia
+completa de precios y promociones de elegibilidad. Como no existe `GET /admin/services`, nunca presenta
+la proyeccion derivada como coleccion completa. Los precios muestran intervalos `[inicio, fin)` y solo
+admiten crear una fila o cerrar su vigencia; las promociones explican permanentemente que no calculan
+descuentos ni bonos.
+
+Reportes separa metadata global de cortes diarios y mensuales autoritativos. La vista por Evento tiene
+un boundary ligado a `eventId`; no conserva contenido anterior al navegar. Platform Admin no genera,
+carga ni descarga PDF y no recibe datasets o datos nominales.

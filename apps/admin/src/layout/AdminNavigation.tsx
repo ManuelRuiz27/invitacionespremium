@@ -1,11 +1,19 @@
-import { BusinessOutlined, CalendarMonthOutlined, SpaceDashboardOutlined } from '@mui/icons-material';
+import {
+  AssessmentOutlined,
+  BusinessOutlined,
+  CalendarMonthOutlined,
+  Inventory2Outlined,
+  SpaceDashboardOutlined
+} from '@mui/icons-material';
 import { List, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { NavLink, useLocation } from 'react-router-dom';
 
 const items = [
   { label: 'Resumen', path: '/', icon: <SpaceDashboardOutlined /> },
   { label: 'Clientes', path: '/clientes', icon: <BusinessOutlined /> },
-  { label: 'Eventos', path: '/eventos', icon: <CalendarMonthOutlined /> }
+  { label: 'Eventos', path: '/eventos', icon: <CalendarMonthOutlined /> },
+  { label: 'Catalogo', path: '/catalogo', icon: <Inventory2Outlined /> },
+  { label: 'Reportes', path: '/reportes', icon: <AssessmentOutlined /> }
 ];
 
 export function AdminNavigation({ onNavigate }: { onNavigate?: () => void }) {

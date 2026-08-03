@@ -1,8 +1,9 @@
 # @invitaciones/admin
 
-Aplicacion operativa exclusiva para `PLATFORM_ADMIN`. CODEX-130 sigue en progreso y el corte CODEX-130A
-permanece pendiente de aceptacion. Incluye sesion por cookie HttpOnly, shell responsive, dashboard,
-Clientes y usuarios, Eventos globales de solo lectura y finanzas por Cliente.
+Aplicacion operativa exclusiva para `PLATFORM_ADMIN`. CODEX-130 sigue en progreso: CODEX-130A esta
+aceptado y CODEX-130B esta implementado, pendiente de aceptacion. Incluye sesion por cookie HttpOnly,
+shell responsive, dashboard, Clientes y usuarios, Eventos globales, finanzas por Cliente, Catalogo,
+cortes financieros y metadata de reportes.
 
 El requester administrativo notifica centralmente cada `401` autenticado. El provider limpia la cache
 privada y las intenciones financieras efimeras, desmonta el shell y vuelve a `/login` con un `returnTo`
@@ -26,7 +27,11 @@ pnpm --filter @invitaciones/admin typecheck
 pnpm --filter @invitaciones/admin build
 ```
 
-Rutas: `/login`, `/`, `/clientes`, `/clientes/:clientId`, `/eventos` y `/eventos/:eventId`.
+Rutas: `/login`, `/`, `/clientes`, `/clientes/:clientId`, `/eventos`, `/eventos/:eventId`, `/catalogo`,
+`/reportes` y `/reportes/eventos/:eventId`.
 
-Servicios/precios/promociones, reportes, auditoria y configuracion pertenecen a cortes posteriores de
-CODEX-130. No hay impersonacion ni acciones operativas de Cliente.
+Catalogo no consume `/services`: como no existe `GET /admin/services`, muestra solo Servicios
+referenciados por respuestas administrativas y no afirma que sean un listado completo. Los precios son
+historicos, las promociones solo definen elegibilidad y los reportes Admin no ofrecen dataset ni
+descarga. Auditoria y configuracion pertenecen a cortes posteriores. No hay impersonacion ni acciones
+operativas de Cliente.

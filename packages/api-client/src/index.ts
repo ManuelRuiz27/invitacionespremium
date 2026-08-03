@@ -1,5 +1,11 @@
 import { createRequester, type ApiClientRuntimeConfig } from './api-client';
-import { createAdminClientsClient, createAdminEventsClient, createAdminFinanceClient } from './admin';
+import {
+  createAdminCatalogClient,
+  createAdminClientsClient,
+  createAdminEventsClient,
+  createAdminFinanceClient,
+  createAdminReportsClient
+} from './admin';
 import { createAuthClient } from './auth';
 import { createEventsClient } from './events';
 import { createFinanceClient } from './finance';
@@ -48,6 +54,8 @@ export function createApiClient(config: ApiClientRuntimeConfig) {
     adminClients: createAdminClientsClient(request),
     adminEvents: createAdminEventsClient(request),
     adminFinance: createAdminFinanceClient(request),
+    adminCatalog: createAdminCatalogClient(request),
+    adminReports: createAdminReportsClient(request),
     events: createEventsClient(request),
     finance: createFinanceClient(request),
     services: createServicesClient(request),

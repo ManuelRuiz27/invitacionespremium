@@ -457,13 +457,16 @@ Contrato normativo: `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md`.
 
 Contrato normativo: `docs/04-tecnico/PUBLIC_CLIENT_CONTRACT.md`.
 
-`CODEX-130 — Platform Admin` esta **EN PROGRESO**. El corte A permanece pendiente de aceptacion. Su
+`CODEX-130 — Platform Admin` esta **EN PROGRESO**. `CODEX-130A` esta aceptado y `CODEX-130B` fue
+implementado, pendiente de aceptacion. El hardening del corte A
 hardening centraliza la expiracion por `401`, aborta operaciones al cambiar de Cliente o Evento, bloquea
 dobles envios sincronos y conserva en memoria los resultados financieros inciertos con su misma llave.
 El alcance implementado incluye sesion exclusiva, shell responsive, dashboard real, Clientes y usuarios,
-Eventos administrativos y finanzas por Cliente.
-Servicios/precios/promociones, reportes, auditoria y configuracion permanecen pendientes; Auditoria
-requiere endpoints publicados en OpenAPI. Contrato: `docs/04-tecnico/ADMIN_APP_CONTRACT.md`.
+Eventos administrativos, finanzas por Cliente, Servicios referenciados, historial inmutable de precios,
+promociones de elegibilidad, cortes financieros autoritativos y metadata administrativa de reportes.
+No existe descarga administrativa de reportes ni `GET /admin/services`. Auditoria y configuracion
+permanecen pendientes; Auditoria requiere endpoints publicados en OpenAPI. Contrato:
+`docs/04-tecnico/ADMIN_APP_CONTRACT.md`.
 
 ## Fuente de verdad
 

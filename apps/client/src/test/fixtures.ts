@@ -166,8 +166,23 @@ export function mockApiClient(user: AuthUser = independentUser): ApiClient {
       assignCredits: vi.fn(),
       configureCreditLine: vi.fn(),
       manualPayment: vi.fn(),
-      rebuildBalance: vi.fn()
+      rebuildBalance: vi.fn(),
+      dailyCut: vi.fn(),
+      monthlyCut: vi.fn()
     },
+    adminCatalog: {
+      createService: vi.fn(),
+      updateService: vi.fn(),
+      listPrices: vi.fn(),
+      createPrice: vi.fn(),
+      closePrice: vi.fn(),
+      listPromotions: vi.fn(),
+      createPromotion: vi.fn(),
+      updatePromotion: vi.fn(),
+      activatePromotion: vi.fn(),
+      deactivatePromotion: vi.fn()
+    },
+    adminReports: { list: vi.fn(), listEvent: vi.fn() },
     events: {
       list: vi.fn().mockResolvedValue([configuredEvent, activeEvent]),
       get: vi.fn().mockResolvedValue(configuredEvent),

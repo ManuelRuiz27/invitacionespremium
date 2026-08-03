@@ -7,6 +7,8 @@ export type AdminFinanceMutation = components['schemas']['FinanceMutationRespons
 export type AssignAdminCreditsInput = components['schemas']['AssignCreditsRequestDto'];
 export type ConfigureAdminCreditLineInput = components['schemas']['ConfigureCreditLineRequestDto'];
 export type AdminManualPaymentInput = components['schemas']['ManualPaymentRequestDto'];
+export type AdminFinanceCut =
+  operations['AdminFinanceController_dailyCut']['responses'][200]['content']['application/json'];
 
 export interface AdminFinanceClient {
   balance(clientId: string, signal?: AbortSignal): Promise<AdminFinanceBalance>;
@@ -29,6 +31,8 @@ export interface AdminFinanceClient {
     signal?: AbortSignal
   ): Promise<AdminFinanceMutation>;
   rebuildBalance(clientId: string, idempotencyKey: string, signal?: AbortSignal): Promise<AdminFinanceMutation>;
+  dailyCut(signal?: AbortSignal): Promise<AdminFinanceCut>;
+  monthlyCut(signal?: AbortSignal): Promise<AdminFinanceCut>;
 }
 
 export function createAdminFinanceClient(request: ApiRequester): AdminFinanceClient {
@@ -51,9 +55,35 @@ export function createAdminFinanceClient(request: ApiRequester): AdminFinanceCli
     assignCredits: (clientId, body, key, signal) => mutate(clientId, 'assign-credits', key, body, signal),
     configureCreditLine: (clientId, body, key, signal) => mutate(clientId, 'credit-line', key, body, signal),
     manualPayment: (clientId, body, key, signal) => mutate(clientId, 'manual-payment', key, body, signal),
-    rebuildBalance: (clientId, key, signal) => mutate(clientId, 'rebuild-balance', key, undefined, signal)
+    rebuildBalance: (clientId, key, signal) => mutate(clientId, 'rebuild-balance', key, undefined, signal),
+    dailyCut: (signal) =>
+      request({ path: '/admin/finance/cuts/daily', response: 'json', ...(signal ? { signal } : {}) }, isCut),
+    monthlyCut: (signal) =>
+      request({ path: '/admin/finance/cuts/monthly', response: 'json', ...(signal ? { signal } : {}) }, isCut)
   };
 }
+
+function isCut(value: unknown): value is AdminFinanceCut {
+  if (!isRecord(value) || typeof value.from !== 'string' || typeof value.until !== 'string') return false;
+  return cutNumberFields.every((field) => typeof value[field] === 'number');
+}
+
+const cutNumberFields = [
+  'incomeMxnCents',
+  'creditsSold',
+  'creditsGranted',
+  'creditsConsumed',
+  'creditsLent',
+  'debtGeneratedCredits',
+  'debtGeneratedMxnCents',
+  'debtPaidCredits',
+  'debtPaidMxnCents',
+  'pendingDebtCredits',
+  'pendingDebtMxnCents',
+  'pendingPurchasedCredits',
+  'internalRefundCredits',
+  'reversalCount'
+] as const;
 
 function isBalance(value: unknown): value is AdminFinanceBalance {
   return (

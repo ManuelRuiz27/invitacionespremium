@@ -14,7 +14,7 @@ pnpm --filter @invitaciones/api-client test
 pnpm --filter @invitaciones/api-client build
 ```
 
-`createApiClient({ baseUrl, fetchImpl?, onUnauthorized? })` expone `auth`, `adminClients`, `adminEvents`, `adminFinance`, `events`, `finance`, `services`, `contacts`,
+`createApiClient({ baseUrl, fetchImpl?, onUnauthorized? })` expone `auth`, `adminClients`, `adminEvents`, `adminFinance`, `adminCatalog`, `adminReports`, `events`, `finance`, `services`, `contacts`,
 `invitations`, `fileAssets`, `design`, `floorplan`, `physicalPasses`, `publicInvitation` y `publicAlbum`.
 El runtime admite JSON, multipart,
 texto, `Blob`, `ArrayBuffer`, respuestas `204`, abortos y llaves idempotentes. Toda solicitud usa
@@ -39,3 +39,6 @@ request; el SDK no decide su ciclo de vida ni las persiste.
 Los wrappers administrativos derivan todos sus DTO de `generated/schema.ts`, codifican segmentos,
 propagan `AbortSignal` y agregan `Idempotency-Key` solo en las cuatro mutaciones financieras que lo
 exigen. No exponen rutas operativas de Cliente ni rutas de auditoria, refund o reversal inexistentes.
+`adminCatalog` cubre Servicios, precios y promociones sin inventar un listado de Servicios;
+`adminReports` expone solo metadata y `adminFinance` agrega los cortes diario y mensual sin parametros
+que el OpenAPI no publica.

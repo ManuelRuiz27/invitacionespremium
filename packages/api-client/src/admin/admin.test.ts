@@ -41,6 +41,130 @@ const mutation = { balance, receipt: { id: 'receipt-1' }, movement: null, paymen
 afterEach(() => vi.restoreAllMocks());
 
 describe('administrative API client', () => {
+  it('covers catalog routes without invented idempotency headers', async () => {
+    const service = {
+      id: 'service-1',
+      code: 'FLYER',
+      isActive: true,
+      createdAt: client.createdAt,
+      updatedAt: client.updatedAt
+    };
+    const price = {
+      id: 'price-1',
+      serviceId: service.id,
+      serviceCode: service.code,
+      clientType: 'PLANNER',
+      credits: 20,
+      validFrom: client.createdAt,
+      validUntil: null,
+      createdAt: client.createdAt
+    };
+    const promotion = {
+      id: 'promo-1',
+      name: 'Elegible',
+      scope: 'EVENT_ACTIVATION',
+      clientId: null,
+      clientType: null,
+      serviceId: service.id,
+      validFrom: client.createdAt,
+      validUntil: null,
+      isActive: true,
+      allowsStacking: false,
+      createdAt: client.createdAt,
+      updatedAt: client.updatedAt
+    };
+    const fetchImpl = sequence([
+      service,
+      service,
+      [price],
+      price,
+      price,
+      [promotion],
+      promotion,
+      promotion,
+      promotion,
+      promotion
+    ]);
+    const api = createApiClient({ baseUrl: 'https://api.example.com/api/v1', fetchImpl });
+    const signal = new AbortController().signal;
+    await api.adminCatalog.createService({ code: 'FLYER', isActive: true }, signal);
+    await api.adminCatalog.updateService('service/value', { isActive: false }, signal);
+    await api.adminCatalog.listPrices(signal);
+    await api.adminCatalog.createPrice(
+      { serviceId: service.id, clientType: 'PLANNER', credits: 20, validFrom: client.createdAt },
+      signal
+    );
+    await api.adminCatalog.closePrice('price/value', { validUntil: client.updatedAt }, signal);
+    await api.adminCatalog.listPromotions(signal);
+    await api.adminCatalog.createPromotion(
+      { name: 'Elegible', scope: 'EVENT_ACTIVATION', validFrom: client.createdAt, allowsStacking: false },
+      signal
+    );
+    await api.adminCatalog.updatePromotion('promo/value', { name: 'Vigente' }, signal);
+    await api.adminCatalog.activatePromotion('promo/value', signal);
+    await api.adminCatalog.deactivatePromotion('promo/value', signal);
+    expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
+      'https://api.example.com/api/v1/admin/services',
+      'https://api.example.com/api/v1/admin/services/service%2Fvalue',
+      'https://api.example.com/api/v1/admin/prices',
+      'https://api.example.com/api/v1/admin/prices',
+      'https://api.example.com/api/v1/admin/prices/price%2Fvalue',
+      'https://api.example.com/api/v1/admin/promotions',
+      'https://api.example.com/api/v1/admin/promotions',
+      'https://api.example.com/api/v1/admin/promotions/promo%2Fvalue',
+      'https://api.example.com/api/v1/admin/promotions/promo%2Fvalue/activate',
+      'https://api.example.com/api/v1/admin/promotions/promo%2Fvalue/deactivate'
+    ]);
+    expect(fetchImpl.mock.calls.every(([, init]) => !new Headers(init?.headers).has('Idempotency-Key'))).toBe(true);
+    expect(fetchImpl.mock.calls.every(([, init]) => init?.signal === signal)).toBe(true);
+  });
+
+  it('lists report metadata and finance cuts without query parameters', async () => {
+    const report = {
+      id: 'report-1',
+      clientId: client.id,
+      eventId: event.id,
+      requestedByUserId: user.id,
+      type: 'ATTENDANCE',
+      status: 'READY',
+      privacyMode: 'AGGREGATE',
+      templateVersion: 1,
+      generatedAtSnapshot: client.createdAt,
+      detailedUntil: client.updatedAt,
+      retentionUntil: client.updatedAt
+    };
+    const cut = {
+      from: client.createdAt,
+      until: client.updatedAt,
+      incomeMxnCents: 1000,
+      creditsSold: 1,
+      creditsGranted: 0,
+      creditsConsumed: 0,
+      creditsLent: 0,
+      debtGeneratedCredits: 0,
+      debtGeneratedMxnCents: 0,
+      debtPaidCredits: 0,
+      debtPaidMxnCents: 0,
+      pendingDebtCredits: 0,
+      pendingDebtMxnCents: 0,
+      pendingPurchasedCredits: 1,
+      internalRefundCredits: 0,
+      reversalCount: 0
+    };
+    const fetchImpl = sequence([[report], [report], cut, cut]);
+    const api = createApiClient({ baseUrl: 'https://api.example.com/api/v1', fetchImpl });
+    await api.adminReports.list();
+    await api.adminReports.listEvent('event/value');
+    await api.adminFinance.dailyCut();
+    await api.adminFinance.monthlyCut();
+    expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
+      'https://api.example.com/api/v1/admin/reports',
+      'https://api.example.com/api/v1/admin/reports/events/event%2Fvalue',
+      'https://api.example.com/api/v1/admin/finance/cuts/daily',
+      'https://api.example.com/api/v1/admin/finance/cuts/monthly'
+    ]);
+  });
+
   it('covers every Client and Client user administrative operation', async () => {
     const fetchImpl = sequence([[client], client, { client, user }, client, client, client, [user], user, user]);
     const api = createApiClient({ baseUrl: 'https://api.example.com/api/v1', fetchImpl });
