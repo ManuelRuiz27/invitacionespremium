@@ -135,11 +135,17 @@ título, agradecimiento, hasta 35 fotos autorizadas y botón HTTPS opcional. Las
 intersección, preservan proporción y se abren en diálogo con flechas, swipe, Escape, foco y posición. Cada
 preview reutiliza el Object URL del grid cuando sigue disponible. El pool distingue expresamente
 `idle`, `loading`, `ready`, `error` y `evicted`; una expulsión revoca su URL y vuelve a placeholder, nunca
-a error. Mantiene como máximo ocho Object URLs y cuatro loaders en vuelo. La cola prioriza la foto
-seleccionada, después las visibles y finalmente las cercanas mediante dos observadores; entre iguales
-aplica LRU. La seleccionada queda fijada mientras el diálogo está abierto. Salir del viewport permite
-liberar URLs y volver recarga un `evicted` sin ciclo automático. Abandonar el Álbum aborta cargas, vacía
-cola, elimina listeners y revoca todo. No existe cache persistente. Token inválido, vencimiento,
+a error. Mantiene como máximo ocho Object URLs y cuatro loaders en vuelo. La prioridad efectiva es:
+preview seleccionada `3`, foto visible `2`, foto cercana `1` y recurso `ready` sin listeners `0`. Una
+carga terminada se admite directamente cuando hay espacio. Con el pool lleno solo puede expulsar un
+recurso cuya prioridad sea menor o igual a la entrante; elige primero la prioridad más baja y después
+el menos recientemente usado (`touched`). Si todos los recursos existentes tienen prioridad mayor, no
+crea Object URL ni revoca alguno: la entrada queda `evicted`, emite placeholder neutral y no presenta
+error. No se reintenta en ciclo; un cambio posterior de prioridad, una nueva intersección, espacio
+disponible o un retry explícito puede solicitar de nuevo la entrada. La seleccionada queda fijada
+mientras el diálogo está abierto. Salir del viewport permite liberar URLs y volver recarga un `evicted`.
+Abandonar el Álbum aborta cargas, vacía cola, elimina listeners y revoca todo. No existe cache
+persistente. Token inválido, vencimiento,
 despublicación, archivo o recurso ajeno comparten “Este álbum no está disponible.”
 
 ## Errores y accesibilidad

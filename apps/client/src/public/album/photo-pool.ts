@@ -103,7 +103,13 @@ export class PublicPhotoPool {
       (blob) => {
         if (this.disposed || controller.signal.aborted || entry.controller !== controller) return;
         this.finishLoad(entry, controller);
-        this.makeRoom(entry);
+        if (!this.makeRoom(entry)) {
+          entry.state = { status: 'evicted', url: null };
+          entry.touched = ++this.clock;
+          this.emit(entry);
+          this.pump();
+          return;
+        }
         entry.state = { status: 'ready', url: URL.createObjectURL(blob) };
         entry.touched = ++this.clock;
         this.emit(entry);
@@ -137,15 +143,18 @@ export class PublicPhotoPool {
     this.pump();
   }
 
-  private makeRoom(incoming: Entry): void {
-    while (this.readyCount() >= this.urlLimit) {
-      const candidate = [...this.entries.values()]
-        .filter((entry) => entry !== incoming && entry.state.status === 'ready')
-        .sort((left, right) => this.priority(left) - this.priority(right) || left.touched - right.touched)[0];
-      if (!candidate) return;
-      this.revoke(candidate, 'evicted');
-      this.emit(candidate);
-    }
+  private makeRoom(incoming: Entry): boolean {
+    if (this.readyCount() < this.urlLimit) return true;
+    const incomingPriority = this.priority(incoming);
+    const candidate = [...this.entries.values()]
+      .filter(
+        (entry) => entry !== incoming && entry.state.status === 'ready' && this.priority(entry) <= incomingPriority
+      )
+      .sort((left, right) => this.priority(left) - this.priority(right) || left.touched - right.touched)[0];
+    if (!candidate) return false;
+    this.revoke(candidate, 'evicted');
+    this.emit(candidate);
+    return true;
   }
 
   private readyCount(): number {

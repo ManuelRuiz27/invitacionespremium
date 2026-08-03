@@ -34,23 +34,138 @@ beforeEach(() => {
 });
 
 describe('PublicPhotoPool', () => {
-  it('distinguishes eviction from a real loader error and reloads an evicted entry', async () => {
+  it('rejects a nearby completion without evicting two visible photos', async () => {
     const pool = new PublicPhotoPool(2, 2);
     const states = new Map<string, PhotoPoolState[]>();
-    for (const key of ['one', 'two', 'three']) {
+    for (const key of ['A', 'B']) {
       const values: PhotoPoolState[] = [];
       states.set(key, values);
-      pool.subscribe(key, (state) => values.push(state));
+      pool.subscribe(key, (state) => values.push(state), 2);
       pool.load(key, () => Promise.resolve(new Blob([key])));
+      await vi.waitFor(() => expect(values.at(-1)?.status).toBe('ready'));
     }
-    await vi.waitFor(() => expect(URL.createObjectURL).toHaveBeenCalledTimes(3));
-    expect(maximumActiveUrls).toBeLessThanOrEqual(2);
-    expect(states.get('one')?.at(-1)?.status).toBe('evicted');
-    expect(states.get('one')?.some((state) => state.status === 'error')).toBe(false);
+    const incoming: PhotoPoolState[] = [];
+    pool.subscribe('C', (state) => incoming.push(state), 1);
+    pool.load('C', () => Promise.resolve(new Blob(['C'])));
+    await vi.waitFor(() => expect(incoming.at(-1)?.status).toBe('evicted'));
 
-    pool.load('one', () => Promise.resolve(new Blob(['one-again'])));
-    await vi.waitFor(() => expect(states.get('one')?.at(-1)?.status).toBe('ready'));
-    expect(URL.createObjectURL).toHaveBeenCalledTimes(4);
+    expect(states.get('A')?.at(-1)?.status).toBe('ready');
+    expect(states.get('B')?.at(-1)?.status).toBe('ready');
+    expect(incoming.some((state) => state.status === 'error')).toBe(false);
+    expect(URL.createObjectURL).toHaveBeenCalledTimes(2);
+    expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+    expect(maximumActiveUrls).toBe(2);
+    pool.dispose();
+  });
+
+  it('protects selected and visible URLs from a nearby completion', async () => {
+    const pool = new PublicPhotoPool(2, 2);
+    const selected: PhotoPoolState[] = [];
+    const visible: PhotoPoolState[] = [];
+    const nearby: PhotoPoolState[] = [];
+    pool.subscribe('selected', (state) => selected.push(state), 3);
+    pool.load('selected', () => Promise.resolve(new Blob(['selected'])));
+    await vi.waitFor(() => expect(selected.at(-1)?.status).toBe('ready'));
+    pool.subscribe('visible', (state) => visible.push(state), 2);
+    pool.load('visible', () => Promise.resolve(new Blob(['visible'])));
+    await vi.waitFor(() => expect(visible.at(-1)?.status).toBe('ready'));
+    pool.subscribe('nearby', (state) => nearby.push(state), 1);
+    pool.load('nearby', () => Promise.resolve(new Blob(['nearby'])));
+    await vi.waitFor(() => expect(nearby.at(-1)?.status).toBe('evicted'));
+
+    expect(selected.at(-1)?.status).toBe('ready');
+    expect(visible.at(-1)?.status).toBe('ready');
+    expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+    pool.dispose();
+  });
+
+  it('admits a visible completion by evicting the least-recent nearby URL', async () => {
+    const pool = new PublicPhotoPool(2, 2);
+    const first: PhotoPoolState[] = [];
+    const second: PhotoPoolState[] = [];
+    const visible: PhotoPoolState[] = [];
+    pool.subscribe('nearby-A', (state) => first.push(state), 1);
+    pool.load('nearby-A', () => Promise.resolve(new Blob(['A'])));
+    await vi.waitFor(() => expect(first.at(-1)?.status).toBe('ready'));
+    pool.subscribe('nearby-B', (state) => second.push(state), 1);
+    pool.load('nearby-B', () => Promise.resolve(new Blob(['B'])));
+    await vi.waitFor(() => expect(second.at(-1)?.status).toBe('ready'));
+    pool.subscribe('visible', (state) => visible.push(state), 2);
+    pool.load('visible', () => Promise.resolve(new Blob(['visible'])));
+    await vi.waitFor(() => expect(visible.at(-1)?.status).toBe('ready'));
+
+    expect(first.at(-1)?.status).toBe('evicted');
+    expect(second.at(-1)?.status).toBe('ready');
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:pool-1');
+    expect(maximumActiveUrls).toBeLessThanOrEqual(2);
+    pool.dispose();
+  });
+
+  it('uses LRU among equal-priority candidates after a touch update', async () => {
+    const pool = new PublicPhotoPool(2, 2);
+    const first: PhotoPoolState[] = [];
+    const second: PhotoPoolState[] = [];
+    pool.subscribe('A', (state) => first.push(state), 1);
+    pool.load('A', () => Promise.resolve(new Blob(['A'])));
+    await vi.waitFor(() => expect(first.at(-1)?.status).toBe('ready'));
+    pool.subscribe('B', (state) => second.push(state), 1);
+    pool.load('B', () => Promise.resolve(new Blob(['B'])));
+    await vi.waitFor(() => expect(second.at(-1)?.status).toBe('ready'));
+    pool.subscribe('A', () => undefined, 1);
+    pool.subscribe('C', () => undefined, 1);
+    pool.load('C', () => Promise.resolve(new Blob(['C'])));
+    await vi.waitFor(() => expect(second.at(-1)?.status).toBe('evicted'));
+
+    expect(first.at(-1)?.status).toBe('ready');
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:pool-2');
+    pool.dispose();
+  });
+
+  it('evicts an unobserved ready URL before visible content', async () => {
+    const pool = new PublicPhotoPool(2, 2);
+    const unobserved: PhotoPoolState[] = [];
+    const visible: PhotoPoolState[] = [];
+    const nearby: PhotoPoolState[] = [];
+    const unsubscribe = pool.subscribe('unobserved', (state) => unobserved.push(state), 1);
+    pool.load('unobserved', () => Promise.resolve(new Blob(['unobserved'])));
+    await vi.waitFor(() => expect(unobserved.at(-1)?.status).toBe('ready'));
+    unsubscribe();
+    pool.subscribe('visible', (state) => visible.push(state), 2);
+    pool.load('visible', () => Promise.resolve(new Blob(['visible'])));
+    await vi.waitFor(() => expect(visible.at(-1)?.status).toBe('ready'));
+    pool.subscribe('nearby', (state) => nearby.push(state), 1);
+    pool.load('nearby', () => Promise.resolve(new Blob(['nearby'])));
+    await vi.waitFor(() => expect(nearby.at(-1)?.status).toBe('ready'));
+
+    expect(visible.at(-1)?.status).toBe('ready');
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:pool-1');
+    pool.dispose();
+  });
+
+  it('readmits a rejected entry after its priority rises and a lower-priority URL can make room', async () => {
+    const pool = new PublicPhotoPool(2, 2);
+    const first: PhotoPoolState[] = [];
+    const second: PhotoPoolState[] = [];
+    const incoming: PhotoPoolState[] = [];
+    const unsubscribeFirst = pool.subscribe('A', (state) => first.push(state), 2);
+    pool.load('A', () => Promise.resolve(new Blob(['A'])));
+    await vi.waitFor(() => expect(first.at(-1)?.status).toBe('ready'));
+    pool.subscribe('B', (state) => second.push(state), 2);
+    pool.load('B', () => Promise.resolve(new Blob(['B'])));
+    await vi.waitFor(() => expect(second.at(-1)?.status).toBe('ready'));
+    pool.subscribe('C', (state) => incoming.push(state), 1);
+    pool.load('C', () => Promise.resolve(new Blob(['C'])));
+    await vi.waitFor(() => expect(incoming.at(-1)?.status).toBe('evicted'));
+
+    pool.subscribe('A', (state) => first.push(state), 0);
+    unsubscribeFirst();
+    pool.subscribe('C', () => undefined, 2);
+    pool.load('C', () => Promise.resolve(new Blob(['C-again'])));
+    await vi.waitFor(() => expect(incoming.at(-1)?.status).toBe('ready'));
+    expect(first.at(-1)?.status).toBe('evicted');
+    expect(second.at(-1)?.status).toBe('ready');
+    expect(incoming.some((state) => state.status === 'error')).toBe(false);
+    expect(URL.createObjectURL).toHaveBeenCalledTimes(3);
     pool.dispose();
   });
 
@@ -61,7 +176,7 @@ describe('PublicPhotoPool', () => {
     const signals: AbortSignal[] = [];
     for (let index = 0; index < work.length; index += 1) {
       const key = String(index);
-      pool.subscribe(key, () => undefined, index === 9 ? 2 : 1);
+      pool.subscribe(key, () => undefined, index === 9 ? 3 : 1);
       pool.load(key, (signal) => {
         started.push(index);
         signals.push(signal);
@@ -77,19 +192,19 @@ describe('PublicPhotoPool', () => {
     expect(signals.slice(1).every((signal) => signal.aborted)).toBe(true);
   });
 
-  it('pins a selected ready photo while lower-priority URLs are evicted', async () => {
-    const pool = new PublicPhotoPool(2, 2);
-    const selected: PhotoPoolState[] = [];
-    pool.subscribe('selected', (state) => selected.push(state), 2);
-    pool.load('selected', () => Promise.resolve(new Blob(['selected'])));
-    for (const key of ['visible-1', 'visible-2']) {
-      pool.subscribe(key, () => undefined, 1);
+  it('retains at most eight Object URLs and revokes all of them on dispose', async () => {
+    const pool = new PublicPhotoPool();
+    for (let index = 0; index < 9; index += 1) {
+      const key = String(index);
+      pool.subscribe(key, () => undefined, 2);
       pool.load(key, () => Promise.resolve(new Blob([key])));
+      await vi.waitFor(() => expect(URL.createObjectURL).toHaveBeenCalledTimes(index + 1));
     }
-    await vi.waitFor(() => expect(URL.createObjectURL).toHaveBeenCalledTimes(3));
-    expect(selected.at(-1)?.status).toBe('ready');
-    expect(URL.revokeObjectURL).not.toHaveBeenCalledWith('blob:pool-1');
+
+    expect(maximumActiveUrls).toBe(8);
+    expect(activeUrls.size).toBe(8);
     pool.dispose();
+    expect(activeUrls.size).toBe(0);
   });
 
   it('reserves error for real failures and supports an explicit retry', async () => {

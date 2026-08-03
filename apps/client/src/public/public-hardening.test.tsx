@@ -117,7 +117,13 @@ beforeEach(() => {
   autoIntersect = true;
   observed = [];
   class ControlledObserver {
-    constructor(private readonly callback: IntersectionObserverCallback) {}
+    readonly rootMargin: string;
+    constructor(
+      private readonly callback: IntersectionObserverCallback,
+      options?: IntersectionObserverInit
+    ) {
+      this.rootMargin = options?.rootMargin ?? '0px';
+    }
     observe(target: Element) {
       observed.push({ target, callback: this.callback, observer: this as never });
       if (autoIntersect) this.callback([{ isIntersecting: true, target } as IntersectionObserverEntry], this as never);
@@ -132,16 +138,20 @@ beforeEach(() => {
       return [];
     }
     root = null;
-    rootMargin = '0px';
     thresholds = [0];
   }
   Object.defineProperty(window, 'IntersectionObserver', { configurable: true, value: ControlledObserver });
 });
 
-function intersect(position: number, isIntersecting: boolean) {
+function intersect(position: number, isIntersecting: boolean, scope: 'all' | 'nearby' | 'visible' = 'all') {
   const target = document.querySelector(`[data-photo-position="${position}"]`);
   if (!target) throw new Error(`Photo ${position} is not registered.`);
-  const registrations = observed.filter((item) => item.target === target);
+  const registrations = observed.filter(
+    (item) =>
+      item.target === target &&
+      (scope === 'all' ||
+        (scope === 'nearby' ? item.observer.rootMargin !== '0px' : item.observer.rootMargin === '0px'))
+  );
   if (registrations.length === 0) throw new Error(`Photo ${position} is not observed.`);
   for (const registration of registrations)
     registration.callback([{ isIntersecting, target } as IntersectionObserverEntry], registration.observer);
@@ -519,6 +529,45 @@ describe('local public media recovery', () => {
     expect(vi.mocked(URL.createObjectURL).mock.calls.length - vi.mocked(URL.revokeObjectURL).mock.calls.length).toBe(8);
     app.unmount();
     expect(vi.mocked(URL.createObjectURL).mock.calls.length).toBe(vi.mocked(URL.revokeObjectURL).mock.calls.length);
+  });
+
+  it('keeps eight visible photos when a nearby download finishes and admits it after it becomes visible', async () => {
+    autoIntersect = false;
+    const nearbyPhoto = deferred<Blob>();
+    const api = publicApi();
+    vi.mocked(api.publicAlbum.resolve).mockResolvedValue(album('A', 'Ãlbum prioritario', 9));
+    vi.mocked(api.publicAlbum.photo).mockImplementation((_token, photoId) =>
+      photoId.endsWith('000000000008') ? nearbyPhoto.promise : Promise.resolve(new Blob([photoId]))
+    );
+    renderApp(api, '/album/A');
+    await screen.findByRole('heading', { name: 'Ãlbum prioritario' });
+
+    act(() => {
+      for (let position = 1; position <= 8; position += 1) intersect(position, true);
+    });
+    await waitFor(() => expect(vi.mocked(URL.createObjectURL).mock.calls.length).toBe(8));
+    act(() => intersect(9, true, 'nearby'));
+    await waitFor(() => expect(api.publicAlbum.photo).toHaveBeenCalledTimes(9));
+    nearbyPhoto.resolve(new Blob(['nearby']));
+    await waitFor(() =>
+      expect(document.querySelector('[data-photo-position="9"] .MuiSkeleton-root')).toBeInTheDocument()
+    );
+
+    expect(api.publicAlbum.photo).toHaveBeenCalledTimes(9);
+    expect(vi.mocked(URL.createObjectURL)).toHaveBeenCalledTimes(8);
+    for (let position = 1; position <= 8; position += 1) {
+      expect(screen.getByRole('button', { name: `Abrir foto ${position}` })).toBeVisible();
+      expect(document.querySelector(`[data-photo-position="${position}"] .MuiSkeleton-root`)).not.toBeInTheDocument();
+    }
+    expect(screen.queryByText('No pudimos cargar este contenido.')).not.toBeInTheDocument();
+
+    act(() => {
+      intersect(1, false);
+      intersect(9, true, 'visible');
+    });
+    expect(await screen.findByRole('button', { name: 'Abrir foto 9' })).toBeVisible();
+    expect(vi.mocked(URL.createObjectURL).mock.calls.length - vi.mocked(URL.revokeObjectURL).mock.calls.length).toBe(8);
+    expect(screen.queryByText('No pudimos cargar este contenido.')).not.toBeInTheDocument();
   });
 
   it('reuses and pins the selected photo URL while the preview is open', async () => {
