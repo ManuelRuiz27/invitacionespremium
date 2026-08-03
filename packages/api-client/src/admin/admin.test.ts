@@ -165,6 +165,86 @@ describe('administrative API client', () => {
     ]);
   });
 
+  it('rejects malformed Service, Price, Promotion, cut and report successes', async () => {
+    const fetchImpl = sequence([
+      { id: 'service-1', code: 'FLYER', isActive: true, createdAt: client.createdAt },
+      {
+        id: 'price-1',
+        serviceId: 'service-1',
+        serviceCode: 'FLYER',
+        clientType: 'PLANNER',
+        credits: 1.5,
+        validFrom: client.createdAt,
+        validUntil: null,
+        createdAt: client.createdAt
+      },
+      {
+        id: 'promo-1',
+        name: 'Elegible',
+        scope: 'EVENT_ACTIVATION',
+        clientId: null,
+        clientType: null,
+        serviceId: null,
+        validFrom: client.createdAt,
+        validUntil: null,
+        isActive: true,
+        allowsStacking: false,
+        createdAt: client.createdAt
+      },
+      { from: client.createdAt, until: client.updatedAt, incomeMxnCents: Number.POSITIVE_INFINITY },
+      [
+        {
+          id: 'report-1',
+          clientId: client.id,
+          eventId: event.id,
+          requestedByUserId: user.id,
+          type: 'ATTENDANCE',
+          status: 'READY',
+          privacyMode: 'AGGREGATE',
+          templateVersion: 1.5,
+          generatedAtSnapshot: client.createdAt,
+          detailedUntil: client.updatedAt,
+          retentionUntil: client.updatedAt
+        }
+      ]
+    ]);
+    const api = createApiClient({ baseUrl: 'https://api.example.com/api/v1', fetchImpl });
+    await expect(api.adminCatalog.createService({ code: 'FLYER', isActive: true })).rejects.toMatchObject({
+      code: 'UNEXPECTED_API_RESPONSE'
+    });
+    await expect(
+      api.adminCatalog.createPrice({
+        serviceId: 'service-1',
+        clientType: 'PLANNER',
+        credits: 1,
+        validFrom: client.createdAt
+      })
+    ).rejects.toMatchObject({ code: 'UNEXPECTED_API_RESPONSE' });
+    await expect(
+      api.adminCatalog.createPromotion({
+        name: 'Elegible',
+        scope: 'EVENT_ACTIVATION',
+        validFrom: client.createdAt,
+        allowsStacking: false
+      })
+    ).rejects.toMatchObject({ code: 'UNEXPECTED_API_RESPONSE' });
+    await expect(api.adminFinance.dailyCut()).rejects.toMatchObject({ code: 'UNEXPECTED_API_RESPONSE' });
+    await expect(api.adminReports.list()).rejects.toMatchObject({ code: 'UNEXPECTED_API_RESPONSE' });
+  });
+
+  it('applies the central 401 callback to new wrappers and preserves it on 403', async () => {
+    const onUnauthorized = vi.fn();
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(json({ code: 'UNAUTHORIZED', message: 'Expirada' }, 401))
+      .mockResolvedValueOnce(json({ code: 'FORBIDDEN', message: 'Sin permiso' }, 403));
+    const api = createApiClient({ baseUrl: 'https://api.example.com/api/v1', fetchImpl, onUnauthorized });
+    await expect(api.adminCatalog.listPrices()).rejects.toMatchObject({ status: 401, code: 'UNAUTHORIZED' });
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
+    await expect(api.adminReports.list()).rejects.toMatchObject({ status: 403, code: 'FORBIDDEN' });
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
+  });
+
   it('covers every Client and Client user administrative operation', async () => {
     const fetchImpl = sequence([[client], client, { client, user }, client, client, client, [user], user, user]);
     const api = createApiClient({ baseUrl: 'https://api.example.com/api/v1', fetchImpl });

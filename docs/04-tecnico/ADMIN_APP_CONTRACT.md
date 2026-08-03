@@ -92,15 +92,20 @@ optimista. La reconstruccion modifica solo el cache desde el ledger.
 
 Catalogo no consume el endpoint Cliente `/services`. Como OpenAPI no publica `GET /admin/services`, la
 vista Servicios referenciados se deriva y deduplica exclusivamente desde referencias autoritativas de
-precios y respuestas de mutacion; nunca se presenta como listado completo. Crear Servicio usa el enum
-cerrado y actualizar solo cambia `isActive` con un UUID recibido del API.
+precios y respuestas de mutacion; nunca se presenta como listado completo. La coleccion vive en memoria
+en el limite de `AdminCatalogPage`, sobrevive cambios de pestana y habilita el primer Precio y Promocion
+de un Servicio creado. Un reload pierde Servicios sin Precio porque no hay endpoint para reconstruirlos.
+Crear Servicio usa el enum cerrado y actualizar solo cambia `isActive` con un UUID recibido del API. Si
+una referencia de Precio no expone estado, la UI no preselecciona ninguno y exige una decision explicita.
 
 El historial de precios es inmutable: una fila existente solo puede cerrar su intervalo `[validFrom,
 validUntil)`. Una nueva vigencia crea otra fila, exige creditos enteros no negativos y Demo igual a
 cero. La UI evita solapamientos aparentes, pero PostgreSQL/API conservan la autoridad final.
 
 Las promociones modelan solo elegibilidad, vigencia y acumulacion. No contienen porcentaje, monto,
-bonos, cupones o formulas economicas. Los cortes diario y mensual muestran exactamente
+bonos, cupones o formulas economicas. Sus intervalos se validan localmente y los objetivos usan nombres
+obtenidos por rutas Admin, dejando UUID como referencia secundaria. La conversion ISO a `datetime-local`
+usa componentes locales con segundos y el envio inverso conserva el instante. Los cortes diario y mensual muestran exactamente
 `FinanceCutResponseDto` sin recalcular ni sumar totales. Los listados Admin de reportes muestran solo
 `AdminReportListItemDto`: no hay dataset, nombres, PDF, descarga, hash completo o storage.
 

@@ -544,6 +544,13 @@ la proyeccion derivada como coleccion completa. Los precios muestran intervalos 
 admiten crear una fila o cerrar su vigencia; las promociones explican permanentemente que no calculan
 descuentos ni bonos.
 
+Los Servicios conocidos combinan referencias de precios y respuestas de creacion/actualizacion mientras
+la pagina permanece montada. Cambiar entre pestanas conserva la coleccion y habilita el primer Precio o
+Promocion de un Servicio nuevo; un reload pierde los que todavia no tienen Precio. Un estado no expuesto
+por una referencia exige seleccion explicita. Los campos `datetime-local` muestran componentes locales,
+incluidos segundos, y envian de vuelta el mismo instante UTC. Promociones proyecta nombres de Cliente y
+Servicio cuando existen y deja UUID solo como referencia secundaria.
+
 Reportes separa metadata global de cortes diarios y mensuales autoritativos. La vista por Evento tiene
 un boundary ligado a `eventId`; no conserva contenido anterior al navegar. Platform Admin no genera,
 carga ni descarga PDF y no recibe datasets o datos nominales.

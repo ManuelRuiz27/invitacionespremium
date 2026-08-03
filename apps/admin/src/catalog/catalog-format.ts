@@ -30,6 +30,15 @@ export function intervalsOverlap(
   return new Date(first.validFrom).getTime() < secondEnd && new Date(second.validFrom).getTime() < firstEnd;
 }
 
-export const toLocalInput = (value: string | null | undefined) =>
-  value ? new Date(value).toISOString().slice(0, 16) : '';
+const twoDigits = (value: number) => String(value).padStart(2, '0');
+
+export function toLocalInput(value: string | null | undefined) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return `${date.getFullYear()}-${twoDigits(date.getMonth() + 1)}-${twoDigits(date.getDate())}T${twoDigits(
+    date.getHours()
+  )}:${twoDigits(date.getMinutes())}:${twoDigits(date.getSeconds())}`;
+}
+
 export const toIso = (value: string) => new Date(value).toISOString();

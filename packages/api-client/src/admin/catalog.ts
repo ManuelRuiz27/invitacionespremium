@@ -67,8 +67,8 @@ function isService(value: unknown): value is AdminService {
     typeof value.id === 'string' &&
     serviceCodes.has(value.code) &&
     typeof value.isActive === 'boolean' &&
-    typeof value.createdAt === 'string' &&
-    typeof value.updatedAt === 'string'
+    isDateTime(value.createdAt) &&
+    isDateTime(value.updatedAt)
   );
 }
 
@@ -79,10 +79,10 @@ function isPrice(value: unknown): value is AdminPrice {
     typeof value.serviceId === 'string' &&
     serviceCodes.has(value.serviceCode) &&
     clientTypes.has(value.clientType) &&
-    typeof value.credits === 'number' &&
-    typeof value.validFrom === 'string' &&
-    (value.validUntil === null || typeof value.validUntil === 'string') &&
-    typeof value.createdAt === 'string'
+    isFiniteInteger(value.credits) &&
+    isDateTime(value.validFrom) &&
+    (value.validUntil === null || isDateTime(value.validUntil)) &&
+    isDateTime(value.createdAt)
   );
 }
 
@@ -94,13 +94,13 @@ function isPromotion(value: unknown): value is AdminPromotion {
     promotionScopes.has(value.scope) &&
     typeof value.isActive === 'boolean' &&
     typeof value.allowsStacking === 'boolean' &&
-    typeof value.validFrom === 'string' &&
-    (value.validUntil === null || typeof value.validUntil === 'string') &&
+    isDateTime(value.validFrom) &&
+    (value.validUntil === null || isDateTime(value.validUntil)) &&
     (value.clientId === null || typeof value.clientId === 'string') &&
     (value.clientType === null || clientTypes.has(value.clientType)) &&
     (value.serviceId === null || typeof value.serviceId === 'string') &&
-    typeof value.createdAt === 'string' &&
-    typeof value.updatedAt === 'string'
+    isDateTime(value.createdAt) &&
+    isDateTime(value.updatedAt)
   );
 }
 
@@ -111,3 +111,7 @@ const isPromotionArray = (value: unknown): value is AdminPromotion[] =>
 const serviceCodes = new Set<unknown>(['FLIPBOOK', 'FLYER', 'PHYSICAL_QR', 'DEMO']);
 const clientTypes = new Set<unknown>(['PLANNER', 'ORGANIZATION']);
 const promotionScopes = new Set<unknown>(['CREDIT_PURCHASE', 'EVENT_ACTIVATION']);
+
+const isFiniteInteger = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value);
+const isDateTime = (value: unknown): value is string => typeof value === 'string' && Number.isFinite(Date.parse(value));

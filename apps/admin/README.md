@@ -31,7 +31,10 @@ Rutas: `/login`, `/`, `/clientes`, `/clientes/:clientId`, `/eventos`, `/eventos/
 `/reportes` y `/reportes/eventos/:eventId`.
 
 Catalogo no consume `/services`: como no existe `GET /admin/services`, muestra solo Servicios
-referenciados por respuestas administrativas y no afirma que sean un listado completo. Los precios son
-historicos, las promociones solo definen elegibilidad y los reportes Admin no ofrecen dataset ni
-descarga. Auditoria y configuracion pertenecen a cortes posteriores. No hay impersonacion ni acciones
-operativas de Cliente.
+referenciados por precios y respuestas autoritativas de mutacion, deduplicados por UUID durante el
+montaje de `/catalogo`; cambiar de pestana no los pierde. Un reload completo pierde un Servicio sin
+Precio porque no existe una ruta para recuperarlo. Los precios son historicos y las fechas conservan el
+instante al convertir ISO a `datetime-local` y volver a ISO. Las promociones solo definen elegibilidad,
+resuelven nombres mediante endpoints Admin y los reportes Admin no ofrecen dataset ni descarga.
+Auditoria y configuracion pertenecen a cortes posteriores. No hay impersonacion ni acciones operativas
+de Cliente.

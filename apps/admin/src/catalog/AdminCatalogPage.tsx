@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type {
+  AdminClient,
   AdminPrice,
   AdminPromotion,
   AdminService,
@@ -55,6 +56,7 @@ const uncertainMessage = 'El resultado no pudo confirmarse. Actualiza la informa
 
 export function AdminCatalogPage({ apiClient }: { apiClient: ApiClient }) {
   const [tab, setTab] = useState(0);
+  const [knownServices, setKnownServices] = useState<AdminService[]>([]);
   const prices = useQuery({
     queryKey: adminQueryKeys.prices,
     queryFn: ({ signal }) => apiClient.adminCatalog.listPrices(signal)
@@ -66,8 +68,13 @@ export function AdminCatalogPage({ apiClient }: { apiClient: ApiClient }) {
   const serviceReferences = useMemo(() => {
     const refs = new Map<string, ServiceReference>();
     for (const price of prices.data ?? []) refs.set(price.serviceId, { id: price.serviceId, code: price.serviceCode });
+    for (const service of knownServices) refs.set(service.id, service);
     return [...refs.values()];
-  }, [prices.data]);
+  }, [knownServices, prices.data]);
+
+  const rememberService = (service: AdminService) => {
+    setKnownServices((items) => [...items.filter((item) => item.id !== service.id), service]);
+  };
 
   return (
     <Stack spacing={3}>
@@ -88,7 +95,12 @@ export function AdminCatalogPage({ apiClient }: { apiClient: ApiClient }) {
         </Tabs>
       </Paper>
       {tab === 0 ? (
-        <ServicesSection apiClient={apiClient} query={prices} references={serviceReferences} />
+        <ServicesSection
+          apiClient={apiClient}
+          query={prices}
+          references={serviceReferences}
+          onServiceSaved={rememberService}
+        />
       ) : tab === 1 ? (
         <PricesSection apiClient={apiClient} query={prices} references={serviceReferences} />
       ) : (
@@ -101,20 +113,19 @@ export function AdminCatalogPage({ apiClient }: { apiClient: ApiClient }) {
 function ServicesSection({
   apiClient,
   query,
-  references
+  references,
+  onServiceSaved
 }: {
   apiClient: ApiClient;
   query: UseQueryResult<AdminPrice[]>;
   references: ServiceReference[];
+  onServiceSaved: (service: AdminService) => void;
 }) {
   const queryClient = useQueryClient();
-  const [known, setKnown] = useState<AdminService[]>([]);
   const [editing, setEditing] = useState<ServiceReference | null | 'create'>(null);
   if (query.isPending) return <AdminLoadingState label="Cargando referencias de Servicios..." />;
   if (query.isError) return <AdminErrorState onRetry={() => void query.refetch()} />;
-  const merged = new Map(references.map((item) => [item.id, item]));
-  for (const item of known) merged.set(item.id, item);
-  const services = [...merged.values()];
+  const services = references;
   return (
     <Stack spacing={2}>
       <Typography component="h2" variant="h3">
@@ -194,7 +205,7 @@ function ServicesSection({
           target={editing}
           onClose={() => setEditing(null)}
           onSaved={(service) => {
-            setKnown((items) => [...items.filter((item) => item.id !== service.id), service]);
+            onServiceSaved(service);
             void queryClient.invalidateQueries({ queryKey: adminQueryKeys.prices });
             void queryClient.invalidateQueries({ queryKey: adminQueryKeys.promotions });
             setEditing(null);
@@ -320,6 +331,12 @@ function PromotionsSection({
 }) {
   const [editing, setEditing] = useState<AdminPromotion | 'create' | null>(null);
   const [toggling, setToggling] = useState<AdminPromotion | null>(null);
+  const clients = useQuery({
+    queryKey: adminQueryKeys.clients,
+    queryFn: ({ signal }) => apiClient.adminClients.list(signal)
+  });
+  const clientsById = useMemo(() => new Map((clients.data ?? []).map((client) => [client.id, client])), [clients.data]);
+  const servicesById = useMemo(() => new Map(references.map((service) => [service.id, service])), [references]);
   if (query.isPending) return <AdminLoadingState label="Cargando promociones..." />;
   if (query.isError) return <AdminErrorState onRetry={() => void query.refetch()} />;
   return (
@@ -342,6 +359,7 @@ function PromotionsSection({
                 <TableRow>
                   <TableCell>Promocion</TableCell>
                   <TableCell>Alcance</TableCell>
+                  <TableCell>Vigencia</TableCell>
                   <TableCell>Objetivo</TableCell>
                   <TableCell>Estado</TableCell>
                   <TableCell align="right">Acciones</TableCell>
@@ -353,9 +371,12 @@ function PromotionsSection({
                     <TableCell>{promo.name}</TableCell>
                     <TableCell>{promotionScopeLabels[promo.scope]}</TableCell>
                     <TableCell>
-                      {promo.clientType ? clientTypeLabels[promo.clientType] : 'Todos los tipos de Cliente'}
-                      <br />
-                      {promo.serviceId ? `Servicio ${promo.serviceId}` : 'Todos los Servicios'}
+                      {intervalLabel(promo)}
+                      <br />[ {formatDate(promo.validFrom)},{' '}
+                      {promo.validUntil ? formatDate(promo.validUntil) : 'sin limite'} )
+                    </TableCell>
+                    <TableCell>
+                      <PromotionTargets promo={promo} clients={clientsById} services={servicesById} />
                     </TableCell>
                     <TableCell>
                       {promo.isActive ? 'Activa' : 'Inactiva'} ·{' '}
@@ -379,12 +400,11 @@ function PromotionsSection({
                   <Box>
                     <Typography sx={{ fontWeight: 700 }}>{promo.name}</Typography>
                     <Typography>
-                      {promotionScopeLabels[promo.scope]} ·{' '}
-                      {promo.clientType ? clientTypeLabels[promo.clientType] : 'Todos los tipos de Cliente'}
+                      {promotionScopeLabels[promo.scope]} · {intervalLabel(promo)}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Servicio: {promo.serviceId ?? 'Todos'} · Cliente: {promo.clientId ?? 'Todos'} ·{' '}
-                      {promo.allowsStacking ? 'Admite acumulacion' : 'No acumulable'}
+                    <PromotionTargets promo={promo} clients={clientsById} services={servicesById} />
+                    <Typography variant="body2">
+                      {promo.allowsStacking ? 'Permite acumulacion' : 'No permite acumulacion'}
                     </Typography>
                     <Typography variant="caption">
                       Vigencia [ {formatDate(promo.validFrom)},{' '}
@@ -425,6 +445,42 @@ function PromotionsSection({
   );
 }
 
+function PromotionTargets({
+  promo,
+  clients,
+  services
+}: {
+  promo: AdminPromotion;
+  clients: Map<string, AdminClient>;
+  services: Map<string, ServiceReference>;
+}) {
+  const client = promo.clientId ? clients.get(promo.clientId) : undefined;
+  const service = promo.serviceId ? services.get(promo.serviceId) : undefined;
+  return (
+    <Stack spacing={0.25}>
+      <Typography variant="body2">
+        {client ? client.name : promo.clientId ? 'Cliente no resuelto' : 'Todos los Clientes'}
+      </Typography>
+      {promo.clientId ? (
+        <Typography variant="caption" color="text.secondary">
+          Referencia: {promo.clientId}
+        </Typography>
+      ) : null}
+      <Typography variant="body2">
+        {promo.clientType ? clientTypeLabels[promo.clientType] : 'Todos los tipos de Cliente'}
+      </Typography>
+      <Typography variant="body2">
+        {service ? serviceLabels[service.code] : promo.serviceId ? 'Servicio no resuelto' : 'Todos los Servicios'}
+      </Typography>
+      {promo.serviceId ? (
+        <Typography variant="caption" color="text.secondary">
+          Referencia: {promo.serviceId}
+        </Typography>
+      ) : null}
+    </Stack>
+  );
+}
+
 function mutationError(error: unknown) {
   const parsed = adminErrorMessage(error);
   return parsed.uncertain ? uncertainMessage : parsed.message;
@@ -443,22 +499,30 @@ function ServiceDialog({
 }) {
   const creating = target === 'create';
   const [code, setCode] = useState<keyof typeof serviceLabels>('FLYER');
-  const [active, setActive] = useState(true);
+  const [active, setActive] = useState<'active' | 'inactive' | ''>(() => {
+    if (creating) return 'active';
+    if (!target || typeof target !== 'object' || target.isActive === undefined) return '';
+    return target.isActive ? 'active' : 'inactive';
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const scope = useAdminOperationScope('catalog-service', typeof target === 'object' && target ? target.id : 'create');
   const queryClient = useQueryClient();
   const submit = async () => {
+    if (!active) {
+      setError('Selecciona explicitamente el nuevo estado del Servicio.');
+      return;
+    }
     const operation = scope.begin();
     if (!operation) return;
     setBusy(true);
     setError('');
     try {
       const result = creating
-        ? await apiClient.adminCatalog.createService({ code, isActive: active }, operation.signal)
+        ? await apiClient.adminCatalog.createService({ code, isActive: active === 'active' }, operation.signal)
         : await apiClient.adminCatalog.updateService(
             (target as ServiceReference).id,
-            { isActive: active },
+            { isActive: active === 'active' },
             operation.signal
           );
       if (operation.isCurrent()) onSaved(result);
@@ -493,12 +557,18 @@ function ServiceDialog({
           ) : (
             <Typography>{target && typeof target === 'object' ? serviceLabels[target.code] : ''}</Typography>
           )}
+          {!creating && target && typeof target === 'object' && target.isActive === undefined && !active ? (
+            <Alert severity="warning">
+              Estado actual no expuesto. Selecciona explicitamente el nuevo estado antes de confirmar.
+            </Alert>
+          ) : null}
           <TextField
             select
             label="Estado"
-            value={active ? 'active' : 'inactive'}
-            onChange={(event) => setActive(event.target.value === 'active')}
+            value={active}
+            onChange={(event) => setActive(event.target.value as 'active' | 'inactive')}
           >
+            {!creating && active === '' ? <MenuItem value="">Estado actual no expuesto</MenuItem> : null}
             <MenuItem value="active">Activo</MenuItem>
             <MenuItem value="inactive">Inactivo</MenuItem>
           </TextField>
@@ -509,7 +579,7 @@ function ServiceDialog({
         <Button onClick={onClose} disabled={busy}>
           Cancelar
         </Button>
-        <Button variant="contained" onClick={() => void submit()} disabled={busy}>
+        <Button variant="contained" onClick={() => void submit()} disabled={busy || !active}>
           {busy ? 'Procesando...' : 'Confirmar'}
         </Button>
       </DialogActions>
@@ -625,14 +695,14 @@ function PriceDialog({
             type="datetime-local"
             value={from}
             onChange={(e) => setFrom(e.target.value)}
-            slotProps={{ inputLabel: { shrink: true } }}
+            slotProps={{ inputLabel: { shrink: true }, htmlInput: { step: 1 } }}
           />
           <TextField
             label="Fin de vigencia (opcional)"
             type="datetime-local"
             value={until}
             onChange={(e) => setUntil(e.target.value)}
-            slotProps={{ inputLabel: { shrink: true } }}
+            slotProps={{ inputLabel: { shrink: true }, htmlInput: { step: 1 } }}
           />
           <Alert severity="info">
             Revisa Servicio, tipo de Cliente, creditos y el intervalo [inicio, fin). El historial no se edita: un precio
@@ -714,7 +784,7 @@ function ClosePriceDialog({
         type="datetime-local"
         value={until}
         onChange={(e) => setUntil(e.target.value)}
-        slotProps={{ inputLabel: { shrink: true } }}
+        slotProps={{ inputLabel: { shrink: true }, htmlInput: { step: 1 } }}
         fullWidth
       />
     </ConfirmSensitiveActionDialog>
@@ -760,6 +830,10 @@ function PromotionDialog({
       validUntil: until ? toIso(until) : null,
       allowsStacking: stacking
     };
+    if (body.validUntil && body.validUntil <= body.validFrom) {
+      setError('El fin de vigencia debe ser posterior al inicio.');
+      return;
+    }
     const operation = operationScope.begin();
     if (!operation) return;
     setBusy(true);
@@ -828,14 +902,14 @@ function PromotionDialog({
             type="datetime-local"
             value={from}
             onChange={(e) => setFrom(e.target.value)}
-            slotProps={{ inputLabel: { shrink: true } }}
+            slotProps={{ inputLabel: { shrink: true }, htmlInput: { step: 1 } }}
           />
           <TextField
             label="Fin de vigencia (opcional)"
             type="datetime-local"
             value={until}
             onChange={(e) => setUntil(e.target.value)}
-            slotProps={{ inputLabel: { shrink: true } }}
+            slotProps={{ inputLabel: { shrink: true }, htmlInput: { step: 1 } }}
           />
           <FormControlLabel
             control={<Checkbox checked={stacking} onChange={(e) => setStacking(e.target.checked)} />}

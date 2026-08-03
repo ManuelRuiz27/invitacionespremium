@@ -41,4 +41,5 @@ propagan `AbortSignal` y agregan `Idempotency-Key` solo en las cuatro mutaciones
 exigen. No exponen rutas operativas de Cliente ni rutas de auditoria, refund o reversal inexistentes.
 `adminCatalog` cubre Servicios, precios y promociones sin inventar un listado de Servicios;
 `adminReports` expone solo metadata y `adminFinance` agrega los cortes diario y mensual sin parametros
-que el OpenAPI no publica.
+que el OpenAPI no publica. Sus validadores comprueban todos los campos requeridos, enums, nulabilidad,
+fechas y enteros finitos; un `200` incompleto o mal formado produce `UNEXPECTED_API_RESPONSE`.

@@ -35,10 +35,14 @@ function isReport(value: unknown): value is AdminReport {
     reportTypes.has(value.type) &&
     reportStatuses.has(value.status) &&
     privacyModes.has(value.privacyMode) &&
-    typeof value.templateVersion === 'number' &&
-    typeof value.generatedAtSnapshot === 'string' &&
-    typeof value.detailedUntil === 'string' &&
-    typeof value.retentionUntil === 'string'
+    isFiniteInteger(value.templateVersion) &&
+    isDateTime(value.generatedAtSnapshot) &&
+    isDateTime(value.detailedUntil) &&
+    isDateTime(value.retentionUntil) &&
+    (value.downloadPath === undefined || typeof value.downloadPath === 'string') &&
+    isOptionalNullableDateTime(value.expiredAt) &&
+    isOptionalNullableDateTime(value.hiddenAt) &&
+    isOptionalNullableDateTime(value.readyAt)
   );
 }
 
@@ -46,3 +50,8 @@ const isReportArray = (value: unknown): value is AdminReport[] => isRecordArray(
 const reportTypes = new Set<unknown>(['ATTENDANCE', 'PHYSICAL_PASSES']);
 const reportStatuses = new Set<unknown>(['AUTHORIZED', 'READY', 'HIDDEN', 'EXPIRED']);
 const privacyModes = new Set<unknown>(['DETAILED', 'AGGREGATE']);
+
+const isFiniteInteger = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value);
+const isDateTime = (value: unknown): value is string => typeof value === 'string' && Number.isFinite(Date.parse(value));
+const isOptionalNullableDateTime = (value: unknown) => value === undefined || value === null || isDateTime(value);

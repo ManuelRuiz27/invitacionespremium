@@ -64,8 +64,8 @@ export function createAdminFinanceClient(request: ApiRequester): AdminFinanceCli
 }
 
 function isCut(value: unknown): value is AdminFinanceCut {
-  if (!isRecord(value) || typeof value.from !== 'string' || typeof value.until !== 'string') return false;
-  return cutNumberFields.every((field) => typeof value[field] === 'number');
+  if (!isRecord(value) || !isDateTime(value.from) || !isDateTime(value.until)) return false;
+  return cutNumberFields.every((field) => isFiniteInteger(value[field]));
 }
 
 const cutNumberFields = [
@@ -84,6 +84,10 @@ const cutNumberFields = [
   'internalRefundCredits',
   'reversalCount'
 ] as const;
+
+const isFiniteInteger = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value);
+const isDateTime = (value: unknown): value is string => typeof value === 'string' && Number.isFinite(Date.parse(value));
 
 function isBalance(value: unknown): value is AdminFinanceBalance {
   return (

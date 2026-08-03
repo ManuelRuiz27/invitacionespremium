@@ -1036,7 +1036,9 @@ para reintento explicito con la misma llave.
 
 **Corte B implementado, pendiente de aceptacion:** Servicios referenciados, historia de precios,
 promociones de elegibilidad, cortes financieros y metadata de reportes. No existe descarga Admin ni
-listado administrativo completo de Servicios.
+listado administrativo completo de Servicios. El hardening conserva Servicios autoritativos entre
+pestanas, habilita su primer Precio/Promocion, evita estados preseleccionados desconocidos, preserva el
+instante en fechas locales y valida respuestas administrativas completas y finitas.
 
 Pendientes de cortes posteriores: auditoria y configuracion. Auditoria requiere primero endpoints
 presentes en OpenAPI. CODEX-130 permanece EN PROGRESO.

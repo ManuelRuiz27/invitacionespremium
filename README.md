@@ -464,6 +464,10 @@ dobles envios sincronos y conserva en memoria los resultados financieros inciert
 El alcance implementado incluye sesion exclusiva, shell responsive, dashboard real, Clientes y usuarios,
 Eventos administrativos, finanzas por Cliente, Servicios referenciados, historial inmutable de precios,
 promociones de elegibilidad, cortes financieros autoritativos y metadata administrativa de reportes.
+Catalogo conserva durante el montaje de la pagina los Servicios autoritativos conocidos por precios o
+mutaciones, por lo que un Servicio recien creado puede usarse en su primer Precio o Promocion al cambiar
+de pestana. Un reload pierde inevitablemente los Servicios que aun no tienen Precio porque el backend no
+publica un listado administrativo. Las fechas ISO se proyectan a hora local y regresan al mismo instante.
 No existe descarga administrativa de reportes ni `GET /admin/services`. Auditoria y configuracion
 permanecen pendientes; Auditoria requiere endpoints publicados en OpenAPI. Contrato:
 `docs/04-tecnico/ADMIN_APP_CONTRACT.md`.
