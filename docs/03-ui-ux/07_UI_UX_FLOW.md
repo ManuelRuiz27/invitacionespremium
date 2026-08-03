@@ -554,3 +554,11 @@ Servicio cuando existen y deja UUID solo como referencia secundaria.
 Reportes separa metadata global de cortes diarios y mensuales autoritativos. La vista por Evento tiene
 un boundary ligado a `eventId`; no conserva contenido anterior al navegar. Platform Admin no genera,
 carga ni descarga PDF y no recibe datasets o datos nominales.
+
+Las mutaciones no idempotentes de Servicios, precios y promociones comparten una maquina de estados.
+Durante `submitting` y tras un resultado `uncertain`, Confirmar permanece deshabilitado. Red, `429` y
+`5xx` muestran `Actualizar informacion`; esa accion consulta la coleccion autoritativa y no repite el
+POST/PATCH. Una coincidencia unica confirma el cambio, la ausencia verificable habilita un nuevo intento
+explicito y una respuesta ambigua o no disponible conserva el bloqueo. La resolucion de Clientes en
+promociones muestra por separado carga, nombre resuelto, referencia no resuelta y error con retry, sin
+retirar las filas ya obtenidas del Catalogo.

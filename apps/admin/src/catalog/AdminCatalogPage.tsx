@@ -8,6 +8,7 @@ import type {
   CreateAdminPriceInput,
   CreateAdminPromotionInput
 } from '@invitaciones/api-client';
+import { ApiError } from '@invitaciones/api-client';
 import { PageHeader, StatusChip } from '@invitaciones/ui';
 import { AddOutlined } from '@mui/icons-material';
 import {
@@ -39,8 +40,6 @@ import { adminQueryKeys } from '../app/query-client';
 import { formatDate } from '../shared/admin-labels';
 import { AdminEmptyState, AdminErrorState, AdminLoadingState } from '../shared/AdminStates';
 import { ConfirmSensitiveActionDialog } from '../shared/ConfirmSensitiveActionDialog';
-import { adminErrorMessage } from '../shared/admin-error';
-import { isAbortError, useAdminOperationScope } from '../shared/useAdminOperationScope';
 import {
   clientTypeLabels,
   intervalLabel,
@@ -50,13 +49,14 @@ import {
   toIso,
   toLocalInput
 } from './catalog-format';
+import { useCatalogMutationState } from './useCatalogMutationState';
 
 type ServiceReference = Pick<AdminService, 'id' | 'code'> & { isActive?: boolean };
-const uncertainMessage = 'El resultado no pudo confirmarse. Actualiza la informacion antes de repetir la accion.';
 
 export function AdminCatalogPage({ apiClient }: { apiClient: ApiClient }) {
   const [tab, setTab] = useState(0);
   const [knownServices, setKnownServices] = useState<AdminService[]>([]);
+  const [notice, setNotice] = useState('');
   const prices = useQuery({
     queryKey: adminQueryKeys.prices,
     queryFn: ({ signal }) => apiClient.adminCatalog.listPrices(signal)
@@ -82,6 +82,11 @@ export function AdminCatalogPage({ apiClient }: { apiClient: ApiClient }) {
         title="Catalogo"
         description="Servicios referenciados, historial de precios y elegibilidad de promociones."
       />
+      {notice ? (
+        <Alert severity="success" onClose={() => setNotice('')}>
+          {notice}
+        </Alert>
+      ) : null}
       <Paper variant="outlined">
         <Tabs
           value={tab}
@@ -100,11 +105,17 @@ export function AdminCatalogPage({ apiClient }: { apiClient: ApiClient }) {
           query={prices}
           references={serviceReferences}
           onServiceSaved={rememberService}
+          onNotice={setNotice}
         />
       ) : tab === 1 ? (
-        <PricesSection apiClient={apiClient} query={prices} references={serviceReferences} />
+        <PricesSection apiClient={apiClient} query={prices} references={serviceReferences} onNotice={setNotice} />
       ) : (
-        <PromotionsSection apiClient={apiClient} query={promotions} references={serviceReferences} />
+        <PromotionsSection
+          apiClient={apiClient}
+          query={promotions}
+          references={serviceReferences}
+          onNotice={setNotice}
+        />
       )}
     </Stack>
   );
@@ -114,12 +125,14 @@ function ServicesSection({
   apiClient,
   query,
   references,
-  onServiceSaved
+  onServiceSaved,
+  onNotice
 }: {
   apiClient: ApiClient;
   query: UseQueryResult<AdminPrice[]>;
   references: ServiceReference[];
   onServiceSaved: (service: AdminService) => void;
+  onNotice: (message: string) => void;
 }) {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<ServiceReference | null | 'create'>(null);
@@ -210,6 +223,8 @@ function ServicesSection({
             void queryClient.invalidateQueries({ queryKey: adminQueryKeys.promotions });
             setEditing(null);
           }}
+          knownServices={references}
+          onNotice={onNotice}
         />
       ) : null}
     </Stack>
@@ -219,11 +234,13 @@ function ServicesSection({
 function PricesSection({
   apiClient,
   query,
-  references
+  references,
+  onNotice
 }: {
   apiClient: ApiClient;
   query: UseQueryResult<AdminPrice[]>;
   references: ServiceReference[];
+  onNotice: (message: string) => void;
 }) {
   const [creating, setCreating] = useState(false);
   const [closing, setClosing] = useState<AdminPrice | null>(null);
@@ -313,9 +330,12 @@ function PricesSection({
           prices={query.data}
           references={references}
           onClose={() => setCreating(false)}
+          onNotice={onNotice}
         />
       ) : null}
-      {closing ? <ClosePriceDialog apiClient={apiClient} price={closing} onClose={() => setClosing(null)} /> : null}
+      {closing ? (
+        <ClosePriceDialog apiClient={apiClient} price={closing} onClose={() => setClosing(null)} onNotice={onNotice} />
+      ) : null}
     </Stack>
   );
 }
@@ -323,11 +343,13 @@ function PricesSection({
 function PromotionsSection({
   apiClient,
   query,
-  references
+  references,
+  onNotice
 }: {
   apiClient: ApiClient;
   query: UseQueryResult<AdminPromotion[]>;
   references: ServiceReference[];
+  onNotice: (message: string) => void;
 }) {
   const [editing, setEditing] = useState<AdminPromotion | 'create' | null>(null);
   const [toggling, setToggling] = useState<AdminPromotion | null>(null);
@@ -344,6 +366,22 @@ function PromotionsSection({
       <Alert severity="info">
         Las promociones de este MVP definen elegibilidad y si permiten acumulacion. No calculan descuentos ni bonos.
       </Alert>
+      {clients.isError ? (
+        <Alert
+          severity="warning"
+          action={
+            clients.error instanceof ApiError && clients.error.status === 403 ? undefined : (
+              <Button color="inherit" onClick={() => void clients.refetch()}>
+                Reintentar resolución
+              </Button>
+            )
+          }
+        >
+          {clients.error instanceof ApiError && clients.error.status === 403
+            ? 'No fue posible consultar los nombres de Clientes por falta de permiso.'
+            : 'No fue posible resolver los Clientes.'}
+        </Alert>
+      ) : null}
       <Box>
         <Button variant="contained" startIcon={<AddOutlined />} onClick={() => setEditing('create')}>
           Crear promocion
@@ -376,7 +414,12 @@ function PromotionsSection({
                       {promo.validUntil ? formatDate(promo.validUntil) : 'sin limite'} )
                     </TableCell>
                     <TableCell>
-                      <PromotionTargets promo={promo} clients={clientsById} services={servicesById} />
+                      <PromotionTargets
+                        promo={promo}
+                        clients={clientsById}
+                        services={servicesById}
+                        clientStatus={clients.status}
+                      />
                     </TableCell>
                     <TableCell>
                       {promo.isActive ? 'Activa' : 'Inactiva'} ·{' '}
@@ -402,7 +445,12 @@ function PromotionsSection({
                     <Typography>
                       {promotionScopeLabels[promo.scope]} · {intervalLabel(promo)}
                     </Typography>
-                    <PromotionTargets promo={promo} clients={clientsById} services={servicesById} />
+                    <PromotionTargets
+                      promo={promo}
+                      clients={clientsById}
+                      services={servicesById}
+                      clientStatus={clients.status}
+                    />
                     <Typography variant="body2">
                       {promo.allowsStacking ? 'Permite acumulacion' : 'No permite acumulacion'}
                     </Typography>
@@ -436,10 +484,16 @@ function PromotionsSection({
           target={editing}
           references={references}
           onClose={() => setEditing(null)}
+          onNotice={onNotice}
         />
       ) : null}
       {toggling ? (
-        <TogglePromotionDialog apiClient={apiClient} promotion={toggling} onClose={() => setToggling(null)} />
+        <TogglePromotionDialog
+          apiClient={apiClient}
+          promotion={toggling}
+          onClose={() => setToggling(null)}
+          onNotice={onNotice}
+        />
       ) : null}
     </Stack>
   );
@@ -448,18 +502,26 @@ function PromotionsSection({
 function PromotionTargets({
   promo,
   clients,
-  services
+  services,
+  clientStatus
 }: {
   promo: AdminPromotion;
   clients: Map<string, AdminClient>;
   services: Map<string, ServiceReference>;
+  clientStatus: 'pending' | 'error' | 'success';
 }) {
   const client = promo.clientId ? clients.get(promo.clientId) : undefined;
   const service = promo.serviceId ? services.get(promo.serviceId) : undefined;
   return (
     <Stack spacing={0.25}>
       <Typography variant="body2">
-        {client ? client.name : promo.clientId ? 'Cliente no resuelto' : 'Todos los Clientes'}
+        {client
+          ? client.name
+          : promo.clientId
+            ? clientStatus === 'pending'
+              ? 'Resolviendo Cliente…'
+              : 'Cliente no resuelto'
+            : 'Todos los Clientes'}
       </Typography>
       {promo.clientId ? (
         <Typography variant="caption" color="text.secondary">
@@ -481,21 +543,43 @@ function PromotionTargets({
   );
 }
 
-function mutationError(error: unknown) {
-  const parsed = adminErrorMessage(error);
-  return parsed.uncertain ? uncertainMessage : parsed.message;
+function priceMatchesInput(price: AdminPrice, input: CreateAdminPriceInput) {
+  return (
+    price.serviceId === input.serviceId &&
+    price.clientType === input.clientType &&
+    price.credits === input.credits &&
+    price.validFrom === input.validFrom &&
+    price.validUntil === (input.validUntil ?? null)
+  );
+}
+
+function promotionMatchesInput(promotion: AdminPromotion, input: CreateAdminPromotionInput) {
+  return (
+    promotion.name === input.name &&
+    promotion.scope === input.scope &&
+    promotion.clientId === (input.clientId ?? null) &&
+    promotion.clientType === (input.clientType ?? null) &&
+    promotion.serviceId === (input.serviceId ?? null) &&
+    promotion.validFrom === input.validFrom &&
+    promotion.validUntil === (input.validUntil ?? null) &&
+    promotion.allowsStacking === input.allowsStacking
+  );
 }
 
 function ServiceDialog({
   apiClient,
   target,
   onClose,
-  onSaved
+  onSaved,
+  knownServices,
+  onNotice
 }: {
   apiClient: ApiClient;
   target: ServiceReference | 'create' | null;
   onClose: () => void;
   onSaved: (value: AdminService) => void;
+  knownServices: ServiceReference[];
+  onNotice: (message: string) => void;
 }) {
   const creating = target === 'create';
   const [code, setCode] = useState<keyof typeof serviceLabels>('FLYER');
@@ -504,40 +588,53 @@ function ServiceDialog({
     if (!target || typeof target !== 'object' || target.isActive === undefined) return '';
     return target.isActive ? 'active' : 'inactive';
   });
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const scope = useAdminOperationScope('catalog-service', typeof target === 'object' && target ? target.id : 'create');
-  const queryClient = useQueryClient();
+  const [validationError, setValidationError] = useState('');
+  const mutation = useCatalogMutationState(
+    'catalog-service',
+    typeof target === 'object' && target ? target.id : 'create'
+  );
   const submit = async () => {
     if (!active) {
-      setError('Selecciona explicitamente el nuevo estado del Servicio.');
+      setValidationError('Selecciona explicitamente el nuevo estado del Servicio.');
       return;
     }
-    const operation = scope.begin();
-    if (!operation) return;
-    setBusy(true);
-    setError('');
-    try {
-      const result = creating
-        ? await apiClient.adminCatalog.createService({ code, isActive: active === 'active' }, operation.signal)
-        : await apiClient.adminCatalog.updateService(
-            (target as ServiceReference).id,
-            { isActive: active === 'active' },
-            operation.signal
-          );
-      if (operation.isCurrent()) onSaved(result);
-    } catch (reason) {
-      if (operation.isCurrent() && !isAbortError(reason)) {
-        setError(mutationError(reason));
-        void queryClient.invalidateQueries({ queryKey: adminQueryKeys.prices });
+    setValidationError('');
+    await mutation.submit(
+      (signal) =>
+        creating
+          ? apiClient.adminCatalog.createService({ code, isActive: active === 'active' }, signal)
+          : apiClient.adminCatalog.updateService(
+              (target as ServiceReference).id,
+              { isActive: active === 'active' },
+              signal
+            ),
+      (result) => {
+        onSaved(result);
+        onNotice('La respuesta autoritativa del Servicio fue aplicada.');
       }
-    } finally {
-      if (operation.isCurrent()) setBusy(false);
-      operation.finish();
-    }
+    );
+  };
+  const reconcile = async () => {
+    await mutation.reconcile(
+      async () => {
+        const matches = creating
+          ? knownServices.filter((service) => service.code === code && service.isActive === (active === 'active'))
+          : knownServices.filter(
+              (service) => service.id === (target as ServiceReference).id && service.isActive === (active === 'active')
+            );
+        if (matches.length === 1) return { status: 'applied', value: matches[0] } as const;
+        return { status: 'ambiguous' } as const;
+      },
+      {
+        applied: () => {
+          onNotice('La informacion conservada confirma que el Servicio ya fue actualizado.');
+          onClose();
+        }
+      }
+    );
   };
   return (
-    <Dialog open={target !== null} onClose={busy ? undefined : onClose} fullWidth maxWidth="sm">
+    <Dialog open={target !== null} onClose={mutation.busy ? undefined : onClose} fullWidth maxWidth="sm">
       <DialogTitle>{creating ? 'Crear Servicio' : 'Actualizar Servicio'}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>
@@ -572,15 +669,22 @@ function ServiceDialog({
             <MenuItem value="active">Activo</MenuItem>
             <MenuItem value="inactive">Inactivo</MenuItem>
           </TextField>
-          {error ? <Alert severity="error">{error}</Alert> : null}
+          {validationError ? <Alert severity="error">{validationError}</Alert> : null}
+          {mutation.error ? <Alert severity="error">{mutation.error}</Alert> : null}
+          {mutation.needsReconciliation ? (
+            <Stack direction="row" spacing={1}>
+              <Button onClick={() => void reconcile()}>Actualizar información</Button>
+              <Button onClick={mutation.allowExplicitRetry}>Habilitar reintento explicito</Button>
+            </Stack>
+          ) : null}
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={busy}>
+        <Button onClick={onClose} disabled={mutation.busy}>
           Cancelar
         </Button>
-        <Button variant="contained" onClick={() => void submit()} disabled={busy || !active}>
-          {busy ? 'Procesando...' : 'Confirmar'}
+        <Button variant="contained" onClick={() => void submit()} disabled={!mutation.canSubmit || !active}>
+          {mutation.busy ? 'Procesando...' : 'Confirmar'}
         </Button>
       </DialogActions>
     </Dialog>
@@ -592,28 +696,29 @@ function PriceDialog({
   open,
   prices,
   references,
-  onClose
+  onClose,
+  onNotice
 }: {
   apiClient: ApiClient;
   open: boolean;
   prices: AdminPrice[];
   references: ServiceReference[];
   onClose: () => void;
+  onNotice: (message: string) => void;
 }) {
   const [serviceId, setServiceId] = useState('');
   const [clientType, setClientType] = useState<CreateAdminPriceInput['clientType']>('PLANNER');
   const [credits, setCredits] = useState('');
   const [from, setFrom] = useState('');
   const [until, setUntil] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const scope = useAdminOperationScope('catalog-price', 'create');
+  const [validationError, setValidationError] = useState('');
+  const mutation = useCatalogMutationState('catalog-price', 'create');
   const queryClient = useQueryClient();
-  const submit = async () => {
+  const buildBody = () => {
     const numeric = Number(credits);
     if (!serviceId || !Number.isInteger(numeric) || numeric < 0 || !from) {
-      setError('Completa una revision valida del precio.');
-      return;
+      setValidationError('Completa una revision valida del precio.');
+      return null;
     }
     const body: CreateAdminPriceInput = {
       serviceId,
@@ -623,44 +728,61 @@ function PriceDialog({
       validUntil: until ? toIso(until) : null
     };
     if (body.validUntil && body.validUntil <= body.validFrom) {
-      setError('El fin de vigencia debe ser posterior al inicio.');
-      return;
+      setValidationError('El fin de vigencia debe ser posterior al inicio.');
+      return null;
     }
     if (
       prices.some(
         (price) => price.serviceId === serviceId && price.clientType === clientType && intervalsOverlap(price, body)
       )
     ) {
-      setError('La vigencia aparente se solapa con otro precio. El backend realizara la validacion definitiva.');
-      return;
+      setValidationError(
+        'La vigencia aparente se solapa con otro precio. El backend realizara la validacion definitiva.'
+      );
+      return null;
     }
     const code = references.find((item) => item.id === serviceId)?.code;
     if (code === 'DEMO' && numeric !== 0) {
-      setError('Demo debe conservar precio de cero creditos.');
-      return;
+      setValidationError('Demo debe conservar precio de cero creditos.');
+      return null;
     }
-    const operation = scope.begin();
-    if (!operation) return;
-    setBusy(true);
-    setError('');
-    try {
-      await apiClient.adminCatalog.createPrice(body, operation.signal);
-      if (operation.isCurrent()) {
-        await queryClient.invalidateQueries({ queryKey: adminQueryKeys.prices });
+    setValidationError('');
+    return body;
+  };
+  const submit = async () => {
+    const body = buildBody();
+    if (!body) return;
+    await mutation.submit(
+      (signal) => apiClient.adminCatalog.createPrice(body, signal),
+      (result) => {
+        queryClient.setQueryData<AdminPrice[]>(adminQueryKeys.prices, (items = []) => [...items, result]);
+        onNotice('El Precio fue confirmado por la respuesta autoritativa.');
         onClose();
       }
-    } catch (reason) {
-      if (operation.isCurrent() && !isAbortError(reason)) {
-        setError(mutationError(reason));
-        void queryClient.invalidateQueries({ queryKey: adminQueryKeys.prices });
+    );
+  };
+  const reconcile = async () => {
+    const body = buildBody();
+    if (!body) return;
+    await mutation.reconcile(
+      async (signal) => {
+        const items = await apiClient.adminCatalog.listPrices(signal);
+        queryClient.setQueryData(adminQueryKeys.prices, items);
+        const matches = items.filter((item) => priceMatchesInput(item, body));
+        if (matches.length === 1) return { status: 'applied', value: matches[0] } as const;
+        if (matches.length > 1) return { status: 'ambiguous' } as const;
+        return { status: 'not_applied' } as const;
+      },
+      {
+        applied: () => {
+          onNotice('La consulta autoritativa confirma que el Precio ya fue creado.');
+          onClose();
+        }
       }
-    } finally {
-      if (operation.isCurrent()) setBusy(false);
-      operation.finish();
-    }
+    );
   };
   return (
-    <Dialog open={open} onClose={busy ? undefined : onClose} fullWidth maxWidth="sm">
+    <Dialog open={open} onClose={mutation.busy ? undefined : onClose} fullWidth maxWidth="sm">
       <DialogTitle>Crear precio</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>
@@ -708,15 +830,19 @@ function PriceDialog({
             Revisa Servicio, tipo de Cliente, creditos y el intervalo [inicio, fin). El historial no se edita: un precio
             vigente solo puede cerrarse.
           </Alert>
-          {error ? <Alert severity="error">{error}</Alert> : null}
+          {validationError ? <Alert severity="error">{validationError}</Alert> : null}
+          {mutation.error ? <Alert severity="error">{mutation.error}</Alert> : null}
+          {mutation.needsReconciliation ? (
+            <Button onClick={() => void reconcile()}>Actualizar información</Button>
+          ) : null}
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={busy}>
+        <Button onClick={onClose} disabled={mutation.busy}>
           Cancelar
         </Button>
-        <Button variant="contained" onClick={() => void submit()} disabled={busy}>
-          {busy ? 'Procesando...' : 'Confirmar precio'}
+        <Button variant="contained" onClick={() => void submit()} disabled={!mutation.canSubmit}>
+          {mutation.busy ? 'Procesando...' : 'Confirmar precio'}
         </Button>
       </DialogActions>
     </Dialog>
@@ -726,57 +852,82 @@ function PriceDialog({
 function ClosePriceDialog({
   apiClient,
   price,
-  onClose
+  onClose,
+  onNotice
 }: {
   apiClient: ApiClient;
   price: AdminPrice | null;
   onClose: () => void;
+  onNotice: (message: string) => void;
 }) {
+  const [currentPrice, setCurrentPrice] = useState(price);
   const [until, setUntil] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const scope = useAdminOperationScope('catalog-price', price?.id ?? 'none');
+  const [validationError, setValidationError] = useState('');
+  const mutation = useCatalogMutationState('catalog-price-close', currentPrice?.id ?? 'none');
   const queryClient = useQueryClient();
   const submit = async () => {
-    if (!price || !until) return;
-    if (toIso(until) <= price.validFrom) {
-      setError('La fecha de cierre debe ser posterior al inicio de la vigencia.');
+    if (!currentPrice || !until) return;
+    if (toIso(until) <= currentPrice.validFrom) {
+      setValidationError('La fecha de cierre debe ser posterior al inicio de la vigencia.');
       return;
     }
-    const operation = scope.begin();
-    if (!operation) return;
-    setBusy(true);
-    try {
-      await apiClient.adminCatalog.closePrice(price.id, { validUntil: toIso(until) }, operation.signal);
-      if (operation.isCurrent()) {
-        await queryClient.invalidateQueries({ queryKey: adminQueryKeys.prices });
+    setValidationError('');
+    const requestedUntil = toIso(until);
+    await mutation.submit(
+      (signal) => apiClient.adminCatalog.closePrice(currentPrice.id, { validUntil: requestedUntil }, signal),
+      (result) => {
+        queryClient.setQueryData<AdminPrice[]>(adminQueryKeys.prices, (items = []) =>
+          items.map((item) => (item.id === result.id ? result : item))
+        );
+        onNotice('El cierre del Precio fue confirmado por la respuesta autoritativa.');
         onClose();
       }
-    } catch (reason) {
-      if (operation.isCurrent() && !isAbortError(reason)) {
-        setError(mutationError(reason));
-        void queryClient.invalidateQueries({ queryKey: adminQueryKeys.prices });
+    );
+  };
+  const reconcile = async () => {
+    if (!currentPrice || !until) return;
+    const requestedUntil = toIso(until);
+    await mutation.reconcile(
+      async (signal) => {
+        const items = await apiClient.adminCatalog.listPrices(signal);
+        queryClient.setQueryData(adminQueryKeys.prices, items);
+        const current = items.find((item) => item.id === currentPrice.id);
+        if (!current) return { status: 'unavailable' } as const;
+        if (current.validUntil === requestedUntil) return { status: 'applied', value: current } as const;
+        if (current.validUntil === null) return { status: 'not_applied', value: current } as const;
+        return { status: 'unavailable' } as const;
+      },
+      {
+        applied: () => {
+          onNotice('La consulta autoritativa confirma que el Precio ya fue cerrado.');
+          onClose();
+        },
+        notApplied: (latest) => {
+          if (latest) setCurrentPrice(latest);
+        },
+        unavailable: () => {
+          onNotice('El Precio ya no esta disponible para esta operacion.');
+          onClose();
+        }
       }
-    } finally {
-      if (operation.isCurrent()) setBusy(false);
-      operation.finish();
-    }
+    );
   };
   return (
     <ConfirmSensitiveActionDialog
-      open={price !== null}
+      open={currentPrice !== null}
       title="Cerrar vigencia"
       description="El precio historico no se modifica; solo se fija su limite superior exclusivo."
       confirmLabel="Cerrar precio"
-      busy={busy}
-      error={error}
+      busy={mutation.busy}
+      confirmDisabled={!mutation.canSubmit}
+      error={validationError || mutation.error}
       onClose={onClose}
       onConfirm={() => void submit()}
     >
-      {price ? (
+      {currentPrice ? (
         <Typography variant="body2">
-          {serviceLabels[price.serviceCode]} · {clientTypeLabels[price.clientType]} · {price.credits} creditos · inicio{' '}
-          {formatDate(price.validFrom)}
+          {serviceLabels[currentPrice.serviceCode]} · {clientTypeLabels[currentPrice.clientType]} ·{' '}
+          {currentPrice.credits} creditos · inicio {formatDate(currentPrice.validFrom)}
         </Typography>
       ) : null}
       <TextField
@@ -787,6 +938,7 @@ function ClosePriceDialog({
         slotProps={{ inputLabel: { shrink: true }, htmlInput: { step: 1 } }}
         fullWidth
       />
+      {mutation.needsReconciliation ? <Button onClick={() => void reconcile()}>Actualizar información</Button> : null}
     </ConfirmSensitiveActionDialog>
   );
 }
@@ -795,12 +947,14 @@ function PromotionDialog({
   apiClient,
   target,
   references,
-  onClose
+  onClose,
+  onNotice
 }: {
   apiClient: ApiClient;
   target: AdminPromotion | 'create' | null;
   references: ServiceReference[];
   onClose: () => void;
+  onNotice: (message: string) => void;
 }) {
   const current = target && target !== 'create' ? target : null;
   const [name, setName] = useState(current?.name ?? '');
@@ -811,14 +965,13 @@ function PromotionDialog({
   const [from, setFrom] = useState(toLocalInput(current?.validFrom));
   const [until, setUntil] = useState(toLocalInput(current?.validUntil));
   const [stacking, setStacking] = useState(current?.allowsStacking ?? false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const operationScope = useAdminOperationScope('catalog-promotion', current?.id ?? 'create');
+  const [validationError, setValidationError] = useState('');
+  const mutation = useCatalogMutationState('catalog-promotion', current?.id ?? 'create');
   const queryClient = useQueryClient();
-  const submit = async () => {
+  const buildBody = () => {
     if (!name.trim() || !from) {
-      setError('Completa nombre e inicio de vigencia.');
-      return;
+      setValidationError('Completa nombre e inicio de vigencia.');
+      return null;
     }
     const body: CreateAdminPromotionInput = {
       name: name.trim(),
@@ -831,32 +984,76 @@ function PromotionDialog({
       allowsStacking: stacking
     };
     if (body.validUntil && body.validUntil <= body.validFrom) {
-      setError('El fin de vigencia debe ser posterior al inicio.');
-      return;
+      setValidationError('El fin de vigencia debe ser posterior al inicio.');
+      return null;
     }
-    const operation = operationScope.begin();
-    if (!operation) return;
-    setBusy(true);
-    setError('');
-    try {
-      if (current) await apiClient.adminCatalog.updatePromotion(current.id, body, operation.signal);
-      else await apiClient.adminCatalog.createPromotion(body, operation.signal);
-      if (operation.isCurrent()) {
-        await queryClient.invalidateQueries({ queryKey: adminQueryKeys.promotions });
+    setValidationError('');
+    return body;
+  };
+  const applyAuthoritative = (value: AdminPromotion) => {
+    setName(value.name);
+    setScopeValue(value.scope);
+    setClientType(value.clientType ?? '');
+    setClientId(value.clientId ?? '');
+    setServiceId(value.serviceId ?? '');
+    setFrom(toLocalInput(value.validFrom));
+    setUntil(toLocalInput(value.validUntil));
+    setStacking(value.allowsStacking);
+  };
+  const submit = async () => {
+    const body = buildBody();
+    if (!body) return;
+    await mutation.submit(
+      (signal) =>
+        current
+          ? apiClient.adminCatalog.updatePromotion(current.id, body, signal)
+          : apiClient.adminCatalog.createPromotion(body, signal),
+      (result) => {
+        queryClient.setQueryData<AdminPromotion[]>(adminQueryKeys.promotions, (items = []) => [
+          ...items.filter((item) => item.id !== result.id),
+          result
+        ]);
+        onNotice(`La ${current ? 'actualizacion' : 'creacion'} de la Promocion fue confirmada.`);
         onClose();
       }
-    } catch (reason) {
-      if (operation.isCurrent() && !isAbortError(reason)) {
-        setError(mutationError(reason));
-        void queryClient.invalidateQueries({ queryKey: adminQueryKeys.promotions });
+    );
+  };
+  const reconcile = async () => {
+    const body = buildBody();
+    if (!body) return;
+    await mutation.reconcile(
+      async (signal) => {
+        const items = await apiClient.adminCatalog.listPromotions(signal);
+        queryClient.setQueryData(adminQueryKeys.promotions, items);
+        if (current) {
+          const latest = items.find((item) => item.id === current.id);
+          if (!latest) return { status: 'unavailable' } as const;
+          return promotionMatchesInput(latest, body)
+            ? ({ status: 'applied', value: latest } as const)
+            : ({ status: 'not_applied', value: latest } as const);
+        }
+        const matches = items.filter((item) => promotionMatchesInput(item, body));
+        if (matches.length === 1) return { status: 'applied', value: matches[0] } as const;
+        if (matches.length > 1) return { status: 'ambiguous' } as const;
+        return { status: 'not_applied' } as const;
+      },
+      {
+        applied: () => {
+          onNotice('La consulta autoritativa confirma que la Promocion ya fue aplicada.');
+          onClose();
+        },
+        notApplied: (latest) => {
+          if (latest) applyAuthoritative(latest);
+        },
+        unavailable: () => {
+          onNotice('La Promocion ya no esta disponible.');
+          onClose();
+        }
       }
-    } finally {
-      if (operation.isCurrent()) setBusy(false);
-      operation.finish();
-    }
+    );
   };
   return (
-    <Dialog open={target !== null} onClose={busy ? undefined : onClose} fullWidth maxWidth="sm">
+    <Dialog open={target !== null} onClose={mutation.busy ? undefined : onClose} fullWidth maxWidth="sm">
       <DialogTitle>{current ? 'Editar promocion' : 'Crear promocion'}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>
@@ -918,15 +1115,19 @@ function PromotionDialog({
           <Alert severity="info">
             Esta configuracion solo define elegibilidad. No contiene porcentaje, monto, bonos ni formulas economicas.
           </Alert>
-          {error ? <Alert severity="error">{error}</Alert> : null}
+          {validationError ? <Alert severity="error">{validationError}</Alert> : null}
+          {mutation.error ? <Alert severity="error">{mutation.error}</Alert> : null}
+          {mutation.needsReconciliation ? (
+            <Button onClick={() => void reconcile()}>Actualizar información</Button>
+          ) : null}
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={busy}>
+        <Button onClick={onClose} disabled={mutation.busy}>
           Cancelar
         </Button>
-        <Button variant="contained" onClick={() => void submit()} disabled={busy}>
-          {busy ? 'Procesando...' : 'Confirmar promocion'}
+        <Button variant="contained" onClick={() => void submit()} disabled={!mutation.canSubmit}>
+          {mutation.busy ? 'Procesando...' : 'Confirmar promocion'}
         </Button>
       </DialogActions>
     </Dialog>
@@ -936,49 +1137,77 @@ function PromotionDialog({
 function TogglePromotionDialog({
   apiClient,
   promotion,
-  onClose
+  onClose,
+  onNotice
 }: {
   apiClient: ApiClient;
   promotion: AdminPromotion | null;
   onClose: () => void;
+  onNotice: (message: string) => void;
 }) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const scope = useAdminOperationScope('catalog-promotion-toggle', promotion?.id ?? 'none');
+  const [currentPromotion, setCurrentPromotion] = useState(promotion);
+  const mutation = useCatalogMutationState('catalog-promotion-toggle', promotion?.id ?? 'none');
   const queryClient = useQueryClient();
   const submit = async () => {
-    if (!promotion) return;
-    const operation = scope.begin();
-    if (!operation) return;
-    setBusy(true);
-    try {
-      if (promotion.isActive) await apiClient.adminCatalog.deactivatePromotion(promotion.id, operation.signal);
-      else await apiClient.adminCatalog.activatePromotion(promotion.id, operation.signal);
-      if (operation.isCurrent()) {
-        await queryClient.invalidateQueries({ queryKey: adminQueryKeys.promotions });
+    if (!currentPromotion) return;
+    await mutation.submit(
+      (signal) =>
+        currentPromotion.isActive
+          ? apiClient.adminCatalog.deactivatePromotion(currentPromotion.id, signal)
+          : apiClient.adminCatalog.activatePromotion(currentPromotion.id, signal),
+      (result) => {
+        queryClient.setQueryData<AdminPromotion[]>(adminQueryKeys.promotions, (items = []) =>
+          items.map((item) => (item.id === result.id ? result : item))
+        );
+        onNotice(`La Promocion fue ${result.isActive ? 'activada' : 'desactivada'} de forma autoritativa.`);
         onClose();
       }
-    } catch (reason) {
-      if (operation.isCurrent() && !isAbortError(reason)) {
-        setError(mutationError(reason));
-        void queryClient.invalidateQueries({ queryKey: adminQueryKeys.promotions });
+    );
+  };
+  const reconcile = async () => {
+    if (!currentPromotion) return;
+    const requestedState = !currentPromotion.isActive;
+    await mutation.reconcile(
+      async (signal) => {
+        const items = await apiClient.adminCatalog.listPromotions(signal);
+        queryClient.setQueryData(adminQueryKeys.promotions, items);
+        const latest = items.find((item) => item.id === currentPromotion.id);
+        if (!latest) return { status: 'unavailable' } as const;
+        return latest.isActive === requestedState
+          ? ({ status: 'applied', value: latest } as const)
+          : ({ status: 'not_applied', value: latest } as const);
+      },
+      {
+        applied: (latest) => {
+          onNotice(
+            `La consulta autoritativa confirma que la Promocion esta ${latest?.isActive ? 'activa' : 'inactiva'}.`
+          );
+          onClose();
+        },
+        notApplied: (latest) => {
+          if (latest) setCurrentPromotion(latest);
+        },
+        unavailable: () => {
+          onNotice('La Promocion ya no esta disponible.');
+          onClose();
+        }
       }
-    } finally {
-      if (operation.isCurrent()) setBusy(false);
-      operation.finish();
-    }
+    );
   };
   return (
     <ConfirmSensitiveActionDialog
-      open={promotion !== null}
-      title={`${promotion?.isActive ? 'Desactivar' : 'Activar'} promocion`}
+      open={currentPromotion !== null}
+      title={`${currentPromotion?.isActive ? 'Desactivar' : 'Activar'} promocion`}
       description="La accion cambia la elegibilidad operativa y no aplica efectos economicos retroactivos."
-      confirmLabel={promotion?.isActive ? 'Desactivar' : 'Activar'}
-      destructive={Boolean(promotion?.isActive)}
-      busy={busy}
-      error={error}
+      confirmLabel={currentPromotion?.isActive ? 'Desactivar' : 'Activar'}
+      destructive={Boolean(currentPromotion?.isActive)}
+      busy={mutation.busy}
+      confirmDisabled={!mutation.canSubmit}
+      error={mutation.error}
       onClose={onClose}
       onConfirm={() => void submit()}
-    />
+    >
+      {mutation.needsReconciliation ? <Button onClick={() => void reconcile()}>Actualizar información</Button> : null}
+    </ConfirmSensitiveActionDialog>
   );
 }

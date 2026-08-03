@@ -1038,7 +1038,9 @@ para reintento explicito con la misma llave.
 promociones de elegibilidad, cortes financieros y metadata de reportes. No existe descarga Admin ni
 listado administrativo completo de Servicios. El hardening conserva Servicios autoritativos entre
 pestanas, habilita su primer Precio/Promocion, evita estados preseleccionados desconocidos, preserva el
-instante en fechas locales y valida respuestas administrativas completas y finitas.
+instante en fechas locales y valida respuestas administrativas completas y finitas. El hardening
+residual bloquea la repeticion de mutaciones no idempotentes con resultado incierto, exige reconciliacion
+por lectura autoritativa y separa los estados de resolucion de Cliente sin ocultar promociones.
 
 Pendientes de cortes posteriores: auditoria y configuracion. Auditoria requiere primero endpoints
 presentes en OpenAPI. CODEX-130 permanece EN PROGRESO.

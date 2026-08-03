@@ -36,5 +36,11 @@ montaje de `/catalogo`; cambiar de pestana no los pierde. Un reload completo pie
 Precio porque no existe una ruta para recuperarlo. Los precios son historicos y las fechas conservan el
 instante al convertir ISO a `datetime-local` y volver a ISO. Las promociones solo definen elegibilidad,
 resuelven nombres mediante endpoints Admin y los reportes Admin no ofrecen dataset ni descarga.
+Las mutaciones de Catalogo comparten estados `submitting`, `uncertain`, `reconciling`,
+`resolved_applied`, `resolved_not_applied` y `deterministic_error`. Un resultado incierto deshabilita
+Confirmar y exige `Actualizar informacion`; nunca provoca un reenvio silencioso. La consulta
+autoritativa cierra el dialogo si confirma el cambio o habilita un intento nuevo solo si demuestra que
+no fue aplicado. Los nombres de Cliente muestran estados independientes de resolucion y una falla no
+oculta las promociones.
 Auditoria y configuracion pertenecen a cortes posteriores. No hay impersonacion ni acciones operativas
 de Cliente.

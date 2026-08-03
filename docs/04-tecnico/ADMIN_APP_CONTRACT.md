@@ -135,6 +135,15 @@ La UI traduce los codigos de autorizacion, Cliente, usuario, Evento, balance, id
 respuesta inesperada. Puede mostrar `operationId`, pero no payloads, stack, secretos o detalles Prisma.
 
 Servicios, precios y promociones no inventan idempotencia. Usan scopes abortables, lock sincronico y
-sin estado optimista. Red, timeout, `429` o `5xx` dejan el dialogo abierto y comunican que el resultado
-no pudo confirmarse; no repiten automaticamente. Cuando existe una coleccion de lectura, se vuelve a
-consultar antes de permitir que el operador decida una accion posterior.
+sin estado optimista. Una maquina reutilizable coordina `idle`, `submitting`, `uncertain`,
+`reconciling`, `resolved_applied`, `resolved_not_applied` y `deterministic_error`. Red, timeout, `429` o
+`5xx` dejan el dialogo abierto, deshabilitan Confirmar y comunican que el resultado no pudo confirmarse;
+no repiten automaticamente. `Actualizar informacion` ejecuta exclusivamente una lectura autoritativa.
+Una coincidencia unica adopta el resultado sin otra mutacion; una ausencia verificable habilita un nuevo
+intento explicito; una respuesta ambigua o fallida permanece incierta. Servicio, que carece de listado
+Admin, exige que el operador habilite de forma explicita cualquier reintento.
+
+La resolucion de nombres de Cliente para promociones tiene estados `pending`, `success` y `error`. Un
+Cliente ausente en una respuesta exitosa queda identificado como referencia no resuelta; `403` se
+muestra como falta de permiso y red/`429`/`5xx` permiten reintentar la lectura. Ninguno de esos estados
+oculta las promociones autoritativas ya cargadas. Un `401` conserva el manejo central de sesion.

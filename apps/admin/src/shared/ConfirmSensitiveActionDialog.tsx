@@ -7,6 +7,7 @@ export function ConfirmSensitiveActionDialog({
   description,
   confirmLabel,
   busy,
+  confirmDisabled = false,
   destructive = false,
   error,
   children,
@@ -18,6 +19,7 @@ export function ConfirmSensitiveActionDialog({
   description: string;
   confirmLabel: string;
   busy: boolean;
+  confirmDisabled?: boolean;
   destructive?: boolean;
   error?: string;
   children?: ReactNode;
@@ -50,7 +52,12 @@ export function ConfirmSensitiveActionDialog({
         <Button onClick={onClose} disabled={busy}>
           Cancelar
         </Button>
-        <Button color={destructive ? 'error' : 'primary'} variant="contained" onClick={onConfirm} disabled={busy}>
+        <Button
+          color={destructive ? 'error' : 'primary'}
+          variant="contained"
+          onClick={onConfirm}
+          disabled={busy || confirmDisabled}
+        >
           {busy ? 'Procesando...' : confirmLabel}
         </Button>
       </DialogActions>

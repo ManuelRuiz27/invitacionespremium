@@ -1,7 +1,7 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import type { AdminReport } from '@invitaciones/api-client';
+import { ApiError, type AdminReport } from '@invitaciones/api-client';
 import { mockAdminApi } from '../test/fixtures';
 import { renderAdminApp } from '../test/render-admin-app';
 
@@ -20,6 +20,15 @@ const report = (eventId: string): AdminReport => ({
 });
 
 describe('reportes administrativos', () => {
+  it('desmonta Reportes cuando el controlador central recibe un 401', async () => {
+    const api = mockAdminApi();
+    const { router, unauthorizedController } = renderAdminApp(api, '/reportes');
+    expect(await screen.findByRole('heading', { name: 'Reportes' })).toBeVisible();
+    unauthorizedController.notify();
+    await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
+    expect(screen.queryByRole('heading', { name: 'Reportes' })).not.toBeInTheDocument();
+  });
+
   it('muestra solo metadata y los cortes exactos sin parametros', async () => {
     const api = mockAdminApi();
     vi.mocked(api.adminReports.list).mockResolvedValue([{ ...report('event-a'), downloadPath: '/forbidden' }]);
@@ -37,21 +46,35 @@ describe('reportes administrativos', () => {
   it('aborta A y nunca muestra su respuesta bajo el Evento B', async () => {
     const api = mockAdminApi();
     let resolveA!: (value: AdminReport[]) => void;
+    const pendingB = deferred<AdminReport[]>();
     vi.mocked(api.adminReports.listEvent).mockImplementation((eventId) =>
       eventId === 'event-a'
         ? new Promise((resolve) => {
             resolveA = resolve;
           })
-        : Promise.resolve([{ ...report('event-b'), type: 'PHYSICAL_PASSES' }])
+        : pendingB.promise
     );
     const { router } = renderAdminApp(api, '/reportes/eventos/event-a');
     await waitFor(() => expect(api.adminReports.listEvent).toHaveBeenCalledWith('event-a', expect.any(AbortSignal)));
     await router.navigate('/reportes/eventos/event-b');
+    expect(await screen.findByText('Cargando metadata de reportes...')).toBeVisible();
+    expect(screen.queryByText('Asistencia')).not.toBeInTheDocument();
+    pendingB.resolve([{ ...report('event-b'), type: 'PHYSICAL_PASSES' }]);
     expect((await screen.findAllByText('Pases fisicos')).length).toBeGreaterThan(0);
     resolveA([report('event-a')]);
     await waitFor(() => expect(screen.queryByText('Asistencia')).not.toBeInTheDocument());
     const firstSignal = vi.mocked(api.adminReports.listEvent).mock.calls[0]?.[1];
     expect(firstSignal?.aborted).toBe(true);
+  });
+
+  it('muestra error, retry y empty state por Evento sin perder la sesion', async () => {
+    const api = mockAdminApi();
+    vi.mocked(api.adminReports.listEvent).mockRejectedValueOnce(new ApiError(403, 'FORBIDDEN', 'sin permiso'));
+    renderAdminApp(api, '/reportes/eventos/event-a');
+    await userEvent.click(await screen.findByRole('button', { name: 'Reintentar' }));
+    expect(await screen.findByText('Sin reportes')).toBeVisible();
+    expect(screen.getByText('platform@example.com')).toBeVisible();
+    expect(api.auth.logout).not.toHaveBeenCalled();
   });
 
   it('muestra loading, error con retry y empty state globales', async () => {

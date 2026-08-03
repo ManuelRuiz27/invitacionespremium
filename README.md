@@ -464,6 +464,11 @@ dobles envios sincronos y conserva en memoria los resultados financieros inciert
 El alcance implementado incluye sesion exclusiva, shell responsive, dashboard real, Clientes y usuarios,
 Eventos administrativos, finanzas por Cliente, Servicios referenciados, historial inmutable de precios,
 promociones de elegibilidad, cortes financieros autoritativos y metadata administrativa de reportes.
+Las mutaciones no idempotentes de Catalogo usan una maquina de estados comun: ante red, `429` o `5xx`
+se bloquea un segundo envio y el operador debe consultar informacion autoritativa. Solo una consulta que
+demuestre que el cambio no se aplico habilita un nuevo intento explicito; si lo confirma, la UI adopta
+la respuesta sin repetir la mutacion. La resolucion de nombres de Cliente distingue carga, exito,
+ausencia y error sin ocultar las promociones.
 Catalogo conserva durante el montaje de la pagina los Servicios autoritativos conocidos por precios o
 mutaciones, por lo que un Servicio recien creado puede usarse en su primer Precio o Promocion al cambiar
 de pestana. Un reload pierde inevitablemente los Servicios que aun no tienen Precio porque el backend no
