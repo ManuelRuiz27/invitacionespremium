@@ -11,10 +11,10 @@ export function useStableIdempotency() {
   const submitting = useRef(false);
 
   return {
-    begin(fingerprint: string) {
+    begin(fingerprint: string, existingKey?: string) {
       if (submitting.current) return null;
       submitting.current = true;
-      if (pending.current?.fingerprint !== fingerprint) pending.current = { fingerprint, key: newKey() };
+      if (pending.current?.fingerprint !== fingerprint) pending.current = { fingerprint, key: existingKey ?? newKey() };
       return pending.current.key;
     },
     finish({ retain }: { retain: boolean }) {

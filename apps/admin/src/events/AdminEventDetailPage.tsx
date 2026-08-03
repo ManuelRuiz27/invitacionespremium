@@ -10,6 +10,7 @@ import { adminErrorMessage } from '../shared/admin-error';
 import { eventStatusLabel, formatDate } from '../shared/admin-labels';
 import { AdminErrorState, AdminLoadingState } from '../shared/AdminStates';
 import { ConfirmSensitiveActionDialog } from '../shared/ConfirmSensitiveActionDialog';
+import { isAbortError, type AdminScopedOperation, useAdminOperationScope } from '../shared/useAdminOperationScope';
 
 export function AdminEventDetailPage({ apiClient }: { apiClient: ApiClient }) {
   const { eventId = '' } = useParams();
@@ -20,6 +21,7 @@ function AdminEventDetail({ apiClient, eventId }: { apiClient: ApiClient; eventI
   const queryClient = useQueryClient();
   const [restoring, setRestoring] = useState(false);
   const [error, setError] = useState<string>();
+  const operationScope = useAdminOperationScope('event', eventId);
   const event = useQuery({
     queryKey: adminQueryKeys.event(eventId),
     queryFn: ({ signal }) => apiClient.adminEvents.get(eventId, signal),
@@ -31,16 +33,29 @@ function AdminEventDetail({ apiClient, eventId }: { apiClient: ApiClient; eventI
     enabled: Boolean(event.data?.clientId)
   });
   const restore = useMutation({
-    mutationFn: () => apiClient.adminEvents.restore(eventId),
-    onSuccess: async () => {
+    mutationFn: (operation: AdminScopedOperation) => apiClient.adminEvents.restore(eventId, operation.signal),
+    onSuccess: async (_result, operation) => {
+      if (!operation.isCurrent()) return;
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: adminQueryKeys.event(eventId) }),
         queryClient.invalidateQueries({ queryKey: adminQueryKeys.events })
       ]);
+      if (!operation.isCurrent()) return;
+      operation.finish();
       setRestoring(false);
     },
-    onError: (cause) => setError(adminErrorMessage(cause).message)
+    onError: (cause, operation) => {
+      if (operation.isCurrent() && !isAbortError(cause)) setError(adminErrorMessage(cause).message);
+      operation.finish();
+    }
   });
+
+  function submitRestore() {
+    const operation = operationScope.begin();
+    if (!operation) return;
+    setError(undefined);
+    restore.mutate(operation);
+  }
   if (event.isPending) return <AdminLoadingState label="Cargando Evento..." />;
   if (event.isError) return <AdminErrorState onRetry={() => void event.refetch()} />;
   const data = event.data;
@@ -98,7 +113,7 @@ function AdminEventDetail({ apiClient, eventId }: { apiClient: ApiClient; eventI
           setRestoring(false);
           setError(undefined);
         }}
-        onConfirm={() => restore.mutate()}
+        onConfirm={submitRestore}
       />
     </Stack>
   );

@@ -1,7 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ApiError, type ApiClient, type AuthUser, type LoginInput } from '@invitaciones/api-client';
 import type { QueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import type { AdminFinanceIntentRegistry } from '../finance/admin-finance-intents';
+import type { AdminUnauthorizedController } from './admin-unauthorized-controller';
 import { safeAdminReturnTo, type AdminAuthStatus } from './admin-session';
 
 interface AdminAuthValue {
@@ -18,40 +20,57 @@ const AdminAuthContext = createContext<AdminAuthValue | null>(null);
 export function AdminAuthProvider({
   apiClient,
   queryClient,
+  unauthorizedController,
+  financeIntentRegistry,
   children
 }: {
   apiClient: ApiClient;
   queryClient: QueryClient;
+  unauthorizedController: AdminUnauthorizedController;
+  financeIntentRegistry: AdminFinanceIntentRegistry;
   children: ReactNode;
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [status, setStatus] = useState<AdminAuthStatus>('loading');
   const [user, setUser] = useState<AuthUser | null>(null);
   const loginPromise = useRef<Promise<void> | null>(null);
+  const statusRef = useRef<AdminAuthStatus>('loading');
+  const expirationStarted = useRef(false);
+  const locationRef = useRef({ pathname: location.pathname, search: location.search });
+  locationRef.current = { pathname: location.pathname, search: location.search };
+
+  const setAuthStatus = useCallback((nextStatus: AdminAuthStatus) => {
+    statusRef.current = nextStatus;
+    setStatus(nextStatus);
+  }, []);
 
   const clearPrivateState = useCallback(() => {
     queryClient.clear();
+    financeIntentRegistry.clear();
     setUser(null);
-  }, [queryClient]);
+  }, [financeIntentRegistry, queryClient]);
 
   const acceptUser = useCallback(
     (candidate: AuthUser, returnTo?: string, navigateAfter = true) => {
       if (candidate.role !== 'PLATFORM_ADMIN' || candidate.clientId !== null) {
         queryClient.clear();
+        financeIntentRegistry.clear();
         setUser(candidate);
-        setStatus('forbidden');
+        setAuthStatus('forbidden');
         return;
       }
+      expirationStarted.current = false;
       setUser(candidate);
-      setStatus('authenticated');
+      setAuthStatus('authenticated');
       if (navigateAfter) navigate(safeAdminReturnTo(returnTo), { replace: true });
     },
-    [navigate, queryClient]
+    [financeIntentRegistry, navigate, queryClient, setAuthStatus]
   );
 
   const restoreSession = useCallback(
     async (signal?: AbortSignal) => {
-      setStatus('loading');
+      setAuthStatus('loading');
       try {
         const candidate = await apiClient.auth.me(signal);
         if (!signal?.aborted) acceptUser(candidate, undefined, false);
@@ -59,16 +78,30 @@ export function AdminAuthProvider({
         if (signal?.aborted) return;
         if (error instanceof ApiError && error.status === 401) {
           clearPrivateState();
-          setStatus('anonymous');
+          setAuthStatus('anonymous');
         } else if (error instanceof ApiError && error.status === 403) {
           clearPrivateState();
-          setStatus('forbidden');
+          setAuthStatus('forbidden');
         } else {
-          setStatus('unavailable');
+          setAuthStatus('unavailable');
         }
       }
     },
-    [acceptUser, apiClient, clearPrivateState]
+    [acceptUser, apiClient, clearPrivateState, setAuthStatus]
+  );
+
+  const expireAuthenticatedSession = useCallback(() => {
+    if (statusRef.current !== 'authenticated' || expirationStarted.current) return;
+    expirationStarted.current = true;
+    const returnTo = safeAdminReturnTo(`${locationRef.current.pathname}${locationRef.current.search}`);
+    clearPrivateState();
+    setAuthStatus('anonymous');
+    navigate(`/login?returnTo=${encodeURIComponent(returnTo)}`, { replace: true });
+  }, [clearPrivateState, navigate, setAuthStatus]);
+
+  useEffect(
+    () => unauthorizedController.subscribe(expireAuthenticatedSession),
+    [expireAuthenticatedSession, unauthorizedController]
   );
 
   useEffect(() => {
@@ -98,17 +131,23 @@ export function AdminAuthProvider({
           await apiClient.auth.logout();
         } finally {
           clearPrivateState();
-          setStatus('anonymous');
+          setAuthStatus('anonymous');
           navigate('/login', { replace: true });
         }
       },
-      expireSession: (returnTo) => {
-        clearPrivateState();
-        setStatus('anonymous');
-        navigate(`/login?returnTo=${encodeURIComponent(safeAdminReturnTo(returnTo))}`, { replace: true });
-      }
+      expireSession: () => expireAuthenticatedSession()
     }),
-    [acceptUser, apiClient, clearPrivateState, navigate, restoreSession, status, user]
+    [
+      acceptUser,
+      apiClient,
+      clearPrivateState,
+      expireAuthenticatedSession,
+      navigate,
+      restoreSession,
+      setAuthStatus,
+      status,
+      user
+    ]
   );
 
   return <AdminAuthContext.Provider value={value}>{children}</AdminAuthContext.Provider>;

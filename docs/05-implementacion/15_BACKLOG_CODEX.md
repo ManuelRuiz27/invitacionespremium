@@ -1029,7 +1029,10 @@ Contrato normativo: `docs/04-tecnico/PUBLIC_CLIENT_CONTRACT.md`. CODEX-130 no fu
 
 **Estado:** EN PROGRESO
 
-**Corte A completado:** shell, sesion, Clientes, Eventos y finanzas por Cliente.
+**Corte A pendiente de aceptacion:** shell, sesion, Clientes, Eventos y finanzas por Cliente. El
+hardening centraliza la expiracion de sesion por `401`, aisla y aborta mutaciones por Cliente/Evento,
+bloquea dobles envios sincronos y conserva en memoria las intenciones financieras de resultado incierto
+para reintento explicito con la misma llave.
 
 Pendientes de cortes posteriores: servicios/precios/promociones, reportes, auditoria y configuracion.
 Auditoria requiere primero endpoints presentes en OpenAPI.

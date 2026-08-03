@@ -14,12 +14,17 @@ pnpm --filter @invitaciones/api-client test
 pnpm --filter @invitaciones/api-client build
 ```
 
-`createApiClient({ baseUrl, fetchImpl? })` expone `auth`, `adminClients`, `adminEvents`, `adminFinance`, `events`, `finance`, `services`, `contacts`,
+`createApiClient({ baseUrl, fetchImpl?, onUnauthorized? })` expone `auth`, `adminClients`, `adminEvents`, `adminFinance`, `events`, `finance`, `services`, `contacts`,
 `invitations`, `fileAssets`, `design`, `floorplan`, `physicalPasses`, `publicInvitation` y `publicAlbum`.
 El runtime admite JSON, multipart,
 texto, `Blob`, `ArrayBuffer`, respuestas `204`, abortos y llaves idempotentes. Toda solicitud usa
 `credentials: 'include'` por defecto; los wrappers públicos fuerzan `credentials: 'omit'`. El SDK no lee
 ni escribe localStorage, sessionStorage o IndexedDB.
+
+Cuando un request con credenciales recibe `401`, el requester construye el `ApiError`, invoca una vez
+`onUnauthorized` y lanza ese mismo error al caller. No notifica para `403`, `429`, `5xx`, errores de red,
+`AbortError` o `UNEXPECTED_API_RESPONSE`. Los wrappers publicos conservan `credentials: 'omit'` y nunca
+participan en la expiracion de una sesion privada.
 
 Los wrappers públicos cubren resolución, Confirmación, rechazo, acompañantes, assets, QR SVG, Álbum y
 fotos con los DTO generados. Codifican segmentos, propagan `AbortSignal` y no activan manejo de sesión.

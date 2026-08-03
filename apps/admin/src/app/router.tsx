@@ -3,6 +3,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import { Button, Stack, Typography } from '@mui/material';
 import { createBrowserRouter, createMemoryRouter, Link, Outlet, type RouteObject } from 'react-router-dom';
 import { AdminAuthProvider } from '../auth/AdminAuthProvider';
+import type { AdminUnauthorizedController } from '../auth/admin-unauthorized-controller';
 import { AdminLoginPage } from '../auth/AdminLoginPage';
 import { AdminProtectedRoute } from '../auth/AdminProtectedRoute';
 import { AdminRoleGuard } from '../auth/AdminRoleGuard';
@@ -11,26 +12,43 @@ import { AdminClientsPage } from '../clients/AdminClientsPage';
 import { AdminDashboardPage } from '../dashboard/AdminDashboardPage';
 import { AdminEventDetailPage } from '../events/AdminEventDetailPage';
 import { AdminEventsPage } from '../events/AdminEventsPage';
+import { AdminFinanceIntentProvider, type AdminFinanceIntentRegistry } from '../finance/admin-finance-intents';
 import { AdminShell } from '../layout/AdminShell';
 
-export function createAdminRouter({ apiClient, queryClient }: { apiClient: ApiClient; queryClient: QueryClient }) {
-  return createBrowserRouter(createRoutes({ apiClient, queryClient }));
+export interface AdminRouterDependencies {
+  apiClient: ApiClient;
+  queryClient: QueryClient;
+  unauthorizedController: AdminUnauthorizedController;
+  financeIntentRegistry: AdminFinanceIntentRegistry;
 }
 
-export function createAdminMemoryRouter(
-  dependencies: { apiClient: ApiClient; queryClient: QueryClient },
-  initialEntries: string[]
-) {
+export function createAdminRouter(dependencies: AdminRouterDependencies) {
+  return createBrowserRouter(createRoutes(dependencies));
+}
+
+export function createAdminMemoryRouter(dependencies: AdminRouterDependencies, initialEntries: string[]) {
   return createMemoryRouter(createRoutes(dependencies), { initialEntries });
 }
 
-function createRoutes({ apiClient, queryClient }: { apiClient: ApiClient; queryClient: QueryClient }): RouteObject[] {
+function createRoutes({
+  apiClient,
+  queryClient,
+  unauthorizedController,
+  financeIntentRegistry
+}: AdminRouterDependencies): RouteObject[] {
   return [
     {
       element: (
-        <AdminAuthProvider apiClient={apiClient} queryClient={queryClient}>
-          <Outlet />
-        </AdminAuthProvider>
+        <AdminFinanceIntentProvider registry={financeIntentRegistry}>
+          <AdminAuthProvider
+            apiClient={apiClient}
+            queryClient={queryClient}
+            unauthorizedController={unauthorizedController}
+            financeIntentRegistry={financeIntentRegistry}
+          >
+            <Outlet />
+          </AdminAuthProvider>
+        </AdminFinanceIntentProvider>
       ),
       children: [
         { path: '/login', element: <AdminLoginPage /> },

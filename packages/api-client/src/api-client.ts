@@ -3,6 +3,7 @@ import { createApiError, unexpectedResponse } from './api-error';
 export interface ApiClientRuntimeConfig {
   baseUrl: string;
   fetchImpl?: typeof fetch;
+  onUnauthorized?: () => void;
 }
 
 export interface ApiRequest {
@@ -59,7 +60,9 @@ export function createRequester(config: ApiClientRuntimeConfig): ApiRequester {
     });
 
     if (!response.ok) {
-      throw createApiError(response.status, await readOptionalJson(response));
+      const error = createApiError(response.status, await readOptionalJson(response));
+      if (response.status === 401 && request.credentials !== 'omit') config.onUnauthorized?.();
+      throw error;
     }
 
     if (request.response === 'empty' || response.status === 204) return undefined as T;

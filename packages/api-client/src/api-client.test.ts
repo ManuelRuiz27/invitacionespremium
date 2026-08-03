@@ -119,6 +119,56 @@ describe('generated API client runtime', () => {
     await expect(promise).rejects.not.toHaveProperty('details');
   });
 
+  it('notifies authenticated 401 responses once and rethrows the same ApiError', async () => {
+    const onUnauthorized = vi.fn();
+    const client = createApiClient({
+      baseUrl: 'https://api.example.com/api/v1',
+      fetchImpl: vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ code: 'UNAUTHORIZED' }, 401)),
+      onUnauthorized
+    });
+    const promise = client.adminClients.list();
+    const error = await promise.catch((cause: unknown) => cause);
+    expect(error).toMatchObject({ status: 401, code: 'UNAUTHORIZED' });
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
+    await expect(Promise.reject(error)).rejects.toBe(error);
+  });
+
+  it.each([403, 429, 500])('does not notify session expiration for HTTP %i', async (status) => {
+    const onUnauthorized = vi.fn();
+    const client = createApiClient({
+      baseUrl: 'https://api.example.com/api/v1',
+      fetchImpl: vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({}, status)),
+      onUnauthorized
+    });
+    await expect(client.adminClients.list()).rejects.toMatchObject({ status });
+    expect(onUnauthorized).not.toHaveBeenCalled();
+  });
+
+  it.each([new TypeError('network'), new DOMException('aborted', 'AbortError')])(
+    'does not notify session expiration for transport failure %#',
+    async (failure) => {
+      const onUnauthorized = vi.fn();
+      const client = createApiClient({
+        baseUrl: 'https://api.example.com/api/v1',
+        fetchImpl: vi.fn<typeof fetch>().mockRejectedValue(failure),
+        onUnauthorized
+      });
+      await expect(client.adminClients.list()).rejects.toBe(failure);
+      expect(onUnauthorized).not.toHaveBeenCalled();
+    }
+  );
+
+  it('does not notify session expiration for malformed successful responses', async () => {
+    const onUnauthorized = vi.fn();
+    const client = createApiClient({
+      baseUrl: 'https://api.example.com/api/v1',
+      fetchImpl: mockJson({ wrong: true }),
+      onUnauthorized
+    });
+    await expect(client.adminClients.list()).rejects.toMatchObject({ code: 'UNEXPECTED_API_RESPONSE' });
+    expect(onUnauthorized).not.toHaveBeenCalled();
+  });
+
   it('rejects unexpected payloads and successful non-JSON responses', async () => {
     const badPayload = createApiClient({
       baseUrl: 'https://api.example.com/api/v1',
@@ -229,6 +279,16 @@ describe('generated API client runtime', () => {
 });
 
 describe('public API client', () => {
+  it('keeps public 401 responses outside private session expiration', async () => {
+    const onUnauthorized = vi.fn();
+    const client = createApiClient({
+      baseUrl: 'https://api.example.com/api/v1',
+      fetchImpl: vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({}, 401)),
+      onUnauthorized
+    });
+    await expect(client.publicInvitation.resolve('token')).rejects.toMatchObject({ status: 401 });
+    expect(onUnauthorized).not.toHaveBeenCalled();
+  });
   it('resolves invitations and sends public RSVP mutations without cookies', async () => {
     const invitation = validPublicInvitation();
     const mutation = { invitationId: 'invitation', responseStatus: 'CONFIRMED', assistants: [] };

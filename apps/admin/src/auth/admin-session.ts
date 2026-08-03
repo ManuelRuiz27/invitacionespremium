@@ -5,7 +5,7 @@ export function safeAdminReturnTo(value: string | null | undefined): string {
   try {
     const parsed = new URL(value, 'https://admin.invalid');
     if (parsed.origin !== 'https://admin.invalid' || parsed.pathname === '/login') return '/';
-    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    return `${parsed.pathname}${parsed.search}`;
   } catch {
     return '/';
   }

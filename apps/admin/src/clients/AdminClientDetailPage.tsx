@@ -11,8 +11,15 @@ import { adminErrorMessage } from '../shared/admin-error';
 import { clientStatusLabel, clientTypeLabel, formatDate, userRoleLabel } from '../shared/admin-labels';
 import { AdminEmptyState, AdminErrorState, AdminLoadingState } from '../shared/AdminStates';
 import { ConfirmSensitiveActionDialog } from '../shared/ConfirmSensitiveActionDialog';
+import { isAbortError, type AdminScopedOperation, useAdminOperationScope } from '../shared/useAdminOperationScope';
 
 type ClientAction = 'rename' | 'suspend' | 'restore' | 'planner' | null;
+type ClientMutationRequest =
+  | { operation: AdminScopedOperation; kind: 'user'; userId: string; email: string; password: string }
+  | { operation: AdminScopedOperation; kind: 'rename'; name: string }
+  | { operation: AdminScopedOperation; kind: 'suspend'; reason: string }
+  | { operation: AdminScopedOperation; kind: 'restore' }
+  | { operation: AdminScopedOperation; kind: 'planner'; email: string; password: string };
 
 export function AdminClientDetailPage({ apiClient }: { apiClient: ApiClient }) {
   const { clientId = '' } = useParams();
@@ -28,6 +35,7 @@ function AdminClientDetail({ apiClient, clientId }: { apiClient: ApiClient; clie
   const [password, setPassword] = useState('');
   const [editingUser, setEditingUser] = useState<AdminClientUser | null>(null);
   const [error, setError] = useState<string>();
+  const operationScope = useAdminOperationScope('client', clientId);
   const client = useQuery({
     queryKey: adminQueryKeys.client(clientId),
     queryFn: ({ signal }) => apiClient.adminClients.get(clientId, signal),
@@ -47,26 +55,61 @@ function AdminClientDetail({ apiClient, clientId }: { apiClient: ApiClient; clie
     ]);
   };
   const mutation = useMutation({
-    mutationFn: async () => {
-      if (editingUser)
-        return apiClient.adminClients.updateUser(clientId, editingUser.id, {
-          ...(email.trim() ? { email: email.trim() } : {}),
-          ...(password ? { password } : {})
-        });
-      if (action === 'rename') return apiClient.adminClients.update(clientId, { name: name.trim() });
-      if (action === 'suspend')
-        return apiClient.adminClients.suspend(clientId, reason.trim() ? { reason: reason.trim() } : {});
-      if (action === 'restore') return apiClient.adminClients.restore(clientId);
-      if (action === 'planner')
-        return apiClient.adminClients.createPlanner(clientId, { email: email.trim(), password });
-      throw new Error('Accion no disponible');
+    mutationFn: async (request: ClientMutationRequest) => {
+      const { signal } = request.operation;
+      if (request.kind === 'user')
+        return apiClient.adminClients.updateUser(
+          clientId,
+          request.userId,
+          {
+            ...(request.email ? { email: request.email } : {}),
+            ...(request.password ? { password: request.password } : {})
+          },
+          signal
+        );
+      if (request.kind === 'rename') return apiClient.adminClients.update(clientId, { name: request.name }, signal);
+      if (request.kind === 'suspend')
+        return apiClient.adminClients.suspend(clientId, request.reason ? { reason: request.reason } : {}, signal);
+      if (request.kind === 'restore') return apiClient.adminClients.restore(clientId, signal);
+      return apiClient.adminClients.createPlanner(
+        clientId,
+        { email: request.email, password: request.password },
+        signal
+      );
     },
-    onSuccess: async () => {
+    onSuccess: async (_result, request) => {
+      if (!request.operation.isCurrent()) return;
       await refresh();
+      if (!request.operation.isCurrent()) return;
+      request.operation.finish();
       closeDialog();
     },
-    onError: (cause) => setError(adminErrorMessage(cause).message)
+    onError: (cause, request) => {
+      if (request.operation.isCurrent() && !isAbortError(cause)) setError(adminErrorMessage(cause).message);
+      request.operation.finish();
+    }
   });
+
+  function submitMutation() {
+    const operation = operationScope.begin();
+    if (!operation) return;
+    setError(undefined);
+    if (editingUser) {
+      mutation.mutate({
+        operation,
+        kind: 'user',
+        userId: editingUser.id,
+        email: email.trim(),
+        password
+      });
+      return;
+    }
+    if (action === 'rename') mutation.mutate({ operation, kind: 'rename', name: name.trim() });
+    else if (action === 'suspend') mutation.mutate({ operation, kind: 'suspend', reason: reason.trim() });
+    else if (action === 'restore') mutation.mutate({ operation, kind: 'restore' });
+    else if (action === 'planner') mutation.mutate({ operation, kind: 'planner', email: email.trim(), password });
+    else operation.finish();
+  }
 
   function closeDialog() {
     setAction(null);
@@ -201,7 +244,7 @@ function AdminClientDetail({ apiClient, clientId }: { apiClient: ApiClient; clie
         busy={mutation.isPending}
         {...(error ? { error } : {})}
         onClose={closeDialog}
-        onConfirm={() => mutation.mutate()}
+        onConfirm={submitMutation}
       >
         {dialogAction === 'rename' ? (
           <TextField label="Nombre" value={name} onChange={(e) => setName(e.target.value)} required />

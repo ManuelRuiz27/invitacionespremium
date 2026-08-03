@@ -102,9 +102,15 @@ describe('administrative API client', () => {
   it('covers balance and all implemented financial mutations with stable idempotency headers', async () => {
     const fetchImpl = sequence([balance, mutation, mutation, mutation, mutation]);
     const api = createApiClient({ baseUrl: 'https://api.example.com/api/v1', fetchImpl });
-    await api.adminFinance.balance('client/value');
-    await api.adminFinance.assignCredits('client/value', { credits: 5, reason: 'Cortesia' }, 'grant-key');
-    await api.adminFinance.configureCreditLine('client/value', { limitCredits: 20, status: 'ACTIVE' }, 'line-key');
+    const signal = new AbortController().signal;
+    await api.adminFinance.balance('client/value', signal);
+    await api.adminFinance.assignCredits('client/value', { credits: 5, reason: 'Cortesia' }, 'grant-key', signal);
+    await api.adminFinance.configureCreditLine(
+      'client/value',
+      { limitCredits: 20, status: 'ACTIVE' },
+      'line-key',
+      signal
+    );
     await api.adminFinance.manualPayment(
       'client/value',
       {
@@ -114,9 +120,10 @@ describe('administrative API client', () => {
         externalReference: 'EXT-1',
         kind: 'CREDIT_PURCHASE'
       },
-      'payment-key'
+      'payment-key',
+      signal
     );
-    await api.adminFinance.rebuildBalance('client/value', 'rebuild-key');
+    await api.adminFinance.rebuildBalance('client/value', 'rebuild-key', signal);
 
     expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
       'https://api.example.com/api/v1/admin/finance/clients/client%2Fvalue/balance',
@@ -131,6 +138,7 @@ describe('administrative API client', () => {
       'payment-key',
       'rebuild-key'
     ]);
+    expect(fetchImpl.mock.calls.every(([, init]) => init?.signal === signal)).toBe(true);
   });
 
   it('propagates AbortSignal, authenticates with cookies and does not invent unsupported list query parameters', async () => {
