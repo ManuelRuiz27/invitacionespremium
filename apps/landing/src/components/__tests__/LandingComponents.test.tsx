@@ -1,6 +1,8 @@
 import { App } from '../../App';
 import { createLandingConfig, getLandingConfig } from '../../config/landing-config';
 import { LandingDemoMock } from '../LandingDemoMock';
+import { LandingProblem } from '../LandingProblem';
+import { LandingSolution } from '../LandingSolution';
 import { LandingServices } from '../LandingServices';
 import { LandingHeader } from '../LandingHeader';
 import { LandingHero } from '../LandingHero';
@@ -294,14 +296,88 @@ describe('LandingProductStage visual contrast', () => {
   }
 
   it('guarantees WCAG 2.1 AA compliant contrast for the dark surface semantic tokens', () => {
-    // The background color of the ProductStage card
-    const background = '#17233C'; // designTokens.colors.ink
-
-    const { accent, accentMuted, textPrimary, textSecondary } = landingTokens.colors.darkSurface;
+    const { background, accent, accentMuted, textPrimary, textSecondary } = landingTokens.colors.darkSurface;
 
     expect(contrastRatio(accent, background)).toBeGreaterThanOrEqual(4.5);
     expect(contrastRatio(textPrimary, background)).toBeGreaterThanOrEqual(4.5);
     expect(contrastRatio(textSecondary, background)).toBeGreaterThanOrEqual(4.5);
     expect(contrastRatio(accentMuted, background)).toBeGreaterThanOrEqual(3.0);
+  });
+});
+
+describe('Landing section semantics and content', () => {
+  it('renders LandingProblem exactly with config content', () => {
+    renderWithTheme(<LandingProblem />);
+
+    // Título y subtítulo
+    expect(screen.getByRole('heading', { level: 2, name: content.problem.title })).toBeInTheDocument();
+    expect(screen.getByText(content.problem.subtitle)).toBeInTheDocument();
+
+    // Tres problemas
+    const problemHeadings = screen.getAllByRole('heading', { level: 3 });
+    expect(problemHeadings).toHaveLength(3);
+    content.problem.items.forEach((item) => {
+      expect(screen.getByRole('heading', { level: 3, name: item.title })).toBeInTheDocument();
+      expect(screen.getByText(item.description)).toBeInTheDocument();
+    });
+
+    // Semántica: aria-labelledby y un solo h2
+    const section = screen.getByRole('region', { name: content.problem.title });
+    expect(section).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
+
+    // No links ni buttons extra
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  it('renders LandingSolution exactly with config content', () => {
+    renderWithTheme(<LandingSolution />);
+
+    expect(screen.getByRole('heading', { level: 2, name: content.solution.title })).toBeInTheDocument();
+    expect(screen.getByText(content.solution.subtitle)).toBeInTheDocument();
+    expect(screen.getByText(content.solution.ruleNotice)).toBeInTheDocument();
+
+    const pillarHeadings = screen.getAllByRole('heading', { level: 3 });
+    expect(pillarHeadings).toHaveLength(5);
+    content.solution.pillars.forEach((pillar) => {
+      expect(screen.getByRole('heading', { level: 3, name: pillar.title })).toBeInTheDocument();
+      expect(screen.getByText(pillar.description)).toBeInTheDocument();
+    });
+
+    // Semántica
+    const section = screen.getByRole('region', { name: content.solution.title });
+    expect(section).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
+
+    expect(screen.queryByText(/Recomendado/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Prioridad/i)).not.toBeInTheDocument();
+  });
+
+  it('renders LandingServices exactly with config content', () => {
+    renderWithTheme(<LandingServices />);
+
+    expect(screen.getByRole('heading', { level: 2, name: content.services.title })).toBeInTheDocument();
+
+    const serviceHeadings = screen.getAllByRole('heading', { level: 3 });
+    expect(serviceHeadings).toHaveLength(4); // 3 pagados + 1 Demo
+
+    // Demo characteristics
+    const demoService = content.services.items.find((s) => s.code === 'DEMO')!;
+    expect(screen.getByRole('heading', { level: 3, name: demoService.name })).toBeInTheDocument();
+
+    // Lists
+    const lists = screen.getAllByRole('list');
+    expect(lists.length).toBeGreaterThanOrEqual(4); // one for each service
+
+    // Semántica
+    const section = screen.getByRole('region', { name: content.services.title });
+    expect(section).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
+
+    expect(screen.queryByText(/Más popular/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Recomendado/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 });

@@ -1,63 +1,63 @@
+import { Box, Container, Grid, Typography } from '@mui/material';
 import { getLandingConfig } from '../config/landing-config';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlined';
-import { Box, Card, CardContent, Container, Grid, Typography } from '@mui/material';
+import { LandingSectionIntro } from './primitives';
 
 const landingContent = getLandingConfig();
 
 export function LandingProblem() {
   return (
-    <Box component="section" sx={{ py: { xs: 6, md: 9 }, bgcolor: 'background.default' }}>
+    <Box id="problema" component="section" aria-label={landingContent.problem.title} sx={{ py: { xs: 8, md: 12 }, bgcolor: 'background.paper' }}>
       <Container maxWidth="lg">
-        <Box sx={{ textAlign: 'center', mb: 6 }}>
-          <Typography variant="h2" component="h2" sx={{ fontWeight: 800, mb: 1.5 }}>
-            {landingContent.problem.title}
-          </Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ fontSize: '1.1rem', maxWidth: 640, mx: 'auto' }}>
-            {landingContent.problem.subtitle}
-          </Typography>
-        </Box>
+        <Grid container spacing={{ xs: 6, md: 8 }}>
+          {/* Left Column: Intro */}
+          <Grid size={{ xs: 12, md: 5 }}>
+            <Box sx={{ position: { md: 'sticky' }, top: { md: 120 } }}>
+              <LandingSectionIntro
+                  title={landingContent.problem.title}
+                  subtitle={landingContent.problem.subtitle}
+                  align="left"
+                />
+              </Box>
+            </Grid>
 
-        <Grid container spacing={3}>
-          {landingContent.problem.items.map((item, index) => (
-            <Grid size={{ xs: 12, md: 4 }} key={index}>
-              <Card
-                sx={{
-                  height: '100%',
-                  borderRadius: 3,
-                  borderColor: 'divider',
-                  transition: 'transform 0.2s, box-shadow 0.2s',
-                  '&:hover': {
-                    transform: 'translateY(-4px)',
-                    boxShadow: '0 12px 32px rgba(23, 35, 60, 0.06)'
-                  }
-                }}
-              >
-                <CardContent sx={{ p: 3 }}>
-                  <Box
+          {/* Right Column: Problems Sequence */}
+          <Grid size={{ xs: 12, md: 7 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+              {landingContent.problem.items.map((item, index) => (
+                <Box
+                  key={index}
+                  sx={{
+                    display: 'flex',
+                    gap: { xs: 2.5, md: 3 },
+                    pb: { xs: 4, md: 5 },
+                    mb: { xs: 4, md: 5 },
+                    borderBottom: index < landingContent.problem.items.length - 1 ? '1px solid' : 'none',
+                    borderColor: 'divider'
+                  }}
+                >
+                  <Typography
+                    aria-hidden="true"
                     sx={{
-                      width: 48,
-                      height: 48,
-                      borderRadius: 2,
-                      bgcolor: 'rgba(181, 58, 67, 0.08)',
-                      color: 'error.main',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      mb: 2
+                      fontWeight: 700,
+                      fontSize: '1.25rem',
+                      color: 'text.disabled',
+                      mt: 0.25
                     }}
                   >
-                    <ErrorOutlineIcon />
+                    {String(index + 1).padStart(2, '0')}
+                  </Typography>
+                  <Box>
+                    <Typography variant="h3" component="h3" sx={{ fontWeight: 700, mb: 1.5, fontSize: '1.25rem', color: 'text.primary' }}>
+                      {item.title}
+                    </Typography>
+                    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                      {item.description}
+                    </Typography>
                   </Box>
-                  <Typography variant="h4" component="h3" sx={{ fontWeight: 700, mb: 1 }}>
-                    {item.title}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                    {item.description}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
+                </Box>
+              ))}
+            </Box>
+          </Grid>
         </Grid>
       </Container>
     </Box>

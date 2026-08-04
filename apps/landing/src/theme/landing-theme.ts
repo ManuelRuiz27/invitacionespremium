@@ -10,6 +10,7 @@ import { designTokens } from '@invitaciones/ui';
 export const landingTokens = {
   colors: {
     darkSurface: {
+      background: designTokens.colors.ink,
       accent: '#88A9FF', // >= 4.5:1 against #17233C
       accentMuted: '#7088B2', // >= 3:1 against #17233C for borders/indicators
       textPrimary: '#FFFFFF', // >= 4.5:1

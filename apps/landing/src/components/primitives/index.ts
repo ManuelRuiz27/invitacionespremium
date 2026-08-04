@@ -12,3 +12,5 @@ export type { LandingActionGroupProps } from './LandingActionGroup';
 
 export { LandingProductStage } from './LandingProductStage';
 export type { LandingProductStageProps, ProductStagePillar } from './LandingProductStage';
+export { LandingSectionIntro } from './LandingSectionIntro';
+export type { LandingSectionIntroProps } from './LandingSectionIntro';
