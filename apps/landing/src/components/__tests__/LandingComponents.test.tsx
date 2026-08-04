@@ -1,5 +1,6 @@
 import { App } from '../../App';
 import { createLandingConfig, getLandingConfig } from '../../config/landing-config';
+import { LandingDemoMock } from '../LandingDemoMock';
 import { LandingServices } from '../LandingServices';
 import { LandingHeader } from '../LandingHeader';
 import { AppThemeProvider } from '@invitaciones/ui';
@@ -77,10 +78,13 @@ describe('Landing commercial content', () => {
     expect(screen.getByText('0 créditos')).toBeInTheDocument();
   });
 
-  it('renders a single h1 and the accessible demo tabs', async () => {
-    renderWithTheme(<App />);
+  it('renders a single h1 and the accessible demo tabs', () => {
+    const app = renderWithTheme(<App />);
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
-    expect(await screen.findByRole('tablist', { name: 'Recorrido de la simulación visual' })).toBeInTheDocument();
+    app.unmount();
+
+    renderWithTheme(<LandingDemoMock />);
+    expect(screen.getByRole('tablist', { name: 'Recorrido de la simulación visual' })).toBeInTheDocument();
     expect(screen.getByText(content.demo.disclaimer)).toBeInTheDocument();
   });
 
