@@ -51,9 +51,16 @@ describe('Landing commercial content', () => {
   });
 
   it('states the precise Invitation and Assistant access rule', () => {
+    const serializedContent = JSON.stringify(content);
     expect(content.solution.ruleNotice).toBe('Regla de acceso: QR por Invitación; check-in individual por Asistente.');
-    expect(JSON.stringify(content)).toContain('El segundo ingreso del mismo pase queda bloqueado');
-    expect(JSON.stringify(content)).not.toContain('QR de un solo uso');
+    expect(serializedContent).toContain('QR por Invitación');
+    expect(serializedContent).toContain('check-in individual por Asistente');
+    for (const forbiddenClaim of ['QR por Asistente', 'QR individual por Asistente', 'un QR para cada Asistente']) {
+      expect(serializedContent).not.toContain(forbiddenClaim);
+    }
+    expect(serializedContent).toContain('un segundo ingreso válido del mismo Asistente queda bloqueado');
+    expect(serializedContent).toContain('El segundo ingreso del mismo pase queda bloqueado');
+    expect(serializedContent).not.toContain('QR de un solo uso');
   });
 
   it('states the physical-pass and Organization restrictions', () => {
@@ -86,6 +93,7 @@ describe('Landing commercial content', () => {
     renderWithTheme(<LandingDemoMock />);
     expect(screen.getByRole('tablist', { name: 'Recorrido de la simulación visual' })).toBeInTheDocument();
     expect(screen.getByText(content.demo.disclaimer)).toBeInTheDocument();
+    expect(screen.getByText('Domingo 15 de noviembre de 2026 • 18:00 HRS')).toBeInTheDocument();
   });
 
   it('does not publish localhost URLs in production without explicit configuration', () => {

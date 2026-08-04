@@ -46,6 +46,35 @@ describe('public Planner registration client', () => {
     });
   });
 
+  it.each([
+    ['client.type = ORGANIZATION', { ...validResult(), client: { ...validResult().client, type: 'ORGANIZATION' } }],
+    [
+      'user.role = ORGANIZATION_ADMIN',
+      { ...validResult(), user: { ...validResult().user, role: 'ORGANIZATION_ADMIN' } }
+    ],
+    ['user.role = PLATFORM_ADMIN', { ...validResult(), user: { ...validResult().user, role: 'PLATFORM_ADMIN' } }],
+    [
+      'user.role = ORGANIZATION_PLANNER',
+      { ...validResult(), user: { ...validResult().user, role: 'ORGANIZATION_PLANNER' } }
+    ],
+    [
+      'user.clientId differs from client.id',
+      { ...validResult(), user: { ...validResult().user, clientId: 'e446c95f-b655-4485-a54f-e70b5ee12c13' } }
+    ],
+    [
+      'a structurally valid Organization response',
+      {
+        ...validResult(),
+        client: { ...validResult().client, type: 'ORGANIZATION' },
+        user: { ...validResult().user, role: 'ORGANIZATION_ADMIN' }
+      }
+    ]
+  ])('rejects semantically incompatible registration: %s', async (_case, payload) => {
+    await expect(clientWith(jsonResponse(payload)).registerPlanner(input)).rejects.toMatchObject({
+      code: 'UNEXPECTED_API_RESPONSE'
+    });
+  });
+
   it('rejects a successful non-JSON response as unexpected', async () => {
     await expect(clientWith(new Response('not-json', { status: 201 })).registerPlanner(input)).rejects.toMatchObject({
       code: 'UNEXPECTED_API_RESPONSE'

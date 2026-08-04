@@ -116,6 +116,7 @@ const isRegisterPlannerResult = (value: unknown): value is RegisterPlannerResult
   isString(value.client.updatedAt) &&
   (value.client.suspendedAt === null || isString(value.client.suspendedAt)) &&
   (value.client.suspensionReason === null || isString(value.client.suspensionReason)) &&
+  value.client.type === 'PLANNER' &&
   isRecord(value.user) &&
   isString(value.user.id) &&
   isString(value.user.clientId) &&
@@ -124,7 +125,9 @@ const isRegisterPlannerResult = (value: unknown): value is RegisterPlannerResult
     String(value.user.role)
   ) &&
   isString(value.user.createdAt) &&
-  isString(value.user.updatedAt);
+  isString(value.user.updatedAt) &&
+  value.user.role === 'INDEPENDENT_PLANNER' &&
+  value.user.clientId === value.client.id;
 
 export function createPublicClientsClient(request: ApiRequester) {
   return {

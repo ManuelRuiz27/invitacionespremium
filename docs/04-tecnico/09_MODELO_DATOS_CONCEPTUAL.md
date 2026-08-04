@@ -216,7 +216,7 @@ Invitación.
 Solo es operativo con Evento `active` o `event_day` e Invitación confirmada.
 
 La validación interna vuelve a comprobar Evento, Contacto, Invitación, principal y Asistentes activos. El
-check-in posterior pertenece a cada Asistente; no existe QR individual por Asistente.
+check-in posterior pertenece a cada Asistente; no existe un QR distinto para cada uno.
 
 ## Check-in
 

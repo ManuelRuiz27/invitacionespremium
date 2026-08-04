@@ -183,5 +183,5 @@ agregado completo en una sola transacción sin observar estados intermedios inv�
 
 ## Alcance diferido
 
-Quedan fuera QR por Asistente, persistencia del SVG, WhatsApp, `StaffToken`, scanner, check-in, mesas,
+Quedan fuera la asignación de un QR distinto a cada Asistente, persistencia del SVG, WhatsApp, `StaffToken`, scanner, check-in, mesas,
 Álbum, frontend y efectos financieros propios de RSVP.

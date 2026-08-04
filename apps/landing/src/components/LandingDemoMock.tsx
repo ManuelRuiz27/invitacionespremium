@@ -173,7 +173,7 @@ export function LandingDemoMock() {
                       Sofía & Mateo
                     </Typography>
                     <Typography variant="body2" sx={{ color: '#D1D5DB', mb: 3 }}>
-                      Sábado 15 de Noviembre, 2026 • 18:00 HRS
+                      Domingo 15 de noviembre de 2026 • 18:00 HRS
                     </Typography>
 
                     <Stack spacing={1.5} sx={{ maxWidth: 300, mx: 'auto' }}>

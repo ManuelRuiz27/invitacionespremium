@@ -30,7 +30,7 @@ const commercialContent = {
     badge: 'Plataforma SaaS para Planners y Organizaciones',
     title: 'Operación digital completa para Eventos privados',
     subtitle:
-      'InvitacionesPremium no es solo un diseñador de invitaciones. Es una plataforma para administrar Confirmación nominal de asistencia, croquis de mesas, control de acceso QR por Asistente, Staff por token, reportes y Álbum post-Evento.',
+      'InvitacionesPremium no es solo un diseñador de invitaciones. Es una plataforma para administrar Confirmación nominal de asistencia, croquis de mesas, control de acceso con QR por Invitación y check-in individual por Asistente, Staff por token, reportes y Álbum post-Evento.',
     primaryCta: 'Registrarme como Planner',
     secondaryCta: 'Iniciar sesión'
   },
@@ -62,9 +62,9 @@ const commercialContent = {
         description: 'El Contacto registra a cada Asistente nominal permitido dentro de su Invitación.'
       },
       {
-        title: 'Acceso QR por Asistente',
+        title: 'QR por Invitación y check-in por Asistente',
         description:
-          'La Invitación genera un QR. En puerta, Staff escanea y registra el check-in individual de cada Asistente.'
+          'Cada Invitación tiene un único QR. Staff lo escanea y registra el ingreso individualmente por Asistente; un segundo ingreso válido del mismo Asistente queda bloqueado.'
       },
       {
         title: 'Croquis y asignación de Mesas',
