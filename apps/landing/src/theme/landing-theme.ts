@@ -8,6 +8,16 @@ import { designTokens } from '@invitaciones/ui';
  * surfaces, radii, shadows, spacing, and transitions.
  */
 export const landingTokens = {
+  colors: {
+    darkSurface: {
+      accent: '#88A9FF', // >= 4.5:1 against #17233C
+      accentMuted: '#7088B2', // >= 3:1 against #17233C for borders/indicators
+      textPrimary: '#FFFFFF', // >= 4.5:1
+      textSecondary: '#B0B8C8', // >= 4.5:1
+      divider: '#3A4B6B',
+    },
+  },
+
   typography: {
     /** Hero h1 / display headlines */
     display: {

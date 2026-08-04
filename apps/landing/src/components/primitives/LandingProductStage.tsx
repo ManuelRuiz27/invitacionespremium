@@ -1,5 +1,4 @@
 import { Box, Typography } from '@mui/material';
-import { designTokens } from '@invitaciones/ui';
 import { landingTokens } from '../../theme/landing-theme';
 
 export interface ProductStagePillar {
@@ -37,7 +36,7 @@ export function LandingProductStage({ pillars, ruleNotice }: LandingProductStage
         variant="caption"
         sx={{
           display: 'block',
-          color: designTokens.colors.accent,
+          color: landingTokens.colors.darkSurface.accent,
           fontWeight: 700,
           fontSize: '0.7rem',
           letterSpacing: '0.08em',
@@ -59,7 +58,7 @@ export function LandingProductStage({ pillars, ruleNotice }: LandingProductStage
               display: 'flex',
               gap: 1.5,
               py: 1.5,
-              borderTop: index > 0 ? '1px solid rgba(255, 255, 255, 0.06)' : 'none',
+              borderTop: index > 0 ? `1px solid ${landingTokens.colors.darkSurface.divider}` : 'none',
               '@media (prefers-reduced-motion: no-preference)': {
                 opacity: 0,
                 animation: 'landingStageIn 0.4s ease both',
@@ -79,7 +78,7 @@ export function LandingProductStage({ pillars, ruleNotice }: LandingProductStage
                 width: 28,
                 height: 28,
                 borderRadius: '50%',
-                border: `1.5px solid ${designTokens.colors.accent}`,
+                border: `1.5px solid ${landingTokens.colors.darkSurface.accentMuted}`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -91,7 +90,7 @@ export function LandingProductStage({ pillars, ruleNotice }: LandingProductStage
                 sx={{
                   fontSize: '0.72rem',
                   fontWeight: 700,
-                  color: designTokens.colors.accent,
+                  color: landingTokens.colors.darkSurface.accent,
                   lineHeight: 1
                 }}
               >
@@ -105,7 +104,7 @@ export function LandingProductStage({ pillars, ruleNotice }: LandingProductStage
                 variant="subtitle2"
                 sx={{
                   fontWeight: 700,
-                  color: '#FFFFFF',
+                  color: landingTokens.colors.darkSurface.textPrimary,
                   fontSize: '0.85rem',
                   lineHeight: 1.3
                 }}
@@ -115,7 +114,7 @@ export function LandingProductStage({ pillars, ruleNotice }: LandingProductStage
               <Typography
                 variant="caption"
                 sx={{
-                  color: 'rgba(255, 255, 255, 0.75)',
+                  color: landingTokens.colors.darkSurface.textSecondary,
                   display: 'block',
                   mt: 0.25,
                   lineHeight: 1.4,

@@ -5,6 +5,7 @@ import { LandingServices } from '../LandingServices';
 import { LandingHeader } from '../LandingHeader';
 import { LandingHero } from '../LandingHero';
 import { AppThemeProvider } from '@invitaciones/ui';
+import { landingTokens } from '../../theme/landing-theme';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
@@ -261,5 +262,46 @@ describe('Landing accessibility and navigation', () => {
     }
     expect(within(drawer).getByText('Registrarme como Planner')).toBeInTheDocument();
     expect(within(drawer).getByText(content.hero.secondaryCta)).toBeInTheDocument();
+  });
+});
+
+describe('LandingProductStage visual contrast', () => {
+  function hexToRgb(hex: string) {
+    const c = hex.replace('#', '');
+    return {
+      r: parseInt(c.substring(0, 2), 16),
+      g: parseInt(c.substring(2, 4), 16),
+      b: parseInt(c.substring(4, 6), 16)
+    };
+  }
+
+  function relativeLuminance(r: number, g: number, b: number) {
+    const toS = (c: number) => {
+      const s = c / 255;
+      return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+    };
+    return 0.2126 * toS(r) + 0.7152 * toS(g) + 0.0722 * toS(b);
+  }
+
+  function contrastRatio(hex1: string, hex2: string) {
+    const rgb1 = hexToRgb(hex1);
+    const rgb2 = hexToRgb(hex2);
+    const l1 = relativeLuminance(rgb1.r, rgb1.g, rgb1.b);
+    const l2 = relativeLuminance(rgb2.r, rgb2.g, rgb2.b);
+    const lighter = Math.max(l1, l2);
+    const darker = Math.min(l1, l2);
+    return (lighter + 0.05) / (darker + 0.05);
+  }
+
+  it('guarantees WCAG 2.1 AA compliant contrast for the dark surface semantic tokens', () => {
+    // The background color of the ProductStage card
+    const background = '#17233C'; // designTokens.colors.ink
+
+    const { accent, accentMuted, textPrimary, textSecondary } = landingTokens.colors.darkSurface;
+
+    expect(contrastRatio(accent, background)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(textPrimary, background)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(textSecondary, background)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(accentMuted, background)).toBeGreaterThanOrEqual(3.0);
   });
 });
