@@ -2,15 +2,17 @@ import { Box, Typography } from '@mui/material';
 import { landingTokens } from '../../theme/landing-theme';
 
 export interface LandingSectionIntroProps {
+  headingId: string;
   title: string;
   subtitle: string;
   align?: 'left' | 'center';
 }
 
-export function LandingSectionIntro({ title, subtitle, align = 'center' }: LandingSectionIntroProps) {
+export function LandingSectionIntro({ headingId, title, subtitle, align = 'center' }: LandingSectionIntroProps) {
   return (
     <Box sx={{ textAlign: align, mb: { xs: 5, md: 7 } }}>
       <Typography
+        id={headingId}
         variant="h2"
         component="h2"
         sx={{

@@ -6,10 +6,13 @@ import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 const landingContent = getLandingConfig();
 
 export function LandingSolution() {
+  const headingId = 'landing-solution-heading';
+
   return (
-    <Box id="solucion" component="section" aria-label={landingContent.solution.title} sx={{ py: { xs: 8, md: 12 }, bgcolor: 'background.default' }}>
+    <Box id="solucion" component="section" aria-labelledby={headingId} sx={{ py: { xs: 8, md: 12 }, bgcolor: 'background.default' }}>
       <Container maxWidth="lg">
         <LandingSectionIntro
+            headingId={headingId}
             title={landingContent.solution.title}
             subtitle={landingContent.solution.subtitle}
             align="center"
@@ -68,7 +71,7 @@ export function LandingSolution() {
           }}
         >
           {landingContent.solution.pillars.map((pillar, index) => (
-            <Box key={index}>
+            <Box key={pillar.title}>
               <Typography
                 aria-hidden="true"
                 sx={{
@@ -80,7 +83,7 @@ export function LandingSolution() {
                   letterSpacing: '0.05em'
                 }}
               >
-                COMPONENTE {String(index + 1).padStart(2, '0')}
+                {String(index + 1).padStart(2, '0')}
               </Typography>
               <Typography variant="h3" component="h3" sx={{ fontWeight: 700, mb: 1.5, fontSize: '1.2rem' }}>
                 {pillar.title}

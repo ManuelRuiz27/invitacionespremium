@@ -322,8 +322,17 @@ describe('Landing section semantics and content', () => {
     });
 
     // Semántica: aria-labelledby y un solo h2
-    const section = screen.getByRole('region', { name: content.problem.title });
-    expect(section).toBeInTheDocument();
+    const headings = screen.getAllByRole('heading', { level: 2 });
+    expect(headings).toHaveLength(1);
+    
+    const h2 = headings[0]!;
+    expect(h2.id).not.toBe('');
+    
+    // Buscar la sección usando el rol explícito
+    const section = screen.getByRole('region');
+    expect(section).toHaveAttribute('aria-labelledby', h2.id);
+    expect(section).not.toHaveAttribute('aria-label');
+    
     expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
 
     // No links ni buttons extra
@@ -345,9 +354,17 @@ describe('Landing section semantics and content', () => {
       expect(screen.getByText(pillar.description)).toBeInTheDocument();
     });
 
-    // Semántica
-    const section = screen.getByRole('region', { name: content.solution.title });
-    expect(section).toBeInTheDocument();
+    // Semántica: aria-labelledby y un solo h2
+    const headings = screen.getAllByRole('heading', { level: 2 });
+    expect(headings).toHaveLength(1);
+    
+    const h2 = headings[0]!;
+    expect(h2.id).not.toBe('');
+    
+    const section = screen.getByRole('region');
+    expect(section).toHaveAttribute('aria-labelledby', h2.id);
+    expect(section).not.toHaveAttribute('aria-label');
+    
     expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
 
     expect(screen.queryByText(/Recomendado/i)).not.toBeInTheDocument();
@@ -370,9 +387,17 @@ describe('Landing section semantics and content', () => {
     const lists = screen.getAllByRole('list');
     expect(lists.length).toBeGreaterThanOrEqual(4); // one for each service
 
-    // Semántica
-    const section = screen.getByRole('region', { name: content.services.title });
-    expect(section).toBeInTheDocument();
+    // Semántica: aria-labelledby y un solo h2
+    const headings = screen.getAllByRole('heading', { level: 2 });
+    expect(headings).toHaveLength(1);
+    
+    const h2 = headings[0]!;
+    expect(h2.id).not.toBe('');
+    
+    const section = screen.getByRole('region');
+    expect(section).toHaveAttribute('aria-labelledby', h2.id);
+    expect(section).not.toHaveAttribute('aria-label');
+    
     expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
 
     expect(screen.queryByText(/Más popular/i)).not.toBeInTheDocument();

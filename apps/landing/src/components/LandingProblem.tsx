@@ -5,14 +5,17 @@ import { LandingSectionIntro } from './primitives';
 const landingContent = getLandingConfig();
 
 export function LandingProblem() {
+  const headingId = 'landing-problem-heading';
+
   return (
-    <Box id="problema" component="section" aria-label={landingContent.problem.title} sx={{ py: { xs: 8, md: 12 }, bgcolor: 'background.paper' }}>
+    <Box id="problema" component="section" aria-labelledby={headingId} sx={{ py: { xs: 8, md: 12 }, bgcolor: 'background.paper' }}>
       <Container maxWidth="lg">
         <Grid container spacing={{ xs: 6, md: 8 }}>
           {/* Left Column: Intro */}
           <Grid size={{ xs: 12, md: 5 }}>
             <Box sx={{ position: { md: 'sticky' }, top: { md: 120 } }}>
               <LandingSectionIntro
+                  headingId={headingId}
                   title={landingContent.problem.title}
                   subtitle={landingContent.problem.subtitle}
                   align="left"
@@ -25,7 +28,7 @@ export function LandingProblem() {
             <Box sx={{ display: 'flex', flexDirection: 'column' }}>
               {landingContent.problem.items.map((item, index) => (
                 <Box
-                  key={index}
+                  key={item.title}
                   sx={{
                     display: 'flex',
                     gap: { xs: 2.5, md: 3 },

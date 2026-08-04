@@ -9,11 +9,13 @@ const landingContent = getLandingConfig();
 export function LandingServices() {
   const paidServices = landingContent.services.items.filter((s) => s.code !== 'DEMO');
   const demoService = landingContent.services.items.find((s) => s.code === 'DEMO');
+  const headingId = 'landing-services-heading';
 
   return (
-    <Box id="servicios" component="section" aria-label={landingContent.services.title} sx={{ py: { xs: 8, md: 12 }, bgcolor: 'background.paper' }}>
+    <Box id="servicios" component="section" aria-labelledby={headingId} sx={{ py: { xs: 8, md: 12 }, bgcolor: 'background.paper' }}>
       <Container maxWidth="lg">
         <LandingSectionIntro
+            headingId={headingId}
             title={landingContent.services.title}
             subtitle={landingContent.services.subtitle}
             align="center"
@@ -57,8 +59,8 @@ export function LandingServices() {
                   </Box>
 
                   <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0, mt: 'auto' }}>
-                    {service.features.map((feature, idx) => (
-                      <Box component="li" key={idx} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, mb: 1.5 }}>
+                    {service.features.map((feature) => (
+                      <Box component="li" key={`${service.code}-${feature}`} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, mb: 1.5 }}>
                         <CheckIcon color="primary" fontSize="small" sx={{ mt: 0.25, flexShrink: 0 }} />
                         <Typography variant="body2" sx={{ fontSize: '0.9rem', lineHeight: 1.5, color: 'text.primary' }}>
                           {feature}
@@ -101,8 +103,8 @@ export function LandingServices() {
 
               <Grid size={{ xs: 12, md: 8 }}>
                 <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
-                  {demoService.features.map((feature, idx) => (
-                    <Box component="li" key={idx} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+                  {demoService.features.map((feature) => (
+                    <Box component="li" key={`${demoService.code}-${feature}`} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
                       <CheckIcon color="primary" fontSize="small" sx={{ mt: 0.25, flexShrink: 0, opacity: 0.7 }} />
                       <Typography variant="body2" sx={{ fontSize: '0.85rem', lineHeight: 1.5, color: 'text.secondary' }}>
                         {feature}

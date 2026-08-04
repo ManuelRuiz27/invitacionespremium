@@ -7,16 +7,18 @@ import { designTokens } from '@invitaciones/ui';
  * Centralizes repeated styles for the commercial site: typography hierarchy,
  * surfaces, radii, shadows, spacing, and transitions.
  */
+const darkSurfaceColors = {
+  background: designTokens.colors.ink,
+  accent: '#88A9FF', // >= 4.5:1 against #17233C
+  accentMuted: '#7088B2', // >= 3:1 against #17233C for borders/indicators
+  textPrimary: '#FFFFFF', // >= 4.5:1
+  textSecondary: '#B0B8C8', // >= 4.5:1
+  divider: '#3A4B6B',
+} as const;
+
 export const landingTokens = {
   colors: {
-    darkSurface: {
-      background: designTokens.colors.ink,
-      accent: '#88A9FF', // >= 4.5:1 against #17233C
-      accentMuted: '#7088B2', // >= 3:1 against #17233C for borders/indicators
-      textPrimary: '#FFFFFF', // >= 4.5:1
-      textSecondary: '#B0B8C8', // >= 4.5:1
-      divider: '#3A4B6B',
-    },
+    darkSurface: darkSurfaceColors,
   },
 
   typography: {
@@ -71,7 +73,7 @@ export const landingTokens = {
     heroGradient: `linear-gradient(168deg, ${designTokens.colors.canvas} 0%, ${designTokens.colors.paper} 55%, rgba(49, 87, 200, 0.03) 100%)`,
     /** Dark card for product stage */
     cardDark: {
-      background: designTokens.colors.ink,
+      background: darkSurfaceColors.background,
       color: '#FFFFFF',
       border: '1px solid rgba(255, 255, 255, 0.08)'
     },
