@@ -145,8 +145,9 @@ const commercialContent = {
     ]
   },
   pricing: {
-    title: 'Precios por tipo de Cliente',
-    subtitle: '1 crédito = $20 MXN.',
+    title: 'Elige la experiencia que mejor representa tu Evento',
+    subtitle:
+      'Compara las modalidades disponibles y selecciona la que corresponda a la experiencia y operación que necesitas.',
     unitValueMxn: 20,
     planner: {
       title: 'Planner independiente',
@@ -158,31 +159,35 @@ const commercialContent = {
     }
   },
   planners: {
-    title: 'Para Planners independientes',
-    subtitle: 'Gestiona tus Eventos desde una cuenta propia.',
+    title: 'Crea experiencias memorables sin perder el control',
+    subtitle:
+      'Diseña, organiza y opera cada Evento desde un solo lugar, con una experiencia clara para tus Invitados y tu equipo.',
     bulletPoints: [
-      'Registro público como Planner independiente.',
-      'Compra de créditos según las necesidades de tus Eventos.',
-      'Configuración de Invitaciones, Confirmación nominal y Mesas.',
-      'Hasta tres StaffTokens activos por Evento para recepción.'
+      'Presenta tu Evento con una Invitación digital cuidada.',
+      'Gestiona Confirmaciones y acompañantes sin listas dispersas.',
+      'Organiza Mesas y accesos desde un mismo flujo.',
+      'Coordina la recepción con accesos temporales para tu Staff.'
     ],
-    onboardingNotice: 'Después de crear tu cuenta, inicia sesión para continuar con la configuración de tu perfil.',
+    onboardingNotice:
+      'Regístrate como Planner independiente y comienza a preparar tu próximo Evento.',
     cta: 'Registrarme como Planner'
   },
   organizations: {
-    title: 'Para Organizaciones',
-    subtitle: 'Agencias, salones, jardines y empresas se modelan como Organización.',
-    notice: 'Las Organizaciones son creadas exclusivamente por Platform Admin; no tienen registro público.',
+    title: 'Una operación consistente para cada Evento de tu Organización',
+    subtitle:
+      'Centraliza la gestión del equipo y la operación de tus Eventos sin perder visibilidad.',
+    notice:
+      'Las Organizaciones se crean de forma administrada dentro de la plataforma y no cuentan con registro público.',
     roles: [
       {
         name: 'Admin de Organización',
         description:
-          'Gestiona contratación, compra de créditos, línea de crédito y deuda, y puede crear Planners internos.'
+          'Administra créditos, deuda y acceso del equipo, además de supervisar los Eventos de la Organización.'
       },
       {
         name: 'Planner de Organización',
         description:
-          'Opera únicamente los Eventos que creó dentro de la Organización. No compra créditos ni ve saldo, deuda o línea.'
+          'Configura y opera únicamente los Eventos que creó, sin acceso a saldo, deuda o línea de crédito.'
       }
     ]
   },

@@ -81,7 +81,25 @@ export const landingTokens = {
     cardLight: {
       background: designTokens.colors.paper,
       border: `1px solid ${designTokens.colors.line}`
+    },
+    pricing: {
+      background: '#FFFFFF',
+      border: '1px solid #E5E7EB',
+      shadow: '0 8px 32px rgba(23, 35, 60, 0.04)'
+    },
+    organization: {
+      background: '#F9FAFB',
+      border: '1px solid #F3F4F6'
+    },
+    productMockup: {
+      background: '#FFFFFF',
+      border: '1px solid rgba(255, 255, 255, 0.1)',
+      shadow: '0 24px 64px rgba(0, 0, 0, 0.3)'
     }
+  },
+
+  borders: {
+    editorial: '1px solid #E5E7EB'
   },
 
   radius: {

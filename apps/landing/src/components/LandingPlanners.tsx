@@ -1,7 +1,9 @@
 import { getLandingConfig } from '../config/landing-config';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import { Box, Button, Container, Grid, Typography } from '@mui/material';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
-import { Box, Button, Container, Grid, Paper, Stack, Typography } from '@mui/material';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import { landingTokens } from '../theme/landing-theme';
+import { LandingSectionIntro } from './primitives/LandingSectionIntro';
 
 export interface LandingPlannersProps {
   onOpenRegister: () => void;
@@ -10,75 +12,115 @@ export interface LandingPlannersProps {
 const landingContent = getLandingConfig();
 
 export function LandingPlanners({ onOpenRegister }: LandingPlannersProps) {
+  const headingId = 'landing-planners-heading';
+
   return (
-    <Box id="planners" component="section" sx={{ py: { xs: 6, md: 9 }, bgcolor: 'background.paper' }}>
+    <Box id="planners" component="section" aria-labelledby={headingId} sx={{ py: { xs: 8, md: 12 }, bgcolor: landingTokens.colors.darkSurface }}>
       <Container maxWidth="lg">
-        <Paper
-          elevation={0}
-          sx={{
-            p: { xs: 4, md: 6 },
-            borderRadius: 4,
-            bgcolor: '#17233C',
-            color: '#FFFFFF',
-            border: '1px solid rgba(255, 255, 255, 0.1)'
-          }}
-        >
-          <Grid container spacing={4} sx={{ alignItems: 'center' }}>
-            <Grid size={{ xs: 12, md: 7 }}>
-              <Stack spacing={2.5}>
-                <Typography variant="overline" sx={{ color: '#3157C8', fontWeight: 800, letterSpacing: '0.1em' }}>
-                  MODELO PLANNER INDEPENDIENTE
-                </Typography>
-                <Typography variant="h2" component="h2" sx={{ color: '#FFFFFF', fontWeight: 800 }}>
-                  {landingContent.planners.title}
-                </Typography>
-                <Typography variant="body1" sx={{ color: '#D1D5DB', fontSize: '1.1rem', lineHeight: 1.6 }}>
-                  {landingContent.planners.subtitle}
-                </Typography>
+        <Grid container spacing={8} alignItems="center">
+          {/* Text Area */}
+          <Grid size={{ xs: 12, md: 6 }}>
+            <LandingSectionIntro
+              headingId={headingId}
+              title={landingContent.planners.title}
+              subtitle={landingContent.planners.subtitle}
+              align="left"
+              dark
+            />
 
-                <Stack spacing={1.5} sx={{ pt: 1 }}>
-                  {landingContent.planners.bulletPoints.map((point, idx) => (
-                    <Box key={idx} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
-                      <CheckCircleIcon sx={{ color: '#3157C8', fontSize: 20, mt: 0.2 }} />
-                      <Typography variant="body2" sx={{ color: '#E5E7EB', fontSize: '0.95rem' }}>
-                        {point}
-                      </Typography>
-                    </Box>
-                  ))}
-                </Stack>
-              </Stack>
-            </Grid>
+            <Box component="ul" sx={{ listStyle: 'none', p: 0, m: 0, mb: 5, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {landingContent.planners.bulletPoints.map((point) => (
+                <Box component="li" key={point} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+                  <CheckCircleIcon aria-hidden="true" sx={{ color: 'primary.light', fontSize: 24, mt: 0.2 }} />
+                  <Typography variant="body1" sx={{ color: 'grey.300', lineHeight: 1.6 }}>
+                    {point}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
 
-            <Grid size={{ xs: 12, md: 5 }} sx={{ textAlign: { xs: 'left', md: 'center' } }}>
+            <Box sx={{ p: 4, bgcolor: landingTokens.surfaces.cardDark.background, border: landingTokens.surfaces.cardDark.border, borderRadius: 4 }}>
+              <Typography variant="body2" sx={{ color: 'grey.400', mb: 3 }}>
+                {landingContent.planners.onboardingNotice}
+              </Typography>
+              <Button
+                variant="contained"
+                color="primary"
+                size="large"
+                startIcon={<PersonAddIcon aria-hidden="true" />}
+                onClick={onOpenRegister}
+                sx={{ minHeight: 56, fontWeight: 700, borderRadius: 3, px: 4 }}
+              >
+                {landingContent.planners.cta}
+              </Button>
+            </Box>
+          </Grid>
+
+          {/* Visual Mockup Area */}
+          <Grid size={{ xs: 12, md: 6 }} sx={{ display: { xs: 'none', md: 'block' } }}>
+            <Box sx={{ position: 'relative', width: '100%', height: 600, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {/* Phone Mockup Background Layer */}
               <Box
                 sx={{
-                  p: 3,
-                  borderRadius: 3,
-                  bgcolor: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)'
+                  position: 'absolute',
+                  width: 320,
+                  height: 640,
+                  bgcolor: landingTokens.surfaces.productMockup.background,
+                  borderRadius: '40px',
+                  boxShadow: landingTokens.surfaces.productMockup.shadow,
+                  border: landingTokens.surfaces.productMockup.border,
+                  overflow: 'hidden',
+                  display: 'flex',
+                  flexDirection: 'column'
                 }}
               >
-                <Typography variant="h3" sx={{ color: '#FFF', fontWeight: 700, mb: 1, fontSize: '1.3rem' }}>
-                  ¿Eres Planner Independiente?
-                </Typography>
-                <Typography variant="body2" sx={{ color: '#9CA3AF', mb: 3 }}>
-                  {landingContent.planners.onboardingNotice}
-                </Typography>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  size="large"
-                  fullWidth
-                  startIcon={<PersonAddIcon />}
-                  onClick={onOpenRegister}
-                  sx={{ minHeight: 48, fontWeight: 700, borderRadius: 2 }}
-                >
-                  {landingContent.planners.cta}
-                </Button>
+                {/* Header Mockup */}
+                <Box sx={{ height: 140, bgcolor: 'primary.main', borderBottomLeftRadius: '24px', borderBottomRightRadius: '24px', p: 3, color: '#FFFFFF', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                  <Box sx={{ width: 40, height: 4, bgcolor: 'rgba(255,255,255,0.3)', borderRadius: 2, mb: 2 }} aria-hidden="true" />
+                  <Typography variant="h5" sx={{ fontWeight: 800, mb: 0.5 }} aria-hidden="true">VIP Pass</Typography>
+                  <Box sx={{ width: 120, height: 12, bgcolor: 'rgba(255,255,255,0.2)', borderRadius: 1 }} aria-hidden="true" />
+                </Box>
+
+                {/* Body Mockup */}
+                <Box sx={{ p: 3, flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {/* QR Stand-in */}
+                  <Box sx={{ width: 160, height: 160, bgcolor: 'grey.100', borderRadius: 4, mx: 'auto', mt: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-hidden="true">
+                     <Box sx={{ width: 120, height: 120, border: '4px solid', borderColor: 'grey.300', borderRadius: 2 }} />
+                  </Box>
+                  <Box sx={{ width: '100%', height: 40, bgcolor: 'grey.100', borderRadius: 2, mt: 2 }} aria-hidden="true" />
+                  <Box sx={{ width: '70%', height: 40, bgcolor: 'grey.100', borderRadius: 2 }} aria-hidden="true" />
+                </Box>
               </Box>
-            </Grid>
+
+              {/* Floating Confirmation Card */}
+              <Box
+                sx={{
+                  position: 'absolute',
+                  bottom: 80,
+                  right: -40,
+                  width: 280,
+                  bgcolor: landingTokens.surfaces.productMockup.background,
+                  borderRadius: 4,
+                  boxShadow: landingTokens.surfaces.productMockup.shadow,
+                  border: landingTokens.surfaces.productMockup.border,
+                  p: 2.5,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2
+                }}
+                aria-hidden="true"
+              >
+                <Box sx={{ width: 48, height: 48, borderRadius: '50%', bgcolor: 'success.light', color: 'success.main', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <CheckCircleIcon />
+                </Box>
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.primary' }}>Acceso concedido</Typography>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>Mesa 12 • 2 Asistentes</Typography>
+                </Box>
+              </Box>
+            </Box>
           </Grid>
-        </Paper>
+        </Grid>
       </Container>
     </Box>
   );

@@ -6,6 +6,9 @@ import { LandingSolution } from '../LandingSolution';
 import { LandingServices } from '../LandingServices';
 import { LandingHeader } from '../LandingHeader';
 import { LandingHero } from '../LandingHero';
+import { LandingPricing } from '../LandingPricing';
+import { LandingPlanners } from '../LandingPlanners';
+import { LandingOrganizations } from '../LandingOrganizations';
 import { AppThemeProvider } from '@invitaciones/ui';
 import { landingTokens } from '../../theme/landing-theme';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -70,8 +73,8 @@ describe('Landing commercial content', () => {
   it('states the physical-pass and Organization restrictions', () => {
     const physical = content.services.items.find((service) => service.code === 'PHYSICAL_QR');
     expect(physical?.features.join(' ')).toContain('Sin Contactos, Confirmación de asistencia ni Álbum');
-    expect(content.organizations.notice).toContain('no tienen registro público');
-    expect(content.organizations.roles[1].description).toContain('No compra créditos ni ve saldo, deuda o línea');
+    expect(content.organizations.notice).toContain('no cuentan con registro público');
+    expect(content.organizations.roles[1].description).toContain('sin acceso a saldo, deuda o línea');
   });
 
   it('identifies the demo permanently as a backend-free simulation', () => {
@@ -404,5 +407,118 @@ describe('Landing section semantics and content', () => {
     expect(screen.queryByText(/Recomendado/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  it('renders LandingPricing exactly with config content', () => {
+    renderWithTheme(<LandingPricing />);
+    
+    expect(screen.getByRole('heading', { level: 2, name: content.pricing.title })).toBeInTheDocument();
+    expect(screen.getByText(content.pricing.subtitle)).toBeInTheDocument();
+    expect(screen.getByText('1 crédito = $20 MXN')).toBeInTheDocument();
+
+    const plannerHeadings = screen.getAllByRole('heading', { level: 3, name: content.pricing.planner.title });
+    expect(plannerHeadings).toHaveLength(1);
+    
+    const orgHeadings = screen.getAllByRole('heading', { level: 3, name: content.pricing.organization.title });
+    expect(orgHeadings).toHaveLength(1);
+
+    const serviceCodes = content.services.items.map(s => s.code);
+    expect(serviceCodes).toEqual(['FLIPBOOK', 'FLYER', 'PHYSICAL_QR', 'DEMO']);
+    
+    content.services.items.forEach(s => {
+       const row = document.querySelector(`[data-service-code="${s.code}"]`);
+       expect(row).toBeInTheDocument();
+       expect(within(row as HTMLElement).getByRole('heading', { level: 4, name: s.name })).toBeInTheDocument();
+    });
+
+    // Check specific prices render
+    expect(screen.getAllByText('30').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('$600 MXN').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('0').length).toBeGreaterThan(0);
+
+    const headings = screen.getAllByRole('heading', { level: 2 });
+    expect(headings).toHaveLength(1);
+    const h2 = headings[0]!;
+    expect(h2.id).not.toBe('');
+    
+    const section = screen.getByRole('region');
+    expect(section).toHaveAttribute('aria-labelledby', h2.id);
+    expect(section).not.toHaveAttribute('aria-label');
+    
+    expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
+    
+    expect(screen.queryByText(/Más popular/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Recomendado/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Ahorro/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Mejor precio/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/%/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  it('renders LandingPlanners exactly with config content', () => {
+    const mockRegister = vi.fn();
+    renderWithTheme(<LandingPlanners onOpenRegister={mockRegister} />);
+
+    expect(screen.getByRole('heading', { level: 2, name: content.planners.title })).toBeInTheDocument();
+    expect(screen.getByText(content.planners.subtitle)).toBeInTheDocument();
+    expect(screen.getByText(content.planners.onboardingNotice)).toBeInTheDocument();
+    
+    const list = screen.getByRole('list');
+    const listItems = within(list).getAllByRole('listitem');
+    expect(listItems).toHaveLength(4);
+    
+    const buttons = screen.getAllByRole('button');
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0]).toHaveTextContent(content.planners.cta);
+    
+    fireEvent.click(buttons[0]);
+    expect(mockRegister).toHaveBeenCalledOnce();
+
+    const headings = screen.getAllByRole('heading', { level: 2 });
+    expect(headings).toHaveLength(1);
+    const h2 = headings[0]!;
+    expect(h2.id).not.toBe('');
+    
+    const section = screen.getByRole('region');
+    expect(section).toHaveAttribute('aria-labelledby', h2.id);
+    expect(section).not.toHaveAttribute('aria-label');
+    
+    expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
+    
+    expect(screen.queryByText(/MODELO PLANNER INDEPENDIENTE/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/¿Eres Planner Independiente?/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  it('renders LandingOrganizations exactly with config content', () => {
+    renderWithTheme(<LandingOrganizations />);
+
+    expect(screen.getByRole('heading', { level: 2, name: content.organizations.title })).toBeInTheDocument();
+    expect(screen.getByText(content.organizations.subtitle)).toBeInTheDocument();
+    expect(screen.getByText(content.organizations.notice)).toBeInTheDocument();
+
+    const roleHeadings = screen.getAllByRole('heading', { level: 4 });
+    expect(roleHeadings).toHaveLength(2);
+    expect(roleHeadings[0]).toHaveTextContent(content.organizations.roles[0].name);
+    expect(roleHeadings[1]).toHaveTextContent(content.organizations.roles[1].name);
+
+    const headings = screen.getAllByRole('heading', { level: 2 });
+    expect(headings).toHaveLength(1);
+    const h2 = headings[0]!;
+    expect(h2.id).not.toBe('');
+    
+    const section = screen.getByRole('region');
+    expect(section).toHaveAttribute('aria-labelledby', h2.id);
+    expect(section).not.toHaveAttribute('aria-label');
+    
+    expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
+    
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    
+    // Ensure no alert component with warning or error semantics exists
+    const alerts = screen.queryAllByRole('alert');
+    expect(alerts.length).toBe(0);
   });
 });
