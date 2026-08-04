@@ -1,5 +1,7 @@
-import { landingContent } from '../landing-content';
+import { getLandingConfig } from '../config/landing-config';
 import { Box, Container, Divider, Stack, Typography } from '@mui/material';
+
+const landingContent = getLandingConfig();
 
 export function LandingFooter() {
   return (
@@ -25,7 +27,7 @@ export function LandingFooter() {
           >
             <Box>
               <Typography variant="h6" sx={{ fontWeight: 800, color: '#FFFFFF' }}>
-                {landingContent.brand.fullName}
+                {landingContent.brand.name}
               </Typography>
               <Typography variant="caption" sx={{ color: '#9CA3AF' }}>
                 {landingContent.footer.legalNotice}

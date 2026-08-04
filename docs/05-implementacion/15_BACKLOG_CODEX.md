@@ -1034,7 +1034,7 @@ hardening centraliza la expiracion de sesion por `401`, aisla y aborta mutacione
 bloquea dobles envios sincronos y conserva en memoria las intenciones financieras de resultado incierto
 para reintento explicito con la misma llave.
 
-**Corte B implementado, pendiente de aceptacion:** Servicios referenciados, historia de precios,
+**Corte B aceptado:** Servicios referenciados, historia de precios,
 promociones de elegibilidad, cortes financieros y metadata de reportes. No existe descarga Admin ni
 listado administrativo completo de Servicios. El hardening conserva Servicios autoritativos entre
 pestanas, habilita su primer Precio/Promocion, evita estados preseleccionados desconocidos, preserva el
@@ -1094,6 +1094,8 @@ presentes en OpenAPI. CODEX-130 permanece EN PROGRESO.
 
 ### CODEX-132 — Landing pública
 
+**Estado:** IMPLEMENTADO, PENDIENTE DE ACEPTACIÓN
+
 **Repo:** `invitacionespremium-landing`
 
 **Dependencias:** `shared-ui`
@@ -1116,6 +1118,21 @@ presentes en OpenAPI. CODEX-130 permanece EN PROGRESO.
 - performance web;
 - enlaces correctos al login/registro;
 - no promete funciones fuera del MVP.
+
+**Implementado**
+
+- identidad única InvitacionesPremium y contenido comercial centralizado;
+- cuatro servicios, tarifas Planner/Organización, límites y alcances contractuales exactos;
+- demo visual mock sin backend, Eventos, créditos ni accesos reales;
+- registro público tipado desde OpenAPI, sin cookies ni persistencia;
+- lock síncrono, aborto y ownership por generación contra respuestas tardías;
+- errores estables traducidos y onboarding posterior al login;
+- SEO condicionado a URLs HTTP/HTTPS explícitas, sin localhost en metadata productiva;
+- navegación, modal y tabs accesibles con reduced motion;
+- carga dinámica del demo y modal, y preview Open Graph válido.
+
+`CODEX-130A` y `CODEX-130B` permanecen aceptados. `CODEX-130` permanece en progreso. `CODEX-130C`,
+`CODEX-131`, `CODEX-140` y `CODEX-141` no se iniciaron.
 
 ---
 

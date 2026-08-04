@@ -1,6 +1,8 @@
-import { landingContent } from '../landing-content';
+import { getLandingConfig } from '../config/landing-config';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlined';
 import { Box, Card, CardContent, Container, Grid, Typography } from '@mui/material';
+
+const landingContent = getLandingConfig();
 
 export function LandingProblem() {
   return (

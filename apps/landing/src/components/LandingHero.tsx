@@ -1,4 +1,4 @@
-import { landingContent } from '../landing-content';
+import { getLandingConfig } from '../config/landing-config';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
@@ -7,6 +7,8 @@ import { Box, Button, Chip, Container, Grid, Paper, Stack, Typography } from '@m
 export interface LandingHeroProps {
   onOpenRegister: () => void;
 }
+
+const landingContent = getLandingConfig();
 
 export function LandingHero({ onOpenRegister }: LandingHeroProps) {
   return (
@@ -76,6 +78,7 @@ export function LandingHero({ onOpenRegister }: LandingHeroProps) {
                   size="large"
                   endIcon={<ArrowForwardIcon />}
                   href={landingContent.urls.login}
+                  disabled={!landingContent.urls.login}
                   sx={{ minHeight: 52, px: 3, fontSize: '1rem', fontWeight: 650, borderRadius: 2 }}
                 >
                   {landingContent.hero.secondaryCta}
@@ -113,7 +116,7 @@ export function LandingHero({ onOpenRegister }: LandingHeroProps) {
                   }}
                 >
                   <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#FFFFFF' }}>
-                    1. RSVP Nominal de Asistentes
+                    1. Confirmación nominal de Asistentes
                   </Typography>
                   <Typography variant="caption" sx={{ color: '#9CA3AF', display: 'block', mt: 0.5 }}>
                     Registro individual de cada integrante por Invitación enviada.

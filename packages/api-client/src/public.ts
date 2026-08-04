@@ -1,4 +1,4 @@
-import type { components } from './generated/schema';
+import type { components, operations } from './generated/schema';
 import { isRecord, type ApiRequester } from './api-client';
 
 export type PublicInvitationView = components['schemas']['PublicInvitationViewResponseDto'];
@@ -7,6 +7,9 @@ export type PublicRsvpAssistantInput = components['schemas']['RsvpAssistantInput
 export type PublicRsvpMutation = components['schemas']['RsvpMutationResponseDto'];
 export type PublicAlbum = components['schemas']['PublicAlbumResponseDto'];
 export type PublicAlbumPhoto = components['schemas']['PublicAlbumPhotoDto'];
+export type RegisterPlannerInput = components['schemas']['RegisterPlannerRequestDto'];
+export type RegisterPlannerResult =
+  operations['ClientsController_registerPlanner']['responses'][201]['content']['application/json'];
 
 const segment = (value: string) => encodeURIComponent(value);
 const publicRequest = <T>(
@@ -101,6 +104,44 @@ const isAlbum = (value: unknown): value is PublicAlbum =>
   value.album.photos.every(
     (photo) => isRecord(photo) && isString(photo.id) && isNumber(photo.position) && isString(photo.contentPath)
   );
+
+const isRegisterPlannerResult = (value: unknown): value is RegisterPlannerResult =>
+  isRecord(value) &&
+  isRecord(value.client) &&
+  isString(value.client.id) &&
+  isString(value.client.name) &&
+  ['ACTIVE', 'SUSPENDED'].includes(String(value.client.status)) &&
+  ['PLANNER', 'ORGANIZATION'].includes(String(value.client.type)) &&
+  isString(value.client.createdAt) &&
+  isString(value.client.updatedAt) &&
+  (value.client.suspendedAt === null || isString(value.client.suspendedAt)) &&
+  (value.client.suspensionReason === null || isString(value.client.suspensionReason)) &&
+  isRecord(value.user) &&
+  isString(value.user.id) &&
+  isString(value.user.clientId) &&
+  isString(value.user.email) &&
+  ['PLATFORM_ADMIN', 'INDEPENDENT_PLANNER', 'ORGANIZATION_ADMIN', 'ORGANIZATION_PLANNER'].includes(
+    String(value.user.role)
+  ) &&
+  isString(value.user.createdAt) &&
+  isString(value.user.updatedAt);
+
+export function createPublicClientsClient(request: ApiRequester) {
+  return {
+    registerPlanner: (input: RegisterPlannerInput, signal?: AbortSignal) =>
+      publicRequest(
+        request,
+        {
+          method: 'POST',
+          path: '/clients/register-planner',
+          body: input,
+          response: 'json',
+          ...(signal ? { signal } : {})
+        },
+        isRegisterPlannerResult
+      )
+  };
+}
 
 export function createPublicInvitationClient(request: ApiRequester) {
   const base = (token: string) => `/public/invitations/${segment(token)}`;

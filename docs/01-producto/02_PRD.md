@@ -2,7 +2,7 @@
 
 ## Visión
 
-InvitacionesPremium bt Soft-Monky es una plataforma SaaS para Planners y Organizaciones que permite crear, administrar y operar Eventos privados mediante invitaciones digitales premium, Confirmación de asistencia, acomodo de mesas, QR de acceso, operación de entrada, reportes y Álbum post-Evento.
+InvitacionesPremium es una plataforma SaaS para Planners y Organizaciones que permite crear, administrar y operar Eventos privados mediante invitaciones digitales premium, Confirmación de asistencia, acomodo de mesas, QR de acceso, operación de entrada, reportes y Álbum post-Evento.
 
 ## Idea principal
 

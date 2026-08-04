@@ -1,7 +1,9 @@
-import { landingContent } from '../landing-content';
+import { getLandingConfig } from '../config/landing-config';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { Accordion, AccordionDetails, AccordionSummary, Box, Container, Typography } from '@mui/material';
 import { useState, type SyntheticEvent } from 'react';
+
+const landingContent = getLandingConfig();
 
 export function LandingFaq() {
   const [expanded, setExpanded] = useState<string | false>('panel-0');

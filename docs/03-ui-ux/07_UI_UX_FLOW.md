@@ -562,3 +562,23 @@ POST/PATCH. Una coincidencia unica confirma el cambio, la ausencia verificable h
 explicito y una respuesta ambigua o no disponible conserva el bloqueo. La resolucion de Clientes en
 promociones muestra por separado carga, nombre resuelto, referencia no resuelta y error con retry, sin
 retirar las filas ya obtenidas del Catalogo.
+
+# Implementación CODEX-132
+
+La Landing pública conserva una composición premium, elegante y sobria con un solo `h1`, secciones
+semánticas y contenido principal disponible en el primer render. Identidad, navegación, servicios,
+precios, límites, FAQ, URLs y SEO derivan de `apps/landing/src/config/landing-config.ts`.
+
+Solo el Planner independiente abre el registro público. El formulario contiene exclusivamente nombre,
+correo y contraseña del DTO generado; bloquea doble envío de forma síncrona, aborta al cerrar o
+desmontar y descarta resultados de otra generación. No persiste datos en navegador. Tras el alta,
+indica que el usuario debe iniciar sesión para continuar la configuración de su perfil.
+
+El menú móvil cierra con Escape y restaura foco. El modal conserva focus trap y regiones vivas. La
+navegación a secciones usa desplazamiento inmediato con `prefers-reduced-motion`; los tabs del demo
+exponen nombre, selección y panel asociado. Demo y modal se cargan dinámicamente. El demo se identifica
+permanentemente como simulación visual sin backend, Eventos, créditos o accesos reales.
+
+En producción, canonical y Open Graph URL solo existen con `VITE_APP_URL` HTTP/HTTPS explícita y no
+local. Los enlaces de login aplican la misma validación. El preview Open Graph es un PNG real sin texto
+provisional ni marca secundaria.

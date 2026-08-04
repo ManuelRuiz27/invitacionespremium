@@ -1,7 +1,9 @@
-import { landingContent } from '../landing-content';
+import { getLandingConfig } from '../config/landing-config';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 import { Alert, Box, Card, CardContent, Container, Grid, Typography } from '@mui/material';
+
+const landingContent = getLandingConfig();
 
 export function LandingSolution() {
   return (

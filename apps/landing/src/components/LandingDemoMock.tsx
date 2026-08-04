@@ -18,7 +18,18 @@ import {
   TextField,
   Typography
 } from '@mui/material';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+
+const landingContent = getLandingConfig();
+
+function DemoPanel({ active, index, children }: { active: boolean; index: number; children: ReactNode }) {
+  if (!active) return null;
+  return (
+    <Box role="tabpanel" id={`landing-demo-panel-${index}`} aria-labelledby={`landing-demo-tab-${index}`} tabIndex={0}>
+      {children}
+    </Box>
+  );
+}
 
 export function LandingDemoMock() {
   const [activeTab, setActiveTab] = useState(0);
@@ -50,7 +61,7 @@ export function LandingDemoMock() {
       <Container maxWidth="lg">
         <Box sx={{ textAlign: 'center', mb: 4 }}>
           <Chip
-            label="DEMO VISUAL MOCK (SIN BACKEND)"
+            label={landingContent.demo.label}
             color="primary"
             variant="outlined"
             sx={{ fontWeight: 800, mb: 1.5 }}
@@ -59,9 +70,12 @@ export function LandingDemoMock() {
             Experimenta la operación en vivo
           </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ fontSize: '1.1rem', maxWidth: 640, mx: 'auto' }}>
-            Explora de forma interactiva cómo interactúa el invitado y cómo el personal opera la recepción en puerta.
-            Sin consumo de créditos.
+            Explora de forma interactiva cómo una Invitación y la recepción pueden operar dentro del alcance
+            documentado.
           </Typography>
+          <Alert severity="info" sx={{ mt: 2, mx: 'auto', maxWidth: 760, textAlign: 'left' }}>
+            {landingContent.demo.disclaimer}
+          </Alert>
         </Box>
 
         <Paper
@@ -74,6 +88,7 @@ export function LandingDemoMock() {
           }}
         >
           <Tabs
+            aria-label="Recorrido de la simulación visual"
             value={activeTab}
             onChange={(_, val) => setActiveTab(val)}
             variant="scrollable"
@@ -85,29 +100,58 @@ export function LandingDemoMock() {
               '& .MuiTab-root': { fontWeight: 700, minHeight: 60 }
             }}
           >
-            <Tab icon={<TouchAppIcon />} iconPosition="start" label="1. Vista Invitación" />
-            <Tab icon={<CheckCircleIcon />} iconPosition="start" label="2. RSVP Nominal" />
-            <Tab icon={<QrCode2Icon />} iconPosition="start" label="3. QR y Scanner Check-in" />
-            <Tab icon={<TableBarIcon />} iconPosition="start" label="4. Croquis y Mesas" />
+            <Tab
+              id="landing-demo-tab-0"
+              aria-controls="landing-demo-panel-0"
+              icon={<TouchAppIcon />}
+              iconPosition="start"
+              label="1. Vista Invitación"
+            />
+            <Tab
+              id="landing-demo-tab-1"
+              aria-controls="landing-demo-panel-1"
+              icon={<CheckCircleIcon />}
+              iconPosition="start"
+              label="2. Confirmación nominal"
+            />
+            <Tab
+              id="landing-demo-tab-2"
+              aria-controls="landing-demo-panel-2"
+              icon={<QrCode2Icon />}
+              iconPosition="start"
+              label="3. QR y check-in"
+            />
+            <Tab
+              id="landing-demo-tab-3"
+              aria-controls="landing-demo-panel-3"
+              icon={<TableBarIcon />}
+              iconPosition="start"
+              label="4. Croquis y Mesas"
+            />
           </Tabs>
 
           <Box sx={{ p: { xs: 2.5, md: 4 } }}>
             {/* TAB 1: VISTA INVITACIÓN */}
-            {activeTab === 0 && (
+            <DemoPanel active={activeTab === 0} index={0}>
               <Grid container spacing={4} sx={{ alignItems: 'center' }}>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Stack spacing={2}>
-                    <Chip label="Flyer / Flipbook Preview" size="small" sx={{ width: 'fit-content', fontWeight: 700 }} />
+                    <Chip
+                      label="Flyer / Flipbook Preview"
+                      size="small"
+                      sx={{ width: 'fit-content', fontWeight: 700 }}
+                    />
                     <Typography variant="h3" sx={{ fontWeight: 800 }}>
                       Diseño Interactivo con Hotspots
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                      Los invitados reciben un enlace único. Al abrirlo visualizan la invitación con botones interactivos
-                      (Hotspots) para confirmar asistencia, ver ubicación o consultar mesa de regalos.
+                      Los invitados reciben un enlace único. Al abrirlo visualizan la invitación con botones
+                      interactivos (Hotspots) para confirmar asistencia, ver ubicación o consultar mesa de regalos.
                     </Typography>
 
                     <Alert severity="info" sx={{ borderRadius: 2 }}>
-                      Prueba hacer clic en la pestaña <strong>2. RSVP Nominal</strong> para simular el proceso de confirmación.
+                      Prueba hacer clic en la pestaña <strong>2. RSVP Nominal</strong> para simular el proceso de
+                      confirmación.
                     </Alert>
                   </Stack>
                 </Grid>
@@ -142,21 +186,31 @@ export function LandingDemoMock() {
                       >
                         Hotspot: Confirmar Asistencia
                       </Button>
-                      <Button variant="outlined" fullWidth size="medium" sx={{ color: '#FFF', borderColor: 'rgba(255,255,255,0.3)' }}>
+                      <Button
+                        variant="outlined"
+                        fullWidth
+                        size="medium"
+                        sx={{ color: '#FFF', borderColor: 'rgba(255,255,255,0.3)' }}
+                      >
                         Hotspot: Ver Ubicación
                       </Button>
                     </Stack>
                   </Card>
                 </Grid>
               </Grid>
-            )}
+            </DemoPanel>
 
             {/* TAB 2: RSVP NOMINAL */}
-            {activeTab === 1 && (
+            <DemoPanel active={activeTab === 1} index={1}>
               <Grid container spacing={4} sx={{ alignItems: 'center' }}>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Stack spacing={2}>
-                    <Chip label="Confirmación Nominal" color="primary" size="small" sx={{ width: 'fit-content', fontWeight: 700 }} />
+                    <Chip
+                      label="Confirmación Nominal"
+                      color="primary"
+                      size="small"
+                      sx={{ width: 'fit-content', fontWeight: 700 }}
+                    />
                     <Typography variant="h3" sx={{ fontWeight: 800 }}>
                       Asistentes registrados individualmente
                     </Typography>
@@ -196,7 +250,7 @@ export function LandingDemoMock() {
                           <Typography variant="body2">1. {assistant1} — Confirmado</Typography>
                           <Typography variant="body2">2. {assistant2} — Confirmado</Typography>
                         </Box>
-                        <Stack direction="row" spacing={1} justifyContent="center">
+                        <Stack direction="row" spacing={1} sx={{ justifyContent: 'center' }}>
                           <Button variant="contained" size="small" onClick={() => setActiveTab(2)}>
                             Ver QR de Acceso
                           </Button>
@@ -221,7 +275,13 @@ export function LandingDemoMock() {
                           size="small"
                           fullWidth
                         />
-                        <Button variant="contained" fullWidth color="primary" onClick={handleConfirmRsvp} sx={{ fontWeight: 700 }}>
+                        <Button
+                          variant="contained"
+                          fullWidth
+                          color="primary"
+                          onClick={handleConfirmRsvp}
+                          sx={{ fontWeight: 700 }}
+                        >
                           Confirmar Asistencia (2 Asistentes)
                         </Button>
                       </Stack>
@@ -229,20 +289,26 @@ export function LandingDemoMock() {
                   </Card>
                 </Grid>
               </Grid>
-            )}
+            </DemoPanel>
 
             {/* TAB 3: QR Y SCANNER CHECK-IN */}
-            {activeTab === 2 && (
+            <DemoPanel active={activeTab === 2} index={2}>
               <Grid container spacing={4} sx={{ alignItems: 'center' }}>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Stack spacing={2}>
-                    <Chip label="Regla de Acceso" color="primary" size="small" sx={{ width: 'fit-content', fontWeight: 700 }} />
+                    <Chip
+                      label="Regla de Acceso"
+                      color="primary"
+                      size="small"
+                      sx={{ width: 'fit-content', fontWeight: 700 }}
+                    />
                     <Typography variant="h3" sx={{ fontWeight: 800 }}>
                       QR por Invitación; check-in por Asistente
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                      El QR de la Invitación se genera dinámicamente tras confirmar. Al ser escaneado por el Staff, la microapp de Scanner
-                      despliega la lista de Asistentes nominales para marcar el check-in individual de quien ingresa.
+                      El QR de la Invitación se genera dinámicamente tras confirmar. Al ser escaneado por el Staff, la
+                      microapp de Scanner despliega la lista de Asistentes nominales para marcar el check-in individual
+                      de quien ingresa.
                     </Typography>
 
                     {scannedAsst ? (
@@ -338,10 +404,10 @@ export function LandingDemoMock() {
                   </Card>
                 </Grid>
               </Grid>
-            )}
+            </DemoPanel>
 
             {/* TAB 4: CROQUIS Y MESAS */}
-            {activeTab === 3 && (
+            <DemoPanel active={activeTab === 3} index={3}>
               <Grid container spacing={4} sx={{ alignItems: 'center' }}>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Stack spacing={2}>
@@ -350,8 +416,8 @@ export function LandingDemoMock() {
                       Asignación visual de espacio
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                      Diseña el plano del recinto en el editor visual. Asigna capacidad a cada mesa y ubica a los Asistentes
-                      de forma individual o por Grupo familiar.
+                      Diseña el plano del recinto en el editor visual. Asigna capacidad a cada mesa y ubica a los
+                      Asistentes de forma individual o por Grupo familiar.
                     </Typography>
                     <Alert severity="info" sx={{ borderRadius: 2 }}>
                       En puerta, el Scanner también proyecta a qué mesa pertenece el Asistente al realizar el check-in.
@@ -378,7 +444,15 @@ export function LandingDemoMock() {
                       </Grid>
 
                       <Grid size={{ xs: 6 }}>
-                        <Paper sx={{ p: 2, bgcolor: 'rgba(49,87,200,0.3)', border: '1px solid #3157C8', color: '#FFF', borderRadius: 2 }}>
+                        <Paper
+                          sx={{
+                            p: 2,
+                            bgcolor: 'rgba(49,87,200,0.3)',
+                            border: '1px solid #3157C8',
+                            color: '#FFF',
+                            borderRadius: 2
+                          }}
+                        >
                           <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                             Mesa 04 — Fam. Mendoza
                           </Typography>
@@ -389,7 +463,15 @@ export function LandingDemoMock() {
                       </Grid>
 
                       <Grid size={{ xs: 12 }}>
-                        <Paper sx={{ p: 1.5, bgcolor: 'rgba(255,255,255,0.04)', color: '#9CA3AF', borderRadius: 2, textAlign: 'center' }}>
+                        <Paper
+                          sx={{
+                            p: 1.5,
+                            bgcolor: 'rgba(255,255,255,0.04)',
+                            color: '#9CA3AF',
+                            borderRadius: 2,
+                            textAlign: 'center'
+                          }}
+                        >
                           <Typography variant="caption" sx={{ fontWeight: 700 }}>
                             Zona Decorativa: Pista de Baile / Escenario (Capacidad 0)
                           </Typography>
@@ -399,10 +481,11 @@ export function LandingDemoMock() {
                   </Card>
                 </Grid>
               </Grid>
-            )}
+            </DemoPanel>
           </Box>
         </Paper>
       </Container>
     </Box>
   );
 }
+import { getLandingConfig } from '../config/landing-config';

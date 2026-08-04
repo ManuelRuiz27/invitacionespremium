@@ -1,5 +1,4 @@
 import { LandingCta } from './components/LandingCta';
-import { LandingDemoMock } from './components/LandingDemoMock';
 import { LandingFaq } from './components/LandingFaq';
 import { LandingFooter } from './components/LandingFooter';
 import { LandingHeader } from './components/LandingHeader';
@@ -10,9 +9,15 @@ import { LandingPricing } from './components/LandingPricing';
 import { LandingProblem } from './components/LandingProblem';
 import { LandingServices } from './components/LandingServices';
 import { LandingSolution } from './components/LandingSolution';
-import { RegisterPlannerModal } from './components/RegisterPlannerModal';
-import { Box } from '@mui/material';
-import { useState } from 'react';
+import { Box, CircularProgress } from '@mui/material';
+import { lazy, Suspense, useState } from 'react';
+
+const LandingDemoMock = lazy(() =>
+  import('./components/LandingDemoMock').then((module) => ({ default: module.LandingDemoMock }))
+);
+const RegisterPlannerModal = lazy(() =>
+  import('./components/RegisterPlannerModal').then((module) => ({ default: module.RegisterPlannerModal }))
+);
 
 export function App() {
   const [registerModalOpen, setRegisterModalOpen] = useState(false);
@@ -33,7 +38,15 @@ export function App() {
         <LandingProblem />
         <LandingSolution />
         <LandingServices />
-        <LandingDemoMock />
+        <Suspense
+          fallback={
+            <Box component="section" id="demo" sx={{ minHeight: 320, display: 'grid', placeItems: 'center' }}>
+              <CircularProgress aria-label="Cargando demo visual" />
+            </Box>
+          }
+        >
+          <LandingDemoMock />
+        </Suspense>
         <LandingPricing />
         <LandingPlanners onOpenRegister={handleOpenRegister} />
         <LandingOrganizations />
@@ -42,8 +55,11 @@ export function App() {
       </Box>
       <LandingFooter />
 
-      {/* Modal de Registro para Planner Independiente */}
-      <RegisterPlannerModal open={registerModalOpen} onClose={handleCloseRegister} />
+      {registerModalOpen && (
+        <Suspense fallback={null}>
+          <RegisterPlannerModal open onClose={handleCloseRegister} />
+        </Suspense>
+      )}
     </Box>
   );
 }

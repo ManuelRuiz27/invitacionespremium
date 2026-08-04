@@ -1,7 +1,9 @@
-import { landingContent } from '../landing-content';
+import { getLandingConfig } from '../config/landing-config';
 import BusinessIcon from '@mui/icons-material/Business';
 import InfoIcon from '@mui/icons-material/Info';
 import { Alert, Box, Card, CardContent, Container, Grid, Typography } from '@mui/material';
+
+const landingContent = getLandingConfig();
 
 export function LandingOrganizations() {
   return (

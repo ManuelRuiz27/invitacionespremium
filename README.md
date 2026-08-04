@@ -1,4 +1,4 @@
-# InvitacionesPremium bt Soft-Monky
+# InvitacionesPremium
 
 Monorepo del SaaS InvitacionesPremium. La documentación de `/docs` es la fuente de verdad del producto y el código se organiza en `/apps` y `/packages`.
 
@@ -457,8 +457,8 @@ Contrato normativo: `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md`.
 
 Contrato normativo: `docs/04-tecnico/PUBLIC_CLIENT_CONTRACT.md`.
 
-`CODEX-130 — Platform Admin` esta **EN PROGRESO**. `CODEX-130A` esta aceptado y `CODEX-130B` fue
-implementado, pendiente de aceptacion. El hardening del corte A
+`CODEX-130 — Platform Admin` esta **EN PROGRESO**. `CODEX-130A` y `CODEX-130B` estan aceptados. El
+hardening del corte A
 hardening centraliza la expiracion por `401`, aborta operaciones al cambiar de Cliente o Evento, bloquea
 dobles envios sincronos y conserva en memoria los resultados financieros inciertos con su misma llave.
 El alcance implementado incluye sesion exclusiva, shell responsive, dashboard real, Clientes y usuarios,
@@ -476,6 +476,16 @@ publica un listado administrativo. Las fechas ISO se proyectan a hora local y re
 No existe descarga administrativa de reportes ni `GET /admin/services`. Auditoria y configuracion
 permanecen pendientes; Auditoria requiere endpoints publicados en OpenAPI. Contrato:
 `docs/04-tecnico/ADMIN_APP_CONTRACT.md`.
+
+`CODEX-132 — Landing pública` fue implementado y permanece **PENDIENTE DE ACEPTACIÓN**. Su cierre
+técnico `CODEX-132A` centraliza identidad, contenido comercial, precios, límites, URLs y SEO en
+`apps/landing/src/config/landing-config.ts`; conecta el registro público de Planner independiente al
+wrapper tipado generado desde OpenAPI; y protege doble envío, cancelación y respuestas tardías sin
+persistir datos. El demo es una simulación visual sin backend, creación de Eventos, consumo de créditos
+ni accesos reales. Producción exige URLs HTTP/HTTPS explícitas y omite canonical/`og:url` si no existe
+una URL pública válida. Demo y modal se cargan dinámicamente.
+
+`CODEX-130C`, `CODEX-131`, `CODEX-140` y `CODEX-141` no se iniciaron en este corte.
 
 ## Fuente de verdad
 

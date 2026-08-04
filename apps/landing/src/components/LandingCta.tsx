@@ -1,4 +1,4 @@
-import { landingContent } from '../landing-content';
+import { getLandingConfig } from '../config/landing-config';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import { Box, Button, Container, Stack, Typography } from '@mui/material';
@@ -6,6 +6,8 @@ import { Box, Button, Container, Stack, Typography } from '@mui/material';
 export interface LandingCtaProps {
   onOpenRegister: () => void;
 }
+
+const landingContent = getLandingConfig();
 
 export function LandingCta({ onOpenRegister }: LandingCtaProps) {
   return (
@@ -19,7 +21,7 @@ export function LandingCta({ onOpenRegister }: LandingCtaProps) {
       }}
     >
       <Container maxWidth="md">
-        <Stack spacing={3} alignItems="center">
+        <Stack spacing={3} sx={{ alignItems: 'center' }}>
           <Typography variant="h2" component="h2" sx={{ color: '#FFFFFF', fontWeight: 800 }}>
             Comienza a operar tus Eventos con InvitacionesPremium
           </Typography>
@@ -50,6 +52,7 @@ export function LandingCta({ onOpenRegister }: LandingCtaProps) {
               size="large"
               endIcon={<ArrowForwardIcon />}
               href={landingContent.urls.login}
+              disabled={!landingContent.urls.login}
               sx={{
                 color: '#FFFFFF',
                 borderColor: 'rgba(255, 255, 255, 0.4)',

@@ -1,6 +1,8 @@
-import { landingContent } from '../landing-content';
+import { getLandingConfig } from '../config/landing-config';
 import CheckIcon from '@mui/icons-material/Check';
-import { Box, Card, CardContent, Chip, Container, Grid, Stack, Typography } from '@mui/material';
+import { Box, Card, CardContent, Container, Grid, Stack, Typography } from '@mui/material';
+
+const landingContent = getLandingConfig();
 
 export function LandingServices() {
   return (
@@ -29,21 +31,6 @@ export function LandingServices() {
                   position: 'relative'
                 }}
               >
-                {service.code === 'FLIPBOOK' && (
-                  <Chip
-                    label="MÁS RECOMENDADO"
-                    color="primary"
-                    size="small"
-                    sx={{
-                      position: 'absolute',
-                      top: 12,
-                      right: 12,
-                      fontWeight: 800,
-                      fontSize: '0.65rem'
-                    }}
-                  />
-                )}
-
                 <CardContent sx={{ p: 3, display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
                   <Typography variant="h3" component="h3" sx={{ fontWeight: 800, fontSize: '1.4rem', mb: 0.5 }}>
                     {service.name}
@@ -57,10 +44,10 @@ export function LandingServices() {
                       COSTO EN CRÉDITOS
                     </Typography>
                     <Typography variant="h4" color="primary.main" sx={{ fontWeight: 800, my: 0.25 }}>
-                      {service.plannerCredits} créditos
+                      {service.prices.planner.credits} créditos
                     </Typography>
                     <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                      (Organización: {service.organizationCredits} créditos)
+                      (Organización: {service.prices.organization.credits} créditos)
                     </Typography>
                   </Box>
 

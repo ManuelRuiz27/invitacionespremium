@@ -1,4 +1,5 @@
-import { landingContent } from '../landing-content';
+import { getLandingConfig } from '../config/landing-config';
+import { scrollToLandingSection } from '../navigation';
 import MenuIcon from '@mui/icons-material/Menu';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import {
@@ -17,7 +18,9 @@ import {
   useMediaQuery,
   useTheme
 } from '@mui/material';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+
+const landingContent = getLandingConfig();
 
 export interface LandingHeaderProps {
   onOpenRegister: () => void;
@@ -27,17 +30,16 @@ export function LandingHeader({ onOpenRegister }: LandingHeaderProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   const toggleDrawer = (open: boolean) => () => {
     setDrawerOpen(open);
+    if (!open) queueMicrotask(() => menuButtonRef.current?.focus());
   };
 
   const handleNavClick = (href: string) => {
     setDrawerOpen(false);
-    const element = document.querySelector(href);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-    }
+    scrollToLandingSection(href);
   };
 
   return (
@@ -54,7 +56,10 @@ export function LandingHeader({ onOpenRegister }: LandingHeaderProps) {
       }}
     >
       <Container maxWidth="lg">
-        <Toolbar disableGutters sx={{ minHeight: { xs: 64, md: 72 }, display: 'flex', justifyContent: 'space-between' }}>
+        <Toolbar
+          disableGutters
+          sx={{ minHeight: { xs: 64, md: 72 }, display: 'flex', justifyContent: 'space-between' }}
+        >
           {/* Logo / Identidad */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <Box
@@ -73,14 +78,9 @@ export function LandingHeader({ onOpenRegister }: LandingHeaderProps) {
             >
               IP
             </Box>
-            <Box>
-              <Typography variant="h6" sx={{ fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1 }}>
-                {landingContent.brand.name}
-              </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.68rem', display: 'block' }}>
-                bt Soft-Monky
-              </Typography>
-            </Box>
+            <Typography variant="h6" sx={{ fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+              {landingContent.brand.name}
+            </Typography>
           </Box>
 
           {/* Navegación Desktop */}
@@ -117,6 +117,7 @@ export function LandingHeader({ onOpenRegister }: LandingHeaderProps) {
               color="primary"
               size="medium"
               href={landingContent.urls.login}
+              disabled={!landingContent.urls.login}
               sx={{ borderRadius: 2, fontWeight: 650 }}
             >
               Iniciar sesión
@@ -138,7 +139,10 @@ export function LandingHeader({ onOpenRegister }: LandingHeaderProps) {
             {/* Menú Hamburguesa Móvil */}
             {isMobile && (
               <IconButton
+                ref={menuButtonRef}
                 aria-label="Abrir menú de navegación"
+                aria-expanded={drawerOpen}
+                aria-controls="landing-mobile-navigation"
                 edge="end"
                 onClick={toggleDrawer(true)}
                 sx={{ color: 'text.primary' }}
@@ -152,7 +156,12 @@ export function LandingHeader({ onOpenRegister }: LandingHeaderProps) {
 
       {/* Drawer Móvil */}
       <Drawer anchor="right" open={drawerOpen} onClose={toggleDrawer(false)}>
-        <Box sx={{ width: 280, p: 2 }} role="presentation">
+        <Box
+          id="landing-mobile-navigation"
+          sx={{ width: 280, p: 2 }}
+          role="navigation"
+          aria-label="Navegación principal"
+        >
           <Typography variant="h6" sx={{ fontWeight: 800, px: 2, py: 1 }}>
             {landingContent.brand.name}
           </Typography>
@@ -160,7 +169,7 @@ export function LandingHeader({ onOpenRegister }: LandingHeaderProps) {
             {landingContent.nav.map((item) => (
               <ListItem key={item.href} disablePadding>
                 <ListItemButton onClick={() => handleNavClick(item.href)} sx={{ borderRadius: 1.5, my: 0.25 }}>
-                  <ListItemText primary={item.label} slotProps={{ primary: { fontWeight: 600 } }} />
+                  <ListItemText primary={item.label} slotProps={{ primary: { sx: { fontWeight: 600 } } }} />
                 </ListItemButton>
               </ListItem>
             ))}

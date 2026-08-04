@@ -1,5 +1,15 @@
-import { landingContent } from '../landing-content';
+import { getLandingConfig } from '../config/landing-config';
 import { Box, Card, CardContent, Container, Divider, Grid, Stack, Typography } from '@mui/material';
+
+const landingContent = getLandingConfig();
+const plannerRates = landingContent.services.items.map((service) => ({
+  service: service.name,
+  ...service.prices.planner
+}));
+const organizationRates = landingContent.services.items.map((service) => ({
+  service: service.name,
+  ...service.prices.organization
+}));
 
 export function LandingPricing() {
   return (
@@ -37,8 +47,11 @@ export function LandingPricing() {
                 <Divider sx={{ mb: 3 }} />
 
                 <Stack spacing={2.5}>
-                  {landingContent.pricing.planner.rates.map((rate, idx) => (
-                    <Box key={idx} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  {plannerRates.map((rate) => (
+                    <Box
+                      key={rate.service}
+                      sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                    >
                       <Box>
                         <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                           {rate.service}
@@ -80,8 +93,11 @@ export function LandingPricing() {
                 <Divider sx={{ mb: 3 }} />
 
                 <Stack spacing={2.5}>
-                  {landingContent.pricing.organization.rates.map((rate, idx) => (
-                    <Box key={idx} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  {organizationRates.map((rate) => (
+                    <Box
+                      key={rate.service}
+                      sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                    >
                       <Box>
                         <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                           {rate.service}

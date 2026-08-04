@@ -9,7 +9,7 @@ import {
 import { createAuthClient } from './auth';
 import { createEventsClient } from './events';
 import { createFinanceClient } from './finance';
-import { createPublicAlbumClient, createPublicInvitationClient } from './public';
+import { createPublicAlbumClient, createPublicClientsClient, createPublicInvitationClient } from './public';
 import {
   createContactsClient,
   createDesignClient,
@@ -42,10 +42,15 @@ export type {
   PublicRsvpAssistantInput,
   PublicRsvpMutation
 } from './public';
+export type { RegisterPlannerInput, RegisterPlannerResult } from './public';
 export type * from './wizard';
 export type * from './admin';
 
 export const API_CLIENT_STATUS = 'Operational typed client generated from the API OpenAPI document.';
+
+export function createPublicRegistrationClient(config: ApiClientRuntimeConfig) {
+  return createPublicClientsClient(createRequester(config));
+}
 
 export function createApiClient(config: ApiClientRuntimeConfig) {
   const request = createRequester(config);

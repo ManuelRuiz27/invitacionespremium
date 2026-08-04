@@ -2,7 +2,7 @@
 
 ## Nombre del sistema
 
-**InvitacionesPremium bt Soft-Monky**
+**InvitacionesPremium**
 
 ## Principio rector
 

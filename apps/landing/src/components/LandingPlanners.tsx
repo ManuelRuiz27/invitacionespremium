@@ -1,4 +1,4 @@
-import { landingContent } from '../landing-content';
+import { getLandingConfig } from '../config/landing-config';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import { Box, Button, Container, Grid, Paper, Stack, Typography } from '@mui/material';
@@ -6,6 +6,8 @@ import { Box, Button, Container, Grid, Paper, Stack, Typography } from '@mui/mat
 export interface LandingPlannersProps {
   onOpenRegister: () => void;
 }
+
+const landingContent = getLandingConfig();
 
 export function LandingPlanners({ onOpenRegister }: LandingPlannersProps) {
   return (
@@ -48,12 +50,19 @@ export function LandingPlanners({ onOpenRegister }: LandingPlannersProps) {
             </Grid>
 
             <Grid size={{ xs: 12, md: 5 }} sx={{ textAlign: { xs: 'left', md: 'center' } }}>
-              <Box sx={{ p: 3, borderRadius: 3, bgcolor: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+              <Box
+                sx={{
+                  p: 3,
+                  borderRadius: 3,
+                  bgcolor: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)'
+                }}
+              >
                 <Typography variant="h3" sx={{ color: '#FFF', fontWeight: 700, mb: 1, fontSize: '1.3rem' }}>
                   ¿Eres Planner Independiente?
                 </Typography>
                 <Typography variant="body2" sx={{ color: '#9CA3AF', mb: 3 }}>
-                  Crea tu cuenta pública de forma gratuita y accede de inmediato al panel de administración.
+                  {landingContent.planners.onboardingNotice}
                 </Typography>
                 <Button
                   variant="contained"
