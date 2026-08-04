@@ -26,17 +26,27 @@ docs/         Producto, reglas, arquitectura y backlog
 - pnpm 11.15.1;
 - Docker Compose para PostgreSQL local.
 
-## Inicio local
+## Inicio local con Docker
 
 ```bash
-corepack enable
-corepack prepare pnpm@11.15.1 --activate
 cp .env.example .env
-pnpm install --frozen-lockfile
-docker compose up -d postgres
-pnpm --filter @invitaciones/api db:migrate:deploy
-pnpm --filter @invitaciones/api auth:seed-local-admin
-pnpm dev
+docker compose up --build -d
+```
+
+Compose levanta PostgreSQL y un contenedor de workspace que ejecuta API, Client, Admin, Scanner y Landing. Antes de
+iniciar las aplicaciones, el contenedor aplica las migraciones y ejecuta los seeds locales idempotentes de Platform
+Admin, Servicios y precios.
+
+```bash
+docker compose ps
+docker compose logs -f workspace
+```
+
+Credenciales locales de Platform Admin:
+
+```text
+admin@example.com
+change-me-at-least-12-chars
 ```
 
 Servicios locales:
