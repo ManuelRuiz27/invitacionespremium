@@ -1,12 +1,13 @@
-import { getLandingConfig } from '../config/landing-config';
+import { getLandingConfig, type LandingConfig } from '../config/landing-config';
 import { scrollToLandingSection } from '../navigation';
+import { landingTokens } from '../theme/landing-theme';
+import { LandingBrandLockup } from './primitives';
 import MenuIcon from '@mui/icons-material/Menu';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import {
   AppBar,
   Box,
   Button,
-  Container,
   Drawer,
   IconButton,
   List,
@@ -14,19 +15,19 @@ import {
   ListItemButton,
   ListItemText,
   Toolbar,
-  Typography,
   useMediaQuery,
   useTheme
 } from '@mui/material';
 import { useRef, useState } from 'react';
 
-const landingContent = getLandingConfig();
-
 export interface LandingHeaderProps {
   onOpenRegister: () => void;
+  /** Optional injectable config for testing. Defaults to `getLandingConfig()`. */
+  config?: LandingConfig;
 }
 
-export function LandingHeader({ onOpenRegister }: LandingHeaderProps) {
+export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
+  const landingContent = config ?? getLandingConfig();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -48,81 +49,112 @@ export function LandingHeader({ onOpenRegister }: LandingHeaderProps) {
       color="default"
       elevation={0}
       sx={{
-        backgroundColor: 'rgba(255, 254, 251, 0.92)',
-        backdropFilter: 'blur(10px)',
-        borderBottom: `1px solid ${theme.palette.divider}`,
+        backgroundColor: landingTokens.surfaces.glass.background,
+        backdropFilter: landingTokens.surfaces.glass.backdropFilter,
+        borderBottom: landingTokens.surfaces.glass.borderBottom,
         top: 0,
         zIndex: theme.zIndex.appBar
       }}
     >
-      <Container maxWidth="lg">
+      {/* Skip link — visually hidden, visible on :focus-visible */}
+      <Box
+        component="a"
+        href="#main-content"
+        sx={{
+          position: 'absolute',
+          left: '-9999px',
+          top: 'auto',
+          width: '1px',
+          height: '1px',
+          overflow: 'hidden',
+          zIndex: theme.zIndex.tooltip,
+          '&:focus-visible': {
+            position: 'fixed',
+            top: 8,
+            left: 8,
+            width: 'auto',
+            height: 'auto',
+            px: 2,
+            py: 1,
+            bgcolor: 'primary.main',
+            color: 'primary.contrastText',
+            borderRadius: `${landingTokens.radius.badge}px`,
+            fontWeight: 700,
+            fontSize: '0.85rem',
+            textDecoration: 'none',
+            boxShadow: landingTokens.shadows.elevated
+          }
+        }}
+      >
+        Saltar al contenido principal
+      </Box>
+
+      <Box sx={{ maxWidth: 'lg', mx: 'auto', width: '100%', px: { xs: 2, sm: 3 } }}>
         <Toolbar
           disableGutters
           sx={{ minHeight: { xs: 64, md: 72 }, display: 'flex', justifyContent: 'space-between' }}
         >
-          {/* Logo / Identidad */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Box
-              sx={{
-                width: 36,
-                height: 36,
-                borderRadius: 2,
-                bgcolor: 'primary.main',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#FFF',
-                fontWeight: 800,
-                fontSize: '1.1rem'
-              }}
-            >
-              IP
-            </Box>
-            <Typography variant="h6" sx={{ fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1 }}>
-              {landingContent.brand.name}
-            </Typography>
-          </Box>
+          {/* Brand lockup — horizontal compact */}
+          <LandingBrandLockup
+            variant="horizontal"
+            name={landingContent.brand.name}
+            tagline={landingContent.brand.tagline}
+          />
 
-          {/* Navegación Desktop */}
+          {/* Desktop navigation */}
           {!isMobile && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+            <Box
+              component="nav"
+              aria-label="Navegación principal"
+              sx={{ display: 'flex', alignItems: 'center', gap: 3 }}
+            >
               {landingContent.nav.map((item) => (
-                <Typography
+                <Box
                   key={item.href}
                   component="a"
                   href={item.href}
-                  onClick={(e) => {
+                  onClick={(e: React.MouseEvent) => {
                     e.preventDefault();
                     handleNavClick(item.href);
                   }}
                   sx={{
                     color: 'text.primary',
                     textDecoration: 'none',
-                    fontWeight: 600,
-                    fontSize: '0.92rem',
-                    transition: 'color 0.2s',
-                    '&:hover': { color: 'primary.main' }
+                    fontWeight: landingTokens.typography.nav.fontWeight,
+                    fontSize: landingTokens.typography.nav.fontSize,
+                    transition: `color ${landingTokens.transitions.duration} ${landingTokens.transitions.easing}`,
+                    '&:hover': { color: 'primary.main' },
+                    '&:focus-visible': {
+                      color: 'primary.main'
+                    }
                   }}
                 >
                   {item.label}
-                </Typography>
+                </Box>
               ))}
             </Box>
           )}
 
-          {/* Acciones CTAs */}
+          {/* Actions */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Button
-              variant="outlined"
-              color="primary"
-              size="medium"
-              href={landingContent.urls.login}
-              disabled={!landingContent.urls.login}
-              sx={{ borderRadius: 2, fontWeight: 650 }}
-            >
-              Iniciar sesión
-            </Button>
+            {/* Login — visible only on desktop */}
+            {!isMobile && (
+              <Button
+                variant="outlined"
+                color="primary"
+                size="medium"
+                href={landingContent.urls.login}
+                disabled={!landingContent.urls.login}
+                sx={{
+                  borderRadius: `${landingTokens.radius.button}px`,
+                  fontWeight: 650
+                }}
+              >
+                {landingContent.hero.secondaryCta}
+              </Button>
+            )}
 
+            {/* Register — visible only on desktop */}
             {!isMobile && (
               <Button
                 variant="contained"
@@ -130,13 +162,16 @@ export function LandingHeader({ onOpenRegister }: LandingHeaderProps) {
                 size="medium"
                 startIcon={<PersonAddIcon />}
                 onClick={onOpenRegister}
-                sx={{ borderRadius: 2, fontWeight: 650 }}
+                sx={{
+                  borderRadius: `${landingTokens.radius.button}px`,
+                  fontWeight: 650
+                }}
               >
                 Registrarme
               </Button>
             )}
 
-            {/* Menú Hamburguesa Móvil */}
+            {/* Mobile hamburger */}
             {isMobile && (
               <IconButton
                 ref={menuButtonRef}
@@ -152,9 +187,9 @@ export function LandingHeader({ onOpenRegister }: LandingHeaderProps) {
             )}
           </Box>
         </Toolbar>
-      </Container>
+      </Box>
 
-      {/* Drawer Móvil */}
+      {/* Mobile Drawer */}
       <Drawer anchor="right" open={drawerOpen} onClose={toggleDrawer(false)}>
         <Box
           id="landing-mobile-navigation"
@@ -162,9 +197,14 @@ export function LandingHeader({ onOpenRegister }: LandingHeaderProps) {
           role="navigation"
           aria-label="Navegación principal"
         >
-          <Typography variant="h6" sx={{ fontWeight: 800, px: 2, py: 1 }}>
-            {landingContent.brand.name}
-          </Typography>
+          <Box sx={{ px: 2, py: 1 }}>
+            <LandingBrandLockup
+              variant="horizontal"
+              name={landingContent.brand.name}
+              tagline={landingContent.brand.tagline}
+            />
+          </Box>
+
           <List>
             {landingContent.nav.map((item) => (
               <ListItem key={item.href} disablePadding>
@@ -174,7 +214,8 @@ export function LandingHeader({ onOpenRegister }: LandingHeaderProps) {
               </ListItem>
             ))}
           </List>
-          <Box sx={{ mt: 2, px: 2 }}>
+
+          <Box sx={{ mt: 2, px: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
             <Button
               variant="contained"
               color="primary"
@@ -184,9 +225,20 @@ export function LandingHeader({ onOpenRegister }: LandingHeaderProps) {
                 setDrawerOpen(false);
                 onOpenRegister();
               }}
-              sx={{ borderRadius: 2, fontWeight: 700 }}
+              sx={{ borderRadius: `${landingTokens.radius.button}px`, fontWeight: 700 }}
             >
               Registrarme como Planner
+            </Button>
+
+            <Button
+              variant="outlined"
+              color="primary"
+              fullWidth
+              href={landingContent.urls.login}
+              disabled={!landingContent.urls.login}
+              sx={{ borderRadius: `${landingTokens.radius.button}px`, fontWeight: 650 }}
+            >
+              {landingContent.hero.secondaryCta}
             </Button>
           </Box>
         </Box>

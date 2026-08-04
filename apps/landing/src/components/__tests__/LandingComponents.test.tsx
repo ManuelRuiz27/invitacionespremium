@@ -3,8 +3,9 @@ import { createLandingConfig, getLandingConfig } from '../../config/landing-conf
 import { LandingDemoMock } from '../LandingDemoMock';
 import { LandingServices } from '../LandingServices';
 import { LandingHeader } from '../LandingHeader';
+import { LandingHero } from '../LandingHero';
 import { AppThemeProvider } from '@invitaciones/ui';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 
@@ -143,5 +144,122 @@ describe('Landing commercial content', () => {
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
     await waitFor(() => expect(trigger).toHaveFocus());
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  });
+});
+
+describe('Landing accessibility and navigation', () => {
+  it('contains a skip link targeting the main content', () => {
+    renderWithTheme(<App />);
+    const skipLink = screen.getByText('Saltar al contenido principal');
+    expect(skipLink).toBeInTheDocument();
+    expect(skipLink).toHaveAttribute('href', '#main-content');
+    const main = document.getElementById('main-content');
+    expect(main).toBeInTheDocument();
+    expect(main?.tagName.toLowerCase()).toBe('main');
+  });
+
+  it('header displays all navigation items from config', () => {
+    vi.mocked(window.matchMedia).mockImplementation((query) => ({
+      matches: query.includes('min-width'),
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn()
+    }));
+    renderWithTheme(<LandingHeader onOpenRegister={vi.fn()} />);
+    for (const item of content.nav) {
+      expect(screen.getByText(item.label)).toBeInTheDocument();
+    }
+  });
+
+  it('register opens from header CTA', () => {
+    vi.mocked(window.matchMedia).mockImplementation((query) => ({
+      matches: query.includes('min-width'),
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn()
+    }));
+    const handleRegister = vi.fn();
+    renderWithTheme(<LandingHeader onOpenRegister={handleRegister} />);
+    const registerBtn = screen.getByRole('button', { name: /Registrarme/i });
+    fireEvent.click(registerBtn);
+    expect(handleRegister).toHaveBeenCalledOnce();
+  });
+
+  it('register opens from hero CTA', () => {
+    const handleRegister = vi.fn();
+    renderWithTheme(<LandingHero onOpenRegister={handleRegister} />);
+    const registerBtn = screen.getByRole('button', { name: content.hero.primaryCta });
+    fireEvent.click(registerBtn);
+    expect(handleRegister).toHaveBeenCalledOnce();
+  });
+
+  it('login is disabled in header when no URL is configured', () => {
+    vi.mocked(window.matchMedia).mockImplementation((query) => ({
+      matches: query.includes('min-width'),
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn()
+    }));
+    const noLoginConfig = createLandingConfig({}, { development: false });
+    renderWithTheme(<LandingHeader onOpenRegister={vi.fn()} config={noLoginConfig} />);
+    const loginBtn = screen.getByRole('button', { name: content.hero.secondaryCta });
+    expect(loginBtn).toBeDisabled();
+  });
+
+  it('login is disabled in hero when no URL is configured', () => {
+    const noLoginConfig = createLandingConfig({}, { development: false });
+    renderWithTheme(<LandingHero onOpenRegister={vi.fn()} config={noLoginConfig} />);
+    const loginBtn = screen.getByRole('button', { name: content.hero.secondaryCta });
+    expect(loginBtn).toBeDisabled();
+  });
+
+  it('hero preserves content from landing-config', () => {
+    renderWithTheme(<LandingHero onOpenRegister={vi.fn()} />);
+    expect(screen.getByText(content.hero.badge)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(content.hero.title);
+    expect(screen.getByText(content.hero.subtitle)).toBeInTheDocument();
+    expect(screen.getByText(content.hero.primaryCta)).toBeInTheDocument();
+    expect(screen.getByText(content.hero.secondaryCta)).toBeInTheDocument();
+  });
+
+  it('hero product stage renders solution pillars from config', () => {
+    renderWithTheme(<LandingHero onOpenRegister={vi.fn()} />);
+    for (const pillar of content.solution.pillars) {
+      expect(screen.getByText(pillar.title)).toBeInTheDocument();
+    }
+    expect(screen.getByText(content.solution.ruleNotice)).toBeInTheDocument();
+  });
+
+  it('mobile drawer contains all navigation items and both CTAs', () => {
+    vi.mocked(window.matchMedia).mockImplementation((query) => ({
+      matches: query.includes('max-width'),
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn()
+    }));
+    renderWithTheme(<LandingHeader onOpenRegister={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir menú de navegación' }));
+    const drawer = screen.getByRole('navigation', { name: 'Navegación principal' });
+    for (const item of content.nav) {
+      expect(within(drawer).getByText(item.label)).toBeInTheDocument();
+    }
+    expect(within(drawer).getByText('Registrarme como Planner')).toBeInTheDocument();
+    expect(within(drawer).getByText(content.hero.secondaryCta)).toBeInTheDocument();
   });
 });

@@ -33,7 +33,7 @@ export function App() {
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
       <LandingHeader onOpenRegister={handleOpenRegister} />
-      <Box component="main" sx={{ flexGrow: 1 }}>
+      <Box component="main" id="main-content" tabIndex={-1} sx={{ flexGrow: 1, outline: 'none' }}>
         <LandingHero onOpenRegister={handleOpenRegister} />
         <LandingProblem />
         <LandingSolution />
