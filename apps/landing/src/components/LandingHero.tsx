@@ -1,6 +1,12 @@
 import { getLandingConfig, type LandingConfig } from '../config/landing-config';
 import { landingTokens } from '../theme/landing-theme';
-import { LandingActionGroup, LandingBrandLockup, LandingEyebrow, LandingProductStage } from './primitives';
+import {
+  LandingActionGroup,
+  LandingBrandLockup,
+  LandingContainer,
+  LandingEyebrow,
+  LandingProductStage
+} from './primitives';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
@@ -24,7 +30,7 @@ export function LandingHero({ onOpenRegister, config }: LandingHeroProps) {
         borderBottom: (theme) => `1px solid ${theme.palette.divider}`
       }}
     >
-      <Box sx={{ maxWidth: 'lg', mx: 'auto', px: { xs: 2, sm: 3 } }}>
+      <LandingContainer>
         <Grid container spacing={{ xs: 5, md: 6 }} sx={{ alignItems: 'center' }}>
           {/* Content column */}
           <Grid size={{ xs: 12, md: 7 }}>
@@ -112,7 +118,7 @@ export function LandingHero({ onOpenRegister, config }: LandingHeroProps) {
             </Stack>
           </Grid>
         </Grid>
-      </Box>
+      </LandingContainer>
     </Box>
   );
 }

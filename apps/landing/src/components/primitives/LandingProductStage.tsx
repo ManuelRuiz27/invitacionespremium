@@ -115,7 +115,7 @@ export function LandingProductStage({ pillars, ruleNotice }: LandingProductStage
               <Typography
                 variant="caption"
                 sx={{
-                  color: 'rgba(255, 255, 255, 0.55)',
+                  color: 'rgba(255, 255, 255, 0.75)',
                   display: 'block',
                   mt: 0.25,
                   lineHeight: 1.4,

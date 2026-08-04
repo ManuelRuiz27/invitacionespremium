@@ -1,7 +1,7 @@
 import { getLandingConfig, type LandingConfig } from '../config/landing-config';
 import { scrollToLandingSection } from '../navigation';
 import { landingTokens } from '../theme/landing-theme';
-import { LandingBrandLockup } from './primitives';
+import { LandingBrandLockup, LandingContainer } from './primitives';
 import MenuIcon from '@mui/icons-material/Menu';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import {
@@ -29,7 +29,7 @@ export interface LandingHeaderProps {
 export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
   const landingContent = config ?? getLandingConfig();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down('lg'));
   const [drawerOpen, setDrawerOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -89,10 +89,10 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
         Saltar al contenido principal
       </Box>
 
-      <Box sx={{ maxWidth: 'lg', mx: 'auto', width: '100%', px: { xs: 2, sm: 3 } }}>
+      <LandingContainer>
         <Toolbar
           disableGutters
-          sx={{ minHeight: { xs: 64, md: 72 }, display: 'flex', justifyContent: 'space-between' }}
+          sx={{ minHeight: { xs: 64, md: 72 }, display: 'flex', justifyContent: 'space-between', gap: 2 }}
         >
           {/* Brand lockup — horizontal compact */}
           <LandingBrandLockup
@@ -187,7 +187,7 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
             )}
           </Box>
         </Toolbar>
-      </Box>
+      </LandingContainer>
 
       {/* Mobile Drawer */}
       <Drawer anchor="right" open={drawerOpen} onClose={toggleDrawer(false)}>
