@@ -1,4 +1,21 @@
 export type paths = {
+    "/api/v1/admin/audit-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List immutable audit records */
+        get: operations["AdminAuditController_listAuditLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/clients": {
         parameters: {
             query?: never;
@@ -2028,6 +2045,40 @@ export type components = {
             /** Format: date-time */
             updatedAt: string;
         };
+        AuditLogPageResponseDto: {
+            items: components["schemas"]["AuditLogResponseDto"][];
+            nextCursor: string | null;
+        };
+        AuditLogResponseDto: {
+            action: string;
+            actorFingerprint: string | null;
+            /** Format: uuid */
+            actorId: string | null;
+            /** @enum {string} */
+            actorType: "USER" | "STAFF_TOKEN" | "PUBLIC_TOKEN" | "SYSTEM";
+            afterData: ({
+                [key: string]: unknown;
+            } | unknown[] | string | number | boolean) | null;
+            beforeData: ({
+                [key: string]: unknown;
+            } | unknown[] | string | number | boolean) | null;
+            /** Format: uuid */
+            clientId: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            eventId: string | null;
+            /** Format: uuid */
+            id: string;
+            metadata: ({
+                [key: string]: unknown;
+            } | unknown[] | string | number | boolean) | null;
+            /** Format: uuid */
+            operationId: string | null;
+            /** Format: uuid */
+            resourceId: string | null;
+            resourceType: string;
+        };
         AuthUserDto: {
             /** Format: uuid */
             clientId: string | null;
@@ -3288,6 +3339,38 @@ export type components = {
 };
 export type $defs = Record<string, never>;
 export interface operations {
+    AdminAuditController_listAuditLogs: {
+        parameters: {
+            query?: {
+                action?: string;
+                actorId?: string;
+                actorType?: "USER" | "STAFF_TOKEN" | "PUBLIC_TOKEN" | "SYSTEM";
+                clientId?: string;
+                createdFrom?: string;
+                createdTo?: string;
+                cursor?: string;
+                eventId?: string;
+                limit?: number;
+                operationId?: string;
+                resourceId?: string;
+                resourceType?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditLogPageResponseDto"];
+                };
+            };
+        };
+    };
     AdminClientsController_list: {
         parameters: {
             query?: never;

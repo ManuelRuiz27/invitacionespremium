@@ -3,6 +3,7 @@ import {
   BusinessOutlined,
   CalendarMonthOutlined,
   Inventory2Outlined,
+  FactCheckOutlined,
   SpaceDashboardOutlined
 } from '@mui/icons-material';
 import { List, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
@@ -13,7 +14,8 @@ const items = [
   { label: 'Clientes', path: '/clientes', icon: <BusinessOutlined /> },
   { label: 'Eventos', path: '/eventos', icon: <CalendarMonthOutlined /> },
   { label: 'Catalogo', path: '/catalogo', icon: <Inventory2Outlined /> },
-  { label: 'Reportes', path: '/reportes', icon: <AssessmentOutlined /> }
+  { label: 'Reportes', path: '/reportes', icon: <AssessmentOutlined /> },
+  { label: 'Auditoría', path: '/auditoria', icon: <FactCheckOutlined /> }
 ];
 
 export function AdminNavigation({ onNavigate }: { onNavigate?: () => void }) {

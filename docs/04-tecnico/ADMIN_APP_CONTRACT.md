@@ -2,13 +2,12 @@
 
 ## Estado y alcance
 
-CODEX-130 permanece **EN PROGRESO**. CODEX-130A esta aceptado y CODEX-130B esta implementado, pendiente
-de aceptacion. Los cortes entregan shell, sesion, Clientes, Eventos, finanzas por Cliente, Catalogo,
-cortes financieros y metadata de reportes. `apps/admin` es exclusiva para una
+CODEX-130 permanece **EN PROGRESO**. CODEX-130A y CODEX-130B estan aceptados; CODEX-130C esta
+implementado y pendiente de aceptacion. Los cortes entregan shell, sesion, Clientes, Eventos, finanzas
+por Cliente, Catalogo, cortes financieros, metadata de reportes y consulta de auditoria. `apps/admin` es exclusiva para una
 identidad `PLATFORM_ADMIN` cuyo `clientId` es `null`; no representa ni impersona a un Cliente.
 
-Quedan diferidos a cortes posteriores: auditoria y configuracion. Auditoria depende primero de
-endpoints publicados por OpenAPI. Tambien quedan fuera
+Queda diferida a un corte posterior la configuracion general. Tambien quedan fuera
 Scanner, Landing, Socket.IO, refunds, reversals y acciones operativas de Planner.
 
 ## Sesion y autorizacion
@@ -34,8 +33,8 @@ Los requests publicos con `credentials: omit` no notifican al controlador.
 ## Navegacion y propiedad de datos
 
 Rutas: `/login`, `/`, `/clientes`, `/clientes/:clientId`, `/eventos`, `/eventos/:eventId`, `/catalogo`,
-`/reportes` y `/reportes/eventos/:eventId`. El shell muestra Resumen, Clientes, Eventos, Catalogo y
-Reportes. Cada detalle usa una query key ligada al parametro de
+`/reportes`, `/reportes/eventos/:eventId` y `/auditoria`. El shell muestra Resumen, Clientes, Eventos,
+Catalogo, Reportes y Auditoria. Cada detalle usa una query key ligada al parametro de
 URL; las respuestas obsoletas son abortables y no se muestran bajo otro Cliente o Evento.
 
 Las mutaciones usan un scope reutilizable con tipo e identificador de entidad, generacion,
@@ -59,6 +58,7 @@ TanStack Query opera exclusivamente en memoria con las claves `admin-session`, `
 - `adminCatalog`: creacion/estado de Servicio, lista/creacion/cierre de precios y gestion de promociones;
 - `adminReports`: listados global y por Evento de metadata;
 - `adminFinance`: tambien cortes diarios y mensuales sin parametros no publicados.
+- `adminAudit`: pagina global de registros inmutables con filtros y cursor.
 
 Se consumen exclusivamente estas rutas:
 
@@ -71,12 +71,19 @@ GET/POST/PATCH /admin/prices/**
 GET/POST/PATCH /admin/promotions/**
 GET            /admin/finance/cuts/daily|monthly
 GET            /admin/reports y /admin/reports/events/:eventId
+GET            /admin/audit-logs
 ```
 
 Los wrappers codifican segmentos, propagan `AbortSignal`, usan el requester con cookies y validan una
 forma minima de cada respuesta. El OpenAPI actual no define query params ni metadata de paginacion en
 los listados administrativos; por ello la UI identifica la coleccion visible como la respuesta completa
 del contrato y no ofrece busqueda, filtros o paginacion locales que aparenten cobertura global.
+
+Auditoria es la excepcion publicada con filtros y paginacion: acepta IDs, tipo de actor, tipo de recurso,
+accion, operacion y rango de instantes; `limit` es 50 por omision y 100 como maximo. Su cursor opaco
+representa `(occurredAt, id)` y el listado desciende por ambas columnas. El SDK valida la respuesta
+completa, JSON recursivo y combinaciones de actor; un `2xx` incompleto, no finito o con cursor invalido
+se convierte en `UNEXPECTED_API_RESPONSE`.
 
 ## Operaciones
 
@@ -108,6 +115,13 @@ obtenidos por rutas Admin, dejando UUID como referencia secundaria. La conversio
 usa componentes locales con segundos y el envio inverso conserva el instante. Los cortes diario y mensual muestran exactamente
 `FinanceCutResponseDto` sin recalcular ni sumar totales. Los listados Admin de reportes muestran solo
 `AdminReportListItemDto`: no hay dataset, nombres, PDF, descarga, hash completo o storage.
+
+Auditoria es solo lectura y no enriquece filas. Muestra USER y STAFF_TOKEN con su `actorId`, SYSTEM como
+Sistema y PUBLIC_TOKEN con una huella truncada. Los filtros `datetime-local` se interpretan en la zona
+local del navegador y se convierten mediante `Date` a instantes ISO, sin cortes de strings. La tabla de
+escritorio y las tarjetas moviles difieren el formateo de `beforeData`, `afterData` y `metadata` hasta
+abrir un dialogo; el contenido se presenta como texto escapado, nunca como HTML o enlaces. Cambiar
+filtros aborta la consulta anterior y una respuesta tardia queda aislada por su query key.
 
 ## Idempotencia y errores
 

@@ -6,6 +6,14 @@ export function sanitizeAuditObject(input: AuditObject): AuditObject {
   return sanitizeObject(input);
 }
 
+/**
+ * Sanitizes persisted JSON again at the read boundary. Audit rows are normally
+ * sanitized on write, but older/manual rows must not bypass the response policy.
+ */
+export function sanitizeAuditValue(input: unknown): unknown {
+  return sanitizeValue(input);
+}
+
 function sanitizeObject(input: Record<string, unknown>): Record<string, unknown> {
   const output: Record<string, unknown> = {};
 

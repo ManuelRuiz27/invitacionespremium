@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sanitizeAuditObject } from './audit-sanitizer';
+import { sanitizeAuditObject, sanitizeAuditValue } from './audit-sanitizer';
 
 describe('sanitizeAuditObject', () => {
   it('redacts secrets and personal contact fields recursively', () => {
@@ -46,5 +46,13 @@ describe('sanitizeAuditObject', () => {
       occurredAt: '2026-07-22T18:00:00.000Z',
       sequence: '10'
     });
+  });
+
+  it('sanitizes persisted arrays and null values at the read boundary', () => {
+    expect(sanitizeAuditValue([{ accessToken: 'raw' }, null, { safe: true }])).toEqual([
+      { accessToken: '[REDACTED]' },
+      null,
+      { safe: true }
+    ]);
   });
 });

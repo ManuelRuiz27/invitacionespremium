@@ -131,7 +131,9 @@ const mutationResult = {
   }
 } as const;
 
-export function mockAdminApi(user: AuthUser = platformAdmin): ApiClient {
+type AdminTestApiClient = ApiClient & { adminAudit: NonNullable<ApiClient['adminAudit']> };
+
+export function mockAdminApi(user: AuthUser = platformAdmin): AdminTestApiClient {
   return {
     auth: {
       login: vi.fn().mockResolvedValue({ user, expiresAt: '2026-08-03T00:00:00.000Z' }),
@@ -210,6 +212,7 @@ export function mockAdminApi(user: AuthUser = platformAdmin): ApiClient {
       deactivatePromotion: vi.fn()
     },
     adminReports: { list: vi.fn().mockResolvedValue([]), listEvent: vi.fn().mockResolvedValue([]) },
+    adminAudit: { listAuditLogs: vi.fn().mockResolvedValue({ items: [], nextCursor: null }) },
     events: { list: vi.fn(), get: vi.fn(), create: vi.fn(), update: vi.fn(), activate: vi.fn() },
     finance: { balance: vi.fn(), movements: vi.fn(), receipts: vi.fn() },
     services: { listAvailable: vi.fn() },

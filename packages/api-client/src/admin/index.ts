@@ -8,3 +8,5 @@ export { createAdminCatalogClient } from './catalog';
 export type * from './catalog';
 export { createAdminReportsClient } from './reports';
 export type * from './reports';
+export { createAdminAuditClient } from './audit';
+export type * from './audit';

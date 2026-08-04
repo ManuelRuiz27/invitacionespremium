@@ -1042,8 +1042,10 @@ instante en fechas locales y valida respuestas administrativas completas y finit
 residual bloquea la repeticion de mutaciones no idempotentes con resultado incierto, exige reconciliacion
 por lectura autoritativa y separa los estados de resolucion de Cliente sin ocultar promociones.
 
-Pendientes de cortes posteriores: auditoria y configuracion. Auditoria requiere primero endpoints
-presentes en OpenAPI. CODEX-130 permanece EN PROGRESO.
+**Corte C implementado, pendiente de aceptacion:** consulta administrativa de auditoria, endpoint
+`GET /admin/audit-logs`, SDK OpenAPI y vista responsive de solo lectura con filtros y cursor estable.
+
+Pendiente de un corte posterior: configuracion. CODEX-130 permanece EN PROGRESO.
 
 **Repo:** `invitacionespremium-admin`
 
@@ -1094,7 +1096,7 @@ presentes en OpenAPI. CODEX-130 permanece EN PROGRESO.
 
 ### CODEX-132 — Landing pública
 
-**Estado:** IMPLEMENTADO, PENDIENTE DE ACEPTACIÓN
+**Estado:** ACEPTADO
 
 **Repo:** `invitacionespremium-landing`
 
@@ -1131,7 +1133,8 @@ presentes en OpenAPI. CODEX-130 permanece EN PROGRESO.
 - navegación, modal y tabs accesibles con reduced motion;
 - carga dinámica del demo y modal, y preview Open Graph válido.
 
-`CODEX-130A` y `CODEX-130B` permanecen aceptados. `CODEX-130` permanece en progreso. `CODEX-130C`,
+`CODEX-130A` y `CODEX-130B` permanecen aceptados. `CODEX-130C` esta implementado y pendiente de
+aceptacion. `CODEX-130` permanece en progreso porque falta Configuracion. `CODEX-132` esta aceptado.
 `CODEX-131`, `CODEX-140` y `CODEX-141` no se iniciaron.
 
 ---

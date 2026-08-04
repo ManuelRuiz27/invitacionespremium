@@ -1,7 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '../common/database/prisma.service';
 import { AuditActorType, type Prisma } from '../generated/prisma/client';
-import { sanitizeAuditObject } from './audit-sanitizer';
+import { AuditLogPageResponseDto, AuditLogQuery, decodeAuditCursor, encodeAuditCursor } from './audit-query.dto';
+import { sanitizeAuditObject, sanitizeAuditValue } from './audit-sanitizer';
 import type { AuditActor, AuditRecordInput } from './audit.types';
 
 @Injectable()
@@ -49,6 +50,77 @@ export class AuditService {
     });
 
     return created.id;
+  }
+
+  async list(query: AuditLogQuery): Promise<AuditLogPageResponseDto> {
+    const cursor = query.cursor ? decodeAuditCursor(query.cursor) : undefined;
+    const rows = await this.prisma.auditLog.findMany({
+      where: {
+        ...(query.clientId ? { clientId: query.clientId } : {}),
+        ...(query.eventId ? { eventId: query.eventId } : {}),
+        ...(query.actorType ? { actorType: query.actorType } : {}),
+        ...(query.actorId ? { actorId: query.actorId } : {}),
+        ...(query.resourceType ? { resourceType: query.resourceType } : {}),
+        ...(query.resourceId ? { resourceId: query.resourceId } : {}),
+        ...(query.action ? { action: query.action } : {}),
+        ...(query.operationId ? { operationId: query.operationId } : {}),
+        ...(query.createdFrom || query.createdTo
+          ? {
+              occurredAt: {
+                ...(query.createdFrom ? { gte: new Date(query.createdFrom) } : {}),
+                ...(query.createdTo ? { lte: new Date(query.createdTo) } : {})
+              }
+            }
+          : {}),
+        ...(cursor
+          ? {
+              OR: [{ occurredAt: { lt: cursor.occurredAt } }, { occurredAt: cursor.occurredAt, id: { lt: cursor.id } }]
+            }
+          : {})
+      },
+      orderBy: [{ occurredAt: 'desc' }, { id: 'desc' }],
+      take: query.limit + 1,
+      select: {
+        id: true,
+        occurredAt: true,
+        actorType: true,
+        actorId: true,
+        actorFingerprint: true,
+        resourceType: true,
+        resourceId: true,
+        clientId: true,
+        eventId: true,
+        action: true,
+        operationId: true,
+        beforeData: true,
+        afterData: true,
+        metadata: true
+      }
+    });
+
+    const hasNextPage = rows.length > query.limit;
+    const pageRows = hasNextPage ? rows.slice(0, query.limit) : rows;
+    const last = pageRows.at(-1);
+
+    return {
+      items: pageRows.map((row) => ({
+        id: row.id,
+        createdAt: row.occurredAt.toISOString(),
+        actorType: row.actorType,
+        actorId: row.actorId,
+        actorFingerprint: row.actorFingerprint,
+        resourceType: row.resourceType,
+        resourceId: row.resourceId,
+        clientId: row.clientId,
+        eventId: row.eventId,
+        action: row.action,
+        operationId: row.operationId,
+        beforeData: sanitizeAuditValue(row.beforeData),
+        afterData: sanitizeAuditValue(row.afterData),
+        metadata: sanitizeAuditValue(row.metadata)
+      })),
+      nextCursor: hasNextPage && last ? encodeAuditCursor(last.occurredAt, last.id) : null
+    };
   }
 }
 

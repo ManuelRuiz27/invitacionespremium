@@ -1,5 +1,6 @@
 import { createRequester, type ApiClientRuntimeConfig } from './api-client';
 import {
+  createAdminAuditClient,
   createAdminCatalogClient,
   createAdminClientsClient,
   createAdminEventsClient,
@@ -61,6 +62,7 @@ export function createApiClient(config: ApiClientRuntimeConfig) {
     adminFinance: createAdminFinanceClient(request),
     adminCatalog: createAdminCatalogClient(request),
     adminReports: createAdminReportsClient(request),
+    adminAudit: createAdminAuditClient(request),
     events: createEventsClient(request),
     finance: createFinanceClient(request),
     services: createServicesClient(request),
@@ -75,4 +77,8 @@ export function createApiClient(config: ApiClientRuntimeConfig) {
   };
 }
 
-export type ApiClient = ReturnType<typeof createApiClient>;
+type CompleteApiClient = ReturnType<typeof createApiClient>;
+export type ApiClient = Omit<CompleteApiClient, 'adminAudit'> & {
+  /** Present in clients created by createApiClient; optional only for legacy test doubles. */
+  adminAudit?: CompleteApiClient['adminAudit'];
+};

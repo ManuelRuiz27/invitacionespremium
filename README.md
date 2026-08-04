@@ -457,7 +457,8 @@ Contrato normativo: `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md`.
 
 Contrato normativo: `docs/04-tecnico/PUBLIC_CLIENT_CONTRACT.md`.
 
-`CODEX-130 — Platform Admin` esta **EN PROGRESO**. `CODEX-130A` y `CODEX-130B` estan aceptados. El
+`CODEX-130 — Platform Admin` esta **EN PROGRESO**. `CODEX-130A` y `CODEX-130B` estan aceptados;
+`CODEX-130C` esta implementado y pendiente de aceptacion. El
 hardening del corte A
 hardening centraliza la expiracion por `401`, aborta operaciones al cambiar de Cliente o Evento, bloquea
 dobles envios sincronos y conserva en memoria los resultados financieros inciertos con su misma llave.
@@ -473,11 +474,13 @@ Catalogo conserva durante el montaje de la pagina los Servicios autoritativos co
 mutaciones, por lo que un Servicio recien creado puede usarse en su primer Precio o Promocion al cambiar
 de pestana. Un reload pierde inevitablemente los Servicios que aun no tienen Precio porque el backend no
 publica un listado administrativo. Las fechas ISO se proyectan a hora local y regresan al mismo instante.
-No existe descarga administrativa de reportes ni `GET /admin/services`. Auditoria y configuracion
-permanecen pendientes; Auditoria requiere endpoints publicados en OpenAPI. Contrato:
+La consulta de Auditoria agrega `GET /admin/audit-logs` solo para Platform Admin, filtros estrictos,
+paginacion cursor por fecha e ID, SDK generado y una vista responsive de solo lectura. No enriquece
+registros ni expone secretos. No existe descarga administrativa de reportes ni `GET /admin/services`.
+Configuracion permanece pendiente. Contrato:
 `docs/04-tecnico/ADMIN_APP_CONTRACT.md`.
 
-`CODEX-132 — Landing pública` fue implementado y permanece **PENDIENTE DE ACEPTACIÓN**. Su cierre
+`CODEX-132 — Landing pública` esta **ACEPTADO**. Su cierre
 técnico `CODEX-132A` centraliza identidad, contenido comercial, precios, límites, URLs y SEO en
 `apps/landing/src/config/landing-config.ts`; conecta el registro público de Planner independiente al
 wrapper tipado generado desde OpenAPI; y protege doble envío, cancelación y respuestas tardías sin
@@ -485,7 +488,7 @@ persistir datos. El demo es una simulación visual sin backend, creación de Eve
 ni accesos reales. Producción exige URLs HTTP/HTTPS explícitas y omite canonical/`og:url` si no existe
 una URL pública válida. Demo y modal se cargan dinámicamente.
 
-`CODEX-130C`, `CODEX-131`, `CODEX-140` y `CODEX-141` no se iniciaron en este corte.
+`CODEX-131`, `CODEX-140` y `CODEX-141` no se iniciaron. Configuracion tampoco fue iniciada.
 
 ## Fuente de verdad
 

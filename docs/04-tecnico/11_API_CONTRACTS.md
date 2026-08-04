@@ -487,10 +487,18 @@ idempotencia y triggers PostgreSQL se detallan en `REPORTS_CONTRACT.md`.
 
 ## AuditModule
 
-Endpoints:
+Operacion administrativa de solo lectura:
 
-- `GET /admin/audit`
-- `GET /admin/audit/:auditId`
+- `GET /admin/audit-logs`
+
+Solo `PLATFORM_ADMIN`. Acepta `clientId`, `eventId`, `actorType`, `actorId`, `resourceType`,
+`resourceId`, `action`, `operationId`, `createdFrom`, `createdTo`, `cursor` y `limit`. El limite
+predeterminado es 50 y el maximo es 100. Ordena por `occurredAt DESC, id DESC`; el cursor opaco
+conserva ambas columnas para no omitir ni repetir registros con el mismo timestamp.
+
+La respuesta proyecta exclusivamente `id`, `createdAt`, actor, recurso, Cliente, Evento, accion,
+operacion y los tres documentos JSON sanitizados. No resuelve identidades, no agrega PII y no publica
+mutaciones, descarga ni consulta individual.
 
 ## FileAssetsModule
 
