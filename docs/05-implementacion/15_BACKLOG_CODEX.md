@@ -1097,9 +1097,16 @@ Pendiente de un corte posterior: configuracion. CODEX-130 permanece EN PROGRESO.
 - funciona en teléfono real con internet.
 
 La implementación técnica fue corregida y sincronizada con OpenAPI, el SDK generado y las pruebas
-automatizadas. Permanece pendiente de aceptación mediante prueba física HTTPS en teléfono real. Sin
-evidencia de Android o iPhone físico, permiso de cámara, QR y check-in reales, reintento, cierre o
-cancelación y conectividad real, no puede marcarse como ACEPTADO ni COMPLETADO.
+automatizadas. El namespace `/realtime`, recuperación REST, descarte de resultados obsoletos, Croquis
+geométrico y validadores runtime están cubiertos; integración PostgreSQL y `pnpm run ci` quedaron
+verdes. El estado máximo es **TÉCNICAMENTE PREPARADO PARA QA FÍSICA — NO-GO PARA PILOTO**. Permanece
+pendiente la prueba HTTPS en Android o iPhone físico; sin evidencia de permiso de cámara, QR y check-in
+reales, reconexión, cierre/cancelación, cambio de Mesa y conectividad real, no puede marcarse como
+ACEPTADO ni COMPLETADO.
+
+La UX para distinguir automáticamente un QR de Invitación de un pase físico permanece como tarea
+separada hasta que exista un mecanismo contractual. No se agregó detección heurística; el soporte
+backend y `scanPhysicalPass` se conservan.
 
 ### CODEX-132 — Landing pública
 
