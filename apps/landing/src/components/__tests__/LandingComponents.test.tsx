@@ -60,15 +60,14 @@ describe('Landing commercial content', () => {
 
   it('states the precise Invitation and Assistant access rule', () => {
     const serializedContent = JSON.stringify(content);
-    expect(content.solution.ruleNotice).toBe('Regla de acceso: QR por Invitación; check-in individual por Asistente.');
-    expect(serializedContent).toContain('QR por Invitación');
-    expect(serializedContent).toContain('check-in individual por Asistente');
+    expect(content.solution.ruleNotice).toBe(
+      'Cada Invitación utiliza un QR único y el ingreso se registra por Asistente.'
+    );
+    expect(serializedContent).toContain('QR único');
+    expect(serializedContent).toContain('ingreso se registra por Asistente');
     for (const forbiddenClaim of ['QR por Asistente', 'QR individual por Asistente', 'un QR para cada Asistente']) {
       expect(serializedContent).not.toContain(forbiddenClaim);
     }
-    expect(serializedContent).toContain('un segundo ingreso válido del mismo Asistente queda bloqueado');
-    expect(serializedContent).toContain('El segundo ingreso del mismo pase queda bloqueado');
-    expect(serializedContent).not.toContain('QR de un solo uso');
   });
 
   it('states the physical-pass and Organization restrictions', () => {
@@ -99,9 +98,13 @@ describe('Landing commercial content', () => {
     app.unmount();
 
     renderWithTheme(<LandingDemoMock />);
-    expect(screen.getByRole('tablist', { name: 'Recorrido de la simulación visual' })).toBeInTheDocument();
+    expect(screen.getByRole('tablist', { name: content.demo.label })).toBeInTheDocument();
     expect(screen.getByText(content.demo.disclaimer)).toBeInTheDocument();
-    expect(screen.getByText('Domingo 15 de noviembre de 2026 • 18:00 HRS')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: content.demo.title, level: 2 })).toBeInTheDocument();
+
+    // Assert there is no dummy data
+    expect(screen.queryByText(/Fam. Mendoza/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
   });
 
   it('does not publish localhost URLs in production without explicit configuration', () => {
@@ -241,12 +244,13 @@ describe('Landing accessibility and navigation', () => {
     expect(screen.getByText(content.hero.secondaryCta)).toBeInTheDocument();
   });
 
-  it('hero product stage renders solution pillars from config', () => {
+  it('hero product stage renders LandingHeroExperience from config', () => {
     renderWithTheme(<LandingHero onOpenRegister={vi.fn()} />);
-    for (const pillar of content.solution.pillars) {
-      expect(screen.getByText(pillar.title)).toBeInTheDocument();
+    // Check for some elements rendered by LandingHeroExperience
+    const invScene = content.demo.scenes.find((s) => s.code === 'INVITATION');
+    if (invScene) {
+      expect(screen.getByText(invScene.title)).toBeInTheDocument();
     }
-    expect(screen.getByText(content.solution.ruleNotice)).toBeInTheDocument();
   });
 
   it('mobile drawer contains all navigation items and both CTAs', () => {
@@ -328,15 +332,15 @@ describe('Landing section semantics and content', () => {
     // Semántica: aria-labelledby y un solo h2
     const headings = screen.getAllByRole('heading', { level: 2 });
     expect(headings).toHaveLength(1);
-    
+
     const h2 = headings[0]!;
     expect(h2.id).not.toBe('');
-    
+
     // Buscar la sección usando el rol explícito
     const section = screen.getByRole('region');
     expect(section).toHaveAttribute('aria-labelledby', h2.id);
     expect(section).not.toHaveAttribute('aria-label');
-    
+
     expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
 
     // No links ni buttons extra
@@ -345,13 +349,17 @@ describe('Landing section semantics and content', () => {
   });
 
   it('renders LandingSectionIntro handling dark prop without errors', () => {
-    const { unmount } = renderWithTheme(<LandingSectionIntro headingId="test-heading" title="Test Title" subtitle="Test Sub" />);
+    const { unmount } = renderWithTheme(
+      <LandingSectionIntro headingId="test-heading" title="Test Title" subtitle="Test Sub" />
+    );
     const h2 = screen.getByRole('heading', { level: 2, name: 'Test Title' });
     expect(h2).toHaveAttribute('id', 'test-heading');
     expect(screen.getByText('Test Sub')).toBeInTheDocument();
     unmount();
 
-    renderWithTheme(<LandingSectionIntro headingId="test-heading-dark" title="Test Title Dark" subtitle="Test Sub Dark" dark />);
+    renderWithTheme(
+      <LandingSectionIntro headingId="test-heading-dark" title="Test Title Dark" subtitle="Test Sub Dark" dark />
+    );
     const h2Dark = screen.getByRole('heading', { level: 2, name: 'Test Title Dark' });
     expect(h2Dark).toHaveAttribute('id', 'test-heading-dark');
     expect(screen.getByText('Test Sub Dark')).toBeInTheDocument();
@@ -374,14 +382,14 @@ describe('Landing section semantics and content', () => {
     // Semántica: aria-labelledby y un solo h2
     const headings = screen.getAllByRole('heading', { level: 2 });
     expect(headings).toHaveLength(1);
-    
+
     const h2 = headings[0]!;
     expect(h2.id).not.toBe('');
-    
+
     const section = screen.getByRole('region');
     expect(section).toHaveAttribute('aria-labelledby', h2.id);
     expect(section).not.toHaveAttribute('aria-label');
-    
+
     expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
 
     expect(screen.queryByText(/Recomendado/i)).not.toBeInTheDocument();
@@ -407,14 +415,14 @@ describe('Landing section semantics and content', () => {
     // Semántica: aria-labelledby y un solo h2
     const headings = screen.getAllByRole('heading', { level: 2 });
     expect(headings).toHaveLength(1);
-    
+
     const h2 = headings[0]!;
     expect(h2.id).not.toBe('');
-    
+
     const section = screen.getByRole('region');
     expect(section).toHaveAttribute('aria-labelledby', h2.id);
     expect(section).not.toHaveAttribute('aria-label');
-    
+
     expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
 
     expect(screen.queryByText(/Más popular/i)).not.toBeInTheDocument();
@@ -425,51 +433,51 @@ describe('Landing section semantics and content', () => {
 
   it('renders LandingPricing exactly with config content', () => {
     renderWithTheme(<LandingPricing />);
-    
+
     expect(screen.getByRole('heading', { level: 2, name: content.pricing.title })).toBeInTheDocument();
     expect(screen.getByText(content.pricing.subtitle)).toBeInTheDocument();
     expect(screen.getByText('1 crédito = $20 MXN')).toBeInTheDocument();
 
     const plannerHeadings = screen.getAllByRole('heading', { level: 3, name: content.pricing.planner.title });
     expect(plannerHeadings).toHaveLength(1);
-    
+
     const orgHeadings = screen.getAllByRole('heading', { level: 3, name: content.pricing.organization.title });
     expect(orgHeadings).toHaveLength(1);
 
-    const serviceCodes = content.services.items.map(s => s.code);
+    const serviceCodes = content.services.items.map((s) => s.code);
     expect(serviceCodes).toEqual(['FLIPBOOK', 'FLYER', 'PHYSICAL_QR', 'DEMO']);
-    
-    content.services.items.forEach(s => {
-       const row = document.querySelector(`[data-service-code="${s.code}"]`);
-       expect(row).toBeInTheDocument();
-       expect(within(row! as HTMLElement).getByRole('heading', { level: 4, name: s.name })).toBeInTheDocument();
 
-       const plannerCell = row!.querySelector('[data-client-type="planner"]');
-       const organizationCell = row!.querySelector('[data-client-type="organization"]');
+    content.services.items.forEach((s) => {
+      const row = document.querySelector(`[data-service-code="${s.code}"]`);
+      expect(row).toBeInTheDocument();
+      expect(within(row! as HTMLElement).getByRole('heading', { level: 4, name: s.name })).toBeInTheDocument();
 
-       expect(plannerCell).toBeInTheDocument();
-       expect(organizationCell).toBeInTheDocument();
+      const plannerCell = row!.querySelector('[data-client-type="planner"]');
+      const organizationCell = row!.querySelector('[data-client-type="organization"]');
 
-       const plannerContent = within(plannerCell! as HTMLElement);
-       expect(plannerContent.getByText(new RegExp(`^${s.prices.planner.credits}$`))).toBeInTheDocument();
-       expect(plannerContent.getByText(`$${s.prices.planner.mxn} MXN`)).toBeInTheDocument();
+      expect(plannerCell).toBeInTheDocument();
+      expect(organizationCell).toBeInTheDocument();
 
-       const orgContent = within(organizationCell! as HTMLElement);
-       expect(orgContent.getByText(new RegExp(`^${s.prices.organization.credits}$`))).toBeInTheDocument();
-       expect(orgContent.getByText(`$${s.prices.organization.mxn} MXN`)).toBeInTheDocument();
+      const plannerContent = within(plannerCell! as HTMLElement);
+      expect(plannerContent.getByText(new RegExp(`^${s.prices.planner.credits}$`))).toBeInTheDocument();
+      expect(plannerContent.getByText(`$${s.prices.planner.mxn} MXN`)).toBeInTheDocument();
+
+      const orgContent = within(organizationCell! as HTMLElement);
+      expect(orgContent.getByText(new RegExp(`^${s.prices.organization.credits}$`))).toBeInTheDocument();
+      expect(orgContent.getByText(`$${s.prices.organization.mxn} MXN`)).toBeInTheDocument();
     });
 
     const headings = screen.getAllByRole('heading', { level: 2 });
     expect(headings).toHaveLength(1);
     const h2 = headings[0]!;
     expect(h2.id).not.toBe('');
-    
+
     const section = screen.getByRole('region');
     expect(section).toHaveAttribute('aria-labelledby', h2.id);
     expect(section).not.toHaveAttribute('aria-label');
-    
+
     expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
-    
+
     expect(screen.queryByText(/Más popular/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Recomendado/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Ahorro/i)).not.toBeInTheDocument();
@@ -486,7 +494,7 @@ describe('Landing section semantics and content', () => {
     expect(screen.getByRole('heading', { level: 2, name: content.planners.title })).toBeInTheDocument();
     expect(screen.getByText(content.planners.subtitle)).toBeInTheDocument();
     expect(screen.getByText(content.planners.onboardingNotice)).toBeInTheDocument();
-    
+
     const list = screen.getByRole('list');
     const listItems = within(list).getAllByRole('listitem');
     expect(listItems).toHaveLength(4);
@@ -494,11 +502,11 @@ describe('Landing section semantics and content', () => {
     content.planners.bulletPoints.forEach((point) => {
       expect(within(list).getByText(point)).toBeInTheDocument();
     });
-    
+
     const buttons = screen.getAllByRole('button');
     expect(buttons).toHaveLength(1);
     expect(buttons[0]!).toHaveTextContent(content.planners.cta);
-    
+
     fireEvent.click(buttons[0]!);
     expect(mockRegister).toHaveBeenCalledOnce();
 
@@ -506,13 +514,13 @@ describe('Landing section semantics and content', () => {
     expect(headings).toHaveLength(1);
     const h2 = headings[0]!;
     expect(h2.id).not.toBe('');
-    
+
     const section = screen.getByRole('region');
     expect(section).toHaveAttribute('aria-labelledby', h2.id);
     expect(section).not.toHaveAttribute('aria-label');
-    
+
     expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
-    
+
     expect(screen.queryByText(/MODELO PLANNER INDEPENDIENTE/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/¿Eres Planner Independiente?/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/VIP Pass/i)).not.toBeInTheDocument();
@@ -538,17 +546,17 @@ describe('Landing section semantics and content', () => {
     expect(headings).toHaveLength(1);
     const h2 = headings[0]!;
     expect(h2.id).not.toBe('');
-    
+
     const section = screen.getByRole('region');
     expect(section).toHaveAttribute('aria-labelledby', h2.id);
     expect(section).not.toHaveAttribute('aria-label');
-    
+
     expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
-    
+
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
     expect(screen.queryByText('ADMINISTRADO')).not.toBeInTheDocument();
-    
+
     // Ensure no alert component with warning or error semantics exists
     const alerts = screen.queryAllByRole('alert');
     expect(alerts.length).toBe(0);

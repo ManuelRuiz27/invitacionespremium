@@ -9,7 +9,13 @@ export interface LandingSectionIntroProps {
   dark?: boolean;
 }
 
-export function LandingSectionIntro({ headingId, title, subtitle, align = 'center', dark = false }: LandingSectionIntroProps) {
+export function LandingSectionIntro({
+  headingId,
+  title,
+  subtitle,
+  align = 'center',
+  dark = false
+}: LandingSectionIntroProps) {
   return (
     <Box sx={{ textAlign: align, mb: { xs: 5, md: 7 } }}>
       <Typography

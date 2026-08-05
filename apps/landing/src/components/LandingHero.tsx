@@ -1,12 +1,6 @@
 import { getLandingConfig, type LandingConfig } from '../config/landing-config';
 import { landingTokens } from '../theme/landing-theme';
-import {
-  LandingActionGroup,
-  LandingBrandLockup,
-  LandingContainer,
-  LandingEyebrow,
-  LandingProductStage
-} from './primitives';
+import { LandingActionGroup, LandingContainer, LandingEyebrow, LandingHeroExperience } from './primitives';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
@@ -105,16 +99,7 @@ export function LandingHero({ onOpenRegister, config }: LandingHeroProps) {
           {/* Visual column: brand exploration + product stage */}
           <Grid size={{ xs: 12, md: 5 }}>
             <Stack spacing={3}>
-              <LandingBrandLockup
-                variant="stacked"
-                name={landingContent.brand.name}
-                tagline={landingContent.brand.tagline}
-              />
-
-              <LandingProductStage
-                pillars={landingContent.solution.pillars}
-                ruleNotice={landingContent.solution.ruleNotice}
-              />
+              <LandingHeroExperience config={landingContent} />
             </Stack>
           </Grid>
         </Grid>

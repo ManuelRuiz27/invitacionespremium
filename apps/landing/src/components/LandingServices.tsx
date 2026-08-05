@@ -12,14 +12,19 @@ export function LandingServices() {
   const headingId = 'landing-services-heading';
 
   return (
-    <Box id="servicios" component="section" aria-labelledby={headingId} sx={{ py: { xs: 8, md: 12 }, bgcolor: 'background.paper' }}>
+    <Box
+      id="servicios"
+      component="section"
+      aria-labelledby={headingId}
+      sx={{ py: { xs: 8, md: 12 }, bgcolor: 'background.paper' }}
+    >
       <Container maxWidth="lg">
         <LandingSectionIntro
-            headingId={headingId}
-            title={landingContent.services.title}
-            subtitle={landingContent.services.subtitle}
-            align="center"
-          />
+          headingId={headingId}
+          title={landingContent.services.title}
+          subtitle={landingContent.services.subtitle}
+          align="center"
+        />
 
         {/* Paid Services: 3-column grid */}
         <Grid container spacing={{ xs: 4, md: 3 }} sx={{ mb: { xs: 6, md: 8 } }}>
@@ -42,12 +47,30 @@ export function LandingServices() {
                   <Typography variant="h3" component="h3" sx={{ fontWeight: 800, fontSize: '1.4rem', mb: 1 }}>
                     {service.name}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ minHeight: { md: 48 }, mb: 3, lineHeight: 1.6 }}>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ minHeight: { md: 48 }, mb: 3, lineHeight: 1.6 }}
+                  >
                     {service.description}
                   </Typography>
 
-                  <Box sx={{ mb: 4, p: 2, borderRadius: 2, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', textAlign: 'center' }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 700, letterSpacing: '0.05em' }}>
+                  <Box
+                    sx={{
+                      mb: 4,
+                      p: 2,
+                      borderRadius: 2,
+                      bgcolor: 'background.paper',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      textAlign: 'center'
+                    }}
+                  >
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: 'block', fontWeight: 700, letterSpacing: '0.05em' }}
+                    >
                       COSTO EN CRÉDITOS
                     </Typography>
                     <Typography variant="h4" color="primary.main" sx={{ fontWeight: 800, mt: 0.5, mb: 0.25 }}>
@@ -60,7 +83,11 @@ export function LandingServices() {
 
                   <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0, mt: 'auto' }}>
                     {service.features.map((feature) => (
-                      <Box component="li" key={`${service.code}-${feature}`} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, mb: 1.5 }}>
+                      <Box
+                        component="li"
+                        key={`${service.code}-${feature}`}
+                        sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, mb: 1.5 }}
+                      >
                         <CheckIcon color="primary" fontSize="small" sx={{ mt: 0.25, flexShrink: 0 }} />
                         <Typography variant="body2" sx={{ fontSize: '0.9rem', lineHeight: 1.5, color: 'text.primary' }}>
                           {feature}
@@ -102,11 +129,28 @@ export function LandingServices() {
               </Grid>
 
               <Grid size={{ xs: 12, md: 8 }}>
-                <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
+                <Box
+                  component="ul"
+                  sx={{
+                    listStyle: 'none',
+                    m: 0,
+                    p: 0,
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                    gap: 2
+                  }}
+                >
                   {demoService.features.map((feature) => (
-                    <Box component="li" key={`${demoService.code}-${feature}`} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+                    <Box
+                      component="li"
+                      key={`${demoService.code}-${feature}`}
+                      sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}
+                    >
                       <CheckIcon color="primary" fontSize="small" sx={{ mt: 0.25, flexShrink: 0, opacity: 0.7 }} />
-                      <Typography variant="body2" sx={{ fontSize: '0.85rem', lineHeight: 1.5, color: 'text.secondary' }}>
+                      <Typography
+                        variant="body2"
+                        sx={{ fontSize: '0.85rem', lineHeight: 1.5, color: 'text.secondary' }}
+                      >
                         {feature}
                       </Typography>
                     </Box>

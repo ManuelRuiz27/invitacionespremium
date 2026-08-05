@@ -1,7 +1,7 @@
-import { Alert, Box, Container, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { getLandingConfig } from '../config/landing-config';
-import { LandingSectionIntro } from './primitives';
-import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
+import { LandingContainer, LandingSectionIntro } from './primitives';
+import { landingTokens } from '../theme/landing-theme';
 
 const landingContent = getLandingConfig();
 
@@ -9,92 +9,129 @@ export function LandingSolution() {
   const headingId = 'landing-solution-heading';
 
   return (
-    <Box id="solucion" component="section" aria-labelledby={headingId} sx={{ py: { xs: 8, md: 12 }, bgcolor: 'background.default' }}>
-      <Container maxWidth="lg">
+    <Box
+      id="solucion"
+      component="section"
+      aria-labelledby={headingId}
+      sx={{ py: { xs: 8, md: 12 }, bgcolor: 'background.default' }}
+    >
+      <LandingContainer>
         <LandingSectionIntro
-            headingId={headingId}
-            title={landingContent.solution.title}
-            subtitle={landingContent.solution.subtitle}
-            align="center"
-          />
+          headingId={headingId}
+          title={landingContent.solution.title}
+          subtitle={landingContent.solution.subtitle}
+          align="center"
+        />
 
-        {/* Aviso de Regla Conceptual Obligatoria */}
-        <Box sx={{ maxWidth: 720, mx: 'auto', mb: { xs: 6, md: 8 } }}>
-          <Alert
-            icon={<VerifiedUserIcon />}
-            severity="info"
+        <Box sx={{ mt: { xs: 6, md: 8 } }}>
+          {/* Top Asymmetric Row */}
+          <Box
             sx={{
-              borderRadius: 3,
-              bgcolor: 'rgba(49, 87, 200, 0.06)',
-              color: 'text.primary',
-              border: '1px solid rgba(49, 87, 200, 0.2)',
-              '& .MuiAlert-icon': { color: 'primary.main', mt: 0.25 }
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', md: '5fr 7fr' },
+              gap: { xs: 4, md: 6 },
+              mb: { xs: 4, md: 6 }
             }}
           >
-            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-              {landingContent.solution.ruleNotice}
-            </Typography>
-          </Alert>
-        </Box>
-
-        {/* Sistema Integrado (Cohesive Editorial Surface) */}
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(3, 1fr)' },
-            bgcolor: 'background.paper',
-            borderRadius: 4,
-            border: '1px solid',
-            borderColor: 'divider',
-            overflow: 'hidden',
-            boxShadow: '0 8px 32px rgba(23, 35, 60, 0.04)',
-            '& > div': {
-              p: { xs: 4, md: 5 },
-              borderRight: '1px solid',
-              borderBottom: '1px solid',
-              borderColor: 'divider'
-            },
-            // Responsive border overrides to prevent hanging borders
-            '@media (max-width: 599.95px)': {
-              '& > div': { borderRight: 'none' },
-              '& > div:last-child': { borderBottom: 'none' }
-            },
-            '@media (min-width: 600px) and (max-width: 899.95px)': {
-              '& > div:nth-of-type(2n)': { borderRight: 'none' },
-              '& > div:last-child': { borderBottom: 'none' }
-            },
-            '@media (min-width: 900px)': {
-              '& > div:nth-of-type(3n)': { borderRight: 'none' },
-              '& > div:nth-last-of-type(-n+2)': { borderBottom: 'none' },
-              '& > div:last-child': { borderRight: '1px solid' } // Since item 5 is not 3n, it gets a right border by default, which is good to close the 2nd col.
-            }
-          }}
-        >
-          {landingContent.solution.pillars.map((pillar, index) => (
-            <Box key={pillar.title}>
-              <Typography
-                aria-hidden="true"
-                sx={{
-                  fontFamily: 'monospace',
-                  fontWeight: 700,
-                  fontSize: '0.8rem',
-                  color: 'primary.main',
-                  mb: 2,
-                  letterSpacing: '0.05em'
-                }}
-              >
-                {String(index + 1).padStart(2, '0')}
+            {/* Pillar 1 */}
+            <Box
+              sx={{
+                p: { xs: 4, md: 6 },
+                bgcolor: 'background.paper',
+                borderRadius: 4,
+                border: `1px solid ${landingTokens.borders.editorial}`,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center'
+              }}
+            >
+              <Typography variant="h3" component="h3" sx={{ fontWeight: 800, mb: 2, fontSize: '1.5rem' }}>
+                {landingContent.solution.pillars[0].title}
               </Typography>
-              <Typography variant="h3" component="h3" sx={{ fontWeight: 700, mb: 1.5, fontSize: '1.2rem' }}>
-                {pillar.title}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                {pillar.description}
+              <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
+                {landingContent.solution.pillars[0].description}
               </Typography>
             </Box>
-          ))}
+
+            {/* Pillar 2 & Rule Notice */}
+            <Box
+              sx={{
+                p: { xs: 4, md: 6 },
+                bgcolor: landingTokens.colors.darkSurface.background,
+                color: landingTokens.colors.darkSurface.textPrimary,
+                borderRadius: 4,
+                border: `1px solid ${landingTokens.colors.darkSurface.divider}`,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                boxShadow: landingTokens.shadows.elevated
+              }}
+            >
+              <Typography variant="h3" component="h3" sx={{ fontWeight: 800, mb: 2, fontSize: '1.75rem' }}>
+                {landingContent.solution.pillars[1].title}
+              </Typography>
+              <Typography
+                variant="body1"
+                sx={{
+                  color: landingTokens.colors.darkSurface.textSecondary,
+                  lineHeight: 1.7,
+                  mb: 4,
+                  fontSize: '1.1rem'
+                }}
+              >
+                {landingContent.solution.pillars[1].description}
+              </Typography>
+
+              {/* Natural integration of ruleNotice */}
+              <Box
+                sx={{
+                  p: 3,
+                  bgcolor: 'rgba(255,255,255,0.05)',
+                  borderRadius: 3,
+                  border: '1px solid rgba(255,255,255,0.1)'
+                }}
+              >
+                <Typography
+                  variant="subtitle2"
+                  sx={{ fontWeight: 700, color: landingTokens.colors.darkSurface.accent }}
+                >
+                  {landingContent.solution.ruleNotice}
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
+
+          {/* Bottom Row - 3 Columns */}
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
+              gap: { xs: 4, md: 6 }
+            }}
+          >
+            {landingContent.solution.pillars.slice(2).map((pillar) => (
+              <Box
+                key={pillar.title}
+                sx={{
+                  p: { xs: 4, md: 5 },
+                  bgcolor: 'background.paper',
+                  borderRadius: 4,
+                  border: `1px solid ${landingTokens.borders.editorial}`,
+                  display: 'flex',
+                  flexDirection: 'column'
+                }}
+              >
+                <Typography variant="h3" component="h3" sx={{ fontWeight: 700, mb: 2, fontSize: '1.25rem' }}>
+                  {pillar.title}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                  {pillar.description}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
         </Box>
-      </Container>
+      </LandingContainer>
     </Box>
   );
 }

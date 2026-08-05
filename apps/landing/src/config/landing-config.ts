@@ -27,57 +27,59 @@ const commercialContent = {
     { label: 'Preguntas frecuentes', href: '#faq' }
   ],
   hero: {
-    badge: 'Plataforma SaaS para Planners y Organizaciones',
-    title: 'Operación digital completa para Eventos privados',
+    badge: 'Invitaciones digitales y control de acceso para Eventos',
+    title: 'Haz que tu Evento se sienta organizado desde la primera Invitación',
     subtitle:
-      'InvitacionesPremium no es solo un diseñador de invitaciones. Es una plataforma para administrar Confirmación nominal de asistencia, croquis de mesas, control de acceso con QR por Invitación y check-in individual por Asistente, Staff por token, reportes y Álbum post-Evento.',
+      'Crea una experiencia cuidada para tus Invitados y mantén Confirmaciones, Mesas y accesos bajo control desde un solo lugar.',
     primaryCta: 'Registrarme como Planner',
     secondaryCta: 'Iniciar sesión'
   },
   problem: {
-    title: 'El problema de la gestión tradicional de Eventos',
-    subtitle: 'Métodos manuales que provocan descontrol en la recepción y fallas operativas.',
+    title: 'Organizar un Evento no debería significar perseguir mensajes y listas',
+    subtitle:
+      'Cuando la información está dispersa, cada cambio complica la experiencia de tus Invitados y de tu equipo.',
     items: [
       {
-        title: 'Confirmaciones caóticas',
-        description: 'Mensajes dispersos y listas manuales sin trazabilidad ni control nominal de acompañantes.'
+        title: 'Respuestas por todos lados',
+        description:
+          'Confirmaciones, cambios y acompañantes terminan repartidos entre chats y listas difíciles de mantener al día.'
       },
       {
-        title: 'Largas filas en recepción',
-        description: 'Búsquedas manuales que ralentizan el ingreso y generan fricción en la entrada.'
+        title: 'Una recepción que empieza con fricción',
+        description: 'Buscar nombres manualmente retrasa el ingreso y hace más difícil ofrecer una bienvenida ágil.'
       },
       {
-        title: 'Sin visibilidad operativa',
-        description: 'Dificultad para conocer cuántos Asistentes ingresaron y en qué Mesa están ubicados.'
+        title: 'Decisiones sin una vista clara',
+        description:
+          'Sin información actualizada es complicado coordinar asistencia, Mesas y accesos durante el Evento.'
       }
     ]
   },
   solution: {
-    title: 'Solución integral de operación digital',
-    subtitle: 'Control desde la Invitación hasta el archivo del Evento.',
-    ruleNotice: 'Regla de acceso: QR por Invitación; check-in individual por Asistente.',
+    title: 'Una experiencia clara para tus Invitados. Control real para tu equipo',
+    subtitle: 'Conecta Invitación, Confirmación, Mesas y acceso dentro de un mismo flujo.',
+    ruleNotice: 'Cada Invitación utiliza un QR único y el ingreso se registra por Asistente.',
     pillars: [
       {
-        title: 'Confirmación de asistencia nominal',
-        description: 'El Contacto registra a cada Asistente nominal permitido dentro de su Invitación.'
-      },
-      {
-        title: 'QR por Invitación y check-in por Asistente',
+        title: 'Una Invitación que representa tu Evento',
         description:
-          'Cada Invitación tiene un único QR. Staff lo escanea y registra el ingreso individualmente por Asistente; un segundo ingreso válido del mismo Asistente queda bloqueado.'
+          'Presenta la información esencial y las acciones importantes dentro de una experiencia digital cuidada.'
       },
       {
-        title: 'Croquis y asignación de Mesas',
-        description: 'Plano visual con capacidad controlada y asignación individual, familiar o por Grupo.'
+        title: 'Confirmaciones fáciles de seguir',
+        description: 'Consulta quién asistirá y los acompañantes permitidos sin depender de conversaciones dispersas.'
       },
       {
-        title: 'Staff por token sin login',
-        description: 'Hasta tres StaffTokens activos por Evento, con acceso temporal y acotado a la recepción.'
+        title: 'Mesas organizadas en un mismo lugar',
+        description: 'Asigna a cada Asistente y consulta la distribución del Evento desde una vista central.'
       },
       {
-        title: 'Álbum post-Evento y reportes PDF',
-        description:
-          'Álbum de hasta 35 fotos para Flyer y Flipbook, con acceso público durante 30 días, y reportes operativos.'
+        title: 'Una recepción más ágil',
+        description: 'Tu equipo accede de forma temporal y registra el ingreso de cada Asistente desde la Invitación.'
+      },
+      {
+        title: 'Un cierre que también forma parte de la experiencia',
+        description: 'Entrega un Álbum post-Evento a los asistentes y conserva el resumen operativo del Evento.'
       }
     ]
   },
@@ -168,14 +170,12 @@ const commercialContent = {
       'Organiza Mesas y accesos desde un mismo flujo.',
       'Coordina la recepción con accesos temporales para tu Staff.'
     ],
-    onboardingNotice:
-      'Regístrate como Planner independiente y comienza a preparar tu próximo Evento.',
+    onboardingNotice: 'Regístrate como Planner independiente y comienza a preparar tu próximo Evento.',
     cta: 'Registrarme como Planner'
   },
   organizations: {
     title: 'Una operación consistente para cada Evento de tu Organización',
-    subtitle:
-      'Centraliza la gestión del equipo y la operación de tus Eventos sin perder visibilidad.',
+    subtitle: 'Centraliza la gestión del equipo y la operación de tus Eventos sin perder visibilidad.',
     notice:
       'Las Organizaciones se crean de forma administrada dentro de la plataforma y no cuentan con registro público.',
     roles: [
@@ -186,8 +186,7 @@ const commercialContent = {
       },
       {
         name: 'Planner de Organización',
-        description:
-          'Configura y opera únicamente los Eventos que creó, sin acceso a saldo, deuda o línea de crédito.'
+        description: 'Configura y opera únicamente los Eventos que creó, sin acceso a saldo, deuda o línea de crédito.'
       }
     ]
   },
@@ -222,9 +221,38 @@ const commercialContent = {
     ]
   },
   demo: {
-    label: 'Demo visual',
+    label: 'Recorrido visual',
+    title: 'Mira cómo se vive el Evento antes de operarlo',
+    subtitle: 'Explora una experiencia visual desde la Invitación hasta la recepción, sin crear un Evento real.',
     disclaimer:
-      'Esta es una simulación visual: no usa backend, no crea Eventos, no consume créditos y no genera accesos reales.'
+      'Esta demostración es una simulación visual: no usa backend, no crea Eventos, no consume créditos y no genera accesos reales.',
+    scenes: [
+      {
+        code: 'INVITATION',
+        label: 'Invitación',
+        title: 'Una primera impresión a la altura del Evento',
+        description:
+          'Presenta la información esencial y facilita las acciones importantes dentro de una experiencia cuidada.'
+      },
+      {
+        code: 'CONFIRMATION',
+        label: 'Confirmación',
+        title: 'Respuestas claras, sin perseguir mensajes',
+        description: 'Cada Invitación concentra la asistencia y los acompañantes permitidos.'
+      },
+      {
+        code: 'ACCESS',
+        label: 'Acceso',
+        title: 'Una recepción más ágil',
+        description: 'El equipo consulta la Invitación y registra el ingreso de cada Asistente.'
+      },
+      {
+        code: 'TABLES',
+        label: 'Mesas',
+        title: 'Cada persona en el lugar correcto',
+        description: 'Consulta la asignación y ubica la Mesa desde el mismo flujo de recepción.'
+      }
+    ]
   },
   registration: {
     title: 'Registro de Planner independiente',

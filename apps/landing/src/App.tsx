@@ -35,18 +35,18 @@ export function App() {
       <LandingHeader onOpenRegister={handleOpenRegister} />
       <Box component="main" id="main-content" tabIndex={-1} sx={{ flexGrow: 1, outline: 'none' }}>
         <LandingHero onOpenRegister={handleOpenRegister} />
-        <LandingProblem />
-        <LandingSolution />
-        <LandingServices />
         <Suspense
           fallback={
-            <Box component="section" id="demo" sx={{ minHeight: 320, display: 'grid', placeItems: 'center' }}>
+            <Box component="section" id="demo" sx={{ minHeight: 700, display: 'grid', placeItems: 'center' }}>
               <CircularProgress aria-label="Cargando demo visual" />
             </Box>
           }
         >
           <LandingDemoMock />
         </Suspense>
+        <LandingProblem />
+        <LandingSolution />
+        <LandingServices />
         <LandingPricing />
         <LandingPlanners onOpenRegister={handleOpenRegister} />
         <LandingOrganizations />
