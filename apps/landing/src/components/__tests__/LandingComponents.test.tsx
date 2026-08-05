@@ -212,19 +212,48 @@ describe('Landing commercial content', () => {
     const panels = screen.getAllByRole('tabpanel', { hidden: true });
     expect(panels).toHaveLength(4);
     
-    const selectedTabs = tabs.filter(tab => tab.getAttribute('aria-selected') === 'true');
-    expect(selectedTabs).toHaveLength(1);
-    
-    const visiblePanels = panels.filter(panel => !panel.hasAttribute('hidden'));
-    expect(visiblePanels).toHaveLength(1);
+    for (const scene of content.demo.scenes) {
+      const tab = screen.getByRole('tab', { name: scene.label });
+      const panelId = tab.getAttribute('aria-controls');
+      expect(panelId).toBeTruthy();
 
-    tabs.forEach(tab => expect(tab).toHaveAttribute('aria-controls'));
-    panels.forEach(panel => expect(panel).toHaveAttribute('aria-labelledby'));
+      const panel = document.getElementById(panelId!);
+      expect(panel).toBeInTheDocument();
+      expect(panel).toHaveAttribute('role', 'tabpanel');
+      expect(panel).toHaveAttribute('aria-labelledby', tab.id);
+
+      expect(tab.id).not.toBe('');
+      expect(panel?.id).not.toBe('');
+    }
+
+    const invitationTab = screen.getByRole('tab', { name: 'Invitación' });
+    const confirmationTab = screen.getByRole('tab', { name: 'Confirmación' });
     
-    fireEvent.click(tabs[1]!);
-    expect(tabs[1]).toHaveAttribute('aria-selected', 'true');
-    expect(panels[1]).not.toHaveAttribute('hidden');
-    expect(panels[0]).toHaveAttribute('hidden');
+    // 1. El primer tab inicia seleccionado
+    expect(invitationTab).toHaveAttribute('aria-selected', 'true');
+    expect(confirmationTab).toHaveAttribute('aria-selected', 'false');
+    expect(document.getElementById(invitationTab.getAttribute('aria-controls')!)).not.toHaveAttribute('hidden');
+    expect(document.getElementById(confirmationTab.getAttribute('aria-controls')!)).toHaveAttribute('hidden');
+
+    // 2. Se enfoca el primer tab
+    invitationTab.focus();
+    expect(invitationTab).toHaveFocus();
+
+    // 3. ArrowRight mueve el foco o selección a Confirmación
+    fireEvent.keyDown(invitationTab, { key: 'ArrowRight' });
+    expect(confirmationTab).toHaveFocus();
+    
+    // 5. El panel activo cambia de forma coherente y (6/7) solo un tab/panel está activo
+    expect(confirmationTab).toHaveAttribute('aria-selected', 'true');
+    expect(invitationTab).toHaveAttribute('aria-selected', 'false');
+    expect(document.getElementById(confirmationTab.getAttribute('aria-controls')!)).not.toHaveAttribute('hidden');
+    expect(document.getElementById(invitationTab.getAttribute('aria-controls')!)).toHaveAttribute('hidden');
+
+    // 4. ArrowLeft regresa a Invitación
+    fireEvent.keyDown(confirmationTab, { key: 'ArrowLeft' });
+    expect(invitationTab).toHaveFocus();
+    expect(invitationTab).toHaveAttribute('aria-selected', 'true');
+    expect(document.getElementById(invitationTab.getAttribute('aria-controls')!)).not.toHaveAttribute('hidden');
     
     const forbidden = ['Fam. Mendoza', 'Carlos Mendoza', 'Lucía García', 'Sofía', 'Mateo', 'Hotspot', 'Reiniciar Demo', 'StaffTokens', 'Check-in:'];
     for (const text of forbidden) {

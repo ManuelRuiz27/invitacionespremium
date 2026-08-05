@@ -94,6 +94,7 @@ export function LandingDemoMock() {
             onChange={(_, val) => setActiveTab(val)}
             variant="scrollable"
             scrollButtons="auto"
+            selectionFollowsFocus
             aria-label={landingContent.demo.label}
             sx={{
               bgcolor: 'background.paper',
