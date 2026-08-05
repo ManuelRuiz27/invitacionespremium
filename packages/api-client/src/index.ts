@@ -43,7 +43,14 @@ export type {
   ScannerSearchResponse,
   ScanPhysicalPassResponse,
   ScannerFloorplanResponse,
-  ScannerScanResponse
+  ScannerScanResponse,
+  PendingAssistant,
+  CheckedInAssistant,
+  ScannerInvitation,
+  ScannerInvitationResult,
+  FloorplanShape,
+  ScannerTable,
+  ScannerClient
 } from './scanner';
 export type { FinanceBalance, FinanceClient, FinanceListOptions, LedgerMovement, Receipt } from './finance';
 export type {
@@ -57,16 +64,11 @@ export type {
 export type { RegisterPlannerInput, RegisterPlannerResult } from './public';
 export type * from './wizard';
 export type * from './admin';
-export type * from './scanner';
 
 export const API_CLIENT_STATUS = 'Operational typed client generated from the API OpenAPI document.';
 
 export function createPublicRegistrationClient(config: ApiClientRuntimeConfig) {
   return createPublicClientsClient(createRequester(config));
-}
-
-export function createScannerAppClient(config: ApiClientRuntimeConfig) {
-  return createScannerClient(createRequester(config));
 }
 
 export function createApiClient(config: ApiClientRuntimeConfig) {
@@ -89,7 +91,8 @@ export function createApiClient(config: ApiClientRuntimeConfig) {
     floorplan: createFloorplanClient(request),
     physicalPasses: createPhysicalPassesClient(request),
     publicInvitation: createPublicInvitationClient(request),
-    publicAlbum: createPublicAlbumClient(request)
+    publicAlbum: createPublicAlbumClient(request),
+    scanner: createScannerClient(request)
   };
 }
 
@@ -97,5 +100,4 @@ type CompleteApiClient = ReturnType<typeof createApiClient>;
 export type ApiClient = Omit<CompleteApiClient, 'adminAudit'> & {
   /** Present in clients created by createApiClient; optional only for legacy test doubles. */
   adminAudit?: CompleteApiClient['adminAudit'];
-  scanner?: ReturnType<typeof createScannerAppClient>;
 };

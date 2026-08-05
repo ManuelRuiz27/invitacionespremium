@@ -1,6 +1,7 @@
 import type { components } from './generated/schema';
 import { type ApiRequester } from './api-client';
 
+// Tipos generados directamente del OpenAPI
 export type ScannerSessionResponse = components['schemas']['ScannerSessionResponseDto'];
 export type ScannerCheckInRequest = components['schemas']['ScannerCheckInRequestDto'];
 export type ScannerCheckInResponse = components['schemas']['ScannerCheckInResponseDto'];
@@ -9,6 +10,14 @@ export type ScannerSearchResponse = components['schemas']['ScannerSearchResponse
 export type ScanPhysicalPassResponse = components['schemas']['ScanPhysicalPassResponseDto'];
 export type ScannerFloorplanResponse = components['schemas']['ScannerFloorplanResponseDto'];
 export type ScannerScanResponse = components['schemas']['ScannerScanResponseDto'];
+
+// Re-exports de tipos anidados útiles
+export type PendingAssistant = components['schemas']['PendingAssistantDto'];
+export type CheckedInAssistant = components['schemas']['CheckedInAssistantDto'];
+export type ScannerInvitation = components['schemas']['ScannerInvitationDto'];
+export type ScannerInvitationResult = components['schemas']['ScannerInvitationResultDto'];
+export type FloorplanShape = components['schemas']['FloorplanShapeResponseDto'];
+export type ScannerTable = components['schemas']['ScannerTableDto'];
 
 const segment = (value: string) => encodeURIComponent(value);
 
@@ -23,11 +32,15 @@ export function createScannerClient(request: ApiRequester) {
       });
     },
 
-    async scan(staffToken: string, qrContent: string): Promise<ScannerScanResponse> {
+    /**
+     * Escanea un token QR de Invitación digital.
+     * Body: { qrToken } — conforme a ScannerScanRequestDto
+     */
+    async scan(staffToken: string, qrToken: string): Promise<ScannerScanResponse> {
       return request<ScannerScanResponse>({
         method: 'POST',
         path: `/api/v1/scanner/${segment(staffToken)}/scan`,
-        body: { qrContent },
+        body: { qrToken },
         credentials: 'omit',
         response: 'json'
       });
@@ -53,11 +66,15 @@ export function createScannerClient(request: ApiRequester) {
       });
     },
 
-    async scanPhysicalPass(staffToken: string, qrContent: string): Promise<ScanPhysicalPassResponse> {
+    /**
+     * Escanea un token QR de Pase Físico.
+     * Body: { qrToken } — conforme a ScanPhysicalPassRequestDto
+     */
+    async scanPhysicalPass(staffToken: string, qrToken: string): Promise<ScanPhysicalPassResponse> {
       return request<ScanPhysicalPassResponse>({
         method: 'POST',
         path: `/api/v1/scanner/${segment(staffToken)}/physical-passes/scan`,
-        body: { qrContent },
+        body: { qrToken },
         credentials: 'omit',
         response: 'json'
       });
@@ -73,3 +90,5 @@ export function createScannerClient(request: ApiRequester) {
     }
   };
 }
+
+export type ScannerClient = ReturnType<typeof createScannerClient>;
