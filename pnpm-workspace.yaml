@@ -10,6 +10,7 @@ allowBuilds:
   prisma: true
   esbuild: true
   '@scarf/scarf': false
+  msw: true
 
 minimumReleaseAgeExclude:
   - prettier@3.9.6

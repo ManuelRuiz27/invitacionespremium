@@ -20,6 +20,7 @@ import {
   createPhysicalPassesClient,
   createServicesClient
 } from './wizard';
+import { createScannerClient } from './scanner';
 
 export { ApiError } from './api-error';
 export { normalizeApiBaseUrl } from './api-client';
@@ -46,11 +47,16 @@ export type {
 export type { RegisterPlannerInput, RegisterPlannerResult } from './public';
 export type * from './wizard';
 export type * from './admin';
+export type * from './scanner';
 
 export const API_CLIENT_STATUS = 'Operational typed client generated from the API OpenAPI document.';
 
 export function createPublicRegistrationClient(config: ApiClientRuntimeConfig) {
   return createPublicClientsClient(createRequester(config));
+}
+
+export function createScannerAppClient(config: ApiClientRuntimeConfig) {
+  return createScannerClient(createRequester(config));
 }
 
 export function createApiClient(config: ApiClientRuntimeConfig) {
@@ -81,4 +87,5 @@ type CompleteApiClient = ReturnType<typeof createApiClient>;
 export type ApiClient = Omit<CompleteApiClient, 'adminAudit'> & {
   /** Present in clients created by createApiClient; optional only for legacy test doubles. */
   adminAudit?: CompleteApiClient['adminAudit'];
+  scanner?: ReturnType<typeof createScannerAppClient>;
 };
