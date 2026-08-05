@@ -264,6 +264,14 @@ export function mockAdminApi(user: AuthUser = platformAdmin): AdminTestApiClient
       unlock: vi.fn()
     },
     physicalPasses: { list: vi.fn(), generate: vi.fn(), svg: vi.fn() },
+    scanner: {
+      getSession: vi.fn(),
+      scan: vi.fn(),
+      search: vi.fn(),
+      checkIn: vi.fn(),
+      scanPhysicalPass: vi.fn(),
+      getFloorplan: vi.fn()
+    },
     publicInvitation: {
       resolve: vi.fn(),
       confirm: vi.fn(),

@@ -157,6 +157,24 @@ function intersect(position: number, isIntersecting: boolean, scope: 'all' | 'ne
     registration.callback([{ isIntersecting, target } as IntersectionObserverEntry], registration.observer);
 }
 
+async function waitForObserved(positions: number[], scope: 'all' | 'nearby' | 'visible' = 'all') {
+  await waitFor(() => {
+    for (const position of positions) {
+      const target = document.querySelector(`[data-photo-position="${position}"]`);
+      if (!target) throw new Error(`Photo ${position} is not registered.`);
+      const registrations = observed.filter((item) => item.target === target);
+      const registered =
+        scope === 'all'
+          ? registrations.some((item) => item.observer.rootMargin === '0px') &&
+            registrations.some((item) => item.observer.rootMargin !== '0px')
+          : registrations.some((item) =>
+              scope === 'nearby' ? item.observer.rootMargin !== '0px' : item.observer.rootMargin === '0px'
+            );
+      if (!registered) throw new Error(`Photo ${position} is not observed.`);
+    }
+  });
+}
+
 describe('token-scoped public reads', () => {
   it('aborts a pending public read when the route unmounts', async () => {
     const api = publicApi();
@@ -507,6 +525,7 @@ describe('local public media recovery', () => {
     expect(document.querySelectorAll('[data-photo-position]')).toHaveLength(35);
     expect(api.publicAlbum.photo).not.toHaveBeenCalled();
 
+    await waitForObserved(Array.from({ length: 18 }, (_, index) => index + 1));
     act(() => {
       for (let position = 1; position <= 9; position += 1) intersect(position, true);
     });
@@ -540,6 +559,8 @@ describe('local public media recovery', () => {
       photoId.endsWith('000000000008') ? nearbyPhoto.promise : Promise.resolve(new Blob([photoId]))
     );
     renderApp(api, '/album/A');
+    await waitForObserved(Array.from({ length: 8 }, (_, index) => index + 1));
+    await waitForObserved([9], 'nearby');
     await screen.findByRole('heading', { name: 'Ãlbum prioritario' });
 
     act(() => {
@@ -561,6 +582,7 @@ describe('local public media recovery', () => {
     }
     expect(screen.queryByText('No pudimos cargar este contenido.')).not.toBeInTheDocument();
 
+    await waitForObserved([9], 'visible');
     act(() => {
       intersect(1, false);
       intersect(9, true, 'visible');
@@ -576,6 +598,7 @@ describe('local public media recovery', () => {
     vi.mocked(api.publicAlbum.resolve).mockResolvedValue(album('A', 'Álbum con preview', 12));
     renderApp(api, '/album/A');
     await screen.findByRole('heading', { name: 'Álbum con preview' });
+    await waitForObserved(Array.from({ length: 12 }, (_, index) => index + 1));
     act(() => {
       for (let position = 1; position <= 8; position += 1) intersect(position, true);
     });
