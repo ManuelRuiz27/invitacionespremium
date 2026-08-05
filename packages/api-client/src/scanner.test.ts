@@ -20,7 +20,7 @@ describe('ScannerClient', () => {
         }
       })
     );
-    const client = createApiClient({ baseUrl: 'https://api.example.test', fetchImpl });
+    const client = createApiClient({ baseUrl: 'https://api.example.test/api/v1', fetchImpl });
     await expect(client.scanner.getSession('staff/token')).resolves.toMatchObject({ status: 'AVAILABLE' });
     expect(fetchImpl).toHaveBeenCalledWith(
       'https://api.example.test/api/v1/scanner/staff%2Ftoken/session',
@@ -38,7 +38,7 @@ describe('ScannerClient', () => {
         remainingPendingCount: 0
       })
     );
-    const client = createApiClient({ baseUrl: 'https://api.example.test', fetchImpl });
+    const client = createApiClient({ baseUrl: 'https://api.example.test/api/v1', fetchImpl });
     await client.scanner.checkIn('staff', 'attempt-123', { invitationId: 'invitation', assistantIds: ['assistant'] });
     expect(fetchImpl).toHaveBeenCalledWith(
       expect.stringContaining('/check-in'),
@@ -55,7 +55,7 @@ describe('ScannerClient', () => {
       .mockResolvedValue(
         json({ status: 'USED', physicalPassId: 'pass', passNumber: 7, usedAt: '2026-08-05T20:00:00.000Z', table: null })
       );
-    const client = createApiClient({ baseUrl: 'https://api.example.test', fetchImpl });
+    const client = createApiClient({ baseUrl: 'https://api.example.test/api/v1', fetchImpl });
     await client.scanner.scanPhysicalPass('staff', 'physical-attempt', 'pp1.payload.signature');
     expect(fetchImpl).toHaveBeenCalledWith(
       expect.stringContaining('/physical-passes/scan'),
@@ -70,7 +70,7 @@ describe('ScannerClient', () => {
     const fetchImpl = vi
       .fn<typeof fetch>()
       .mockResolvedValue(json({ code: 'PHYSICAL_PASS_ALREADY_USED', message: 'Already used.' }, 409));
-    const client = createApiClient({ baseUrl: 'https://api.example.test', fetchImpl });
+    const client = createApiClient({ baseUrl: 'https://api.example.test/api/v1', fetchImpl });
     await expect(
       client.scanner.scanPhysicalPass('staff', 'new-attempt', 'pp1.payload.signature')
     ).rejects.toMatchObject({ status: 409, code: 'PHYSICAL_PASS_ALREADY_USED' });

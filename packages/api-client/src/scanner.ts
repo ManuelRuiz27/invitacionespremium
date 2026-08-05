@@ -43,7 +43,7 @@ export function createScannerClient(request: ApiRequester): ScannerClient {
     getSession: (staffToken, signal) =>
       request(
         {
-          path: `/api/v1/scanner/${segment(staffToken)}/session`,
+          path: `/scanner/${segment(staffToken)}/session`,
           credentials: 'omit',
           response: 'json',
           ...withSignal(signal)
@@ -54,7 +54,7 @@ export function createScannerClient(request: ApiRequester): ScannerClient {
       request(
         {
           method: 'POST',
-          path: `/api/v1/scanner/${segment(staffToken)}/scan`,
+          path: `/scanner/${segment(staffToken)}/scan`,
           body: { qrToken },
           credentials: 'omit',
           response: 'json',
@@ -66,7 +66,7 @@ export function createScannerClient(request: ApiRequester): ScannerClient {
       request(
         {
           method: 'POST',
-          path: `/api/v1/scanner/${segment(staffToken)}/search`,
+          path: `/scanner/${segment(staffToken)}/search`,
           body: { query },
           credentials: 'omit',
           response: 'json',
@@ -78,7 +78,7 @@ export function createScannerClient(request: ApiRequester): ScannerClient {
       request(
         {
           method: 'POST',
-          path: `/api/v1/scanner/${segment(staffToken)}/check-in`,
+          path: `/scanner/${segment(staffToken)}/check-in`,
           headers: { 'Idempotency-Key': idempotencyKey },
           body,
           credentials: 'omit',
@@ -91,7 +91,7 @@ export function createScannerClient(request: ApiRequester): ScannerClient {
       request(
         {
           method: 'POST',
-          path: `/api/v1/scanner/${segment(staffToken)}/physical-passes/scan`,
+          path: `/scanner/${segment(staffToken)}/physical-passes/scan`,
           headers: { 'Idempotency-Key': idempotencyKey },
           body: { qrToken },
           credentials: 'omit',
@@ -103,7 +103,7 @@ export function createScannerClient(request: ApiRequester): ScannerClient {
     getFloorplan: (staffToken, signal) =>
       request(
         {
-          path: `/api/v1/scanner/${segment(staffToken)}/floorplan`,
+          path: `/scanner/${segment(staffToken)}/floorplan`,
           credentials: 'omit',
           response: 'json',
           ...withSignal(signal)

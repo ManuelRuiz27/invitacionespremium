@@ -153,7 +153,7 @@ afterEach(() => {
 afterAll(() => server.close());
 
 function renderScanner(token: string) {
-  const apiClient = createApiClient({ baseUrl: 'http://localhost' });
+  const apiClient = createApiClient({ baseUrl: 'http://localhost/api/v1' });
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
