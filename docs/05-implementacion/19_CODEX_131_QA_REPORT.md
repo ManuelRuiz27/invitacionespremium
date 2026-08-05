@@ -34,8 +34,8 @@ No se realizó QA en Android o iPhone físico y no existe evidencia para marcar 
 - `pnpm run ci`: OK.
 
 Los builds de Scanner, Client y Admin conservan una advertencia no bloqueante por tamaño de chunk.
-GitHub Actions se verifica por separado en el PR; este documento no atribuye estado remoto antes de que
-exista esa evidencia.
+GitHub Actions quedó verde en el PR #16: el run por `push` concluyó `success` en 6m01s y el run por
+`pull_request` concluyó `success` en 6m25s. Ambos ejecutaron el job `quality` completo.
 
 ## Correcciones verificadas
 
