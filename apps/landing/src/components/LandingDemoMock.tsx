@@ -1,15 +1,29 @@
 import { Box, Paper, Tab, Tabs, Typography, useTheme } from '@mui/material';
 import { useState, type ReactNode } from 'react';
 import { getLandingConfig } from '../config/landing-config';
-import { LandingContainer, LandingSectionIntro } from './primitives';
+import { LandingContainer } from './primitives';
 import { landingTokens } from '../theme/landing-theme';
 
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import QrCode2Icon from '@mui/icons-material/QrCode2';
-import TableBarIcon from '@mui/icons-material/TableBar';
+import demoInvitation from '../assets/landing/demo-invitation-stage.svg';
+import demoConfirmation from '../assets/landing/demo-confirmation-stage.svg';
+import demoAccess from '../assets/landing/demo-access-stage.svg';
+import demoTables from '../assets/landing/demo-tables-stage.svg';
 
 const landingContent = getLandingConfig();
+
+const assetMap: Record<string, string> = {
+  INVITATION: demoInvitation,
+  CONFIRMATION: demoConfirmation,
+  ACCESS: demoAccess,
+  TABLES: demoTables
+};
+
+const altMap: Record<string, string> = {
+  INVITATION: "Visual de Invitación Premium",
+  CONFIRMATION: "Pantalla de confirmación RSVP",
+  ACCESS: "Registro QR y control de acceso",
+  TABLES: "Distribución y asignación de mesas"
+};
 
 function DemoPanel({
   active,
@@ -22,7 +36,6 @@ function DemoPanel({
   children: ReactNode;
   id: string;
 }) {
-  const theme = useTheme();
   return (
     <Box
       role="tabpanel"
@@ -34,10 +47,10 @@ function DemoPanel({
         display: active ? 'block' : 'none',
         outline: 'none',
         '&:focus-visible': {
-          boxShadow: `0 0 0 3px ${theme.palette.primary.main}`
+          outline: `2px solid ${landingTokens.colors.dark.text}`
         },
         '@media (prefers-reduced-motion: no-preference)': {
-          animation: 'fadeIn 0.3s ease-out',
+          animation: 'fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
           '@keyframes fadeIn': {
             from: { opacity: 0, transform: 'translateY(10px)' },
             to: { opacity: 1, transform: 'translateY(0)' }
@@ -54,38 +67,42 @@ export function LandingDemoMock() {
   const [activeTab, setActiveTab] = useState(0);
   const headingId = 'landing-demo-heading';
 
-  const icons = [
-    <AutoAwesomeIcon key="inv" />,
-    <CheckCircleIcon key="conf" />,
-    <QrCode2Icon key="acc" />,
-    <TableBarIcon key="tab" />
-  ];
-
   return (
-    <Box id="demo" component="section" aria-labelledby={headingId} sx={{ py: { xs: 8, md: 12 }, bgcolor: 'background.paper' }}>
+    <Box id="demo" component="section" aria-labelledby={headingId} sx={{ py: landingTokens.spacing.sectionY, bgcolor: landingTokens.colors.dark.background }}>
       <LandingContainer>
-        <LandingSectionIntro
-          headingId={headingId}
-          title={landingContent.demo.title}
-          subtitle={landingContent.demo.subtitle}
-          align="center"
-        />
-
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          sx={{ textAlign: 'center', mb: 4, maxWidth: 600, mx: 'auto' }}
-        >
-          {landingContent.demo.disclaimer}
-        </Typography>
+        <Box sx={{ mb: { xs: 6, md: 8 }, textAlign: 'center' }}>
+          <Typography
+            id={headingId}
+            variant="h2"
+            sx={{
+              ...landingTokens.typography.headline,
+              color: landingTokens.colors.dark.text,
+              fontSize: { xs: '2rem', md: '2.5rem' },
+              mb: 2
+            }}
+          >
+            {landingContent.demo.title}
+          </Typography>
+          <Typography
+            variant="body1"
+            sx={{
+              ...landingTokens.typography.body,
+              color: landingTokens.colors.dark.textMuted,
+              maxWidth: 600,
+              mx: 'auto'
+            }}
+          >
+            {landingContent.demo.subtitle}
+          </Typography>
+        </Box>
 
         <Paper
           elevation={0}
           sx={{
-            borderRadius: 4,
-            border: (theme) => `1px solid ${theme.palette.divider}`,
+            borderRadius: 0,
+            border: landingTokens.borders.hairlineDark,
             overflow: 'hidden',
-            bgcolor: 'background.default'
+            bgcolor: landingTokens.colors.dark.surface
           }}
         >
           <Tabs
@@ -97,16 +114,23 @@ export function LandingDemoMock() {
             selectionFollowsFocus
             aria-label={landingContent.demo.label}
             sx={{
-              bgcolor: 'background.paper',
-              borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
+              bgcolor: landingTokens.colors.dark.surface,
+              borderBottom: landingTokens.borders.hairlineDark,
               px: 2,
+              '& .MuiTabs-indicator': {
+                backgroundColor: landingTokens.colors.dark.text
+              },
               '& .MuiTab-root': {
-                fontWeight: 700,
+                fontWeight: 600,
                 minHeight: 60,
                 textTransform: 'none',
+                color: landingTokens.colors.dark.textMuted,
+                '&.Mui-selected': {
+                  color: landingTokens.colors.dark.text
+                },
                 '&:focus-visible': {
-                  outline: (theme) => `3px solid ${theme.palette.primary.main}`,
-                  outlineOffset: '-3px'
+                  outline: `2px solid ${landingTokens.colors.dark.text}`,
+                  outlineOffset: '-2px'
                 }
               }
             }}
@@ -118,8 +142,6 @@ export function LandingDemoMock() {
                 id={`demo-tab-${index}`}
                 aria-controls={`demo-panel-${scene.code}`}
                 aria-selected={activeTab === index}
-                icon={icons[index]}
-                iconPosition="start"
                 label={scene.label}
               />
             ))}
@@ -139,129 +161,33 @@ export function LandingDemoMock() {
                   <Box>
                     <Typography
                       variant="h3"
-                      sx={{ fontWeight: 800, mb: 2, color: 'text.primary', fontSize: '1.75rem' }}
+                      sx={{ ...landingTokens.typography.headline, mb: 2, color: landingTokens.colors.dark.text, fontSize: '1.75rem' }}
                     >
                       {scene.title}
                     </Typography>
-                    <Typography variant="body1" sx={{ color: 'text.secondary', lineHeight: 1.6, fontSize: '1.1rem' }}>
+                    <Typography variant="body1" sx={{ ...landingTokens.typography.body, color: landingTokens.colors.dark.textMuted, fontSize: '1.1rem' }}>
                       {scene.description}
                     </Typography>
                   </Box>
 
                   <Box
-                    aria-hidden="true"
                     sx={{
                       width: '100%',
-                      aspectRatio: '4/3',
-                      bgcolor: landingTokens.colors.darkSurface.background,
-                      borderRadius: 4,
-                      border: `1px solid ${landingTokens.colors.darkSurface.divider}`,
+                      bgcolor: landingTokens.colors.dark.background,
+                      border: landingTokens.borders.hairlineDark,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       position: 'relative',
                       overflow: 'hidden',
-                      boxShadow: landingTokens.shadows.elevated
+                      p: { xs: 2, md: 4 }
                     }}
                   >
-                    {/* Abstract Visual Representation Based on Scene */}
-                    {scene.code === 'INVITATION' && (
-                      <Box
-                        sx={{
-                          width: '60%',
-                          height: '70%',
-                          bgcolor: landingTokens.surfaces.demoSceneLight.background,
-                          borderRadius: 2,
-                          p: 3,
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: 2,
-                          boxShadow: landingTokens.shadows.invitationLayer
-                        }}
-                      >
-                        <Box sx={{ width: '40%', height: 12, bgcolor: 'primary.main', borderRadius: 1 }} />
-                        <Box sx={{ width: '80%', height: 32, bgcolor: landingTokens.surfaces.demoSceneLight.mutedBlock, borderRadius: 1 }} />
-                        <Box sx={{ flexGrow: 1 }} />
-                        <Box sx={{ width: '100%', height: 40, bgcolor: 'primary.main', borderRadius: 1 }} />
-                      </Box>
-                    )}
-                    {scene.code === 'CONFIRMATION' && (
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, width: '70%' }}>
-                        {[1, 2, 3].map((i) => (
-                          <Box
-                            key={i}
-                            sx={{
-                              width: '100%',
-                              p: 2,
-                              bgcolor: landingTokens.surfaces.demoSceneLight.background,
-                              borderRadius: 2,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between'
-                            }}
-                          >
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                              <Box
-                                sx={{
-                                  width: 32,
-                                  height: 32,
-                                  borderRadius: '50%',
-                                  bgcolor: 'primary.main',
-                                  opacity: 0.1
-                                }}
-                              />
-                              <Box sx={{ width: 100, height: 12, bgcolor: landingTokens.surfaces.demoSceneLight.mutedBlock, borderRadius: 1 }} />
-                            </Box>
-                            <CheckCircleIcon color="success" sx={{ opacity: 0.8 }} />
-                          </Box>
-                        ))}
-                      </Box>
-                    )}
-                    {scene.code === 'ACCESS' && (
-                      <Box sx={{ textAlign: 'center' }}>
-                        <QrCode2Icon sx={{ fontSize: 120, color: landingTokens.colors.darkSurface.textPrimary, opacity: 0.9 }} />
-                        <Box
-                          sx={{
-                            mt: 3,
-                            width: 160,
-                            height: 8,
-                            bgcolor: landingTokens.colors.darkSurface.accent,
-                            opacity: 0.2,
-                            borderRadius: 1,
-                            mx: 'auto'
-                          }}
-                        />
-                      </Box>
-                    )}
-                    {scene.code === 'TABLES' && (
-                      <Box
-                        sx={{
-                          position: 'relative',
-                          width: 200,
-                          height: 200,
-                          borderRadius: '50%',
-                          border: `2px dashed ${landingTokens.colors.darkSurface.divider}`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                      >
-                        <TableBarIcon sx={{ fontSize: 64, color: landingTokens.colors.darkSurface.textPrimary, opacity: 0.5 }} />
-                        {[0, 60, 120, 180, 240, 300].map((deg) => (
-                          <Box
-                            key={deg}
-                            sx={{
-                              position: 'absolute',
-                              width: 24,
-                              height: 24,
-                              borderRadius: '50%',
-                              bgcolor: 'primary.main',
-                              transform: `rotate(${deg}deg) translateY(-120px)`
-                            }}
-                          />
-                        ))}
-                      </Box>
-                    )}
+                    <img 
+                      src={assetMap[scene.code]} 
+                      alt={altMap[scene.code] || scene.title}
+                      style={{ maxWidth: '100%', height: 'auto', display: 'block' }} 
+                    />
                   </Box>
                 </Box>
               </DemoPanel>

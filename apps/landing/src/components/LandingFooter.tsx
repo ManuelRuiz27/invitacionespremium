@@ -1,5 +1,6 @@
 import { getLandingConfig } from '../config/landing-config';
 import { Box, Container, Divider, Stack, Typography } from '@mui/material';
+import { landingTokens } from '../theme/landing-theme';
 
 const landingContent = getLandingConfig();
 
@@ -8,44 +9,44 @@ export function LandingFooter() {
     <Box
       component="footer"
       sx={{
-        py: 4,
-        bgcolor: '#17233C',
-        color: '#FFFFFF',
-        borderTop: '1px solid rgba(255, 255, 255, 0.1)'
+        py: 6,
+        bgcolor: landingTokens.colors.dark.background,
+        color: landingTokens.colors.dark.text,
+        borderTop: landingTokens.borders.hairlineDark
       }}
     >
       <Container maxWidth="lg">
-        <Stack spacing={3}>
+        <Stack spacing={4}>
           <Box
             sx={{
               display: 'flex',
               flexDirection: { xs: 'column', md: 'row' },
               justifyContent: 'space-between',
               alignItems: { xs: 'flex-start', md: 'center' },
-              gap: 2
+              gap: 4
             }}
           >
             <Box>
-              <Typography variant="h6" sx={{ fontWeight: 800, color: '#FFFFFF' }}>
+              <Typography variant="h6" sx={{ ...landingTokens.typography.headline, color: landingTokens.colors.dark.text, fontSize: '1.25rem', mb: 1 }}>
                 {landingContent.brand.name}
               </Typography>
-              <Typography variant="caption" sx={{ color: '#9CA3AF' }}>
+              <Typography variant="caption" sx={{ ...landingTokens.typography.body, color: landingTokens.colors.dark.textMuted }}>
                 {landingContent.footer.legalNotice}
               </Typography>
             </Box>
 
-            <Box sx={{ display: 'flex', gap: 2.5, flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
               {landingContent.nav.map((item) => (
                 <Typography
                   key={item.href}
                   component="a"
                   href={item.href}
                   sx={{
-                    color: '#D1D5DB',
+                    ...landingTokens.typography.eyebrow,
+                    color: landingTokens.colors.dark.textMuted,
                     textDecoration: 'none',
-                    fontSize: '0.85rem',
-                    fontWeight: 600,
-                    '&:hover': { color: '#3157C8' }
+                    transition: landingTokens.transitions.duration,
+                    '&:hover': { color: landingTokens.colors.dark.text }
                   }}
                 >
                   {item.label}
@@ -54,9 +55,9 @@ export function LandingFooter() {
             </Box>
           </Box>
 
-          <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.08)' }} />
+          <Divider sx={{ borderColor: landingTokens.colors.dark.surface }} />
 
-          <Typography variant="caption" sx={{ color: '#9CA3AF', textAlign: 'center', display: 'block' }}>
+          <Typography variant="caption" sx={{ ...landingTokens.typography.body, color: landingTokens.colors.dark.textMuted, textAlign: 'center', display: 'block', fontSize: '0.85rem' }}>
             {landingContent.footer.copyright}
           </Typography>
         </Stack>

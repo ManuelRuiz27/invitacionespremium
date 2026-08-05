@@ -1,30 +1,33 @@
 import { getLandingConfig } from '../config/landing-config';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { Accordion, AccordionDetails, AccordionSummary, Box, Container, Typography } from '@mui/material';
+import { Accordion, AccordionDetails, AccordionSummary, Box, Typography } from '@mui/material';
 import { useState, type SyntheticEvent } from 'react';
+import { landingTokens } from '../theme/landing-theme';
+import { LandingSectionIntro } from './primitives/LandingSectionIntro';
+import { LandingContainer } from './primitives/LandingContainer';
 
 const landingContent = getLandingConfig();
 
 export function LandingFaq() {
   const [expanded, setExpanded] = useState<string | false>('panel-0');
+  const headingId = 'landing-faq-heading';
 
   const handleChange = (panel: string) => (_: SyntheticEvent, isExpanded: boolean) => {
     setExpanded(isExpanded ? panel : false);
   };
 
   return (
-    <Box id="faq" component="section" sx={{ py: { xs: 6, md: 9 }, bgcolor: 'background.paper' }}>
-      <Container maxWidth="md">
-        <Box sx={{ textAlign: 'center', mb: 6 }}>
-          <Typography variant="h2" component="h2" sx={{ fontWeight: 800, mb: 1.5 }}>
-            {landingContent.faq.title}
-          </Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ fontSize: '1.1rem', maxWidth: 640, mx: 'auto' }}>
-            {landingContent.faq.subtitle}
-          </Typography>
-        </Box>
+    <Box id="faq" component="section" aria-labelledby={headingId} sx={{ py: landingTokens.spacing.sectionY, bgcolor: landingTokens.colors.light.background }}>
+      <LandingContainer maxWidth="md">
+        <LandingSectionIntro
+          headingId={headingId}
+          title={landingContent.faq.title}
+          subtitle={landingContent.faq.subtitle}
+          align="center"
+          dark={false}
+        />
 
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
           {landingContent.faq.items.map((item, index) => {
             const panelId = `panel-${index}`;
             return (
@@ -34,24 +37,26 @@ export function LandingFaq() {
                 onChange={handleChange(panelId)}
                 elevation={0}
                 sx={{
-                  border: (theme) => `1px solid ${theme.palette.divider}`,
-                  borderRadius: '12px !important',
+                  border: 'none',
+                  borderBottom: landingTokens.borders.hairlineLight,
+                  borderRadius: '0 !important',
                   '&:before': { display: 'none' },
-                  bgcolor: 'background.default'
+                  bgcolor: 'transparent',
+                  margin: '0 !important'
                 }}
               >
                 <AccordionSummary
-                  expandIcon={<ExpandMoreIcon color="primary" />}
+                  expandIcon={<ExpandMoreIcon sx={{ color: landingTokens.colors.light.text }} />}
                   aria-controls={`${panelId}-content`}
                   id={`${panelId}-header`}
-                  sx={{ px: 3, py: 1 }}
+                  sx={{ px: 0, py: 2 }}
                 >
-                  <Typography variant="h4" component="h3" sx={{ fontWeight: 700, fontSize: '1.05rem' }}>
+                  <Typography variant="h4" component="h3" sx={{ ...landingTokens.typography.headline, fontSize: '1.15rem', color: landingTokens.colors.light.text }}>
                     {item.question}
                   </Typography>
                 </AccordionSummary>
-                <AccordionDetails sx={{ px: 3, pb: 3, pt: 0 }}>
-                  <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7, fontSize: '0.95rem' }}>
+                <AccordionDetails sx={{ px: 0, pb: 4, pt: 0 }}>
+                  <Typography variant="body2" sx={{ ...landingTokens.typography.body, color: landingTokens.colors.light.textMuted }}>
                     {item.answer}
                   </Typography>
                 </AccordionDetails>
@@ -59,7 +64,7 @@ export function LandingFaq() {
             );
           })}
         </Box>
-      </Container>
+      </LandingContainer>
     </Box>
   );
 }

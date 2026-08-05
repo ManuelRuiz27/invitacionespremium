@@ -16,6 +16,8 @@ export function LandingSectionIntro({
   align = 'center',
   dark = false
 }: LandingSectionIntroProps) {
+  const mode = dark ? landingTokens.colors.dark : landingTokens.colors.light;
+
   return (
     <Box sx={{ textAlign: align, mb: { xs: 5, md: 7 } }}>
       <Typography
@@ -24,7 +26,8 @@ export function LandingSectionIntro({
         component="h2"
         sx={{
           ...landingTokens.typography.headline,
-          color: dark ? landingTokens.colors.darkSurface.textPrimary : 'text.primary',
+          color: mode.text,
+          fontSize: { xs: '2rem', md: '2.5rem' },
           mb: 2
         }}
       >
@@ -33,9 +36,9 @@ export function LandingSectionIntro({
       <Typography
         variant="body1"
         sx={{
-          color: dark ? landingTokens.colors.darkSurface.textSecondary : 'text.secondary',
+          ...landingTokens.typography.body,
+          color: mode.textMuted,
           fontSize: '1.1rem',
-          lineHeight: 1.6,
           maxWidth: 680,
           mx: align === 'center' ? 'auto' : 0
         }}

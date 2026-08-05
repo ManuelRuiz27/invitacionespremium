@@ -45,13 +45,13 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
 
   return (
     <AppBar
-      position="sticky"
+      position="fixed"
       color="default"
       elevation={0}
       sx={{
-        backgroundColor: landingTokens.surfaces.glass.background,
-        backdropFilter: landingTokens.surfaces.glass.backdropFilter,
-        borderBottom: landingTokens.surfaces.glass.borderBottom,
+        backgroundColor: 'rgba(10, 15, 24, 0.85)',
+        backdropFilter: 'blur(12px)',
+        borderBottom: landingTokens.borders.hairlineDark,
         top: 0,
         zIndex: theme.zIndex.appBar
       }}
@@ -76,13 +76,12 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
             height: 'auto',
             px: 2,
             py: 1,
-            bgcolor: 'primary.main',
-            color: 'primary.contrastText',
-            borderRadius: `${landingTokens.radius.badge}px`,
-            fontWeight: 700,
+            bgcolor: landingTokens.colors.dark.text,
+            color: landingTokens.colors.dark.background,
+            borderRadius: 0,
+            ...landingTokens.typography.headline,
             fontSize: '0.85rem',
-            textDecoration: 'none',
-            boxShadow: landingTokens.shadows.elevated
+            textDecoration: 'none'
           }
         }}
       >
@@ -92,9 +91,9 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
       <LandingContainer>
         <Toolbar
           disableGutters
-          sx={{ minHeight: { xs: 64, md: 72 }, display: 'flex', justifyContent: 'space-between', gap: 2 }}
+          sx={{ minHeight: { xs: 64, md: 80 }, display: 'flex', justifyContent: 'space-between', gap: 2 }}
         >
-          {/* Brand lockup — horizontal compact */}
+          {/* Brand lockup */}
           <LandingBrandLockup
             variant="horizontal"
             name={landingContent.brand.name}
@@ -106,7 +105,7 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
             <Box
               component="nav"
               aria-label="Navegación principal"
-              sx={{ display: 'flex', alignItems: 'center', gap: 3 }}
+              sx={{ display: 'flex', alignItems: 'center', gap: 4 }}
             >
               {landingContent.nav.map((item) => (
                 <Box
@@ -118,14 +117,13 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
                     handleNavClick(item.href);
                   }}
                   sx={{
-                    color: 'text.primary',
+                    color: landingTokens.colors.dark.textMuted,
                     textDecoration: 'none',
-                    fontWeight: landingTokens.typography.nav.fontWeight,
-                    fontSize: landingTokens.typography.nav.fontSize,
+                    ...landingTokens.typography.eyebrow,
                     transition: `color ${landingTokens.transitions.duration} ${landingTokens.transitions.easing}`,
-                    '&:hover': { color: 'primary.main' },
+                    '&:hover': { color: landingTokens.colors.dark.text },
                     '&:focus-visible': {
-                      color: 'primary.main'
+                      color: landingTokens.colors.dark.text
                     }
                   }}
                 >
@@ -136,18 +134,27 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
           )}
 
           {/* Actions */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             {/* Login — visible only on desktop */}
             {!isMobile && (
               <Button
                 variant="outlined"
-                color="primary"
                 size="medium"
                 href={landingContent.urls.login}
                 disabled={!landingContent.urls.login}
                 sx={{
-                  borderRadius: `${landingTokens.radius.button}px`,
-                  fontWeight: 650
+                  borderRadius: 0,
+                  color: landingTokens.colors.dark.text,
+                  borderColor: landingTokens.borders.hairlineDark,
+                  ...landingTokens.typography.headline,
+                  fontSize: '0.9rem',
+                  px: 3,
+                  py: 1,
+                  textTransform: 'none',
+                  '&:hover': {
+                    borderColor: landingTokens.colors.dark.text,
+                    backgroundColor: 'transparent'
+                  }
                 }}
               >
                 {landingContent.hero.secondaryCta}
@@ -158,13 +165,23 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
             {!isMobile && (
               <Button
                 variant="contained"
-                color="primary"
                 size="medium"
                 startIcon={<PersonAddIcon />}
                 onClick={onOpenRegister}
                 sx={{
-                  borderRadius: `${landingTokens.radius.button}px`,
-                  fontWeight: 650
+                  borderRadius: 0,
+                  bgcolor: landingTokens.colors.dark.text,
+                  color: landingTokens.colors.dark.background,
+                  ...landingTokens.typography.headline,
+                  fontSize: '0.9rem',
+                  px: 3,
+                  py: 1,
+                  textTransform: 'none',
+                  boxShadow: 'none',
+                  '&:hover': {
+                    bgcolor: landingTokens.colors.dark.textMuted,
+                    boxShadow: 'none'
+                  }
                 }}
               >
                 Registrarme
@@ -180,7 +197,7 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
                 aria-controls="landing-mobile-navigation"
                 edge="end"
                 onClick={toggleDrawer(true)}
-                sx={{ color: 'text.primary' }}
+                sx={{ color: landingTokens.colors.dark.text }}
               >
                 <MenuIcon />
               </IconButton>
@@ -190,14 +207,25 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
       </LandingContainer>
 
       {/* Mobile Drawer */}
-      <Drawer anchor="right" open={drawerOpen} onClose={toggleDrawer(false)}>
+      <Drawer 
+        anchor="right" 
+        open={drawerOpen} 
+        onClose={toggleDrawer(false)}
+        PaperProps={{
+          sx: {
+            bgcolor: landingTokens.colors.dark.surface,
+            color: landingTokens.colors.dark.text,
+            borderLeft: landingTokens.borders.hairlineDark
+          }
+        }}
+      >
         <Box
           id="landing-mobile-navigation"
-          sx={{ width: 280, p: 2 }}
+          sx={{ width: 300, p: 2 }}
           role="navigation"
           aria-label="Navegación principal"
         >
-          <Box sx={{ px: 2, py: 1 }}>
+          <Box sx={{ px: 2, py: 2, borderBottom: landingTokens.borders.hairlineDark, mb: 2 }}>
             <LandingBrandLockup
               variant="horizontal"
               name={landingContent.brand.name}
@@ -208,35 +236,58 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
           <List>
             {landingContent.nav.map((item) => (
               <ListItem key={item.href} disablePadding>
-                <ListItemButton onClick={() => handleNavClick(item.href)} sx={{ borderRadius: 1.5, my: 0.25 }}>
-                  <ListItemText primary={item.label} slotProps={{ primary: { sx: { fontWeight: 600 } } }} />
+                <ListItemButton onClick={() => handleNavClick(item.href)} sx={{ borderRadius: 0, my: 0.5 }}>
+                  <ListItemText primary={item.label} slotProps={{ primary: { sx: { ...landingTokens.typography.headline, fontSize: '1.1rem' } } }} />
                 </ListItemButton>
               </ListItem>
             ))}
           </List>
 
-          <Box sx={{ mt: 2, px: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+          <Box sx={{ mt: 4, px: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
             <Button
               variant="contained"
-              color="primary"
               fullWidth
               startIcon={<PersonAddIcon />}
               onClick={() => {
                 setDrawerOpen(false);
                 onOpenRegister();
               }}
-              sx={{ borderRadius: `${landingTokens.radius.button}px`, fontWeight: 700 }}
+              sx={{
+                borderRadius: 0,
+                bgcolor: landingTokens.colors.dark.text,
+                color: landingTokens.colors.dark.background,
+                ...landingTokens.typography.headline,
+                fontSize: '0.95rem',
+                py: 1.5,
+                textTransform: 'none',
+                boxShadow: 'none',
+                '&:hover': {
+                  bgcolor: landingTokens.colors.dark.textMuted,
+                  boxShadow: 'none'
+                }
+              }}
             >
               Registrarme como Planner
             </Button>
 
             <Button
               variant="outlined"
-              color="primary"
               fullWidth
               href={landingContent.urls.login}
               disabled={!landingContent.urls.login}
-              sx={{ borderRadius: `${landingTokens.radius.button}px`, fontWeight: 650 }}
+              sx={{
+                borderRadius: 0,
+                color: landingTokens.colors.dark.text,
+                borderColor: landingTokens.borders.hairlineDark,
+                ...landingTokens.typography.headline,
+                fontSize: '0.95rem',
+                py: 1.5,
+                textTransform: 'none',
+                '&:hover': {
+                  borderColor: landingTokens.colors.dark.text,
+                  backgroundColor: 'transparent'
+                }
+              }}
             >
               {landingContent.hero.secondaryCta}
             </Button>

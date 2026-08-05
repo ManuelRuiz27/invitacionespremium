@@ -4,142 +4,81 @@ import { designTokens } from '@invitaciones/ui';
  * Landing-exclusive visual layer.
  *
  * Reuses `designTokens` from `@invitaciones/ui` without modifying the shared theme.
- * Centralizes repeated styles for the commercial site: typography hierarchy,
- * surfaces, radii, shadows, spacing, and transitions.
+ * Implements the Dark Luxury Editorial aesthetic.
  */
-const darkSurfaceColors = {
-  background: designTokens.colors.ink,
-  accent: '#88A9FF', // >= 4.5:1 against #17233C
-  accentMuted: '#7088B2', // >= 3:1 against #17233C for borders/indicators
-  textPrimary: '#FFFFFF', // >= 4.5:1
-  textSecondary: '#B0B8C8', // >= 4.5:1
-  divider: '#3A4B6B'
+const palette = {
+  ink: '#0A0F18',
+  ivory: '#FDFBF7',
+  graphite: '#1A1D20',
+  accent: '#2563EB', // Strictly functional
+  muted: '#6B7280',
+  borderDark: 'rgba(253, 251, 247, 0.1)',
+  borderLight: 'rgba(10, 15, 24, 0.1)',
 } as const;
 
 export const landingTokens = {
   colors: {
-    darkSurface: darkSurfaceColors
+    dark: {
+      background: palette.ink,
+      surface: palette.graphite,
+      text: palette.ivory,
+      textMuted: 'rgba(253, 251, 247, 0.6)',
+      border: palette.borderDark,
+      accent: palette.accent
+    },
+    light: {
+      background: palette.ivory,
+      surface: '#FFFFFF',
+      text: palette.ink,
+      textMuted: palette.muted,
+      border: palette.borderLight,
+      accent: palette.accent
+    }
   },
 
   typography: {
-    /** Hero h1 / display headlines */
+    fontFamily: {
+      serif: 'Georgia, "Times New Roman", serif',
+      sans: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    },
     display: {
-      fontWeight: 800,
-      letterSpacing: '-0.04em',
-      lineHeight: 1.08
+      fontFamily: 'Georgia, "Times New Roman", serif',
+      fontWeight: 400,
+      letterSpacing: '-0.02em',
+      lineHeight: 1.1
     },
-    /** Section headlines */
     headline: {
-      fontWeight: 720,
-      letterSpacing: '-0.035em',
-      lineHeight: 1.12
+      fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      fontWeight: 500,
+      letterSpacing: '-0.01em',
+      lineHeight: 1.2
     },
-    /** Eyebrow / badge labels */
+    body: {
+      fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      fontWeight: 400,
+      lineHeight: 1.6
+    },
     eyebrow: {
-      fontWeight: 700,
-      fontSize: '0.8rem',
-      letterSpacing: '0.06em',
-      textTransform: 'uppercase' as const
-    },
-    /** Brand lockup typography */
-    brand: {
-      name: {
-        fontWeight: 800,
-        letterSpacing: '-0.025em',
-        lineHeight: 1.1
-      },
-      tagline: {
-        fontWeight: 500,
-        letterSpacing: '0.01em',
-        lineHeight: 1.4,
-        color: designTokens.colors.mutedInk
-      }
-    },
-    /** Nav links */
-    nav: {
+      fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       fontWeight: 600,
-      fontSize: '0.92rem'
+      fontSize: '0.75rem',
+      letterSpacing: '0.1em',
+      textTransform: 'uppercase' as const
     }
-  },
-
-  surfaces: {
-    /** Stable glass header — no scroll-dependent state */
-    glass: {
-      background: 'rgba(255, 254, 251, 0.88)',
-      backdropFilter: 'blur(12px)',
-      borderBottom: `1px solid ${designTokens.colors.line}`
-    },
-    /** Hero section gradient */
-    heroGradient: `linear-gradient(168deg, ${designTokens.colors.canvas} 0%, ${designTokens.colors.paper} 55%, rgba(49, 87, 200, 0.03) 100%)`,
-    /** Dark card for product stage */
-    cardDark: {
-      background: darkSurfaceColors.background,
-      color: '#FFFFFF',
-      border: '1px solid rgba(255, 255, 255, 0.08)'
-    },
-    /** Light card */
-    cardLight: {
-      background: designTokens.colors.paper,
-      border: `1px solid ${designTokens.colors.line}`
-    },
-    pricing: {
-      background: '#FFFFFF',
-      border: '1px solid #E5E7EB',
-      shadow: '0 8px 32px rgba(23, 35, 60, 0.04)'
-    },
-    organization: {
-      background: '#F9FAFB',
-      border: '1px solid #F3F4F6'
-    },
-    productMockup: {
-      background: '#FFFFFF',
-      border: '1px solid rgba(255, 255, 255, 0.1)',
-      shadow: '0 24px 64px rgba(0, 0, 0, 0.3)'
-    },
-    heroExperienceGlass: {
-      background: 'rgba(255, 255, 255, 0.4)',
-      border: '1px solid rgba(255, 255, 255, 0.6)'
-    },
-    invitationLayer: {
-      background: '#FFFFFF',
-      border: '1px solid #E5E7EB'
-    },
-    demoSceneLight: {
-      background: '#FFFFFF',
-      mutedBlock: 'rgba(0,0,0,0.05)'
-    },
-    darkInset: {
-      background: 'rgba(255, 255, 255, 0.05)',
-      border: '1px solid rgba(255, 255, 255, 0.1)'
-    }
-  },
-
-  borders: {
-    editorial: '1px solid #E5E7EB',
-    darkSubtle: '1px solid rgba(255, 255, 255, 0.1)'
-  },
-
-  radius: {
-    pill: 100,
-    card: designTokens.radius.large,
-    badge: designTokens.radius.small,
-    button: designTokens.radius.small
-  },
-
-  shadows: {
-    soft: designTokens.shadow.soft,
-    elevated: '0 8px 32px rgba(23, 35, 60, 0.12)',
-    subtle: '0 2px 8px rgba(23, 35, 60, 0.06)',
-    productLayer: '0 8px 24px rgba(23, 35, 60, 0.06)',
-    invitationLayer: '0 8px 32px rgba(0,0,0,0.4)'
   },
 
   spacing: {
-    sectionY: { xs: 6, md: 10 }
+    sectionY: { xs: 8, md: 16 },
+    rhythm: { xs: 4, md: 8 }
   },
-
+  
+  borders: {
+    hairlineDark: `1px solid ${palette.borderDark}`,
+    hairlineLight: `1px solid ${palette.borderLight}`,
+  },
+  
   transitions: {
-    duration: '0.2s',
-    easing: 'cubic-bezier(0.4, 0, 0.2, 1)'
+    duration: '0.4s',
+    easing: 'cubic-bezier(0.16, 1, 0.3, 1)'
   }
 } as const;
