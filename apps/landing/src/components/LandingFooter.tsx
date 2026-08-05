@@ -27,10 +27,21 @@ export function LandingFooter() {
             }}
           >
             <Box>
-              <Typography variant="h6" sx={{ ...landingTokens.typography.headline, color: landingTokens.colors.dark.text, fontSize: '1.25rem', mb: 1 }}>
+              <Typography
+                variant="h6"
+                sx={{
+                  ...landingTokens.typography.headline,
+                  color: landingTokens.colors.dark.text,
+                  fontSize: '1.25rem',
+                  mb: 1
+                }}
+              >
                 {landingContent.brand.name}
               </Typography>
-              <Typography variant="caption" sx={{ ...landingTokens.typography.body, color: landingTokens.colors.dark.textMuted }}>
+              <Typography
+                variant="caption"
+                sx={{ ...landingTokens.typography.body, color: landingTokens.colors.dark.textMuted }}
+              >
                 {landingContent.footer.legalNotice}
               </Typography>
             </Box>
@@ -57,7 +68,16 @@ export function LandingFooter() {
 
           <Divider sx={{ borderColor: landingTokens.colors.dark.surface }} />
 
-          <Typography variant="caption" sx={{ ...landingTokens.typography.body, color: landingTokens.colors.dark.textMuted, textAlign: 'center', display: 'block', fontSize: '0.85rem' }}>
+          <Typography
+            variant="caption"
+            sx={{
+              ...landingTokens.typography.body,
+              color: landingTokens.colors.dark.textMuted,
+              textAlign: 'center',
+              display: 'block',
+              fontSize: '0.85rem'
+            }}
+          >
             {landingContent.footer.copyright}
           </Typography>
         </Stack>

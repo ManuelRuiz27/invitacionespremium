@@ -21,7 +21,12 @@ export function LandingServices() {
   const headingId = 'landing-services-heading';
 
   return (
-    <Box id="servicios" component="section" aria-labelledby={headingId} sx={{ py: { xs: 10, md: 16 }, bgcolor: landingTokens.colors.light.background }}>
+    <Box
+      id="servicios"
+      component="section"
+      aria-labelledby={headingId}
+      sx={{ py: { xs: 10, md: 16 }, bgcolor: landingTokens.colors.light.background }}
+    >
       <Container maxWidth="lg">
         <LandingSectionIntro
           headingId={headingId}
@@ -46,14 +51,44 @@ export function LandingServices() {
               }}
             >
               <Box sx={{ flex: 1, maxWidth: { xs: '100%', md: 400 } }}>
-                <Typography variant="h3" component="h3" sx={{ ...landingTokens.typography.display, fontSize: { xs: '1.75rem', md: '2.5rem' }, mb: 2, color: landingTokens.colors.light.text }}>
+                <Typography
+                  variant="h3"
+                  component="h3"
+                  sx={{
+                    ...landingTokens.typography.display,
+                    fontSize: { xs: '1.75rem', md: '2.5rem' },
+                    mb: 2,
+                    color: landingTokens.colors.light.text
+                  }}
+                >
                   {service.name}
                 </Typography>
-                <Typography variant="body1" sx={{ ...landingTokens.typography.body, color: landingTokens.colors.light.textMuted, fontSize: '1.15rem' }}>
+                <Typography
+                  variant="body1"
+                  sx={{
+                    ...landingTokens.typography.body,
+                    color: landingTokens.colors.light.textMuted,
+                    fontSize: '1.15rem'
+                  }}
+                >
                   {service.description}
                 </Typography>
-                <Box component="ul" sx={{ mt: 3, pl: 2, m: 0, '& li': { ...landingTokens.typography.body, color: landingTokens.colors.light.textMuted, fontSize: '0.95rem', mb: 1, listStyleType: 'disc' } }}>
-                  {service.features.map(f => (
+                <Box
+                  component="ul"
+                  sx={{
+                    mt: 3,
+                    pl: 2,
+                    m: 0,
+                    '& li': {
+                      ...landingTokens.typography.body,
+                      color: landingTokens.colors.light.textMuted,
+                      fontSize: '0.95rem',
+                      mb: 1,
+                      listStyleType: 'disc'
+                    }
+                  }}
+                >
+                  {service.features.map((f) => (
                     <li key={f}>{f}</li>
                   ))}
                 </Box>
@@ -68,7 +103,11 @@ export function LandingServices() {
                   alignItems: 'center'
                 }}
               >
-                <img src={assetMap[service.code]} alt={service.name} style={{ maxWidth: '100%', maxHeight: '400px', objectFit: 'contain', display: 'block' }} />
+                <img
+                  src={assetMap[service.code]}
+                  alt={service.name}
+                  style={{ maxWidth: '100%', maxHeight: '400px', objectFit: 'contain', display: 'block' }}
+                />
               </Box>
             </Box>
           ))}

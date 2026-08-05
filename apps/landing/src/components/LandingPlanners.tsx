@@ -17,7 +17,12 @@ export function LandingPlanners({ onOpenRegister }: LandingPlannersProps) {
   const headingId = 'landing-planners-heading';
 
   return (
-    <Box id="planners" component="section" aria-labelledby={headingId} sx={{ py: landingTokens.spacing.sectionY, bgcolor: landingTokens.colors.light.background }}>
+    <Box
+      id="planners"
+      component="section"
+      aria-labelledby={headingId}
+      sx={{ py: landingTokens.spacing.sectionY, bgcolor: landingTokens.colors.light.background }}
+    >
       <LandingContainer>
         <Grid container spacing={{ xs: 6, md: 8 }} sx={{ alignItems: 'center' }}>
           {/* Text Area */}
@@ -30,21 +35,41 @@ export function LandingPlanners({ onOpenRegister }: LandingPlannersProps) {
               dark={false}
             />
 
-            <Box component="ul" sx={{ listStyle: 'none', p: 0, m: 0, mb: 5, display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <Box
+              component="ul"
+              sx={{ listStyle: 'none', p: 0, m: 0, mb: 5, display: 'flex', flexDirection: 'column', gap: 3 }}
+            >
               {landingContent.planners.bulletPoints.map((point, index) => (
                 <Box component="li" key={point} sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                  <Typography aria-hidden="true" sx={{ ...landingTokens.typography.display, fontSize: '1.25rem', color: landingTokens.colors.light.text, opacity: 0.3, mt: 0.2 }}>
+                  <Typography
+                    aria-hidden="true"
+                    sx={{
+                      ...landingTokens.typography.display,
+                      fontSize: '1.25rem',
+                      color: landingTokens.colors.light.text,
+                      opacity: 0.3,
+                      mt: 0.2
+                    }}
+                  >
                     {String(index + 1).padStart(2, '0')}
                   </Typography>
-                  <Typography variant="body1" sx={{ ...landingTokens.typography.body, color: landingTokens.colors.light.text, lineHeight: 1.6 }}>
+                  <Typography
+                    variant="body1"
+                    sx={{ ...landingTokens.typography.body, color: landingTokens.colors.light.text, lineHeight: 1.6 }}
+                  >
                     {point}
                   </Typography>
                 </Box>
               ))}
             </Box>
 
-            <Box sx={{ p: 4, bgcolor: landingTokens.colors.light.surface, border: landingTokens.borders.hairlineLight }}>
-              <Typography variant="body2" sx={{ ...landingTokens.typography.body, color: landingTokens.colors.light.textMuted, mb: 3 }}>
+            <Box
+              sx={{ p: 4, bgcolor: landingTokens.colors.light.surface, border: landingTokens.borders.hairlineLight }}
+            >
+              <Typography
+                variant="body2"
+                sx={{ ...landingTokens.typography.body, color: landingTokens.colors.light.textMuted, mb: 3 }}
+              >
                 {landingContent.planners.onboardingNotice}
               </Typography>
               <Button

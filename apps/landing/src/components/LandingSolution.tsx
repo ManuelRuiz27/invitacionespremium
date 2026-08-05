@@ -11,20 +11,14 @@ import solutionClosing from '../assets/landing/solution-closing.svg';
 
 const landingContent = getLandingConfig();
 
-const assets = [
-  solutionInvitation,
-  solutionConfirmation,
-  solutionTables,
-  solutionReception,
-  solutionClosing
-];
+const assets = [solutionInvitation, solutionConfirmation, solutionTables, solutionReception, solutionClosing];
 
 const alts = [
-  "Ilustración del sistema de invitaciones",
-  "Ilustración del proceso de confirmación",
-  "Ilustración de la gestión de mesas",
-  "Ilustración del control de recepción",
-  "Ilustración del cierre post-evento"
+  'Ilustración del sistema de invitaciones',
+  'Ilustración del proceso de confirmación',
+  'Ilustración de la gestión de mesas',
+  'Ilustración del control de recepción',
+  'Ilustración del cierre post-evento'
 ];
 
 export function LandingSolution() {
@@ -109,10 +103,10 @@ export function LandingSolution() {
         </Box>
 
         {/* Rule Notice */}
-        <Box 
-          sx={{ 
+        <Box
+          sx={{
             mt: { xs: 12, md: 20 },
-            p: { xs: 3, md: 4 }, 
+            p: { xs: 3, md: 4 },
             borderTop: landingTokens.borders.hairlineDark,
             borderBottom: landingTokens.borders.hairlineDark,
             textAlign: 'center'
