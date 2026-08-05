@@ -112,7 +112,8 @@ export const landingTokens = {
   shadows: {
     soft: designTokens.shadow.soft,
     elevated: '0 8px 32px rgba(23, 35, 60, 0.12)',
-    subtle: '0 2px 8px rgba(23, 35, 60, 0.06)'
+    subtle: '0 2px 8px rgba(23, 35, 60, 0.06)',
+    productLayer: '0 8px 24px rgba(23, 35, 60, 0.06)'
   },
 
   spacing: {

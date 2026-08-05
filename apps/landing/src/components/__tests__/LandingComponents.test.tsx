@@ -9,6 +9,7 @@ import { LandingHero } from '../LandingHero';
 import { LandingPricing } from '../LandingPricing';
 import { LandingPlanners } from '../LandingPlanners';
 import { LandingOrganizations } from '../LandingOrganizations';
+import { LandingSectionIntro } from '../primitives/LandingSectionIntro';
 import { AppThemeProvider } from '@invitaciones/ui';
 import { landingTokens } from '../../theme/landing-theme';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -343,6 +344,19 @@ describe('Landing section semantics and content', () => {
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 
+  it('renders LandingSectionIntro handling dark prop without errors', () => {
+    const { unmount } = renderWithTheme(<LandingSectionIntro headingId="test-heading" title="Test Title" subtitle="Test Sub" />);
+    const h2 = screen.getByRole('heading', { level: 2, name: 'Test Title' });
+    expect(h2).toHaveAttribute('id', 'test-heading');
+    expect(screen.getByText('Test Sub')).toBeInTheDocument();
+    unmount();
+
+    renderWithTheme(<LandingSectionIntro headingId="test-heading-dark" title="Test Title Dark" subtitle="Test Sub Dark" dark />);
+    const h2Dark = screen.getByRole('heading', { level: 2, name: 'Test Title Dark' });
+    expect(h2Dark).toHaveAttribute('id', 'test-heading-dark');
+    expect(screen.getByText('Test Sub Dark')).toBeInTheDocument();
+  });
+
   it('renders LandingSolution exactly with config content', () => {
     renderWithTheme(<LandingSolution />);
 
@@ -428,7 +442,7 @@ describe('Landing section semantics and content', () => {
     content.services.items.forEach(s => {
        const row = document.querySelector(`[data-service-code="${s.code}"]`);
        expect(row).toBeInTheDocument();
-       expect(within(row as HTMLElement).getByRole('heading', { level: 4, name: s.name })).toBeInTheDocument();
+       expect(within(row! as HTMLElement).getByRole('heading', { level: 4, name: s.name })).toBeInTheDocument();
     });
 
     // Check specific prices render
@@ -470,9 +484,9 @@ describe('Landing section semantics and content', () => {
     
     const buttons = screen.getAllByRole('button');
     expect(buttons).toHaveLength(1);
-    expect(buttons[0]).toHaveTextContent(content.planners.cta);
+    expect(buttons[0]!).toHaveTextContent(content.planners.cta);
     
-    fireEvent.click(buttons[0]);
+    fireEvent.click(buttons[0]!);
     expect(mockRegister).toHaveBeenCalledOnce();
 
     const headings = screen.getAllByRole('heading', { level: 2 });
@@ -488,6 +502,9 @@ describe('Landing section semantics and content', () => {
     
     expect(screen.queryByText(/MODELO PLANNER INDEPENDIENTE/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/¿Eres Planner Independiente?/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/VIP Pass/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Acceso concedido/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Mesa 12/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 

@@ -1,7 +1,8 @@
 import { getLandingConfig } from '../config/landing-config';
-import { Box, Container, Typography, Grid } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { landingTokens } from '../theme/landing-theme';
 import { LandingSectionIntro } from './primitives/LandingSectionIntro';
+import { LandingContainer } from './primitives/LandingContainer';
 
 const landingContent = getLandingConfig();
 
@@ -10,7 +11,7 @@ export function LandingPricing() {
 
   return (
     <Box id="precios" component="section" aria-labelledby={headingId} sx={{ py: { xs: 8, md: 12 }, bgcolor: 'background.default' }}>
-      <Container maxWidth="lg">
+      <LandingContainer>
         <LandingSectionIntro
           headingId={headingId}
           title={landingContent.pricing.title}
@@ -114,7 +115,7 @@ export function LandingPricing() {
             </Box>
           ))}
         </Box>
-      </Container>
+      </LandingContainer>
     </Box>
   );
 }

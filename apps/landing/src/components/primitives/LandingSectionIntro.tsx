@@ -6,9 +6,10 @@ export interface LandingSectionIntroProps {
   title: string;
   subtitle: string;
   align?: 'left' | 'center';
+  dark?: boolean;
 }
 
-export function LandingSectionIntro({ headingId, title, subtitle, align = 'center' }: LandingSectionIntroProps) {
+export function LandingSectionIntro({ headingId, title, subtitle, align = 'center', dark = false }: LandingSectionIntroProps) {
   return (
     <Box sx={{ textAlign: align, mb: { xs: 5, md: 7 } }}>
       <Typography
@@ -17,7 +18,7 @@ export function LandingSectionIntro({ headingId, title, subtitle, align = 'cente
         component="h2"
         sx={{
           ...landingTokens.typography.headline,
-          color: 'text.primary',
+          color: dark ? landingTokens.colors.darkSurface.textPrimary : 'text.primary',
           mb: 2
         }}
       >
@@ -25,8 +26,8 @@ export function LandingSectionIntro({ headingId, title, subtitle, align = 'cente
       </Typography>
       <Typography
         variant="body1"
-        color="text.secondary"
         sx={{
+          color: dark ? landingTokens.colors.darkSurface.textSecondary : 'text.secondary',
           fontSize: '1.1rem',
           lineHeight: 1.6,
           maxWidth: 680,
