@@ -120,7 +120,7 @@ export function LandingPlanners({ onOpenRegister }: LandingPlannersProps) {
                 }}
                 aria-hidden="true"
               >
-                <Box sx={{ width: 48, height: 48, borderRadius: '50%', bgcolor: 'primary.light', color: 'primary.main', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Box sx={{ width: 48, height: 48, borderRadius: '50%', bgcolor: landingTokens.colors.darkSurface.divider, color: landingTokens.colors.darkSurface.accent, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <CheckCircleIcon />
                 </Box>
                 <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>

@@ -86,7 +86,7 @@ export function LandingPricing() {
               </Box>
 
               {/* Planner Price */}
-              <Box sx={{ p: 4, borderLeft: { md: landingTokens.borders.editorial }, borderBottom: { xs: landingTokens.borders.editorial, md: 'none' }, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <Box data-client-type="planner" sx={{ p: 4, borderLeft: { md: landingTokens.borders.editorial }, borderBottom: { xs: landingTokens.borders.editorial, md: 'none' }, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                 <Typography variant="overline" sx={{ display: { xs: 'block', md: 'none' }, mb: 1, color: 'text.secondary', fontWeight: 700 }}>
                   {landingContent.pricing.planner.title}
                 </Typography>
@@ -100,7 +100,7 @@ export function LandingPricing() {
               </Box>
 
               {/* Organization Price */}
-              <Box sx={{ p: 4, borderLeft: { md: landingTokens.borders.editorial }, display: 'flex', flexDirection: 'column', justifyContent: 'center', bgcolor: { xs: 'background.paper', md: 'transparent' } }}>
+              <Box data-client-type="organization" sx={{ p: 4, borderLeft: { md: landingTokens.borders.editorial }, display: 'flex', flexDirection: 'column', justifyContent: 'center', bgcolor: { xs: 'background.paper', md: 'transparent' } }}>
                 <Typography variant="overline" sx={{ display: { xs: 'block', md: 'none' }, mb: 1, color: 'text.secondary', fontWeight: 700 }}>
                   {landingContent.pricing.organization.title}
                 </Typography>

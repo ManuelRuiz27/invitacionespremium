@@ -33,9 +33,7 @@ export function LandingOrganizations() {
         >
           {/* Institutional Notice and Operational Abstract Representation */}
           <Box sx={{ p: { xs: 4, md: 6 }, textAlign: 'center', borderBottom: landingTokens.borders.editorial }}>
-            <Box sx={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', px: 2, py: 0.5, borderRadius: 2, bgcolor: 'primary.main', color: '#FFF', mb: 3, fontWeight: 700, fontSize: '0.8rem', letterSpacing: '0.05em' }} aria-hidden="true">
-              ADMINISTRADO
-            </Box>
+
             <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.primary', maxWidth: 720, mx: 'auto', fontSize: '1.1rem', lineHeight: 1.6 }}>
               {landingContent.organizations.notice}
             </Typography>

@@ -443,12 +443,21 @@ describe('Landing section semantics and content', () => {
        const row = document.querySelector(`[data-service-code="${s.code}"]`);
        expect(row).toBeInTheDocument();
        expect(within(row! as HTMLElement).getByRole('heading', { level: 4, name: s.name })).toBeInTheDocument();
-    });
 
-    // Check specific prices render
-    expect(screen.getAllByText('30').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('$600 MXN').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('0').length).toBeGreaterThan(0);
+       const plannerCell = row!.querySelector('[data-client-type="planner"]');
+       const organizationCell = row!.querySelector('[data-client-type="organization"]');
+
+       expect(plannerCell).toBeInTheDocument();
+       expect(organizationCell).toBeInTheDocument();
+
+       const plannerContent = within(plannerCell! as HTMLElement);
+       expect(plannerContent.getByText(new RegExp(`^${s.prices.planner.credits}$`))).toBeInTheDocument();
+       expect(plannerContent.getByText(`$${s.prices.planner.mxn} MXN`)).toBeInTheDocument();
+
+       const orgContent = within(organizationCell! as HTMLElement);
+       expect(orgContent.getByText(new RegExp(`^${s.prices.organization.credits}$`))).toBeInTheDocument();
+       expect(orgContent.getByText(`$${s.prices.organization.mxn} MXN`)).toBeInTheDocument();
+    });
 
     const headings = screen.getAllByRole('heading', { level: 2 });
     expect(headings).toHaveLength(1);
@@ -481,6 +490,10 @@ describe('Landing section semantics and content', () => {
     const list = screen.getByRole('list');
     const listItems = within(list).getAllByRole('listitem');
     expect(listItems).toHaveLength(4);
+
+    content.planners.bulletPoints.forEach((point) => {
+      expect(within(list).getByText(point)).toBeInTheDocument();
+    });
     
     const buttons = screen.getAllByRole('button');
     expect(buttons).toHaveLength(1);
@@ -506,6 +519,7 @@ describe('Landing section semantics and content', () => {
     expect(screen.queryByText(/Acceso concedido/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Mesa 12/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.queryByText(/ADMINISTRADO/i)).not.toBeInTheDocument();
   });
 
   it('renders LandingOrganizations exactly with config content', () => {
@@ -515,10 +529,10 @@ describe('Landing section semantics and content', () => {
     expect(screen.getByText(content.organizations.subtitle)).toBeInTheDocument();
     expect(screen.getByText(content.organizations.notice)).toBeInTheDocument();
 
-    const roleHeadings = screen.getAllByRole('heading', { level: 4 });
-    expect(roleHeadings).toHaveLength(2);
-    expect(roleHeadings[0]).toHaveTextContent(content.organizations.roles[0].name);
-    expect(roleHeadings[1]).toHaveTextContent(content.organizations.roles[1].name);
+    content.organizations.roles.forEach((role) => {
+      expect(screen.getByRole('heading', { name: role.name })).toBeInTheDocument();
+      expect(screen.getByText(role.description)).toBeInTheDocument();
+    });
 
     const headings = screen.getAllByRole('heading', { level: 2 });
     expect(headings).toHaveLength(1);
@@ -533,6 +547,7 @@ describe('Landing section semantics and content', () => {
     
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.queryByText('ADMINISTRADO')).not.toBeInTheDocument();
     
     // Ensure no alert component with warning or error semantics exists
     const alerts = screen.queryAllByRole('alert');
