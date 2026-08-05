@@ -45,9 +45,14 @@ export function useScannerMutations(apiClient: ApiClient, staffToken: string) {
     mutationFn: (qrContent: string) => apiClient.scanner!.scanPhysicalPass(staffToken, qrContent)
   });
 
+  const searchMutation = useMutation({
+    mutationFn: (query: string) => apiClient.scanner!.search(staffToken, query)
+  });
+
   return {
     scanMutation,
     checkInMutation,
-    scanPhysicalPassMutation
+    scanPhysicalPassMutation,
+    searchMutation
   };
 }

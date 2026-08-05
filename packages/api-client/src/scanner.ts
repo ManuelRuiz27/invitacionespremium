@@ -5,6 +5,10 @@ export type ScannerSessionResponse = components['schemas']['ScannerSessionRespon
 export type ScannerCheckInRequest = components['schemas']['ScannerCheckInRequestDto'];
 export type ScannerCheckInResponse = components['schemas']['ScannerCheckInResponseDto'];
 export type CheckInRevertResponse = components['schemas']['CheckInRevertResponseDto'];
+export type ScannerSearchResponse = components['schemas']['ScannerSearchResponseDto'];
+export type ScanPhysicalPassResponse = components['schemas']['ScanPhysicalPassResponseDto'];
+export type ScannerFloorplanResponse = components['schemas']['ScannerFloorplanResponseDto'];
+export type ScannerScanResponse = components['schemas']['ScannerScanResponseDto'];
 
 const segment = (value: string) => encodeURIComponent(value);
 
@@ -19,8 +23,8 @@ export function createScannerClient(request: ApiRequester) {
       });
     },
 
-    async scan(staffToken: string, qrContent: string): Promise<any> {
-      return request<any>({
+    async scan(staffToken: string, qrContent: string): Promise<ScannerScanResponse> {
+      return request<ScannerScanResponse>({
         method: 'POST',
         path: `/api/v1/scanner/${segment(staffToken)}/scan`,
         body: { qrContent },
@@ -29,8 +33,8 @@ export function createScannerClient(request: ApiRequester) {
       });
     },
 
-    async search(staffToken: string, query: string): Promise<any> {
-      return request<any>({
+    async search(staffToken: string, query: string): Promise<ScannerSearchResponse> {
+      return request<ScannerSearchResponse>({
         method: 'POST',
         path: `/api/v1/scanner/${segment(staffToken)}/search`,
         body: { query },
@@ -49,8 +53,8 @@ export function createScannerClient(request: ApiRequester) {
       });
     },
 
-    async scanPhysicalPass(staffToken: string, qrContent: string): Promise<any> {
-      return request<any>({
+    async scanPhysicalPass(staffToken: string, qrContent: string): Promise<ScanPhysicalPassResponse> {
+      return request<ScanPhysicalPassResponse>({
         method: 'POST',
         path: `/api/v1/scanner/${segment(staffToken)}/physical-passes/scan`,
         body: { qrContent },
@@ -59,8 +63,8 @@ export function createScannerClient(request: ApiRequester) {
       });
     },
 
-    async getFloorplan(staffToken: string): Promise<any> {
-      return request<any>({
+    async getFloorplan(staffToken: string): Promise<ScannerFloorplanResponse> {
+      return request<ScannerFloorplanResponse>({
         method: 'GET',
         path: `/api/v1/scanner/${segment(staffToken)}/floorplan`,
         credentials: 'omit',

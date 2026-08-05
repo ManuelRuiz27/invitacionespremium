@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import type { ApiClient } from '@invitaciones/api-client';
-import { Box, Typography, CircularProgress, Alert } from '@mui/material';
-import { useScannerSession, useScannerMutations } from '../hooks/useScannerQueries';
+import { Box, Typography, CircularProgress, Alert, Tabs, Tab } from '@mui/material';
+import { useScannerSession, useScannerMutations, useScannerFloorplan } from '../hooks/useScannerQueries';
 import { useScannerRealtime } from '../hooks/useScannerRealtime';
 import { CameraReader } from '../components/CameraReader';
 import { ScanResultPanel, type ScannerScanResponseDto } from '../components/ScanResultPanel';
+import { ScannerSearchPanel } from '../components/ScannerSearchPanel';
+import { ScannerFloorplan } from '../components/ScannerFloorplan';
 
 export interface ScannerSessionPageProps {
   apiClient: ApiClient;
@@ -14,11 +16,13 @@ export interface ScannerSessionPageProps {
 export function ScannerSessionPage({ apiClient }: ScannerSessionPageProps) {
   const { staffToken } = useParams<{ staffToken: string }>();
   const [scanResult, setScanResult] = useState<ScannerScanResponseDto | null>(null);
+  const [currentTab, setCurrentTab] = useState(0);
 
   const { data: sessionData, error, isLoading, refetch } = useScannerSession(apiClient, staffToken!);
+  const { data: floorplanData } = useScannerFloorplan(apiClient, staffToken!);
   useScannerRealtime(staffToken!, sessionData);
 
-  const { scanMutation, checkInMutation } = useScannerMutations(apiClient, staffToken!);
+  const { scanMutation, checkInMutation, searchMutation } = useScannerMutations(apiClient, staffToken!);
 
   const handleScan = (qrData: string) => {
     if (scanResult || scanMutation.isPending) return;
@@ -49,11 +53,6 @@ export function ScannerSessionPage({ apiClient }: ScannerSessionPageProps) {
         alert('Hubo un error al registrar el ingreso.');
       }
     });
-  };
-
-  const handleCancel = () => {
-    setScanResult(null);
-    scanMutation.reset();
   };
 
   if (!staffToken) {
@@ -93,37 +92,67 @@ export function ScannerSessionPage({ apiClient }: ScannerSessionPageProps) {
         </Typography>
       </Box>
 
-      <Box>
-          {!scanResult && (
-            <CameraReader onScan={handleScan} paused={scanMutation.isPending} />
-          )}
-          
-          {scanMutation.isPending && !scanResult && (
-            <Box sx={{ textAlign: 'center', mt: 2 }}>
-              <CircularProgress size={30} />
-              <Typography>Procesando código...</Typography>
-            </Box>
-          )}
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+        <Tabs value={currentTab} onChange={(_e, v) => setCurrentTab(v)} variant="fullWidth">
+          <Tab label="Cámara" />
+          <Tab label="Buscar" />
+          {sessionData?.event?.floorplanEnabled && <Tab label="Croquis" />}
+        </Tabs>
+      </Box>
 
-          {scanMutation.isError && !scanResult && (
-            <Box sx={{ mt: 2 }}>
-              <Alert 
-                severity="error" 
-                onClose={() => scanMutation.reset()}
-              >
-                Error al procesar el código: {(scanMutation.error as { body?: { message?: string } })?.body?.message || 'Inválido'}
-              </Alert>
-            </Box>
-          )}
+      <Box sx={{ flexGrow: 1 }}>
+        {currentTab === 0 && (
+          <Box>
+            {!scanResult && (
+              <CameraReader onScan={handleScan} paused={scanMutation.isPending} />
+            )}
 
-          {scanResult && (
-            <ScanResultPanel 
-              scanResult={scanResult} 
-              onCheckIn={handleCheckIn} 
-              onCancel={handleCancel}
-              isLoading={checkInMutation.isPending}
-            />
-          )}
+            {scanMutation.isPending && !scanResult && (
+              <Box sx={{ textAlign: 'center', mt: 2 }}>
+                <CircularProgress size={30} />
+                <Typography>Procesando código...</Typography>
+              </Box>
+            )}
+
+            {scanMutation.isError && !scanResult && (
+              <Box sx={{ mt: 2 }}>
+                <Alert 
+                  severity="error" 
+                  onClose={() => scanMutation.reset()}
+                >
+                  Error al procesar el código: {(scanMutation.error as { body?: { message?: string } })?.body?.message || 'Inválido'}
+                </Alert>
+              </Box>
+            )}
+
+            {scanResult && (
+              <ScanResultPanel
+                scanResult={scanResult}
+                onCheckIn={handleCheckIn}
+                onCancel={() => setScanResult(null)}
+                isLoading={checkInMutation.isPending}
+              />
+            )}
+          </Box>
+        )}
+
+        {currentTab === 1 && (
+          <ScannerSearchPanel
+            onSearch={(q) => searchMutation.mutate(q)}
+            isLoading={searchMutation.isPending}
+            result={searchMutation.data || null}
+            error={searchMutation.error}
+            onSelectResult={(invitationId) => {
+              // Simular escaneo al seleccionar un resultado
+              scanMutation.mutate(invitationId);
+              setCurrentTab(0);
+            }}
+          />
+        )}
+
+        {currentTab === 2 && sessionData?.event?.floorplanEnabled && (
+          <ScannerFloorplan floorplan={floorplanData || null} />
+        )}
       </Box>
     </Box>
   );

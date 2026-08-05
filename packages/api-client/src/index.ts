@@ -35,6 +35,16 @@ export type {
   EventStatus,
   UpdateEventInput
 } from './events';
+export type {
+  ScannerSessionResponse,
+  ScannerCheckInRequest,
+  ScannerCheckInResponse,
+  CheckInRevertResponse,
+  ScannerSearchResponse,
+  ScanPhysicalPassResponse,
+  ScannerFloorplanResponse,
+  ScannerScanResponse
+} from './scanner';
 export type { FinanceBalance, FinanceClient, FinanceListOptions, LedgerMovement, Receipt } from './finance';
 export type {
   PublicAlbum,
