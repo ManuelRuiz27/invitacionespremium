@@ -2,7 +2,7 @@
 
 ## Estado del corte
 
-- Commit técnico probado: `af23b81`.
+- Commit técnico probado: `e240f68`.
 - Rama: `fix/codex-131-audit-remediation`.
 - Ambiente automatizado: workspace local Windows, Node.js y pnpm definidos por el monorepo, API y
   PostgreSQL locales para las pruebas de integración.
@@ -60,6 +60,8 @@ tipados. Cubre:
 
 - Scanner dependía transitivamente del SDK y conservaba tipos obsoletos de React Router: se declararon
   y limpiaron las dependencias y el lockfile.
+- Scanner usaba nombres de variables de entorno no documentados y duplicaba `/api/v1` respecto del
+  `baseUrl` estándar: ahora usa `VITE_API_BASE_URL`, `VITE_SOCKET_URL` y rutas relativas del SDK.
 - El cliente Scanner se inyectaba mediante casts, no validaba respuestas y omitía `Idempotency-Key`:
   `createApiClient().scanner` ahora es completo, obligatorio, validado y tipado.
 - La búsqueda enviaba un UUID de Invitación a `/scan`: ahora consume directamente
