@@ -1,77 +1,94 @@
 import { useState } from 'react';
-import { Box, TextField, Button, Typography, List, ListItem, ListItemText, CircularProgress, Alert } from '@mui/material';
-
-export interface ScannerSearchResponse {
-  status: 'MATCHES' | 'NO_MATCHES';
-  results: {
-    confirmedCount: number;
-    checkedInCount: number;
-    invitation: { id: string; name: string };
-  }[];
-}
+import type { ScannerInvitationResult, ScannerSearchResponse } from '@invitaciones/api-client';
+import {
+  Alert,
+  Box,
+  Button,
+  CircularProgress,
+  List,
+  ListItemButton,
+  ListItemText,
+  Stack,
+  TextField,
+  Typography
+} from '@mui/material';
 
 export interface ScannerSearchPanelProps {
   onSearch: (query: string) => void;
   isLoading: boolean;
   result: ScannerSearchResponse | null;
-  error: unknown;
-  onSelectResult: (invitationId: string) => void;
+  errorMessage?: string | null;
+  onSelectResult: (result: ScannerInvitationResult) => void;
 }
 
-export function ScannerSearchPanel({ onSearch, isLoading, result, error, onSelectResult }: ScannerSearchPanelProps) {
+export function ScannerSearchPanel({
+  onSearch,
+  isLoading,
+  result,
+  errorMessage,
+  onSelectResult
+}: ScannerSearchPanelProps) {
   const [query, setQuery] = useState('');
-
-  const handleSearch = () => {
-    if (query.trim()) {
-      onSearch(query.trim());
-    }
+  const submit = () => {
+    const normalized = query.trim().replace(/\s+/g, ' ');
+    if (normalized) onSearch(normalized);
   };
 
   return (
-    <Box sx={{ p: 2 }}>
-      <Typography variant="h6" sx={{ mb: 2 }}>Búsqueda Manual</Typography>
-      <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+    <Box component="section" aria-labelledby="manual-search-title">
+      <Typography id="manual-search-title" variant="h2" sx={{ mb: 2 }}>
+        Búsqueda exacta
+      </Typography>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
         <TextField
           fullWidth
-          size="small"
-          placeholder="Nombre o ID..."
+          label="Nombre exacto del Contacto o Asistente"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+          slotProps={{ htmlInput: { maxLength: 160 } }}
+          onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') submit();
+          }}
         />
-        <Button variant="contained" onClick={handleSearch} disabled={isLoading || !query.trim()}>
+        <Button
+          variant="contained"
+          size="large"
+          onClick={submit}
+          disabled={isLoading || !query.trim()}
+          sx={{ minHeight: 48 }}
+        >
           Buscar
         </Button>
-      </Box>
-
-      {isLoading && <CircularProgress sx={{ display: 'block', mx: 'auto', mt: 2 }} />}
-
-      {Boolean(error) && (
+      </Stack>
+      {isLoading ? <CircularProgress aria-label="Buscando" sx={{ display: 'block', mx: 'auto', mt: 3 }} /> : null}
+      {errorMessage ? (
         <Alert severity="error" sx={{ mt: 2 }}>
-          {((error as { body?: { message?: string } })?.body?.message) || 'Error al buscar'}
+          {errorMessage}
         </Alert>
-      )}
-
-      {result && result.status === 'NO_MATCHES' && (
-        <Alert severity="info" sx={{ mt: 2 }}>No se encontraron coincidencias.</Alert>
-      )}
-
-      {result && result.status === 'MATCHES' && result.results.length > 0 && (
-        <List sx={{ mt: 2 }}>
-          {result.results.map((r: { invitation: { id: string, name: string }, confirmedCount: number, checkedInCount: number }) => (
-            <ListItem 
-              key={r.invitation.id} 
-              sx={{ border: '1px solid #ddd', borderRadius: 1, mb: 1, cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
-              onClick={() => onSelectResult(r.invitation.id)}
+      ) : null}
+      {result?.status === 'NO_MATCHES' ? (
+        <Alert severity="info" sx={{ mt: 2 }}>
+          No se encontraron coincidencias exactas.
+        </Alert>
+      ) : null}
+      {result?.status === 'MATCHES' ? (
+        <List aria-label="Resultados de búsqueda" sx={{ mt: 2 }}>
+          {result.results.map((item) => (
+            <ListItemButton
+              key={item.invitation.id}
+              onClick={() => onSelectResult(item)}
+              sx={{ border: 1, borderColor: 'divider', borderRadius: 1, mb: 1, minHeight: 56 }}
             >
-              <ListItemText 
-                primary={r.invitation.name || 'Invitación Sin Nombre'} 
-                secondary={`Pendientes: ${r.confirmedCount - r.checkedInCount}`}
+              <ListItemText
+                primary={
+                  item.pendingAssistants.map((assistant) => assistant.name).join(', ') || 'Sin Asistentes pendientes'
+                }
+                secondary={`${item.pendingCount} pendiente(s) de ${item.confirmedCount} confirmado(s)`}
               />
-            </ListItem>
+            </ListItemButton>
           ))}
         </List>
-      )}
+      ) : null}
     </Box>
   );
 }

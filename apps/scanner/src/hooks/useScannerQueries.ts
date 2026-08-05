@@ -1,5 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { ApiClient } from '@invitaciones/api-client';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import type { ApiClient, ScannerCheckInRequest } from '@invitaciones/api-client';
 
 export const scannerKeys = {
   all: ['scanner'] as const,
@@ -10,49 +10,37 @@ export const scannerKeys = {
 export function useScannerSession(apiClient: ApiClient, staffToken: string) {
   return useQuery({
     queryKey: scannerKeys.session(staffToken),
-    queryFn: () => apiClient.scanner!.getSession(staffToken),
-    retry: (failureCount, error: unknown) => {
-      // No reintentar si el token es inválido o revocado
-      const status = (error as { status?: number })?.status;
-      if (status === 401 || status === 403) return false;
-      return failureCount < 2;
-    }
+    queryFn: ({ signal }) => apiClient.scanner.getSession(staffToken, signal),
+    enabled: Boolean(staffToken),
+    retry: (failureCount, error) =>
+      !('status' in Object(error)) || ![401, 403, 409].includes(Number(Object(error).status)) ? failureCount < 2 : false
   });
 }
 
-export function useScannerFloorplan(apiClient: ApiClient, staffToken: string) {
+export function useScannerFloorplan(apiClient: ApiClient, staffToken: string, enabled: boolean) {
   return useQuery({
     queryKey: scannerKeys.floorplan(staffToken),
-    queryFn: () => apiClient.scanner!.getFloorplan(staffToken),
+    queryFn: ({ signal }) => apiClient.scanner.getFloorplan(staffToken, signal),
+    enabled: Boolean(staffToken) && enabled,
     staleTime: 10 * 60 * 1000,
-    retry: 1
+    retry: false
   });
 }
 
 export function useScannerMutations(apiClient: ApiClient, staffToken: string) {
-  const _queryClient = useQueryClient();
-
   const scanMutation = useMutation({
-    mutationFn: (qrContent: string) => apiClient.scanner!.scan(staffToken, qrContent)
+    mutationFn: (qrToken: string) => apiClient.scanner.scan(staffToken, qrToken)
   });
-
   const checkInMutation = useMutation({
-    mutationFn: (payload: { invitationId: string; assistantIds: string[] }) =>
-      apiClient.scanner!.checkIn(staffToken, payload)
+    mutationFn: ({ idempotencyKey, payload }: { idempotencyKey: string; payload: ScannerCheckInRequest }) =>
+      apiClient.scanner.checkIn(staffToken, idempotencyKey, payload)
   });
-
   const scanPhysicalPassMutation = useMutation({
-    mutationFn: (qrContent: string) => apiClient.scanner!.scanPhysicalPass(staffToken, qrContent)
+    mutationFn: ({ idempotencyKey, qrToken }: { idempotencyKey: string; qrToken: string }) =>
+      apiClient.scanner.scanPhysicalPass(staffToken, idempotencyKey, qrToken)
   });
-
   const searchMutation = useMutation({
-    mutationFn: (query: string) => apiClient.scanner!.search(staffToken, query)
+    mutationFn: (query: string) => apiClient.scanner.search(staffToken, query)
   });
-
-  return {
-    scanMutation,
-    checkInMutation,
-    scanPhysicalPassMutation,
-    searchMutation
-  };
+  return { scanMutation, checkInMutation, scanPhysicalPassMutation, searchMutation };
 }

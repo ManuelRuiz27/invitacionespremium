@@ -5,7 +5,7 @@ export interface ScannerEnv {
 
 export function readScannerEnv(): ScannerEnv {
   return {
-    apiBaseUrl: import.meta.env.VITE_API_URL || 'http://localhost:3000',
-    wsBaseUrl: import.meta.env.VITE_WS_URL || 'http://localhost:3001'
+    apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1',
+    wsBaseUrl: import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000'
   };
 }
