@@ -498,7 +498,10 @@ persistir datos. El demo es una simulación visual sin backend, creación de Eve
 ni accesos reales. Producción exige URLs HTTP/HTTPS explícitas y omite canonical/`og:url` si no existe
 una URL pública válida. Demo y modal se cargan dinámicamente.
 
-`CODEX-131`, `CODEX-140` y `CODEX-141` no se iniciaron. Configuracion tampoco fue iniciada.
+`CODEX-131 — Microapp Scanner` está **EN PROGRESO**. La implementación técnica fue corregida y quedó
+sincronizada con OpenAPI, el SDK generado y los contratos especializados. Permanece pendiente de
+aceptación mediante prueba física HTTPS en un teléfono real; no existe evidencia de dispositivo para
+marcarla como aceptada o completada. `CODEX-140`, `CODEX-141` y Configuración no se iniciaron.
 
 ## Fuente de verdad
 

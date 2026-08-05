@@ -1072,6 +1072,8 @@ Pendiente de un corte posterior: configuracion. CODEX-130 permanece EN PROGRESO.
 
 ### CODEX-131 — Microapp Scanner
 
+**Estado:** EN PROGRESO
+
 **Repo:** `invitacionespremium-scanner`
 
 **Dependencias:** CODEX-080, CODEX-081, CODEX-082, CODEX-090
@@ -1093,6 +1095,11 @@ Pendiente de un corte posterior: configuracion. CODEX-130 permanece EN PROGRESO.
 - no muestra ya ingresados como pendientes;
 - cierre/cancelación bloquea UI;
 - funciona en teléfono real con internet.
+
+La implementación técnica fue corregida y sincronizada con OpenAPI, el SDK generado y las pruebas
+automatizadas. Permanece pendiente de aceptación mediante prueba física HTTPS en teléfono real. Sin
+evidencia de Android o iPhone físico, permiso de cámara, QR y check-in reales, reintento, cierre o
+cancelación y conectividad real, no puede marcarse como ACEPTADO ni COMPLETADO.
 
 ### CODEX-132 — Landing pública
 
@@ -1135,7 +1142,7 @@ Pendiente de un corte posterior: configuracion. CODEX-130 permanece EN PROGRESO.
 
 `CODEX-130A` y `CODEX-130B` permanecen aceptados. `CODEX-130C` esta implementado y pendiente de
 aceptacion. `CODEX-130` permanece en progreso porque falta Configuracion. `CODEX-132` esta aceptado.
-`CODEX-131`, `CODEX-140` y `CODEX-141` no se iniciaron.
+`CODEX-131` está en progreso y pendiente de QA física. `CODEX-140` y `CODEX-141` no se iniciaron.
 
 ---
 
