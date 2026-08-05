@@ -95,11 +95,28 @@ export const landingTokens = {
       background: '#FFFFFF',
       border: '1px solid rgba(255, 255, 255, 0.1)',
       shadow: '0 24px 64px rgba(0, 0, 0, 0.3)'
+    },
+    heroExperienceGlass: {
+      background: 'rgba(255, 255, 255, 0.4)',
+      border: '1px solid rgba(255, 255, 255, 0.6)'
+    },
+    invitationLayer: {
+      background: '#FFFFFF',
+      border: '1px solid #E5E7EB'
+    },
+    demoSceneLight: {
+      background: '#FFFFFF',
+      mutedBlock: 'rgba(0,0,0,0.05)'
+    },
+    darkInset: {
+      background: 'rgba(255, 255, 255, 0.05)',
+      border: '1px solid rgba(255, 255, 255, 0.1)'
     }
   },
 
   borders: {
-    editorial: '1px solid #E5E7EB'
+    editorial: '1px solid #E5E7EB',
+    darkSubtle: '1px solid rgba(255, 255, 255, 0.1)'
   },
 
   radius: {
@@ -113,7 +130,8 @@ export const landingTokens = {
     soft: designTokens.shadow.soft,
     elevated: '0 8px 32px rgba(23, 35, 60, 0.12)',
     subtle: '0 2px 8px rgba(23, 35, 60, 0.06)',
-    productLayer: '0 8px 24px rgba(23, 35, 60, 0.06)'
+    productLayer: '0 8px 24px rgba(23, 35, 60, 0.06)',
+    invitationLayer: '0 8px 32px rgba(0,0,0,0.4)'
   },
 
   spacing: {

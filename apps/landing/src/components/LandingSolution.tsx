@@ -39,7 +39,7 @@ export function LandingSolution() {
                 p: { xs: 4, md: 6 },
                 bgcolor: 'background.paper',
                 borderRadius: 4,
-                border: `1px solid ${landingTokens.borders.editorial}`,
+                border: landingTokens.borders.editorial,
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'center'
@@ -83,14 +83,7 @@ export function LandingSolution() {
               </Typography>
 
               {/* Natural integration of ruleNotice */}
-              <Box
-                sx={{
-                  p: 3,
-                  bgcolor: 'rgba(255,255,255,0.05)',
-                  borderRadius: 3,
-                  border: '1px solid rgba(255,255,255,0.1)'
-                }}
-              >
+              <Box sx={{ p: 3, bgcolor: landingTokens.surfaces.darkInset.background, borderRadius: 3, border: landingTokens.surfaces.darkInset.border }}>
                 <Typography
                   variant="subtitle2"
                   sx={{ fontWeight: 700, color: landingTokens.colors.darkSurface.accent }}
@@ -116,7 +109,7 @@ export function LandingSolution() {
                   p: { xs: 4, md: 5 },
                   bgcolor: 'background.paper',
                   borderRadius: 4,
-                  border: `1px solid ${landingTokens.borders.editorial}`,
+                  border: landingTokens.borders.editorial,
                   display: 'flex',
                   flexDirection: 'column'
                 }}

@@ -26,6 +26,103 @@ describe('Landing commercial content', () => {
     expect(JSON.stringify(content)).not.toContain(legacyBrand);
   });
 
+  it('contains the exact authorized commercial copy', () => {
+    expect(content.hero).toEqual({
+      badge: 'Invitaciones digitales y control de acceso para Eventos',
+      title: 'Haz que tu Evento se sienta organizado desde la primera Invitación',
+      subtitle:
+        'Crea una experiencia cuidada para tus Invitados y mantén Confirmaciones, Mesas y accesos bajo control desde un solo lugar.',
+      primaryCta: 'Registrarme como Planner',
+      secondaryCta: 'Iniciar sesión'
+    });
+
+    expect(content.problem).toEqual({
+      title: 'Organizar un Evento no debería significar perseguir mensajes y listas',
+      subtitle:
+        'Cuando la información está dispersa, cada cambio complica la experiencia de tus Invitados y de tu equipo.',
+      items: [
+        {
+          title: 'Respuestas por todos lados',
+          description:
+            'Confirmaciones, cambios y acompañantes terminan repartidos entre chats y listas difíciles de mantener al día.'
+        },
+        {
+          title: 'Una recepción que empieza con fricción',
+          description: 'Buscar nombres manualmente retrasa el ingreso y hace más difícil ofrecer una bienvenida ágil.'
+        },
+        {
+          title: 'Decisiones sin una vista clara',
+          description:
+            'Sin información actualizada es complicado coordinar asistencia, Mesas y accesos durante el Evento.'
+        }
+      ]
+    });
+
+    expect(content.solution).toEqual({
+      title: 'Una experiencia clara para tus Invitados. Control real para tu equipo',
+      subtitle: 'Conecta Invitación, Confirmación, Mesas y acceso dentro de un mismo flujo.',
+      ruleNotice: 'Cada Invitación utiliza un QR único y el ingreso se registra por Asistente.',
+      pillars: [
+        {
+          title: 'Una Invitación que representa tu Evento',
+          description:
+            'Presenta la información esencial y las acciones importantes dentro de una experiencia digital cuidada.'
+        },
+        {
+          title: 'Confirmaciones fáciles de seguir',
+          description: 'Consulta quién asistirá y los acompañantes permitidos sin depender de conversaciones dispersas.'
+        },
+        {
+          title: 'Mesas organizadas en un mismo lugar',
+          description: 'Asigna a cada Asistente y consulta la distribución del Evento desde una vista central.'
+        },
+        {
+          title: 'Una recepción más ágil',
+          description: 'Tu equipo accede de forma temporal y registra el ingreso de cada Asistente desde la Invitación.'
+        },
+        {
+          title: 'Un cierre que también forma parte de la experiencia',
+          description: 'Entrega un Álbum post-Evento a los asistentes y conserva el resumen operativo del Evento.'
+        }
+      ]
+    });
+
+    expect(content.demo).toEqual({
+      label: 'Recorrido visual',
+      title: 'Mira cómo se vive el Evento antes de operarlo',
+      subtitle: 'Explora una experiencia visual desde la Invitación hasta la recepción, sin crear un Evento real.',
+      disclaimer:
+        'Esta demostración es una simulación visual: no usa backend, no crea Eventos, no consume créditos y no genera accesos reales.',
+      scenes: [
+        {
+          code: 'INVITATION',
+          label: 'Invitación',
+          title: 'Una primera impresión a la altura del Evento',
+          description:
+            'Presenta la información esencial y facilita las acciones importantes dentro de una experiencia cuidada.'
+        },
+        {
+          code: 'CONFIRMATION',
+          label: 'Confirmación',
+          title: 'Respuestas claras, sin perseguir mensajes',
+          description: 'Cada Invitación concentra la asistencia y los acompañantes permitidos.'
+        },
+        {
+          code: 'ACCESS',
+          label: 'Acceso',
+          title: 'Una recepción más ágil',
+          description: 'El equipo consulta la Invitación y registra el ingreso de cada Asistente.'
+        },
+        {
+          code: 'TABLES',
+          label: 'Mesas',
+          title: 'Cada persona en el lugar correcto',
+          description: 'Consulta la asignación y ubica la Mesa desde el mismo flujo de recepción.'
+        }
+      ]
+    });
+  });
+
   it('contains exactly the four documented services', () => {
     expect(content.services.items.map((service) => service.code)).toEqual(['FLIPBOOK', 'FLYER', 'PHYSICAL_QR', 'DEMO']);
   });
@@ -92,19 +189,51 @@ describe('Landing commercial content', () => {
     expect(screen.getByText('0 créditos')).toBeInTheDocument();
   });
 
-  it('renders a single h1 and the accessible demo tabs', () => {
-    const app = renderWithTheme(<App />);
-    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
-    app.unmount();
-
+  it('renders LandingDemoMock obeying strict commercial rules', () => {
     renderWithTheme(<LandingDemoMock />);
-    expect(screen.getByRole('tablist', { name: content.demo.label })).toBeInTheDocument();
-    expect(screen.getByText(content.demo.disclaimer)).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: content.demo.title, level: 2 })).toBeInTheDocument();
+    
+    const section = document.getElementById('demo');
+    expect(section).toBeInTheDocument();
+    
+    const headings = screen.getAllByRole('heading', { level: 2 });
+    expect(headings).toHaveLength(1);
+    const h2 = headings[0]!;
+    expect(h2.id).not.toBe('');
+    expect(section).toHaveAttribute('aria-labelledby', h2.id);
+    
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs).toHaveLength(4);
+    
+    expect(tabs[0]).toHaveTextContent('Invitación');
+    expect(tabs[1]).toHaveTextContent('Confirmación');
+    expect(tabs[2]).toHaveTextContent('Acceso');
+    expect(tabs[3]).toHaveTextContent('Mesas');
+    
+    const panels = screen.getAllByRole('tabpanel', { hidden: true });
+    expect(panels).toHaveLength(4);
+    
+    const selectedTabs = tabs.filter(tab => tab.getAttribute('aria-selected') === 'true');
+    expect(selectedTabs).toHaveLength(1);
+    
+    const visiblePanels = panels.filter(panel => !panel.hasAttribute('hidden'));
+    expect(visiblePanels).toHaveLength(1);
 
-    // Assert there is no dummy data
-    expect(screen.queryByText(/Fam. Mendoza/i)).not.toBeInTheDocument();
+    tabs.forEach(tab => expect(tab).toHaveAttribute('aria-controls'));
+    panels.forEach(panel => expect(panel).toHaveAttribute('aria-labelledby'));
+    
+    fireEvent.click(tabs[1]!);
+    expect(tabs[1]).toHaveAttribute('aria-selected', 'true');
+    expect(panels[1]).not.toHaveAttribute('hidden');
+    expect(panels[0]).toHaveAttribute('hidden');
+    
+    const forbidden = ['Fam. Mendoza', 'Carlos Mendoza', 'Lucía García', 'Sofía', 'Mateo', 'Hotspot', 'Reiniciar Demo', 'StaffTokens', 'Check-in:'];
+    for (const text of forbidden) {
+      expect(screen.queryByText(new RegExp(text, 'i'))).not.toBeInTheDocument();
+    }
+    
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(document.querySelector('form')).toBeNull();
   });
 
   it('does not publish localhost URLs in production without explicit configuration', () => {
@@ -236,12 +365,32 @@ describe('Landing accessibility and navigation', () => {
   });
 
   it('hero preserves content from landing-config', () => {
-    renderWithTheme(<LandingHero onOpenRegister={vi.fn()} />);
+    const handleRegister = vi.fn();
+    renderWithTheme(<LandingHero onOpenRegister={handleRegister} />);
     expect(screen.getByText(content.hero.badge)).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(content.hero.title);
+    
+    const h1s = screen.getAllByRole('heading', { level: 1 });
+    expect(h1s).toHaveLength(1);
+    expect(h1s[0]).toHaveTextContent(content.hero.title);
+    
     expect(screen.getByText(content.hero.subtitle)).toBeInTheDocument();
-    expect(screen.getByText(content.hero.primaryCta)).toBeInTheDocument();
-    expect(screen.getByText(content.hero.secondaryCta)).toBeInTheDocument();
+    
+    const primaryBtn = screen.getByRole('button', { name: content.hero.primaryCta });
+    const secondaryLink = screen.getByRole('link', { name: content.hero.secondaryCta });
+    expect(primaryBtn).toBeInTheDocument();
+    expect(secondaryLink).toBeInTheDocument();
+    
+    fireEvent.click(primaryBtn);
+    expect(handleRegister).toHaveBeenCalledOnce();
+
+    expect(screen.queryByText(content.brand.tagline)).not.toBeInTheDocument();
+    expect(screen.queryByText(content.solution.ruleNotice)).not.toBeInTheDocument();
+    const demoTitles: string[] = content.demo.scenes.map(s => s.title);
+    for (const pillar of content.solution.pillars) {
+      if (!demoTitles.includes(pillar.title)) {
+        expect(screen.queryByText(pillar.title)).not.toBeInTheDocument();
+      }
+    }
   });
 
   it('hero product stage renders LandingHeroExperience from config', () => {
@@ -272,6 +421,45 @@ describe('Landing accessibility and navigation', () => {
     }
     expect(within(drawer).getByText('Registrarme como Planner')).toBeInTheDocument();
     expect(within(drawer).getByText(content.hero.secondaryCta)).toBeInTheDocument();
+  });
+
+  it('renders components in correct order: Hero, Demo, Problem, Solution, Services', async () => {
+    renderWithTheme(<App />);
+    
+    await screen.findByRole('heading', {
+      level: 2,
+      name: content.demo.title
+    });
+    
+    const heroHeading = screen.getByRole('heading', {
+      level: 1,
+      name: content.hero.title
+    });
+
+    const demoHeading = screen.getByRole('heading', {
+      level: 2,
+      name: content.demo.title
+    });
+
+    const problemHeading = screen.getByRole('heading', {
+      level: 2,
+      name: content.problem.title
+    });
+
+    const solutionHeading = screen.getByRole('heading', {
+      level: 2,
+      name: content.solution.title
+    });
+
+    const servicesHeading = screen.getByRole('heading', {
+      level: 2,
+      name: content.services.title
+    });
+    
+    expect(heroHeading.compareDocumentPosition(demoHeading)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(demoHeading.compareDocumentPosition(problemHeading)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(problemHeading.compareDocumentPosition(solutionHeading)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(solutionHeading.compareDocumentPosition(servicesHeading)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 });
 

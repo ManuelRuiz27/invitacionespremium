@@ -1,4 +1,4 @@
-import { Box, Paper, Tab, Tabs, Typography } from '@mui/material';
+import { Box, Paper, Tab, Tabs, Typography, useTheme } from '@mui/material';
 import { useState, type ReactNode } from 'react';
 import { getLandingConfig } from '../config/landing-config';
 import { LandingContainer, LandingSectionIntro } from './primitives';
@@ -22,6 +22,7 @@ function DemoPanel({
   children: ReactNode;
   id: string;
 }) {
+  const theme = useTheme();
   return (
     <Box
       role="tabpanel"
@@ -33,7 +34,7 @@ function DemoPanel({
         display: active ? 'block' : 'none',
         outline: 'none',
         '&:focus-visible': {
-          boxShadow: (theme) => `0 0 0 3px ${theme.palette.primary.main}`
+          boxShadow: `0 0 0 3px ${theme.palette.primary.main}`
         },
         '@media (prefers-reduced-motion: no-preference)': {
           animation: 'fadeIn 0.3s ease-out',
@@ -61,7 +62,7 @@ export function LandingDemoMock() {
   ];
 
   return (
-    <Box component="section" aria-labelledby={headingId} sx={{ py: { xs: 8, md: 12 }, bgcolor: 'background.paper' }}>
+    <Box id="demo" component="section" aria-labelledby={headingId} sx={{ py: { xs: 8, md: 12 }, bgcolor: 'background.paper' }}>
       <LandingContainer>
         <LandingSectionIntro
           headingId={headingId}
@@ -163,27 +164,27 @@ export function LandingDemoMock() {
                     }}
                   >
                     {/* Abstract Visual Representation Based on Scene */}
-                    {index === 0 && (
+                    {scene.code === 'INVITATION' && (
                       <Box
                         sx={{
                           width: '60%',
                           height: '70%',
-                          bgcolor: '#FFF',
+                          bgcolor: landingTokens.surfaces.demoSceneLight.background,
                           borderRadius: 2,
                           p: 3,
                           display: 'flex',
                           flexDirection: 'column',
                           gap: 2,
-                          boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
+                          boxShadow: landingTokens.shadows.invitationLayer
                         }}
                       >
                         <Box sx={{ width: '40%', height: 12, bgcolor: 'primary.main', borderRadius: 1 }} />
-                        <Box sx={{ width: '80%', height: 32, bgcolor: 'rgba(0,0,0,0.05)', borderRadius: 1 }} />
+                        <Box sx={{ width: '80%', height: 32, bgcolor: landingTokens.surfaces.demoSceneLight.mutedBlock, borderRadius: 1 }} />
                         <Box sx={{ flexGrow: 1 }} />
                         <Box sx={{ width: '100%', height: 40, bgcolor: 'primary.main', borderRadius: 1 }} />
                       </Box>
                     )}
-                    {index === 1 && (
+                    {scene.code === 'CONFIRMATION' && (
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, width: '70%' }}>
                         {[1, 2, 3].map((i) => (
                           <Box
@@ -191,7 +192,7 @@ export function LandingDemoMock() {
                             sx={{
                               width: '100%',
                               p: 2,
-                              bgcolor: '#FFF',
+                              bgcolor: landingTokens.surfaces.demoSceneLight.background,
                               borderRadius: 2,
                               display: 'flex',
                               alignItems: 'center',
@@ -208,42 +209,43 @@ export function LandingDemoMock() {
                                   opacity: 0.1
                                 }}
                               />
-                              <Box sx={{ width: 100, height: 12, bgcolor: 'rgba(0,0,0,0.05)', borderRadius: 1 }} />
+                              <Box sx={{ width: 100, height: 12, bgcolor: landingTokens.surfaces.demoSceneLight.mutedBlock, borderRadius: 1 }} />
                             </Box>
                             <CheckCircleIcon color="success" sx={{ opacity: 0.8 }} />
                           </Box>
                         ))}
                       </Box>
                     )}
-                    {index === 2 && (
+                    {scene.code === 'ACCESS' && (
                       <Box sx={{ textAlign: 'center' }}>
-                        <QrCode2Icon sx={{ fontSize: 120, color: '#FFF', opacity: 0.9 }} />
+                        <QrCode2Icon sx={{ fontSize: 120, color: landingTokens.colors.darkSurface.textPrimary, opacity: 0.9 }} />
                         <Box
                           sx={{
                             mt: 3,
                             width: 160,
                             height: 8,
-                            bgcolor: 'rgba(255,255,255,0.1)',
+                            bgcolor: landingTokens.colors.darkSurface.accent,
+                            opacity: 0.2,
                             borderRadius: 1,
                             mx: 'auto'
                           }}
                         />
                       </Box>
                     )}
-                    {index === 3 && (
+                    {scene.code === 'TABLES' && (
                       <Box
                         sx={{
                           position: 'relative',
                           width: 200,
                           height: 200,
                           borderRadius: '50%',
-                          border: '2px dashed rgba(255,255,255,0.2)',
+                          border: `2px dashed ${landingTokens.colors.darkSurface.divider}`,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center'
                         }}
                       >
-                        <TableBarIcon sx={{ fontSize: 64, color: '#FFF', opacity: 0.5 }} />
+                        <TableBarIcon sx={{ fontSize: 64, color: landingTokens.colors.darkSurface.textPrimary, opacity: 0.5 }} />
                         {[0, 60, 120, 180, 240, 300].map((deg) => (
                           <Box
                             key={deg}

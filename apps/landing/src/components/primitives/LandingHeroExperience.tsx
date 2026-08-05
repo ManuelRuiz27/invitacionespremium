@@ -11,6 +11,11 @@ export interface LandingHeroExperienceProps {
 }
 
 export function LandingHeroExperience({ config }: LandingHeroExperienceProps) {
+  const invitationScene = config.demo.scenes.find((scene) => scene.code === 'INVITATION');
+  const confirmationScene = config.demo.scenes.find((scene) => scene.code === 'CONFIRMATION');
+  const accessScene = config.demo.scenes.find((scene) => scene.code === 'ACCESS');
+  const tablesScene = config.demo.scenes.find((scene) => scene.code === 'TABLES');
+
   return (
     <Box
       sx={{
@@ -34,8 +39,8 @@ export function LandingHeroExperience({ config }: LandingHeroExperienceProps) {
           width: '60%',
           p: 3,
           borderRadius: 4,
-          bgcolor: 'rgba(255, 255, 255, 0.4)',
-          border: '1px solid rgba(255, 255, 255, 0.6)',
+          bgcolor: landingTokens.surfaces.heroExperienceGlass.background,
+          border: landingTokens.surfaces.heroExperienceGlass.border,
           backdropFilter: 'blur(8px)',
           transform: 'translateZ(-100px) rotateY(-10deg)',
           display: 'flex',
@@ -47,7 +52,7 @@ export function LandingHeroExperience({ config }: LandingHeroExperienceProps) {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <TableBarIcon sx={{ color: 'primary.main', opacity: 0.6 }} />
           <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase' }}>
-            {config.demo.scenes.find((s) => s.code === 'TABLES')?.label || 'Mesas'}
+            {tablesScene?.label}
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 1 }}>
@@ -77,7 +82,7 @@ export function LandingHeroExperience({ config }: LandingHeroExperienceProps) {
           boxShadow: landingTokens.shadows.elevated
         }}
       >
-        <QrCode2Icon sx={{ fontSize: 64, color: '#FFF' }} />
+        <QrCode2Icon sx={{ fontSize: 64, color: landingTokens.colors.darkSurface.textPrimary }} />
         <Typography
           variant="caption"
           sx={{
@@ -87,7 +92,7 @@ export function LandingHeroExperience({ config }: LandingHeroExperienceProps) {
             textAlign: 'center'
           }}
         >
-          {config.demo.scenes.find((s) => s.code === 'ACCESS')?.title}
+          {accessScene?.title}
         </Typography>
       </Paper>
 
@@ -101,8 +106,8 @@ export function LandingHeroExperience({ config }: LandingHeroExperienceProps) {
           width: '70%',
           p: 4,
           borderRadius: 4,
-          bgcolor: '#FFF',
-          border: '1px solid #E5E7EB',
+          bgcolor: landingTokens.surfaces.invitationLayer.background,
+          border: landingTokens.surfaces.invitationLayer.border,
           transform: 'translateZ(100px)',
           boxShadow: landingTokens.shadows.productLayer,
           display: 'flex',
@@ -114,7 +119,7 @@ export function LandingHeroExperience({ config }: LandingHeroExperienceProps) {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <AutoAwesomeIcon sx={{ color: 'primary.main', fontSize: 20 }} />
             <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.primary' }}>
-              {config.demo.scenes.find((s) => s.code === 'INVITATION')?.label}
+              {invitationScene?.label}
             </Typography>
           </Box>
           <CheckCircleIcon color="success" sx={{ fontSize: 20 }} />
@@ -122,17 +127,17 @@ export function LandingHeroExperience({ config }: LandingHeroExperienceProps) {
 
         <Box>
           <Typography variant="h5" sx={{ fontWeight: 800, mb: 1, color: 'text.primary', lineHeight: 1.2 }}>
-            {config.demo.scenes.find((s) => s.code === 'INVITATION')?.title}
+            {invitationScene?.title}
           </Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.6 }}>
-            {config.demo.scenes.find((s) => s.code === 'CONFIRMATION')?.title}
+            {confirmationScene?.title}
           </Typography>
         </Box>
 
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mt: 1 }}>
-          <Box sx={{ height: 12, width: '100%', bgcolor: 'rgba(0,0,0,0.04)', borderRadius: 1 }} />
-          <Box sx={{ height: 12, width: '80%', bgcolor: 'rgba(0,0,0,0.04)', borderRadius: 1 }} />
-          <Box sx={{ height: 12, width: '60%', bgcolor: 'rgba(0,0,0,0.04)', borderRadius: 1 }} />
+          <Box sx={{ height: 12, width: '100%', bgcolor: landingTokens.surfaces.demoSceneLight.mutedBlock, borderRadius: 1 }} />
+          <Box sx={{ height: 12, width: '80%', bgcolor: landingTokens.surfaces.demoSceneLight.mutedBlock, borderRadius: 1 }} />
+          <Box sx={{ height: 12, width: '60%', bgcolor: landingTokens.surfaces.demoSceneLight.mutedBlock, borderRadius: 1 }} />
         </Box>
       </Paper>
     </Box>

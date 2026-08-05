@@ -12,12 +12,7 @@ export function LandingOrganizations() {
   const headingId = 'landing-organizations-heading';
 
   return (
-    <Box
-      id="organizaciones"
-      component="section"
-      aria-labelledby={headingId}
-      sx={{ py: { xs: 8, md: 12 }, bgcolor: 'background.default' }}
-    >
+    <Box id="organizaciones" component="section" aria-labelledby={headingId} sx={{ py: { xs: 8, md: 12 }, bgcolor: 'background.default' }}>
       <LandingContainer>
         <LandingSectionIntro
           headingId={headingId}
@@ -38,80 +33,29 @@ export function LandingOrganizations() {
         >
           {/* Institutional Notice and Operational Abstract Representation */}
           <Box sx={{ p: { xs: 4, md: 6 }, textAlign: 'center', borderBottom: landingTokens.borders.editorial }}>
-            <Typography
-              variant="body1"
-              sx={{
-                fontWeight: 600,
-                color: 'text.primary',
-                maxWidth: 720,
-                mx: 'auto',
-                fontSize: '1.1rem',
-                lineHeight: 1.6
-              }}
-            >
+
+            <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.primary', maxWidth: 720, mx: 'auto', fontSize: '1.1rem', lineHeight: 1.6 }}>
               {landingContent.organizations.notice}
             </Typography>
-
+            
             {/* Visual Operational Abstract */}
-            <Box
-              sx={{ mt: 5, display: 'flex', justifyContent: 'center', gap: { xs: 1, sm: 2 }, flexWrap: 'wrap' }}
-              aria-hidden="true"
-            >
-              <Box
-                sx={{
-                  width: 140,
-                  height: 100,
-                  bgcolor: 'background.paper',
-                  borderRadius: 3,
-                  border: landingTokens.borders.editorial,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  p: 2,
-                  opacity: 0.6,
-                  transform: 'scale(0.9) translateY(10px)'
-                }}
-              >
-                <Box sx={{ width: '40%', height: 6, bgcolor: 'grey.300', borderRadius: 1, mb: 2 }} />
-                <Box sx={{ width: '100%', height: 4, bgcolor: 'grey.200', borderRadius: 1, mb: 1 }} />
-                <Box sx={{ width: '80%', height: 4, bgcolor: 'grey.200', borderRadius: 1 }} />
-              </Box>
-              <Box
-                sx={{
-                  width: 160,
-                  height: 120,
-                  bgcolor: 'background.paper',
-                  borderRadius: 3,
-                  border: landingTokens.borders.editorial,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  p: 2.5,
-                  boxShadow: landingTokens.shadows.productLayer,
-                  zIndex: 1
-                }}
-              >
-                <Box sx={{ width: '50%', height: 8, bgcolor: 'primary.main', borderRadius: 1, mb: 2.5 }} />
-                <Box sx={{ width: '100%', height: 4, bgcolor: 'grey.300', borderRadius: 1, mb: 1.5 }} />
-                <Box sx={{ width: '100%', height: 4, bgcolor: 'grey.300', borderRadius: 1, mb: 1.5 }} />
-                <Box sx={{ width: '60%', height: 4, bgcolor: 'grey.300', borderRadius: 1 }} />
-              </Box>
-              <Box
-                sx={{
-                  width: 140,
-                  height: 100,
-                  bgcolor: 'background.paper',
-                  borderRadius: 3,
-                  border: landingTokens.borders.editorial,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  p: 2,
-                  opacity: 0.6,
-                  transform: 'scale(0.9) translateY(10px)'
-                }}
-              >
-                <Box sx={{ width: '40%', height: 6, bgcolor: 'grey.300', borderRadius: 1, mb: 2 }} />
-                <Box sx={{ width: '100%', height: 4, bgcolor: 'grey.200', borderRadius: 1, mb: 1 }} />
-                <Box sx={{ width: '80%', height: 4, bgcolor: 'grey.200', borderRadius: 1 }} />
-              </Box>
+            <Box sx={{ mt: 5, display: 'flex', justifyContent: 'center', gap: { xs: 1, sm: 2 }, flexWrap: 'wrap' }} aria-hidden="true">
+               <Box sx={{ width: 140, height: 100, bgcolor: 'background.paper', borderRadius: 3, border: landingTokens.borders.editorial, display: 'flex', flexDirection: 'column', p: 2, opacity: 0.6, transform: 'scale(0.9) translateY(10px)' }}>
+                  <Box sx={{ width: '40%', height: 6, bgcolor: 'grey.300', borderRadius: 1, mb: 2 }} />
+                  <Box sx={{ width: '100%', height: 4, bgcolor: 'grey.200', borderRadius: 1, mb: 1 }} />
+                  <Box sx={{ width: '80%', height: 4, bgcolor: 'grey.200', borderRadius: 1 }} />
+               </Box>
+               <Box sx={{ width: 160, height: 120, bgcolor: 'background.paper', borderRadius: 3, border: landingTokens.borders.editorial, display: 'flex', flexDirection: 'column', p: 2.5, boxShadow: landingTokens.shadows.productLayer, zIndex: 1 }}>
+                  <Box sx={{ width: '50%', height: 8, bgcolor: 'primary.main', borderRadius: 1, mb: 2.5 }} />
+                  <Box sx={{ width: '100%', height: 4, bgcolor: 'grey.300', borderRadius: 1, mb: 1.5 }} />
+                  <Box sx={{ width: '100%', height: 4, bgcolor: 'grey.300', borderRadius: 1, mb: 1.5 }} />
+                  <Box sx={{ width: '60%', height: 4, bgcolor: 'grey.300', borderRadius: 1 }} />
+               </Box>
+               <Box sx={{ width: 140, height: 100, bgcolor: 'background.paper', borderRadius: 3, border: landingTokens.borders.editorial, display: 'flex', flexDirection: 'column', p: 2, opacity: 0.6, transform: 'scale(0.9) translateY(10px)' }}>
+                  <Box sx={{ width: '40%', height: 6, bgcolor: 'grey.300', borderRadius: 1, mb: 2 }} />
+                  <Box sx={{ width: '100%', height: 4, bgcolor: 'grey.200', borderRadius: 1, mb: 1 }} />
+                  <Box sx={{ width: '80%', height: 4, bgcolor: 'grey.200', borderRadius: 1 }} />
+               </Box>
             </Box>
           </Box>
 
@@ -129,17 +73,10 @@ export function LandingOrganizations() {
               >
                 <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2.5 }}>
                   <Box sx={{ color: 'primary.main', mt: 0.5 }}>
-                    {idx === 0 ? (
-                      <SupervisorAccountIcon fontSize="large" aria-hidden="true" />
-                    ) : (
-                      <AccountCircleIcon fontSize="large" aria-hidden="true" />
-                    )}
+                    {idx === 0 ? <SupervisorAccountIcon fontSize="large" aria-hidden="true" /> : <AccountCircleIcon fontSize="large" aria-hidden="true" />}
                   </Box>
                   <Box>
-                    <Typography
-                      variant="h4"
-                      sx={{ fontWeight: 800, fontSize: '1.25rem', mb: 1.5, color: 'text.primary' }}
-                    >
+                    <Typography variant="h4" sx={{ fontWeight: 800, fontSize: '1.25rem', mb: 1.5, color: 'text.primary' }}>
                       {role.name}
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>

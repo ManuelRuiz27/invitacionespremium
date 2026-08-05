@@ -10,12 +10,7 @@ export function LandingPricing() {
   const headingId = 'landing-pricing-heading';
 
   return (
-    <Box
-      id="precios"
-      component="section"
-      aria-labelledby={headingId}
-      sx={{ py: { xs: 8, md: 12 }, bgcolor: 'background.default' }}
-    >
+    <Box id="precios" component="section" aria-labelledby={headingId} sx={{ py: { xs: 8, md: 12 }, bgcolor: 'background.default' }}>
       <LandingContainer>
         <LandingSectionIntro
           headingId={headingId}
@@ -25,10 +20,7 @@ export function LandingPricing() {
         />
 
         <Box sx={{ mb: 4, textAlign: 'center' }}>
-          <Typography
-            variant="body2"
-            sx={{ fontWeight: 600, color: 'text.secondary', letterSpacing: '0.05em', textTransform: 'uppercase' }}
-          >
+          <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.secondary', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
             1 crédito = ${landingContent.pricing.unitValueMxn} MXN
           </Typography>
         </Box>
@@ -80,8 +72,7 @@ export function LandingPricing() {
               sx={{
                 display: 'grid',
                 gridTemplateColumns: { xs: '1fr', md: '340px 1fr 1fr' },
-                borderBottom:
-                  index < landingContent.services.items.length - 1 ? landingTokens.borders.editorial : 'none'
+                borderBottom: index < landingContent.services.items.length - 1 ? landingTokens.borders.editorial : 'none'
               }}
             >
               {/* Service Info */}
@@ -95,39 +86,13 @@ export function LandingPricing() {
               </Box>
 
               {/* Planner Price */}
-              <Box
-                data-client-type="planner"
-                sx={{
-                  p: 4,
-                  borderLeft: { md: landingTokens.borders.editorial },
-                  borderBottom: { xs: landingTokens.borders.editorial, md: 'none' },
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center'
-                }}
-              >
-                <Typography
-                  variant="overline"
-                  sx={{ display: { xs: 'block', md: 'none' }, mb: 1, color: 'text.secondary', fontWeight: 700 }}
-                >
+              <Box data-client-type="planner" sx={{ p: 4, borderLeft: { md: landingTokens.borders.editorial }, borderBottom: { xs: landingTokens.borders.editorial, md: 'none' }, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                <Typography variant="overline" sx={{ display: { xs: 'block', md: 'none' }, mb: 1, color: 'text.secondary', fontWeight: 700 }}>
                   {landingContent.pricing.planner.title}
                 </Typography>
-                <Typography
-                  variant="h3"
-                  sx={{
-                    fontWeight: 800,
-                    fontSize: '2rem',
-                    color: 'primary.main',
-                    mb: 0.5,
-                    display: 'flex',
-                    alignItems: 'baseline',
-                    gap: 1
-                  }}
-                >
+                <Typography variant="h3" sx={{ fontWeight: 800, fontSize: '2rem', color: 'primary.main', mb: 0.5, display: 'flex', alignItems: 'baseline', gap: 1 }}>
                   {service.prices.planner.credits}
-                  <Typography component="span" variant="body1" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                    créditos
-                  </Typography>
+                  <Typography component="span" variant="body1" sx={{ fontWeight: 700, color: 'text.primary' }}>créditos</Typography>
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
                   ${service.prices.planner.mxn} MXN
@@ -135,39 +100,13 @@ export function LandingPricing() {
               </Box>
 
               {/* Organization Price */}
-              <Box
-                data-client-type="organization"
-                sx={{
-                  p: 4,
-                  borderLeft: { md: landingTokens.borders.editorial },
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                  bgcolor: { xs: 'background.paper', md: 'transparent' }
-                }}
-              >
-                <Typography
-                  variant="overline"
-                  sx={{ display: { xs: 'block', md: 'none' }, mb: 1, color: 'text.secondary', fontWeight: 700 }}
-                >
+              <Box data-client-type="organization" sx={{ p: 4, borderLeft: { md: landingTokens.borders.editorial }, display: 'flex', flexDirection: 'column', justifyContent: 'center', bgcolor: { xs: 'background.paper', md: 'transparent' } }}>
+                <Typography variant="overline" sx={{ display: { xs: 'block', md: 'none' }, mb: 1, color: 'text.secondary', fontWeight: 700 }}>
                   {landingContent.pricing.organization.title}
                 </Typography>
-                <Typography
-                  variant="h3"
-                  sx={{
-                    fontWeight: 800,
-                    fontSize: '2rem',
-                    color: 'primary.main',
-                    mb: 0.5,
-                    display: 'flex',
-                    alignItems: 'baseline',
-                    gap: 1
-                  }}
-                >
+                <Typography variant="h3" sx={{ fontWeight: 800, fontSize: '2rem', color: 'primary.main', mb: 0.5, display: 'flex', alignItems: 'baseline', gap: 1 }}>
                   {service.prices.organization.credits}
-                  <Typography component="span" variant="body1" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                    créditos
-                  </Typography>
+                  <Typography component="span" variant="body1" sx={{ fontWeight: 700, color: 'text.primary' }}>créditos</Typography>
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
                   ${service.prices.organization.mxn} MXN
