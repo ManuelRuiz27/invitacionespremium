@@ -1,39 +1,41 @@
-import { Box, Typography, Alert } from '@mui/material';
-
-export interface ScannerFloorplanResponse {
-  contentPath: string;
-  floorplanId: string;
-  shapes: Record<string, unknown>[];
-}
+import { useState } from 'react';
+import type { ScannerFloorplanResponse } from '@invitaciones/api-client';
+import { Alert, Box, Typography } from '@mui/material';
 
 export interface ScannerFloorplanProps {
-  floorplan: ScannerFloorplanResponse | null;
+  floorplan: ScannerFloorplanResponse;
+  contentUrl: string;
+  highlightedTableId?: string | null;
 }
 
-export function ScannerFloorplan({ floorplan }: ScannerFloorplanProps) {
-  if (!floorplan) {
-    return <Alert severity="info">No hay croquis asignado a este evento.</Alert>;
-  }
+export function ScannerFloorplan({ floorplan, contentUrl, highlightedTableId }: ScannerFloorplanProps) {
+  const [imageError, setImageError] = useState(false);
+  const highlightedTable = highlightedTableId
+    ? floorplan.shapes.find((shape) => shape.id === highlightedTableId && shape.kind === 'TABLE')
+    : undefined;
 
   return (
-    <Box sx={{ p: 2 }}>
-      <Typography variant="h6" sx={{ mb: 2 }}>Croquis del Evento</Typography>
-      <Box sx={{ border: '1px solid #ccc', borderRadius: 2, overflow: 'hidden' }}>
-        {/* Placeholder SVG / Image for Floorplan */}
-        {floorplan.contentPath ? (
-          <img 
-            src={floorplan.contentPath} 
-            alt="Floorplan" 
-            style={{ width: '100%', height: 'auto', display: 'block' }} 
+    <Box component="section" aria-labelledby="floorplan-title">
+      <Typography id="floorplan-title" variant="h2" sx={{ mb: 2 }}>
+        Croquis del Evento
+      </Typography>
+      {highlightedTable ? (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Mesa asignada: {highlightedTable.name}
+        </Alert>
+      ) : null}
+      {imageError ? (
+        <Alert severity="error">No pudimos cargar la imagen del Croquis.</Alert>
+      ) : (
+        <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
+          <img
+            src={contentUrl}
+            alt="Croquis del recinto del Evento"
+            onError={() => setImageError(true)}
+            style={{ width: '100%', height: 'auto', display: 'block' }}
           />
-        ) : (
-          <Box sx={{ p: 4, textAlign: 'center', bgcolor: '#f5f5f5' }}>
-            <Typography variant="body2" color="textSecondary">
-              Croquis no disponible (ID: {floorplan.floorplanId})
-            </Typography>
-          </Box>
-        )}
-      </Box>
+        </Box>
+      )}
     </Box>
   );
 }

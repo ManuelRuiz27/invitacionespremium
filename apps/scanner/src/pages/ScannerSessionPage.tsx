@@ -1,159 +1,213 @@
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import type { ApiClient } from '@invitaciones/api-client';
-import { Box, Typography, CircularProgress, Alert, Tabs, Tab } from '@mui/material';
-import { useScannerSession, useScannerMutations, useScannerFloorplan } from '../hooks/useScannerQueries';
-import { useScannerRealtime } from '../hooks/useScannerRealtime';
+import type { ApiClient, ScannerCheckInResponse } from '@invitaciones/api-client';
+import { Alert, Box, Button, CircularProgress, Container, Stack, Tab, Tabs, Typography } from '@mui/material';
+import { ErrorState, LoadingState, StatusChip } from '@invitaciones/ui';
 import { CameraReader } from '../components/CameraReader';
-import { ScanResultPanel, type ScannerScanResponseDto } from '../components/ScanResultPanel';
-import { ScannerSearchPanel } from '../components/ScannerSearchPanel';
+import { ScanResultPanel, type ScannerOperationalResult } from '../components/ScanResultPanel';
 import { ScannerFloorplan } from '../components/ScannerFloorplan';
+import { ScannerSearchPanel } from '../components/ScannerSearchPanel';
+import { useScannerFloorplan, useScannerMutations, useScannerSession } from '../hooks/useScannerQueries';
+import { useScannerRealtime } from '../hooks/useScannerRealtime';
+import { scannerErrorMessage } from '../scanner-errors';
 
 export interface ScannerSessionPageProps {
   apiClient: ApiClient;
+  apiBaseUrl?: string;
 }
 
-export function ScannerSessionPage({ apiClient }: ScannerSessionPageProps) {
-  const { staffToken } = useParams<{ staffToken: string }>();
-  const [scanResult, setScanResult] = useState<ScannerScanResponseDto | null>(null);
+export function ScannerSessionPage({ apiClient, apiBaseUrl = window.location.origin }: ScannerSessionPageProps) {
+  const { staffToken = '' } = useParams<{ staffToken: string }>();
   const [currentTab, setCurrentTab] = useState(0);
+  const [scanResult, setScanResult] = useState<ScannerOperationalResult | null>(null);
+  const [confirmation, setConfirmation] = useState<ScannerCheckInResponse | null>(null);
+  const [terminalState, setTerminalState] = useState(false);
+  const checkInAttempt = useRef<{ signature: string; key: string } | null>(null);
+  const session = useScannerSession(apiClient, staffToken);
+  const operational =
+    session.data?.status === 'AVAILABLE' && ['ACTIVE', 'EVENT_DAY'].includes(session.data.event.status);
+  const floorplan = useScannerFloorplan(
+    apiClient,
+    staffToken,
+    Boolean(operational && session.data?.event.floorplanEnabled)
+  );
+  const { scanMutation, checkInMutation, searchMutation } = useScannerMutations(apiClient, staffToken);
+  useScannerRealtime(staffToken, operational && !terminalState ? session.data : undefined, () =>
+    setTerminalState(true)
+  );
 
-  const { data: sessionData, error, isLoading, refetch } = useScannerSession(apiClient, staffToken!);
-  const { data: floorplanData } = useScannerFloorplan(apiClient, staffToken!);
-  useScannerRealtime(staffToken!, sessionData);
-
-  const { scanMutation, checkInMutation, searchMutation } = useScannerMutations(apiClient, staffToken!);
-
-  const handleScan = (qrData: string) => {
-    if (scanResult || scanMutation.isPending) return;
-
-    scanMutation.mutate(qrData, {
-      onSuccess: (res) => {
-        setScanResult(res);
-      },
-      onError: (err) => {
-        console.error('Scan error', err);
-      }
-    });
+  const clearResult = () => {
+    setScanResult(null);
+    setConfirmation(null);
+    checkInAttempt.current = null;
+    scanMutation.reset();
+    checkInMutation.reset();
   };
+
+  const handleScan = useCallback(
+    (qrToken: string) => {
+      if (scanResult || confirmation || scanMutation.isPending || checkInMutation.isPending) return;
+      scanMutation.mutate(qrToken, { onSuccess: setScanResult });
+    },
+    [scanResult, confirmation, scanMutation, checkInMutation.isPending]
+  );
 
   const handleCheckIn = (assistantIds: string[]) => {
-    if (!scanResult?.invitation?.id) return;
-    
-    checkInMutation.mutate({
-      invitationId: scanResult.invitation.id,
-      assistantIds
-    }, {
-      onSuccess: () => {
-        setScanResult(null);
-        refetch(); // Refetch session stats if needed
-      },
-      onError: (err) => {
-        console.error('Checkin error', err);
-        alert('Hubo un error al registrar el ingreso.');
+    if (!scanResult || assistantIds.length === 0 || checkInMutation.isPending) return;
+    const payload = { invitationId: scanResult.invitation.id, assistantIds };
+    const signature = JSON.stringify(payload);
+    if (checkInAttempt.current?.signature !== signature)
+      checkInAttempt.current = { signature, key: crypto.randomUUID() };
+    checkInMutation.mutate(
+      { idempotencyKey: checkInAttempt.current.key, payload },
+      {
+        onSuccess: (result) => {
+          setConfirmation(result);
+          setScanResult({
+            ...scanResult,
+            status: result.remainingPendingCount === 0 ? 'NO_PENDING' : 'AVAILABLE',
+            pendingAssistants: result.remainingPendingAssistants,
+            pendingCount: result.remainingPendingCount,
+            checkedInCount: scanResult.confirmedCount - result.remainingPendingCount
+          });
+        }
       }
-    });
+    );
   };
 
-  if (!staffToken) {
-    return <Alert severity="error">Token no provisto.</Alert>;
-  }
-
-  if (isLoading) {
+  if (!staffToken)
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <CircularProgress />
-      </Box>
+      <Container sx={{ py: 4 }}>
+        <Alert severity="error">Falta el token Staff.</Alert>
+      </Container>
     );
-  }
-
-  if (error) {
-    const status = (error as { status?: number })?.status;
-    let msg = 'Ocurrió un error al cargar la sesión.';
-    if (status === 401) msg = 'Token revocado, expirado o inválido.';
-    if (status === 403) msg = 'No tienes permiso.';
-    if (status === 409) msg = 'El evento está cerrado o cancelado.';
-
+  if (session.isLoading) return <LoadingState label="Validando acceso Staff…" />;
+  if (session.error)
     return (
-      <Box sx={{ p: 3, textAlign: 'center' }}>
-        <Alert severity="error">{msg}</Alert>
-      </Box>
+      <Container sx={{ py: 4 }}>
+        <ErrorState
+          message={scannerErrorMessage(session.error, 'No pudimos validar la sesión Staff.')}
+          onRetry={() => {
+            void session.refetch();
+          }}
+        />
+      </Container>
     );
-  }
+  const sessionData = session.data;
+  if (!operational || terminalState || !sessionData)
+    return (
+      <Container sx={{ py: 4 }}>
+        <Alert severity="error">El Evento está cerrado, cancelado, archivado o fuera de operación.</Alert>
+      </Container>
+    );
+
+  const tableIds =
+    scanResult?.pendingAssistants.flatMap((assistant) => (assistant.table ? [assistant.table.id] : [])) ?? [];
+  const highlightedTableId = new Set(tableIds).size === 1 ? (tableIds[0] ?? null) : null;
 
   return (
-    <Box sx={{ p: 2, bgcolor: 'background.default', color: 'text.primary', minHeight: '100vh' }}>
-      <Box sx={{ mb: 3, textAlign: 'center' }}>
-        <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
-          {sessionData?.event?.name}
-        </Typography>
-        <Typography variant="body2" color="textSecondary">
-          Staff: {sessionData?.staff?.alias}
-        </Typography>
-      </Box>
-
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
-        <Tabs value={currentTab} onChange={(_e, v) => setCurrentTab(v)} variant="fullWidth">
-          <Tab label="Cámara" />
-          <Tab label="Buscar" />
-          {sessionData?.event?.floorplanEnabled && <Tab label="Croquis" />}
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', py: 2 }}>
+      <Container maxWidth="sm">
+        <Stack component="header" spacing={0.75} sx={{ mb: 2 }}>
+          <Typography component="h1" variant="h1">
+            {sessionData.event.name}
+          </Typography>
+          <Typography color="text.secondary">Staff: {sessionData.staff.alias}</Typography>
+          <StatusChip
+            label={
+              sessionData.event.status === 'EVENT_DAY' ? 'Día del Evento · operativo' : 'Evento activo · operativo'
+            }
+            tone="success"
+          />
+        </Stack>
+        <Tabs
+          value={currentTab}
+          onChange={(_, value: number) => setCurrentTab(value)}
+          aria-label="Herramientas de Scanner"
+          variant="fullWidth"
+          sx={{ mb: 3 }}
+        >
+          <Tab label="Cámara" id="scanner-tab-camera" aria-controls="scanner-panel-camera" />
+          <Tab label="Buscar" id="scanner-tab-search" aria-controls="scanner-panel-search" />
+          {sessionData.event.floorplanEnabled ? (
+            <Tab label="Croquis" id="scanner-tab-floorplan" aria-controls="scanner-panel-floorplan" />
+          ) : null}
         </Tabs>
-      </Box>
-
-      <Box sx={{ flexGrow: 1 }}>
-        {currentTab === 0 && (
-          <Box>
-            {!scanResult && (
-              <CameraReader onScan={handleScan} paused={scanMutation.isPending} />
-            )}
-
-            {scanMutation.isPending && !scanResult && (
-              <Box sx={{ textAlign: 'center', mt: 2 }}>
-                <CircularProgress size={30} />
-                <Typography>Procesando código...</Typography>
-              </Box>
-            )}
-
-            {scanMutation.isError && !scanResult && (
-              <Box sx={{ mt: 2 }}>
-                <Alert 
-                  severity="error" 
-                  onClose={() => scanMutation.reset()}
-                >
-                  Error al procesar el código: {(scanMutation.error as { body?: { message?: string } })?.body?.message || 'Inválido'}
+        {currentTab === 0 ? (
+          <Box role="tabpanel" id="scanner-panel-camera" aria-labelledby="scanner-tab-camera">
+            {confirmation ? (
+              <Stack spacing={2}>
+                <Alert severity="success">
+                  Ingreso registrado: {confirmation.checkedIn.map((assistant) => assistant.name).join(', ')}.
                 </Alert>
-              </Box>
-            )}
-
-            {scanResult && (
+                <Button variant="contained" size="large" onClick={clearResult}>
+                  Siguiente escaneo
+                </Button>
+              </Stack>
+            ) : scanResult ? (
               <ScanResultPanel
                 scanResult={scanResult}
                 onCheckIn={handleCheckIn}
-                onCancel={() => setScanResult(null)}
+                onCancel={clearResult}
                 isLoading={checkInMutation.isPending}
+                errorMessage={
+                  checkInMutation.error
+                    ? scannerErrorMessage(checkInMutation.error, 'No pudimos registrar el ingreso.')
+                    : null
+                }
               />
+            ) : (
+              <>
+                <CameraReader onScan={handleScan} paused={scanMutation.isPending} />
+                {scanMutation.isPending ? (
+                  <Stack role="status" spacing={1} sx={{ mt: 2, alignItems: 'center' }}>
+                    <CircularProgress size={28} />
+                    <Typography>Validando código…</Typography>
+                  </Stack>
+                ) : null}
+                {scanMutation.error ? (
+                  <Alert severity="error" sx={{ mt: 2 }} onClose={() => scanMutation.reset()}>
+                    {scannerErrorMessage(scanMutation.error, 'No pudimos procesar el código.')}
+                  </Alert>
+                ) : null}
+              </>
             )}
           </Box>
-        )}
-
-        {currentTab === 1 && (
-          <ScannerSearchPanel
-            onSearch={(q) => searchMutation.mutate(q)}
-            isLoading={searchMutation.isPending}
-            result={searchMutation.data || null}
-            error={searchMutation.error}
-            onSelectResult={(invitationId) => {
-              // Simular escaneo al seleccionar un resultado
-              scanMutation.mutate(invitationId);
-              setCurrentTab(0);
-            }}
-          />
-        )}
-
-        {currentTab === 2 && sessionData?.event?.floorplanEnabled && (
-          <ScannerFloorplan floorplan={floorplanData || null} />
-        )}
-      </Box>
+        ) : null}
+        {currentTab === 1 ? (
+          <Box role="tabpanel" id="scanner-panel-search" aria-labelledby="scanner-tab-search">
+            <ScannerSearchPanel
+              onSearch={(query) => searchMutation.mutate(query)}
+              isLoading={searchMutation.isPending}
+              result={searchMutation.data ?? null}
+              errorMessage={
+                searchMutation.error
+                  ? scannerErrorMessage(searchMutation.error, 'No pudimos completar la búsqueda.')
+                  : null
+              }
+              onSelectResult={(result) => {
+                setScanResult({ ...result, status: result.pendingCount === 0 ? 'NO_PENDING' : 'AVAILABLE' });
+                setCurrentTab(0);
+              }}
+            />
+          </Box>
+        ) : null}
+        {currentTab === 2 && sessionData.event.floorplanEnabled ? (
+          <Box role="tabpanel" id="scanner-panel-floorplan" aria-labelledby="scanner-tab-floorplan">
+            {floorplan.isLoading ? <LoadingState label="Cargando Croquis…" /> : null}
+            {floorplan.error ? (
+              <Alert severity="info">{scannerErrorMessage(floorplan.error, 'El Croquis no está disponible.')}</Alert>
+            ) : null}
+            {floorplan.data ? (
+              <ScannerFloorplan
+                floorplan={floorplan.data}
+                contentUrl={new URL(floorplan.data.contentPath, apiBaseUrl).toString()}
+                highlightedTableId={highlightedTableId}
+              />
+            ) : null}
+          </Box>
+        ) : null}
+      </Container>
     </Box>
   );
 }

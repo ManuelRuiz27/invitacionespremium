@@ -96,8 +96,4 @@ export function createApiClient(config: ApiClientRuntimeConfig) {
   };
 }
 
-type CompleteApiClient = ReturnType<typeof createApiClient>;
-export type ApiClient = Omit<CompleteApiClient, 'adminAudit'> & {
-  /** Present in clients created by createApiClient; optional only for legacy test doubles. */
-  adminAudit?: CompleteApiClient['adminAudit'];
-};
+export type ApiClient = ReturnType<typeof createApiClient>;

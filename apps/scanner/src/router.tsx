@@ -4,17 +4,20 @@ import { ScannerSessionPage } from './pages/ScannerSessionPage';
 
 export interface RouterDependencies {
   apiClient: ApiClient;
+  apiBaseUrl: string;
 }
 
 export function createScannerRouter(dependencies: RouterDependencies) {
   return createBrowserRouter([
     {
       path: '/scanner/:staffToken',
-      element: <ScannerSessionPage apiClient={dependencies.apiClient} />
+      element: <ScannerSessionPage apiClient={dependencies.apiClient} apiBaseUrl={dependencies.apiBaseUrl} />
     },
     {
       path: '*',
-      element: <div style={{ padding: '2rem', textAlign: 'center' }}>Por favor, escanea un código QR de Staff válido para iniciar.</div>
+      element: (
+        <div style={{ padding: '2rem', textAlign: 'center' }}>Escanea un código QR Staff válido para iniciar.</div>
+      )
     }
   ]);
 }
