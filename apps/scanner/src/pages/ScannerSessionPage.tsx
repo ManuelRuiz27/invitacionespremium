@@ -10,18 +10,27 @@ import { ScannerSearchPanel } from '../components/ScannerSearchPanel';
 import { useScannerFloorplan, useScannerMutations, useScannerSession } from '../hooks/useScannerQueries';
 import { useScannerRealtime } from '../hooks/useScannerRealtime';
 import { scannerErrorMessage } from '../scanner-errors';
+import type { ScannerRealtimeConfig } from '../env';
 
 export interface ScannerSessionPageProps {
   apiClient: ApiClient;
   apiBaseUrl?: string;
+  realtime: ScannerRealtimeConfig;
 }
 
-export function ScannerSessionPage({ apiClient, apiBaseUrl = window.location.origin }: ScannerSessionPageProps) {
+export function ScannerSessionPage({
+  apiClient,
+  apiBaseUrl = window.location.origin,
+  realtime
+}: ScannerSessionPageProps) {
   const { staffToken = '' } = useParams<{ staffToken: string }>();
   const [currentTab, setCurrentTab] = useState(0);
   const [scanResult, setScanResult] = useState<ScannerOperationalResult | null>(null);
   const [confirmation, setConfirmation] = useState<ScannerCheckInResponse | null>(null);
+  const [selectedAssistantIds, setSelectedAssistantIds] = useState<string[]>([]);
+  const [realtimeNotice, setRealtimeNotice] = useState<string | null>(null);
   const [terminalState, setTerminalState] = useState(false);
+  const terminalStateRef = useRef(false);
   const checkInAttempt = useRef<{ signature: string; key: string } | null>(null);
   const session = useScannerSession(apiClient, staffToken);
   const operational =
@@ -32,22 +41,49 @@ export function ScannerSessionPage({ apiClient, apiBaseUrl = window.location.ori
     Boolean(operational && session.data?.event.floorplanEnabled)
   );
   const { scanMutation, checkInMutation, searchMutation } = useScannerMutations(apiClient, staffToken);
-  useScannerRealtime(staffToken, operational && !terminalState ? session.data : undefined, () =>
-    setTerminalState(true)
-  );
 
-  const clearResult = () => {
+  const clearResult = useCallback(() => {
     setScanResult(null);
     setConfirmation(null);
+    setSelectedAssistantIds([]);
     checkInAttempt.current = null;
     scanMutation.reset();
     checkInMutation.reset();
-  };
+  }, [checkInMutation, scanMutation]);
+
+  const discardStaleResult = useCallback(() => {
+    clearResult();
+    searchMutation.reset();
+    setRealtimeNotice('La disponibilidad cambió. Escanea o busca nuevamente.');
+  }, [clearResult, searchMutation]);
+
+  const realtimeStatus = useScannerRealtime(
+    staffToken,
+    operational && !terminalState ? session.data : undefined,
+    realtime,
+    {
+      onTerminal: () => {
+        terminalStateRef.current = true;
+        clearResult();
+        searchMutation.reset();
+        setTerminalState(true);
+      },
+      onInvitationStale: discardStaleResult,
+      onSeatingStale: discardStaleResult
+    }
+  );
 
   const handleScan = useCallback(
     (qrToken: string) => {
       if (scanResult || confirmation || scanMutation.isPending || checkInMutation.isPending) return;
-      scanMutation.mutate(qrToken, { onSuccess: setScanResult });
+      setRealtimeNotice(null);
+      scanMutation.mutate(qrToken, {
+        onSuccess: (result) => {
+          if (terminalStateRef.current) return;
+          setScanResult(result);
+          setSelectedAssistantIds(result.pendingAssistants.map((assistant) => assistant.id));
+        }
+      });
     },
     [scanResult, confirmation, scanMutation, checkInMutation.isPending]
   );
@@ -62,7 +98,9 @@ export function ScannerSessionPage({ apiClient, apiBaseUrl = window.location.ori
       { idempotencyKey: checkInAttempt.current.key, payload },
       {
         onSuccess: (result) => {
+          if (terminalStateRef.current) return;
           setConfirmation(result);
+          setSelectedAssistantIds(result.remainingPendingAssistants.map((assistant) => assistant.id));
           setScanResult({
             ...scanResult,
             status: result.remainingPendingCount === 0 ? 'NO_PENDING' : 'AVAILABLE',
@@ -102,8 +140,9 @@ export function ScannerSessionPage({ apiClient, apiBaseUrl = window.location.ori
     );
 
   const tableIds =
-    scanResult?.pendingAssistants.flatMap((assistant) => (assistant.table ? [assistant.table.id] : [])) ?? [];
-  const highlightedTableId = new Set(tableIds).size === 1 ? (tableIds[0] ?? null) : null;
+    scanResult?.pendingAssistants.flatMap((assistant) =>
+      selectedAssistantIds.includes(assistant.id) && assistant.table ? [assistant.table.id] : []
+    ) ?? [];
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', py: 2 }}>
@@ -120,6 +159,17 @@ export function ScannerSessionPage({ apiClient, apiBaseUrl = window.location.ori
             tone="success"
           />
         </Stack>
+        {realtimeStatus === 'error' || realtimeStatus === 'disconnected' ? (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            La actualización en tiempo real no está disponible. Puedes continuar usando el Scanner; validaremos cada
+            operación con el servidor.
+          </Alert>
+        ) : null}
+        {realtimeNotice ? (
+          <Alert severity="warning" sx={{ mb: 2 }} onClose={() => setRealtimeNotice(null)}>
+            {realtimeNotice}
+          </Alert>
+        ) : null}
         <Tabs
           value={currentTab}
           onChange={(_, value: number) => setCurrentTab(value)}
@@ -149,6 +199,8 @@ export function ScannerSessionPage({ apiClient, apiBaseUrl = window.location.ori
                 scanResult={scanResult}
                 onCheckIn={handleCheckIn}
                 onCancel={clearResult}
+                selectedIds={selectedAssistantIds}
+                onSelectionChange={setSelectedAssistantIds}
                 isLoading={checkInMutation.isPending}
                 errorMessage={
                   checkInMutation.error
@@ -177,7 +229,10 @@ export function ScannerSessionPage({ apiClient, apiBaseUrl = window.location.ori
         {currentTab === 1 ? (
           <Box role="tabpanel" id="scanner-panel-search" aria-labelledby="scanner-tab-search">
             <ScannerSearchPanel
-              onSearch={(query) => searchMutation.mutate(query)}
+              onSearch={(query) => {
+                setRealtimeNotice(null);
+                searchMutation.mutate(query);
+              }}
               isLoading={searchMutation.isPending}
               result={searchMutation.data ?? null}
               errorMessage={
@@ -186,7 +241,9 @@ export function ScannerSessionPage({ apiClient, apiBaseUrl = window.location.ori
                   : null
               }
               onSelectResult={(result) => {
+                if (terminalStateRef.current) return;
                 setScanResult({ ...result, status: result.pendingCount === 0 ? 'NO_PENDING' : 'AVAILABLE' });
+                setSelectedAssistantIds(result.pendingAssistants.map((assistant) => assistant.id));
                 setCurrentTab(0);
               }}
             />
@@ -202,7 +259,7 @@ export function ScannerSessionPage({ apiClient, apiBaseUrl = window.location.ori
               <ScannerFloorplan
                 floorplan={floorplan.data}
                 contentUrl={new URL(floorplan.data.contentPath, apiBaseUrl).toString()}
-                highlightedTableId={highlightedTableId}
+                highlightedTableIds={tableIds}
               />
             ) : null}
           </Box>
