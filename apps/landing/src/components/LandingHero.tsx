@@ -41,7 +41,7 @@ export function LandingHero({ onOpenRegister, config }: LandingHeroProps) {
             content: '""',
             position: 'absolute',
             inset: 0,
-            background: 'linear-gradient(90deg, rgba(10,15,24,0.95) 0%, rgba(10,15,24,0.7) 50%, rgba(10,15,24,0.1) 100%)'
+            background: landingTokens.overlays.heroGradient
           }
         }}
         aria-hidden="true"

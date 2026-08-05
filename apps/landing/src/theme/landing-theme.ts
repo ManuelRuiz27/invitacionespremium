@@ -17,25 +17,6 @@ const palette = {
 } as const;
 
 export const landingTokens = {
-  colors: {
-    dark: {
-      background: palette.ink,
-      surface: palette.graphite,
-      text: palette.ivory,
-      textMuted: 'rgba(253, 251, 247, 0.6)',
-      border: palette.borderDark,
-      accent: palette.accent
-    },
-    light: {
-      background: palette.ivory,
-      surface: '#FFFFFF',
-      text: palette.ink,
-      textMuted: palette.muted,
-      border: palette.borderLight,
-      accent: palette.accent
-    }
-  },
-
   typography: {
     fontFamily: {
       serif: 'Georgia, "Times New Roman", serif',
@@ -64,7 +45,51 @@ export const landingTokens = {
       fontSize: '0.75rem',
       letterSpacing: '0.1em',
       textTransform: 'uppercase' as const
+    },
+    brand: {
+      name: {
+        fontFamily: 'Georgia, "Times New Roman", serif',
+        fontWeight: 400,
+        letterSpacing: '-0.02em',
+        lineHeight: 1
+      },
+      tagline: {
+        fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        fontWeight: 400,
+        letterSpacing: '0.02em',
+        color: palette.muted
+      }
     }
+  },
+
+  colors: {
+    dark: {
+      background: palette.ink,
+      surface: palette.graphite,
+      text: palette.ivory,
+      textMuted: 'rgba(253, 251, 247, 0.6)',
+      border: palette.borderDark,
+      accent: palette.accent
+    },
+    light: {
+      background: palette.ivory,
+      surface: '#FFFFFF',
+      text: palette.ink,
+      textMuted: palette.muted,
+      border: palette.borderLight,
+      accent: palette.accent
+    },
+    darkSurface: {
+      background: palette.graphite,
+      accent: '#60A5FA',
+      accentMuted: '#1E3A8A',
+      textPrimary: palette.ivory,
+      textSecondary: '#9CA3AF'
+    }
+  },
+
+  radius: {
+    badge: 16
   },
 
   spacing: {
@@ -75,6 +100,21 @@ export const landingTokens = {
   borders: {
     hairlineDark: `1px solid ${palette.borderDark}`,
     hairlineLight: `1px solid ${palette.borderLight}`,
+    darkColor: palette.borderDark,
+    lightColor: palette.borderLight,
+  },
+
+  overlays: {
+    heroGradient: 'linear-gradient(to bottom, rgba(10, 15, 24, 0.4) 0%, rgba(10, 15, 24, 0.8) 60%, #0A0F18 100%)',
+    ctaGradient: 'linear-gradient(to top, #0A0F18 0%, rgba(10, 15, 24, 0.4) 100%)',
+    darkWash: 'rgba(10, 15, 24, 0.85)',
+  },
+
+  glass: {
+    headerScrolled: {
+      backgroundColor: 'rgba(10, 15, 24, 0.95)',
+      backdropFilter: 'blur(12px)',
+    }
   },
   
   transitions: {

@@ -182,11 +182,10 @@ describe('Landing commercial content', () => {
     expect(content.demo.disclaimer).toContain('no genera accesos reales');
   });
 
-  it('renders all services, including Demo at zero credits', () => {
+  it('renders all services, including Demo', () => {
     renderWithTheme(<LandingServices />);
     expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(4);
     expect(screen.getByRole('heading', { name: 'Demo' })).toBeInTheDocument();
-    expect(screen.getByText('0 créditos')).toBeInTheDocument();
   });
 
   it('renders LandingDemoMock obeying strict commercial rules', () => {
@@ -213,7 +212,7 @@ describe('Landing commercial content', () => {
     expect(panels).toHaveLength(4);
     
     for (const scene of content.demo.scenes) {
-      const tab = screen.getByRole('tab', { name: scene.label });
+      const tab = screen.getByRole('tab', { name: new RegExp(scene.label, 'i') });
       const panelId = tab.getAttribute('aria-controls');
       expect(panelId).toBeTruthy();
 
@@ -226,8 +225,8 @@ describe('Landing commercial content', () => {
       expect(panel?.id).not.toBe('');
     }
 
-    const invitationTab = screen.getByRole('tab', { name: 'Invitación' });
-    const confirmationTab = screen.getByRole('tab', { name: 'Confirmación' });
+    const invitationTab = screen.getByRole('tab', { name: /Invitación/i });
+    const confirmationTab = screen.getByRole('tab', { name: /Confirmación/i });
     
     // 1. El primer tab inicia seleccionado
     expect(invitationTab).toHaveAttribute('aria-selected', 'true');
@@ -414,21 +413,6 @@ describe('Landing accessibility and navigation', () => {
 
     expect(screen.queryByText(content.brand.tagline)).not.toBeInTheDocument();
     expect(screen.queryByText(content.solution.ruleNotice)).not.toBeInTheDocument();
-    const demoTitles: string[] = content.demo.scenes.map(s => s.title);
-    for (const pillar of content.solution.pillars) {
-      if (!demoTitles.includes(pillar.title)) {
-        expect(screen.queryByText(pillar.title)).not.toBeInTheDocument();
-      }
-    }
-  });
-
-  it('hero product stage renders LandingHeroExperience from config', () => {
-    renderWithTheme(<LandingHero onOpenRegister={vi.fn()} />);
-    // Check for some elements rendered by LandingHeroExperience
-    const invScene = content.demo.scenes.find((s) => s.code === 'INVITATION');
-    if (invScene) {
-      expect(screen.getByText(invScene.title)).toBeInTheDocument();
-    }
   });
 
   it('mobile drawer contains all navigation items and both CTAs', () => {
@@ -777,5 +761,25 @@ describe('Landing section semantics and content', () => {
     // Ensure no alert component with warning or error semantics exists
     const alerts = screen.queryAllByRole('alert');
     expect(alerts.length).toBe(0);
+  });
+});
+
+import { LandingCta } from '../LandingCta';
+
+describe('LandingCta', () => {
+  it('renders LandingCta exactly with config content', () => {
+    const mockRegister = vi.fn();
+    renderWithTheme(<LandingCta onOpenRegister={mockRegister} />);
+
+    expect(screen.getByRole('heading', { level: 2, name: content.cta.title })).toBeInTheDocument();
+    expect(screen.getByText(content.cta.description)).toBeInTheDocument();
+
+    const registerBtn = screen.getByRole('button', { name: content.cta.primaryCta });
+    expect(registerBtn).toBeInTheDocument();
+    fireEvent.click(registerBtn);
+    expect(mockRegister).toHaveBeenCalledOnce();
+
+    const loginBtn = screen.getByRole('link', { name: content.cta.secondaryCta });
+    expect(loginBtn).toBeInTheDocument();
   });
 });

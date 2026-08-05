@@ -1,4 +1,4 @@
-import { Box, Paper, Tab, Tabs, Typography, useTheme } from '@mui/material';
+import { Box, Tab, Tabs, Typography } from '@mui/material';
 import { useState, type ReactNode } from 'react';
 import { getLandingConfig } from '../config/landing-config';
 import { LandingContainer } from './primitives';
@@ -50,9 +50,9 @@ function DemoPanel({
           outline: `2px solid ${landingTokens.colors.dark.text}`
         },
         '@media (prefers-reduced-motion: no-preference)': {
-          animation: 'fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+          animation: 'fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
           '@keyframes fadeIn': {
-            from: { opacity: 0, transform: 'translateY(10px)' },
+            from: { opacity: 0, transform: 'translateY(20px)' },
             to: { opacity: 1, transform: 'translateY(0)' }
           }
         }
@@ -70,15 +70,15 @@ export function LandingDemoMock() {
   return (
     <Box id="demo" component="section" aria-labelledby={headingId} sx={{ py: landingTokens.spacing.sectionY, bgcolor: landingTokens.colors.dark.background }}>
       <LandingContainer>
-        <Box sx={{ mb: { xs: 6, md: 8 }, textAlign: 'center' }}>
+        <Box sx={{ mb: { xs: 8, md: 12 }, textAlign: 'center' }}>
           <Typography
             id={headingId}
             variant="h2"
             sx={{
               ...landingTokens.typography.headline,
               color: landingTokens.colors.dark.text,
-              fontSize: { xs: '2rem', md: '2.5rem' },
-              mb: 2
+              fontSize: { xs: '2rem', md: '3rem' },
+              mb: 3
             }}
           >
             {landingContent.demo.title}
@@ -88,6 +88,7 @@ export function LandingDemoMock() {
             sx={{
               ...landingTokens.typography.body,
               color: landingTokens.colors.dark.textMuted,
+              fontSize: '1.15rem',
               maxWidth: 600,
               mx: 'auto'
             }}
@@ -96,15 +97,8 @@ export function LandingDemoMock() {
           </Typography>
         </Box>
 
-        <Paper
-          elevation={0}
-          sx={{
-            borderRadius: 0,
-            border: landingTokens.borders.hairlineDark,
-            overflow: 'hidden',
-            bgcolor: landingTokens.colors.dark.surface
-          }}
-        >
+        {/* Editorial Index */}
+        <Box sx={{ borderTop: landingTokens.borders.hairlineDark, borderBottom: landingTokens.borders.hairlineDark, mb: { xs: 6, md: 10 } }}>
           <Tabs
             role="tablist"
             value={activeTab}
@@ -113,24 +107,30 @@ export function LandingDemoMock() {
             scrollButtons="auto"
             selectionFollowsFocus
             aria-label={landingContent.demo.label}
+            TabIndicatorProps={{ style: { display: 'none' } }} // Hide default MUI indicator
             sx={{
-              bgcolor: landingTokens.colors.dark.surface,
-              borderBottom: landingTokens.borders.hairlineDark,
-              px: 2,
-              '& .MuiTabs-indicator': {
-                backgroundColor: landingTokens.colors.dark.text
+              minHeight: 80,
+              '& .MuiTabs-flexContainer': {
+                gap: { xs: 2, md: 6 }
               },
               '& .MuiTab-root': {
-                fontWeight: 600,
-                minHeight: 60,
+                ...landingTokens.typography.headline,
+                fontSize: { xs: '1.25rem', md: '1.5rem' },
+                fontWeight: 400,
                 textTransform: 'none',
                 color: landingTokens.colors.dark.textMuted,
+                opacity: 0.5,
+                p: 0,
+                minHeight: 80,
+                transition: landingTokens.transitions.duration,
                 '&.Mui-selected': {
-                  color: landingTokens.colors.dark.text
+                  color: landingTokens.colors.dark.text,
+                  opacity: 1,
+                  fontWeight: 500
                 },
                 '&:focus-visible': {
                   outline: `2px solid ${landingTokens.colors.dark.text}`,
-                  outlineOffset: '-2px'
+                  outlineOffset: '4px'
                 }
               }
             }}
@@ -142,58 +142,61 @@ export function LandingDemoMock() {
                 id={`demo-tab-${index}`}
                 aria-controls={`demo-panel-${scene.code}`}
                 aria-selected={activeTab === index}
-                label={scene.label}
+                label={
+                  <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box component="span" sx={{ fontSize: '0.9rem', opacity: 0.5 }}>0{index + 1}</Box>
+                    {scene.label}
+                  </Box>
+                }
               />
             ))}
           </Tabs>
+        </Box>
 
-          <Box sx={{ p: { xs: 3, md: 6 } }}>
-            {landingContent.demo.scenes.map((scene, index) => (
-              <DemoPanel key={scene.code} active={activeTab === index} index={index} id={`demo-panel-${scene.code}`}>
+        {/* Cinematic Presentation (No Paper, No Boxes) */}
+        <Box>
+          {landingContent.demo.scenes.map((scene, index) => (
+            <DemoPanel key={scene.code} active={activeTab === index} index={index} id={`demo-panel-${scene.code}`}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: { xs: 'column', lg: 'row' },
+                  alignItems: 'center',
+                  gap: { xs: 6, lg: 12 }
+                }}
+              >
+                <Box sx={{ flex: 1, maxWidth: { xs: '100%', lg: 480 } }}>
+                  <Typography
+                    variant="h3"
+                    sx={{ ...landingTokens.typography.display, mb: 3, color: landingTokens.colors.dark.text, fontSize: { xs: '2rem', md: '2.5rem' } }}
+                  >
+                    {scene.title}
+                  </Typography>
+                  <Typography variant="body1" sx={{ ...landingTokens.typography.body, color: landingTokens.colors.dark.textMuted, fontSize: '1.15rem' }}>
+                    {scene.description}
+                  </Typography>
+                </Box>
+
                 <Box
                   sx={{
-                    display: 'grid',
-                    gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
-                    gap: { xs: 4, md: 8 },
+                    flex: 1.5,
+                    width: '100%',
+                    position: 'relative',
+                    display: 'flex',
+                    justifyContent: 'center',
                     alignItems: 'center'
                   }}
                 >
-                  <Box>
-                    <Typography
-                      variant="h3"
-                      sx={{ ...landingTokens.typography.headline, mb: 2, color: landingTokens.colors.dark.text, fontSize: '1.75rem' }}
-                    >
-                      {scene.title}
-                    </Typography>
-                    <Typography variant="body1" sx={{ ...landingTokens.typography.body, color: landingTokens.colors.dark.textMuted, fontSize: '1.1rem' }}>
-                      {scene.description}
-                    </Typography>
-                  </Box>
-
-                  <Box
-                    sx={{
-                      width: '100%',
-                      bgcolor: landingTokens.colors.dark.background,
-                      border: landingTokens.borders.hairlineDark,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      position: 'relative',
-                      overflow: 'hidden',
-                      p: { xs: 2, md: 4 }
-                    }}
-                  >
-                    <img 
-                      src={assetMap[scene.code]} 
-                      alt={altMap[scene.code] || scene.title}
-                      style={{ maxWidth: '100%', height: 'auto', display: 'block' }} 
-                    />
-                  </Box>
+                  <img 
+                    src={assetMap[scene.code]} 
+                    alt={altMap[scene.code] || scene.title}
+                    style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', display: 'block' }} 
+                  />
                 </Box>
-              </DemoPanel>
-            ))}
-          </Box>
-        </Paper>
+              </Box>
+            </DemoPanel>
+          ))}
+        </Box>
       </LandingContainer>
     </Box>
   );

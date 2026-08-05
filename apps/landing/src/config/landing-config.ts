@@ -259,6 +259,12 @@ const commercialContent = {
     intro: 'Crea tu cuenta de Planner independiente. Solo se solicitarán los datos definidos por el registro actual.',
     success: 'Tu cuenta fue creada. Inicia sesión para continuar con la configuración de tu perfil.'
   },
+  cta: {
+    title: 'Lleva tu Evento al siguiente nivel',
+    description: 'Comienza a organizar la experiencia completa con InvitacionesPremium. El registro como Planner independiente es público y sin costo inicial.',
+    primaryCta: 'Registrarme como Planner',
+    secondaryCta: 'Iniciar sesión'
+  },
   footer: {
     copyright: `© 2026 ${productName}. Todos los derechos reservados.`,
     legalNotice: 'Plataforma SaaS para administración y operación digital de Eventos.'

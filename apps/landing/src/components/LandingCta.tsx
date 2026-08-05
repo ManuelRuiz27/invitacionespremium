@@ -41,7 +41,7 @@ export function LandingCta({ onOpenRegister }: LandingCtaProps) {
             content: '""',
             position: 'absolute',
             inset: 0,
-            background: 'linear-gradient(0deg, rgba(10,15,24,0.9) 0%, rgba(10,15,24,0.7) 50%, rgba(10,15,24,0.9) 100%)'
+            background: landingTokens.overlays.ctaGradient
           }
         }}
         aria-hidden="true"
@@ -59,7 +59,7 @@ export function LandingCta({ onOpenRegister }: LandingCtaProps) {
               textWrap: 'balance'
             }}
           >
-            Comienza a operar tus Eventos con InvitacionesPremium
+            {landingContent.cta.title}
           </Typography>
           <Typography
             variant="body1"
@@ -70,7 +70,7 @@ export function LandingCta({ onOpenRegister }: LandingCtaProps) {
               maxWidth: 600
             }}
           >
-            Regístrate hoy mismo como Planner independiente o inicia sesión si ya posees una cuenta.
+            {landingContent.cta.description}
           </Typography>
 
           <LandingActionGroup sx={{ justifyContent: 'center' }}>
@@ -94,7 +94,7 @@ export function LandingCta({ onOpenRegister }: LandingCtaProps) {
                 }
               }}
             >
-              Registrarme como Planner
+              {landingContent.cta.primaryCta}
             </Button>
             <Button
               variant="outlined"
@@ -118,7 +118,7 @@ export function LandingCta({ onOpenRegister }: LandingCtaProps) {
                 }
               }}
             >
-              Iniciar sesión
+              {landingContent.cta.secondaryCta}
             </Button>
           </LandingActionGroup>
         </Stack>

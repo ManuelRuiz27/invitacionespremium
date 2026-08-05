@@ -18,7 +18,7 @@ import {
   useMediaQuery,
   useTheme
 } from '@mui/material';
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 
 export interface LandingHeaderProps {
   onOpenRegister: () => void;
@@ -31,7 +31,18 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('lg'));
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 50);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    // Check initial state
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const toggleDrawer = (open: boolean) => () => {
     setDrawerOpen(open);
@@ -49,9 +60,10 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
       color="default"
       elevation={0}
       sx={{
-        backgroundColor: 'rgba(10, 15, 24, 0.85)',
-        backdropFilter: 'blur(12px)',
-        borderBottom: landingTokens.borders.hairlineDark,
+        backgroundColor: scrolled ? landingTokens.glass.headerScrolled.backgroundColor : 'transparent',
+        backdropFilter: scrolled ? landingTokens.glass.headerScrolled.backdropFilter : 'none',
+        borderBottom: scrolled ? landingTokens.borders.hairlineDark : '1px solid transparent',
+        transition: `all ${landingTokens.transitions.duration} ${landingTokens.transitions.easing}`,
         top: 0,
         zIndex: theme.zIndex.appBar
       }}
