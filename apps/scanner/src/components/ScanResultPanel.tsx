@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import type { ScannerInvitationResult, ScannerScanResponse } from '@invitaciones/api-client';
 import { Alert, Box, Button, Checkbox, FormControlLabel, FormGroup, Stack, Typography } from '@mui/material';
 
@@ -9,6 +8,8 @@ export interface ScanResultPanelProps {
   scanResult: ScannerOperationalResult;
   onCheckIn: (assistantIds: string[]) => void;
   onCancel: () => void;
+  selectedIds: string[];
+  onSelectionChange: (assistantIds: string[]) => void;
   isLoading?: boolean;
   errorMessage?: string | null;
 }
@@ -17,17 +18,11 @@ export function ScanResultPanel({
   scanResult,
   onCheckIn,
   onCancel,
+  selectedIds,
+  onSelectionChange,
   isLoading = false,
   errorMessage
 }: ScanResultPanelProps) {
-  const [selectedIds, setSelectedIds] = useState<string[]>(
-    scanResult.pendingAssistants.map((assistant) => assistant.id)
-  );
-
-  useEffect(() => {
-    setSelectedIds(scanResult.pendingAssistants.map((assistant) => assistant.id));
-  }, [scanResult]);
-
   if (scanResult.status === 'NO_PENDING') {
     return (
       <Stack spacing={2}>
@@ -40,8 +35,8 @@ export function ScanResultPanel({
   }
 
   const toggle = (id: string) => {
-    setSelectedIds((current) =>
-      current.includes(id) ? current.filter((candidate) => candidate !== id) : [...current, id]
+    onSelectionChange(
+      selectedIds.includes(id) ? selectedIds.filter((candidate) => candidate !== id) : [...selectedIds, id]
     );
   };
 

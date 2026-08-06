@@ -13,8 +13,8 @@ export function LandingProblem() {
       id="problema"
       component="section"
       aria-labelledby={headingId}
-      sx={{ 
-        py: landingTokens.spacing.sectionY, 
+      sx={{
+        py: landingTokens.spacing.sectionY,
         bgcolor: landingTokens.colors.light.background,
         borderBottom: landingTokens.borders.hairlineLight
       }}
@@ -45,7 +45,8 @@ export function LandingProblem() {
                     gap: { xs: 3, md: 4 },
                     pb: { xs: 4, md: 6 },
                     mb: { xs: 4, md: 6 },
-                    borderBottom: index !== landingContent.problem.items.length - 1 ? landingTokens.borders.hairlineLight : 'none'
+                    borderBottom:
+                      index !== landingContent.problem.items.length - 1 ? landingTokens.borders.hairlineLight : 'none'
                   }}
                 >
                   <Typography
@@ -65,20 +66,20 @@ export function LandingProblem() {
                     <Typography
                       variant="h3"
                       component="h3"
-                      sx={{ 
+                      sx={{
                         ...landingTokens.typography.headline,
-                        mb: 1.5, 
-                        fontSize: '1.25rem', 
-                        color: landingTokens.colors.light.text 
+                        mb: 1.5,
+                        fontSize: '1.25rem',
+                        color: landingTokens.colors.light.text
                       }}
                     >
                       {item.title}
                     </Typography>
-                    <Typography 
-                      variant="body1" 
-                      sx={{ 
+                    <Typography
+                      variant="body1"
+                      sx={{
                         ...landingTokens.typography.body,
-                        color: landingTokens.colors.light.textMuted 
+                        color: landingTokens.colors.light.textMuted
                       }}
                     >
                       {item.description}

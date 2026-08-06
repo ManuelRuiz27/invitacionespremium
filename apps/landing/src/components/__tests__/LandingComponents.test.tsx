@@ -190,27 +190,27 @@ describe('Landing commercial content', () => {
 
   it('renders LandingDemoMock obeying strict commercial rules', () => {
     renderWithTheme(<LandingDemoMock />);
-    
+
     const section = document.getElementById('demo');
     expect(section).toBeInTheDocument();
-    
+
     const headings = screen.getAllByRole('heading', { level: 2 });
     expect(headings).toHaveLength(1);
     const h2 = headings[0]!;
     expect(h2.id).not.toBe('');
     expect(section).toHaveAttribute('aria-labelledby', h2.id);
-    
+
     const tabs = screen.getAllByRole('tab');
     expect(tabs).toHaveLength(4);
-    
+
     expect(tabs[0]).toHaveTextContent('Invitación');
     expect(tabs[1]).toHaveTextContent('Confirmación');
     expect(tabs[2]).toHaveTextContent('Acceso');
     expect(tabs[3]).toHaveTextContent('Mesas');
-    
+
     const panels = screen.getAllByRole('tabpanel', { hidden: true });
     expect(panels).toHaveLength(4);
-    
+
     for (const scene of content.demo.scenes) {
       const tab = screen.getByRole('tab', { name: new RegExp(scene.label, 'i') });
       const panelId = tab.getAttribute('aria-controls');
@@ -227,7 +227,7 @@ describe('Landing commercial content', () => {
 
     const invitationTab = screen.getByRole('tab', { name: /Invitación/i });
     const confirmationTab = screen.getByRole('tab', { name: /Confirmación/i });
-    
+
     // 1. El primer tab inicia seleccionado
     expect(invitationTab).toHaveAttribute('aria-selected', 'true');
     expect(confirmationTab).toHaveAttribute('aria-selected', 'false');
@@ -241,7 +241,7 @@ describe('Landing commercial content', () => {
     // 3. ArrowRight mueve el foco o selección a Confirmación
     fireEvent.keyDown(invitationTab, { key: 'ArrowRight' });
     expect(confirmationTab).toHaveFocus();
-    
+
     // 5. El panel activo cambia de forma coherente y (6/7) solo un tab/panel está activo
     expect(confirmationTab).toHaveAttribute('aria-selected', 'true');
     expect(invitationTab).toHaveAttribute('aria-selected', 'false');
@@ -253,12 +253,22 @@ describe('Landing commercial content', () => {
     expect(invitationTab).toHaveFocus();
     expect(invitationTab).toHaveAttribute('aria-selected', 'true');
     expect(document.getElementById(invitationTab.getAttribute('aria-controls')!)).not.toHaveAttribute('hidden');
-    
-    const forbidden = ['Fam. Mendoza', 'Carlos Mendoza', 'Lucía García', 'Sofía', 'Mateo', 'Hotspot', 'Reiniciar Demo', 'StaffTokens', 'Check-in:'];
+
+    const forbidden = [
+      'Fam. Mendoza',
+      'Carlos Mendoza',
+      'Lucía García',
+      'Sofía',
+      'Mateo',
+      'Hotspot',
+      'Reiniciar Demo',
+      'StaffTokens',
+      'Check-in:'
+    ];
     for (const text of forbidden) {
       expect(screen.queryByText(new RegExp(text, 'i'))).not.toBeInTheDocument();
     }
-    
+
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     expect(document.querySelector('form')).toBeNull();
@@ -396,18 +406,18 @@ describe('Landing accessibility and navigation', () => {
     const handleRegister = vi.fn();
     renderWithTheme(<LandingHero onOpenRegister={handleRegister} />);
     expect(screen.getByText(content.hero.badge)).toBeInTheDocument();
-    
+
     const h1s = screen.getAllByRole('heading', { level: 1 });
     expect(h1s).toHaveLength(1);
     expect(h1s[0]).toHaveTextContent(content.hero.title);
-    
+
     expect(screen.getByText(content.hero.subtitle)).toBeInTheDocument();
-    
+
     const primaryBtn = screen.getByRole('button', { name: content.hero.primaryCta });
     const secondaryLink = screen.getByRole('link', { name: content.hero.secondaryCta });
     expect(primaryBtn).toBeInTheDocument();
     expect(secondaryLink).toBeInTheDocument();
-    
+
     fireEvent.click(primaryBtn);
     expect(handleRegister).toHaveBeenCalledOnce();
 
@@ -438,12 +448,12 @@ describe('Landing accessibility and navigation', () => {
 
   it('renders components in correct order: Hero, Demo, Problem, Solution, Services', async () => {
     renderWithTheme(<App />);
-    
+
     await screen.findByRole('heading', {
       level: 2,
       name: content.demo.title
     });
-    
+
     const heroHeading = screen.getByRole('heading', {
       level: 1,
       name: content.hero.title
@@ -468,7 +478,7 @@ describe('Landing accessibility and navigation', () => {
       level: 2,
       name: content.services.title
     });
-    
+
     expect(heroHeading.compareDocumentPosition(demoHeading)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     expect(demoHeading.compareDocumentPosition(problemHeading)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     expect(problemHeading.compareDocumentPosition(solutionHeading)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);

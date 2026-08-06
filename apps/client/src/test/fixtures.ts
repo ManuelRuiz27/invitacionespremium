@@ -183,6 +183,7 @@ export function mockApiClient(user: AuthUser = independentUser): ApiClient {
       deactivatePromotion: vi.fn()
     },
     adminReports: { list: vi.fn(), listEvent: vi.fn() },
+    adminAudit: { listAuditLogs: vi.fn() },
     events: {
       list: vi.fn().mockResolvedValue([configuredEvent, activeEvent]),
       get: vi.fn().mockResolvedValue(configuredEvent),
@@ -261,6 +262,14 @@ export function mockApiClient(user: AuthUser = independentUser): ApiClient {
       unlock: vi.fn()
     },
     physicalPasses: { list: vi.fn().mockResolvedValue([]), generate: vi.fn(), svg: vi.fn() },
+    scanner: {
+      getSession: vi.fn(),
+      scan: vi.fn(),
+      search: vi.fn(),
+      checkIn: vi.fn(),
+      scanPhysicalPass: vi.fn(),
+      getFloorplan: vi.fn()
+    },
     publicInvitation: {
       resolve: vi.fn(),
       confirm: vi.fn(),

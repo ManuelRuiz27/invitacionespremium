@@ -499,9 +499,13 @@ ni accesos reales. Producción exige URLs HTTP/HTTPS explícitas y omite canonic
 una URL pública válida. Demo y modal se cargan dinámicamente.
 
 `CODEX-131 — Microapp Scanner` está **EN PROGRESO**. La implementación técnica fue corregida y quedó
-sincronizada con OpenAPI, el SDK generado y los contratos especializados. Permanece pendiente de
-aceptación mediante prueba física HTTPS en un teléfono real; no existe evidencia de dispositivo para
-marcarla como aceptada o completada. `CODEX-140`, `CODEX-141` y Configuración no se iniciaron.
+sincronizada con OpenAPI, el SDK generado y los contratos especializados. El Scanner conecta al
+namespace `/realtime`, recupera autoridad por REST, descarta pendientes/Mesas obsoletos y resalta la
+geometría real del Croquis. La línea base local, integración PostgreSQL y `pnpm run ci` están verdes.
+El estado máximo del corte es **TÉCNICAMENTE PREPARADO PARA QA FÍSICA — NO-GO PARA PILOTO**: permanece
+pendiente la prueba HTTPS en Android o iPhone real y no existe evidencia para marcarla como aceptada o
+completada. La detección entre QR de Invitación y pase físico sigue siendo una tarea contractual
+separada; no se agregó una UX automática. `CODEX-140`, `CODEX-141` y Configuración no se iniciaron.
 
 ## Fuente de verdad
 

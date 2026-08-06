@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse, delay, http } from 'msw';
 import { setupServer } from 'msw/node';
@@ -10,14 +10,23 @@ import { ScannerSessionPage } from '../pages/ScannerSessionPage';
 
 const socketState = vi.hoisted(() => ({
   disconnect: vi.fn(),
-  handlers: new Map<string, () => void>()
+  handlers: new Map<string, () => void>(),
+  managerHandlers: new Map<string, () => void>(),
+  calls: [] as Array<[string, Record<string, unknown>]>
 }));
 
 vi.mock('socket.io-client', () => ({
-  io: vi.fn(() => ({
-    on: vi.fn((event: string, handler: () => void) => socketState.handlers.set(event, handler)),
-    disconnect: socketState.disconnect
-  }))
+  io: vi.fn((url: string, options: Record<string, unknown>) => {
+    socketState.calls.push([url, options]);
+    return {
+      on: vi.fn((event: string, handler: () => void) => socketState.handlers.set(event, handler)),
+      disconnect: socketState.disconnect,
+      io: {
+        on: vi.fn((event: string, handler: () => void) => socketState.managerHandlers.set(event, handler)),
+        off: vi.fn((event: string) => socketState.managerHandlers.delete(event))
+      }
+    };
+  })
 }));
 
 vi.mock('../components/CameraReader', () => ({
@@ -48,9 +57,12 @@ const assistantTwo = {
 };
 const invitation = { id: '20000000-0000-4000-8000-000000000001', mode: 'FAMILY_NOMINAL' as const };
 let scanRequests = 0;
+let sessionRequests = 0;
+let floorplanRequests = 0;
 
 const server = setupServer(
   http.get('http://localhost/api/v1/scanner/:token/session', ({ params }) => {
+    sessionRequests += 1;
     const token = String(params.token);
     if (token.startsWith('invalid') || token.startsWith('expired') || token.startsWith('revoked')) {
       return HttpResponse.json({ code: 'STAFF_TOKEN_INVALID_OR_EXPIRED', message: 'Invalid.' }, { status: 401 });
@@ -104,10 +116,16 @@ const server = setupServer(
   }),
   http.post('http://localhost/api/v1/scanner/:token/check-in', async ({ request }) => {
     const body = (await request.json()) as { assistantIds: string[] };
-    const checked = body.assistantIds.map((id) => ({
-      ...(id === assistantOne.id ? assistantOne : assistantTwo),
-      checkedInAt: '2026-08-05T20:01:00.000Z'
-    }));
+    const checked = body.assistantIds.map((id, index) => {
+      const assistant = id === assistantOne.id ? assistantOne : assistantTwo;
+      return {
+        assistantId: assistant.id,
+        checkInId: `60000000-0000-4000-8000-00000000000${index + 1}`,
+        name: assistant.name,
+        table: assistant.table,
+        checkedInAt: '2026-08-05T20:01:00.000Z'
+      };
+    });
     const remaining = [assistantOne, assistantTwo].filter((assistant) => !body.assistantIds.includes(assistant.id));
     return HttpResponse.json({
       status: 'CHECKED_IN',
@@ -117,8 +135,9 @@ const server = setupServer(
       remainingPendingCount: remaining.length
     });
   }),
-  http.get('http://localhost/api/v1/scanner/:token/floorplan', () =>
-    HttpResponse.json({
+  http.get('http://localhost/api/v1/scanner/:token/floorplan', () => {
+    floorplanRequests += 1;
+    return HttpResponse.json({
       floorplanId: '50000000-0000-4000-8000-000000000001',
       contentPath: '/api/v1/scanner/event-floorplan/floorplan/content',
       shapes: [
@@ -138,8 +157,8 @@ const server = setupServer(
           polygonPoints: null
         }
       ]
-    })
-  )
+    });
+  })
 );
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
@@ -148,7 +167,11 @@ afterEach(() => {
   server.resetHandlers();
   socketState.disconnect.mockClear();
   socketState.handlers.clear();
+  socketState.managerHandlers.clear();
+  socketState.calls.length = 0;
   scanRequests = 0;
+  sessionRequests = 0;
+  floorplanRequests = 0;
 });
 afterAll(() => server.close());
 
@@ -161,7 +184,13 @@ function renderScanner(token: string) {
         <Routes>
           <Route
             path="/scanner/:staffToken"
-            element={<ScannerSessionPage apiClient={apiClient} apiBaseUrl="http://localhost" />}
+            element={
+              <ScannerSessionPage
+                apiClient={apiClient}
+                apiBaseUrl="http://localhost"
+                realtime={{ serverUrl: 'http://realtime.local', namespace: '/realtime', path: '/socket.io' }}
+              />
+            }
           />
         </Routes>
       </MemoryRouter>
@@ -244,7 +273,15 @@ describe('QR y check-in', () => {
         return HttpResponse.json({
           status: 'CHECKED_IN',
           invitationId: invitation.id,
-          checkedIn: [{ ...assistantOne, checkedInAt: '2026-08-05T20:01:00.000Z' }],
+          checkedIn: [
+            {
+              assistantId: assistantOne.id,
+              checkInId: '60000000-0000-4000-8000-000000000001',
+              name: assistantOne.name,
+              table: assistantOne.table,
+              checkedInAt: '2026-08-05T20:01:00.000Z'
+            }
+          ],
           remainingPendingAssistants: [assistantTwo],
           remainingPendingCount: 1
         });
@@ -280,8 +317,20 @@ describe('QR y check-in', () => {
           status: 'CHECKED_IN',
           invitationId: invitation.id,
           checkedIn: [
-            { ...assistantOne, checkedInAt: '2026-08-05T20:01:00.000Z' },
-            { ...assistantTwo, checkedInAt: '2026-08-05T20:01:00.000Z' }
+            {
+              assistantId: assistantOne.id,
+              checkInId: '60000000-0000-4000-8000-000000000001',
+              name: assistantOne.name,
+              table: assistantOne.table,
+              checkedInAt: '2026-08-05T20:01:00.000Z'
+            },
+            {
+              assistantId: assistantTwo.id,
+              checkInId: '60000000-0000-4000-8000-000000000002',
+              name: assistantTwo.name,
+              table: assistantTwo.table,
+              checkedInAt: '2026-08-05T20:01:00.000Z'
+            }
           ],
           remainingPendingAssistants: [],
           remainingPendingCount: 0
@@ -302,6 +351,46 @@ describe('QR y check-in', () => {
 });
 
 describe('búsqueda, Croquis y realtime', () => {
+  it('conecta al namespace, path y handshake Staff exactos sin secretos adicionales', async () => {
+    renderScanner('event-day-token');
+    await screen.findByText('Cámara preparada');
+    expect(socketState.calls).toEqual([
+      [
+        'http://realtime.local/realtime',
+        {
+          auth: {
+            protocolVersion: 1,
+            actorMode: 'STAFF_TOKEN',
+            roomType: 'scanner',
+            staffToken: 'event-day-token'
+          },
+          path: '/socket.io',
+          transports: ['websocket']
+        }
+      ]
+    ]);
+    const [url, options] = socketState.calls[0]!;
+    expect(url).not.toContain('?');
+    expect(options.auth).not.toHaveProperty('eventId');
+    expect(JSON.stringify(options)).not.toMatch(/password|authorization|cookie|phone|teléfono/i);
+  });
+
+  it('informa connect_error sin desmontar las operaciones REST', async () => {
+    renderScanner('event-day-token');
+    await screen.findByText('Cámara preparada');
+    act(() => socketState.handlers.get('connect_error')?.());
+    expect(await screen.findByText(/actualización en tiempo real no está disponible/)).toBeInTheDocument();
+    expect(screen.getByText('Cámara preparada')).toBeInTheDocument();
+  });
+
+  it('recupera la sesión REST después de una reconexión', async () => {
+    renderScanner('event-day-token');
+    await screen.findByText('Cámara preparada');
+    expect(sessionRequests).toBe(1);
+    act(() => socketState.managerHandlers.get('reconnect')?.());
+    await waitFor(() => expect(sessionRequests).toBe(2));
+  });
+
   it('informa búsqueda sin coincidencias', async () => {
     const user = userEvent.setup();
     renderScanner('event-day-token');
@@ -355,12 +444,39 @@ describe('búsqueda, Croquis y realtime', () => {
     expect(socketState.disconnect).toHaveBeenCalled();
   });
 
-  it('bloquea inmediatamente al recibir cierre realtime', async () => {
+  it.each(['event.closed', 'event.cancelled'])('bloquea y desconecta inmediatamente con %s', async (eventName) => {
     renderScanner('event-day-token');
     await screen.findByText('Cámara preparada');
-    socketState.handlers.get('event.closed')?.();
+    act(() => socketState.handlers.get(eventName)?.());
     expect(
       await screen.findByText('El Evento está cerrado, cancelado, archivado o fuera de operación.')
     ).toBeInTheDocument();
+    expect(screen.queryByText('Cámara preparada')).not.toBeInTheDocument();
+    expect(socketState.disconnect).toHaveBeenCalled();
+  });
+
+  it('descarta pendientes visibles cuando otro Scanner emite checkin.created', async () => {
+    const user = userEvent.setup();
+    renderScanner('event-day-token');
+    await user.click(await screen.findByRole('button', { name: 'Leer QR válido' }));
+    expect(await screen.findByText('Asistentes pendientes')).toBeInTheDocument();
+    act(() => socketState.handlers.get('checkin.created')?.());
+    expect(await screen.findByText('La disponibilidad cambió. Escanea o busca nuevamente.')).toBeInTheDocument();
+    expect(screen.queryByText('Asistentes pendientes')).not.toBeInTheDocument();
+    expect(screen.getByText('Cámara preparada')).toBeInTheDocument();
+    await waitFor(() => expect(sessionRequests).toBe(2));
+  });
+
+  it('descarta la Mesa anterior e invalida el Croquis con seating.updated', async () => {
+    const user = userEvent.setup();
+    renderScanner('event-day-floorplan');
+    await user.click(await screen.findByRole('button', { name: 'Leer QR válido' }));
+    await user.click(screen.getByRole('tab', { name: 'Croquis' }));
+    expect(await screen.findByRole('img', { name: 'Ubicación de la Mesa 12 en el Croquis' })).toBeInTheDocument();
+    expect(floorplanRequests).toBe(1);
+    act(() => socketState.handlers.get('seating.updated')?.());
+    expect(await screen.findByText('La disponibilidad cambió. Escanea o busca nuevamente.')).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'Ubicación de la Mesa 12 en el Croquis' })).not.toBeInTheDocument();
+    await waitFor(() => expect(floorplanRequests).toBe(2));
   });
 });

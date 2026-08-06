@@ -219,15 +219,17 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
       </LandingContainer>
 
       {/* Mobile Drawer */}
-      <Drawer 
-        anchor="right" 
-        open={drawerOpen} 
+      <Drawer
+        anchor="right"
+        open={drawerOpen}
         onClose={toggleDrawer(false)}
-        PaperProps={{
-          sx: {
-            bgcolor: landingTokens.colors.dark.surface,
-            color: landingTokens.colors.dark.text,
-            borderLeft: landingTokens.borders.hairlineDark
+        slotProps={{
+          paper: {
+            sx: {
+              bgcolor: landingTokens.colors.dark.surface,
+              color: landingTokens.colors.dark.text,
+              borderLeft: landingTokens.borders.hairlineDark
+            }
           }
         }}
       >
@@ -249,7 +251,10 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
             {landingContent.nav.map((item) => (
               <ListItem key={item.href} disablePadding>
                 <ListItemButton onClick={() => handleNavClick(item.href)} sx={{ borderRadius: 0, my: 0.5 }}>
-                  <ListItemText primary={item.label} slotProps={{ primary: { sx: { ...landingTokens.typography.headline, fontSize: '1.1rem' } } }} />
+                  <ListItemText
+                    primary={item.label}
+                    slotProps={{ primary: { sx: { ...landingTokens.typography.headline, fontSize: '1.1rem' } } }}
+                  />
                 </ListItemButton>
               </ListItem>
             ))}

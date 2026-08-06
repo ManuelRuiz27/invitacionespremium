@@ -261,7 +261,8 @@ const commercialContent = {
   },
   cta: {
     title: 'Lleva tu Evento al siguiente nivel',
-    description: 'Comienza a organizar la experiencia completa con InvitacionesPremium. El registro como Planner independiente es público y sin costo inicial.',
+    description:
+      'Comienza a organizar la experiencia completa con InvitacionesPremium. El registro como Planner independiente es público y sin costo inicial.',
     primaryCta: 'Registrarme como Planner',
     secondaryCta: 'Iniciar sesión'
   },

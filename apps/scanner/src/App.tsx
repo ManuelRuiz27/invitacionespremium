@@ -18,7 +18,10 @@ export function App(props: AppProps) {
     const env = props.env ?? readScannerEnv();
     const queryClient = props.queryClient ?? createScannerQueryClient();
     const apiClient = props.apiClient ?? createApiClient({ baseUrl: env.apiBaseUrl });
-    return { queryClient, router: createScannerRouter({ apiClient, apiBaseUrl: env.apiBaseUrl }) };
+    return {
+      queryClient,
+      router: createScannerRouter({ apiClient, apiBaseUrl: env.apiBaseUrl, realtime: env.realtime })
+    };
   }, [props.apiClient, props.env, props.queryClient]);
   return (
     <AppThemeProvider>

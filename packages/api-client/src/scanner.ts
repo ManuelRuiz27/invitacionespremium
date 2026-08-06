@@ -37,6 +37,12 @@ export interface ScannerClient {
 
 const segment = (value: string) => encodeURIComponent(value);
 const withSignal = (signal?: AbortSignal) => (signal ? { signal } : {});
+const isNonEmptyString = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0;
+const isNonNegativeInteger = (value: unknown): value is number => Number.isInteger(value) && Number(value) >= 0;
+const isPositiveInteger = (value: unknown): value is number => Number.isInteger(value) && Number(value) > 0;
+const isFiniteInRange = (value: unknown, minimum: number, maximum: number): value is number =>
+  typeof value === 'number' && Number.isFinite(value) && value >= minimum && value <= maximum;
+const isDateTime = (value: unknown): value is string => isNonEmptyString(value) && Number.isFinite(Date.parse(value));
 
 export function createScannerClient(request: ApiRequester): ScannerClient {
   return {
@@ -118,32 +124,32 @@ function isScannerSession(value: unknown): value is ScannerSessionResponse {
     isRecord(value) &&
     value.status === 'AVAILABLE' &&
     isRecord(value.staff) &&
-    typeof value.staff.alias === 'string' &&
+    isNonEmptyString(value.staff.alias) &&
     isRecord(value.event) &&
-    typeof value.event.id === 'string' &&
-    typeof value.event.name === 'string' &&
+    isNonEmptyString(value.event.id) &&
+    isNonEmptyString(value.event.name) &&
     (value.event.status === 'ACTIVE' || value.event.status === 'EVENT_DAY') &&
-    typeof value.event.eventDateTime === 'string' &&
-    typeof value.event.timeZone === 'string' &&
+    isDateTime(value.event.eventDateTime) &&
+    isNonEmptyString(value.event.timeZone) &&
     typeof value.event.floorplanEnabled === 'boolean'
   );
 }
 
 function isInvitation(value: unknown): value is ScannerInvitation {
   return (
-    isRecord(value) && typeof value.id === 'string' && (value.mode === 'INDIVIDUAL' || value.mode === 'FAMILY_NOMINAL')
+    isRecord(value) && isNonEmptyString(value.id) && (value.mode === 'INDIVIDUAL' || value.mode === 'FAMILY_NOMINAL')
   );
 }
 
 function isTable(value: unknown): value is ScannerTable {
-  return isRecord(value) && typeof value.id === 'string' && typeof value.name === 'string';
+  return isRecord(value) && isNonEmptyString(value.id) && isNonEmptyString(value.name);
 }
 
 function isPendingAssistant(value: unknown): value is PendingAssistant {
   return (
     isRecord(value) &&
-    typeof value.id === 'string' &&
-    typeof value.name === 'string' &&
+    isNonEmptyString(value.id) &&
+    isNonEmptyString(value.name) &&
     typeof value.isPrimary === 'boolean' &&
     (value.table === null || isTable(value.table))
   );
@@ -153,18 +159,22 @@ function isInvitationResult(value: unknown): value is ScannerInvitationResult {
   return (
     isRecord(value) &&
     isInvitation(value.invitation) &&
-    Number.isInteger(value.confirmedCount) &&
-    Number.isInteger(value.checkedInCount) &&
-    Number.isInteger(value.pendingCount) &&
+    isNonNegativeInteger(value.confirmedCount) &&
+    isNonNegativeInteger(value.checkedInCount) &&
+    isNonNegativeInteger(value.pendingCount) &&
+    value.checkedInCount <= value.confirmedCount &&
+    value.checkedInCount + value.pendingCount === value.confirmedCount &&
     Array.isArray(value.pendingAssistants) &&
-    value.pendingAssistants.every(isPendingAssistant)
+    value.pendingAssistants.length === value.pendingCount &&
+    value.pendingAssistants.every(isPendingAssistant) &&
+    new Set(value.pendingAssistants.map((assistant) => assistant.id)).size === value.pendingAssistants.length
   );
 }
 
 function isScannerResult(value: unknown): value is ScannerScanResponse {
-  return (
-    isRecord(value) && (value.status === 'AVAILABLE' || value.status === 'NO_PENDING') && isInvitationResult(value)
-  );
+  if (!isRecord(value) || (value.status !== 'AVAILABLE' && value.status !== 'NO_PENDING')) return false;
+  const status = value.status;
+  return isInvitationResult(value) && (status === 'AVAILABLE' ? value.pendingCount > 0 : value.pendingCount === 0);
 }
 
 function isScannerSearch(value: unknown): value is ScannerSearchResponse {
@@ -172,51 +182,87 @@ function isScannerSearch(value: unknown): value is ScannerSearchResponse {
     isRecord(value) &&
     (value.status === 'MATCHES' || value.status === 'NO_MATCHES') &&
     Array.isArray(value.results) &&
-    value.results.every(isInvitationResult)
+    value.results.every(isInvitationResult) &&
+    (value.status === 'MATCHES' ? value.results.length > 0 : value.results.length === 0)
   );
 }
 
 function isCheckedInAssistant(value: unknown): value is CheckedInAssistant {
   return (
     isRecord(value) &&
-    typeof value.id === 'string' &&
-    typeof value.name === 'string' &&
-    typeof value.checkedInAt === 'string' &&
+    isNonEmptyString(value.assistantId) &&
+    isNonEmptyString(value.checkInId) &&
+    isNonEmptyString(value.name) &&
+    isDateTime(value.checkedInAt) &&
     (value.table === null || isTable(value.table))
   );
 }
 
 function isCheckInResponse(value: unknown): value is ScannerCheckInResponse {
+  if (
+    !isRecord(value) ||
+    value.status !== 'CHECKED_IN' ||
+    !isNonEmptyString(value.invitationId) ||
+    !isNonNegativeInteger(value.remainingPendingCount) ||
+    !Array.isArray(value.checkedIn) ||
+    !value.checkedIn.every(isCheckedInAssistant) ||
+    !Array.isArray(value.remainingPendingAssistants) ||
+    !value.remainingPendingAssistants.every(isPendingAssistant)
+  )
+    return false;
+  const checkedIn = value.checkedIn;
+  const remaining = value.remainingPendingAssistants;
   return (
-    isRecord(value) &&
-    value.status === 'CHECKED_IN' &&
-    typeof value.invitationId === 'string' &&
-    Number.isInteger(value.remainingPendingCount) &&
-    Array.isArray(value.checkedIn) &&
-    value.checkedIn.every(isCheckedInAssistant) &&
-    Array.isArray(value.remainingPendingAssistants) &&
-    value.remainingPendingAssistants.every(isPendingAssistant)
+    remaining.length === value.remainingPendingCount &&
+    new Set(checkedIn.map((assistant) => assistant.assistantId)).size === checkedIn.length &&
+    new Set(remaining.map((assistant) => assistant.id)).size === remaining.length &&
+    checkedIn.every((assistant) => !remaining.some((pending) => pending.id === assistant.assistantId))
   );
+}
+
+function isPolygonPoint(value: unknown): value is { x: number; y: number } {
+  return isRecord(value) && isFiniteInRange(value.x, 0, 1) && isFiniteInRange(value.y, 0, 1);
 }
 
 function isFloorplanShape(value: unknown): value is FloorplanShape {
   return (
     isRecord(value) &&
-    typeof value.id === 'string' &&
-    typeof value.name === 'string' &&
+    isNonEmptyString(value.id) &&
+    isNonEmptyString(value.name) &&
     (value.kind === 'TABLE' || value.kind === 'DECORATIVE_ZONE') &&
-    typeof value.x === 'number' &&
-    typeof value.y === 'number' &&
-    typeof value.width === 'number' &&
-    typeof value.height === 'number'
+    (value.geometry === 'RECTANGLE' ||
+      value.geometry === 'SQUARE' ||
+      value.geometry === 'CIRCLE' ||
+      value.geometry === 'POLYGON') &&
+    isNonNegativeInteger(value.capacity) &&
+    isNonNegativeInteger(value.occupancy) &&
+    isNonNegativeInteger(value.availableCapacity) &&
+    (value.kind === 'TABLE' ? value.capacity > 0 : value.capacity === 0) &&
+    value.occupancy <= value.capacity &&
+    value.availableCapacity === value.capacity - value.occupancy &&
+    isFiniteInRange(value.x, 0, 1) &&
+    isFiniteInRange(value.y, 0, 1) &&
+    isFiniteInRange(value.width, Number.MIN_VALUE, 1) &&
+    isFiniteInRange(value.height, Number.MIN_VALUE, 1) &&
+    value.x + value.width <= 1 &&
+    value.y + value.height <= 1 &&
+    isFiniteInRange(value.rotation, 0, 360) &&
+    value.rotation < 360 &&
+    (value.geometry === 'SQUARE' || value.geometry === 'CIRCLE' ? value.width === value.height : true) &&
+    (value.geometry === 'POLYGON'
+      ? Array.isArray(value.polygonPoints) &&
+        value.polygonPoints.length >= 3 &&
+        value.polygonPoints.length <= 64 &&
+        value.polygonPoints.every(isPolygonPoint)
+      : value.polygonPoints === null || value.polygonPoints === undefined)
   );
 }
 
 function isFloorplanResponse(value: unknown): value is ScannerFloorplanResponse {
   return (
     isRecord(value) &&
-    typeof value.floorplanId === 'string' &&
-    typeof value.contentPath === 'string' &&
+    isNonEmptyString(value.floorplanId) &&
+    isNonEmptyString(value.contentPath) &&
     Array.isArray(value.shapes) &&
     value.shapes.every(isFloorplanShape)
   );
@@ -226,9 +272,9 @@ function isPhysicalPassResponse(value: unknown): value is ScanPhysicalPassRespon
   return (
     isRecord(value) &&
     value.status === 'USED' &&
-    typeof value.physicalPassId === 'string' &&
-    Number.isInteger(value.passNumber) &&
-    typeof value.usedAt === 'string' &&
+    isNonEmptyString(value.physicalPassId) &&
+    isPositiveInteger(value.passNumber) &&
+    isDateTime(value.usedAt) &&
     (value.table === null || isTable(value.table))
   );
 }

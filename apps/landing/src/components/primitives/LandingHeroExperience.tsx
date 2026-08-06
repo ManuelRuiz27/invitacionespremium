@@ -135,9 +135,30 @@ export function LandingHeroExperience({ config }: LandingHeroExperienceProps) {
         </Box>
 
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mt: 1 }}>
-          <Box sx={{ height: 12, width: '100%', bgcolor: landingTokens.surfaces.demoSceneLight.mutedBlock, borderRadius: 1 }} />
-          <Box sx={{ height: 12, width: '80%', bgcolor: landingTokens.surfaces.demoSceneLight.mutedBlock, borderRadius: 1 }} />
-          <Box sx={{ height: 12, width: '60%', bgcolor: landingTokens.surfaces.demoSceneLight.mutedBlock, borderRadius: 1 }} />
+          <Box
+            sx={{
+              height: 12,
+              width: '100%',
+              bgcolor: landingTokens.surfaces.demoSceneLight.mutedBlock,
+              borderRadius: 1
+            }}
+          />
+          <Box
+            sx={{
+              height: 12,
+              width: '80%',
+              bgcolor: landingTokens.surfaces.demoSceneLight.mutedBlock,
+              borderRadius: 1
+            }}
+          />
+          <Box
+            sx={{
+              height: 12,
+              width: '60%',
+              bgcolor: landingTokens.surfaces.demoSceneLight.mutedBlock,
+              borderRadius: 1
+            }}
+          />
         </Box>
       </Paper>
     </Box>

@@ -17,8 +17,13 @@ export function LandingFaq() {
   };
 
   return (
-    <Box id="faq" component="section" aria-labelledby={headingId} sx={{ py: landingTokens.spacing.sectionY, bgcolor: landingTokens.colors.light.background }}>
-      <LandingContainer maxWidth="md">
+    <Box
+      id="faq"
+      component="section"
+      aria-labelledby={headingId}
+      sx={{ py: landingTokens.spacing.sectionY, bgcolor: landingTokens.colors.light.background }}
+    >
+      <LandingContainer>
         <LandingSectionIntro
           headingId={headingId}
           title={landingContent.faq.title}
@@ -51,12 +56,23 @@ export function LandingFaq() {
                   id={`${panelId}-header`}
                   sx={{ px: 0, py: 2 }}
                 >
-                  <Typography variant="h4" component="h3" sx={{ ...landingTokens.typography.headline, fontSize: '1.15rem', color: landingTokens.colors.light.text }}>
+                  <Typography
+                    variant="h4"
+                    component="h3"
+                    sx={{
+                      ...landingTokens.typography.headline,
+                      fontSize: '1.15rem',
+                      color: landingTokens.colors.light.text
+                    }}
+                  >
                     {item.question}
                   </Typography>
                 </AccordionSummary>
                 <AccordionDetails sx={{ px: 0, pb: 4, pt: 0 }}>
-                  <Typography variant="body2" sx={{ ...landingTokens.typography.body, color: landingTokens.colors.light.textMuted }}>
+                  <Typography
+                    variant="body2"
+                    sx={{ ...landingTokens.typography.body, color: landingTokens.colors.light.textMuted }}
+                  >
                     {item.answer}
                   </Typography>
                 </AccordionDetails>

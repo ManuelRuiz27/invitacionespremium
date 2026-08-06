@@ -12,7 +12,12 @@ export function LandingOrganizations() {
   const headingId = 'landing-organizations-heading';
 
   return (
-    <Box id="organizaciones" component="section" aria-labelledby={headingId} sx={{ py: landingTokens.spacing.sectionY, bgcolor: landingTokens.colors.dark.background }}>
+    <Box
+      id="organizaciones"
+      component="section"
+      aria-labelledby={headingId}
+      sx={{ py: landingTokens.spacing.sectionY, bgcolor: landingTokens.colors.dark.background }}
+    >
       <LandingContainer>
         <LandingSectionIntro
           headingId={headingId}
@@ -34,7 +39,16 @@ export function LandingOrganizations() {
         >
           {/* Institutional Notice */}
           <Box sx={{ p: { xs: 4, md: 6 }, textAlign: 'center', borderBottom: landingTokens.borders.hairlineDark }}>
-            <Typography variant="body1" sx={{ ...landingTokens.typography.body, color: landingTokens.colors.dark.text, maxWidth: 720, mx: 'auto', fontSize: '1.1rem' }}>
+            <Typography
+              variant="body1"
+              sx={{
+                ...landingTokens.typography.body,
+                color: landingTokens.colors.dark.text,
+                maxWidth: 720,
+                mx: 'auto',
+                fontSize: '1.1rem'
+              }}
+            >
               {landingContent.organizations.notice}
             </Typography>
           </Box>
@@ -53,13 +67,28 @@ export function LandingOrganizations() {
               >
                 <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2.5 }}>
                   <Box sx={{ color: landingTokens.colors.dark.text, mt: 0.5, opacity: 0.5 }}>
-                    {idx === 0 ? <SupervisorAccountIcon fontSize="large" aria-hidden="true" /> : <AccountCircleIcon fontSize="large" aria-hidden="true" />}
+                    {idx === 0 ? (
+                      <SupervisorAccountIcon fontSize="large" aria-hidden="true" />
+                    ) : (
+                      <AccountCircleIcon fontSize="large" aria-hidden="true" />
+                    )}
                   </Box>
                   <Box>
-                    <Typography variant="h4" sx={{ ...landingTokens.typography.headline, color: landingTokens.colors.dark.text, fontSize: '1.25rem', mb: 1.5 }}>
+                    <Typography
+                      variant="h4"
+                      sx={{
+                        ...landingTokens.typography.headline,
+                        color: landingTokens.colors.dark.text,
+                        fontSize: '1.25rem',
+                        mb: 1.5
+                      }}
+                    >
                       {role.name}
                     </Typography>
-                    <Typography variant="body2" sx={{ ...landingTokens.typography.body, color: landingTokens.colors.dark.textMuted }}>
+                    <Typography
+                      variant="body2"
+                      sx={{ ...landingTokens.typography.body, color: landingTokens.colors.dark.textMuted }}
+                    >
                       {role.description}
                     </Typography>
                   </Box>

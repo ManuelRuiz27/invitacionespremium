@@ -75,4 +75,117 @@ describe('ScannerClient', () => {
       client.scanner.scanPhysicalPass('staff', 'new-attempt', 'pp1.payload.signature')
     ).rejects.toMatchObject({ status: 409, code: 'PHYSICAL_PASS_ALREADY_USED' });
   });
+
+  it.each([
+    [
+      'session',
+      { status: 'AVAILABLE', staff: {}, event: {} },
+      (client: ReturnType<typeof createApiClient>) => client.scanner.getSession('staff')
+    ],
+    [
+      'invitation result',
+      {
+        status: 'AVAILABLE',
+        invitation: { id: 'invitation', mode: 'INDIVIDUAL' },
+        confirmedCount: 1,
+        checkedInCount: 0,
+        pendingCount: 1,
+        pendingAssistants: [{ id: 'assistant', name: 'Ana', isPrimary: true }]
+      },
+      (client: ReturnType<typeof createApiClient>) => client.scanner.scan('staff', 'qr')
+    ],
+    [
+      'check-in',
+      {
+        status: 'CHECKED_IN',
+        invitationId: 'invitation',
+        checkedIn: [{ name: 'Ana', checkedInAt: '2026-08-05T20:00:00.000Z', table: null }],
+        remainingPendingAssistants: [],
+        remainingPendingCount: 0
+      },
+      (client: ReturnType<typeof createApiClient>) =>
+        client.scanner.checkIn('staff', 'attempt', { invitationId: 'invitation', assistantIds: ['assistant'] })
+    ],
+    [
+      'floorplan shape',
+      {
+        floorplanId: 'floorplan',
+        contentPath: '/floorplan',
+        shapes: [{ id: 'table', name: '1', kind: 'TABLE', x: 0, y: 0, width: 0.2, height: 0.2 }]
+      },
+      (client: ReturnType<typeof createApiClient>) => client.scanner.getFloorplan('staff')
+    ],
+    [
+      'physical pass',
+      { status: 'USED', physicalPassId: 'pass', passNumber: 1, usedAt: '2026-08-05T20:00:00.000Z' },
+      (client: ReturnType<typeof createApiClient>) => client.scanner.scanPhysicalPass('staff', 'attempt', 'qr')
+    ]
+  ])('rechaza una respuesta incompleta de %s', async (_, body, invoke) => {
+    const client = createApiClient({
+      baseUrl: 'https://api.example.test/api/v1',
+      fetchImpl: vi.fn<typeof fetch>().mockResolvedValue(json(body))
+    });
+    await expect(invoke(client)).rejects.toMatchObject({ status: 502, code: 'UNEXPECTED_API_RESPONSE' });
+  });
+
+  it.each([
+    {
+      status: 'AVAILABLE',
+      invitation: { id: 'invitation', mode: 'INDIVIDUAL' },
+      confirmedCount: 1,
+      checkedInCount: -1,
+      pendingCount: 2,
+      pendingAssistants: []
+    },
+    {
+      status: 'NO_PENDING',
+      invitation: { id: 'invitation', mode: 'INDIVIDUAL' },
+      confirmedCount: 2,
+      checkedInCount: 1,
+      pendingCount: 1,
+      pendingAssistants: [{ id: 'assistant', name: 'Ana', isPrimary: true, table: null }]
+    }
+  ])('rechaza conteos negativos o incoherentes del Scanner', async (body) => {
+    const client = createApiClient({
+      baseUrl: 'https://api.example.test/api/v1',
+      fetchImpl: vi.fn<typeof fetch>().mockResolvedValue(json(body))
+    });
+    await expect(client.scanner.scan('staff', 'qr')).rejects.toMatchObject({
+      status: 502,
+      code: 'UNEXPECTED_API_RESPONSE'
+    });
+  });
+
+  it('rechaza geometría, ocupación y coordenadas fuera del contrato', async () => {
+    const client = createApiClient({
+      baseUrl: 'https://api.example.test/api/v1',
+      fetchImpl: vi.fn<typeof fetch>().mockResolvedValue(
+        json({
+          floorplanId: 'floorplan',
+          contentPath: '/floorplan',
+          shapes: [
+            {
+              id: 'table',
+              name: '1',
+              kind: 'TABLE',
+              geometry: 'POLYGON',
+              capacity: 4,
+              occupancy: 5,
+              availableCapacity: -1,
+              x: Number.POSITIVE_INFINITY,
+              y: 0,
+              width: 0,
+              height: 0.2,
+              rotation: 360,
+              polygonPoints: [{ x: 0, y: 0 }]
+            }
+          ]
+        })
+      )
+    });
+    await expect(client.scanner.getFloorplan('staff')).rejects.toMatchObject({
+      status: 502,
+      code: 'UNEXPECTED_API_RESPONSE'
+    });
+  });
 });

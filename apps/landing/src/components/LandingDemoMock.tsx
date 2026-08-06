@@ -19,10 +19,10 @@ const assetMap: Record<string, string> = {
 };
 
 const altMap: Record<string, string> = {
-  INVITATION: "Visual de Invitación Premium",
-  CONFIRMATION: "Pantalla de confirmación RSVP",
-  ACCESS: "Registro QR y control de acceso",
-  TABLES: "Distribución y asignación de mesas"
+  INVITATION: 'Visual de Invitación Premium',
+  CONFIRMATION: 'Pantalla de confirmación RSVP',
+  ACCESS: 'Registro QR y control de acceso',
+  TABLES: 'Distribución y asignación de mesas'
 };
 
 function DemoPanel({
@@ -68,7 +68,12 @@ export function LandingDemoMock() {
   const headingId = 'landing-demo-heading';
 
   return (
-    <Box id="demo" component="section" aria-labelledby={headingId} sx={{ py: landingTokens.spacing.sectionY, bgcolor: landingTokens.colors.dark.background }}>
+    <Box
+      id="demo"
+      component="section"
+      aria-labelledby={headingId}
+      sx={{ py: landingTokens.spacing.sectionY, bgcolor: landingTokens.colors.dark.background }}
+    >
       <LandingContainer>
         <Box sx={{ mb: { xs: 8, md: 12 }, textAlign: 'center' }}>
           <Typography
@@ -98,7 +103,13 @@ export function LandingDemoMock() {
         </Box>
 
         {/* Editorial Index */}
-        <Box sx={{ borderTop: landingTokens.borders.hairlineDark, borderBottom: landingTokens.borders.hairlineDark, mb: { xs: 6, md: 10 } }}>
+        <Box
+          sx={{
+            borderTop: landingTokens.borders.hairlineDark,
+            borderBottom: landingTokens.borders.hairlineDark,
+            mb: { xs: 6, md: 10 }
+          }}
+        >
           <Tabs
             role="tablist"
             value={activeTab}
@@ -107,7 +118,7 @@ export function LandingDemoMock() {
             scrollButtons="auto"
             selectionFollowsFocus
             aria-label={landingContent.demo.label}
-            TabIndicatorProps={{ style: { display: 'none' } }} // Hide default MUI indicator
+            slotProps={{ indicator: { style: { display: 'none' } } }}
             sx={{
               minHeight: 80,
               '& .MuiTabs-flexContainer': {
@@ -144,7 +155,9 @@ export function LandingDemoMock() {
                 aria-selected={activeTab === index}
                 label={
                   <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Box component="span" sx={{ fontSize: '0.9rem', opacity: 0.5 }}>0{index + 1}</Box>
+                    <Box component="span" sx={{ fontSize: '0.9rem', opacity: 0.5 }}>
+                      0{index + 1}
+                    </Box>
                     {scene.label}
                   </Box>
                 }
@@ -168,11 +181,23 @@ export function LandingDemoMock() {
                 <Box sx={{ flex: 1, maxWidth: { xs: '100%', lg: 480 } }}>
                   <Typography
                     variant="h3"
-                    sx={{ ...landingTokens.typography.display, mb: 3, color: landingTokens.colors.dark.text, fontSize: { xs: '2rem', md: '2.5rem' } }}
+                    sx={{
+                      ...landingTokens.typography.display,
+                      mb: 3,
+                      color: landingTokens.colors.dark.text,
+                      fontSize: { xs: '2rem', md: '2.5rem' }
+                    }}
                   >
                     {scene.title}
                   </Typography>
-                  <Typography variant="body1" sx={{ ...landingTokens.typography.body, color: landingTokens.colors.dark.textMuted, fontSize: '1.15rem' }}>
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      ...landingTokens.typography.body,
+                      color: landingTokens.colors.dark.textMuted,
+                      fontSize: '1.15rem'
+                    }}
+                  >
                     {scene.description}
                   </Typography>
                 </Box>
@@ -187,10 +212,10 @@ export function LandingDemoMock() {
                     alignItems: 'center'
                   }}
                 >
-                  <img 
-                    src={assetMap[scene.code]} 
+                  <img
+                    src={assetMap[scene.code]}
                     alt={altMap[scene.code] || scene.title}
-                    style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', display: 'block' }} 
+                    style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', display: 'block' }}
                   />
                 </Box>
               </Box>
