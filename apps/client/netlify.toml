@@ -1,0 +1,7 @@
+[build]
+command = "corepack enable && pnpm install --frozen-lockfile && pnpm --filter @invitaciones/client build"
+publish = "apps/client/dist"
+
+[build.environment]
+NODE_VERSION = "22"
+PNPM_VERSION = "11.15.1"

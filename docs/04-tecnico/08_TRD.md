@@ -181,3 +181,9 @@ Después se añaden validación Prisma, OpenAPI, integración y smoke tests. No 
 ## Ambientes
 
 Local, staging y producción usan base de datos, storage, credenciales y orígenes separados. Nunca copiar datos reales a desarrollo sin anonimización.
+
+La configuración de staging vive en `railway.toml`, los cuatro `apps/*/netlify.toml` y
+`.github/workflows/staging.yml`. Railway aplica migraciones antes del arranque y valida el health
+contractual `/api/v1/health`; Netlify publica cada SPA por separado. Seed, smoke, rollback, backup,
+restore y variables reales están en `docs/05-implementacion/20_STAGING_RUNBOOK.md`. Configuración
+preparada no equivale a evidencia de despliegue u operación.

@@ -63,6 +63,11 @@ El monorepo no implica un despliegue único:
 - cada despliegue usa variables de entorno independientes;
 - Turborepo puede filtrar la app y sus dependencias.
 
+Staging usa `railway.toml` en la raíz para API y migraciones controladas, y un `netlify.toml` por
+frontend con salida SPA independiente. `.github/workflows/staging.yml` despliega únicamente el commit
+de `main` que ya pasó CI y usa GitHub Environment `staging`. Variables y operación se documentan en
+`docs/05-implementacion/20_STAGING_RUNBOOK.md`.
+
 ## CI
 
 La raíz ejecuta:

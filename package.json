@@ -15,7 +15,13 @@
     "test": "turbo run test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "ci": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+    "ci": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "staging:deploy": "pnpm --filter @invitaciones/api staging:deploy",
+    "staging:migrate": "pnpm --filter @invitaciones/api staging:migrate",
+    "staging:seed": "pnpm --filter @invitaciones/api staging:seed",
+    "staging:smoke": "pnpm --filter @invitaciones/api staging:smoke",
+    "staging:backup": "pnpm --filter @invitaciones/api staging:backup",
+    "staging:restore": "pnpm --filter @invitaciones/api staging:restore"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

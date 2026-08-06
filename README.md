@@ -505,7 +505,14 @@ geometría real del Croquis. La línea base local, integración PostgreSQL y `pn
 El estado máximo del corte es **TÉCNICAMENTE PREPARADO PARA QA FÍSICA — NO-GO PARA PILOTO**: permanece
 pendiente la prueba HTTPS en Android o iPhone real y no existe evidencia para marcarla como aceptada o
 completada. La detección entre QR de Invitación y pase físico sigue siendo una tarea contractual
-separada; no se agregó una UX automática. `CODEX-140`, `CODEX-141` y Configuración no se iniciaron.
+separada; no se agregó una UX automática. `CODEX-141` y Configuración no se iniciaron.
+
+## Staging técnico
+
+`CODEX-140` está **EN PROGRESO**. Railway/Netlify, scripts operativos, seed, smoke y workflow quedaron
+preparados de forma reproducible, pero preparación no equivale a infraestructura desplegada ni a
+backup restaurado. La operación está en `docs/05-implementacion/20_STAGING_RUNBOOK.md`. CODEX-131
+permanece **TÉCNICAMENTE PREPARADO PARA QA FÍSICA — NO-GO PARA PILOTO**.
 
 ## Fuente de verdad
 

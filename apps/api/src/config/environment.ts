@@ -12,11 +12,41 @@ const INVITATION_SECRET_PLACEHOLDER = 'replace-with-at-least-32-random-bytes';
 const invitationSigningSecret = z
   .string()
   .refine((value) => Buffer.byteLength(value, 'utf8') >= 32, 'must contain at least 32 bytes');
+const exactCorsOrigins = z
+  .string()
+  .min(1)
+  .superRefine((value, context) => {
+    const origins = value.split(',').map((origin) => origin.trim());
+
+    if (origins.some((origin) => !origin || origin === '*')) {
+      context.addIssue({ code: 'custom', message: 'must contain non-empty exact origins and no wildcard' });
+      return;
+    }
+
+    for (const origin of origins) {
+      try {
+        const parsed = new URL(origin);
+        if (
+          !['http:', 'https:'].includes(parsed.protocol) ||
+          parsed.username ||
+          parsed.password ||
+          parsed.pathname !== '/' ||
+          parsed.search ||
+          parsed.hash
+        ) {
+          throw new Error('not an exact HTTP(S) origin');
+        }
+      } catch {
+        context.addIssue({ code: 'custom', message: `contains an invalid exact origin: ${origin}` });
+      }
+    }
+  });
 
 export const environmentSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-    API_PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
+    API_PORT: z.coerce.number().int().min(1).max(65_535).optional(),
+    PORT: z.coerce.number().int().min(1).max(65_535).optional(),
     DATABASE_URL: postgresUrl,
     DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(100).default(10),
     DATABASE_CONNECTION_TIMEOUT_MS: z.coerce.number().int().min(100).default(5000),
@@ -33,7 +63,7 @@ export const environmentSchema = z
     FILE_ORPHAN_RETENTION_SECONDS: z.coerce.number().int().min(60).default(86_400),
     INVITATION_TOKEN_SIGNING_SECRET: invitationSigningSecret.optional(),
     PUBLIC_INVITATION_BASE_URL: z.string().url().optional(),
-    CORS_ORIGINS: z.string().default('http://localhost:5173'),
+    CORS_ORIGINS: exactCorsOrigins.default('http://localhost:5173'),
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'log', 'debug', 'verbose']).default('log'),
     SWAGGER_ENABLED: booleanFromEnvironment.optional(),
     AUTH_SESSION_TTL_SECONDS: z.coerce.number().int().min(300).max(86_400).default(28_800),
@@ -151,6 +181,7 @@ export const environmentSchema = z
   })
   .transform((environment) => ({
     ...environment,
+    API_PORT: environment.API_PORT ?? environment.PORT ?? 3000,
     INVITATION_TOKEN_SIGNING_SECRET: environment.INVITATION_TOKEN_SIGNING_SECRET ?? LOCAL_INVITATION_SIGNING_SECRET,
     PUBLIC_INVITATION_BASE_URL: environment.PUBLIC_INVITATION_BASE_URL ?? LOCAL_PUBLIC_INVITATION_BASE_URL
   }));

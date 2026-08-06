@@ -2,6 +2,11 @@
 
 ## Estado del corte
 
+- URL de staging preparada: pendiente; existe configuración reproducible, no una URL creada.
+- Commit desplegado: pendiente; no se ejecutó despliegue remoto en este corte.
+- Smoke tests de staging: preparados, no ejecutados contra infraestructura remota.
+- Casos físicos: todos continúan pendientes.
+
 - Rama técnica probada: `fix/main-stabilization`.
 - Base: `main` posterior al merge del PR #15.
 - Ambiente automatizado: workspace local Windows, Node.js y pnpm definidos por el monorepo, API y

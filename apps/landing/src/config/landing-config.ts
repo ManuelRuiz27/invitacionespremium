@@ -286,15 +286,15 @@ const commercialContent = {
 export function createLandingConfig(environment: LandingEnvironment, options: LandingConfigOptions) {
   const allowLocalhost = options.development;
   const apiBaseUrl = resolveHttpUrl(
-    environment.VITE_API_BASE_URL ?? (options.development ? 'http://localhost:3000/api/v1' : undefined),
+    environment.VITE_API_BASE_URL ?? (options.development ? developmentUrl(3000, '/api/v1') : undefined),
     allowLocalhost
   );
   const clientAppUrl = resolveHttpUrl(
-    environment.VITE_CLIENT_APP_URL ?? (options.development ? 'http://localhost:5173' : undefined),
+    environment.VITE_CLIENT_APP_URL ?? (options.development ? developmentUrl(5173) : undefined),
     allowLocalhost
   );
   const publicSiteUrl = resolveHttpUrl(
-    environment.VITE_APP_URL ?? (options.development ? 'http://localhost:5176' : undefined),
+    environment.VITE_APP_URL ?? (options.development ? developmentUrl(5176) : undefined),
     allowLocalhost
   );
 
@@ -309,6 +309,11 @@ export function createLandingConfig(environment: LandingEnvironment, options: La
       ogImage: publicSiteUrl ? new URL('/og-preview.png', withTrailingSlash(publicSiteUrl)).toString() : undefined
     }
   } as const;
+}
+
+function developmentUrl(port: number, path = ''): string {
+  const hostname = typeof window === 'undefined' ? 'dev.invalid' : window.location.hostname;
+  return `http://${hostname}:${port}${path}`;
 }
 
 let cachedConfig: ReturnType<typeof createLandingConfig> | undefined;

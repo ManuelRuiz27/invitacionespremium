@@ -11,7 +11,6 @@ describe('client environment', () => {
       readClientEnv(
         {
           VITE_API_BASE_URL: 'https://api.example.com/api/v1/',
-          VITE_SOCKET_URL: 'https://socket.example.com/',
           VITE_ADMIN_APP_URL: 'https://admin.example.com/',
           VITE_LANDING_URL: 'https://example.com/'
         },
@@ -19,7 +18,6 @@ describe('client environment', () => {
       )
     ).toEqual({
       apiBaseUrl: 'https://api.example.com/api/v1',
-      socketUrl: 'https://socket.example.com',
       adminAppUrl: 'https://admin.example.com',
       landingUrl: 'https://example.com'
     });

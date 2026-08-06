@@ -17,3 +17,7 @@ apps/api/openapi/openapi.json
 graphify-out/
 var/file-assets/
 apps/api/var/file-assets/
+var/staging-seed/
+apps/api/var/staging-seed/
+*.dump
+staging-backups/

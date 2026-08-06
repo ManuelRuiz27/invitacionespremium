@@ -1149,13 +1149,17 @@ backend y `scanPhysicalPass` se conservan.
 
 `CODEX-130A` y `CODEX-130B` permanecen aceptados. `CODEX-130C` esta implementado y pendiente de
 aceptacion. `CODEX-130` permanece en progreso porque falta Configuracion. `CODEX-132` esta aceptado.
-`CODEX-131` está en progreso y pendiente de QA física. `CODEX-140` y `CODEX-141` no se iniciaron.
+`CODEX-131` está en progreso y pendiente de QA física. `CODEX-140` está en progreso con configuración
+reproducible preparada, sin despliegue ni restauración acreditados. `CODEX-141` no se inició.
 
 ---
 
 ## EPIC 14 — Staging y hardening
 
 ### CODEX-140 — Ambiente staging
+
+**Estado:** EN PROGRESO — configuración reproducible preparada; despliegue, smoke remoto y
+restauración de prueba pendientes.
 
 **Repos:** todos
 
@@ -1180,6 +1184,10 @@ aceptacion. `CODEX-130` permanece en progreso porque falta Configuracion. `CODEX
 - health checks;
 - seed demo separado de datos reales;
 - smoke tests automáticos.
+
+Artefactos preparados: `railway.toml`, `apps/*/netlify.toml`, `.github/workflows/staging.yml` y
+`docs/05-implementacion/20_STAGING_RUNBOOK.md`. CODEX-140 no se completa hasta adjuntar URLs accesibles,
+smoke verde, backup y restauración temporal comprobados.
 
 ### CODEX-141 — Pruebas de carga y seguridad operativa
 

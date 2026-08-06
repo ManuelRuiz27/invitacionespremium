@@ -38,6 +38,40 @@ describe('validateEnvironment', () => {
     ).toThrow(/PostgreSQL connection URL/);
   });
 
+  it('uses Railway PORT when API_PORT is not explicitly configured', () => {
+    const environment = validateEnvironment({
+      DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/app',
+      PORT: '4321'
+    });
+
+    expect(environment.API_PORT).toBe(4321);
+  });
+
+  it.each([
+    '*',
+    'https://allowed.example.com,*',
+    'https://user:password@allowed.example.com',
+    'https://allowed.example.com/path',
+    'https://allowed.example.com?query=yes',
+    'not-an-origin'
+  ])('rejects non-exact CORS origin configuration: %s', (corsOrigins) => {
+    expect(() =>
+      validateEnvironment({
+        DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/app',
+        CORS_ORIGINS: corsOrigins
+      })
+    ).toThrow(/exact origin|invalid exact origin/);
+  });
+
+  it('accepts a comma-separated list of exact staging origins', () => {
+    const environment = validateEnvironment({
+      DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/app',
+      CORS_ORIGINS: 'https://client.example.com,https://admin.example.com'
+    });
+
+    expect(environment.CORS_ORIGINS).toBe('https://client.example.com,https://admin.example.com');
+  });
+
   it('requires secure cookies in production and for SameSite=None', () => {
     expect(() =>
       validateEnvironment({

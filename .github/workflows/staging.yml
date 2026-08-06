@@ -1,0 +1,123 @@
+name: Staging
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-main
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    environment: staging
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      STAGING_DEMO_PASSWORD: ${{ secrets.STAGING_DEMO_PASSWORD }}
+      STAGING_INVITATION_TOKEN: ${{ secrets.STAGING_INVITATION_TOKEN }}
+      STAGING_STAFF_TOKEN: ${{ secrets.STAGING_STAFF_TOKEN }}
+      RAILWAY_API_SERVICE_ID: ${{ vars.RAILWAY_API_SERVICE_ID }}
+      NETLIFY_LANDING_SITE_ID: ${{ vars.NETLIFY_LANDING_SITE_ID }}
+      NETLIFY_CLIENT_SITE_ID: ${{ vars.NETLIFY_CLIENT_SITE_ID }}
+      NETLIFY_ADMIN_SITE_ID: ${{ vars.NETLIFY_ADMIN_SITE_ID }}
+      NETLIFY_SCANNER_SITE_ID: ${{ vars.NETLIFY_SCANNER_SITE_ID }}
+      STAGING_API_BASE_URL: ${{ vars.STAGING_API_BASE_URL }}
+      STAGING_SOCKET_URL: ${{ vars.STAGING_SOCKET_URL }}
+      STAGING_LANDING_URL: ${{ vars.STAGING_LANDING_URL }}
+      STAGING_CLIENT_URL: ${{ vars.STAGING_CLIENT_URL }}
+      STAGING_ADMIN_URL: ${{ vars.STAGING_ADMIN_URL }}
+      STAGING_SCANNER_URL: ${{ vars.STAGING_SCANNER_URL }}
+      STAGING_DEMO_EMAIL: ${{ vars.STAGING_DEMO_EMAIL }}
+      STAGING_DEMO_EVENT_ID: ${{ vars.STAGING_DEMO_EVENT_ID }}
+    steps:
+      - id: check
+        name: Check protected staging configuration
+        shell: bash
+        run: |
+          missing=()
+          for name in RAILWAY_TOKEN NETLIFY_AUTH_TOKEN STAGING_DEMO_PASSWORD STAGING_INVITATION_TOKEN STAGING_STAFF_TOKEN RAILWAY_API_SERVICE_ID NETLIFY_LANDING_SITE_ID NETLIFY_CLIENT_SITE_ID NETLIFY_ADMIN_SITE_ID NETLIFY_SCANNER_SITE_ID STAGING_API_BASE_URL STAGING_SOCKET_URL STAGING_LANDING_URL STAGING_CLIENT_URL STAGING_ADMIN_URL STAGING_SCANNER_URL STAGING_DEMO_EMAIL STAGING_DEMO_EVENT_ID; do
+            if [ -z "${!name}" ]; then missing+=("$name"); fi
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            printf 'Staging deployment skipped; configure: %s\n' "${missing[*]}"
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy:
+    needs: preflight
+    if: needs.preflight.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: staging
+    env:
+      STAGING_ENVIRONMENT: staging
+      GITHUB_SHA: ${{ github.event.workflow_run.head_sha }}
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      RAILWAY_API_SERVICE_ID: ${{ vars.RAILWAY_API_SERVICE_ID }}
+      NETLIFY_LANDING_SITE_ID: ${{ vars.NETLIFY_LANDING_SITE_ID }}
+      NETLIFY_CLIENT_SITE_ID: ${{ vars.NETLIFY_CLIENT_SITE_ID }}
+      NETLIFY_ADMIN_SITE_ID: ${{ vars.NETLIFY_ADMIN_SITE_ID }}
+      NETLIFY_SCANNER_SITE_ID: ${{ vars.NETLIFY_SCANNER_SITE_ID }}
+      STAGING_API_BASE_URL: ${{ vars.STAGING_API_BASE_URL }}
+      STAGING_SOCKET_URL: ${{ vars.STAGING_SOCKET_URL }}
+      STAGING_LANDING_URL: ${{ vars.STAGING_LANDING_URL }}
+      STAGING_CLIENT_URL: ${{ vars.STAGING_CLIENT_URL }}
+      STAGING_ADMIN_URL: ${{ vars.STAGING_ADMIN_URL }}
+      STAGING_SCANNER_URL: ${{ vars.STAGING_SCANNER_URL }}
+      STAGING_DEMO_EMAIL: ${{ vars.STAGING_DEMO_EMAIL }}
+      STAGING_DEMO_EVENT_ID: ${{ vars.STAGING_DEMO_EVENT_ID }}
+      STAGING_DEMO_PASSWORD: ${{ secrets.STAGING_DEMO_PASSWORD }}
+      STAGING_INVITATION_TOKEN: ${{ secrets.STAGING_INVITATION_TOKEN }}
+      STAGING_STAFF_TOKEN: ${{ secrets.STAGING_STAFF_TOKEN }}
+      VITE_API_BASE_URL: ${{ vars.STAGING_API_BASE_URL }}
+      VITE_SOCKET_URL: ${{ vars.STAGING_SOCKET_URL }}
+      VITE_CLIENT_APP_URL: ${{ vars.STAGING_CLIENT_URL }}
+      VITE_ADMIN_APP_URL: ${{ vars.STAGING_ADMIN_URL }}
+      VITE_LANDING_URL: ${{ vars.STAGING_LANDING_URL }}
+      VITE_APP_URL: ${{ vars.STAGING_LANDING_URL }}
+    steps:
+      - name: Checkout tested main commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.15.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Deploy and run smoke tests
+        run: pnpm staging:deploy -- --confirm-staging
+
+      - name: Record deployment
+        run: |
+          {
+            echo '## Staging deployment'
+            echo '- Commit: `${{ github.event.workflow_run.head_sha }}`'
+            echo '- API: ${{ vars.STAGING_API_BASE_URL }}'
+            echo '- Landing: ${{ vars.STAGING_LANDING_URL }}'
+            echo '- Client: ${{ vars.STAGING_CLIENT_URL }}'
+            echo '- Admin: ${{ vars.STAGING_ADMIN_URL }}'
+            echo '- Scanner: ${{ vars.STAGING_SCANNER_URL }}'
+          } >> "$GITHUB_STEP_SUMMARY"
