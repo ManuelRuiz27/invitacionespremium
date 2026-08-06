@@ -20,7 +20,8 @@
     "openapi:generate": "prisma generate && tsx scripts/generate-openapi.ts",
     "staging:deploy": "prisma generate && tsx scripts/deploy-staging.ts",
     "staging:migrate": "prisma generate && tsx scripts/migrate-staging.ts",
-    "staging:seed": "pnpm services-pricing:seed && tsx scripts/seed-staging.ts",
+    "staging:seed": "prisma generate && tsx scripts/seed-staging.ts",
+    "staging:verify-secrets": "prisma generate && tsx scripts/verify-staging-secrets.ts",
     "staging:smoke": "prisma generate && tsx scripts/smoke-staging.ts",
     "staging:backup": "prisma generate && tsx scripts/backup-staging.ts",
     "staging:restore": "prisma generate && tsx scripts/restore-staging.ts"

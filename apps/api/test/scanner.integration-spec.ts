@@ -110,6 +110,15 @@ describe('Scanner and CheckIn', () => {
     const replay = await scannerCheckIn(fixture.staffToken, key, fixture.invitationId, [fixture.primaryId]).expect(200);
     expect(replay.body).toEqual(first.body);
     expect(await prisma.checkIn.count({ where: { eventId: fixture.eventId } })).toBe(1);
+    expect(
+      (
+        await prisma.checkIn.findFirstOrThrow({
+          where: { eventId: fixture.eventId, idempotencyKey: key },
+          select: { resultSnapshot: true }
+        })
+      ).resultSnapshot
+    ).toEqual(first.body);
+    expect(JSON.stringify(first.body)).not.toContain('staging-demo');
     expect(await prisma.auditLog.count({ where: { eventId: fixture.eventId, action: 'CHECK_IN_CREATE' } })).toBe(1);
     await scannerCheckIn(fixture.staffToken, key, fixture.invitationId, [fixture.companionId])
       .expect(409)

@@ -81,6 +81,44 @@ export async function runCommand(
   });
 }
 
+export async function runCapturedCommand(
+  command: string,
+  args: readonly string[],
+  options: { cwd?: string; env?: NodeJS.ProcessEnv; timeoutMs?: number } = {}
+): Promise<string> {
+  return new Promise<string>((resolvePromise, reject) => {
+    const child = spawn(command, [...args], {
+      cwd: options.cwd,
+      env: options.env ?? process.env,
+      shell: process.platform === 'win32',
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+    const output: Buffer[] = [];
+    let settled = false;
+    const timeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      child.kill();
+      reject(new Error(`${command} timed out.`));
+    }, options.timeoutMs ?? 900_000);
+    child.stdout.on('data', (chunk: Buffer) => output.push(chunk));
+    child.stderr.resume();
+    child.once('error', (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      reject(error);
+    });
+    child.once('exit', (code, signal) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      if (code === 0) resolvePromise(Buffer.concat(output).toString('utf8'));
+      else reject(new Error(`${command} failed with code ${String(code)} and signal ${String(signal)}.`));
+    });
+  });
+}
+
 export function safeFailure(event: string, error: unknown): string {
   return JSON.stringify({
     event,

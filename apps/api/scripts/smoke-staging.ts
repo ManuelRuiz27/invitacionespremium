@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { io } from 'socket.io-client';
 import { assertStagingOperation, requiredEnvironment, safeFailure, safeHttpsUrl } from './staging-safety';
+import { createStagingFloorplanBytes, stagingFloorplanChecksum } from './staging-floorplan';
 
 interface SmokeContext {
   api: URL;
@@ -75,6 +76,7 @@ async function smokeStaging(): Promise<void> {
     expectedStatus: 200
   });
   await jsonFetch(new URL(`${context.api.href}/scanner/st1.invalid/session`), { expectedStatus: 401 });
+  await verifyFloorplanContent(context);
 
   const preflight = await fetch(new URL(`${context.api.href}/auth/login`), {
     method: 'OPTIONS',
@@ -98,7 +100,23 @@ async function smokeStaging(): Promise<void> {
 
   await verifySocket(context.socket, context.staffToken);
   await assertNoSecrets(context);
-  process.stdout.write(`${JSON.stringify({ event: 'staging_smoke_passed', checks: 18 })}\n`);
+  process.stdout.write(`${JSON.stringify({ event: 'staging_smoke_passed', checks: 19 })}\n`);
+}
+
+async function verifyFloorplanContent(context: SmokeContext): Promise<void> {
+  const response = await fetch(
+    new URL(`${context.api.href}/scanner/${encodeURIComponent(context.staffToken)}/floorplan/content`)
+  );
+  const bytes = Buffer.from(await response.arrayBuffer());
+  const expectedChecksum = stagingFloorplanChecksum(await createStagingFloorplanBytes());
+  if (
+    response.status !== 200 ||
+    response.headers.get('content-type')?.split(';', 1)[0] !== 'image/png' ||
+    bytes.length === 0 ||
+    stagingFloorplanChecksum(bytes) !== expectedChecksum
+  ) {
+    throw new Error('Remote staging Floorplan failed HTTP, MIME, size or checksum verification.');
+  }
 }
 
 async function inspectFrontend(base: URL, routes: string[]): Promise<void> {

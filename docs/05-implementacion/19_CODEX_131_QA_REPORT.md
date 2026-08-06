@@ -5,10 +5,12 @@
 - URL de staging preparada: pendiente; existe configuración reproducible, no una URL creada.
 - Commit desplegado: pendiente; no se ejecutó despliegue remoto en este corte.
 - Smoke tests de staging: preparados, no ejecutados contra infraestructura remota.
+- Storage de Croquis remoto: mecanismo y verificación preparados; no ejecutados contra volumen Railway.
+- Bootstrap/sincronización de secrets: procedimiento preparado; no ejecutado.
 - Casos físicos: todos continúan pendientes.
 
-- Rama técnica probada: `fix/main-stabilization`.
-- Base: `main` posterior al merge del PR #15.
+- Rama técnica probada: `main`.
+- Base: `549145491dca49126f70ca22e713dc455181d0ae` más las correcciones preventivas CODEX-140 del corte.
 - Ambiente automatizado: workspace local Windows, Node.js y pnpm definidos por el monorepo, API y
   PostgreSQL locales para integración.
 - Estado de CODEX-131: `EN PROGRESO`.

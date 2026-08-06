@@ -1,14 +1,16 @@
 import { createHash, createHmac, randomBytes } from 'node:crypto';
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { dirname, join, posix, resolve } from 'node:path';
+import type { INestApplicationContext } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import sharp from 'sharp';
 import { AppModule } from '../src/app.module';
+import { AuditedMutationService } from '../src/audit/audited-mutation.service';
 import { hashPassword } from '../src/auth/password-hasher';
 import { PrismaService } from '../src/common/database/prisma.service';
 import { AppConfigService } from '../src/config/app-config.service';
 import { loadEnvironmentFiles } from '../src/config/load-environment';
-import { FileStorage } from '../src/file-assets/file-storage';
 import {
   AssistantResponseStatus,
   ClientType,
@@ -26,7 +28,16 @@ import {
   UserRole
 } from '../src/generated/prisma/client';
 import { StaffTokenTechnicalService } from '../src/staff-access/staff-token-technical.service';
-import { assertStagingOperation, safeFailure } from './staging-safety';
+import { ScannerService } from '../src/scanner/scanner.service';
+import { seedServicesPricing } from './seed-services-pricing';
+import { createStagingFloorplanBytes, stagingFloorplanChecksum } from './staging-floorplan';
+import {
+  assertStagingOperation,
+  requiredEnvironment,
+  runCapturedCommand,
+  safeFailure,
+  safeHttpsUrl
+} from './staging-safety';
 
 const ids = {
   plannerClient: '14000000-0000-4000-8000-000000000001',
@@ -47,6 +58,9 @@ const ids = {
   individualContact: '14000000-0000-4000-8000-000000000030',
   individualInvitation: '14000000-0000-4000-8000-000000000031',
   individualAssistant: '14000000-0000-4000-8000-000000000032',
+  availableIndividualContact: '14000000-0000-4000-8000-000000000038',
+  availableIndividualInvitation: '14000000-0000-4000-8000-000000000039',
+  availableIndividualAssistant: '14000000-0000-4000-8000-000000000043',
   familyContact: '14000000-0000-4000-8000-000000000033',
   familyInvitation: '14000000-0000-4000-8000-000000000034',
   familyPrimary: '14000000-0000-4000-8000-000000000035',
@@ -56,7 +70,7 @@ const ids = {
   foreignInvitation: '14000000-0000-4000-8000-000000000041',
   foreignAssistant: '14000000-0000-4000-8000-000000000042',
   staff: '14000000-0000-4000-8000-000000000050',
-  checkIn: '14000000-0000-4000-8000-000000000060'
+  legacyCheckIn: '14000000-0000-4000-8000-000000000060'
 } as const;
 
 interface SeedArtifact {
@@ -69,6 +83,7 @@ interface SeedArtifact {
   activeInvitationToken: string;
   familyInvitationToken: string;
   activeQrToken: string;
+  familyQrToken: string;
   foreignQrToken: string;
   eventIds: { active: string; eventDay: string };
 }
@@ -85,24 +100,42 @@ const artifactTemplate = (): SeedArtifact => ({
   activeInvitationToken: '',
   familyInvitationToken: '',
   activeQrToken: '',
+  familyQrToken: '',
   foreignQrToken: '',
   eventIds: { active: ids.activeEvent, eventDay: ids.eventDay }
 });
 
-async function seedStaging(): Promise<void> {
+export interface SeedCommandExecutor {
+  capture(
+    command: string,
+    args: readonly string[],
+    options?: { cwd?: string; env?: NodeJS.ProcessEnv; timeoutMs?: number }
+  ): Promise<string>;
+}
+
+const defaultSeedExecutor: SeedCommandExecutor = { capture: runCapturedCommand };
+
+export async function seedStaging(
+  args = process.argv.slice(2),
+  environment: NodeJS.ProcessEnv = process.env,
+  createApplication: () => Promise<INestApplicationContext> = () =>
+    NestFactory.createApplicationContext(AppModule, { logger: ['error', 'warn'] }),
+  executor: SeedCommandExecutor = defaultSeedExecutor
+): Promise<void> {
   loadEnvironmentFiles();
-  assertStagingOperation(process.argv.slice(2), process.env, {
+  assertStagingOperation(args, environment, {
     confirmationFlag: '--confirm-staging',
     requireDatabase: true
   });
-  const artifactPath = resolve(process.env.STAGING_SEED_ARTIFACT_PATH ?? 'var/staging-seed/credentials.json');
+  const artifactPath = resolve(environment.STAGING_SEED_ARTIFACT_PATH ?? 'var/staging-seed/credentials.json');
   const artifact = await loadOrCreateArtifact(artifactPath);
-  const app = await NestFactory.createApplicationContext(AppModule, { logger: ['error', 'warn'] });
+  const app = await createApplication();
   try {
     const prisma = app.get(PrismaService);
     const config = app.get(AppConfigService);
-    const storage = app.get(FileStorage);
     const staffTokens = app.get(StaffTokenTechnicalService);
+    const scanner = app.get(ScannerService);
+    await seedServicesPricing(app.get(AuditedMutationService));
     const generatedStaff = artifact.staffToken
       ? { rawToken: artifact.staffToken, digestSha256: staffTokens.digest(artifact.staffToken), version: 1 }
       : staffTokens.generate();
@@ -142,15 +175,12 @@ async function seedStaging(): Promise<void> {
           update: { purchasedCredits: 100, creditLineUsed: 0, debtCredits: 0, debtMxnCents: 0 }
         });
       }
-      const service = await tx.service.upsert({
-        where: { code: ServiceCode.DEMO },
-        create: { code: ServiceCode.DEMO },
-        update: { isActive: true }
-      });
+      const service = await tx.service.findUnique({ where: { code: ServiceCode.DEMO } });
+      if (!service) throw new Error('Services and pricing seed did not create the DEMO service.');
       const price = await tx.servicePrice.findFirst({
         where: { serviceId: service.id, clientType: ClientType.PLANNER }
       });
-      if (!price) throw new Error('Run services-pricing:seed before staging:seed.');
+      if (!price) throw new Error('Services and pricing seed did not create the DEMO price.');
       await upsertActivatedEvent(
         tx,
         ids.activeEvent,
@@ -188,6 +218,22 @@ async function seedStaging(): Promise<void> {
       await upsertInvitation(
         tx,
         ids.activeEvent,
+        ids.availableIndividualContact,
+        ids.availableIndividualInvitation,
+        [
+          {
+            id: ids.availableIndividualAssistant,
+            name: 'Invitado individual pendiente',
+            primary: true,
+            status: AssistantResponseStatus.CONFIRMED,
+            tableId: ids.circleTable
+          }
+        ],
+        InvitationMode.INDIVIDUAL
+      );
+      await upsertInvitation(
+        tx,
+        ids.activeEvent,
         ids.familyContact,
         ids.familyInvitation,
         [
@@ -202,14 +248,14 @@ async function seedStaging(): Promise<void> {
             id: ids.familyPendingOne,
             name: 'Asistente pendiente uno',
             primary: false,
-            status: AssistantResponseStatus.PENDING,
+            status: AssistantResponseStatus.CONFIRMED,
             tableId: ids.rectangleTable
           },
           {
             id: ids.familyPendingTwo,
             name: 'Asistente pendiente dos',
             primary: false,
-            status: AssistantResponseStatus.PENDING,
+            status: AssistantResponseStatus.CONFIRMED,
             tableId: ids.rectangleTable
           }
         ],
@@ -243,86 +289,21 @@ async function seedStaging(): Promise<void> {
         },
         update: { alias: 'Scanner staging', tokenDigestSha256: generatedStaff.digestSha256, expiredAt: null }
       });
-      await tx.checkIn.upsert({
-        where: { id: ids.checkIn },
-        create: {
-          id: ids.checkIn,
-          eventId: ids.activeEvent,
-          invitationId: ids.individualInvitation,
-          assistantId: ids.individualAssistant,
-          staffTokenId: ids.staff,
-          checkedInAt: new Date(),
-          idempotencyKey: 'staging-demo-individual-checkin',
-          requestSignature: createHash('sha256').update('staging-demo').digest('hex'),
-          resultSnapshot: { fixture: 'staging-demo' }
-        },
-        update: { revertedAt: null }
-      });
+      await tx.checkIn.deleteMany({ where: { id: ids.legacyCheckIn } });
     });
 
-    const image = await sharp({ create: { width: 640, height: 480, channels: 3, background: '#f6f1e8' } })
-      .png()
-      .toBuffer();
+    const image = await createStagingFloorplanBytes();
     const storageKey = 'staging-demo/floorplan.png';
-    await storage.write({ storageKey, bytes: image });
-    await prisma.fileAsset.upsert({
-      where: { id: ids.floorplanAsset },
-      create: {
-        id: ids.floorplanAsset,
-        clientId: ids.plannerClient,
-        eventId: ids.activeEvent,
-        ownerType: FileAssetOwnerType.FLOORPLAN,
-        fileType: FileAssetType.FLOORPLAN_IMAGE,
-        storageProvider: StorageProvider.LOCAL,
-        storageKey,
-        originalName: 'staging-floorplan.png',
-        mimeType: 'image/png',
-        sizeBytes: image.length,
-        checksumSha256: createHash('sha256').update(image).digest('hex'),
-        width: 640,
-        height: 480,
-        createdByUserId: ids.planner,
-        status: FileAssetStatus.READY
-      },
-      update: {
-        status: FileAssetStatus.READY,
-        sizeBytes: image.length,
-        checksumSha256: createHash('sha256').update(image).digest('hex'),
-        deletedAt: null
-      }
-    });
-    await prisma.floorplan.upsert({
-      where: { id: ids.floorplan },
-      create: { id: ids.floorplan, eventId: ids.activeEvent, imageAssetId: ids.floorplanAsset },
-      update: { imageAssetId: ids.floorplanAsset, deletedAt: null }
-    });
-    await upsertShape(
-      prisma,
-      ids.circleTable,
-      FloorplanShapeKind.TABLE,
-      FloorplanGeometry.CIRCLE,
-      'Mesa circular',
-      8,
-      0.1
+    const checksum = stagingFloorplanChecksum(image);
+    await uploadAndVerifyRemoteFloorplan(
+      image,
+      storageKey,
+      config.fileStorageLocalRoot,
+      config.nodeEnv,
+      environment,
+      executor
     );
-    await upsertShape(
-      prisma,
-      ids.rectangleTable,
-      FloorplanShapeKind.TABLE,
-      FloorplanGeometry.RECTANGLE,
-      'Mesa rectangular',
-      8,
-      0.45
-    );
-    await upsertShape(
-      prisma,
-      ids.decorativeZone,
-      FloorplanShapeKind.DECORATIVE_ZONE,
-      FloorplanGeometry.RECTANGLE,
-      'Zona decorativa',
-      0,
-      0.75
-    );
+    await seedFloorplanDatabase(prisma, storageKey, image.length, checksum);
 
     const invitations = await prisma.invitation.findMany({
       where: { id: { in: [ids.individualInvitation, ids.familyInvitation, ids.foreignInvitation] } }
@@ -343,17 +324,245 @@ async function seedStaging(): Promise<void> {
       'QR',
       requiredInvitation(byId, ids.individualInvitation)
     );
+    artifact.familyQrToken = issue(
+      config.invitationTokenSigningSecret,
+      'QR',
+      requiredInvitation(byId, ids.familyInvitation)
+    );
     artifact.foreignQrToken = issue(
       config.invitationTokenSigningSecret,
       'QR',
       requiredInvitation(byId, ids.foreignInvitation)
     );
+    await verifyScannerFixtures(scanner, artifact);
+    await verifyRemoteFloorplanApi(environment, artifact.staffToken, checksum);
     await writeArtifact(artifactPath, artifact);
     process.stdout.write(
       `${JSON.stringify({ event: 'staging_seed_ready', artifactPath, eventIds: artifact.eventIds })}\n`
     );
   } finally {
     await app.close();
+  }
+}
+
+export function remoteStoragePath(root: string, nodeEnvironment: string, storageKey: string): string {
+  if (!root.startsWith('/') || root.includes('\0'))
+    throw new Error('FILE_STORAGE_LOCAL_ROOT must be absolute on Railway.');
+  const remotePath = posix.resolve(root, nodeEnvironment, storageKey);
+  const expectedRoot = `${posix.resolve(root, nodeEnvironment)}/`;
+  if (!remotePath.startsWith(expectedRoot))
+    throw new Error('Remote staging asset path escapes FILE_STORAGE_LOCAL_ROOT.');
+  return remotePath;
+}
+
+export function railwayFileTargetArgs(environment: NodeJS.ProcessEnv): string[] {
+  return [
+    '--project',
+    requiredEnvironment(environment, 'RAILWAY_PROJECT_ID'),
+    '--environment',
+    'staging',
+    '--service',
+    requiredEnvironment(environment, 'RAILWAY_API_SERVICE_ID')
+  ];
+}
+
+export async function uploadAndVerifyRemoteFloorplan(
+  image: Buffer,
+  storageKey: string,
+  storageRoot: string,
+  nodeEnvironment: string,
+  environment: NodeJS.ProcessEnv,
+  executor: SeedCommandExecutor
+): Promise<void> {
+  requiredEnvironment(environment, 'RAILWAY_TOKEN');
+  const remotePath = remoteStoragePath(storageRoot, nodeEnvironment, storageKey);
+  const temporaryDirectory = await mkdtemp(join(tmpdir(), 'staging-floorplan-'));
+  const source = join(temporaryDirectory, 'floorplan.png');
+  const downloaded = join(temporaryDirectory, 'downloaded-floorplan.png');
+  const target = railwayFileTargetArgs(environment);
+  try {
+    await writeFile(source, image, { mode: 0o600 });
+    await executor.capture(
+      'pnpm',
+      [
+        'dlx',
+        '@railway/cli@5.30.4',
+        'service',
+        'files',
+        ...target,
+        'upload',
+        source,
+        remotePath,
+        '--overwrite',
+        '--json'
+      ],
+      { cwd: resolve(__dirname, '../../..'), env: environment, timeoutMs: 120_000 }
+    );
+    await executor.capture(
+      'pnpm',
+      [
+        'dlx',
+        '@railway/cli@5.30.4',
+        'service',
+        'files',
+        ...target,
+        'download',
+        remotePath,
+        downloaded,
+        '--overwrite',
+        '--json'
+      ],
+      { cwd: resolve(__dirname, '../../..'), env: environment, timeoutMs: 120_000 }
+    );
+    const remoteBytes = await readFile(downloaded);
+    await assertFloorplanBytes(remoteBytes, image);
+  } finally {
+    await rm(temporaryDirectory, { recursive: true, force: true });
+  }
+}
+
+export async function assertFloorplanBytes(actual: Buffer, expected: Buffer): Promise<void> {
+  const metadata = await sharp(actual).metadata();
+  const actualChecksum = createHash('sha256').update(actual).digest('hex');
+  const expectedChecksum = createHash('sha256').update(expected).digest('hex');
+  if (
+    !actual.length ||
+    metadata.format !== 'png' ||
+    actualChecksum !== expectedChecksum ||
+    actual.length !== expected.length
+  ) {
+    throw new Error('Remote staging floorplan failed checksum, MIME or size verification.');
+  }
+}
+
+async function seedFloorplanDatabase(
+  prisma: PrismaService,
+  storageKey: string,
+  sizeBytes: number,
+  checksumSha256: string
+): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const associatedAt = new Date();
+    const existingAsset = await tx.fileAsset.findUnique({ where: { id: ids.floorplanAsset } });
+    if (!existingAsset) {
+      await tx.fileAsset.create({
+        data: {
+          id: ids.floorplanAsset,
+          clientId: ids.plannerClient,
+          eventId: ids.activeEvent,
+          ownerType: FileAssetOwnerType.FLOORPLAN,
+          ownerId: ids.floorplan,
+          associatedAt,
+          fileType: FileAssetType.FLOORPLAN_IMAGE,
+          storageProvider: StorageProvider.LOCAL,
+          storageKey,
+          originalName: 'staging-floorplan.png',
+          mimeType: 'image/png',
+          sizeBytes,
+          checksumSha256,
+          width: 640,
+          height: 480,
+          createdByUserId: ids.planner,
+          status: FileAssetStatus.READY
+        }
+      });
+    } else {
+      if (existingAsset.ownerId && existingAsset.ownerId !== ids.floorplan) {
+        throw new Error('Staging floorplan FileAsset is associated with an unexpected owner.');
+      }
+      if (
+        existingAsset.storageKey !== storageKey ||
+        existingAsset.sizeBytes !== sizeBytes ||
+        existingAsset.checksumSha256 !== checksumSha256
+      ) {
+        throw new Error('Staging floorplan FileAsset metadata differs from the verified remote bytes.');
+      }
+      await tx.fileAsset.update({
+        where: { id: ids.floorplanAsset },
+        data: {
+          ...(existingAsset.ownerId ? {} : { ownerId: ids.floorplan, associatedAt }),
+          status: FileAssetStatus.READY,
+          deletedAt: null
+        }
+      });
+    }
+    await tx.floorplan.upsert({
+      where: { id: ids.floorplan },
+      create: { id: ids.floorplan, eventId: ids.activeEvent, imageAssetId: ids.floorplanAsset },
+      update: { imageAssetId: ids.floorplanAsset, deletedAt: null }
+    });
+    await upsertShape(tx, ids.circleTable, FloorplanShapeKind.TABLE, FloorplanGeometry.CIRCLE, 'Mesa circular', 8, 0.1);
+    await upsertShape(
+      tx,
+      ids.rectangleTable,
+      FloorplanShapeKind.TABLE,
+      FloorplanGeometry.RECTANGLE,
+      'Mesa rectangular',
+      8,
+      0.45
+    );
+    await upsertShape(
+      tx,
+      ids.decorativeZone,
+      FloorplanShapeKind.DECORATIVE_ZONE,
+      FloorplanGeometry.RECTANGLE,
+      'Zona decorativa',
+      0,
+      0.75
+    );
+  });
+}
+
+export function assertAuthoritativeScannerProjection(projection: Awaited<ReturnType<ScannerService['scan']>>): void {
+  if (projection.status !== 'AVAILABLE' || projection.pendingCount < 2) {
+    throw new Error('Staging Scanner projection must expose at least two available assistants.');
+  }
+  if (projection.pendingAssistants.length !== projection.pendingCount) {
+    throw new Error('Staging Scanner pending projection count is inconsistent.');
+  }
+  if (projection.confirmedCount !== 3 || projection.pendingAssistants.some(({ table }) => !table)) {
+    throw new Error('Staging Scanner family fixture is not fully confirmed and seated.');
+  }
+  if (/phone|telefono|teléfono/iu.test(JSON.stringify(projection))) {
+    throw new Error('Staging Scanner projection exposed a phone field.');
+  }
+}
+
+async function verifyScannerFixtures(scanner: ScannerService, artifact: SeedArtifact): Promise<void> {
+  const first = await scanner.checkIn(
+    artifact.staffToken,
+    'staging-demo-individual-checkin',
+    { invitationId: ids.individualInvitation, assistantIds: [ids.individualAssistant] },
+    'staging-demo-seed-checkin'
+  );
+  const replay = await scanner.checkIn(
+    artifact.staffToken,
+    'staging-demo-individual-checkin',
+    { invitationId: ids.individualInvitation, assistantIds: [ids.individualAssistant] },
+    'staging-demo-seed-checkin-replay'
+  );
+  if (JSON.stringify(first) !== JSON.stringify(replay)) {
+    throw new Error('Staging CheckIn idempotent replay did not return the persisted contractual snapshot.');
+  }
+  const projection = await scanner.scan(artifact.staffToken, { qrToken: artifact.familyQrToken });
+  assertAuthoritativeScannerProjection(projection);
+}
+
+async function verifyRemoteFloorplanApi(
+  environment: NodeJS.ProcessEnv,
+  staffToken: string,
+  expectedChecksum: string
+): Promise<void> {
+  const api = safeHttpsUrl(environment, 'STAGING_API_BASE_URL', '/api/v1');
+  const response = await fetch(new URL(`${api.href}/scanner/${encodeURIComponent(staffToken)}/floorplan/content`));
+  const bytes = Buffer.from(await response.arrayBuffer());
+  if (
+    response.status !== 200 ||
+    response.headers.get('content-type')?.split(';', 1)[0] !== 'image/png' ||
+    bytes.length === 0 ||
+    createHash('sha256').update(bytes).digest('hex') !== expectedChecksum
+  ) {
+    throw new Error('Staging API could not serve the verified remote floorplan asset.');
   }
 }
 
@@ -483,7 +692,7 @@ async function upsertInvitation(
 }
 
 async function upsertShape(
-  prisma: PrismaService,
+  prisma: PrismaService | Transaction,
   id: string,
   kind: FloorplanShapeKind,
   geometry: FloorplanGeometry,
@@ -509,7 +718,7 @@ async function upsertShape(
   if (kind === FloorplanShapeKind.TABLE) {
     const assistantIds =
       id === ids.circleTable
-        ? [ids.individualAssistant]
+        ? [ids.individualAssistant, ids.availableIndividualAssistant]
         : [ids.familyPrimary, ids.familyPendingOne, ids.familyPendingTwo];
     await prisma.assistant.updateMany({ where: { id: { in: assistantIds } }, data: { floorplanShapeId: id } });
   }
@@ -557,7 +766,9 @@ function secret(): string {
   return randomBytes(24).toString('base64url');
 }
 
-void seedStaging().catch((error: unknown) => {
-  process.stderr.write(`${safeFailure('staging_seed_failed', error)}\n`);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  void seedStaging().catch((error: unknown) => {
+    process.stderr.write(`${safeFailure('staging_seed_failed', error)}\n`);
+    process.exitCode = 1;
+  });
+}

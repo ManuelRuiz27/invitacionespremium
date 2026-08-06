@@ -514,6 +514,10 @@ preparados de forma reproducible, pero preparación no equivale a infraestructur
 backup restaurado. La operación está en `docs/05-implementacion/20_STAGING_RUNBOOK.md`. CODEX-131
 permanece **TÉCNICAMENTE PREPARADO PARA QA FÍSICA — NO-GO PARA PILOTO**.
 
+El deploy espera el estado terminal `SUCCESS` de Railway antes de health, usa project/environment/service
+explícitos y publica `dist` absolutos recién construidos. El bootstrap API, seed DB/storage remoto,
+traspaso manual y verificación de secrets son pasos separados; todavía no fueron ejecutados remotamente.
+
 ## Fuente de verdad
 
 Orden inicial obligatorio:

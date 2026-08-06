@@ -68,6 +68,11 @@ frontend con salida SPA independiente. `.github/workflows/staging.yml` despliega
 de `main` que ya pasó CI y usa GitHub Environment `staging`. Variables y operación se documentan en
 `docs/05-implementacion/20_STAGING_RUNBOOK.md`.
 
+Los scripts resuelven la raíz desde su propio archivo, no desde `process.cwd()`. Railway recibe target
+project/environment/service explícito; Netlify recibe un `dist` absoluto validado dentro del monorepo.
+El seed staging orquesta guard → catálogo/precios → fixtures DB → storage remoto → proyecciones Scanner,
+sin trasladar reglas de negocio a frontends ni a `packages/ui`.
+
 ## CI
 
 La raíz ejecuta:

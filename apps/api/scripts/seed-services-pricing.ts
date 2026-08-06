@@ -21,61 +21,56 @@ const initialCredits: Record<ClientType, Record<ServiceCode, number>> = {
   }
 };
 
-async function seedServicesPricing(): Promise<void> {
+export async function seedServicesPricing(auditedMutation: AuditedMutationService): Promise<void> {
+  const operationId = randomUUID();
+  const result = await auditedMutation.execute({
+    actor: { type: AuditActorType.SYSTEM },
+    resourceType: 'SERVICES_PRICING_SEED',
+    action: 'SERVICES_PRICING_SEEDED',
+    operationId,
+    metadata: { source: 'idempotent_seed', initialValidFrom },
+    mutate: async (transaction) => {
+      const services = await Promise.all(
+        Object.values(ServiceCode).map((code) =>
+          transaction.service.upsert({
+            where: { code },
+            create: { code, isActive: true },
+            update: {},
+            select: { id: true, code: true }
+          })
+        )
+      );
+      const serviceIds = new Map(services.map((service) => [service.code, service.id]));
+      const prices = Object.values(ClientType).flatMap((clientType) =>
+        Object.values(ServiceCode).map((code) => ({
+          serviceId: requiredServiceId(serviceIds, code),
+          clientType,
+          credits: initialCredits[clientType][code],
+          validFrom: initialValidFrom
+        }))
+      );
+      const createdPrices = await transaction.servicePrice.createMany({ data: prices, skipDuplicates: true });
+      return auditedResult(
+        { services: services.length, pricesCreated: createdPrices.count },
+        {
+          serviceCodes: Object.values(ServiceCode),
+          initialPriceCount: prices.length,
+          pricesCreated: createdPrices.count
+        }
+      );
+    }
+  });
+  process.stdout.write(`${JSON.stringify({ event: 'services_pricing_seeded', operationId, ...result })}\n`);
+}
+
+async function runStandaloneSeed(): Promise<void> {
   loadEnvironmentFiles();
   const app = await NestFactory.createApplicationContext(AppModule, {
     logger: ['error', 'warn', 'log']
   });
 
   try {
-    const auditedMutation = app.get(AuditedMutationService);
-    const operationId = randomUUID();
-    const result = await auditedMutation.execute({
-      actor: { type: AuditActorType.SYSTEM },
-      resourceType: 'SERVICES_PRICING_SEED',
-      action: 'SERVICES_PRICING_SEEDED',
-      operationId,
-      metadata: { source: 'idempotent_seed', initialValidFrom },
-      mutate: async (transaction) => {
-        const services = await Promise.all(
-          Object.values(ServiceCode).map((code) =>
-            transaction.service.upsert({
-              where: { code },
-              create: { code, isActive: true },
-              update: {},
-              select: { id: true, code: true }
-            })
-          )
-        );
-        const serviceIds = new Map(services.map((service) => [service.code, service.id]));
-        const prices = Object.values(ClientType).flatMap((clientType) =>
-          Object.values(ServiceCode).map((code) => ({
-            serviceId: requiredServiceId(serviceIds, code),
-            clientType,
-            credits: initialCredits[clientType][code],
-            validFrom: initialValidFrom
-          }))
-        );
-        const createdPrices = await transaction.servicePrice.createMany({
-          data: prices,
-          skipDuplicates: true
-        });
-
-        return auditedResult(
-          {
-            services: services.length,
-            pricesCreated: createdPrices.count
-          },
-          {
-            serviceCodes: Object.values(ServiceCode),
-            initialPriceCount: prices.length,
-            pricesCreated: createdPrices.count
-          }
-        );
-      }
-    });
-
-    process.stdout.write(`${JSON.stringify({ event: 'services_pricing_seeded', operationId, ...result })}\n`);
+    await seedServicesPricing(app.get(AuditedMutationService));
   } finally {
     await app.close();
   }
@@ -91,12 +86,14 @@ function requiredServiceId(serviceIds: Map<ServiceCode, string>, code: ServiceCo
   return serviceId;
 }
 
-void seedServicesPricing().catch((error: unknown) => {
-  process.stderr.write(
-    `${JSON.stringify({
-      event: 'services_pricing_seed_failed',
-      errorName: error instanceof Error ? error.name : 'UnknownError'
-    })}\n`
-  );
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  void runStandaloneSeed().catch((error: unknown) => {
+    process.stderr.write(
+      `${JSON.stringify({
+        event: 'services_pricing_seed_failed',
+        errorName: error instanceof Error ? error.name : 'UnknownError'
+      })}\n`
+    );
+    process.exitCode = 1;
+  });
+}

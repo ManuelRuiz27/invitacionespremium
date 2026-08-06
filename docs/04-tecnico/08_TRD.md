@@ -187,3 +187,9 @@ La configuración de staging vive en `railway.toml`, los cuatro `apps/*/netlify.
 contractual `/api/v1/health`; Netlify publica cada SPA por separado. Seed, smoke, rollback, backup,
 restore y variables reales están en `docs/05-implementacion/20_STAGING_RUNBOOK.md`. Configuración
 preparada no equivale a evidencia de despliegue u operación.
+
+El deploy controlado selecciona `RAILWAY_PROJECT_ID`, ambiente `staging` y servicio API, exige estado
+terminal `SUCCESS` antes de consultar health y después construye/publica cada SPA. El Croquis demo se
+sube y vuelve a descargar mediante la gestión remota de archivos del servicio; PostgreSQL sólo registra
+`FileAsset READY` después de validar PNG, tamaño y checksum. Bootstrap y deploy recurrente son flujos
+separados y ninguna de estas garantías acredita infraestructura remota en este corte.

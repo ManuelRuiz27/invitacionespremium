@@ -1189,6 +1189,13 @@ Artefactos preparados: `railway.toml`, `apps/*/netlify.toml`, `.github/workflows
 `docs/05-implementacion/20_STAGING_RUNBOOK.md`. CODEX-140 no se completa hasta adjuntar URLs accesibles,
 smoke verde, backup y restauración temporal comprobados.
 
+Bloqueadores preventivos corregidos antes de crear infraestructura: Railway espera `SUCCESS` y apunta a
+project/environment/service; Netlify publica rutas absolutas recién construidas; el guard precede toda
+mutación; Scanner usa asistentes `CONFIRMED` y snapshots contractuales; el Croquis se verifica en el
+filesystem remoto antes de `READY`; bootstrap, sincronización de secrets y deploy recurrente están
+separados. Continúan pendientes infraestructura, migración, seed DB/storage, smoke, backup y restore
+remotos, además de la QA física de CODEX-131.
+
 ### CODEX-141 — Pruebas de carga y seguridad operativa
 
 **Dependencias:** CODEX-140

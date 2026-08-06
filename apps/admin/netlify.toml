@@ -1,6 +1,7 @@
 [build]
 command = "corepack enable && pnpm install --frozen-lockfile && pnpm --filter @invitaciones/admin build"
 publish = "apps/admin/dist"
+ignore = "exit 0"
 
 [build.environment]
 NODE_VERSION = "22"

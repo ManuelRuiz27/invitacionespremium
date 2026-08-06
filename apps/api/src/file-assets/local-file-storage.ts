@@ -7,7 +7,7 @@ import { DomainError } from '../common/errors/domain-error';
 import { AppConfigService } from '../config/app-config.service';
 import { FileStorage, type StoredFileWrite } from './file-storage';
 
-const STORAGE_KEY_PATTERN = /^[0-9a-f]{64}$/u;
+const STORAGE_KEY_PATTERN = /^(?:[0-9a-f]{64}|staging-demo\/floorplan\.png)$/u;
 
 @Injectable()
 export class LocalFileStorage extends FileStorage {

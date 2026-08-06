@@ -1,24 +1,61 @@
 name: Staging
 
 on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Bootstrap only the API, or retry the complete staging deployment
+        required: true
+        default: retry
+        type: choice
+        options:
+          - retry
+          - bootstrap-api
   workflow_run:
     workflows: [CI]
     types: [completed]
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: staging-main
   cancel-in-progress: false
 
 jobs:
+  validate:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.commit.outputs.sha }}
+    steps:
+      - id: commit
+        name: Validate tested main commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            test "$GITHUB_REF" = "refs/heads/main"
+            main_sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
+            test "$GITHUB_SHA" = "$main_sha"
+            successful="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$main_sha&status=success&per_page=100" --jq '[.workflow_runs[] | select(.head_sha == "'"$main_sha"'" and .conclusion == "success")] | length')"
+            test "$successful" -gt 0
+            echo "sha=$main_sha" >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+          fi
+
   preflight:
-    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'
+    needs: validate
     runs-on: ubuntu-latest
     environment: staging
     outputs:
       ready: ${{ steps.check.outputs.ready }}
+      sha: ${{ needs.validate.outputs.sha }}
     env:
       RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
       NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
@@ -26,6 +63,7 @@ jobs:
       STAGING_INVITATION_TOKEN: ${{ secrets.STAGING_INVITATION_TOKEN }}
       STAGING_STAFF_TOKEN: ${{ secrets.STAGING_STAFF_TOKEN }}
       RAILWAY_API_SERVICE_ID: ${{ vars.RAILWAY_API_SERVICE_ID }}
+      RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
       NETLIFY_LANDING_SITE_ID: ${{ vars.NETLIFY_LANDING_SITE_ID }}
       NETLIFY_CLIENT_SITE_ID: ${{ vars.NETLIFY_CLIENT_SITE_ID }}
       NETLIFY_ADMIN_SITE_ID: ${{ vars.NETLIFY_ADMIN_SITE_ID }}
@@ -38,13 +76,18 @@ jobs:
       STAGING_SCANNER_URL: ${{ vars.STAGING_SCANNER_URL }}
       STAGING_DEMO_EMAIL: ${{ vars.STAGING_DEMO_EMAIL }}
       STAGING_DEMO_EVENT_ID: ${{ vars.STAGING_DEMO_EVENT_ID }}
+      STAGING_DEPLOY_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'bootstrap-api' && 'bootstrap-api' || 'retry' }}
     steps:
       - id: check
         name: Check protected staging configuration
         shell: bash
         run: |
           missing=()
-          for name in RAILWAY_TOKEN NETLIFY_AUTH_TOKEN STAGING_DEMO_PASSWORD STAGING_INVITATION_TOKEN STAGING_STAFF_TOKEN RAILWAY_API_SERVICE_ID NETLIFY_LANDING_SITE_ID NETLIFY_CLIENT_SITE_ID NETLIFY_ADMIN_SITE_ID NETLIFY_SCANNER_SITE_ID STAGING_API_BASE_URL STAGING_SOCKET_URL STAGING_LANDING_URL STAGING_CLIENT_URL STAGING_ADMIN_URL STAGING_SCANNER_URL STAGING_DEMO_EMAIL STAGING_DEMO_EVENT_ID; do
+          required=(RAILWAY_TOKEN RAILWAY_PROJECT_ID RAILWAY_API_SERVICE_ID STAGING_API_BASE_URL)
+          if [ "$STAGING_DEPLOY_MODE" != "bootstrap-api" ]; then
+            required+=(NETLIFY_AUTH_TOKEN STAGING_DEMO_PASSWORD STAGING_INVITATION_TOKEN STAGING_STAFF_TOKEN NETLIFY_LANDING_SITE_ID NETLIFY_CLIENT_SITE_ID NETLIFY_ADMIN_SITE_ID NETLIFY_SCANNER_SITE_ID STAGING_SOCKET_URL STAGING_LANDING_URL STAGING_CLIENT_URL STAGING_ADMIN_URL STAGING_SCANNER_URL STAGING_DEMO_EMAIL STAGING_DEMO_EVENT_ID)
+          fi
+          for name in "${required[@]}"; do
             if [ -z "${!name}" ]; then missing+=("$name"); fi
           done
           if [ ${#missing[@]} -gt 0 ]; then
@@ -62,10 +105,11 @@ jobs:
     environment: staging
     env:
       STAGING_ENVIRONMENT: staging
-      GITHUB_SHA: ${{ github.event.workflow_run.head_sha }}
+      GITHUB_SHA: ${{ needs.preflight.outputs.sha }}
       RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
       NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
       RAILWAY_API_SERVICE_ID: ${{ vars.RAILWAY_API_SERVICE_ID }}
+      RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
       NETLIFY_LANDING_SITE_ID: ${{ vars.NETLIFY_LANDING_SITE_ID }}
       NETLIFY_CLIENT_SITE_ID: ${{ vars.NETLIFY_CLIENT_SITE_ID }}
       NETLIFY_ADMIN_SITE_ID: ${{ vars.NETLIFY_ADMIN_SITE_ID }}
@@ -87,11 +131,12 @@ jobs:
       VITE_ADMIN_APP_URL: ${{ vars.STAGING_ADMIN_URL }}
       VITE_LANDING_URL: ${{ vars.STAGING_LANDING_URL }}
       VITE_APP_URL: ${{ vars.STAGING_LANDING_URL }}
+      STAGING_DEPLOY_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'bootstrap-api' && 'bootstrap-api' || 'retry' }}
     steps:
       - name: Checkout tested main commit
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ needs.preflight.outputs.sha }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -108,16 +153,25 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Deploy and run smoke tests
-        run: pnpm staging:deploy -- --confirm-staging
+        run: |
+          if [ "$STAGING_DEPLOY_MODE" = "bootstrap-api" ]; then
+            pnpm staging:deploy -- --confirm-staging --api-only
+          else
+            pnpm staging:deploy -- --confirm-staging
+          fi
 
       - name: Record deployment
         run: |
           {
             echo '## Staging deployment'
-            echo '- Commit: `${{ github.event.workflow_run.head_sha }}`'
+            echo '- Commit: `${{ needs.preflight.outputs.sha }}`'
             echo '- API: ${{ vars.STAGING_API_BASE_URL }}'
-            echo '- Landing: ${{ vars.STAGING_LANDING_URL }}'
-            echo '- Client: ${{ vars.STAGING_CLIENT_URL }}'
-            echo '- Admin: ${{ vars.STAGING_ADMIN_URL }}'
-            echo '- Scanner: ${{ vars.STAGING_SCANNER_URL }}'
+            if [ "$STAGING_DEPLOY_MODE" = "bootstrap-api" ]; then
+              echo '- Mode: API bootstrap only; frontends and smoke were not deployed.'
+            else
+              echo '- Landing: ${{ vars.STAGING_LANDING_URL }}'
+              echo '- Client: ${{ vars.STAGING_CLIENT_URL }}'
+              echo '- Admin: ${{ vars.STAGING_ADMIN_URL }}'
+              echo '- Scanner: ${{ vars.STAGING_SCANNER_URL }}'
+            fi
           } >> "$GITHUB_STEP_SUMMARY"

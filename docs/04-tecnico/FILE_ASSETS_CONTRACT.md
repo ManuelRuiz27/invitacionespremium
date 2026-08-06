@@ -79,7 +79,8 @@ Errores estables:
 `LocalFileStorage`:
 
 - genera claves hexadecimales con 256 bits de entropía;
-- rechaza claves que no satisfacen el formato interno;
+- rechaza claves que no satisfacen el formato interno; la única excepción reservada y no controlable
+  por usuarios es `staging-demo/floorplan.png`, usada por el seed reconocible de staging;
 - resuelve siempre dentro de la raíz configurada;
 - crea directorios de manera segura;
 - escribe primero un temporal exclusivo, sincroniza y hace rename atómico;

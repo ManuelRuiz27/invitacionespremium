@@ -19,6 +19,7 @@
     "staging:deploy": "pnpm --filter @invitaciones/api staging:deploy",
     "staging:migrate": "pnpm --filter @invitaciones/api staging:migrate",
     "staging:seed": "pnpm --filter @invitaciones/api staging:seed",
+    "staging:verify-secrets": "pnpm --filter @invitaciones/api staging:verify-secrets",
     "staging:smoke": "pnpm --filter @invitaciones/api staging:smoke",
     "staging:backup": "pnpm --filter @invitaciones/api staging:backup",
     "staging:restore": "pnpm --filter @invitaciones/api staging:restore"

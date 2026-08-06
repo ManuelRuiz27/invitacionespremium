@@ -35,6 +35,15 @@ describe('LocalFileStorage', () => {
     });
   });
 
+  it('supports the single recognizable staging floorplan key without opening arbitrary paths', async () => {
+    const { storage } = await createStorage();
+    await storage.write({ storageKey: 'staging-demo/floorplan.png', bytes: Buffer.from('demo') });
+    expect(await storage.read('staging-demo/floorplan.png')).toEqual(Buffer.from('demo'));
+    await expect(
+      storage.write({ storageKey: 'staging-demo/other.png', bytes: Buffer.from('unsafe') })
+    ).rejects.toThrow();
+  });
+
   it('removes the temporary file when the atomic rename fails', async () => {
     const { root, storage } = await createStorage();
     const key = storage.generateKey();
