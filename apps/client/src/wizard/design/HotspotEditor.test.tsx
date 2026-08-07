@@ -1,6 +1,6 @@
-import type { Hotspot } from '@invitaciones/api-client';
+import { ApiError, type Hotspot } from '@invitaciones/api-client';
 import { AppThemeProvider } from '@invitaciones/ui';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { configuredEvent, mockApiClient } from '../../test/fixtures';
@@ -22,16 +22,26 @@ const existingAction: Hotspot = {
   updatedAt: '2026-01-01T00:00:00Z'
 };
 
+const pageAction = (pageId: string, action: Hotspot['action'], id = `${pageId}-${action}`): Hotspot => ({
+  ...existingAction,
+  id,
+  visualOwnerType: 'FLIPBOOK_PAGE',
+  flipbookPageId: pageId,
+  action
+});
+
 function renderEditor({
   hotspots = [],
   disabled = false,
   ownerType = 'FLYER',
-  pageId
+  pageId,
+  pagePosition
 }: {
   hotspots?: Hotspot[];
   disabled?: boolean;
   ownerType?: 'FLYER' | 'FLIPBOOK_PAGE';
   pageId?: string;
+  pagePosition?: number;
 } = {}) {
   const api = mockApiClient();
   vi.mocked(api.design.createHotspot).mockResolvedValue(existingAction);
@@ -45,6 +55,7 @@ function renderEditor({
         eventId={configuredEvent.id}
         ownerType={ownerType}
         pageId={pageId}
+        pagePosition={pagePosition}
         hotspots={hotspots}
         disabled={disabled}
         previewUrl="blob:preview"
@@ -61,17 +72,17 @@ async function beginAction(name: string) {
   await userEvent.click(screen.getByRole('button', { name: new RegExp(`^${name}`) }));
 }
 
-function setCanvasBounds() {
+function setCanvasBounds(width = 1000, height = 500) {
   const canvas = screen.getByLabelText('Vista previa interactiva de la invitación');
   vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
     x: 0,
     y: 0,
     left: 0,
     top: 0,
-    right: 1000,
-    bottom: 500,
-    width: 1000,
-    height: 500,
+    right: width,
+    bottom: height,
+    width,
+    height,
     toJSON: () => ({})
   });
 }
@@ -177,6 +188,28 @@ describe('HotspotEditor as invitation actions', () => {
     );
   });
 
+  it.each([
+    ['vertical 4:5', 400, 500],
+    ['horizontal 16:9', 1600, 900],
+    ['square 1:1', 600, 600]
+  ])('keeps the image bounds as the only coordinate space for a %s asset', async (_name, width, height) => {
+    const { api } = renderEditor();
+    await beginAction('Confirmar asistencia');
+    setCanvasBounds(width, height);
+    const mover = screen.getByRole('group', { name: 'Mover acción Confirmar asistencia' });
+
+    fireEvent.pointerDown(mover, { pointerId: 7, clientX: 0, clientY: 0 });
+    fireEvent.pointerMove(mover, { pointerId: 7, clientX: width * 0.4, clientY: height * 0.4 });
+    fireEvent.pointerUp(mover, { pointerId: 7 });
+
+    expect(mover).toHaveStyle({ left: '50%', top: '50%' });
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar acción' }));
+    expect(api.design.createHotspot).toHaveBeenCalledWith(
+      configuredEvent.id,
+      expect.objectContaining({ x: 0.5, y: 0.5 })
+    );
+  });
+
   it('supports touch pointer movement without changing the persistence flow', async () => {
     const { api } = renderEditor();
     await beginAction('Mostrar QR');
@@ -215,6 +248,73 @@ describe('HotspotEditor as invitation actions', () => {
       configuredEvent.id,
       expect.objectContaining({ action: 'EXTERNAL_LINK', url: 'https://example.com' })
     );
+  });
+
+  it('offers all contracted actions on the Flipbook cover', async () => {
+    renderEditor({ ownerType: 'FLIPBOOK_PAGE', pageId: 'cover', pagePosition: 1 });
+    await userEvent.click(screen.getByRole('button', { name: 'Agregar acción' }));
+
+    for (const name of ['Confirmar asistencia', 'Ver ubicación', 'Mesa de regalos', 'Mostrar QR', 'Enlace adicional']) {
+      expect(screen.getByRole('button', { name: new RegExp(`^${name}`) })).toBeInTheDocument();
+    }
+  });
+
+  it('offers only QR on an intermediate page until it becomes the QR page', async () => {
+    renderEditor({ ownerType: 'FLIPBOOK_PAGE', pageId: 'page-2', pagePosition: 2 });
+    await userEvent.click(screen.getByRole('button', { name: 'Agregar acción' }));
+
+    expect(screen.getByRole('button', { name: /^Mostrar QR/ })).toBeInTheDocument();
+    for (const name of ['Confirmar asistencia', 'Ver ubicación', 'Mesa de regalos', 'Enlace adicional']) {
+      expect(screen.queryByRole('button', { name: new RegExp(`^${name}`) })).not.toBeInTheDocument();
+    }
+  });
+
+  it('allows an external link only on the existing QR page', async () => {
+    renderEditor({
+      ownerType: 'FLIPBOOK_PAGE',
+      pageId: 'page-2',
+      pagePosition: 2,
+      hotspots: [pageAction('page-2', 'QR_AREA')]
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'Agregar acción' }));
+
+    expect(screen.getByRole('button', { name: /^Mostrar QR/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Enlace adicional/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Confirmar asistencia/ })).not.toBeInTheDocument();
+  });
+
+  it('does not offer a second QR page and updates options immediately after changing pages', async () => {
+    const qr = pageAction('page-3', 'QR_AREA');
+    const { api, view } = renderEditor({
+      ownerType: 'FLIPBOOK_PAGE',
+      pageId: 'cover',
+      pagePosition: 1,
+      hotspots: [qr]
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'Agregar acción' }));
+    expect(screen.queryByRole('button', { name: /^Mostrar QR/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Enlace adicional/ })).toBeInTheDocument();
+
+    view.rerender(
+      <AppThemeProvider>
+        <HotspotEditor
+          apiClient={api}
+          eventId={configuredEvent.id}
+          ownerType="FLIPBOOK_PAGE"
+          pageId="page-2"
+          pagePosition={2}
+          hotspots={[qr]}
+          disabled={false}
+          previewUrl="blob:preview"
+          contextLabel="Acciones de Página 2"
+          onChanged={vi.fn().mockResolvedValue(undefined)}
+        />
+      </AppThemeProvider>
+    );
+
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Cancelar' })).not.toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: 'Agregar acción' })).not.toBeInTheDocument();
+    expect(screen.getByText('Esta página no admite acciones adicionales.')).toBeInTheDocument();
   });
 
   it('keeps page ownership internal and resets the editor when changing Flipbook pages', async () => {
@@ -256,6 +356,70 @@ describe('HotspotEditor as invitation actions', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
     expect(api.design.createHotspot).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Agregar acción' })).toBeInTheDocument();
+  });
+
+  it('preserves a create draft, blocks double submit and allows retry after a failure', async () => {
+    const { api, onChanged } = renderEditor();
+    let rejectCreate!: (reason: unknown) => void;
+    vi.mocked(api.design.createHotspot).mockReturnValueOnce(
+      new Promise<Hotspot>((_resolve, reject) => {
+        rejectCreate = reject;
+      })
+    );
+    await beginAction('Ver ubicación');
+    const save = screen.getByRole('button', { name: 'Guardar acción' });
+
+    fireEvent.click(save);
+    fireEvent.click(save);
+    expect(api.design.createHotspot).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Guardando…' })).toBeDisabled();
+
+    await act(async () => rejectCreate(new Error('network')));
+    expect(
+      await screen.findByText('No pudimos guardar esta acción. Revisa la información e inténtalo nuevamente.')
+    ).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Mover acción Ver ubicación' })).toBeInTheDocument();
+
+    vi.mocked(api.design.createHotspot).mockResolvedValueOnce(existingAction);
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar acción' }));
+    expect(api.design.createHotspot).toHaveBeenCalledTimes(2);
+    expect(onChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it('preserves an update draft and translates a known placement error before retry', async () => {
+    const { api, onChanged } = renderEditor({ hotspots: [existingAction] });
+    vi.mocked(api.design.updateHotspot).mockRejectedValueOnce(
+      new ApiError(409, 'FLIPBOOK_HOTSPOT_PLACEMENT_INVALID', 'technical detail', 'operation-id')
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Editar acción Confirmar asistencia' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Mover a la derecha' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(await screen.findByText('Mueve la acción a una página permitida.')).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Mover acción Confirmar asistencia' })).toHaveStyle({ left: '11%' });
+    expect(onChanged).not.toHaveBeenCalled();
+
+    vi.mocked(api.design.updateHotspot).mockResolvedValueOnce(existingAction);
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    expect(api.design.updateHotspot).toHaveBeenCalledTimes(2);
+    expect(onChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the selected action and allows retry when delete fails', async () => {
+    const { api, onChanged } = renderEditor({ hotspots: [existingAction] });
+    vi.mocked(api.design.removeHotspot).mockRejectedValueOnce(new Error('network'));
+    await userEvent.click(screen.getByRole('button', { name: 'Editar acción Confirmar asistencia' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Eliminar acción' }));
+
+    expect(await screen.findByText('No pudimos eliminar esta acción. Inténtalo nuevamente.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Eliminar acción' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Mover acción Confirmar asistencia' })).toBeInTheDocument();
+    expect(onChanged).not.toHaveBeenCalled();
+
+    vi.mocked(api.design.removeHotspot).mockResolvedValueOnce(undefined);
+    await userEvent.click(screen.getByRole('button', { name: 'Eliminar acción' }));
+    expect(api.design.removeHotspot).toHaveBeenCalledTimes(2);
+    expect(onChanged).toHaveBeenCalledTimes(1);
   });
 
   it('respects read-only mode while retaining the configured-action summary', () => {

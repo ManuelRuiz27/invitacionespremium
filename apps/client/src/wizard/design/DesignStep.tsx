@@ -217,6 +217,7 @@ export function DesignStep({
               eventId={event.id}
               ownerType="FLIPBOOK_PAGE"
               pageId={activePage.id}
+              pagePosition={activePage.position}
               hotspots={design?.hotspots ?? []}
               disabled={disabled}
               previewUrl={activeUrl}

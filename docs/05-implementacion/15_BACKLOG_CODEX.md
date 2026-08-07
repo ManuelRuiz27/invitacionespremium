@@ -1078,6 +1078,40 @@ Contrato normativo: `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md`, subordinado a
 `docs/04-tecnico/INVITATION_DESIGN_CONTRACT.md` y `docs/04-tecnico/FILE_ASSET_POLICY.md` para el modelo
 técnico existente.
 
+### CODEX-123B-R1 — Remediación del editor de Invitación
+
+**Estado:** COMPLETADO
+
+**Repo:** `invitacionespremium-client`
+
+**Dependencias:** CODEX-123B
+
+**Alcance**
+
+- hacer coincidir el espacio de coordenadas del editor con los límites reales de cualquier imagen JPG/PNG;
+- compartir con el renderer público la proyección porcentual sobre el owner visual;
+- filtrar las acciones disponibles de Flipbook según portada, página QR y página activa;
+- conservar borrador y selección, bloquear doble envío y comunicar fallos de create/update/delete;
+- cubrir imágenes vertical, horizontal y cuadrada, reglas por página, cambio de página y retries.
+
+**Contaminación histórica de `051fbe77d39329a1e1cbde415259a528526a8d3b`**
+
+El commit que cerró CODEX-123B mezcló cambios ajenos a `apps/client`. La modificación de
+`apps/api/scripts/seed-staging.ts` corresponde materialmente al alcance de seeds demo de CODEX-140 y se conserva
+sin cambios en esta remediación. `Dockerfile.dev`, `README.md`, `package.json`, `apps/api/package.json`,
+`apps/api/scripts/seed-local-clients.ts` y su prueba documentan o habilitan fixtures locales, pero ninguna tarea
+existente del backlog les asigna procedencia específica; no se atribuyen retrospectivamente a CODEX-140 ni se
+inventa una tarea para justificarlos. CODEX-123B-R1 no modifica su comportamiento, FinanceService, ledger, usuarios,
+créditos ni staging.
+
+**Fuera de alcance**
+
+- API, OpenAPI, Prisma, schema, endpoints, restricciones backend o readiness;
+- seeds, Docker, infraestructura, finanzas, Croquis/Mesas y CODEX-123C.
+
+Contratos normativos: `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md`,
+`docs/04-tecnico/INVITATION_DESIGN_CONTRACT.md` y `docs/04-tecnico/FILE_ASSET_POLICY.md`.
+
 ---
 
 ## EPIC 13 — Frontend Admin, Scanner y Landing

@@ -1,11 +1,13 @@
 import type { ApiClient, Hotspot } from '@invitaciones/api-client';
-import { Box, Button, FormHelperText, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, FormHelperText, Stack, TextField, Typography } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
-import { normalizeRect } from '../wizard-utils';
+import { relativeRectStyles } from '../../shared/relative-rect';
+import { errorMessage, normalizeRect } from '../wizard-utils';
 
 type Draft = Pick<Hotspot, 'x' | 'y' | 'width' | 'height' | 'action' | 'priority'> & { url: string };
 type EditorMode = 'idle' | 'choosing' | 'creating' | 'editing';
 type Action = Hotspot['action'];
+type Mutation = 'saving' | 'deleting';
 
 const initialRect = { x: 0.1, y: 0.1, width: 0.25, height: 0.12 };
 const minimumSize = 0.04;
@@ -51,11 +53,47 @@ const actions: ReadonlyArray<{
 const actionDetails = (action: Action) => actions.find((item) => item.value === action)!;
 const newDraft = (action: Action): Draft => ({ ...initialRect, action, priority: 0, url: '' });
 
+function availableActionsForPage({
+  ownerType,
+  pageId,
+  pagePosition,
+  hotspots
+}: {
+  ownerType: 'FLYER' | 'FLIPBOOK_PAGE';
+  pageId?: string | undefined;
+  pagePosition?: number | undefined;
+  hotspots: Hotspot[];
+}): Action[] {
+  if (ownerType === 'FLYER') return actions.map((action) => action.value);
+
+  const flipbookQrAreas = hotspots.filter(
+    (hotspot) => hotspot.visualOwnerType === 'FLIPBOOK_PAGE' && hotspot.action === 'QR_AREA'
+  );
+  const isCover = pagePosition === 1;
+  const isQrPage = flipbookQrAreas.some((hotspot) => hotspot.flipbookPageId === pageId);
+  const hasDifferentQrPage = flipbookQrAreas.some((hotspot) => hotspot.flipbookPageId !== pageId);
+
+  if (isCover) {
+    return actions.map((action) => action.value).filter((action) => action !== 'QR_AREA' || !hasDifferentQrPage);
+  }
+  if (isQrPage) return ['QR_AREA', 'EXTERNAL_LINK'];
+  return hasDifferentQrPage ? [] : ['QR_AREA'];
+}
+
+function mutationError(reason: unknown, operation: Mutation): string {
+  const translated = errorMessage(reason);
+  if (!translated.startsWith('No se pudo completar la operación')) return translated;
+  return operation === 'deleting'
+    ? 'No pudimos eliminar esta acción. Inténtalo nuevamente.'
+    : 'No pudimos guardar esta acción. Revisa la información e inténtalo nuevamente.';
+}
+
 export function HotspotEditor({
   apiClient,
   eventId,
   ownerType,
   pageId,
+  pagePosition,
   hotspots,
   disabled,
   previewUrl,
@@ -66,6 +104,7 @@ export function HotspotEditor({
   eventId: string;
   ownerType: 'FLYER' | 'FLIPBOOK_PAGE';
   pageId?: string | undefined;
+  pagePosition?: number | undefined;
   hotspots: Hotspot[];
   disabled: boolean;
   previewUrl?: string | undefined;
@@ -76,30 +115,38 @@ export function HotspotEditor({
     ownerType === 'FLYER' ? item.visualOwnerType === 'FLYER' : item.flipbookPageId === pageId
   );
   const canvasRef = useRef<HTMLDivElement>(null);
+  const mutationLockRef = useRef(false);
   const [mode, setMode] = useState<EditorMode>('idle');
   const [selectedId, setSelectedId] = useState<string>();
   const [draft, setDraft] = useState<Draft>(() => newDraft('RSVP'));
   const [urlTouched, setUrlTouched] = useState(false);
+  const [mutation, setMutation] = useState<Mutation>();
+  const [mutationMessage, setMutationMessage] = useState<string>();
   const selected = visible.find((item) => item.id === selectedId);
   const editing = mode === 'creating' || mode === 'editing';
   const externalUrlValid = draft.action !== 'EXTERNAL_LINK' || /^https:\/\/[^\s]+$/i.test(draft.url);
+  const availableActionValues = availableActionsForPage({ ownerType, pageId, pagePosition, hotspots });
+  const availableActions = actions.filter((action) => availableActionValues.includes(action.value));
+  const interactionDisabled = disabled || mutation !== undefined;
 
   useEffect(() => {
     setMode('idle');
     setSelectedId(undefined);
     setDraft(newDraft('RSVP'));
     setUrlTouched(false);
-  }, [ownerType, pageId]);
+    setMutationMessage(undefined);
+  }, [ownerType, pageId, pagePosition]);
 
   const cancel = () => {
     setMode('idle');
     setSelectedId(undefined);
     setDraft(newDraft('RSVP'));
     setUrlTouched(false);
+    setMutationMessage(undefined);
   };
 
   const selectExisting = (item: Hotspot) => {
-    if (disabled) return;
+    if (interactionDisabled) return;
     setSelectedId(item.id);
     setDraft({
       x: item.x,
@@ -111,6 +158,7 @@ export function HotspotEditor({
       url: item.url ?? ''
     });
     setUrlTouched(false);
+    setMutationMessage(undefined);
     setMode('editing');
   };
 
@@ -118,42 +166,64 @@ export function HotspotEditor({
     setSelectedId(undefined);
     setDraft(newDraft(action));
     setUrlTouched(false);
+    setMutationMessage(undefined);
     setMode('creating');
   };
 
   const save = async () => {
+    if (mutationLockRef.current) return;
     if (!externalUrlValid) {
       setUrlTouched(true);
       return;
     }
-    const rect = normalizeRect(draft);
-    const url = draft.action === 'EXTERNAL_LINK' ? draft.url : undefined;
-    if (selected) {
-      await apiClient.design.updateHotspot(eventId, selected.id, {
-        ...rect,
-        action: draft.action,
-        priority: draft.priority,
-        ...(url ? { url } : {})
-      });
-    } else {
-      await apiClient.design.createHotspot(eventId, {
-        ...rect,
-        action: draft.action,
-        priority: draft.priority,
-        visualOwnerType: ownerType,
-        ...(pageId ? { flipbookPageId: pageId } : {}),
-        ...(url ? { url } : {})
-      });
+    mutationLockRef.current = true;
+    setMutation('saving');
+    setMutationMessage(undefined);
+    try {
+      const rect = normalizeRect(draft);
+      const url = draft.action === 'EXTERNAL_LINK' ? draft.url : undefined;
+      if (selected) {
+        await apiClient.design.updateHotspot(eventId, selected.id, {
+          ...rect,
+          action: draft.action,
+          priority: draft.priority,
+          ...(url ? { url } : {})
+        });
+      } else {
+        await apiClient.design.createHotspot(eventId, {
+          ...rect,
+          action: draft.action,
+          priority: draft.priority,
+          visualOwnerType: ownerType,
+          ...(pageId ? { flipbookPageId: pageId } : {}),
+          ...(url ? { url } : {})
+        });
+      }
+      await onChanged();
+      cancel();
+    } catch (reason) {
+      setMutationMessage(mutationError(reason, 'saving'));
+    } finally {
+      mutationLockRef.current = false;
+      setMutation(undefined);
     }
-    cancel();
-    await onChanged();
   };
 
   const remove = async () => {
-    if (!selected) return;
-    await apiClient.design.removeHotspot(eventId, selected.id);
-    cancel();
-    await onChanged();
+    if (!selected || mutationLockRef.current) return;
+    mutationLockRef.current = true;
+    setMutation('deleting');
+    setMutationMessage(undefined);
+    try {
+      await apiClient.design.removeHotspot(eventId, selected.id);
+      await onChanged();
+      cancel();
+    } catch (reason) {
+      setMutationMessage(mutationError(reason, 'deleting'));
+    } finally {
+      mutationLockRef.current = false;
+      setMutation(undefined);
+    }
   };
 
   const adjust = (property: 'x' | 'y' | 'width' | 'height', amount: number, oppositePosition?: 'x' | 'y') => {
@@ -165,7 +235,7 @@ export function HotspotEditor({
   };
 
   const startPointer = (event: React.PointerEvent<HTMLElement>, interaction: 'move' | 'resize') => {
-    if (disabled || !editing) return;
+    if (interactionDisabled || !editing) return;
     event.preventDefault();
     const target = event.currentTarget;
     target.setPointerCapture?.(event.pointerId);
@@ -219,38 +289,46 @@ export function HotspotEditor({
         aria-label="Vista previa interactiva de la invitación"
         sx={{
           position: 'relative',
-          aspectRatio: '4/3',
           width: '100%',
           maxWidth: 720,
           bgcolor: 'grey.100',
           overflow: 'hidden',
-          backgroundImage: previewUrl ? `url(${previewUrl})` : undefined,
-          backgroundSize: 'contain',
-          backgroundRepeat: 'no-repeat',
-          backgroundPosition: 'center',
-          border: 1,
-          borderColor: 'divider'
+          outline: '1px solid',
+          outlineColor: 'divider',
+          lineHeight: 0
         }}
       >
-        {visible.map((item) => {
-          if (editing && item.id === selectedId) return null;
-          const details = actionDetails(item.action);
-          return (
-            <Box
-              component="button"
-              type="button"
-              key={item.id}
-              aria-label={`Editar acción ${details.label}`}
-              disabled={disabled}
-              onClick={() => selectExisting(item)}
-              sx={areaStyles(item, false)}
-            >
-              <AreaName>{details.areaLabel}</AreaName>
-            </Box>
-          );
-        })}
+        {previewUrl ? (
+          <Box
+            component="img"
+            src={previewUrl}
+            alt=""
+            draggable={false}
+            sx={{ display: 'block', width: '100%', height: 'auto' }}
+          />
+        ) : null}
 
-        {editing ? (
+        {previewUrl
+          ? visible.map((item) => {
+              if (editing && item.id === selectedId) return null;
+              const details = actionDetails(item.action);
+              return (
+                <Box
+                  component="button"
+                  type="button"
+                  key={item.id}
+                  aria-label={`Editar acción ${details.label}`}
+                  disabled={interactionDisabled}
+                  onClick={() => selectExisting(item)}
+                  sx={areaStyles(item, false)}
+                >
+                  <AreaName>{details.areaLabel}</AreaName>
+                </Box>
+              );
+            })
+          : null}
+
+        {previewUrl && editing ? (
           <Box
             role="group"
             aria-label={`Mover acción ${currentAction.label}`}
@@ -261,7 +339,7 @@ export function HotspotEditor({
               borderWidth: 3,
               borderColor: 'secondary.main',
               zIndex: 2,
-              cursor: disabled ? 'default' : 'move',
+              cursor: interactionDisabled ? 'default' : 'move',
               touchAction: 'none'
             }}
           >
@@ -269,7 +347,7 @@ export function HotspotEditor({
             <Box
               component="button"
               type="button"
-              disabled={disabled}
+              disabled={interactionDisabled}
               aria-label={`Cambiar tamaño de ${currentAction.label}`}
               onPointerDown={(event) => {
                 event.stopPropagation();
@@ -284,7 +362,7 @@ export function HotspotEditor({
                 p: 0,
                 border: 0,
                 bgcolor: 'transparent',
-                cursor: disabled ? 'default' : 'nwse-resize',
+                cursor: interactionDisabled ? 'default' : 'nwse-resize',
                 touchAction: 'none',
                 '&::after': {
                   content: '""',
@@ -322,10 +400,14 @@ export function HotspotEditor({
         </Box>
       </Stack>
 
-      {mode === 'idle' && !disabled ? (
+      {mode === 'idle' && !disabled && availableActions.length ? (
         <Button variant="contained" sx={{ alignSelf: 'flex-start' }} onClick={() => setMode('choosing')}>
           Agregar acción
         </Button>
+      ) : null}
+
+      {mode === 'idle' && !disabled && ownerType === 'FLIPBOOK_PAGE' && !availableActions.length ? (
+        <Typography color="text.secondary">Esta página no admite acciones adicionales.</Typography>
       ) : null}
 
       {mode === 'choosing' ? (
@@ -334,7 +416,7 @@ export function HotspotEditor({
             ¿Qué quieres que puedan hacer tus invitados?
           </Typography>
           <Stack spacing={1}>
-            {actions.map((action) => (
+            {availableActions.map((action) => (
               <Button
                 key={action.value}
                 variant="outlined"
@@ -372,16 +454,16 @@ export function HotspotEditor({
           <Stack spacing={1}>
             <Typography variant="subtitle2">Ajustar posición</Typography>
             <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap' }}>
-              <Button variant="outlined" onClick={() => adjust('y', -adjustmentStep)}>
+              <Button disabled={interactionDisabled} variant="outlined" onClick={() => adjust('y', -adjustmentStep)}>
                 Mover arriba
               </Button>
-              <Button variant="outlined" onClick={() => adjust('y', adjustmentStep)}>
+              <Button disabled={interactionDisabled} variant="outlined" onClick={() => adjust('y', adjustmentStep)}>
                 Mover abajo
               </Button>
-              <Button variant="outlined" onClick={() => adjust('x', -adjustmentStep)}>
+              <Button disabled={interactionDisabled} variant="outlined" onClick={() => adjust('x', -adjustmentStep)}>
                 Mover a la izquierda
               </Button>
-              <Button variant="outlined" onClick={() => adjust('x', adjustmentStep)}>
+              <Button disabled={interactionDisabled} variant="outlined" onClick={() => adjust('x', adjustmentStep)}>
                 Mover a la derecha
               </Button>
             </Stack>
@@ -390,16 +472,28 @@ export function HotspotEditor({
           <Stack spacing={1}>
             <Typography variant="subtitle2">Ajustar tamaño</Typography>
             <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap' }}>
-              <Button variant="outlined" onClick={() => adjust('width', adjustmentStep)}>
+              <Button disabled={interactionDisabled} variant="outlined" onClick={() => adjust('width', adjustmentStep)}>
                 Hacer más ancho
               </Button>
-              <Button variant="outlined" onClick={() => adjust('width', -adjustmentStep)}>
+              <Button
+                disabled={interactionDisabled}
+                variant="outlined"
+                onClick={() => adjust('width', -adjustmentStep)}
+              >
                 Hacer más angosto
               </Button>
-              <Button variant="outlined" onClick={() => adjust('height', adjustmentStep)}>
+              <Button
+                disabled={interactionDisabled}
+                variant="outlined"
+                onClick={() => adjust('height', adjustmentStep)}
+              >
                 Hacer más alto
               </Button>
-              <Button variant="outlined" onClick={() => adjust('height', -adjustmentStep)}>
+              <Button
+                disabled={interactionDisabled}
+                variant="outlined"
+                onClick={() => adjust('height', -adjustmentStep)}
+              >
                 Hacer más bajo
               </Button>
             </Stack>
@@ -408,6 +502,7 @@ export function HotspotEditor({
           {draft.action === 'EXTERNAL_LINK' ? (
             <TextField
               type="url"
+              disabled={interactionDisabled}
               label="Enlace"
               value={draft.url}
               error={urlTouched && !externalUrlValid}
@@ -425,16 +520,24 @@ export function HotspotEditor({
             También puedes arrastrar el área o usar el control de su esquina para cambiar el tamaño.
           </FormHelperText>
 
+          {mutationMessage ? (
+            <Alert severity="error" aria-live="assertive">
+              {mutationMessage}
+            </Alert>
+          ) : null}
+
           <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap' }}>
-            <Button variant="contained" disabled={disabled || !externalUrlValid} onClick={() => void save()}>
-              {mode === 'creating' ? 'Guardar acción' : 'Guardar cambios'}
+            <Button variant="contained" disabled={interactionDisabled || !externalUrlValid} onClick={() => void save()}>
+              {mutation === 'saving' ? 'Guardando…' : mode === 'creating' ? 'Guardar acción' : 'Guardar cambios'}
             </Button>
             {selected ? (
-              <Button color="error" disabled={disabled} onClick={() => void remove()}>
-                Eliminar acción
+              <Button color="error" disabled={interactionDisabled} onClick={() => void remove()}>
+                {mutation === 'deleting' ? 'Eliminando…' : 'Eliminar acción'}
               </Button>
             ) : null}
-            <Button onClick={cancel}>Cancelar</Button>
+            <Button disabled={interactionDisabled} onClick={cancel}>
+              Cancelar
+            </Button>
           </Stack>
         </Stack>
       ) : null}
@@ -456,10 +559,7 @@ function normalizeEditorRect(value: Pick<Draft, 'x' | 'y' | 'width' | 'height'>)
 function areaStyles(rect: Pick<Draft, 'x' | 'y' | 'width' | 'height'>, selected: boolean) {
   return {
     position: 'absolute',
-    left: `${rect.x * 100}%`,
-    top: `${rect.y * 100}%`,
-    width: `${rect.width * 100}%`,
-    height: `${rect.height * 100}%`,
+    ...relativeRectStyles(rect),
     minWidth: 44,
     minHeight: 44,
     p: 0,

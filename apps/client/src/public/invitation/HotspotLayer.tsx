@@ -1,5 +1,6 @@
 import type { PublicInvitationView } from '@invitaciones/api-client';
 import { Box, Button } from '@mui/material';
+import { relativeRectStyles } from '../../shared/relative-rect';
 import { safeHttpsUrl } from '../routing/public-content-path';
 
 type Hotspot = NonNullable<PublicInvitationView['design']>['hotspots'][number];
@@ -31,10 +32,7 @@ export function HotspotLayer({ hotspots, onRsvp, onQr, onUnavailableQr, qrAvaila
             'aria-label': labels[hotspot.action],
             sx: {
               position: 'absolute',
-              left: `${hotspot.x * 100}%`,
-              top: `${hotspot.y * 100}%`,
-              width: `${hotspot.width * 100}%`,
-              height: `${hotspot.height * 100}%`,
+              ...relativeRectStyles(hotspot),
               minWidth: 44,
               minHeight: 44,
               p: 0,

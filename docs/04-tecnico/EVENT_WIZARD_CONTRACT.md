@@ -104,6 +104,20 @@ accidental sin bloquear el scroll normal de la página. La alternativa de teclad
 naturales para mover arriba, abajo, izquierda o derecha y para hacer el área más ancha, angosta, alta o baja;
 nunca muestra números relativos como solución accesible.
 
+La superficie relativa del editor coincide exactamente con los límites renderizados del `<img>` cargado mediante
+el Object URL privado existente. No usa una proporción fija, `letterboxing`, padding ni márgenes de `contain` como
+parte de `0..1`. Editor y renderer público comparten la misma proyección porcentual de `x`, `y`, `width` y `height`,
+sin modificar el payload.
+
+En Flipbook, `Agregar acción` deriva sus opciones de la posición actual y de los Hotspots autoritativos: la portada
+admite las acciones de portada y el enlace opcional; una página intermedia solo puede convertirse en página QR si
+no existe otra; y el enlace opcional se ofrece fuera de portada únicamente en la página QR ya derivada. La UI no
+ofrece crear una segunda página QR. Cambiar de página recalcula inmediatamente estas opciones.
+
+Crear, editar y eliminar una acción bloquea envíos repetidos mientras la mutación está pendiente. Un fallo se
+traduce a lenguaje natural dentro del editor y conserva selección, geometría y enlace para reintentar; el editor
+solo abandona el borrador después del éxito autoritativo y su posterior actualización de lectura.
+
 Cada área comunica su acción y la seleccionada se diferencia sin depender solo del color. El resumen
 **Acciones configuradas** se deriva exclusivamente de los Hotspots autoritativos. En Flipbook se identifica
 la portada o número visible de página sobre la que se trabaja, sin mostrar IDs. Los blockers de readiness se
