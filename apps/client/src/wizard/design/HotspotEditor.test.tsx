@@ -4,6 +4,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { configuredEvent, mockApiClient } from '../../test/fixtures';
+import { isValidInvitationExternalUrl } from '../../shared/invitation-external-url';
 import { HotspotEditor } from './HotspotEditor';
 
 const existingAction: Hotspot = {
@@ -28,6 +29,14 @@ const pageAction = (pageId: string, action: Hotspot['action'], id = `${pageId}-$
   visualOwnerType: 'FLIPBOOK_PAGE',
   flipbookPageId: pageId,
   action
+});
+
+const externalAction = (id: string, pageId?: string): Hotspot => ({
+  ...existingAction,
+  id,
+  action: 'EXTERNAL_LINK',
+  url: `https://example.com/${id}`,
+  ...(pageId ? { visualOwnerType: 'FLIPBOOK_PAGE' as const, flipbookPageId: pageId } : {})
 });
 
 function renderEditor({
@@ -250,6 +259,56 @@ describe('HotspotEditor as invitation actions', () => {
     );
   });
 
+  it.each([0, 1, 2])('offers an additional link while the design has %s configured links', async (count) => {
+    renderEditor({ hotspots: Array.from({ length: count }, (_, index) => externalAction(`link-${index}`)) });
+    await userEvent.click(screen.getByRole('button', { name: 'Agregar acción' }));
+
+    expect(screen.getByRole('button', { name: /^Enlace adicional/ })).toBeInTheDocument();
+  });
+
+  it('does not offer a fourth additional link but keeps other Flyer actions available', async () => {
+    renderEditor({ hotspots: [externalAction('link-1'), externalAction('link-2'), externalAction('link-3')] });
+    await userEvent.click(screen.getByRole('button', { name: 'Agregar acción' }));
+
+    expect(screen.queryByRole('button', { name: /^Enlace adicional/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Confirmar asistencia/ })).toBeInTheDocument();
+  });
+
+  it('keeps an existing additional link editable when the global limit is reached', async () => {
+    renderEditor({ hotspots: [externalAction('link-1'), externalAction('link-2'), externalAction('link-3')] });
+    await userEvent.click(screen.getAllByRole('button', { name: 'Editar acción Enlace adicional' })[0]!);
+
+    expect(screen.getByLabelText('Enlace')).toHaveValue('https://example.com/link-1');
+    expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Eliminar acción' })).toBeEnabled();
+  });
+
+  it('offers an additional link again after deletion and an authoritative refresh', async () => {
+    const links = [externalAction('link-1'), externalAction('link-2'), externalAction('link-3')];
+    const { api, onChanged, view } = renderEditor({ hotspots: links });
+    await userEvent.click(screen.getAllByRole('button', { name: 'Editar acción Enlace adicional' })[0]!);
+    await userEvent.click(screen.getByRole('button', { name: 'Eliminar acción' }));
+    await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
+
+    view.rerender(
+      <AppThemeProvider>
+        <HotspotEditor
+          apiClient={api}
+          eventId={configuredEvent.id}
+          ownerType="FLYER"
+          hotspots={links.slice(1)}
+          disabled={false}
+          previewUrl="blob:preview"
+          contextLabel="Acciones del Flyer"
+          onChanged={onChanged}
+        />
+      </AppThemeProvider>
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Agregar acción' }));
+
+    expect(screen.getByRole('button', { name: /^Enlace adicional/ })).toBeInTheDocument();
+  });
+
   it('offers all contracted actions on the Flipbook cover', async () => {
     renderEditor({ ownerType: 'FLIPBOOK_PAGE', pageId: 'cover', pagePosition: 1 });
     await userEvent.click(screen.getByRole('button', { name: 'Agregar acción' }));
@@ -281,6 +340,24 @@ describe('HotspotEditor as invitation actions', () => {
     expect(screen.getByRole('button', { name: /^Mostrar QR/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Enlace adicional/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Confirmar asistencia/ })).not.toBeInTheDocument();
+  });
+
+  it('applies the three-link limit globally across the Flipbook cover and QR page', async () => {
+    renderEditor({
+      ownerType: 'FLIPBOOK_PAGE',
+      pageId: 'page-2',
+      pagePosition: 2,
+      hotspots: [
+        pageAction('page-2', 'QR_AREA', 'qr-area'),
+        externalAction('cover-link-1', 'cover'),
+        externalAction('cover-link-2', 'cover'),
+        externalAction('qr-link', 'page-2')
+      ]
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'Agregar acción' }));
+
+    expect(screen.getByRole('button', { name: /^Mostrar QR/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Enlace adicional/ })).not.toBeInTheDocument();
   });
 
   it('does not offer a second QR page and updates options immediately after changing pages', async () => {
@@ -428,4 +505,52 @@ describe('HotspotEditor as invitation actions', () => {
     expect(screen.queryByRole('button', { name: 'Agregar acción' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Editar acción Confirmar asistencia' })).toBeDisabled();
   });
+});
+
+describe('invitation external link validation', () => {
+  it.each([
+    'http://example.com',
+    'https://',
+    'example.com',
+    'https://user:password@example.com',
+    'https://example.com?utm_source=test',
+    'https://example.com/#seccion',
+    'https://example.com/path?foo=bar',
+    'https://exa mple.com',
+    'https://example.com\\path',
+    'https://example.com/\npath',
+    'https://example.com/\u007fpath'
+  ])('rejects %j before calling the API', (value) => {
+    expect(isValidInvitationExternalUrl(value)).toBe(false);
+  });
+
+  it('keeps save disabled and natural copy visible for every contracted invalid shape', async () => {
+    const { api } = renderEditor();
+    await beginAction('Enlace adicional');
+    const input = screen.getByLabelText('Enlace');
+    const save = screen.getByRole('button', { name: 'Guardar acción' });
+
+    for (const value of [
+      'http://example.com',
+      'https://',
+      'example.com',
+      'https://user:password@example.com',
+      'https://example.com?utm_source=test',
+      'https://example.com/#seccion',
+      'https://example.com/path?foo=bar'
+    ]) {
+      fireEvent.change(input, { target: { value } });
+      fireEvent.blur(input);
+      expect(save).toBeDisabled();
+      expect(screen.getByText('Ingresa un enlace web válido.')).toBeInTheDocument();
+    }
+    expect(api.design.createHotspot).not.toHaveBeenCalled();
+  });
+
+  it.each(['https://example.com', 'https://example.com/regalos', 'https://subdomain.example.com/ruta'])(
+    'accepts %s',
+    (value) => {
+      expect(isValidInvitationExternalUrl(value)).toBe(true);
+    }
+  );
 });

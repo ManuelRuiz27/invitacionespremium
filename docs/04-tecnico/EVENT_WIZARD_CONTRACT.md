@@ -125,6 +125,14 @@ traducen a instrucciones naturales y nunca se muestran como códigos.
 
 Para `Enlace adicional`, la UI usa el label `Enlace`, la ayuda `Pega el enlace que quieres abrir desde la
 invitación.` y el error `Ingresa un enlace web válido.`. La validación HTTPS contractual permanece interna.
+La disponibilidad se deriva de todos los Hotspots autoritativos del diseño: al existir tres enlaces adicionales,
+la UI deja de ofrecer crear un cuarto tanto en Flyer como en las páginas permitidas de Flipbook, sin impedir editar
+o eliminar los existentes. Después de eliminar y refrescar la fuente autoritativa, la opción vuelve a estar
+disponible.
+
+Antes de guardar, el cliente aplica las restricciones deterministas de `EXTERNAL_LINK`: URL HTTPS absoluta con host
+válido, sin credenciales, query, fragment, espacios, controles ni protocolo alternativo. El copy no expone esas
+reglas técnicas y el backend conserva la autoridad final ante concurrencia o estado desactualizado.
 
 ## Croquis y pases
 

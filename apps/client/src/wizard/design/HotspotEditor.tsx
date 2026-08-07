@@ -1,6 +1,7 @@
 import type { ApiClient, Hotspot } from '@invitaciones/api-client';
 import { Alert, Box, Button, FormHelperText, Stack, TextField, Typography } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
+import { isValidInvitationExternalUrl } from '../../shared/invitation-external-url';
 import { relativeRectStyles } from '../../shared/relative-rect';
 import { errorMessage, normalizeRect } from '../wizard-utils';
 
@@ -124,9 +125,13 @@ export function HotspotEditor({
   const [mutationMessage, setMutationMessage] = useState<string>();
   const selected = visible.find((item) => item.id === selectedId);
   const editing = mode === 'creating' || mode === 'editing';
-  const externalUrlValid = draft.action !== 'EXTERNAL_LINK' || /^https:\/\/[^\s]+$/i.test(draft.url);
+  const externalLinkCount = hotspots.filter((hotspot) => hotspot.action === 'EXTERNAL_LINK').length;
+  const externalUrlValid = draft.action !== 'EXTERNAL_LINK' || isValidInvitationExternalUrl(draft.url);
   const availableActionValues = availableActionsForPage({ ownerType, pageId, pagePosition, hotspots });
-  const availableActions = actions.filter((action) => availableActionValues.includes(action.value));
+  const availableActions = actions.filter(
+    (action) =>
+      availableActionValues.includes(action.value) && (action.value !== 'EXTERNAL_LINK' || externalLinkCount < 3)
+  );
   const interactionDisabled = disabled || mutation !== undefined;
 
   useEffect(() => {

@@ -1112,6 +1112,31 @@ créditos ni staging.
 Contratos normativos: `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md`,
 `docs/04-tecnico/INVITATION_DESIGN_CONTRACT.md` y `docs/04-tecnico/FILE_ASSET_POLICY.md`.
 
+### CODEX-123B-R2 — Hardening final del editor de Invitación
+
+**Estado:** COMPLETADO
+
+**Repo:** `invitacionespremium-client`
+
+**Dependencias:** CODEX-123B-R1
+
+**Alcance**
+
+- derivar de la proyección autoritativa completa el máximo global de tres enlaces adicionales;
+- impedir desde Flyer y Flipbook iniciar la creación de un cuarto enlace sin bloquear la edición o eliminación de
+  los existentes;
+- validar el enlace con las restricciones deterministas de `EXTERNAL_LINK` antes de enviarlo;
+- conservar copy natural, borrador recuperable y autoridad final del backend;
+- cubrir límites distribuidos entre páginas, refresh posterior a eliminación y casos válidos/inválidos de URL.
+
+**Fuera de alcance**
+
+- API, OpenAPI, Prisma, schema, endpoints o restricciones backend;
+- Finanzas, seeds, Docker, infraestructura, Scanner, Staff, Croquis/Mesas y CODEX-123C.
+
+Contratos normativos: `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md` y
+`docs/04-tecnico/INVITATION_DESIGN_CONTRACT.md`.
+
 ---
 
 ## EPIC 13 — Frontend Admin, Scanner y Landing
