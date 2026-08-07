@@ -17,7 +17,26 @@ const messages: Record<string, string> = {
   CLIENT_NOT_ACTIVE: 'Tu cuenta no está habilitada para realizar esta acción.',
   VALIDATION_ERROR: 'Revisa los campos señalados e inténtalo nuevamente.',
   FILE_ASSET_NOT_READY: 'Espera a que el archivo termine de cargarse e inténtalo nuevamente.',
-  IDEMPOTENCY_CONFLICT: 'No pudimos completar esta operación. Actualiza la información e inténtalo nuevamente.'
+  IDEMPOTENCY_CONFLICT: 'No pudimos completar esta operación. Actualiza la información e inténtalo nuevamente.',
+  INVITATION_DESIGN_SERVICE_UNSUPPORTED: 'El servicio elegido no permite configurar una invitación digital.',
+  INVITATION_DESIGN_MISSING: 'Agrega las imágenes de la invitación.',
+  INVITATION_DESIGN_TYPE_MISMATCH: 'La invitación no coincide con el servicio elegido.',
+  FLYER_INITIAL_IMAGE_MISSING: 'Falta agregar la imagen inicial.',
+  FLYER_QR_IMAGE_MISSING: 'Falta agregar la imagen donde se mostrará el QR.',
+  FLIPBOOK_PAGE_COUNT_INVALID: 'Agrega entre 1 y 10 páginas al Flipbook.',
+  FLIPBOOK_PAGE_ORDER_INVALID: 'Revisa el orden de las páginas del Flipbook.',
+  FLIPBOOK_PAGE_ASSET_INVALID: 'Una página necesita una imagen válida.',
+  FLYER_RSVP_HOTSPOT_MISSING: 'Falta agregar la acción para confirmar asistencia.',
+  FLYER_LOCATION_HOTSPOT_MISSING: 'Falta agregar la acción para ver la ubicación.',
+  FLYER_GIFT_REGISTRY_HOTSPOT_MISSING: 'Falta agregar la acción para abrir la mesa de regalos.',
+  FLYER_QR_AREA_HOTSPOT_MISSING: 'Falta indicar dónde mostrar el QR.',
+  FLIPBOOK_COVER_PAGE_MISSING: 'Falta agregar la portada del Flipbook.',
+  FLIPBOOK_COVER_RSVP_HOTSPOT_MISSING: 'Falta agregar en la portada la acción para confirmar asistencia.',
+  FLIPBOOK_COVER_LOCATION_HOTSPOT_MISSING: 'Falta agregar en la portada la acción para ver la ubicación.',
+  FLIPBOOK_COVER_GIFT_REGISTRY_HOTSPOT_MISSING: 'Falta agregar en la portada la acción para abrir la mesa de regalos.',
+  FLIPBOOK_QR_PAGE_MISSING: 'Falta indicar en qué página se mostrará el QR.',
+  FLIPBOOK_HOTSPOT_OWNER_INVALID: 'Una acción está asociada a una página que ya no está disponible.',
+  FLIPBOOK_HOTSPOT_PLACEMENT_INVALID: 'Mueve la acción a una página permitida.'
 };
 
 export function errorMessage(error: unknown): string {

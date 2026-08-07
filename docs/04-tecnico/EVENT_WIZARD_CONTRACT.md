@@ -76,10 +76,41 @@ Los previews descargan blobs privados y revocan cada Object URL. Flyer acepta so
 inicial y QR, y permite sustituir ambas. Flipbook administra de 1 a 10 páginas, portada, selección, alta,
 sustitución, eliminación y orden persistido.
 
-El canvas permite seleccionar, mover y redimensionar Hotspots mediante pointer, con alternativa numérica
-para `x`, `y`, `width`, `height` y prioridad. Acciones: RSVP, ubicación, mesa de regalos, área QR y enlace
-adicional HTTPS. En Flipbook los Hotspots pertenecen a la página activa y se respetan las restricciones
-autoritativas de portada/página. Los blockers de readiness se traducen a lenguaje visible.
+### Modelo interno del área interactiva
+
+Backend, API y código interno conservan la entidad `Hotspot`, las propiedades `x`, `y`, `width`, `height` y
+`priority`, y las acciones cerradas `RSVP`, `LOCATION`, `GIFT_REGISTRY`, `QR_AREA` y `EXTERNAL_LINK`. Las
+coordenadas relativas, la prioridad, la pertenencia a Flyer o página y el payload enviado a la API no cambian.
+
+### Modelo visible para el Planner
+
+La UI presenta **Acciones de la invitación** y nunca exige conocer Hotspots, coordenadas, dimensiones
+normalizadas, prioridad o enums. Las cinco acciones visibles son:
+
+- **Confirmar asistencia**: abre la confirmación de asistencia;
+- **Ver ubicación**: abre la ubicación configurada para el Evento;
+- **Mesa de regalos**: abre la mesa de regalos configurada;
+- **Mostrar QR**: muestra el acceso QR cuando esté disponible;
+- **Enlace adicional**: abre el enlace externo configurado.
+
+`Agregar acción` inicia un flujo guiado: elegir una de esas acciones, colocar el área sobre la vista previa,
+moverla o cambiar su tamaño y guardarla. Crear usa valores técnicos iniciales deterministas y `priority=0`;
+editar conserva coordenadas y prioridad existentes. Guardar o eliminar refresca la fuente autoritativa y sale
+del modo de edición; cancelar descarta solamente el borrador local.
+
+El canvas permite seleccionar, arrastrar y redimensionar con pointer o touch. La superficie de los controles
+táctiles importantes es al menos equivalente a 44×44 px y durante la manipulación directa se evita el scroll
+accidental sin bloquear el scroll normal de la página. La alternativa de teclado usa acciones con nombres
+naturales para mover arriba, abajo, izquierda o derecha y para hacer el área más ancha, angosta, alta o baja;
+nunca muestra números relativos como solución accesible.
+
+Cada área comunica su acción y la seleccionada se diferencia sin depender solo del color. El resumen
+**Acciones configuradas** se deriva exclusivamente de los Hotspots autoritativos. En Flipbook se identifica
+la portada o número visible de página sobre la que se trabaja, sin mostrar IDs. Los blockers de readiness se
+traducen a instrucciones naturales y nunca se muestran como códigos.
+
+Para `Enlace adicional`, la UI usa el label `Enlace`, la ayuda `Pega el enlace que quieres abrir desde la
+invitación.` y el error `Ingresa un enlace web válido.`. La validación HTTPS contractual permanece interna.
 
 ## Croquis y pases
 

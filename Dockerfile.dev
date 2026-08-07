@@ -22,4 +22,4 @@ COPY . .
 
 EXPOSE 3000 5173 5174 5175 5176
 
-CMD ["sh", "-c", "pnpm --filter @invitaciones/api db:migrate:deploy && pnpm --filter @invitaciones/api auth:seed-local-admin && pnpm --filter @invitaciones/api services-pricing:seed && exec pnpm dev"]
+CMD ["sh", "-c", "pnpm --filter @invitaciones/api db:migrate:deploy && pnpm local:seed && exec pnpm dev"]

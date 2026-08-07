@@ -40,6 +40,7 @@ export function DesignStep({
     void refresh();
   }, [refresh]);
   const activePage = design?.pages.find((page) => page.id === activePageId) ?? design?.pages[0];
+  const activePageIndex = activePage ? (design?.pages.findIndex((page) => page.id === activePage.id) ?? -1) : -1;
   const activeUrl = usePrivateAssetUrl(apiClient, event.id, activePage?.fileAssetId);
   const upload = async (file: File, type: 'initial' | 'qr' | 'page', replacePageId?: string) => {
     if (!['image/jpeg', 'image/png'].includes(file.type)) {
@@ -97,6 +98,9 @@ export function DesignStep({
       </Typography>
       {service?.code === 'FLYER' ? (
         <>
+          <Typography component="h3" variant="h4">
+            Imágenes de la invitación
+          </Typography>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
             <AssetPreview apiClient={apiClient} eventId={event.id} assetId={flyerInitial} label="Imagen inicial" />
             <AssetPreview apiClient={apiClient} eventId={event.id} assetId={flyerQr} label="Imagen QR" />
@@ -124,21 +128,35 @@ export function DesignStep({
             hotspots={design?.hotspots ?? []}
             disabled={disabled}
             previewUrl={flyerPreview}
+            contextLabel="Acciones del Flyer"
             onChanged={refresh}
           />
         </>
       ) : service?.code === 'FLIPBOOK' ? (
         <>
-          <Typography>
-            Portada: {design?.pages[0] ? `página 1` : 'pendiente'} · {design?.pages.length ?? 0}/10 páginas
-          </Typography>
+          <Stack spacing={0.5}>
+            <Typography component="h3" variant="h4">
+              Páginas del Flipbook
+            </Typography>
+            <Typography color="text.secondary">
+              {design?.pages[0] ? 'La Página 1 es la portada.' : 'Agrega una página para crear la portada.'}{' '}
+              {design?.pages.length ?? 0}/10 páginas configuradas.
+            </Typography>
+          </Stack>
           <Stack direction="row" spacing={1} sx={{ overflowX: 'auto' }}>
             {design?.pages.map((page, index) => (
               <Box
+                component="article"
                 key={page.id}
-                sx={{ border: page.id === activePage?.id ? 2 : 1, borderColor: 'primary.main', p: 1, minWidth: 170 }}
+                sx={{
+                  border: page.id === activePage?.id ? 3 : 1,
+                  borderColor: page.id === activePage?.id ? 'primary.main' : 'divider',
+                  bgcolor: page.id === activePage?.id ? 'action.selected' : 'transparent',
+                  p: 1,
+                  minWidth: 190
+                }}
               >
-                <Button onClick={() => setActivePageId(page.id)}>
+                <Button aria-pressed={page.id === activePage?.id} onClick={() => setActivePageId(page.id)}>
                   Página {index + 1}
                   {index === 0 ? ' · Portada' : ''}
                 </Button>
@@ -202,6 +220,9 @@ export function DesignStep({
               hotspots={design?.hotspots ?? []}
               disabled={disabled}
               previewUrl={activeUrl}
+              contextLabel={
+                activePageIndex === 0 ? 'Acciones de la portada' : `Acciones de Página ${activePageIndex + 1}`
+              }
               onChanged={refresh}
             />
           ) : null}

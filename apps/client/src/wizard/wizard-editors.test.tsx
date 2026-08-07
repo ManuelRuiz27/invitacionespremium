@@ -114,7 +114,7 @@ describe('visual wizard editors', () => {
   });
   afterEach(() => vi.restoreAllMocks());
 
-  it('renders both private Flyer images, replaces JPG/PNG and performs Hotspot CRUD with all actions', async () => {
+  it('renders both private Flyer images, replaces JPG/PNG and keeps the visual action editor', async () => {
     const api = mockApiClient();
     vi.mocked(api.design.get).mockResolvedValue(flyer);
     vi.mocked(api.design.removeHotspot).mockResolvedValue(undefined);
@@ -158,13 +158,9 @@ describe('visual wizard editors', () => {
     await waitFor(() =>
       expect(api.design.replaceFlyerInitial).toHaveBeenCalledWith(configuredEvent.id, { assetId: 'asset-new' })
     );
-    await userEvent.click(screen.getByLabelText('Acción'));
-    expect(await screen.findByRole('option', { name: 'Enlace adicional' })).toBeInTheDocument();
-    await userEvent.keyboard('{Escape}');
-    await userEvent.click(screen.getByRole('button', { name: 'Guardar Hotspot' }));
-    expect(api.design.createHotspot).toHaveBeenCalled();
-    await userEvent.click(screen.getByRole('button', { name: 'Seleccionar hotspot RSVP' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Eliminar Hotspot' }));
+    expect(screen.getByRole('heading', { name: 'Acciones de la invitación' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Editar acción Confirmar asistencia' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Eliminar acción' }));
     expect(api.design.removeHotspot).toHaveBeenCalledWith(configuredEvent.id, 'hotspot-1');
     view.unmount();
     expect(URL.revokeObjectURL).toHaveBeenCalled();
@@ -207,7 +203,8 @@ describe('visual wizard editors', () => {
         disabled={false}
       />
     );
-    expect(await screen.findByText('Portada: página 1 · 2/10 páginas')).toBeInTheDocument();
+    expect(await screen.findByText(/La Página 1 es la portada/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Acciones de la portada' })).toBeInTheDocument();
     const after = screen.getAllByRole('button', { name: 'Mover después' })[0]!;
     await userEvent.click(after);
     expect(api.design.reorderPages).toHaveBeenCalledWith(configuredEvent.id, { pageIds: ['page-2', 'page-1'] });

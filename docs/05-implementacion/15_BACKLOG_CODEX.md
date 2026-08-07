@@ -1049,6 +1049,35 @@ Contrato normativo: `docs/04-tecnico/PUBLIC_CLIENT_CONTRACT.md`. CODEX-130 no fu
 Contratos normativos: `docs/04-tecnico/CLIENT_APP_CONTRACT.md` y
 `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md`.
 
+### CODEX-123B — Rediseño UX del editor de Invitación
+
+**Estado:** COMPLETADO
+
+**Repo:** `invitacionespremium-client`
+
+**Dependencias:** CODEX-123A, CODEX-061, CODEX-121
+
+**Alcance**
+
+- reemplazar el concepto visible de Hotspot por **Acciones de la invitación**;
+- flujo guiado para elegir, colocar, mover, redimensionar, guardar, editar, cancelar y eliminar acciones;
+- eliminar coordenadas, dimensiones y prioridad numérica de la experiencia visible;
+- alternativa accesible de teclado mediante acciones naturales;
+- áreas identificables, selección visual y resumen derivado de acciones configuradas;
+- contexto de portada o página activa en Flipbook;
+- manipulación pointer/touch con targets suficientes y sin scroll accidental;
+- traducción natural de blockers de readiness y pruebas de regresión de FileAssets/Object URLs.
+
+**Fuera de alcance**
+
+- cambios en API, OpenAPI, Prisma, schema, endpoints, estados o reglas de readiness;
+- cambios en acciones permitidas, FileAssets o restricciones de Flyer/Flipbook;
+- Croquis/Mesas (CODEX-123C), Staff, Scanner, invitación pública, Finanzas o workspace activo.
+
+Contrato normativo: `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md`, subordinado a
+`docs/04-tecnico/INVITATION_DESIGN_CONTRACT.md` y `docs/04-tecnico/FILE_ASSET_POLICY.md` para el modelo
+técnico existente.
+
 ---
 
 ## EPIC 13 — Frontend Admin, Scanner y Landing

@@ -11,6 +11,7 @@ import { hashPassword } from '../src/auth/password-hasher';
 import { PrismaService } from '../src/common/database/prisma.service';
 import { AppConfigService } from '../src/config/app-config.service';
 import { loadEnvironmentFiles } from '../src/config/load-environment';
+import { FinanceService } from '../src/finance/finance.service';
 import {
   AssistantResponseStatus,
   ClientType,
@@ -135,6 +136,7 @@ export async function seedStaging(
     const config = app.get(AppConfigService);
     const staffTokens = app.get(StaffTokenTechnicalService);
     const scanner = app.get(ScannerService);
+    const finance = app.get(FinanceService);
     await seedServicesPricing(app.get(AuditedMutationService));
     const generatedStaff = artifact.staffToken
       ? { rawToken: artifact.staffToken, digestSha256: staffTokens.digest(artifact.staffToken), version: 1 }
@@ -168,13 +170,6 @@ export async function seedStaging(
         UserRole.ORGANIZATION_PLANNER,
         ids.organizationClient
       );
-      for (const clientId of [ids.plannerClient, ids.organizationClient]) {
-        await tx.financeBalance.upsert({
-          where: { clientId },
-          create: { clientId, purchasedCredits: 100 },
-          update: { purchasedCredits: 100, creditLineUsed: 0, debtCredits: 0, debtMxnCents: 0 }
-        });
-      }
       const service = await tx.service.findUnique({ where: { code: ServiceCode.DEMO } });
       if (!service) throw new Error('Services and pricing seed did not create the DEMO service.');
       const price = await tx.servicePrice.findFirst({
@@ -291,6 +286,32 @@ export async function seedStaging(
       });
       await tx.checkIn.deleteMany({ where: { id: ids.legacyCheckIn } });
     });
+
+    const financePrincipal = {
+      userId: ids.platformAdmin,
+      sessionId: 'staging-seed',
+      email: artifact.users.platformAdmin.email,
+      role: UserRole.PLATFORM_ADMIN,
+      clientId: null,
+      clientType: null,
+      clientStatus: null
+    } as const;
+    for (const [clientId, label] of [
+      [ids.plannerClient, 'planner'],
+      [ids.organizationClient, 'organization']
+    ] as const) {
+      await finance.rebuildBalanceFromLedger(clientId, `staging-seed-${label}-balance-rebuild-v1`, financePrincipal);
+      await finance.assignCredits(
+        clientId,
+        {
+          credits: 100,
+          reason: 'Créditos iniciales para probar el flujo de staging',
+          operationReference: `staging-seed-${label}-credit-grant-v1`
+        },
+        `staging-seed-${label}-credit-grant-v1`,
+        financePrincipal
+      );
+    }
 
     const image = await createStagingFloorplanBytes();
     const storageKey = 'staging-demo/floorplan.png';

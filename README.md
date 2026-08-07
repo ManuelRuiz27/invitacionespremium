@@ -35,7 +35,8 @@ docker compose up --build -d
 
 Compose levanta PostgreSQL y un contenedor de workspace que ejecuta API, Client, Admin, Scanner y Landing. Antes de
 iniciar las aplicaciones, el contenedor aplica las migraciones y ejecuta los seeds locales idempotentes de Platform
-Admin, Servicios y precios.
+Admin, Servicios y precios, los dos tipos de Cliente y sus usuarios operativos. Cada Cliente recibe 100 créditos
+iniciales mediante un movimiento `MANUAL_CREDIT_GRANT` conciliado con el ledger.
 
 ```bash
 docker compose ps
@@ -47,6 +48,20 @@ Credenciales locales de Platform Admin:
 ```text
 admin@example.com
 change-me-at-least-12-chars
+```
+
+Usuarios locales para probar el flujo de Cliente (usan la misma contraseña local anterior):
+
+```text
+planner@example.com
+organizacion.admin@example.com
+organizacion.planner@example.com
+```
+
+El seed completo se puede repetir sin duplicar Clientes, usuarios ni asignaciones de créditos:
+
+```bash
+pnpm local:seed
 ```
 
 Servicios locales:
@@ -89,6 +104,7 @@ pnpm --filter @invitaciones/api dev
 pnpm --filter @invitaciones/api db:validate
 pnpm --filter @invitaciones/api db:migrate:deploy
 pnpm --filter @invitaciones/api auth:seed-local-admin
+pnpm --filter @invitaciones/api clients:seed-local
 pnpm --filter @invitaciones/api test:integration
 pnpm --filter @invitaciones/api openapi:generate
 ```

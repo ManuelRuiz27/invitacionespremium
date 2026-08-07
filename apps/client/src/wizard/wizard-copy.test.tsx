@@ -4,7 +4,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { configuredEvent } from '../test/fixtures';
 import { WizardLayout } from './WizardLayout';
-import { errorMessage, operationReference } from './wizard-utils';
+import { blockerMessage, errorMessage, operationReference } from './wizard-utils';
 import { ApiError } from '@invitaciones/api-client';
 
 const presentations: Array<[Event['status'], string]> = [
@@ -59,5 +59,18 @@ describe('wizard copy presentation', () => {
     const error = new ApiError(409, code, 'technical detail', 'op-123');
     expect(errorMessage(error)).toBe(expected);
     expect(operationReference(error)).toBe('Referencia: op-123');
+  });
+
+  it.each([
+    ['FLYER_RSVP_HOTSPOT_MISSING', 'Falta agregar la acción para confirmar asistencia.'],
+    ['FLYER_QR_AREA_HOTSPOT_MISSING', 'Falta indicar dónde mostrar el QR.'],
+    [
+      'FLIPBOOK_COVER_GIFT_REGISTRY_HOTSPOT_MISSING',
+      'Falta agregar en la portada la acción para abrir la mesa de regalos.'
+    ],
+    ['FLIPBOOK_QR_PAGE_MISSING', 'Falta indicar en qué página se mostrará el QR.']
+  ])('translates the design requirement %s without exposing its code', (code, expected) => {
+    expect(blockerMessage(code)).toBe(expected);
+    expect(blockerMessage(code)).not.toContain(code);
   });
 });
