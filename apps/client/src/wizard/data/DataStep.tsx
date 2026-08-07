@@ -12,6 +12,7 @@ import {
   Typography
 } from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
+import { serviceLabels, socialTypeLabels } from '../../shared/formatters';
 import { instantToWallClock, supportedTimeZones, wallClockToInstant } from './timezone';
 
 export function DataStep({
@@ -63,19 +64,20 @@ export function DataStep({
       >
         {services.map((service) => (
           <MenuItem key={service.id} value={service.id}>
-            {service.code} · {service.credits} créditos
+            {serviceLabels[service.code]} · {service.credits} créditos
           </MenuItem>
         ))}
       </TextField>
       <TextField
-        label="Nombre"
+        label="Nombre del evento"
+        helperText="Ej. Boda de Ana y Carlos"
         value={draft.name ?? ''}
         disabled={disabled}
         onChange={(e) => onChange({ name: e.target.value || null })}
       />
       <TextField
         select
-        label="Tipo social"
+        label="Tipo de evento"
         value={draft.socialType ?? ''}
         disabled={disabled}
         onChange={(e) =>
@@ -87,17 +89,17 @@ export function DataStep({
         <MenuItem value="">Sin definir</MenuItem>
         {['WEDDING', 'QUINCEANERA', 'CORPORATE', 'BIRTHDAY', 'OTHER'].map((value) => (
           <MenuItem key={value} value={value}>
-            {value}
+            {socialTypeLabels[value as NonNullable<UpdateEventInput['socialType']>]}
           </MenuItem>
         ))}
       </TextField>
       <TextField
         type="datetime-local"
-        label="Fecha y hora del Evento"
+        label="Fecha y hora"
         value={wallClock}
         disabled={disabled}
         error={Boolean(dateError)}
-        helperText={dateError ?? `Hora local en ${zone}`}
+        helperText={dateError ?? `Hora local de ${timeZoneLabel(zone)}`}
         slotProps={{ inputLabel: { shrink: true } }}
         onFocus={() => setEditingWallClock(true)}
         onBlur={() => setEditingWallClock(false)}
@@ -105,14 +107,14 @@ export function DataStep({
       />
       <TextField
         select
-        label="Zona horaria IANA"
+        label="Zona horaria"
         value={zone}
         disabled={disabled}
         onChange={(e) => setPendingZone(e.target.value)}
       >
         {zones.map((item) => (
           <MenuItem key={item} value={item}>
-            {item}
+            {timeZoneLabel(item)}
           </MenuItem>
         ))}
       </TextField>
@@ -126,14 +128,16 @@ export function DataStep({
       />
       <TextField
         type="url"
-        label="Ubicación (HTTPS)"
+        label="Ubicación"
+        helperText="Pega el enlace de Google Maps o la ubicación del evento."
         value={draft.locationUrl ?? ''}
         disabled={disabled}
         onChange={(e) => onChange({ locationUrl: e.target.value || null })}
       />
       <TextField
         type="url"
-        label="Mesa de regalos (HTTPS)"
+        label="Mesa de regalos"
+        helperText="Pega el enlace de la mesa de regalos."
         value={draft.giftRegistryUrl ?? ''}
         disabled={disabled}
         onChange={(e) => onChange({ giftRegistryUrl: e.target.value || null })}
@@ -142,7 +146,7 @@ export function DataStep({
       <Dialog open={Boolean(pendingZone)} onClose={() => setPendingZone(undefined)} aria-labelledby="zone-title">
         <DialogTitle id="zone-title">Cambiar zona horaria</DialogTitle>
         <DialogContent>
-          La hora escrita se conservará y se reinterpretará en {pendingZone}. Confirma este cambio.
+          La hora escrita se conservará para {pendingZone ? timeZoneLabel(pendingZone) : ''}. Confirma este cambio.
           {dateError ? <Alert severity="error">{dateError}</Alert> : null}
         </DialogContent>
         <DialogActions>
@@ -168,4 +172,15 @@ export function DataStep({
       </Dialog>
     </Stack>
   );
+}
+
+const knownTimeZones: Record<string, string> = {
+  'America/Mexico_City': 'Ciudad de México',
+  'America/Cancun': 'Cancún',
+  'America/Tijuana': 'Tijuana',
+  UTC: 'Tiempo universal (UTC)'
+};
+
+function timeZoneLabel(value: string): string {
+  return knownTimeZones[value] ?? value.split('/').at(-1)?.replaceAll('_', ' ') ?? value;
 }

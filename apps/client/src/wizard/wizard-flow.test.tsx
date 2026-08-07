@@ -31,8 +31,8 @@ describe('integrated Event wizard flows', () => {
     vi.mocked(api.events.create).mockReturnValue(pending.promise);
     renderApp(api, '/eventos/nuevo');
     await userEvent.click(await screen.findByRole('combobox', { name: /Servicio/ }));
-    await userEvent.click(await screen.findByRole('option', { name: /FLYER/ }));
-    const next = screen.getByRole('button', { name: 'Guardar y continuar' });
+    await userEvent.click(await screen.findByRole('option', { name: /Flyer/ }));
+    const next = screen.getByRole('button', { name: 'Continuar' });
     fireEvent.click(next);
     fireEvent.click(next);
     expect(api.events.create).toHaveBeenCalledTimes(1);
@@ -109,7 +109,7 @@ describe('integrated Event wizard flows', () => {
       contacts: []
     });
     renderApp(api, `/eventos/${configuredEvent.id}/configuracion/contactos`);
-    const input = await screen.findByLabelText('Previsualizar CSV');
+    const input = await screen.findByLabelText('Importar lista');
     const file = new File(['name,phone'], 'uno.csv', { type: 'text/csv' });
     await userEvent.upload(input, file);
     expect(await screen.findByText(/Fila 2: Persona 2/)).toBeInTheDocument();
@@ -133,13 +133,13 @@ describe('integrated Event wizard flows', () => {
       timeZone: 'America/Cancun'
     });
     renderApp(api, `/eventos/${configuredEvent.id}/configuracion/datos`);
-    const date = await screen.findByLabelText('Fecha y hora del Evento');
+    const date = await screen.findByLabelText('Fecha y hora');
     fireEvent.change(date, { target: { value: '2026-01-15T18:30' } });
-    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Zona horaria IANA' }));
-    fireEvent.click(await screen.findByRole('option', { name: 'America/Tijuana' }));
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Zona horaria' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Tijuana' }));
     fireEvent.click(screen.getByRole('button', { name: 'Cambiar zona' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    await userEvent.click(screen.getByRole('button', { name: 'Guardar y continuar' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
     await waitFor(() => expect(api.events.update).toHaveBeenCalled());
     expect(vi.mocked(api.events.update).mock.calls.at(-1)?.[1]).toMatchObject({
       timeZone: 'America/Tijuana',
@@ -214,7 +214,7 @@ describe('integrated Event wizard flows', () => {
     const confirm = screen.getByRole('button', { name: 'Confirmar activación' });
     fireEvent.click(confirm);
     fireEvent.click(confirm);
-    expect(await screen.findByText('La activación fue confirmada al reconciliar el Evento.')).toBeInTheDocument();
+    expect(await screen.findByText('El evento quedó activado correctamente.')).toBeInTheDocument();
     expect(api.events.activate).toHaveBeenCalledTimes(1);
   });
 });

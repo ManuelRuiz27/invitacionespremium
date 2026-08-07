@@ -23,10 +23,10 @@ export function ConfirmationStep({
             onChange={(event) => onChange({ confirmationEnabled: event.target.checked })}
           />
         }
-        label="Permitir confirmaciones"
+        label="Permitir confirmación de asistencia"
       />
       <Typography color="text.secondary">
-        El backend conserva la autoridad sobre cierre, cupo y asistentes nominales.
+        Permite que tus invitados confirmen quiénes asistirán. Podrás cerrar las confirmaciones cuando lo necesites.
       </Typography>
     </Stack>
   );

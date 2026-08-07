@@ -182,6 +182,23 @@ La aplicación usa landmarks, headings jerárquicos, labels asociados, navegaci�
 visible, `aria-current`, menús/drawers administrados por MUI y textos que no dependen solo del color.
 El tema respeta `prefers-reduced-motion`.
 
+## Lenguaje visible para Planners
+
+La interfaz autenticada se dirige a wedding planners y personal de Organización sin conocimientos
+técnicos. La presentación describe qué necesita hacer el Planner y qué consecuencia tiene cada acción;
+no explica cómo valida o persiste el sistema.
+
+- los estados técnicos de Evento nunca se muestran directamente: `DRAFT` y `CONFIGURED` se presentan
+  como **En preparación**, y `READY_TO_ACTIVATE` como **Listo para activar**;
+- los tipos sociales se muestran en español mediante el mapper compartido;
+- los códigos de servicio nunca sustituyen el nombre comercial visible;
+- `RSVP` permanece como término interno; la UI usa **Confirmación de asistencia**;
+- la zona horaria técnica permanece interna salvo que el Planner realmente necesite cambiarla, y en
+  ese caso se presentan nombres legibles;
+- teléfonos y enlaces se normalizan y validan internamente: la UI no exige conocer E.164, IANA o HTTPS;
+- `operationId` solo puede aparecer como referencia secundaria con el formato `Referencia: ...`;
+- idempotencia y reconciliación nunca forman parte del copy principal ni de las instrucciones al usuario.
+
 ## Variables
 
 ```text

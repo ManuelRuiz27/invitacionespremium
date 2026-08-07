@@ -2,22 +2,22 @@ import { ApiError } from '@invitaciones/api-client';
 
 const messages: Record<string, string> = {
   EVENT_NOT_FOUND: 'No encontramos este Evento o ya no tienes acceso.',
-  EVENT_NOT_EDITABLE: 'El Evento ya no admite cambios en su estado actual.',
+  EVENT_NOT_EDITABLE: 'Este evento ya no puede modificarse.',
   EVENT_CAPACITY_EXCEEDED: 'Los Asistentes autorizados superan la capacidad del Evento.',
   SERVICE_NOT_AVAILABLE: 'El servicio seleccionado ya no está disponible.',
-  EVENT_INVALID_STATE_TRANSITION: 'El Evento no puede activarse desde su estado actual.',
+  EVENT_INVALID_STATE_TRANSITION: 'Este evento todavía no puede activarse.',
   EVENT_INVITATION_DESIGN_INCOMPLETE: 'Completa el diseño de la Invitación.',
   EVENT_ACTIVE_INVITATION_MISSING: 'Agrega al menos una Invitación activa.',
   EVENT_CONFIRMATION_NOT_ENABLED: 'Activa la Confirmación de asistencia.',
-  EVENT_LOCATION_URL_MISSING: 'Agrega la ubicación HTTPS del Evento.',
-  EVENT_GIFT_REGISTRY_URL_MISSING: 'Agrega la mesa de regalos HTTPS.',
+  EVENT_LOCATION_URL_MISSING: 'Agrega la ubicación del evento.',
+  EVENT_GIFT_REGISTRY_URL_MISSING: 'Agrega la mesa de regalos.',
   EVENT_FLOORPLAN_INCOMPLETE: 'Completa y bloquea el Croquis.',
   FINANCE_INSUFFICIENT_CREDITS: 'No hay saldo ni línea de crédito suficientes para activar.',
   CURRENT_PRICE_NOT_FOUND: 'No existe un precio vigente para este servicio.',
-  CLIENT_NOT_ACTIVE: 'El Cliente no está activo.',
+  CLIENT_NOT_ACTIVE: 'Tu cuenta no está habilitada para realizar esta acción.',
   VALIDATION_ERROR: 'Revisa los campos señalados e inténtalo nuevamente.',
-  FILE_ASSET_NOT_READY: 'El archivo aún no está listo para asociarse.',
-  IDEMPOTENCY_CONFLICT: 'Este intento ya fue usado con datos distintos.'
+  FILE_ASSET_NOT_READY: 'Espera a que el archivo termine de cargarse e inténtalo nuevamente.',
+  IDEMPOTENCY_CONFLICT: 'No pudimos completar esta operación. Actualiza la información e inténtalo nuevamente.'
 };
 
 export function errorMessage(error: unknown): string {

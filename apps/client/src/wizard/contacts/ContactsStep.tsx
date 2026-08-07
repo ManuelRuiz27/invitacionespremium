@@ -75,14 +75,14 @@ export function ContactsStep({
   return (
     <Stack spacing={2}>
       <Typography component="h2" variant="h3">
-        Contactos y grupos
+        Invitados
       </Typography>
       <Typography color={remaining !== null && remaining < 0 ? 'error' : 'text.secondary'}>
-        Contactos: {contacts.length} · Asistentes autorizados: {authorized}
+        Invitaciones: {invitations.length} · Personas contempladas: {authorized}
         {remaining === null ? '' : ` · Lugares disponibles: ${remaining}`}
       </Typography>
       {error ? <Alert severity="error">{error}</Alert> : null}
-      <TextField label="Buscar contacto" value={search} onChange={(e) => setSearch(e.target.value)} />
+      <TextField label="Buscar invitado" value={search} onChange={(e) => setSearch(e.target.value)} />
       <Stack
         component="form"
         direction={{ xs: 'column', md: 'row' }}
@@ -107,7 +107,7 @@ export function ContactsStep({
         />
         <TextField
           required
-          label="WhatsApp E.164"
+          label="Número de WhatsApp"
           value={form.whatsappPhone}
           disabled={disabled}
           onChange={(e) => setField('whatsappPhone', e.target.value)}
@@ -183,10 +183,10 @@ export function ContactsStep({
         <Button
           onClick={() => void apiClient.contacts.template(event.id).then((blob) => downloadBlob(blob, 'contactos.csv'))}
         >
-          Descargar plantilla CSV
+          Descargar plantilla
         </Button>
         <Button component="label" disabled={disabled}>
-          Previsualizar CSV
+          Importar lista
           <input
             hidden
             type="file"
@@ -208,7 +208,7 @@ export function ContactsStep({
       {preview ? (
         <Box>
           <Alert severity={preview.invalidRows ? 'warning' : 'success'}>
-            Filas válidas: {preview.validRows}; inválidas: {preview.invalidRows}.
+            {preview.validRows} registros listos para importar · {preview.invalidRows} necesitan corrección
           </Alert>
           <Box component="ol">
             {preview.rows.map((row) => (
@@ -233,7 +233,7 @@ export function ContactsStep({
           <Stack spacing={2} sx={{ pt: 1 }}>
             <TextField label="Nombre" value={form.name} onChange={(e) => setField('name', e.target.value)} />
             <TextField
-              label="WhatsApp E.164"
+              label="Número de WhatsApp"
               value={form.whatsappPhone}
               onChange={(e) => setField('whatsappPhone', e.target.value)}
             />

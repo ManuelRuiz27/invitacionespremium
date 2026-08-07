@@ -41,6 +41,23 @@ Las llaves no se persisten en Web Storage. `AttemptManager` conserva solo un res
 - activación: una llave por intento; red/timeout la conserva hasta reconciliar `GET /events/:id`; `ACTIVE`
   o un fallo definitivo la elimina.
 
+El autosave se comunica mediante `Guardando…`, `Cambios guardados` o `No pudimos guardar los cambios`.
+Las acciones inferiores se llaman `Continuar` y `Salir`; ambas conservan el flush previo y las garantías
+contra pérdida de cambios, sin presentar el guardado como una tarea manual.
+
+## Contrato de presentación
+
+- ningún estado técnico del Evento se muestra directamente; el wizard usa el mapper compartido y presenta
+  `DRAFT`/`CONFIGURED` como **En preparación** y `READY_TO_ACTIVATE` como **Listo para activar**;
+- tipos sociales y servicios usan nombres comerciales en español; los códigos internos nunca son el nombre
+  visible;
+- `RSVP` solo existe internamente; el texto visible usa **Confirmación de asistencia**;
+- IANA, E.164 y la exigencia HTTPS permanecen en valores, normalización y validación internas; los controles
+  muestran `Zona horaria`, `Número de WhatsApp`, `Ubicación` y `Mesa de regalos` con ayuda natural;
+- `operationId` puede mostrarse únicamente como referencia secundaria;
+- idempotencia y reconciliación permanecen internas y nunca forman parte del copy principal;
+- mensajes, checklist y errores indican la acción que debe realizar el Planner, no la validación del sistema.
+
 ## Datos, Contactos y CSV
 
 `datetime-local` representa el wall-clock del Evento. La conversión busca el instante de la zona IANA de
@@ -84,7 +101,7 @@ Contactos, Invitaciones, Design Readiness y Croquis opcional. Physical QR consul
 Design Readiness. El checklist es informativo; el botón solo se habilita con
 `event.status === READY_TO_ACTIVATE`.
 
-El diálogo accesible muestra costo vigente, estimación, saldo comprado y línea utilizada/disponible. Planner
+El diálogo accesible muestra costo de activación, saldo comprado y línea utilizada/disponible. Planner
 de Organización recibe texto específico y realiza cero requests financieros. El botón bloquea doble envío y
 la reconciliación resuelve resultados inciertos.
 

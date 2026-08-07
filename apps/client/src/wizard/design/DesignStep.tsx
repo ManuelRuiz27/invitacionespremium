@@ -5,6 +5,7 @@ import { blockerMessage, errorMessage } from '../wizard-utils';
 import { AssetPreview } from './AssetPreview';
 import { HotspotEditor } from './HotspotEditor';
 import { usePrivateAssetUrl } from './usePrivateAssetUrl';
+import { serviceLabels } from '../../shared/formatters';
 
 export function DesignStep({
   apiClient,
@@ -92,7 +93,7 @@ export function DesignStep({
         Diseño de Invitación
       </Typography>
       <Typography color="text.secondary">
-        Editor {service?.code ?? 'pendiente'} con entrega privada de imágenes.
+        Configura tu invitación {service ? serviceLabels[service.code] : ''} y revisa cómo la verán tus invitados.
       </Typography>
       {service?.code === 'FLYER' ? (
         <>
@@ -218,7 +219,7 @@ export function DesignStep({
           </ul>
         </Alert>
       ) : (
-        <Alert severity="success">Diseño listo según el backend.</Alert>
+        <Alert severity="success">La invitación está lista.</Alert>
       )}
       {message ? <Alert severity="info">{message}</Alert> : null}
     </Stack>

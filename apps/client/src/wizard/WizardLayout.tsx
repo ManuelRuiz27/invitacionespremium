@@ -2,14 +2,15 @@ import type { Event } from '@invitaciones/api-client';
 import { PageHeader, StatusChip } from '@invitaciones/ui';
 import { Alert, Box, Button, Paper, Stack, Step, StepButton, Stepper, Tab, Tabs, Typography } from '@mui/material';
 import type { ReactNode } from 'react';
+import { getEventStatusPresentation } from '../shared/event-status';
 import type { SaveState, WizardStep } from './wizard-model';
 
 const labels: Record<WizardStep, string> = {
   datos: 'Datos',
-  contactos: 'Contactos',
+  contactos: 'Invitados',
   invitacion: 'Invitación',
-  confirmacion: 'Confirmación',
-  croquis: 'Croquis',
+  confirmacion: 'Confirmaciones',
+  croquis: 'Mesas',
   pases: 'Pases',
   revision: 'Revisión'
 };
@@ -18,7 +19,7 @@ const saveLabel: Record<SaveState, string> = {
   pending: 'Cambios pendientes',
   saving: 'Guardando…',
   saved: 'Cambios guardados',
-  error: 'No se pudo guardar; reintenta'
+  error: 'No pudimos guardar los cambios'
 };
 export function WizardLayout({
   event,
@@ -50,7 +51,7 @@ export function WizardLayout({
     <>
       <PageHeader
         title={event ? (event.name ?? 'Configurar Evento') : 'Nuevo Evento'}
-        description="Completa cada etapa. Las validaciones definitivas se realizan en el servidor."
+        description="Completa los pasos para dejar tu evento listo para activar."
       />
       <Stack spacing={2.5}>
         <Paper variant="outlined" sx={{ p: { xs: 1.5, md: 2.5 } }}>
@@ -58,7 +59,12 @@ export function WizardLayout({
             <Typography variant="body2" aria-live="polite">
               {saveLabel[saveState]}
             </Typography>
-            {event ? <StatusChip label={event.status} tone={editable ? 'warning' : 'neutral'} /> : null}
+            {event
+              ? (() => {
+                  const status = getEventStatusPresentation(event.status);
+                  return <StatusChip label={status.label} tone={status.tone} />;
+                })()
+              : null}
           </Stack>
           <Box sx={{ display: { xs: 'none', md: 'block' } }}>
             <Stepper nonLinear activeStep={index}>
@@ -95,7 +101,7 @@ export function WizardLayout({
         </Paper>
         <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ justifyContent: 'space-between', gap: 1.5 }}>
           <Button disabled={busy} onClick={onExit}>
-            Guardar y salir
+            Salir
           </Button>
           <Stack direction="row" spacing={1}>
             <Button disabled={busy || index === 0} onClick={() => onGo(steps[index - 1]!)}>
@@ -106,7 +112,7 @@ export function WizardLayout({
               disabled={busy || index === steps.length - 1}
               onClick={() => onGo(steps[index + 1]!)}
             >
-              Guardar y continuar
+              Continuar
             </Button>
           </Stack>
         </Stack>

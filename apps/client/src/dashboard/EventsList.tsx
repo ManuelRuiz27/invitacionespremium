@@ -108,7 +108,7 @@ export function EventsList({ events }: { events: Event[] }) {
               <TableHead>
                 <TableRow>
                   <TableCell>Nombre</TableCell>
-                  <TableCell>Tipo social</TableCell>
+                  <TableCell>Tipo de evento</TableCell>
                   <TableCell>Fecha</TableCell>
                   <TableCell>Estado</TableCell>
                   <TableCell align="right">Capacidad</TableCell>
@@ -188,7 +188,7 @@ function EventDetails({ event }: { event: Event }) {
   const presentation = getEventStatusPresentation(event.status);
   const rows = [
     ['Estado', presentation.label],
-    ['Tipo social', event.socialType ? socialTypeLabels[event.socialType] : 'Pendiente'],
+    ['Tipo de evento', event.socialType ? socialTypeLabels[event.socialType] : 'Pendiente'],
     ['Fecha', formatEventDate(event.eventDateTime, event.timeZone, true)],
     ['Capacidad', event.capacity?.toString() ?? 'Pendiente'],
     ['Última actualización', formatEventDate(event.updatedAt, event.timeZone, true)]

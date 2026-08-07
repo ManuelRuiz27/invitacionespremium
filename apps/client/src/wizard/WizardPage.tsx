@@ -196,7 +196,14 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
         <PhysicalPassesStep apiClient={apiClient} event={event} disabled={!editable} />
       ) : null}
       {selectedStep === 'revision' && event ? (
-        <ReviewStep apiClient={apiClient} event={event} service={service} user={user} onEventReload={onReload} />
+        <ReviewStep
+          apiClient={apiClient}
+          event={event}
+          service={service}
+          user={user}
+          onEventReload={onReload}
+          onGo={(target) => void go(target)}
+        />
       ) : null}
     </WizardLayout>
   );

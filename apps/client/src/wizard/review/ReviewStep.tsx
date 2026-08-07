@@ -12,22 +12,26 @@ import {
   Typography
 } from '@mui/material';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { serviceLabels } from '../../shared/formatters';
 import { AttemptManager, isUncertainFailure } from '../wizard-model';
+import type { WizardStep } from '../wizard-model';
 import { blockerMessage, errorMessage, operationReference } from '../wizard-utils';
 
-type Check = { label: string; ok: boolean; detail?: string };
+type Check = { label: string; ok: boolean; step: WizardStep; detail?: string };
 export function ReviewStep({
   apiClient,
   event,
   service,
   user,
-  onEventReload
+  onEventReload,
+  onGo
 }: {
   apiClient: ApiClient;
   event: Event;
   service: AvailableService | undefined;
   user: AuthUser;
   onEventReload: (event: Event) => void;
+  onGo: (step: WizardStep) => void;
 }) {
   const attempts = useRef(new AttemptManager());
   const [current, setCurrent] = useState(event);
@@ -54,11 +58,18 @@ export function ReviewStep({
         setChecks([
           {
             label: 'Datos del Evento',
-            ok: Boolean(latest.name && latest.eventDateTime && latest.capacity && latest.serviceId)
+            ok: Boolean(latest.name && latest.eventDateTime && latest.capacity && latest.serviceId),
+            step: 'datos'
           },
-          { label: 'Pases generados', ok: passes.length > 0, detail: `${passes.length} disponibles` },
+          { label: 'Pases generados', ok: passes.length > 0, step: 'pases', detail: `${passes.length} disponibles` },
           ...(latest.floorplanEnabled
-            ? [{ label: 'Croquis completo y bloqueado', ok: Boolean(floorplan?.locked && floorplan.shapes.length) }]
+            ? [
+                {
+                  label: 'Mesas listas',
+                  ok: Boolean(floorplan?.locked && floorplan.shapes.length),
+                  step: 'croquis' as const
+                }
+              ]
             : [])
         ]);
       } else {
@@ -73,16 +84,28 @@ export function ReviewStep({
         setChecks([
           {
             label: 'Datos del Evento',
-            ok: Boolean(latest.name && latest.eventDateTime && latest.capacity && latest.serviceId)
+            ok: Boolean(latest.name && latest.eventDateTime && latest.capacity && latest.serviceId),
+            step: 'datos'
           },
-          { label: 'Contactos', ok: contacts.length > 0, detail: `${contacts.length} Contactos` },
-          { label: 'Invitaciones activas', ok: invitations.length > 0 },
-          { label: 'Diseño', ok: readiness.complete, detail: readiness.blockers.map(blockerMessage).join(' ') },
-          { label: 'Confirmación de asistencia', ok: latest.confirmationEnabled },
-          { label: 'Ubicación', ok: Boolean(latest.locationUrl) },
-          { label: 'Mesa de regalos', ok: Boolean(latest.giftRegistryUrl) },
+          { label: 'Invitados', ok: contacts.length > 0, step: 'contactos', detail: `${contacts.length} registrados` },
+          { label: 'Invitaciones activas', ok: invitations.length > 0, step: 'contactos' },
+          {
+            label: 'Invitación',
+            ok: readiness.complete,
+            step: 'invitacion',
+            detail: readiness.blockers.map(blockerMessage).join(' ')
+          },
+          { label: 'Confirmación de asistencia', ok: latest.confirmationEnabled, step: 'confirmacion' },
+          { label: 'Ubicación', ok: Boolean(latest.locationUrl), step: 'datos' },
+          { label: 'Mesa de regalos', ok: Boolean(latest.giftRegistryUrl), step: 'datos' },
           ...(latest.floorplanEnabled
-            ? [{ label: 'Croquis completo y bloqueado', ok: Boolean(floorplan?.locked && floorplan.shapes.length) }]
+            ? [
+                {
+                  label: 'Mesas listas',
+                  ok: Boolean(floorplan?.locked && floorplan.shapes.length),
+                  step: 'croquis' as const
+                }
+              ]
             : [])
         ]);
       }
@@ -105,7 +128,7 @@ export function ReviewStep({
       setCurrent(result.event);
       onEventReload(result.event);
       setDialog(false);
-      setMessage('Evento activado correctamente.');
+      setMessage('El evento quedó activado correctamente.');
     } catch (reason) {
       if (!isUncertainFailure(reason)) attempts.current.clear('activate', attempt.key);
       try {
@@ -115,13 +138,21 @@ export function ReviewStep({
         if (latest.status === 'ACTIVE') {
           attempts.current.clear('activate', attempt.key);
           setDialog(false);
-          setMessage('La activación fue confirmada al reconciliar el Evento.');
+          setMessage('El evento quedó activado correctamente.');
         } else {
-          setMessage(errorMessage(reason));
+          setMessage(
+            isUncertainFailure(reason)
+              ? 'No pudimos confirmar la activación. Revisa tu conexión e inténtalo nuevamente.'
+              : errorMessage(reason)
+          );
           setReference(operationReference(reason));
         }
       } catch {
-        setMessage(errorMessage(reason));
+        setMessage(
+          isUncertainFailure(reason)
+            ? 'No pudimos confirmar la activación. Revisa tu conexión e inténtalo nuevamente.'
+            : errorMessage(reason)
+        );
         setReference(operationReference(reason));
       }
     } finally {
@@ -130,28 +161,38 @@ export function ReviewStep({
   };
   const available = (balance?.purchasedCredits ?? 0) + (balance?.creditLine.availableCredits ?? 0);
   const insufficient = canSeeFinance && Boolean(service) && available < (service?.credits ?? 0);
+  const lineCreditsNeeded = Math.max(0, (service?.credits ?? 0) - (balance?.purchasedCredits ?? 0));
   return (
     <Stack spacing={2}>
       <Typography component="h2" variant="h3">
         Revisión y activación
       </Typography>
       <Typography>
-        Servicio: {service?.code ?? 'Pendiente'} · Costo vigente estimado: {service?.credits ?? '—'} créditos
+        Servicio: {service ? serviceLabels[service.code] : 'Pendiente'} · Costo de activación: {service?.credits ?? '—'}{' '}
+        créditos
       </Typography>
       <List>
         {checks.map((check) => (
-          <ListItem key={check.label} sx={{ color: check.ok ? 'success.main' : 'warning.main' }}>
-            {check.ok ? '✓' : 'Pendiente:'} {check.label}
-            {check.detail ? ` · ${check.detail}` : ''}
+          <ListItem
+            key={check.label}
+            sx={{ color: check.ok ? 'success.main' : 'warning.main', gap: 1, flexWrap: 'wrap' }}
+          >
+            <span>
+              {check.ok ? '✓' : 'Pendiente:'} {check.label}
+              {check.detail ? ` · ${check.detail}` : ''}
+            </span>
+            {!check.ok ? (
+              <Button size="small" onClick={() => onGo(check.step)}>
+                Corregir
+              </Button>
+            ) : null}
           </ListItem>
         ))}
       </List>
       {current.status === 'READY_TO_ACTIVATE' ? (
-        <Alert severity="success">El backend confirmó que el Evento está listo para activar.</Alert>
+        <Alert severity="success">Todo está listo para activar este evento.</Alert>
       ) : (
-        <Alert severity="warning">
-          El Evento aún no está listo para activar. Guarda y resuelve los pendientes indicados.
-        </Alert>
+        <Alert severity="warning">El evento aún no está listo para activar. Resuelve los pendientes indicados.</Alert>
       )}
       {canSeeFinance ? (
         <Stack>
@@ -160,7 +201,12 @@ export function ReviewStep({
             Línea utilizada: {balance?.creditLine.usedCredits ?? '—'} · disponible:{' '}
             {balance?.creditLine.availableCredits ?? '—'} créditos
           </Typography>
-          {insufficient ? <Alert severity="error">Saldo y línea insuficientes para el costo estimado.</Alert> : null}
+          {insufficient ? (
+            <Alert severity="error">
+              No tienes créditos suficientes para activar este evento. Compra créditos o solicita línea de crédito para
+              continuar.
+            </Alert>
+          ) : null}
         </Stack>
       ) : (
         <Alert severity="info">Tu Organización administra el pago. Tu rol no tiene acceso al detalle financiero.</Alert>
@@ -186,21 +232,37 @@ export function ReviewStep({
         <DialogTitle id="activation-title">Confirmar activación</DialogTitle>
         <DialogContent>
           <Stack spacing={1}>
-            <Typography>Costo vigente: {service?.credits ?? '—'} créditos.</Typography>
-            <Typography>
-              Estimación de cobro: {service?.credits ?? '—'} créditos; el servidor calculará el monto definitivo.
-            </Typography>
+            <Typography>Costo de activación: {service?.credits ?? '—'} créditos.</Typography>
             {canSeeFinance ? (
               <>
                 <Typography>Saldo comprado: {balance?.purchasedCredits ?? '—'}.</Typography>
                 <Typography>Línea utilizada: {balance?.creditLine.usedCredits ?? '—'}.</Typography>
+                {lineCreditsNeeded > 0 ? (
+                  <Typography>
+                    Este evento se activará usando tu línea de crédito disponible. Se generará una deuda por{' '}
+                    {lineCreditsNeeded} créditos.
+                  </Typography>
+                ) : (
+                  <Typography>
+                    Al activar este evento se descontarán {service?.credits ?? '—'} créditos de tu saldo. Después podrás
+                    enviar invitaciones y generar accesos para staff.
+                  </Typography>
+                )}
               </>
             ) : (
-              <Typography>
-                La Organización administra el cobro; no se muestra información financiera a tu rol.
-              </Typography>
+              <>
+                <Typography>
+                  La Organización administra el cobro; no se muestra información financiera a tu rol.
+                </Typography>
+                <Typography>Después de activar podrás enviar invitaciones y generar accesos para staff.</Typography>
+              </>
             )}
-            {insufficient ? <Alert severity="error">No hay fondos suficientes.</Alert> : null}
+            {insufficient ? (
+              <Alert severity="error">
+                No tienes créditos suficientes para activar este evento. Compra créditos o solicita línea de crédito
+                para continuar.
+              </Alert>
+            ) : null}
           </Stack>
         </DialogContent>
         <DialogActions>

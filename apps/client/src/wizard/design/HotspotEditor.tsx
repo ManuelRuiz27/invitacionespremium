@@ -192,7 +192,7 @@ export function HotspotEditor({
           onChange={(e) => setDraft({ ...draft, action: e.target.value as Draft['action'] })}
         >
           {[
-            ['RSVP', 'Confirmación'],
+            ['RSVP', 'Confirmación de asistencia'],
             ['LOCATION', 'Ubicación'],
             ['GIFT_REGISTRY', 'Mesa de regalos'],
             ['QR_AREA', 'Área QR'],
@@ -212,10 +212,10 @@ export function HotspotEditor({
         {draft.action === 'EXTERNAL_LINK' ? (
           <TextField
             type="url"
-            label="URL HTTPS adicional"
+            label="Enlace adicional"
             value={draft.url}
             error={!externalUrlValid}
-            helperText={!externalUrlValid ? 'El enlace adicional debe usar HTTPS.' : undefined}
+            helperText={!externalUrlValid ? 'Pega un enlace web seguro completo.' : undefined}
             onChange={(e) => setDraft({ ...draft, url: e.target.value })}
           />
         ) : null}

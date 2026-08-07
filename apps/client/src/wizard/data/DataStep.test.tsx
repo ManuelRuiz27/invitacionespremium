@@ -21,8 +21,9 @@ const view = (value: UpdateEventInput, onChange = vi.fn()) =>
     </AppThemeProvider>
   );
 const chooseZone = async (zone: string) => {
-  fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Zona horaria IANA' }));
-  fireEvent.click(await screen.findByRole('option', { name: zone }));
+  fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Zona horaria' }));
+  const label = zone === 'America/Tijuana' ? 'Tijuana' : zone;
+  fireEvent.click(await screen.findByRole('option', { name: label }));
 };
 
 describe('DataStep time zones', () => {
@@ -33,10 +34,25 @@ describe('DataStep time zones', () => {
   );
   afterEach(() => vi.restoreAllMocks());
 
+  it('shows commercial service names and event types in Spanish without technical formats', async () => {
+    view({ ...draft('2026-01-15T23:30:00.000Z'), serviceId: 'service-flyer', socialType: 'WEDDING' });
+
+    expect(screen.getByText('Flyer · 5 créditos')).toBeInTheDocument();
+    expect(screen.queryByText('FLYER')).not.toBeInTheDocument();
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Tipo de evento' }));
+    expect(await screen.findByRole('option', { name: 'Boda' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'XV años' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Corporativo' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Cumpleaños' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Otro' })).toBeInTheDocument();
+    expect(screen.queryByText('WEDDING')).not.toBeInTheDocument();
+    expect(screen.queryByText('Zona horaria IANA')).not.toBeInTheDocument();
+  });
+
   it('submits zone and instant atomically and preserves the wall clock after an authoritative reload', async () => {
     const onChange = vi.fn();
     const rendered = view(draft('2026-01-15T23:30:00.000Z'), onChange);
-    expect(screen.getByLabelText('Fecha y hora del Evento')).toHaveValue('2026-01-15T18:30');
+    expect(screen.getByLabelText('Fecha y hora')).toHaveValue('2026-01-15T18:30');
     await chooseZone('America/Tijuana');
     fireEvent.click(screen.getByRole('button', { name: 'Cambiar zona' }));
     expect(onChange).toHaveBeenCalledTimes(1);
@@ -55,7 +71,7 @@ describe('DataStep time zones', () => {
         />
       </AppThemeProvider>
     );
-    expect(screen.getByLabelText('Fecha y hora del Evento')).toHaveValue('2026-01-15T18:30');
+    expect(screen.getByLabelText('Fecha y hora')).toHaveValue('2026-01-15T18:30');
   });
 
   it.each([
@@ -64,7 +80,7 @@ describe('DataStep time zones', () => {
   ])('keeps the dialog open and the draft unchanged for %s', async (wallClock, message) => {
     const onChange = vi.fn();
     view(draft('2026-01-15T23:30:00.000Z'), onChange);
-    fireEvent.change(screen.getByLabelText('Fecha y hora del Evento'), { target: { value: wallClock } });
+    fireEvent.change(screen.getByLabelText('Fecha y hora'), { target: { value: wallClock } });
     onChange.mockClear();
     await chooseZone('America/Tijuana');
     fireEvent.click(screen.getByRole('button', { name: 'Cambiar zona' }));

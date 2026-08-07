@@ -1,4 +1,4 @@
-import type { EventSocialType } from '@invitaciones/api-client';
+import type { AvailableService, EventSocialType } from '@invitaciones/api-client';
 
 export const socialTypeLabels: Record<EventSocialType, string> = {
   WEDDING: 'Boda',
@@ -6,6 +6,13 @@ export const socialTypeLabels: Record<EventSocialType, string> = {
   CORPORATE: 'Corporativo',
   BIRTHDAY: 'Cumpleaños',
   OTHER: 'Otro'
+};
+
+export const serviceLabels: Record<AvailableService['code'], string> = {
+  FLYER: 'Flyer',
+  FLIPBOOK: 'Flipbook',
+  PHYSICAL_QR: 'Pase QR físico',
+  DEMO: 'Demo'
 };
 
 export function formatEventDate(value: string | null, timeZone: string | null, includeTime = false): string {

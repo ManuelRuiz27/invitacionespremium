@@ -33,10 +33,7 @@ export function FinancePage({ apiClient }: { apiClient: ApiClient }) {
 
   return (
     <>
-      <PageHeader
-        title="Finanzas"
-        description="Consulta el balance, los movimientos y los comprobantes autorizados para tu Cliente."
-      />
+      <PageHeader title="Finanzas" description="Consulta tu saldo, movimientos y comprobantes." />
       {loading ? <LoadingState label="Cargando información financiera…" /> : null}
       {firstError ? <ErrorState {...toDisplayError(firstError)} onRetry={retry} /> : null}
       {balance.data && movements.data && receipts.data ? (

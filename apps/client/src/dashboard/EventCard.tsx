@@ -15,7 +15,7 @@ export function EventCard({ event, onView }: { event: Event; onView: (event: Eve
             {event.name ?? 'Evento sin nombre'}
           </Typography>
           <Typography color="text.secondary" variant="body2" sx={{ mt: 0.5 }}>
-            {event.socialType ? socialTypeLabels[event.socialType] : 'Tipo social pendiente'}
+            {event.socialType ? socialTypeLabels[event.socialType] : 'Tipo de evento pendiente'}
           </Typography>
         </Box>
         <StatusChip label={presentation.label} tone={presentation.tone} />

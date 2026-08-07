@@ -1021,6 +1021,34 @@ iniciado.
 
 Contrato normativo: `docs/04-tecnico/PUBLIC_CLIENT_CONTRACT.md`. CODEX-130 no fue iniciado.
 
+### CODEX-123A — Remediación UX del Client para Wedding Planners
+
+**Estado:** COMPLETADO
+
+**Repo:** `invitacionespremium-client`
+
+**Dependencias:** CODEX-120, CODEX-121
+
+**Alcance**
+
+- lenguaje natural para Planners en wizard, dashboard y Finanzas;
+- estados, tipos sociales y servicios proyectados mediante nombres visibles;
+- autosave conservado con acciones de navegación `Continuar` y `Salir`;
+- Datos, Invitados, importación, Confirmación y activación sin conceptos técnicos innecesarios;
+- errores conocidos traducidos a acciones y `operationId` solo como referencia secundaria;
+- checklist de Revisión con acceso al paso correspondiente;
+- pruebas de regresión de copy, autosave, permisos financieros y doble activación.
+
+**Fuera de alcance**
+
+- cambios en API, schema, modelo de datos, reglas de negocio, estados, permisos o finanzas;
+- rediseño estructural de Hotspots (CODEX-123B);
+- rediseño de Croquis/Mesas (CODEX-123C);
+- workspace operativo posterior a la activación.
+
+Contratos normativos: `docs/04-tecnico/CLIENT_APP_CONTRACT.md` y
+`docs/04-tecnico/EVENT_WIZARD_CONTRACT.md`.
+
 ---
 
 ## EPIC 13 — Frontend Admin, Scanner y Landing
