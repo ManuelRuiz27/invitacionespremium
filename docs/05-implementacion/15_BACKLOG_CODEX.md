@@ -1137,6 +1137,35 @@ Contratos normativos: `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md`,
 Contratos normativos: `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md` y
 `docs/04-tecnico/INVITATION_DESIGN_CONTRACT.md`.
 
+### CODEX-123C — Rediseño UX de Croquis, Mesas y Zonas
+
+**Estado:** COMPLETADO
+
+**Repo:** `invitacionespremium-client`
+
+**Dependencias:** CODEX-090, CODEX-121, CODEX-123B-R2
+
+**Alcance**
+
+- proyectar Croquis como **Mesas y distribución**, con alta y edición separadas de Mesa y Zona;
+- mantener enums, geometría relativa, rotación, polígonos y lock/unlock únicamente como modelo interno;
+- usar la imagen real como superficie de coordenadas para cualquier proporción JPG/PNG;
+- manipulación visual por pointer/touch y alternativa completa de teclado para mover, cambiar tamaño y girar;
+- forma personalizada de Zona con vértices visuales y sin captura de coordenadas;
+- proyectar lock/unlock como **Finalizar distribución** y **Editar distribución**;
+- conservar borradores y selección ante fallos, bloquear doble envío y traducir errores de dominio;
+- pruebas de copy, payloads, geometría, touch, teclado, mutaciones y FileAssets/Object URLs.
+
+**Fuera de alcance**
+
+- API, OpenAPI, Prisma, schema, migraciones, endpoints, estados o readiness;
+- seating backend o una nueva pantalla de asignación de Asistentes;
+- Scanner, Staff, invitación pública, Finanzas, pases físicos o workspace post-activación;
+- seeds, Docker o infraestructura.
+
+Contrato normativo: `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md`, subordinado a CODEX-090 y
+`docs/04-tecnico/FILE_ASSET_POLICY.md` para el modelo técnico y los FileAssets existentes.
+
 ---
 
 ## EPIC 13 — Frontend Admin, Scanner y Landing

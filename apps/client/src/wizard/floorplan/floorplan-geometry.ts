@@ -13,6 +13,7 @@ function requireFinite(value: number, label: string) {
 function validatePolygon(points: FloorplanShapeInput['polygonPoints']) {
   if (!points || points.length < 3)
     throw new FloorplanShapeValidationError('El polígono requiere al menos tres puntos válidos.');
+  if (points.length > 64) throw new FloorplanShapeValidationError('El polígono admite como máximo 64 puntos.');
   for (const point of points) {
     requireFinite(point.x, 'La coordenada x del polígono');
     requireFinite(point.y, 'La coordenada y del polígono');

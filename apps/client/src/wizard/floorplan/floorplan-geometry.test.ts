@@ -68,6 +68,28 @@ describe('floorplan geometry normalization', () => {
     ).toThrow(/degenerado/i);
   });
 
+  it('rejects non-finite polygon points and more than the contractual maximum', () => {
+    expect(() =>
+      normalizeFloorplanShape({
+        ...shape('POLYGON'),
+        polygonPoints: [
+          { x: 0, y: 0 },
+          { x: Number.NaN, y: 0.5 },
+          { x: 1, y: 1 }
+        ]
+      })
+    ).toThrow(/finito/i);
+    expect(() =>
+      normalizeFloorplanShape({
+        ...shape('POLYGON'),
+        polygonPoints: Array.from({ length: 65 }, (_, index) => ({
+          x: (index % 8) / 8,
+          y: Math.floor(index / 8) / 8
+        }))
+      })
+    ).toThrow(/64 puntos/i);
+  });
+
   it('builds the visible polygon from its points', () => {
     expect(polygonClipPath(shape('POLYGON').polygonPoints)).toBe('polygon(0% 0%, 100% 0%, 50% 100%)');
   });

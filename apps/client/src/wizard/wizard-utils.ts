@@ -11,7 +11,7 @@ const messages: Record<string, string> = {
   EVENT_CONFIRMATION_NOT_ENABLED: 'Activa la Confirmación de asistencia.',
   EVENT_LOCATION_URL_MISSING: 'Agrega la ubicación del evento.',
   EVENT_GIFT_REGISTRY_URL_MISSING: 'Agrega la mesa de regalos.',
-  EVENT_FLOORPLAN_INCOMPLETE: 'Completa y bloquea el Croquis.',
+  EVENT_FLOORPLAN_INCOMPLETE: 'Agrega el plano del lugar y al menos una mesa.',
   FINANCE_INSUFFICIENT_CREDITS: 'No hay saldo ni línea de crédito suficientes para activar.',
   CURRENT_PRICE_NOT_FOUND: 'No existe un precio vigente para este servicio.',
   CLIENT_NOT_ACTIVE: 'Tu cuenta no está habilitada para realizar esta acción.',
@@ -36,7 +36,19 @@ const messages: Record<string, string> = {
   FLIPBOOK_COVER_GIFT_REGISTRY_HOTSPOT_MISSING: 'Falta agregar en la portada la acción para abrir la mesa de regalos.',
   FLIPBOOK_QR_PAGE_MISSING: 'Falta indicar en qué página se mostrará el QR.',
   FLIPBOOK_HOTSPOT_OWNER_INVALID: 'Una acción está asociada a una página que ya no está disponible.',
-  FLIPBOOK_HOTSPOT_PLACEMENT_INVALID: 'Mueve la acción a una página permitida.'
+  FLIPBOOK_HOTSPOT_PLACEMENT_INVALID: 'Mueve la acción a una página permitida.',
+  FLOORPLAN_ALREADY_EXISTS: 'Ya existe un plano para este evento.',
+  FLOORPLAN_NOT_FOUND: 'Agrega el plano del lugar antes de continuar.',
+  FLOORPLAN_SHAPE_NOT_FOUND: 'Esta mesa o zona ya no está disponible. Actualiza la información.',
+  FLOORPLAN_SHAPE_INVALID: 'Ajusta la forma para que permanezca dentro del plano.',
+  FLOORPLAN_TABLE_OCCUPIED:
+    'Esta mesa tiene lugares ocupados. No puede eliminarse ni reducirse por debajo de su ocupación actual.',
+  FLOORPLAN_LAYOUT_LOCKED: 'Selecciona Editar distribución antes de realizar cambios.',
+  FLOORPLAN_EVENT_STATE_LOCKED: 'La distribución ya no puede modificarse en el estado actual del evento.',
+  FLOORPLAN_FILE_ASSET_INCOMPATIBLE: 'Selecciona una imagen JPG o PNG válida para este evento.',
+  FLOORPLAN_CONCURRENCY_CONFLICT: 'La distribución cambió al mismo tiempo. Actualiza e inténtalo nuevamente.',
+  FILE_UNSUPPORTED_TYPE: 'Selecciona una imagen JPG o PNG.',
+  FILE_SIZE_EXCEEDED: 'La imagen es demasiado grande. Selecciona otra e inténtalo nuevamente.'
 };
 
 export function errorMessage(error: unknown): string {

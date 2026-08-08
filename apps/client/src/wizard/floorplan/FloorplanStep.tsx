@@ -1,21 +1,58 @@
-import type { ApiClient, Event, FloorplanShape, FloorplanShapeInput, UpdateEventInput } from '@invitaciones/api-client';
-import { Alert, Box, Button, Checkbox, FormControlLabel, MenuItem, Stack, TextField, Typography } from '@mui/material';
-import { useCallback, useEffect, useState } from 'react';
+import type {
+  ApiClient,
+  Event,
+  Floorplan,
+  FloorplanShape,
+  FloorplanShapeInput,
+  UpdateEventInput
+} from '@invitaciones/api-client';
+import {
+  Alert,
+  Box,
+  Button,
+  Checkbox,
+  Chip,
+  FormControlLabel,
+  FormHelperText,
+  MenuItem,
+  Paper,
+  Stack,
+  TextField,
+  Typography
+} from '@mui/material';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { relativeRectStyles } from '../../shared/relative-rect';
 import { errorMessage } from '../wizard-utils';
 import { usePrivateAssetUrl } from '../design/usePrivateAssetUrl';
 import { FloorplanShapeValidationError, normalizeFloorplanShape, polygonClipPath } from './floorplan-geometry';
 
-const newShape: FloorplanShapeInput = {
-  name: 'Nueva Mesa',
-  kind: 'TABLE',
-  geometry: 'RECTANGLE',
-  capacity: 1,
+type EditorMode = 'idle' | 'creating' | 'editing';
+type Mutation = 'uploading' | 'saving' | 'deleting' | 'locking' | 'unlocking';
+type Geometry = FloorplanShapeInput['geometry'];
+type ShapeKind = FloorplanShapeInput['kind'];
+
+const adjustmentStep = 0.01;
+const rotationStep = 15;
+const initialPolygon = [
+  { x: 0.12, y: 0.12 },
+  { x: 0.88, y: 0.12 },
+  { x: 0.88, y: 0.88 },
+  { x: 0.12, y: 0.88 }
+];
+
+const newDraft = (kind: ShapeKind): FloorplanShapeInput => ({
+  name: '',
+  kind,
+  geometry: kind === 'TABLE' ? 'CIRCLE' : 'RECTANGLE',
+  capacity: kind === 'TABLE' ? 1 : 0,
   x: 0.1,
   y: 0.1,
   width: 0.2,
-  height: 0.15,
-  rotation: 0
-};
+  height: kind === 'TABLE' ? 0.2 : 0.14,
+  rotation: 0,
+  polygonPoints: null
+});
+
 const editable = (shape: FloorplanShape): FloorplanShapeInput => ({
   name: shape.name,
   kind: shape.kind,
@@ -28,6 +65,35 @@ const editable = (shape: FloorplanShape): FloorplanShapeInput => ({
   rotation: shape.rotation,
   polygonPoints: shape.polygonPoints ?? null
 });
+
+const geometryOptions: ReadonlyArray<{ value: Geometry; label: string; zonesOnly?: boolean }> = [
+  { value: 'CIRCLE', label: 'Redonda' },
+  { value: 'SQUARE', label: 'Cuadrada' },
+  { value: 'RECTANGLE', label: 'Rectangular' },
+  { value: 'POLYGON', label: 'Forma personalizada', zonesOnly: true }
+];
+
+function visibleGeometry(geometry: Geometry): string {
+  return geometryOptions.find((option) => option.value === geometry)?.label ?? 'Rectangular';
+}
+
+function mutationError(reason: unknown, mutation: Mutation): string {
+  const translated = errorMessage(reason);
+  if (!translated.startsWith('No se pudo completar la operación')) return translated;
+  if (mutation === 'deleting') return 'No pudimos eliminar este elemento. Inténtalo nuevamente.';
+  if (mutation === 'locking') return 'No pudimos finalizar la distribución. Inténtalo nuevamente.';
+  if (mutation === 'unlocking') return 'No pudimos habilitar la edición. Inténtalo nuevamente.';
+  if (mutation === 'uploading') return 'No pudimos guardar el plano. Inténtalo nuevamente.';
+  return 'No pudimos guardar los cambios. Inténtalo nuevamente.';
+}
+
+function geometryError(reason: FloorplanShapeValidationError, draft: FloorplanShapeInput): string {
+  if (draft.geometry === 'POLYGON' && (draft.polygonPoints?.length ?? 0) < 3) {
+    return 'La forma personalizada necesita al menos tres puntos.';
+  }
+  if (reason.message.includes('degenerado')) return 'Ajusta los puntos para formar un área visible.';
+  return 'Ajusta la forma para que permanezca dentro del plano.';
+}
 
 export function FloorplanStep({
   apiClient,
@@ -42,323 +108,788 @@ export function FloorplanStep({
   disabled: boolean;
   onChange: (patch: Partial<UpdateEventInput>) => void;
 }) {
-  const [floorplan, setFloorplan] = useState<Awaited<ReturnType<ApiClient['floorplan']['get']>>>();
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const mutationLockRef = useRef(false);
+  const [floorplan, setFloorplan] = useState<Floorplan>();
+  const [mode, setMode] = useState<EditorMode>('idle');
   const [selectedId, setSelectedId] = useState<string>();
-  const [shape, setShape] = useState<FloorplanShapeInput>(newShape);
+  const [shape, setShape] = useState<FloorplanShapeInput>(() => newDraft('TABLE'));
+  const [mutation, setMutation] = useState<Mutation>();
   const [message, setMessage] = useState<string>();
-  const refresh = useCallback(
-    () =>
-      apiClient.floorplan
-        .get(event.id)
-        .then(setFloorplan)
-        .catch(() => setFloorplan(undefined)),
-    [apiClient, event.id]
-  );
+
+  const refresh = useCallback(async () => {
+    const latest = await apiClient.floorplan.get(event.id);
+    setFloorplan(latest);
+    return latest;
+  }, [apiClient, event.id]);
+
   useEffect(() => {
-    if (draft.floorplanEnabled) void refresh();
+    if (!draft.floorplanEnabled) return;
+    void refresh().catch(() => setFloorplan(undefined));
   }, [draft.floorplanEnabled, refresh]);
+
   const imageUrl = usePrivateAssetUrl(apiClient, event.id, floorplan?.image.fileAssetId);
   const selected = floorplan?.shapes.find((item) => item.id === selectedId);
-  useEffect(() => {
-    if (selected) setShape(editable(selected));
-  }, [selected]);
-  const hasEqualSides = shape.geometry === 'SQUARE' || shape.geometry === 'CIRCLE';
-  const changeGeometry = (geometry: FloorplanShapeInput['geometry']) => {
-    const next = { ...shape, geometry };
-    if (geometry === 'SQUARE' || geometry === 'CIRCLE') {
-      setShape(normalizeFloorplanShape({ ...next, height: shape.width }));
-      return;
-    }
-    setShape(geometry === 'POLYGON' ? next : { ...next, polygonPoints: null });
+  const interactionDisabled = disabled || mutation !== undefined || floorplan?.locked === true;
+  const equalSides = shape.geometry === 'SQUARE' || shape.geometry === 'CIRCLE';
+  const distributedPlaces =
+    floorplan?.shapes.filter((item) => item.kind === 'TABLE').reduce((total, item) => total + item.capacity, 0) ?? 0;
+
+  const cancel = () => {
+    setMode('idle');
+    setSelectedId(undefined);
+    setShape(newDraft('TABLE'));
+    setMessage(undefined);
   };
-  const changeDimension = (field: 'x' | 'y' | 'width' | 'height' | 'rotation', value: number) => {
-    if (field === 'width' && hasEqualSides) {
-      setShape({ ...shape, width: value, height: value });
-      return;
-    }
-    setShape({ ...shape, [field]: value });
+
+  const startCreating = (kind: ShapeKind) => {
+    setSelectedId(undefined);
+    setShape(newDraft(kind));
+    setMode('creating');
+    setMessage(undefined);
   };
-  const valid = shape.kind === 'TABLE' ? shape.capacity > 0 : shape.capacity === 0;
+
+  const selectExisting = (item: FloorplanShape) => {
+    if (interactionDisabled) return;
+    setSelectedId(item.id);
+    setShape(editable(item));
+    setMode('editing');
+    setMessage(undefined);
+  };
+
+  const runMutation = async (nextMutation: Mutation, work: () => Promise<void>) => {
+    if (mutationLockRef.current) return;
+    mutationLockRef.current = true;
+    setMutation(nextMutation);
+    setMessage(undefined);
+    try {
+      await work();
+    } catch (reason) {
+      setMessage(mutationError(reason, nextMutation));
+    } finally {
+      mutationLockRef.current = false;
+      setMutation(undefined);
+    }
+  };
+
+  const changeGeometry = (geometry: Geometry) => {
+    setShape((current) => {
+      const next = { ...current, geometry };
+      if (geometry === 'SQUARE' || geometry === 'CIRCLE') {
+        return normalizeFloorplanShape({ ...next, height: current.width, polygonPoints: null });
+      }
+      if (geometry === 'POLYGON') return { ...next, polygonPoints: initialPolygon.map((point) => ({ ...point })) };
+      return { ...next, polygonPoints: null };
+    });
+  };
+
+  const adjust = (property: 'x' | 'y' | 'width' | 'height', amount: number) => {
+    setShape((current) => {
+      const next = { ...current, [property]: current[property] + amount };
+      if (equalSides && (property === 'width' || property === 'height')) {
+        const side = property === 'width' ? next.width : next.height;
+        next.width = side;
+        next.height = side;
+      }
+      return normalizeFloorplanShape(next);
+    });
+  };
+
+  const rotate = (amount: number) => {
+    setShape((current) => normalizeFloorplanShape({ ...current, rotation: current.rotation + amount }));
+  };
+
+  const startPointer = (
+    event: React.PointerEvent<HTMLElement>,
+    interaction: 'move' | 'resize' | 'vertex',
+    vertexIndex?: number
+  ) => {
+    if (interactionDisabled || mode === 'idle') return;
+    event.preventDefault();
+    const target = event.currentTarget;
+    target.setPointerCapture?.(event.pointerId);
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const start = { ...shape, polygonPoints: shape.polygonPoints?.map((point) => ({ ...point })) ?? null };
+    const bounds =
+      interaction === 'vertex'
+        ? target.closest('[data-shape-owner]')?.getBoundingClientRect()
+        : canvasRef.current?.getBoundingClientRect();
+    if (!bounds?.width || !bounds.height) return;
+
+    const move = (next: PointerEvent) => {
+      next.preventDefault();
+      const deltaX = (next.clientX - startX) / bounds.width;
+      const deltaY = (next.clientY - startY) / bounds.height;
+      try {
+        if (interaction === 'vertex' && vertexIndex !== undefined && start.polygonPoints) {
+          const points = start.polygonPoints.map((point, index) =>
+            index === vertexIndex
+              ? { x: Math.min(1, Math.max(0, point.x + deltaX)), y: Math.min(1, Math.max(0, point.y + deltaY)) }
+              : point
+          );
+          setShape(normalizeFloorplanShape({ ...start, polygonPoints: points }));
+          return;
+        }
+        const deltaWidth = (next.clientX - startX) / bounds.width;
+        const deltaHeight = (next.clientY - startY) / bounds.height;
+        const nextShape =
+          interaction === 'move'
+            ? { ...start, x: start.x + deltaWidth, y: start.y + deltaHeight }
+            : equalSides
+              ? {
+                  ...start,
+                  width: start.width + Math.max(deltaWidth, deltaHeight),
+                  height: start.width + Math.max(deltaWidth, deltaHeight)
+                }
+              : { ...start, width: start.width + deltaWidth, height: start.height + deltaHeight };
+        setShape(normalizeFloorplanShape(nextShape));
+      } catch {
+        // The last valid visual position stays visible while the pointer is outside the plan.
+      }
+    };
+    const finish = () => {
+      target.removeEventListener('pointermove', move);
+      target.removeEventListener('pointerup', finish);
+      target.removeEventListener('pointercancel', finish);
+    };
+    target.addEventListener('pointermove', move);
+    target.addEventListener('pointerup', finish);
+    target.addEventListener('pointercancel', finish);
+  };
+
   const save = async () => {
-    if (!valid) {
+    if (!shape.name.trim()) {
+      setMessage(shape.kind === 'TABLE' ? 'Escribe el nombre o número de la mesa.' : 'Escribe el nombre de la zona.');
+      return;
+    }
+    if (shape.kind === 'TABLE' && (!Number.isInteger(shape.capacity) || shape.capacity <= 0)) {
+      setMessage('Indica un número de lugares mayor a cero.');
+      return;
+    }
+    let normalized: FloorplanShapeInput;
+    try {
+      normalized = normalizeFloorplanShape({ ...shape, name: shape.name.trim() });
+    } catch (reason) {
       setMessage(
-        shape.kind === 'TABLE' ? 'Una Mesa requiere capacidad positiva.' : 'Una Zona requiere capacidad cero.'
+        reason instanceof FloorplanShapeValidationError
+          ? geometryError(reason, shape)
+          : 'No pudimos colocar este elemento en esa posición.'
       );
       return;
     }
-    try {
-      const normalized = normalizeFloorplanShape(shape);
+    await runMutation('saving', async () => {
       if (selected) await apiClient.floorplan.updateShape(event.id, selected.id, normalized);
       else await apiClient.floorplan.addShape(event.id, normalized);
-      setSelectedId(undefined);
-      setShape(newShape);
       await refresh();
-    } catch (reason) {
-      setMessage(reason instanceof FloorplanShapeValidationError ? reason.message : errorMessage(reason));
+      cancel();
+    });
+  };
+
+  const remove = async () => {
+    if (!selected) return;
+    await runMutation('deleting', async () => {
+      await apiClient.floorplan.removeShape(event.id, selected.id);
+      await refresh();
+      cancel();
+    });
+  };
+
+  const uploadImage = async (file: File) => {
+    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+      setMessage('Selecciona una imagen JPG o PNG.');
+      return;
     }
+    await runMutation('uploading', async () => {
+      const asset = await apiClient.fileAssets.upload(event.id, file, 'FLOORPLAN_IMAGE', 'FLOORPLAN');
+      const latest = floorplan
+        ? await apiClient.floorplan.replaceImage(event.id, asset.id)
+        : await apiClient.floorplan.setImage(event.id, asset.id);
+      setFloorplan(latest);
+      cancel();
+    });
   };
-  const pointer = (ev: React.PointerEvent, source: FloorplanShape, mode: 'move' | 'resize' = 'move') => {
-    if (disabled || floorplan?.locked) return;
-    setSelectedId(source.id);
-    const target = ev.currentTarget as HTMLElement;
-    target.setPointerCapture?.(ev.pointerId);
-    const canvas = target.closest('[aria-label="Canvas del Croquis"]') as HTMLElement | null;
-    if (!canvas) return;
-    const bounds = canvas.getBoundingClientRect();
-    const startX = ev.clientX,
-      startY = ev.clientY,
-      start = editable(source);
-    const move = (next: PointerEvent) => {
-      const deltaX = (next.clientX - startX) / bounds.width;
-      const deltaY = (next.clientY - startY) / bounds.height;
-      const nextShape = {
-        ...start,
-        ...(mode === 'move'
-          ? { x: start.x + deltaX, y: start.y + deltaY }
-          : start.geometry === 'SQUARE' || start.geometry === 'CIRCLE'
-            ? { width: start.width + Math.max(deltaX, deltaY), height: start.height + Math.max(deltaX, deltaY) }
-            : { width: start.width + deltaX, height: start.height + deltaY })
-      };
-      try {
-        setShape(normalizeFloorplanShape(nextShape));
-      } catch {
-        // Keep the last valid geometry while the pointer is outside the editable range.
-      }
-    };
-    const up = () => {
-      target.removeEventListener('pointermove', move);
-      target.removeEventListener('pointerup', up);
-    };
-    target.addEventListener('pointermove', move);
-    target.addEventListener('pointerup', up);
-  };
-  const capacity =
-    floorplan?.shapes.filter((item) => item.kind === 'TABLE').reduce((total, item) => total + item.capacity, 0) ?? 0;
+
   return (
-    <Stack spacing={2}>
-      <Typography component="h2" variant="h3">
-        Croquis, Mesas y Zonas
-      </Typography>
+    <Stack spacing={2.5} component="section" aria-labelledby="floorplan-title">
+      <Stack spacing={0.5}>
+        <Typography component="h2" variant="h3" id="floorplan-title">
+          Mesas y distribución
+        </Typography>
+        <Typography color="text.secondary">
+          Organiza las mesas y áreas de tu evento sobre el plano del lugar.
+        </Typography>
+      </Stack>
+
       <FormControlLabel
         control={
           <Checkbox
             checked={draft.floorplanEnabled}
-            disabled={disabled}
-            onChange={(e) => onChange({ floorplanEnabled: e.target.checked })}
+            disabled={disabled || mutation !== undefined}
+            onChange={(event) => onChange({ floorplanEnabled: event.target.checked })}
           />
         }
-        label="Usar Croquis"
+        label="Usar distribución de mesas"
       />
+
       {draft.floorplanEnabled ? (
-        <>
-          <Typography>Capacidad total de Mesas: {capacity}</Typography>
-          <Button component="label" disabled={disabled || floorplan?.locked}>
-            {floorplan ? 'Sustituir imagen del Croquis' : 'Subir imagen del Croquis'}
-            <input
-              hidden
-              type="file"
-              accept="image/jpeg,image/png"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file)
-                  void apiClient.fileAssets
-                    .upload(event.id, file, 'FLOORPLAN_IMAGE', 'FLOORPLAN')
-                    .then((asset) =>
-                      floorplan
-                        ? apiClient.floorplan.replaceImage(event.id, asset.id)
-                        : apiClient.floorplan.setImage(event.id, asset.id)
-                    )
-                    .then(setFloorplan)
-                    .catch((reason) => setMessage(errorMessage(reason)));
-              }}
-            />
-          </Button>
-          <Box
-            aria-label="Canvas del Croquis"
-            sx={{
-              position: 'relative',
-              aspectRatio: '4/3',
-              maxWidth: 760,
-              bgcolor: 'grey.100',
-              overflow: 'hidden',
-              backgroundImage: imageUrl ? `url(${imageUrl})` : undefined,
-              backgroundSize: 'contain',
-              backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat'
-            }}
-          >
-            {floorplan?.shapes.map((item) => (
-              <Box
-                component="button"
-                type="button"
-                key={item.id}
-                data-geometry={item.geometry}
-                style={{
-                  borderRadius: item.geometry === 'CIRCLE' ? '50%' : '0',
-                  clipPath: item.geometry === 'POLYGON' ? polygonClipPath(item.polygonPoints) : undefined
-                }}
-                aria-label={`Seleccionar ${item.kind === 'TABLE' ? 'Mesa' : 'Zona'} ${item.name}`}
-                onClick={() => setSelectedId(item.id)}
-                onPointerDown={(e) => pointer(e, item)}
-                sx={{
-                  position: 'absolute',
-                  left: `${item.x * 100}%`,
-                  top: `${item.y * 100}%`,
-                  width: `${item.width * 100}%`,
-                  height: `${item.height * 100}%`,
-                  transform: `rotate(${item.rotation}deg)`,
-                  border: selectedId === item.id ? 3 : 2,
-                  borderColor: item.kind === 'TABLE' ? 'primary.main' : 'secondary.main',
-                  borderRadius: item.geometry === 'CIRCLE' ? '50%' : 0,
-                  clipPath: item.geometry === 'POLYGON' ? polygonClipPath(item.polygonPoints) : undefined,
-                  bgcolor: 'rgba(255,255,255,.55)'
-                }}
-              >
-                {item.name}
-                <Box
-                  aria-label={`Redimensionar ${item.name}`}
-                  onPointerDown={(pointerEvent) => {
-                    pointerEvent.stopPropagation();
-                    pointer(pointerEvent, item, 'resize');
-                  }}
-                  sx={{
-                    position: 'absolute',
-                    right: -7,
-                    bottom: -7,
-                    width: 16,
-                    height: 16,
-                    bgcolor: 'primary.main',
-                    cursor: 'nwse-resize'
-                  }}
-                />
-              </Box>
-            ))}
-          </Box>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1}>
-            <Button
-              disabled={disabled || floorplan?.locked || !floorplan}
-              onClick={() => {
-                setSelectedId(undefined);
-                setShape(newShape);
-              }}
-            >
-              Nueva Mesa
-            </Button>
-            <Button
-              disabled={disabled || floorplan?.locked || !floorplan}
-              onClick={() => {
-                setSelectedId(undefined);
-                setShape({ ...newShape, name: 'Nueva Zona', kind: 'DECORATIVE_ZONE', capacity: 0 });
-              }}
-            >
-              Nueva Zona
-            </Button>
-            {floorplan ? (
-              <Button
-                disabled={disabled}
-                onClick={() =>
-                  void (
-                    floorplan.locked ? apiClient.floorplan.unlock(event.id) : apiClient.floorplan.lock(event.id)
-                  ).then(setFloorplan)
-                }
-              >
-                {floorplan.locked ? 'Desbloquear Croquis' : 'Bloquear Croquis'}
-              </Button>
-            ) : null}
-          </Stack>
-          {floorplan && !floorplan.locked ? (
-            <Stack spacing={1} aria-label="Propiedades de la forma">
-              <Typography component="h3" variant="h4">
-                {selected ? 'Editar forma' : 'Crear forma'}
-              </Typography>
-              <TextField
-                label="Nombre"
-                value={shape.name}
-                onChange={(e) => setShape({ ...shape, name: e.target.value })}
-              />
-              <Stack direction={{ xs: 'column', md: 'row' }} spacing={1}>
-                <TextField
-                  select
-                  label="Tipo"
-                  value={shape.kind}
-                  onChange={(e) => {
-                    const kind = e.target.value as FloorplanShapeInput['kind'];
-                    setShape({ ...shape, kind, capacity: kind === 'TABLE' ? Math.max(1, shape.capacity) : 0 });
-                  }}
+        <Stack spacing={2.5}>
+          <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
+            <Stack spacing={1.5}>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: { sm: 'center' } }}>
+                <Button
+                  component="label"
+                  variant={floorplan ? 'outlined' : 'contained'}
+                  disabled={disabled || mutation !== undefined || floorplan?.locked}
+                  sx={{ minHeight: 44, alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
                 >
-                  <MenuItem value="TABLE">Mesa</MenuItem>
-                  <MenuItem value="DECORATIVE_ZONE">Zona</MenuItem>
-                </TextField>
-                <TextField
-                  select
-                  label="Geometría"
-                  value={shape.geometry}
-                  onChange={(e) => changeGeometry(e.target.value as FloorplanShapeInput['geometry'])}
-                >
-                  {['RECTANGLE', 'SQUARE', 'CIRCLE', 'POLYGON'].map((value) => (
-                    <MenuItem key={value} value={value}>
-                      {value}
-                    </MenuItem>
-                  ))}
-                </TextField>
-                <TextField
-                  type="number"
-                  label="Capacidad"
-                  value={shape.capacity}
-                  onChange={(e) => setShape({ ...shape, capacity: Number(e.target.value) })}
-                />
-              </Stack>
-              <Stack direction={{ xs: 'column', md: 'row' }} spacing={1}>
-                {(['x', 'y', 'width', 'height', 'rotation'] as const).map((field) => (
-                  <TextField
-                    key={field}
-                    type="number"
-                    label={field}
-                    value={shape[field]}
-                    disabled={field === 'height' && hasEqualSides}
-                    onChange={(e) => changeDimension(field, Number(e.target.value))}
+                  {mutation === 'uploading'
+                    ? 'Guardando plano…'
+                    : floorplan
+                      ? 'Cambiar plano'
+                      : 'Agregar plano del lugar'}
+                  <input
+                    hidden
+                    type="file"
+                    accept="image/jpeg,image/png"
+                    aria-label="Seleccionar imagen del plano"
+                    onChange={(event) => {
+                      const input = event.currentTarget;
+                      const file = input.files?.[0];
+                      if (file)
+                        void uploadImage(file).finally(() => {
+                          input.value = '';
+                        });
+                    }}
                   />
-                ))}
+                </Button>
+                <Typography variant="body2" color="text.secondary">
+                  Sube una imagen del espacio para colocar las mesas y áreas del evento.
+                </Typography>
               </Stack>
-              {shape.geometry === 'POLYGON' ? (
-                <TextField
-                  label="Puntos del polígono (x,y; x,y)"
-                  value={(shape.polygonPoints ?? []).map((point) => `${point.x},${point.y}`).join('; ')}
-                  onChange={(e) =>
-                    setShape({
-                      ...shape,
-                      polygonPoints: e.target.value
-                        .split(';')
-                        .map((part) => part.trim().split(',').map(Number))
-                        .filter((pair) => pair.length === 2 && pair.every(Number.isFinite))
-                        .map(([x, y]) => ({ x: x!, y: y! }))
-                    })
-                  }
+
+              <Typography sx={{ fontWeight: 700 }}>Lugares distribuidos: {distributedPlaces}</Typography>
+            </Stack>
+          </Paper>
+
+          {floorplan && imageUrl ? (
+            <Box
+              ref={canvasRef}
+              aria-label="Plano interactivo de mesas y zonas"
+              sx={{
+                position: 'relative',
+                width: '100%',
+                maxWidth: 820,
+                lineHeight: 0,
+                overflow: 'hidden',
+                bgcolor: 'grey.100',
+                outline: '1px solid',
+                outlineColor: 'divider'
+              }}
+            >
+              <Box
+                component="img"
+                src={imageUrl}
+                alt="Plano del lugar"
+                draggable={false}
+                sx={{ display: 'block', width: '100%', height: 'auto' }}
+              />
+
+              {floorplan.shapes.map((item) => {
+                if (mode === 'editing' && selectedId === item.id) return null;
+                return (
+                  <ShapeButton
+                    key={item.id}
+                    shape={item}
+                    selected={false}
+                    disabled={interactionDisabled}
+                    onClick={() => selectExisting(item)}
+                  />
+                );
+              })}
+
+              {mode !== 'idle' ? (
+                <EditableShape
+                  shape={shape}
+                  disabled={interactionDisabled}
+                  onMove={(event) => startPointer(event, 'move')}
+                  onResize={(event) => startPointer(event, 'resize')}
+                  onVertex={(event, index) => startPointer(event, 'vertex', index)}
                 />
               ) : null}
-              <Stack direction="row">
-                <Button variant="contained" disabled={!valid} onClick={() => void save()}>
-                  Guardar forma
-                </Button>
-                {selected ? (
+            </Box>
+          ) : floorplan ? (
+            <Box sx={{ minHeight: 180, display: 'grid', placeItems: 'center', bgcolor: 'grey.100' }}>
+              <Typography color="text.secondary">Cargando el plano…</Typography>
+            </Box>
+          ) : null}
+
+          {floorplan ? (
+            <Stack spacing={1.5}>
+              {floorplan.locked ? (
+                <Alert severity="info">
+                  La distribución está finalizada. El plano permanece visible y protegido contra cambios accidentales.
+                </Alert>
+              ) : (
+                <Typography color="text.secondary">
+                  Finaliza la distribución para evitar cambios accidentales y continuar con la configuración del evento.
+                </Typography>
+              )}
+              <Stack direction={{ xs: 'column', sm: 'row' }} useFlexGap spacing={1} sx={{ flexWrap: 'wrap' }}>
+                {!floorplan.locked ? (
+                  <>
+                    <Button
+                      variant="contained"
+                      disabled={disabled || mutation !== undefined}
+                      onClick={() => startCreating('TABLE')}
+                      sx={{ minHeight: 44 }}
+                    >
+                      Agregar mesa
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      disabled={disabled || mutation !== undefined}
+                      onClick={() => startCreating('DECORATIVE_ZONE')}
+                      sx={{ minHeight: 44 }}
+                    >
+                      Agregar zona
+                    </Button>
+                    <Button
+                      disabled={disabled || mutation !== undefined}
+                      onClick={() =>
+                        void runMutation('locking', async () => {
+                          setFloorplan(await apiClient.floorplan.lock(event.id));
+                          cancel();
+                        })
+                      }
+                      sx={{ minHeight: 44 }}
+                    >
+                      {mutation === 'locking' ? 'Finalizando…' : 'Finalizar distribución'}
+                    </Button>
+                  </>
+                ) : (
                   <Button
-                    color="error"
+                    variant="outlined"
+                    disabled={disabled || mutation !== undefined}
                     onClick={() =>
-                      void apiClient.floorplan.removeShape(event.id, selected.id).then(() => {
-                        setSelectedId(undefined);
-                        return refresh();
+                      void runMutation('unlocking', async () => {
+                        setFloorplan(await apiClient.floorplan.unlock(event.id));
+                        cancel();
                       })
                     }
+                    sx={{ minHeight: 44 }}
                   >
-                    Eliminar forma
+                    {mutation === 'unlocking' ? 'Habilitando edición…' : 'Editar distribución'}
                   </Button>
-                ) : null}
+                )}
               </Stack>
             </Stack>
           ) : null}
-        </>
+
+          {floorplan && !floorplan.locked && mode !== 'idle' ? (
+            <ShapeEditor
+              mode={mode}
+              shape={shape}
+              disabled={disabled || mutation !== undefined}
+              onShapeChange={setShape}
+              onGeometryChange={changeGeometry}
+              onAdjust={adjust}
+              onRotate={rotate}
+              onSave={() => void save()}
+              onRemove={selected ? () => void remove() : undefined}
+              onCancel={cancel}
+              saving={mutation === 'saving'}
+              deleting={mutation === 'deleting'}
+            />
+          ) : null}
+        </Stack>
       ) : null}
-      {message ? <Alert severity="warning">{message}</Alert> : null}
+
+      {message ? (
+        <Alert severity="warning" aria-live="assertive">
+          {message}
+        </Alert>
+      ) : null}
+    </Stack>
+  );
+}
+
+function ShapeButton({
+  shape,
+  selected,
+  disabled,
+  onClick
+}: {
+  shape: FloorplanShape;
+  selected: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  const kind = shape.kind === 'TABLE' ? 'Mesa' : 'Zona';
+  return (
+    <Box
+      component="button"
+      type="button"
+      aria-label={`Editar ${kind.toLowerCase()} ${shape.name}`}
+      disabled={disabled}
+      onClick={onClick}
+      sx={{
+        ...relativeRectStyles(shape),
+        position: 'absolute',
+        p: 0,
+        border: selected ? 3 : 2,
+        borderStyle: selected ? 'solid' : 'dashed',
+        borderColor: shape.kind === 'TABLE' ? 'primary.main' : 'secondary.main',
+        bgcolor: 'transparent',
+        transform: `rotate(${shape.rotation}deg)`,
+        transformOrigin: 'center',
+        cursor: disabled ? 'default' : 'pointer',
+        '&:focus-visible': { outline: '3px solid', outlineColor: 'warning.main', outlineOffset: 3 }
+      }}
+    >
+      <ShapeSurface shape={shape} selected={selected} />
+    </Box>
+  );
+}
+
+function ShapeSurface({ shape, selected }: { shape: FloorplanShapeInput; selected: boolean }) {
+  const table = shape.kind === 'TABLE';
+  return (
+    <Box
+      sx={{
+        position: 'absolute',
+        inset: 0,
+        display: 'grid',
+        placeItems: 'center',
+        overflow: 'hidden',
+        borderRadius: shape.geometry === 'CIRCLE' ? '50%' : 0,
+        clipPath: shape.geometry === 'POLYGON' ? polygonClipPath(shape.polygonPoints) : undefined,
+        bgcolor: table ? 'rgba(255,255,255,.82)' : 'rgba(255,248,225,.82)',
+        color: 'text.primary'
+      }}
+    >
+      <Stack spacing={0.25} sx={{ alignItems: 'center', lineHeight: 1.15, px: 0.5, maxWidth: '100%' }}>
+        {selected ? <Chip size="small" label="Seleccionada" sx={{ height: 22 }} /> : null}
+        <Typography component="span" variant="caption" sx={{ fontWeight: 800, lineHeight: 1.15 }}>
+          {shape.name || (table ? 'Nueva mesa' : 'Nueva zona')}
+        </Typography>
+        <Typography component="span" variant="caption" sx={{ lineHeight: 1.15 }}>
+          {table ? `Mesa · ${shape.capacity} lugares` : 'Zona'}
+        </Typography>
+      </Stack>
+    </Box>
+  );
+}
+
+function EditableShape({
+  shape,
+  disabled,
+  onMove,
+  onResize,
+  onVertex
+}: {
+  shape: FloorplanShapeInput;
+  disabled: boolean;
+  onMove: (event: React.PointerEvent<HTMLElement>) => void;
+  onResize: (event: React.PointerEvent<HTMLElement>) => void;
+  onVertex: (event: React.PointerEvent<HTMLElement>, index: number) => void;
+}) {
+  return (
+    <Box
+      role="group"
+      aria-label={`${shape.kind === 'TABLE' ? 'Mesa' : 'Zona'} seleccionada ${shape.name || 'sin nombre'}`}
+      data-shape-owner
+      sx={{
+        ...relativeRectStyles(shape),
+        position: 'absolute',
+        transform: `rotate(${shape.rotation}deg)`,
+        transformOrigin: 'center',
+        border: '3px solid',
+        borderColor: 'warning.dark',
+        zIndex: 3
+      }}
+    >
+      <Box
+        aria-label={`Mover ${shape.kind === 'TABLE' ? 'mesa' : 'zona'} seleccionada`}
+        onPointerDown={onMove}
+        sx={{ position: 'absolute', inset: 0, cursor: disabled ? 'default' : 'move', touchAction: 'none' }}
+      >
+        <ShapeSurface shape={shape} selected />
+      </Box>
+      <Box
+        component="button"
+        type="button"
+        disabled={disabled}
+        aria-label={`Cambiar tamaño de ${shape.name || (shape.kind === 'TABLE' ? 'la mesa' : 'la zona')}`}
+        onPointerDown={(event) => {
+          event.stopPropagation();
+          onResize(event);
+        }}
+        sx={{
+          position: 'absolute',
+          right: -22,
+          bottom: -22,
+          width: 44,
+          height: 44,
+          p: 0,
+          border: 0,
+          bgcolor: 'transparent',
+          cursor: disabled ? 'default' : 'nwse-resize',
+          touchAction: 'none',
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            right: 8,
+            bottom: 8,
+            width: 13,
+            height: 13,
+            borderRight: '4px solid',
+            borderBottom: '4px solid',
+            borderColor: 'warning.dark'
+          },
+          '&:focus-visible': { outline: '3px solid', outlineColor: 'warning.main' }
+        }}
+      />
+      {shape.geometry === 'POLYGON'
+        ? shape.polygonPoints?.map((point, index) => (
+            <Box
+              component="button"
+              type="button"
+              key={index}
+              disabled={disabled}
+              aria-label={`Mover punto ${index + 1} de la forma personalizada`}
+              onPointerDown={(event) => {
+                event.stopPropagation();
+                onVertex(event, index);
+              }}
+              sx={{
+                position: 'absolute',
+                left: `${point.x * 100}%`,
+                top: `${point.y * 100}%`,
+                width: 44,
+                height: 44,
+                p: 0,
+                border: 0,
+                bgcolor: 'transparent',
+                transform: 'translate(-50%, -50%)',
+                touchAction: 'none',
+                cursor: disabled ? 'default' : 'grab',
+                '&::after': {
+                  content: '""',
+                  position: 'absolute',
+                  inset: 14,
+                  borderRadius: '50%',
+                  bgcolor: 'warning.dark',
+                  border: '2px solid white'
+                },
+                '&:focus-visible': { outline: '3px solid', outlineColor: 'warning.main' }
+              }}
+            />
+          ))
+        : null}
+    </Box>
+  );
+}
+
+function ShapeEditor({
+  mode,
+  shape,
+  disabled,
+  onShapeChange,
+  onGeometryChange,
+  onAdjust,
+  onRotate,
+  onSave,
+  onRemove,
+  onCancel,
+  saving,
+  deleting
+}: {
+  mode: EditorMode;
+  shape: FloorplanShapeInput;
+  disabled: boolean;
+  onShapeChange: (shape: FloorplanShapeInput) => void;
+  onGeometryChange: (geometry: Geometry) => void;
+  onAdjust: (property: 'x' | 'y' | 'width' | 'height', amount: number) => void;
+  onRotate: (amount: number) => void;
+  onSave: () => void;
+  onRemove?: (() => void) | undefined;
+  onCancel: () => void;
+  saving: boolean;
+  deleting: boolean;
+}) {
+  const table = shape.kind === 'TABLE';
+  const actionButtonSx = { minHeight: 44 } as const;
+  return (
+    <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }} component="section" aria-labelledby="shape-editor-title">
+      <Stack spacing={2}>
+        <Stack spacing={0.5}>
+          <Typography component="h3" variant="h4" id="shape-editor-title">
+            {mode === 'creating' ? (table ? 'Agregar mesa' : 'Agregar zona') : table ? 'Editar mesa' : 'Editar zona'}
+          </Typography>
+          <Typography color="text.secondary">
+            Coloca este elemento sobre el lugar correspondiente del plano y ajusta su tamaño u orientación.
+          </Typography>
+        </Stack>
+
+        <TextField
+          label={table ? 'Nombre o número de mesa' : 'Nombre de la zona'}
+          value={shape.name}
+          disabled={disabled}
+          slotProps={{ htmlInput: { maxLength: 120 } }}
+          onChange={(event) => onShapeChange({ ...shape, name: event.target.value })}
+          fullWidth
+        />
+
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+          <TextField
+            select
+            label="Forma"
+            value={shape.geometry}
+            disabled={disabled}
+            onChange={(event) => onGeometryChange(event.target.value as Geometry)}
+            sx={{ minWidth: 190 }}
+          >
+            {geometryOptions
+              .filter((option) => !option.zonesOnly || !table)
+              .map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+          </TextField>
+          {table ? (
+            <TextField
+              type="number"
+              label="Número de lugares"
+              value={shape.capacity}
+              disabled={disabled}
+              slotProps={{ htmlInput: { min: 1, step: 1 } }}
+              onChange={(event) => onShapeChange({ ...shape, capacity: Number(event.target.value) })}
+              sx={{ minWidth: 190 }}
+            />
+          ) : null}
+        </Stack>
+        <FormHelperText>Forma actual: {visibleGeometry(shape.geometry)}</FormHelperText>
+
+        <ControlGroup title="Mover">
+          <Button
+            disabled={disabled}
+            variant="outlined"
+            onClick={() => onAdjust('y', -adjustmentStep)}
+            sx={actionButtonSx}
+          >
+            Mover arriba
+          </Button>
+          <Button
+            disabled={disabled}
+            variant="outlined"
+            onClick={() => onAdjust('y', adjustmentStep)}
+            sx={actionButtonSx}
+          >
+            Mover abajo
+          </Button>
+          <Button
+            disabled={disabled}
+            variant="outlined"
+            onClick={() => onAdjust('x', -adjustmentStep)}
+            sx={actionButtonSx}
+          >
+            Mover a la izquierda
+          </Button>
+          <Button
+            disabled={disabled}
+            variant="outlined"
+            onClick={() => onAdjust('x', adjustmentStep)}
+            sx={actionButtonSx}
+          >
+            Mover a la derecha
+          </Button>
+        </ControlGroup>
+
+        <ControlGroup title="Cambiar tamaño">
+          <Button
+            disabled={disabled}
+            variant="outlined"
+            onClick={() => onAdjust('width', adjustmentStep)}
+            sx={actionButtonSx}
+          >
+            Hacer más ancho
+          </Button>
+          <Button
+            disabled={disabled}
+            variant="outlined"
+            onClick={() => onAdjust('width', -adjustmentStep)}
+            sx={actionButtonSx}
+          >
+            Hacer más angosto
+          </Button>
+          <Button
+            disabled={disabled}
+            variant="outlined"
+            onClick={() => onAdjust('height', adjustmentStep)}
+            sx={actionButtonSx}
+          >
+            Hacer más alto
+          </Button>
+          <Button
+            disabled={disabled}
+            variant="outlined"
+            onClick={() => onAdjust('height', -adjustmentStep)}
+            sx={actionButtonSx}
+          >
+            Hacer más bajo
+          </Button>
+        </ControlGroup>
+
+        <ControlGroup title="Orientación">
+          <Button disabled={disabled} variant="outlined" onClick={() => onRotate(-rotationStep)} sx={actionButtonSx}>
+            Girar a la izquierda
+          </Button>
+          <Button disabled={disabled} variant="outlined" onClick={() => onRotate(rotationStep)} sx={actionButtonSx}>
+            Girar a la derecha
+          </Button>
+        </ControlGroup>
+
+        {shape.geometry === 'POLYGON' ? (
+          <Typography variant="body2" color="text.secondary">
+            Arrastra los puntos visibles sobre el plano para ajustar la forma personalizada.
+          </Typography>
+        ) : null}
+
+        <Stack direction={{ xs: 'column', sm: 'row' }} useFlexGap spacing={1} sx={{ flexWrap: 'wrap' }}>
+          <Button variant="contained" disabled={disabled} onClick={onSave} sx={actionButtonSx}>
+            {saving
+              ? 'Guardando…'
+              : mode === 'creating'
+                ? table
+                  ? 'Guardar mesa'
+                  : 'Guardar zona'
+                : 'Guardar cambios'}
+          </Button>
+          {onRemove ? (
+            <Button color="error" disabled={disabled} onClick={onRemove} sx={actionButtonSx}>
+              {deleting ? 'Eliminando…' : table ? 'Eliminar mesa' : 'Eliminar zona'}
+            </Button>
+          ) : null}
+          <Button disabled={disabled} onClick={onCancel} sx={actionButtonSx}>
+            Cancelar
+          </Button>
+        </Stack>
+      </Stack>
+    </Paper>
+  );
+}
+
+function ControlGroup({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <Stack spacing={1} component="fieldset" sx={{ border: 0, p: 0, m: 0 }}>
+      <Typography component="legend" variant="subtitle2">
+        {title}
+      </Typography>
+      <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap' }}>
+        {children}
+      </Stack>
     </Stack>
   );
 }

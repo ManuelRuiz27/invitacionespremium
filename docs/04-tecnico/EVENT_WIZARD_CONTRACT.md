@@ -136,13 +136,41 @@ reglas técnicas y el backend conserva la autoridad final ante concurrencia o es
 
 ## Croquis y pases
 
-El Croquis tiene canvas y panel para `TABLE` y `DECORATIVE_ZONE` (Zona), con `RECTANGLE`, `SQUARE`,
-`CIRCLE` y `POLYGON`. Permite crear, seleccionar, mover, redimensionar, editar y eliminar; normaliza cada
-forma dentro del canvas, usa `width` como lado autoritativo y sincroniza `height` en cuadrado/círculo, y
-valida puntos finitos, rango, cantidad y área no degenerada del polígono antes del request. Círculos y
-polígonos se representan con su geometría
-real y las interacciones operan sobre esa representación visible. Mesa exige capacidad
-positiva y Zona capacidad cero. Lock impide edición hasta un unlock explícito y se muestra capacidad total.
+### Modelo interno del Croquis
+
+Backend, API y código interno conservan `FloorplanShape`, `TABLE`, `DECORATIVE_ZONE`, las geometrías
+`RECTANGLE`, `SQUARE`, `CIRCLE` y `POLYGON`, las coordenadas relativas `x`, `y`, `width`, `height`, la
+rotación normalizada, `polygonPoints` y los endpoints existentes de lock/unlock. Mesa exige capacidad
+positiva y Zona capacidad cero. No cambia ningún payload, endpoint, regla de readiness o validación.
+
+La normalización mantiene cada forma dentro del plano, usa `width` como lado autoritativo y sincroniza
+`height` en cuadrados y círculos. Los polígonos conservan entre 3 y 64 puntos finitos en rango y un área no
+degenerada. La imagen privada JPG/PNG se carga mediante FileAsset y su Object URL se revoca conforme a la
+política vigente.
+
+### Modelo visible para el Planner
+
+La UI presenta **Mesas y distribución** y permite **Agregar mesa** o **Agregar zona**. Las formas visibles
+son **Redonda**, **Cuadrada** y **Rectangular**; una Zona también puede usar **Forma personalizada**. El
+Planner captura el nombre y, únicamente para una Mesa, el **Número de lugares**. Nunca necesita conocer
+enums, coordenadas, dimensiones, grados o puntos numéricos.
+
+La superficie relativa coincide exactamente con los límites renderizados del `<img>` real, sin proporción
+fija ni letterboxing dentro de `0..1`. Cada Mesa o Zona comunica nombre, tipo y capacidad cuando aplica; la
+selección se distingue sin depender solo del color. Pointer/touch permite seleccionar, arrastrar y
+redimensionar, mientras los botones con nombres naturales permiten mover, cambiar tamaño y girar con teclado.
+Los controles táctiles importantes y los vértices de una forma personalizada tienen un área interactiva de
+al menos 44×44 px. El scroll se inhibe solo durante la manipulación directa.
+
+**Forma personalizada** crea un polígono inicial válido y permite mover sus vértices sobre el plano; no
+existe un campo textual de puntos. Círculos y cuadrados conservan lados iguales. Crear, editar y eliminar
+usa copy específico de Mesa o Zona, conserva el borrador o selección ante fallo, bloquea envíos repetidos y
+refresca desde la fuente autoritativa después del éxito.
+
+El lock se presenta como **Finalizar distribución** y el unlock como **Editar distribución**. Finalizar
+protege imagen y formas contra cambios accidentales, pero no agrega una regla de readiness: la autoridad
+continúa en backend. El estado finalizado mantiene plano, Mesas, Zonas y **Lugares distribuidos** visibles
+en modo de solo lectura.
 
 Pases permite cantidad y Mesa opcional, conserva varios lotes y rangos, lista usados/no usados y Mesa, y
 descarga SVG como `pase-0001.svg`.
