@@ -13,3 +13,6 @@ export type { StatusChipProps } from './StatusChip';
 export { EmptyState, ErrorState, LoadingState } from './States';
 export type { EmptyStateProps, ErrorStateProps, LoadingStateProps } from './States';
 export { appTheme, designTokens } from './theme';
+export { projectAspectAwareRect, relativeRectStyles } from './visual-geometry';
+export type { RelativeVisualRect, RenderedSize } from './visual-geometry';
+export { useElementSize } from './useElementSize';

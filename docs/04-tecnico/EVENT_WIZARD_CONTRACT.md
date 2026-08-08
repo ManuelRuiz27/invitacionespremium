@@ -162,6 +162,12 @@ redimensionar, mientras los botones con nombres naturales permiten mover, cambia
 Los controles táctiles importantes y los vértices de una forma personalizada tienen un área interactiva de
 al menos 44×44 px. El scroll se inhibe solo durante la manipulación directa.
 
+`CIRCLE` y `SQUARE` conservan internamente `width === height`. Para su representación, ese lado lógico escala
+contra la dimensión física menor del owner renderizado y luego se convierte por separado a proporción horizontal
+y vertical; así Redonda permanece circular y Cuadrada permanece cuadrada en imágenes horizontales, verticales o
+cuadradas. La medición reacciona a cambios responsive. `RECTANGLE` y `POLYGON` conservan la proyección porcentual
+directa de `x`, `y`, `width` y `height`.
+
 **Forma personalizada** crea un polígono inicial válido y permite mover sus vértices sobre el plano; no
 existe un campo textual de puntos. Círculos y cuadrados conservan lados iguales. Crear, editar y eliminar
 usa copy específico de Mesa o Zona, conserva el borrador o selección ante fallo, bloquea envíos repetidos y

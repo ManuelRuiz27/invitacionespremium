@@ -73,13 +73,40 @@ function renderEditor(options: { current?: Floorplan; disabled?: boolean } = {})
   return { api, onChange, ...view };
 }
 
+function mockObservedOwner(initialWidth: number, initialHeight: number) {
+  let callback: ResizeObserverCallback | undefined;
+  let target: Element | undefined;
+  let observer: ResizeObserver | undefined;
+  const emit = (width: number, height: number) => {
+    if (!callback || !target || !observer) return;
+    callback([{ target, contentRect: { width, height } } as ResizeObserverEntry], observer);
+  };
+  class ResizeObserverStub {
+    constructor(nextCallback: ResizeObserverCallback) {
+      callback = nextCallback;
+      observer = this as unknown as ResizeObserver;
+    }
+    observe(nextTarget: Element) {
+      target = nextTarget;
+      emit(initialWidth, initialHeight);
+    }
+    unobserve() {}
+    disconnect() {}
+  }
+  vi.stubGlobal('ResizeObserver', ResizeObserverStub);
+  return (width: number, height: number) => act(() => emit(width, height));
+}
+
 describe('FloorplanStep', () => {
   beforeEach(() => {
     Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn(() => 'blob:floorplan') });
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
   });
 
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
 
   it('uses natural copy and never renders the technical inspector', async () => {
     const { container } = renderEditor();
@@ -248,13 +275,80 @@ describe('FloorplanStep', () => {
     const resize = screen.getByRole('button', { name: 'Cambiar tamaño de Mesa principal' });
     expect(resize).toHaveStyle({ width: '44px', height: '44px', touchAction: 'none' });
     fireEvent.pointerDown(resize, { pointerId: 3, pointerType: 'touch', clientX: 200, clientY: 100 });
-    fireEvent.pointerMove(resize, { pointerId: 3, pointerType: 'touch', clientX: 300, clientY: 150 });
+    fireEvent.pointerMove(resize, { pointerId: 3, pointerType: 'touch', clientX: 250, clientY: 150 });
     await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
     const payload = vi.mocked(api.floorplan.updateShape).mock.calls.at(-1)?.[2];
     expect(payload?.x).toBe(0.2);
     expect(payload?.y).toBe(0.2);
     expect(payload?.width).toBe(payload?.height);
     expect(payload?.width).toBeCloseTo(0.3);
+  });
+
+  it.each([
+    ['Redonda', 'CIRCLE', 800, 800, 160],
+    ['Redonda', 'CIRCLE', 1000, 500, 100],
+    ['Redonda', 'CIRCLE', 500, 1000, 100],
+    ['Cuadrada', 'SQUARE', 800, 800, 160],
+    ['Cuadrada', 'SQUARE', 1000, 500, 100],
+    ['Cuadrada', 'SQUARE', 500, 1000, 100]
+  ] as const)(
+    'projects a %s (%s) table to equal physical sides on a %d × %d owner',
+    async (_label, geometry, ownerWidth, ownerHeight, physicalSide) => {
+      mockObservedOwner(ownerWidth, ownerHeight);
+      renderEditor({ current: { ...floorplan, shapes: [{ ...table, geometry, rotation: 0 }] } });
+      const overlay = await screen.findByRole('button', { name: 'Editar mesa Mesa principal' });
+      const styles = getComputedStyle(overlay);
+      expect((Number.parseFloat(styles.width) / 100) * ownerWidth).toBeCloseTo(physicalSide, 8);
+      expect((Number.parseFloat(styles.height) / 100) * ownerHeight).toBeCloseTo(physicalSide, 8);
+      expect(styles.left).toBe('10%');
+      expect(styles.top).toBe('10%');
+    }
+  );
+
+  it('keeps equal-sided projection and center rotation at 45 degrees', async () => {
+    mockObservedOwner(1000, 500);
+    renderEditor({ current: { ...floorplan, shapes: [{ ...table, geometry: 'SQUARE', rotation: 45 }] } });
+    const overlay = await screen.findByRole('button', { name: 'Editar mesa Mesa principal' });
+    expect(overlay).toHaveStyle({ width: '10%', height: '20%', transform: 'rotate(45deg)', transformOrigin: 'center' });
+  });
+
+  it.each(['CIRCLE', 'SQUARE'] as const)('keeps the editable %s physically equal-sided', async (geometry) => {
+    mockObservedOwner(1000, 500);
+    renderEditor({ current: { ...floorplan, shapes: [{ ...table, geometry, rotation: 0 }] } });
+    await userEvent.click(await screen.findByRole('button', { name: 'Editar mesa Mesa principal' }));
+    expect(screen.getByRole('group', { name: /Mesa seleccionada/ })).toHaveStyle({ width: '10%', height: '20%' });
+  });
+
+  it('reprojects equal-sided shapes when the visual owner changes responsively', async () => {
+    const resizeOwner = mockObservedOwner(1000, 500);
+    renderEditor({ current: { ...floorplan, shapes: [{ ...table, geometry: 'CIRCLE', rotation: 0 }] } });
+    const overlay = await screen.findByRole('button', { name: 'Editar mesa Mesa principal' });
+    expect(overlay).toHaveStyle({ width: '10%', height: '20%' });
+    resizeOwner(500, 1000);
+    await waitFor(() => expect(overlay).toHaveStyle({ width: '20%', height: '10%' }));
+  });
+
+  it.each(['RECTANGLE', 'POLYGON'] as const)('keeps direct relative projection for %s', async (geometry) => {
+    mockObservedOwner(1000, 500);
+    const directShape: FloorplanShape = {
+      ...zone,
+      geometry,
+      polygonPoints:
+        geometry === 'POLYGON'
+          ? [
+              { x: 0, y: 0 },
+              { x: 1, y: 0 },
+              { x: 0.5, y: 1 }
+            ]
+          : null
+    };
+    renderEditor({ current: { ...floorplan, shapes: [directShape] } });
+    expect(await screen.findByRole('button', { name: 'Editar zona Pista' })).toHaveStyle({
+      left: '40%',
+      top: '35%',
+      width: '30%',
+      height: '18%'
+    });
   });
 
   it('resizes a rectangle rotated 45 degrees along its local axes', async () => {
@@ -291,7 +385,7 @@ describe('FloorplanStep', () => {
     ['horizontal', 1200, 600],
     ['square', 800, 800]
   ])('keeps %s image bounds as the only relative owner', async (_label, width, height) => {
-    renderEditor();
+    renderEditor({ current: { ...floorplan, shapes: [{ ...table, geometry: 'RECTANGLE' }] } });
     const image = await screen.findByAltText('Plano del lugar');
     Object.defineProperties(image, {
       naturalWidth: { configurable: true, value: width },

@@ -10,7 +10,8 @@ Componentes disponibles:
 - `MetricCard`;
 - `StatusChip`;
 - `EmptyState`, `LoadingState` y `ErrorState`;
-- `AppFrame`, conservado para compatibilidad con los shells existentes.
+- `AppFrame`, conservado para compatibilidad con los shells existentes;
+- medición reactiva de elementos y proyección aspect-aware de rectángulos relativos, sin reglas de dominio.
 
 El sistema usa Material UI, foco visible, contraste suficiente y reducción de movimiento. Las apps
 aportan navegación, permisos y datos; este paquete permanece puramente presentacional.

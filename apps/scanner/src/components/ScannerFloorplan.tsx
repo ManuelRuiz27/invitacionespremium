@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { ScannerFloorplanResponse } from '@invitaciones/api-client';
+import { projectAspectAwareRect, relativeRectStyles, useElementSize } from '@invitaciones/ui';
 import { Alert, Box, Typography } from '@mui/material';
 
 export interface ScannerFloorplanProps {
@@ -10,12 +11,20 @@ export interface ScannerFloorplanProps {
 
 export function ScannerFloorplan({ floorplan, contentUrl, highlightedTableIds = [] }: ScannerFloorplanProps) {
   const [imageError, setImageError] = useState(false);
+  const [measureOwner, ownerSize] = useElementSize<HTMLDivElement>();
   const uniqueTableIds = [...new Set(highlightedTableIds)];
   const hasMultipleTables = uniqueTableIds.length > 1;
   const highlightedTable =
     uniqueTableIds.length === 1
       ? floorplan.shapes.find((shape) => shape.id === uniqueTableIds[0] && shape.kind === 'TABLE')
       : undefined;
+  const highlightedRect = highlightedTable
+    ? projectAspectAwareRect(
+        highlightedTable,
+        ownerSize,
+        highlightedTable.geometry === 'CIRCLE' || highlightedTable.geometry === 'SQUARE'
+      )
+    : undefined;
 
   return (
     <Box component="section" aria-labelledby="floorplan-title">
@@ -35,24 +44,24 @@ export function ScannerFloorplan({ floorplan, contentUrl, highlightedTableIds = 
       {imageError ? (
         <Alert severity="error">No pudimos cargar la imagen del Croquis.</Alert>
       ) : (
-        <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, overflow: 'hidden', position: 'relative' }}>
+        <Box
+          ref={measureOwner}
+          sx={{ border: 1, borderColor: 'divider', borderRadius: 2, overflow: 'hidden', position: 'relative' }}
+        >
           <img
             src={contentUrl}
             alt="Croquis del recinto del Evento"
             onError={() => setImageError(true)}
             style={{ width: '100%', height: 'auto', display: 'block' }}
           />
-          {highlightedTable ? (
+          {highlightedTable && highlightedRect ? (
             <Box
               role="img"
               aria-label={`Ubicación de la Mesa ${highlightedTable.name} en el Croquis`}
               data-geometry={highlightedTable.geometry}
               sx={{
                 position: 'absolute',
-                left: `${highlightedTable.x * 100}%`,
-                top: `${highlightedTable.y * 100}%`,
-                width: `${highlightedTable.width * 100}%`,
-                height: `${highlightedTable.height * 100}%`,
+                ...relativeRectStyles(highlightedRect),
                 boxSizing: 'border-box',
                 border: '3px solid',
                 borderColor: 'warning.main',

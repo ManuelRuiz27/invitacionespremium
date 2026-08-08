@@ -141,6 +141,16 @@ cuando el Evento usa Croquis.
 
 QR inválido, adulterado, no disponible o de otro Evento comparte `SCANNER_QR_NOT_FOUND`.
 
+## Proyección visual del Croquis en Scanner
+
+El frontend Scanner usa la misma función presentacional que el editor Client para proyectar el rectángulo visual
+antes de aplicar borde, `clip-path` y rotación. `CIRCLE` y `SQUARE` conservan `width === height` en el DTO, pero su
+lado físico se calcula como `width * min(renderedWidth, renderedHeight)` y se convierte a proporciones distintas
+del ancho y alto del owner. De este modo no se deforman en planos no cuadrados. `x` y `y` permanecen relativos al
+owner real; `RECTANGLE` y `POLYGON` conservan sus proporciones directas, `polygonPoints` continúa local al bounding
+box proyectado y `rotation` mantiene origen central. La medición se actualiza mediante `ResizeObserver` sin cambiar
+API, StaffToken, check-in, realtime ni selección de Asistentes.
+
 ## Fronteras diferidas
 
 PaseFisicoQR, frontend, canvas, modo offline y reportes permanecen fuera de este contrato. La lectura

@@ -1191,6 +1191,32 @@ Contrato normativo: `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md`, subordinado a CO
 
 Contrato normativo: `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md`.
 
+### CODEX-123C-R2 — Paridad visual de geometrías con relación de aspecto
+
+**Estado:** COMPLETADO
+
+**Repos:** `invitacionespremium-client`, `invitacionespremium-scanner`, `shared-ui`
+
+**Dependencias:** CODEX-123C-R1, CODEX-131
+
+**Alcance**
+
+- conservar `width === height` técnico para círculos y cuadrados sin deformarlos en owners no cuadrados;
+- escalar el lado físico contra la dimensión menor de la imagen renderizada;
+- compartir una única proyección presentacional entre Client y Scanner;
+- reaccionar a cambios responsive mediante medición del owner sin listeners globales;
+- mantener proyección directa para rectángulos y polígonos, posición relativa, rotación y payloads existentes;
+- cubrir paridad horizontal, vertical y cuadrada, resize, rotación y ausencia de regresiones R1.
+
+**Fuera de alcance**
+
+- API, OpenAPI, Prisma, schema, migraciones, endpoints, seating o readiness;
+- estados, StaffTokens, check-in, realtime, Finanzas, Admin, Landing o workspace operativo;
+- CODEX-124.
+
+Contratos normativos: `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md` y
+`docs/04-tecnico/SCANNER_CHECKIN_CONTRACT.md`.
+
 ---
 
 ## EPIC 13 — Frontend Admin, Scanner y Landing

@@ -6,6 +6,8 @@ import type {
   FloorplanShapeInput,
   UpdateEventInput
 } from '@invitaciones/api-client';
+import { projectAspectAwareRect, useElementSize } from '@invitaciones/ui';
+import type { RenderedSize } from '@invitaciones/ui';
 import {
   Alert,
   Box,
@@ -83,6 +85,8 @@ function visibleGeometry(geometry: Geometry): string {
   return geometryOptions.find((option) => option.value === geometry)?.label ?? 'Rectangular';
 }
 
+const hasEqualPhysicalSides = (geometry: Geometry) => geometry === 'CIRCLE' || geometry === 'SQUARE';
+
 function mutationError(reason: unknown, mutation: Mutation): string {
   const translated = errorMessage(reason);
   if (!translated.startsWith('No se pudo completar la operación')) return translated;
@@ -115,6 +119,14 @@ export function FloorplanStep({
   onChange: (patch: Partial<UpdateEventInput>) => void;
 }) {
   const canvasRef = useRef<HTMLDivElement>(null);
+  const [measureCanvas, canvasSize] = useElementSize<HTMLDivElement>();
+  const setCanvasRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      canvasRef.current = node;
+      measureCanvas(node);
+    },
+    [measureCanvas]
+  );
   const mutationLockRef = useRef(false);
   const refreshLockRef = useRef(false);
   const [floorplan, setFloorplan] = useState<Floorplan>();
@@ -268,14 +280,15 @@ export function FloorplanStep({
         const localDelta = screenDeltaToLocal(screenDeltaX, screenDeltaY, start.rotation);
         const deltaWidth = localDelta.x / bounds.width;
         const deltaHeight = localDelta.y / bounds.height;
+        const equalSideDelta = Math.max(localDelta.x, localDelta.y) / Math.min(bounds.width, bounds.height);
         const nextShape =
           interaction === 'move'
             ? { ...start, x: start.x + canvasDeltaX, y: start.y + canvasDeltaY }
             : equalSides
               ? {
                   ...start,
-                  width: start.width + Math.max(deltaWidth, deltaHeight),
-                  height: start.width + Math.max(deltaWidth, deltaHeight)
+                  width: start.width + equalSideDelta,
+                  height: start.width + equalSideDelta
                 }
               : { ...start, width: start.width + deltaWidth, height: start.height + deltaHeight };
         setShape(normalizeFloorplanShape(nextShape));
@@ -427,7 +440,7 @@ export function FloorplanStep({
 
           {floorplan && imageUrl ? (
             <Box
-              ref={canvasRef}
+              ref={setCanvasRef}
               aria-label="Plano interactivo de mesas y zonas"
               sx={{
                 position: 'relative',
@@ -454,6 +467,7 @@ export function FloorplanStep({
                   <ShapeButton
                     key={item.id}
                     shape={item}
+                    renderedSize={canvasSize}
                     selected={false}
                     disabled={interactionDisabled || editingActive}
                     onClick={() => selectExisting(item)}
@@ -464,6 +478,7 @@ export function FloorplanStep({
               {mode !== 'idle' ? (
                 <EditableShape
                   shape={shape}
+                  renderedSize={canvasSize}
                   disabled={interactionDisabled}
                   onMove={(event) => startPointer(event, 'move')}
                   onResize={(event) => startPointer(event, 'resize')}
@@ -588,11 +603,13 @@ export function FloorplanStep({
 
 function ShapeButton({
   shape,
+  renderedSize,
   selected,
   disabled,
   onClick
 }: {
   shape: FloorplanShape;
+  renderedSize: RenderedSize;
   selected: boolean;
   disabled: boolean;
   onClick: () => void;
@@ -606,7 +623,7 @@ function ShapeButton({
       disabled={disabled}
       onClick={onClick}
       sx={{
-        ...relativeRectStyles(shape),
+        ...relativeRectStyles(projectAspectAwareRect(shape, renderedSize, hasEqualPhysicalSides(shape.geometry))),
         position: 'absolute',
         p: 0,
         border: selected ? 3 : 2,
@@ -655,12 +672,14 @@ function ShapeSurface({ shape, selected }: { shape: FloorplanShapeInput; selecte
 
 function EditableShape({
   shape,
+  renderedSize,
   disabled,
   onMove,
   onResize,
   onVertex
 }: {
   shape: FloorplanShapeInput;
+  renderedSize: RenderedSize;
   disabled: boolean;
   onMove: (event: React.PointerEvent<HTMLElement>) => void;
   onResize: (event: React.PointerEvent<HTMLElement>) => void;
@@ -671,7 +690,7 @@ function EditableShape({
       role="group"
       aria-label={`${shape.kind === 'TABLE' ? 'Mesa' : 'Zona'} seleccionada ${shape.name || 'sin nombre'}`}
       sx={{
-        ...relativeRectStyles(shape),
+        ...relativeRectStyles(projectAspectAwareRect(shape, renderedSize, hasEqualPhysicalSides(shape.geometry))),
         position: 'absolute',
         transform: `rotate(${shape.rotation}deg)`,
         transformOrigin: 'center',
