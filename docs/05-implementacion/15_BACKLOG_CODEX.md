@@ -1166,6 +1166,31 @@ Contratos normativos: `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md` y
 Contrato normativo: `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md`, subordinado a CODEX-090 y
 `docs/04-tecnico/FILE_ASSET_POLICY.md` para el modelo técnico y los FileAssets existentes.
 
+### CODEX-123C-R1 — Hardening final de Mesas y distribución
+
+**Estado:** COMPLETADO
+
+**Repo:** `invitacionespremium-client`
+
+**Dependencias:** CODEX-123C
+
+**Alcance**
+
+- proteger el borrador activo frente a selección, alta, sustitución de imagen, finalización y cambio de uso;
+- transformar resize y vértices de shapes rotadas desde pantalla hacia los ejes locales de la forma;
+- conservar la traslación completa en el espacio visual del plano;
+- separar fallos reales de mutación de fallos posteriores de lectura y reconciliar localmente respuestas seguras;
+- reintentar exclusivamente la lectura cuando una mutación ya fue confirmada;
+- cubrir protección del borrador, rotación y refresh posterior a create/update/delete.
+
+**Fuera de alcance**
+
+- API, OpenAPI, Prisma, schema, migraciones, readiness o seating backend;
+- FileAssets, Docker, infraestructura, Admin, Staff, Scanner, Finanzas o workspace operativo;
+- CODEX-124.
+
+Contrato normativo: `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md`.
+
 ---
 
 ## EPIC 13 — Frontend Admin, Scanner y Landing

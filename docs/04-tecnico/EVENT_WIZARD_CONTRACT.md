@@ -167,6 +167,18 @@ existe un campo textual de puntos. Círculos y cuadrados conservan lados iguales
 usa copy específico de Mesa o Zona, conserva el borrador o selección ante fallo, bloquea envíos repetidos y
 refresca desde la fuente autoritativa después del éxito.
 
+Una edición activa es una tarea exclusiva: hasta guardar, eliminar cuando corresponda o cancelar, la UI no
+permite iniciar otra Mesa/Zona, seleccionar otro elemento, sustituir la imagen, finalizar la distribución ni
+cambiar la preferencia de uso del Croquis. Ninguna de esas acciones descarta implícitamente el borrador actual.
+
+La traslación completa sigue el espacio del plano. En cambio, resize y edición de vértices invierten primero
+la rotación visual de la shape y aplican el delta en sus ejes locales; `polygonPoints` conserva su sistema local
+y el payload relativo existente.
+
+El éxito confirmado de crear, actualizar o eliminar y un fallo posterior al refrescar son estados distintos.
+La UI reconcilia localmente con la respuesta segura de la mutación, comunica que el cambio sí fue guardado y
+ofrece actualizar el plano mediante una nueva lectura; esa acción nunca repite la mutación confirmada.
+
 El lock se presenta como **Finalizar distribución** y el unlock como **Editar distribución**. Finalizar
 protege imagen y formas contra cambios accidentales, pero no agrega una regla de readiness: la autoridad
 continúa en backend. El estado finalizado mantiene plano, Mesas, Zonas y **Lugares distribuidos** visibles

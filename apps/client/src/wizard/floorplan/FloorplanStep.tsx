@@ -24,12 +24,18 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { relativeRectStyles } from '../../shared/relative-rect';
 import { errorMessage } from '../wizard-utils';
 import { usePrivateAssetUrl } from '../design/usePrivateAssetUrl';
-import { FloorplanShapeValidationError, normalizeFloorplanShape, polygonClipPath } from './floorplan-geometry';
+import {
+  FloorplanShapeValidationError,
+  normalizeFloorplanShape,
+  polygonClipPath,
+  screenDeltaToLocal
+} from './floorplan-geometry';
 
 type EditorMode = 'idle' | 'creating' | 'editing';
 type Mutation = 'uploading' | 'saving' | 'deleting' | 'locking' | 'unlocking';
 type Geometry = FloorplanShapeInput['geometry'];
 type ShapeKind = FloorplanShapeInput['kind'];
+type MutationResult<T> = { ok: true; value: T } | { ok: false };
 
 const adjustmentStep = 0.01;
 const rotationStep = 15;
@@ -110,11 +116,14 @@ export function FloorplanStep({
 }) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const mutationLockRef = useRef(false);
+  const refreshLockRef = useRef(false);
   const [floorplan, setFloorplan] = useState<Floorplan>();
   const [mode, setMode] = useState<EditorMode>('idle');
   const [selectedId, setSelectedId] = useState<string>();
   const [shape, setShape] = useState<FloorplanShapeInput>(() => newDraft('TABLE'));
   const [mutation, setMutation] = useState<Mutation>();
+  const [refreshing, setRefreshing] = useState(false);
+  const [reconciliationError, setReconciliationError] = useState(false);
   const [message, setMessage] = useState<string>();
 
   const refresh = useCallback(async () => {
@@ -130,7 +139,9 @@ export function FloorplanStep({
 
   const imageUrl = usePrivateAssetUrl(apiClient, event.id, floorplan?.image.fileAssetId);
   const selected = floorplan?.shapes.find((item) => item.id === selectedId);
-  const interactionDisabled = disabled || mutation !== undefined || floorplan?.locked === true;
+  const editingActive = mode !== 'idle';
+  const operationPending = mutation !== undefined || refreshing;
+  const interactionDisabled = disabled || operationPending || floorplan?.locked === true;
   const equalSides = shape.geometry === 'SQUARE' || shape.geometry === 'CIRCLE';
   const distributedPlaces =
     floorplan?.shapes.filter((item) => item.kind === 'TABLE').reduce((total, item) => total + item.capacity, 0) ?? 0;
@@ -143,6 +154,7 @@ export function FloorplanStep({
   };
 
   const startCreating = (kind: ShapeKind) => {
+    if (editingActive || interactionDisabled) return;
     setSelectedId(undefined);
     setShape(newDraft(kind));
     setMode('creating');
@@ -150,25 +162,41 @@ export function FloorplanStep({
   };
 
   const selectExisting = (item: FloorplanShape) => {
-    if (interactionDisabled) return;
+    if (interactionDisabled || editingActive) return;
     setSelectedId(item.id);
     setShape(editable(item));
     setMode('editing');
     setMessage(undefined);
   };
 
-  const runMutation = async (nextMutation: Mutation, work: () => Promise<void>) => {
-    if (mutationLockRef.current) return;
+  const runMutation = async <T,>(nextMutation: Mutation, work: () => Promise<T>): Promise<MutationResult<T>> => {
+    if (mutationLockRef.current) return { ok: false };
     mutationLockRef.current = true;
     setMutation(nextMutation);
     setMessage(undefined);
     try {
-      await work();
+      return { ok: true, value: await work() };
     } catch (reason) {
       setMessage(mutationError(reason, nextMutation));
+      return { ok: false };
     } finally {
       mutationLockRef.current = false;
       setMutation(undefined);
+    }
+  };
+
+  const refreshAfterConfirmedMutation = async () => {
+    if (refreshLockRef.current) return;
+    refreshLockRef.current = true;
+    setRefreshing(true);
+    setReconciliationError(false);
+    try {
+      await refresh();
+    } catch {
+      setReconciliationError(true);
+    } finally {
+      refreshLockRef.current = false;
+      setRefreshing(false);
     }
   };
 
@@ -211,31 +239,38 @@ export function FloorplanStep({
     const startX = event.clientX;
     const startY = event.clientY;
     const start = { ...shape, polygonPoints: shape.polygonPoints?.map((point) => ({ ...point })) ?? null };
-    const bounds =
-      interaction === 'vertex'
-        ? target.closest('[data-shape-owner]')?.getBoundingClientRect()
-        : canvasRef.current?.getBoundingClientRect();
+    const bounds = canvasRef.current?.getBoundingClientRect();
     if (!bounds?.width || !bounds.height) return;
 
     const move = (next: PointerEvent) => {
       next.preventDefault();
-      const deltaX = (next.clientX - startX) / bounds.width;
-      const deltaY = (next.clientY - startY) / bounds.height;
+      const screenDeltaX = next.clientX - startX;
+      const screenDeltaY = next.clientY - startY;
       try {
         if (interaction === 'vertex' && vertexIndex !== undefined && start.polygonPoints) {
+          const localDelta = screenDeltaToLocal(screenDeltaX, screenDeltaY, start.rotation);
+          const localWidth = start.width * bounds.width;
+          const localHeight = start.height * bounds.height;
+          if (!localWidth || !localHeight) return;
           const points = start.polygonPoints.map((point, index) =>
             index === vertexIndex
-              ? { x: Math.min(1, Math.max(0, point.x + deltaX)), y: Math.min(1, Math.max(0, point.y + deltaY)) }
+              ? {
+                  x: Math.min(1, Math.max(0, point.x + localDelta.x / localWidth)),
+                  y: Math.min(1, Math.max(0, point.y + localDelta.y / localHeight))
+                }
               : point
           );
           setShape(normalizeFloorplanShape({ ...start, polygonPoints: points }));
           return;
         }
-        const deltaWidth = (next.clientX - startX) / bounds.width;
-        const deltaHeight = (next.clientY - startY) / bounds.height;
+        const canvasDeltaX = screenDeltaX / bounds.width;
+        const canvasDeltaY = screenDeltaY / bounds.height;
+        const localDelta = screenDeltaToLocal(screenDeltaX, screenDeltaY, start.rotation);
+        const deltaWidth = localDelta.x / bounds.width;
+        const deltaHeight = localDelta.y / bounds.height;
         const nextShape =
           interaction === 'move'
-            ? { ...start, x: start.x + deltaWidth, y: start.y + deltaHeight }
+            ? { ...start, x: start.x + canvasDeltaX, y: start.y + canvasDeltaY }
             : equalSides
               ? {
                   ...start,
@@ -278,24 +313,39 @@ export function FloorplanStep({
       );
       return;
     }
-    await runMutation('saving', async () => {
-      if (selected) await apiClient.floorplan.updateShape(event.id, selected.id, normalized);
-      else await apiClient.floorplan.addShape(event.id, normalized);
-      await refresh();
-      cancel();
+    const result = await runMutation('saving', () =>
+      selected
+        ? apiClient.floorplan.updateShape(event.id, selected.id, normalized)
+        : apiClient.floorplan.addShape(event.id, normalized)
+    );
+    if (!result.ok) return;
+    setFloorplan((current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        shapes: selected
+          ? current.shapes.map((item) => (item.id === selected.id ? result.value : item))
+          : [...current.shapes, result.value]
+      };
     });
+    cancel();
+    await refreshAfterConfirmedMutation();
   };
 
   const remove = async () => {
     if (!selected) return;
-    await runMutation('deleting', async () => {
-      await apiClient.floorplan.removeShape(event.id, selected.id);
-      await refresh();
-      cancel();
-    });
+    const removedId = selected.id;
+    const result = await runMutation('deleting', () => apiClient.floorplan.removeShape(event.id, removedId));
+    if (!result.ok) return;
+    setFloorplan((current) =>
+      current ? { ...current, shapes: current.shapes.filter((item) => item.id !== removedId) } : current
+    );
+    cancel();
+    await refreshAfterConfirmedMutation();
   };
 
   const uploadImage = async (file: File) => {
+    if (editingActive || interactionDisabled) return;
     if (!['image/jpeg', 'image/png'].includes(file.type)) {
       setMessage('Selecciona una imagen JPG o PNG.');
       return;
@@ -325,8 +375,10 @@ export function FloorplanStep({
         control={
           <Checkbox
             checked={draft.floorplanEnabled}
-            disabled={disabled || mutation !== undefined}
-            onChange={(event) => onChange({ floorplanEnabled: event.target.checked })}
+            disabled={disabled || operationPending || editingActive}
+            onChange={(event) => {
+              if (!editingActive) onChange({ floorplanEnabled: event.target.checked });
+            }}
           />
         }
         label="Usar distribución de mesas"
@@ -340,7 +392,7 @@ export function FloorplanStep({
                 <Button
                   component="label"
                   variant={floorplan ? 'outlined' : 'contained'}
-                  disabled={disabled || mutation !== undefined || floorplan?.locked}
+                  disabled={disabled || operationPending || editingActive || floorplan?.locked}
                   sx={{ minHeight: 44, alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
                 >
                   {mutation === 'uploading'
@@ -351,6 +403,7 @@ export function FloorplanStep({
                   <input
                     hidden
                     type="file"
+                    disabled={disabled || operationPending || editingActive || floorplan?.locked}
                     accept="image/jpeg,image/png"
                     aria-label="Seleccionar imagen del plano"
                     onChange={(event) => {
@@ -402,7 +455,7 @@ export function FloorplanStep({
                     key={item.id}
                     shape={item}
                     selected={false}
-                    disabled={interactionDisabled}
+                    disabled={interactionDisabled || editingActive}
                     onClick={() => selectExisting(item)}
                   />
                 );
@@ -440,7 +493,7 @@ export function FloorplanStep({
                   <>
                     <Button
                       variant="contained"
-                      disabled={disabled || mutation !== undefined}
+                      disabled={disabled || operationPending || editingActive}
                       onClick={() => startCreating('TABLE')}
                       sx={{ minHeight: 44 }}
                     >
@@ -448,14 +501,14 @@ export function FloorplanStep({
                     </Button>
                     <Button
                       variant="outlined"
-                      disabled={disabled || mutation !== undefined}
+                      disabled={disabled || operationPending || editingActive}
                       onClick={() => startCreating('DECORATIVE_ZONE')}
                       sx={{ minHeight: 44 }}
                     >
                       Agregar zona
                     </Button>
                     <Button
-                      disabled={disabled || mutation !== undefined}
+                      disabled={disabled || operationPending || editingActive}
                       onClick={() =>
                         void runMutation('locking', async () => {
                           setFloorplan(await apiClient.floorplan.lock(event.id));
@@ -470,7 +523,7 @@ export function FloorplanStep({
                 ) : (
                   <Button
                     variant="outlined"
-                    disabled={disabled || mutation !== undefined}
+                    disabled={disabled || operationPending}
                     onClick={() =>
                       void runMutation('unlocking', async () => {
                         setFloorplan(await apiClient.floorplan.unlock(event.id));
@@ -490,7 +543,7 @@ export function FloorplanStep({
             <ShapeEditor
               mode={mode}
               shape={shape}
-              disabled={disabled || mutation !== undefined}
+              disabled={disabled || operationPending}
               onShapeChange={setShape}
               onGeometryChange={changeGeometry}
               onAdjust={adjust}
@@ -508,6 +561,25 @@ export function FloorplanStep({
       {message ? (
         <Alert severity="warning" aria-live="assertive">
           {message}
+        </Alert>
+      ) : null}
+
+      {reconciliationError ? (
+        <Alert
+          severity="warning"
+          aria-live="assertive"
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              disabled={refreshing || editingActive}
+              onClick={() => void refreshAfterConfirmedMutation()}
+            >
+              {refreshing ? 'Actualizando…' : 'Actualizar plano'}
+            </Button>
+          }
+        >
+          Los cambios se guardaron, pero no pudimos actualizar el plano. Vuelve a cargar la información.
         </Alert>
       ) : null}
     </Stack>
@@ -598,7 +670,6 @@ function EditableShape({
     <Box
       role="group"
       aria-label={`${shape.kind === 'TABLE' ? 'Mesa' : 'Zona'} seleccionada ${shape.name || 'sin nombre'}`}
-      data-shape-owner
       sx={{
         ...relativeRectStyles(shape),
         position: 'absolute',
@@ -729,6 +800,9 @@ function ShapeEditor({
           </Typography>
           <Typography color="text.secondary">
             Coloca este elemento sobre el lugar correspondiente del plano y ajusta su tamaño u orientación.
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Guarda o cancela los cambios actuales antes de continuar con otro elemento.
           </Typography>
         </Stack>
 

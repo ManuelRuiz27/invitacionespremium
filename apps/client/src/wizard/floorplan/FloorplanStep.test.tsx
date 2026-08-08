@@ -52,6 +52,7 @@ const floorplan: Floorplan = {
 
 function renderEditor(options: { current?: Floorplan; disabled?: boolean } = {}) {
   const api = mockApiClient();
+  const onChange = vi.fn();
   const current = options.current ?? floorplan;
   vi.mocked(api.floorplan.get).mockResolvedValue(current);
   vi.mocked(api.floorplan.addShape).mockResolvedValue(table);
@@ -66,10 +67,10 @@ function renderEditor(options: { current?: Floorplan; disabled?: boolean } = {})
       event={{ ...configuredEvent, floorplanEnabled: true }}
       draft={{ confirmationEnabled: false, floorplanEnabled: true }}
       disabled={options.disabled ?? false}
-      onChange={vi.fn()}
+      onChange={onChange}
     />
   );
-  return { api, ...view };
+  return { api, onChange, ...view };
 }
 
 describe('FloorplanStep', () => {
@@ -168,8 +169,63 @@ describe('FloorplanStep', () => {
     expect(screen.queryByLabelText('Tipo')).not.toBeInTheDocument();
   });
 
+  it('protects the active draft from every external floorplan action until cancel', async () => {
+    const tableB = { ...table, id: 'table-2', name: 'Mesa secundaria', x: 0.7 };
+    const { api, onChange } = renderEditor({ current: { ...floorplan, shapes: [table, tableB, zone] } });
+    await userEvent.click(await screen.findByRole('button', { name: 'Editar mesa Mesa principal' }));
+    const name = screen.getByLabelText('Nombre o número de mesa');
+    await userEvent.clear(name);
+    await userEvent.type(name, 'Mesa A en edición');
+
+    const otherShape = screen.getByRole('button', { name: 'Editar mesa Mesa secundaria', hidden: true });
+    const addTable = screen.getByRole('button', { name: 'Agregar mesa' });
+    const addZone = screen.getByRole('button', { name: 'Agregar zona' });
+    const finalize = screen.getByRole('button', { name: 'Finalizar distribución' });
+    const enabled = screen.getByRole('checkbox', { name: 'Usar distribución de mesas' });
+
+    expect(otherShape).toBeDisabled();
+    expect(addTable).toBeDisabled();
+    expect(addZone).toBeDisabled();
+    expect(finalize).toBeDisabled();
+    expect(enabled).toBeDisabled();
+    fireEvent.click(otherShape);
+    fireEvent.click(addTable);
+    fireEvent.click(addZone);
+    fireEvent.click(finalize);
+    fireEvent.click(enabled);
+
+    expect(name).toHaveValue('Mesa A en edición');
+    expect(screen.getByRole('heading', { name: 'Editar mesa' })).toBeInTheDocument();
+    expect(api.floorplan.lock).not.toHaveBeenCalled();
+    expect(onChange).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Editar zona Pista' }));
+    const zoneName = screen.getByLabelText('Nombre de la zona');
+    await userEvent.clear(zoneName);
+    await userEvent.type(zoneName, 'Zona en edición');
+    const changeImage = screen.getByLabelText('Seleccionar imagen del plano');
+    expect(changeImage).toBeDisabled();
+    fireEvent.change(changeImage, {
+      target: { files: [new File(['image'], 'otro-plano.png', { type: 'image/png' })] }
+    });
+    expect(zoneName).toHaveValue('Zona en edición');
+    expect(api.fileAssets.upload).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(screen.getByRole('button', { name: 'Agregar mesa' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Agregar zona' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Editar mesa Mesa secundaria' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Editar zona Pista' })).toBeEnabled();
+    expect(screen.getByLabelText('Seleccionar imagen del plano')).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Finalizar distribución' })).toBeEnabled();
+    expect(screen.getByRole('checkbox', { name: 'Usar distribución de mesas' })).toBeEnabled();
+  });
+
   it('moves and resizes relative to the rendered image surface with pointer and touch-safe targets', async () => {
-    const { api } = renderEditor();
+    const { api } = renderEditor({
+      current: { ...floorplan, shapes: [{ ...table, rotation: 0 }, zone] }
+    });
     await userEvent.click(await screen.findByRole('button', { name: 'Editar mesa Mesa principal' }));
     const canvas = screen.getByLabelText('Plano interactivo de mesas y zonas');
     expect(canvas.querySelector('img')).toBe(screen.getByAltText('Plano del lugar'));
@@ -199,6 +255,35 @@ describe('FloorplanStep', () => {
     expect(payload?.y).toBe(0.2);
     expect(payload?.width).toBe(payload?.height);
     expect(payload?.width).toBeCloseTo(0.3);
+  });
+
+  it('resizes a rectangle rotated 45 degrees along its local axes', async () => {
+    const rotatedZone = { ...zone, rotation: 45 };
+    const { api } = renderEditor({ current: { ...floorplan, shapes: [rotatedZone] } });
+    await userEvent.click(await screen.findByRole('button', { name: 'Editar zona Pista' }));
+    const canvas = screen.getByLabelText('Plano interactivo de mesas y zonas');
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: 1000,
+      bottom: 500,
+      width: 1000,
+      height: 500,
+      toJSON: () => ({})
+    });
+    const resize = screen.getByRole('button', { name: 'Cambiar tamaño de Pista' });
+    fireEvent.pointerDown(resize, { pointerId: 8, clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(resize, {
+      pointerId: 8,
+      clientX: 170.710678,
+      clientY: 170.710678
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    const payload = vi.mocked(api.floorplan.updateShape).mock.calls[0]?.[2];
+    expect(payload?.width).toBeCloseTo(0.4, 5);
+    expect(payload?.height).toBeCloseTo(0.18, 5);
   });
 
   it.each([
@@ -233,23 +318,57 @@ describe('FloorplanStep', () => {
     };
     const { api } = renderEditor({ current: { ...floorplan, shapes: [polygonZone] } });
     await userEvent.click(await screen.findByRole('button', { name: 'Editar zona Pista' }));
-    const owner = screen.getByRole('group', { name: /Zona seleccionada/ });
-    vi.spyOn(owner, 'getBoundingClientRect').mockReturnValue({
+    const canvas = screen.getByLabelText('Plano interactivo de mesas y zonas');
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
       x: 0,
       y: 0,
       left: 0,
       top: 0,
-      right: 300,
-      bottom: 180,
-      width: 300,
-      height: 180,
+      right: 1000,
+      bottom: 600,
+      width: 1000,
+      height: 600,
       toJSON: () => ({})
     });
     const vertex = screen.getByRole('button', { name: 'Mover punto 1 de la forma personalizada' });
     fireEvent.pointerDown(vertex, { pointerId: 4, pointerType: 'touch', clientX: 30, clientY: 18 });
-    fireEvent.pointerMove(vertex, { pointerId: 4, pointerType: 'touch', clientX: 60, clientY: 36 });
+    fireEvent.pointerMove(vertex, { pointerId: 4, pointerType: 'touch', clientX: 60, clientY: 28.8 });
     await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
     expect(vi.mocked(api.floorplan.updateShape).mock.calls[0]?.[2].polygonPoints?.[0]).toEqual({ x: 0.2, y: 0.2 });
+  });
+
+  it('moves a rotated custom-shape vertex in the polygon local coordinate system', async () => {
+    const polygonZone: FloorplanShape = {
+      ...zone,
+      rotation: 90,
+      geometry: 'POLYGON',
+      polygonPoints: [
+        { x: 0.1, y: 0.1 },
+        { x: 0.9, y: 0.1 },
+        { x: 0.5, y: 0.9 }
+      ]
+    };
+    const { api } = renderEditor({ current: { ...floorplan, shapes: [polygonZone] } });
+    await userEvent.click(await screen.findByRole('button', { name: 'Editar zona Pista' }));
+    const canvas = screen.getByLabelText('Plano interactivo de mesas y zonas');
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: 1000,
+      bottom: 600,
+      width: 1000,
+      height: 600,
+      toJSON: () => ({})
+    });
+    const vertex = screen.getByRole('button', { name: 'Mover punto 1 de la forma personalizada' });
+    fireEvent.pointerDown(vertex, { pointerId: 9, clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(vertex, { pointerId: 9, clientX: 100, clientY: 130 });
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    const point = vi.mocked(api.floorplan.updateShape).mock.calls[0]?.[2].polygonPoints?.[0];
+    expect(point?.x).toBeCloseTo(0.2, 5);
+    expect(point?.y).toBeCloseTo(0.1, 5);
   });
 
   it('projects lock and unlock as finalizing and editing while keeping the plan readable', async () => {
@@ -332,6 +451,66 @@ describe('FloorplanStep', () => {
     expect(await screen.findByText(/No pudimos guardar los cambios/)).toBeInTheDocument();
     expect(name).toHaveValue('Mesa novios');
     expect(api.floorplan.updateShape).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not repeat a confirmed create when the following refresh fails', async () => {
+    const { api } = renderEditor();
+    const created = { ...table, id: 'table-created', name: 'Mesa nueva' };
+    vi.mocked(api.floorplan.addShape).mockResolvedValueOnce(created);
+    await screen.findByAltText('Plano del lugar');
+    vi.mocked(api.floorplan.get)
+      .mockRejectedValueOnce(new Error('refresh failed'))
+      .mockResolvedValueOnce({ ...floorplan, shapes: [...floorplan.shapes, created] });
+    await userEvent.click(screen.getByRole('button', { name: 'Agregar mesa' }));
+    await userEvent.type(screen.getByLabelText('Nombre o número de mesa'), 'Mesa nueva');
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar mesa' }));
+
+    expect(await screen.findByText(/Los cambios se guardaron/)).toBeInTheDocument();
+    expect(screen.queryByText(/No pudimos guardar los cambios/)).not.toBeInTheDocument();
+    expect(api.floorplan.addShape).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('Mesa nueva')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Actualizar plano' }));
+    await waitFor(() => expect(screen.queryByText(/Los cambios se guardaron/)).not.toBeInTheDocument());
+    expect(api.floorplan.addShape).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not repeat a confirmed update when the following refresh fails', async () => {
+    const { api } = renderEditor();
+    const updated = { ...table, name: 'Mesa actualizada' };
+    vi.mocked(api.floorplan.updateShape).mockResolvedValueOnce(updated);
+    await userEvent.click(await screen.findByRole('button', { name: 'Editar mesa Mesa principal' }));
+    vi.mocked(api.floorplan.get)
+      .mockRejectedValueOnce(new Error('refresh failed'))
+      .mockResolvedValueOnce({ ...floorplan, shapes: [updated, zone] });
+    const name = screen.getByLabelText('Nombre o número de mesa');
+    await userEvent.clear(name);
+    await userEvent.type(name, 'Mesa actualizada');
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(await screen.findByText(/Los cambios se guardaron/)).toBeInTheDocument();
+    expect(screen.queryByText(/No pudimos guardar los cambios/)).not.toBeInTheDocument();
+    expect(api.floorplan.updateShape).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('Mesa actualizada')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Actualizar plano' }));
+    await waitFor(() => expect(screen.queryByText(/Los cambios se guardaron/)).not.toBeInTheDocument());
+    expect(api.floorplan.updateShape).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not repeat a confirmed delete when the following refresh fails', async () => {
+    const { api } = renderEditor();
+    await userEvent.click(await screen.findByRole('button', { name: 'Editar mesa Mesa principal' }));
+    vi.mocked(api.floorplan.get)
+      .mockRejectedValueOnce(new Error('refresh failed'))
+      .mockResolvedValueOnce({ ...floorplan, shapes: [zone] });
+    await userEvent.click(screen.getByRole('button', { name: 'Eliminar mesa' }));
+
+    expect(await screen.findByText(/Los cambios se guardaron/)).toBeInTheDocument();
+    expect(screen.queryByText(/No pudimos eliminar este elemento/)).not.toBeInTheDocument();
+    expect(api.floorplan.removeShape).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Mesa principal')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Actualizar plano' }));
+    await waitFor(() => expect(screen.queryByText(/Los cambios se guardaron/)).not.toBeInTheDocument());
+    expect(api.floorplan.removeShape).toHaveBeenCalledTimes(1);
   });
 
   it('keeps lock and unlock state coherent after failure and permits retry', async () => {

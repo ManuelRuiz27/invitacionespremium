@@ -6,6 +6,16 @@ const round = (value: number) => Math.round(value * 1_000_000) / 1_000_000;
 
 export class FloorplanShapeValidationError extends Error {}
 
+export function screenDeltaToLocal(deltaX: number, deltaY: number, rotation: number) {
+  const radians = (rotation * Math.PI) / 180;
+  const cosine = Math.cos(radians);
+  const sine = Math.sin(radians);
+  return {
+    x: deltaX * cosine + deltaY * sine,
+    y: -deltaX * sine + deltaY * cosine
+  };
+}
+
 function requireFinite(value: number, label: string) {
   if (!Number.isFinite(value)) throw new FloorplanShapeValidationError(`${label} debe ser un número finito.`);
 }

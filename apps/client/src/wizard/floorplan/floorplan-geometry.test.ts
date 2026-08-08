@@ -1,6 +1,6 @@
 import type { FloorplanShapeInput } from '@invitaciones/api-client';
 import { describe, expect, it } from 'vitest';
-import { normalizeFloorplanShape, polygonClipPath } from './floorplan-geometry';
+import { normalizeFloorplanShape, polygonClipPath, screenDeltaToLocal } from './floorplan-geometry';
 
 const shape = (geometry: FloorplanShapeInput['geometry']): FloorplanShapeInput => ({
   name: 'Forma',
@@ -23,6 +23,13 @@ const shape = (geometry: FloorplanShapeInput['geometry']): FloorplanShapeInput =
 });
 
 describe('floorplan geometry normalization', () => {
+  it('transforms screen deltas into rotated local axes and preserves zero rotation', () => {
+    expect(screenDeltaToLocal(12, -7, 0)).toEqual({ x: 12, y: -7 });
+    const local = screenDeltaToLocal(Math.SQRT1_2 * 100, Math.SQRT1_2 * 100, 45);
+    expect(local.x).toBeCloseTo(100, 10);
+    expect(local.y).toBeCloseTo(0, 10);
+  });
+
   it('keeps rectangles inside the normalized canvas', () => {
     const result = normalizeFloorplanShape(shape('RECTANGLE'));
     expect(result.x + result.width).toBeLessThanOrEqual(1);
