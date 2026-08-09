@@ -86,6 +86,7 @@ describe('generated API client runtime', () => {
     const event = {
       id: 'event/id',
       status: 'DRAFT',
+      serviceCode: 'FLYER',
       name: null,
       timeZone: null,
       updatedAt: '2026-07-30T18:00:00.000Z'
@@ -93,6 +94,27 @@ describe('generated API client runtime', () => {
     const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async () => jsonResponse(event));
     await createApiClient({ baseUrl: 'https://api.example.com/api/v1', fetchImpl }).events.get('event/id');
     expect(fetchImpl.mock.calls[0]?.[0]).toBe('https://api.example.com/api/v1/events/event%2Fid');
+  });
+
+  it('validates the contracted service code in Event responses', async () => {
+    const baseEvent = {
+      id: 'event-1',
+      status: 'ACTIVE',
+      name: 'Evento',
+      timeZone: 'UTC',
+      updatedAt: '2026-07-30T18:00:00.000Z'
+    };
+    const unknownCode = createApiClient({
+      baseUrl: 'https://api.example.com/api/v1',
+      fetchImpl: mockJson({ ...baseEvent, serviceCode: 'UNKNOWN' })
+    }).events.get(baseEvent.id);
+    const missingCode = createApiClient({
+      baseUrl: 'https://api.example.com/api/v1',
+      fetchImpl: mockJson(baseEvent)
+    }).events.get(baseEvent.id);
+
+    await expect(unknownCode).rejects.toMatchObject({ code: 'UNEXPECTED_API_RESPONSE' });
+    await expect(missingCode).rejects.toMatchObject({ code: 'UNEXPECTED_API_RESPONSE' });
   });
 
   it('parses the uniform backend error without exposing the full payload', async () => {
@@ -199,7 +221,14 @@ describe('generated API client runtime', () => {
   });
 
   it('supports POST and PATCH JSON for Event creation and autosave', async () => {
-    const event = { id: 'event-1', status: 'DRAFT', name: 'Boda', timeZone: 'UTC', updatedAt: 'now' };
+    const event = {
+      id: 'event-1',
+      status: 'DRAFT',
+      serviceCode: null,
+      name: 'Boda',
+      timeZone: 'UTC',
+      updatedAt: 'now'
+    };
     const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async () => jsonResponse(event));
     const client = createApiClient({ baseUrl: 'https://api.example.com/api/v1', fetchImpl });
     await client.events.create({
@@ -249,7 +278,9 @@ describe('generated API client runtime', () => {
   });
 
   it('sends stable idempotency headers for activation, CSV commit and pass generation', async () => {
-    const activation = { event: { id: 'event', status: 'ACTIVE', name: null, timeZone: null, updatedAt: 'now' } };
+    const activation = {
+      event: { id: 'event', status: 'ACTIVE', serviceCode: 'FLYER', name: null, timeZone: null, updatedAt: 'now' }
+    };
     const fetchImpl = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(jsonResponse(activation))

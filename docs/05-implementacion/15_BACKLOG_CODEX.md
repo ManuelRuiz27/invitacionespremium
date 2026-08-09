@@ -1219,7 +1219,7 @@ Contratos normativos: `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md` y
 
 ### CODEX-124A — Workspace operativo del Evento: Shell y Resumen
 
-**Estado:** COMPLETADO
+**Estado:** CERRADO — CODEX-124A-R1 completado
 
 **Repo:** `invitacionespremium-client`
 
@@ -1246,6 +1246,41 @@ Contratos normativos: `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md` y
 - API, OpenAPI, Prisma, schema, migraciones, endpoints, estados o readiness.
 
 Contrato normativo: `docs/04-tecnico/ACTIVE_EVENT_WORKSPACE_CONTRACT.md`.
+
+### CODEX-124A-R1 — Servicio contratado autoritativo en workspace
+
+**Estado:** COMPLETADO
+
+**Repos:** `invitacionespremium-api`, `packages/api-client`, `invitacionespremium-client`
+
+**Dependencia:** CODEX-124A
+
+**Alcance**
+
+- proyectar `EventResponseDto.serviceCode` desde la relación autoritativa
+  `Event.serviceId → Service.code`;
+- conservar `null` cuando el Evento todavía no tiene Servicio;
+- resolver la relación sin exigir `Service.isActive`, precio o promoción vigentes;
+- regenerar OpenAPI y `packages/api-client`, incluido el validador runtime de Evento;
+- eliminar del Resumen toda consulta a `GET /services` y traducir el código mediante el mapper compartido;
+- probar el Evento histórico con Servicio inactivo y sin precio vigente, el fallback natural y la ausencia
+  de requests al catálogo.
+
+**Fuente de dominio**
+
+`Event.serviceId` representa el Servicio contratado actual. `activatedServiceId` permanece como snapshot
+inmutable de la activación inicial. El upgrade Flyer → Flipbook todavía no está implementado; su futuro
+commit deberá actualizar `Event.serviceId` conforme a `SERVICE_UPGRADE_FLOW.md`.
+
+**Fuera de alcance**
+
+- CODEX-124B, seating o asignación de Asistentes;
+- CODEX-124C, StaffTokens, Scanner o accesos Staff;
+- implementación o UI del upgrade de Servicio;
+- Prisma, schema, migraciones, precios, promociones, ledger, readiness o estados del Evento.
+
+Contratos normativos: `docs/04-tecnico/ACTIVE_EVENT_WORKSPACE_CONTRACT.md`,
+`docs/04-tecnico/EVENTS_CONTRACT.md` y `docs/02-flujos-reglas/SERVICE_UPGRADE_FLOW.md`.
 
 ---
 

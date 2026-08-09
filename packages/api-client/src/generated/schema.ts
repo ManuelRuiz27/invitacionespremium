@@ -2428,6 +2428,8 @@ export type components = {
             name: string | null;
             promotionDiscountCredits: number | null;
             purchasedCreditsUsed: number | null;
+            /** @enum {string|null} */
+            serviceCode: "FLIPBOOK" | "FLYER" | "PHYSICAL_QR" | "DEMO" | null;
             /** Format: uuid */
             serviceId: string | null;
             /** @enum {string|null} */

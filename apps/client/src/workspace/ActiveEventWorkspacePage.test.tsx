@@ -8,6 +8,7 @@ import { renderApp } from '../test/render-app';
 const workspaceEvent = {
   ...activeEvent,
   serviceId: 'service-flyer',
+  serviceCode: 'FLYER',
   eventDateTime: '2026-08-16T01:00:00.000Z',
   timeZone: 'America/Tijuana',
   capacity: 180,
@@ -65,6 +66,17 @@ describe('Active Event workspace summary', () => {
     expect(screen.queryByText(workspaceEvent.id)).not.toBeInTheDocument();
     expect(screen.queryByText(workspaceEvent.clientId)).not.toBeInTheDocument();
     expect(screen.queryByText(workspaceEvent.createdByUserId)).not.toBeInTheDocument();
+    expect(screen.queryByText('FLYER')).not.toBeInTheDocument();
+    expect(api.services.listAvailable).not.toHaveBeenCalled();
+  });
+
+  it('uses natural fallback copy when EventResponse has no contracted service', async () => {
+    const api = mockApiClient();
+    vi.mocked(api.events.get).mockResolvedValue({ ...workspaceEvent, serviceId: null, serviceCode: null });
+    renderApp(api, `/eventos/${workspaceEvent.id}`);
+
+    expect(await screen.findByText('Servicio no disponible')).toBeInTheDocument();
+    expect(api.services.listAvailable).not.toHaveBeenCalled();
   });
 
   it('uses natural copy for optional capacity and disabled distribution', async () => {
@@ -123,6 +135,7 @@ describe('Active Event workspace loading and errors', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('Cargando evento…');
     expect(screen.queryByText(workspaceEvent.name!)).not.toBeInTheDocument();
     expect(api.events.get).toHaveBeenLastCalledWith(secondId, expect.any(AbortSignal));
+    expect(api.services.listAvailable).not.toHaveBeenCalled();
   });
 
   it('retries only the failed Event request and keeps the session mounted for network errors', async () => {
@@ -137,7 +150,7 @@ describe('Active Event workspace loading and errors', () => {
     await user.click(screen.getByRole('button', { name: 'Reintentar' }));
     expect(await screen.findByRole('heading', { name: workspaceEvent.name!, level: 1 })).toBeInTheDocument();
     expect(api.events.get).toHaveBeenCalledTimes(2);
-    expect(api.services.listAvailable).toHaveBeenCalledTimes(1);
+    expect(api.services.listAvailable).not.toHaveBeenCalled();
     expect(api.auth.logout).not.toHaveBeenCalled();
   });
 

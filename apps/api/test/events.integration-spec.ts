@@ -55,6 +55,7 @@ describe('Events CRUD', () => {
     expect(independentEvent.body).toMatchObject({
       clientId: independent.clientId,
       createdByUserId: independent.userId,
+      serviceCode: null,
       status: EventStatus.DRAFT
     });
 
@@ -162,6 +163,26 @@ describe('Events CRUD', () => {
       .expect(200);
   });
 
+  it('projects the contracted service independently from the current catalog and price availability', async () => {
+    const independent = await createClientUser(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
+    const service = await createService(ServiceCode.FLYER);
+    const cookie = await login(independent.email);
+    const created = await createEvent(cookie, { serviceId: service.id }).expect(201);
+
+    expect(created.body.serviceCode).toBe(ServiceCode.FLYER);
+    await prisma.service.update({ where: { id: service.id }, data: { isActive: false } });
+
+    await request(app.getHttpServer()).get('/api/v1/services').set('Cookie', cookie).expect(200, []);
+    await request(app.getHttpServer())
+      .get(`/api/v1/events/${created.body.id}`)
+      .set('Cookie', cookie)
+      .expect(200)
+      .expect((response) => {
+        expect(response.body.serviceId).toBe(service.id);
+        expect(response.body.serviceCode).toBe(ServiceCode.FLYER);
+      });
+  });
+
   it('soft-deletes, restores administratively, and expires drafts idempotently with audit', async () => {
     const independent = await createClientUser(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
     const platform = await createUser(null, UserRole.PLATFORM_ADMIN);
@@ -201,7 +222,8 @@ describe('Events CRUD', () => {
   });
 
   it('publishes the CODEX-040 endpoints in OpenAPI', () => {
-    const paths = createOpenApiDocument(app).paths;
+    const document = createOpenApiDocument(app);
+    const paths = document.paths;
     for (const path of [
       '/api/v1/events',
       '/api/v1/events/{eventId}',
@@ -211,6 +233,14 @@ describe('Events CRUD', () => {
     ]) {
       expect(paths).toHaveProperty(path);
     }
+    expect(document.components?.schemas?.EventResponseDto).toMatchObject({
+      properties: {
+        serviceCode: {
+          nullable: true,
+          enum: ['FLIPBOOK', 'FLYER', 'PHYSICAL_QR', 'DEMO']
+        }
+      }
+    });
   });
 
   function createEvent(cookie: string, body: Record<string, unknown>) {

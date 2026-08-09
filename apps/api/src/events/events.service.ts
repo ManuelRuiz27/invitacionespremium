@@ -41,6 +41,10 @@ const SOFT_DELETE_STATUSES: readonly EventStatus[] = [
   EventStatus.ARCHIVED,
   EventStatus.CANCELLED
 ];
+export const EVENT_SERVICE_INCLUDE = {
+  service: { select: { code: true } }
+} satisfies Prisma.EventInclude;
+type EventWithService = Prisma.EventGetPayload<{ include: typeof EVENT_SERVICE_INCLUDE }>;
 
 @Injectable()
 export class EventsService {
@@ -56,6 +60,7 @@ export class EventsService {
   async listOwned(principal: AuthPrincipal): Promise<EventResponseDto[]> {
     const events = await this.prisma.event.findMany({
       where: activeWhere(this.accessPolicy.ownedWhere(principal)),
+      include: EVENT_SERVICE_INCLUDE,
       orderBy: [{ createdAt: 'desc' }, { id: 'asc' }]
     });
     return events.map(toEventResponse);
@@ -68,13 +73,17 @@ export class EventsService {
   async listAdmin(): Promise<EventResponseDto[]> {
     const events = await this.prisma.event.findMany({
       where: { deletedAt: null },
+      include: EVENT_SERVICE_INCLUDE,
       orderBy: [{ createdAt: 'desc' }, { id: 'asc' }]
     });
     return events.map(toEventResponse);
   }
 
   async getAdmin(eventId: string): Promise<EventResponseDto> {
-    const event = await this.prisma.event.findFirst({ where: { id: eventId, deletedAt: null } });
+    const event = await this.prisma.event.findFirst({
+      where: { id: eventId, deletedAt: null },
+      include: EVENT_SERVICE_INCLUDE
+    });
     if (!event) {
       throw eventNotFound();
     }
@@ -97,7 +106,10 @@ export class EventsService {
       });
       await recomputeDigitalEventPreparationStatus(transaction, created.id);
       await recomputePhysicalPassPreparationStatus(transaction, created.id);
-      const event = await transaction.event.findUniqueOrThrow({ where: { id: created.id } });
+      const event = await transaction.event.findUniqueOrThrow({
+        where: { id: created.id },
+        include: EVENT_SERVICE_INCLUDE
+      });
       await this.audit.record(
         {
           actor: { type: AuditActorType.USER, id: principal.userId },
@@ -147,7 +159,10 @@ export class EventsService {
         });
         await recomputeDigitalEventPreparationStatus(transaction, eventId);
         await recomputePhysicalPassPreparationStatus(transaction, eventId);
-        const event = await transaction.event.findUniqueOrThrow({ where: { id: eventId } });
+        const event = await transaction.event.findUniqueOrThrow({
+          where: { id: eventId },
+          include: EVENT_SERVICE_INCLUDE
+        });
         return auditedResult(toEventResponse(event), eventAuditSnapshot(event));
       }
     });
@@ -336,6 +351,7 @@ export class EventsService {
           });
           const event = await transaction.event.update({
             where: { id: eventId },
+            include: EVENT_SERVICE_INCLUDE,
             data: {
               status: EventStatus.ACTIVE,
               activatedAt,
@@ -428,6 +444,7 @@ export class EventsService {
       mutate: async (transaction) => {
         const event = await transaction.event.update({
           where: { id: eventId },
+          include: EVENT_SERVICE_INCLUDE,
           data: { deletedAt: null }
         });
         return auditedResult(toEventResponse(event), eventAuditSnapshot(event));
@@ -483,9 +500,10 @@ export class EventsService {
     database: PrismaService | Prisma.TransactionClient,
     eventId: string,
     principal: AuthPrincipal
-  ): Promise<Event> {
+  ): Promise<EventWithService> {
     const event = await database.event.findFirst({
-      where: activeWhere({ id: eventId, ...this.accessPolicy.ownedWhere(principal) })
+      where: activeWhere({ id: eventId, ...this.accessPolicy.ownedWhere(principal) }),
+      include: EVENT_SERVICE_INCLUDE
     });
     if (!event) {
       throw eventNotFound();
@@ -650,12 +668,13 @@ export function eventAuditSnapshot(event: Event): Record<string, unknown> {
   };
 }
 
-export function toEventResponse(event: Event): EventResponseDto {
+export function toEventResponse(event: EventWithService): EventResponseDto {
   return {
     id: event.id,
     clientId: event.clientId,
     createdByUserId: event.createdByUserId,
     serviceId: event.serviceId,
+    serviceCode: event.service?.code ?? null,
     name: event.name,
     socialType: event.socialType,
     status: event.status,

@@ -1,4 +1,4 @@
-import type { ApiClient, AvailableService, Event, EventStatus } from '@invitaciones/api-client';
+import type { ApiClient, Event, EventStatus } from '@invitaciones/api-client';
 import { ApiError } from '@invitaciones/api-client';
 import { ErrorState, LoadingState, StatusChip } from '@invitaciones/ui';
 import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded';
@@ -44,14 +44,8 @@ export function ActiveEventWorkspacePage({ apiClient }: { apiClient: ApiClient }
   });
   const event = eventQuery.data;
   const workspaceAllowed = event ? workspaceStatuses.has(event.status) : false;
-  const servicesQuery = useQuery({
-    queryKey: ['services', 'available'],
-    queryFn: ({ signal }) => apiClient.services.listAvailable(signal),
-    enabled: workspaceAllowed && Boolean(event?.serviceId)
-  });
 
   useSessionExpiry(eventQuery.error, returnTo);
-  useSessionExpiry(servicesQuery.error, returnTo);
 
   if (!eventId) {
     return <WorkspaceUnavailable title="Este evento no está disponible." />;
@@ -101,31 +95,12 @@ export function ActiveEventWorkspacePage({ apiClient }: { apiClient: ApiClient }
     return <WorkspaceUnavailable title="Este evento no está disponible." />;
   }
 
-  return (
-    <EventWorkspace
-      event={event}
-      services={servicesQuery.data}
-      serviceLoading={servicesQuery.isPending && servicesQuery.fetchStatus === 'fetching'}
-    />
-  );
+  return <EventWorkspace event={event} />;
 }
 
-function EventWorkspace({
-  event,
-  services,
-  serviceLoading
-}: {
-  event: Event;
-  services: AvailableService[] | undefined;
-  serviceLoading: boolean;
-}) {
+function EventWorkspace({ event }: { event: Event }) {
   const status = getEventStatusPresentation(event.status);
-  const service = services?.find((candidate) => candidate.id === event.serviceId);
-  const serviceLabel = serviceLoading
-    ? 'Consultando servicio…'
-    : service
-      ? serviceLabels[service.code]
-      : 'Servicio no disponible';
+  const serviceLabel = event.serviceCode ? serviceLabels[event.serviceCode] : 'Servicio no disponible';
   const details = [
     ['Fecha y hora', formatEventDateLong(event.eventDateTime, event.timeZone)],
     ['Tipo de evento', event.socialType ? socialTypeLabels[event.socialType] : 'Tipo pendiente'],

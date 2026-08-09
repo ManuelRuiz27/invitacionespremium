@@ -8,7 +8,7 @@ import { DomainError } from '../common/errors/domain-error';
 import { AuditActorType, EventStateAction, EventStatus, Prisma, type Event } from '../generated/prisma/client';
 import { EventAccessPolicy, eventNotFound } from './event-access.policy';
 import type { EventResponseDto } from './events.dto';
-import { eventAuditSnapshot, toEventResponse } from './events.service';
+import { EVENT_SERVICE_INCLUDE, eventAuditSnapshot, toEventResponse } from './events.service';
 import { StaffTokenExpirationService } from '../staff-access/staff-access.service';
 import { RealtimePublisherService } from '../realtime/realtime-publisher.service';
 
@@ -161,6 +161,7 @@ export class EventLifecycleService {
           }
           const event = await transaction.event.update({
             where: { id: eventId },
+            include: EVENT_SERVICE_INCLUDE,
             data: { status: targetStatus }
           });
           const result = toEventResponse(event);
@@ -250,6 +251,7 @@ export class EventLifecycleService {
 
           const event = await transaction.event.update({
             where: { id: eventId },
+            include: EVENT_SERVICE_INCLUDE,
             data: { status: EventStatus.EVENT_DAY }
           });
           const result = toEventResponse(event);

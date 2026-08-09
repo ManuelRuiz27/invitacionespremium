@@ -4,6 +4,7 @@ import { isRecord, isRecordArray, type ApiRequester } from './api-client';
 export type Event = components['schemas']['EventResponseDto'];
 export type EventStatus = Event['status'];
 export type EventSocialType = NonNullable<Event['socialType']>;
+export type EventServiceCode = NonNullable<Event['serviceCode']>;
 export type CreateEventInput = components['schemas']['CreateEventRequestDto'];
 export type UpdateEventInput = components['schemas']['UpdateEventRequestDto'];
 export type EventActivation = components['schemas']['EventActivationResponseDto'];
@@ -68,8 +69,11 @@ function isEvent(value: unknown): value is Event {
     isRecord(value) &&
     typeof value.id === 'string' &&
     typeof value.status === 'string' &&
+    (value.serviceCode === null || serviceCodes.has(value.serviceCode)) &&
     (value.name === null || typeof value.name === 'string') &&
     (value.timeZone === null || typeof value.timeZone === 'string') &&
     typeof value.updatedAt === 'string'
   );
 }
+
+const serviceCodes = new Set<unknown>(['FLIPBOOK', 'FLYER', 'PHYSICAL_QR', 'DEMO']);

@@ -56,6 +56,7 @@ export const adminEvent = {
   clientId: organization.id,
   createdByUserId: clientUser.id,
   serviceId: 'service-a',
+  serviceCode: 'FLYER',
   name: 'Boda Aurora',
   socialType: 'WEDDING',
   status: 'ACTIVE',

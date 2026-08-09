@@ -29,10 +29,20 @@ propaga `AbortSignal` y nunca reutiliza metadata visible de otro Evento durante 
 conserva la autoridad de sesión, permisos y ownership; el frontend no filtra Clientes ni compara IDs de
 ownership.
 
-El código de servicio no forma parte de `EventResponseDto`. Cuando el Evento tiene `serviceId`, el nombre
-comercial puede resolverse con el catálogo autenticado existente `GET /services`, exclusivamente como
-presentación. Esa consulta no participa en el guard, no amplía permisos y no convierte un fallo del
-Evento en un retry de otros recursos.
+`EventResponseDto.serviceCode` proyecta el código del Servicio actualmente contratado a partir de la
+relación autoritativa `Event.serviceId → Service.code`. El Resumen traduce ese código con el mapper
+compartido y no consulta `GET /services`: el catálogo representa lo disponible para contratar hoy, no el
+historial contractual de un Evento.
+
+La proyección directa no filtra `Service.isActive`, no resuelve precio vigente y no evalúa promociones.
+Desactivar un Servicio comercial o cerrar la vigencia de sus precios no cambia la etiqueta de Eventos
+existentes. Si `Event.serviceId` es nulo, `serviceCode` es nulo y la UI usa el fallback natural **Servicio
+no disponible**. Un fallo del catálogo nunca se representa como ausencia de servicio en el workspace.
+
+El upgrade Flyer → Flipbook todavía no está implementado. Cuando se implemente conforme a
+`SERVICE_UPGRADE_FLOW.md`, su commit atómico deberá actualizar `Event.serviceId`, que continuará siendo
+la fuente del servicio contratado actual; `activatedServiceId` conserva exclusivamente el snapshot
+histórico de la activación inicial.
 
 ## Guard por estado
 
@@ -103,7 +113,8 @@ El estado no se comunica únicamente mediante color.
 - Un `403` muestra acceso no permitido sin revelar ownership ni existencia de otros Clientes.
 - Un `404` muestra que el Evento no está disponible, sin IDs.
 - Red, `429`, `5xx` o respuesta inválida muestran **No pudimos cargar este evento.** y **Reintentar**.
-- El retry de ese estado vuelve a consultar únicamente `GET /events/:eventId`.
+- El retry de ese estado vuelve a consultar únicamente `GET /events/:eventId`; el Resumen no inicia
+  requests a `GET /services`.
 - `operationId`, si existe, se presenta solo como `Referencia: ...`.
 
 ## Responsive y accesibilidad
@@ -122,4 +133,4 @@ tratamiento global de `prefers-reduced-motion`.
 - lifecycle, cierre, reapertura, cancelación o archivo;
 - edición de Invitación o Croquis;
 - Álbum operativo, reportes, realtime o métricas adicionales;
-- cambios de API, OpenAPI, Prisma, schema, migraciones, endpoints, estados o readiness.
+- cambios de Prisma, schema, migraciones, endpoints, estados o readiness.

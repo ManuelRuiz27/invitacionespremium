@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { ApiProperty } from '@nestjs/swagger';
 import { z } from 'zod';
-import { EventSocialType, EventStatus } from '../generated/prisma/client';
+import { EventSocialType, EventStatus, ServiceCode } from '../generated/prisma/client';
 import { FinanceBalanceResponseDto, LedgerMovementResponseDto, ReceiptResponseDto } from '../finance/finance.dto';
 import { normalizeEventDestinationUrl } from './event-destination-url';
 
@@ -109,6 +109,9 @@ export class EventResponseDto {
 
   @ApiProperty({ type: String, format: 'uuid', nullable: true })
   serviceId!: string | null;
+
+  @ApiProperty({ enum: ServiceCode, nullable: true })
+  serviceCode!: ServiceCode | null;
 
   @ApiProperty({ type: String, nullable: true })
   name!: string | null;

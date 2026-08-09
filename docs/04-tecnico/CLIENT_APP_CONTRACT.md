@@ -164,7 +164,9 @@ están disponibles. No muestra IDs o enums ni inventa métricas. Las áreas futu
 y **Staff** se documentan, pero no aparecen hasta que sean funcionales.
 
 Carga, cambio de `eventId`, `401`, `403`, `404`, errores recuperables y retry siguen el contrato de
-sesión y fetching existente. El detalle normativo se encuentra en
+sesión y fetching existente. `EventResponseDto.serviceCode` aporta el Servicio contratado; el Resumen lo
+traduce con el mapper compartido y no consulta el catálogo comercial `GET /services`. El detalle
+normativo se encuentra en
 `docs/04-tecnico/ACTIVE_EVENT_WORKSPACE_CONTRACT.md`.
 
 ## Finanzas

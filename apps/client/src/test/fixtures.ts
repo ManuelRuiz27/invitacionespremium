@@ -46,6 +46,7 @@ export const configuredEvent = {
   clientId: independentUser.clientId,
   createdByUserId: independentUser.id,
   serviceId: null,
+  serviceCode: null,
   name: 'Boda de Ana y Luis',
   socialType: 'WEDDING',
   status: 'CONFIGURED',

@@ -26,6 +26,18 @@ No existe una entidad adicional de “servicio contratado”. El Evento referenc
 Los snapshots de activación son la fuente histórica del Evento: una vez activado no dependen de cambios
 posteriores en precios, servicios ni configuración.
 
+## Proyección del servicio contratado
+
+`EventResponseDto` incluye `serviceCode`, nullable y tipado con el enum `ServiceCode` existente. Se deriva
+directamente de `Event.serviceId → Service.code`, sin exigir que el Servicio permanezca activo ni que
+exista un precio o promoción vigente. `serviceId` nulo produce `serviceCode` nulo; no se inventa un
+servicio por defecto.
+
+`Event.serviceId` representa el Servicio contratado actual. `activatedServiceId` conserva el Servicio de
+la activación inicial como parte del snapshot financiero inmutable y no sustituye a la relación actual.
+El futuro commit del upgrade Flyer → Flipbook deberá actualizar `Event.serviceId` atómicamente conforme a
+`SERVICE_UPGRADE_FLOW.md`; ese workflow no se implementa en CODEX-124A-R1.
+
 ## Tipos sociales
 
 | Código API | Nombre de producto |
