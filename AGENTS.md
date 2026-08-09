@@ -10,3 +10,4 @@
 8. `packages/api-client` se generará desde OpenAPI; no mantener DTOs duplicados manualmente.
 9. Cada cambio debe ejecutar lint, typecheck, tests y build.
 10. No agregar secretos ni credenciales al repositorio.
+11. Cualquier cambio en Croquis, Mesas, distribución o asignación visual debe leer primero `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md` y `docs/04-tecnico/FLOORPLAN_STICKER_SEATING_CONTRACT.md`; para UI/UX consultar además `docs/03-diseno/FLOORPLAN_UX_TARGET.md` y su render. La asignación individual por asiento no queda autorizada para implementación backend mientras el contrato base vigente siga prohibiendo cambios de payload/endpoints; esa fase requiere ADR y actualización contractual explícita antes de código.
