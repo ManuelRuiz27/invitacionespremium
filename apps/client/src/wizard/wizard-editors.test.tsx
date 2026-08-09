@@ -100,10 +100,10 @@ describe('visual wizard editors', () => {
         disabled={false}
       />
     );
-    expect(await screen.findByAltText('Imagen inicial')).toBeInTheDocument();
-    expect(await screen.findByAltText('Imagen QR')).toBeInTheDocument();
+    expect(await screen.findByAltText('Imagen principal')).toBeInTheDocument();
+    expect(await screen.findByAltText('Imagen con QR')).toBeInTheDocument();
     await userEvent.upload(
-      screen.getByLabelText('Agregar o sustituir imagen inicial'),
+      screen.getByRole('button', { name: 'Cambiar imagen principal' }).querySelector('input')!,
       new File(['x'], 'new.png', { type: 'image/png' })
     );
     await waitFor(() =>
@@ -120,7 +120,7 @@ describe('visual wizard editors', () => {
   it('supports Flipbook page selection, reorder, replacement, deletion and adding through real controls', async () => {
     const api = mockApiClient();
     vi.mocked(api.design.get).mockResolvedValue(flipbook);
-    vi.mocked(api.design.removePage).mockResolvedValue(undefined);
+    vi.mocked(api.design.removePage).mockResolvedValue(flipbook);
     vi.mocked(api.design.reorderPages).mockResolvedValue(flipbook);
     vi.mocked(api.design.replacePage).mockResolvedValue(flipbook);
     vi.mocked(api.design.addPage).mockResolvedValue(flipbook);
@@ -144,18 +144,21 @@ describe('visual wizard editors', () => {
         disabled={false}
       />
     );
-    expect(await screen.findByText(/La Página 1 es la portada/)).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Portada' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Acciones de la portada' })).toBeInTheDocument();
-    await userEvent.click(screen.getAllByRole('button', { name: 'Mover después' })[0]!);
+    await userEvent.click(screen.getByRole('button', { name: 'Mover Página 1 después' }));
     expect(api.design.reorderPages).toHaveBeenCalledWith(configuredEvent.id, { pageIds: ['page-2', 'page-1'] });
     await userEvent.upload(
-      screen.getAllByLabelText('Reemplazar')[0]!,
+      screen.getByRole('button', { name: 'Reemplazar Página 1' }).querySelector('input')!,
       new File(['x'], 'replace.png', { type: 'image/png' })
     );
     expect(api.design.replacePage).toHaveBeenCalled();
-    await userEvent.click(screen.getAllByRole('button', { name: 'Eliminar' })[0]!);
+    await userEvent.click(screen.getByRole('button', { name: 'Eliminar Página 1' }));
     expect(api.design.removePage).toHaveBeenCalled();
-    await userEvent.upload(screen.getByLabelText('Agregar página'), new File(['x'], 'add.png', { type: 'image/png' }));
+    await userEvent.upload(
+      screen.getByRole('button', { name: 'Agregar páginas' }).querySelector('input')!,
+      new File(['x'], 'add.png', { type: 'image/png' })
+    );
     expect(api.design.addPage).toHaveBeenCalled();
   });
 

@@ -50,13 +50,13 @@ export function FloorplanInventory({
             variant="overline"
             sx={{ color: 'primary.main', fontWeight: 800, letterSpacing: '0.12em' }}
           >
-            Biblioteca
+            Mesas por colocar
           </Typography>
           <Typography component="h3" variant="h4" id="inventory-title">
-            Inventario de mesas
+            Prepara tus mesas
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            Define tus tipos una vez y colócalos como stickers.
+            Define tus tipos una vez y arrastra cada mesa al plano.
           </Typography>
         </Box>
 

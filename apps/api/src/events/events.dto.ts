@@ -45,7 +45,10 @@ const eventFields = {
 
 const createEventSchema = z.object(eventFields).strict();
 const updateEventSchema = z
-  .object(eventFields)
+  .object({
+    ...eventFields,
+    resetInvitationDesign: z.literal(true).optional()
+  })
   .strict()
   .refine((value) => Object.keys(value).length > 0, { message: 'At least one field is required.' });
 
@@ -95,7 +98,15 @@ export class CreateEventRequestDto {
   floorplanEnabled?: boolean;
 }
 
-export class UpdateEventRequestDto extends CreateEventRequestDto {}
+export class UpdateEventRequestDto extends CreateEventRequestDto {
+  @ApiProperty({
+    type: Boolean,
+    required: false,
+    description:
+      'Explicit consent to soft-reset an incompatible active invitation design when switching between Flyer and Flipbook before activation.'
+  })
+  resetInvitationDesign?: true;
+}
 
 export class EventResponseDto {
   @ApiProperty({ type: String, format: 'uuid' })

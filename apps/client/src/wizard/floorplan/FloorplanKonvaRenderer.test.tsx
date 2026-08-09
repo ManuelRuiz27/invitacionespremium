@@ -191,7 +191,32 @@ describe('FloorplanKonvaRenderer de producción', () => {
     expect(onViewportChange).toHaveBeenCalledWith({ scale: 1.1, x: -10.000000000000014, y: -10.000000000000014 });
     view.rerender(<FloorplanKonvaRenderer {...props({ panEnabled: true, onViewportChange })} />);
     expect(latest('Stage').props.draggable).toBe(true);
-    act(() => (latest('Stage').props.onDragEnd as (event: unknown) => void)({ target: { x: () => 24, y: () => 36 } }));
+    act(() =>
+      (latest('Stage').props.onDragEnd as (event: unknown) => void)({
+        target: { getType: () => 'Stage', x: () => 24, y: () => 36 }
+      })
+    );
     expect(onViewportChange).toHaveBeenLastCalledWith({ scale: 1, x: 24, y: 36 });
+  });
+
+  it('inicia pinch de dos dedos sin exigir el modo manual y detiene un drag previo', () => {
+    render(<FloorplanKonvaRenderer {...props()} />);
+    const preventDefault = vi.fn();
+    const stopDrag = vi.fn();
+    act(() =>
+      (latest('Stage').props.onTouchStart as (event: unknown) => void)({
+        evt: {
+          preventDefault,
+          touches: [
+            { clientX: 100, clientY: 100 },
+            { clientX: 200, clientY: 100 }
+          ]
+        },
+        target: { stopDrag }
+      })
+    );
+    expect(preventDefault).toHaveBeenCalledOnce();
+    expect(stopDrag).toHaveBeenCalledOnce();
+    expect(latest('Stage').props.style).toEqual({ touchAction: 'pan-y' });
   });
 });

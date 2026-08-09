@@ -54,7 +54,19 @@ describe('wizard copy presentation', () => {
     ['EVENT_LOCATION_URL_MISSING', 'Agrega la ubicación del evento.'],
     ['EVENT_GIFT_REGISTRY_URL_MISSING', 'Agrega la mesa de regalos.'],
     ['CLIENT_NOT_ACTIVE', 'Tu cuenta no está habilitada para realizar esta acción.'],
-    ['IDEMPOTENCY_CONFLICT', 'No pudimos completar esta operación. Actualiza la información e inténtalo nuevamente.']
+    ['IDEMPOTENCY_CONFLICT', 'No pudimos completar esta operación. Actualiza la información e inténtalo nuevamente.'],
+    ['INVITATION_DESIGN_NOT_FOUND', 'Todavía no hay un diseño de invitación.'],
+    ['INVITATION_DESIGN_CONFLICT', 'El diseño cambió al mismo tiempo. Actualiza la vista e inténtalo nuevamente.'],
+    ['INVITATION_DESIGN_SERVICE_MISMATCH', 'El diseño actual no corresponde al formato de invitación elegido.'],
+    ['INVITATION_DESIGN_EVENT_STATE_LOCKED', 'El diseño ya no puede modificarse en el estado actual del evento.'],
+    ['FLIPBOOK_PAGE_LIMIT_EXCEEDED', 'El Flipbook admite un máximo de 10 páginas.'],
+    ['HOTSPOT_EXTERNAL_LINK_LIMIT_EXCEEDED', 'Puedes agregar hasta tres enlaces adicionales.'],
+    ['HOTSPOT_QR_PAGE_ALREADY_DEFINED', 'Ya elegiste otra página para mostrar el QR.'],
+    [
+      'HOTSPOT_VISUAL_OWNER_NOT_OPERATIONAL',
+      'El orden no cambió porque algunas acciones dependen de la portada o de la página QR. Revisa esas acciones primero.'
+    ],
+    ['HOTSPOT_COORDINATES_INVALID', 'Coloca el área completamente dentro de la imagen.']
   ])('translates %s into actionable copy', (code, expected) => {
     const error = new ApiError(409, code, 'technical detail', 'op-123');
     expect(errorMessage(error)).toBe(expected);

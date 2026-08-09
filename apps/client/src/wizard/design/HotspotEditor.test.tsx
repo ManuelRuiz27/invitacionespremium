@@ -241,6 +241,61 @@ describe('HotspotEditor as invitation actions', () => {
     expect(mover).toHaveStyle({ touchAction: 'none' });
   });
 
+  it('zooms with wheel and pans with Space plus drag without persisting the viewport', async () => {
+    const { api } = renderEditor({ hotspots: [existingAction] });
+    const canvas = screen.getByLabelText('Vista previa interactiva de la invitación');
+    const viewport = canvas.parentElement!;
+    vi.spyOn(viewport, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: 800,
+      bottom: 600,
+      width: 800,
+      height: 600,
+      toJSON: () => ({})
+    });
+    fireEvent.wheel(viewport, { deltaY: -100, clientX: 400, clientY: 300 });
+    expect(screen.getByRole('button', { name: 'Ajustar vista previa' })).toHaveTextContent('112%');
+    fireEvent.keyDown(viewport, { code: 'Space' });
+    fireEvent.pointerDown(viewport, { pointerId: 21, pointerType: 'mouse', clientX: 300, clientY: 220 });
+    fireEvent.pointerMove(viewport, { pointerId: 21, pointerType: 'mouse', clientX: 360, clientY: 260 });
+    fireEvent.pointerUp(viewport, { pointerId: 21, pointerType: 'mouse' });
+    fireEvent.keyUp(viewport, { code: 'Space' });
+    expect(getComputedStyle(canvas).transform).toContain('translate');
+    expect(api.design.updateHotspot).not.toHaveBeenCalled();
+  });
+
+  it('always treats two touch pointers as viewport pinch/pan while one finger outside manipulation keeps page scroll', () => {
+    renderEditor({ hotspots: [existingAction] });
+    const canvas = screen.getByLabelText('Vista previa interactiva de la invitación');
+    const viewport = canvas.parentElement!;
+    expect(viewport).toHaveStyle({ touchAction: 'pan-y' });
+    fireEvent.pointerDown(viewport, { pointerId: 31, pointerType: 'touch', clientX: 100, clientY: 100 });
+    fireEvent.pointerDown(viewport, { pointerId: 32, pointerType: 'touch', clientX: 200, clientY: 100 });
+    fireEvent.pointerMove(viewport, { pointerId: 32, pointerType: 'touch', clientX: 260, clientY: 140 });
+    expect(screen.getByRole('button', { name: 'Ajustar vista previa' })).not.toHaveTextContent('100%');
+    fireEvent.pointerUp(viewport, { pointerId: 31, pointerType: 'touch' });
+    fireEvent.pointerUp(viewport, { pointerId: 32, pointerType: 'touch' });
+  });
+
+  it('switches safely from one-finger area movement to a two-finger viewport gesture', async () => {
+    const { api } = renderEditor();
+    await beginAction('Confirmar asistencia');
+    setCanvasBounds();
+    const mover = screen.getByRole('group', { name: 'Mover acción Confirmar asistencia' });
+    const viewport = screen.getByLabelText('Vista previa interactiva de la invitación').parentElement!;
+    fireEvent.pointerDown(mover, { pointerId: 41, pointerType: 'touch', clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(mover, { pointerId: 41, pointerType: 'touch', clientX: 140, clientY: 120 });
+    fireEvent.pointerDown(viewport, { pointerId: 42, pointerType: 'touch', clientX: 240, clientY: 120 });
+    fireEvent.pointerMove(viewport, { pointerId: 42, pointerType: 'touch', clientX: 300, clientY: 150 });
+    fireEvent.pointerMove(mover, { pointerId: 41, pointerType: 'touch', clientX: 180, clientY: 140 });
+    expect(screen.getByRole('button', { name: 'Ajustar vista previa' })).not.toHaveTextContent('100%');
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar acción' }));
+    expect(api.design.createHotspot).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps external-link validation internal and explains the correction naturally', async () => {
     const { api } = renderEditor();
     await beginAction('Enlace adicional');

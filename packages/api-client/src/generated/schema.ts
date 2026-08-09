@@ -3266,6 +3266,8 @@ export type components = {
              */
             locationUrl?: string | null;
             name?: string | null;
+            /** @description Explicit consent to soft-reset an incompatible active invitation design when switching between Flyer and Flipbook before activation. */
+            resetInvitationDesign?: boolean;
             /** Format: uuid */
             serviceId?: string | null;
             /** @enum {string|null} */

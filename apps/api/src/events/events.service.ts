@@ -10,6 +10,9 @@ import {
   AuditActorType,
   ClientStatus,
   EventStatus,
+  FileAssetOwnerType,
+  FileAssetStatus,
+  InvitationDesignType,
   Prisma,
   ServiceCode,
   UserRole,
@@ -148,8 +151,14 @@ export class EventsService {
       beforeData: eventAuditSnapshot(current),
       ...(operationId === undefined ? {} : { operationId }),
       mutate: async (transaction) => {
-        const merged = mergePreparationData(current, input);
+        await transaction.$queryRaw`SELECT "id" FROM "event" WHERE "id" = ${eventId}::uuid FOR UPDATE`;
+        const locked = await this.findOwnedEvent(transaction, eventId, principal);
+        if (!PREPARATION_STATUSES.includes(locked.status)) {
+          throw invalidEventState('Only Events in preparation may be edited.');
+        }
+        const merged = mergePreparationData(locked, input);
         await this.requireAvailableService(transaction, merged.serviceId);
+        await this.resetIncompatibleDigitalDesign(transaction, locked, merged.serviceId, input, principal, operationId);
         await transaction.event.update({
           where: { id: eventId },
           data: {
@@ -544,6 +553,109 @@ export class EventsService {
     }
   }
 
+  private async resetIncompatibleDigitalDesign(
+    transaction: Prisma.TransactionClient,
+    current: EventWithService,
+    targetServiceId: string | null,
+    input: UpdateEventInput,
+    principal: AuthPrincipal,
+    operationId?: string
+  ): Promise<void> {
+    if (!input.serviceId || input.serviceId === current.serviceId || !isDigitalService(current.service?.code)) return;
+    const target = await transaction.service.findFirst({
+      where: { id: targetServiceId ?? '', isActive: true },
+      select: { code: true }
+    });
+    if (!target || !isDigitalService(target.code) || target.code === current.service?.code) return;
+
+    const design = await transaction.invitationDesign.findFirst({
+      where: { eventId: current.id, deletedAt: null },
+      include: { pages: { where: { deletedAt: null }, orderBy: { position: 'asc' } } }
+    });
+    const targetType = target.code === ServiceCode.FLYER ? InvitationDesignType.FLYER : InvitationDesignType.FLIPBOOK;
+    if (!design || design.type === targetType) return;
+    if (input.resetInvitationDesign !== true) {
+      throw new DomainError(
+        'EVENT_INVITATION_DESIGN_RESET_REQUIRED',
+        'Changing the digital service requires explicit consent to reset the incompatible invitation design.',
+        HttpStatus.CONFLICT
+      );
+    }
+
+    const at = new Date();
+    const assets = [
+      ...(design.flyerInitialAssetId
+        ? [{ id: design.flyerInitialAssetId, ownerType: FileAssetOwnerType.FLYER, ownerId: design.id }]
+        : []),
+      ...(design.flyerQrAssetId
+        ? [{ id: design.flyerQrAssetId, ownerType: FileAssetOwnerType.FLYER, ownerId: design.id }]
+        : []),
+      ...design.pages.map((page) => ({
+        id: page.fileAssetId,
+        ownerType: FileAssetOwnerType.FLIPBOOK_PAGE,
+        ownerId: page.id
+      }))
+    ];
+    await transaction.hotspot.updateMany({ where: { designId: design.id, deletedAt: null }, data: { deletedAt: at } });
+    await transaction.flipbookPage.updateMany({
+      where: { designId: design.id, deletedAt: null },
+      data: { deletedAt: at }
+    });
+    await transaction.invitationDesign.update({ where: { id: design.id }, data: { deletedAt: at } });
+
+    for (const reference of assets) {
+      await transaction.$queryRaw`SELECT "id" FROM "file_asset" WHERE "id" = ${reference.id}::uuid FOR UPDATE`;
+      const asset = await transaction.fileAsset.findUnique({ where: { id: reference.id } });
+      if (
+        !asset ||
+        asset.deletedAt !== null ||
+        asset.status !== FileAssetStatus.READY ||
+        asset.ownerType !== reference.ownerType ||
+        asset.ownerId !== reference.ownerId
+      ) {
+        continue;
+      }
+      const hidden = await transaction.fileAsset.update({
+        where: { id: asset.id },
+        data: { status: FileAssetStatus.HIDDEN }
+      });
+      await this.audit.record(
+        {
+          actor: { type: AuditActorType.USER, id: principal.userId },
+          clientId: hidden.clientId,
+          eventId: current.id,
+          resourceType: 'FILE_ASSET',
+          resourceId: hidden.id,
+          action: 'FILE_ASSET_HIDE',
+          afterData: {
+            id: hidden.id,
+            ownerType: hidden.ownerType,
+            ownerId: hidden.ownerId,
+            fileType: hidden.fileType,
+            status: hidden.status
+          },
+          ...(operationId === undefined ? {} : { operationId })
+        },
+        transaction
+      );
+    }
+
+    await this.audit.record(
+      {
+        actor: { type: AuditActorType.USER, id: principal.userId },
+        clientId: current.clientId,
+        eventId: current.id,
+        resourceType: 'INVITATION_DESIGN',
+        resourceId: design.id,
+        action: 'INVITATION_DESIGN_RESET_FOR_SERVICE_CHANGE',
+        beforeData: { id: design.id, type: design.type, deletedAt: null },
+        afterData: { id: design.id, type: design.type, deletedAt: at, targetService: target.code },
+        ...(operationId === undefined ? {} : { operationId })
+      },
+      transaction
+    );
+  }
+
   private async findActivationResult(
     eventId: string,
     idempotencyKey: string,
@@ -634,6 +746,10 @@ function requireClientId(principal: AuthPrincipal): string {
 
 function invalidEventState(message: string): ConflictException {
   return new ConflictException({ code: 'EVENT_INVALID_STATE_TRANSITION', message });
+}
+
+function isDigitalService(code: ServiceCode | undefined): code is Extract<ServiceCode, 'FLYER' | 'FLIPBOOK'> {
+  return code === ServiceCode.FLYER || code === ServiceCode.FLIPBOOK;
 }
 
 export function eventAuditSnapshot(event: Event): Record<string, unknown> {

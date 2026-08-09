@@ -72,10 +72,11 @@ export function FloorplanKonvaRenderer(
   };
 
   const startPinch = (event: KonvaEventObject<TouchEvent>) => {
-    if (!props.panEnabled || event.evt.touches.length !== 2) return;
+    if (event.evt.touches.length !== 2) return;
     event.evt.preventDefault();
     const stage = stageRef.current;
     if (!stage) return;
+    event.target.stopDrag();
     stage.stopDrag();
     const first = touchPoint(event.evt.touches[0]!, stage);
     const second = touchPoint(event.evt.touches[1]!, stage);
@@ -123,9 +124,9 @@ export function FloorplanKonvaRenderer(
       scaleY={props.viewport.scale}
       x={props.viewport.x}
       y={props.viewport.y}
-      draggable={Boolean(props.panEnabled && !selected)}
+      draggable={Boolean(props.panEnabled)}
       onDragEnd={(event) => {
-        if (selected || !props.panEnabled) return;
+        if (!props.panEnabled || event.target.getType() !== 'Stage') return;
         props.onViewportChange({ ...props.viewport, x: event.target.x(), y: event.target.y() });
       }}
       onWheel={wheel}

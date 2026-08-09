@@ -70,6 +70,27 @@ Contactos permite alta, edición de nombre/WhatsApp/Grupo y eliminación confirm
 basa en Asistentes nominales autorizados de Invitaciones, no en el número de Contactos. El preview presenta
 todas las filas y errores antes del commit.
 
+### Cambio de servicio digital antes de activar
+
+Cambiar entre Flyer y Flipbook mientras el Evento permanece en preparación requiere resolver primero cualquier
+diseño activo incompatible. La UI consulta el diseño de forma autoritativa y, si existe, solicita confirmación
+explícita antes de enviar el cambio. El diálogo explica que se reiniciará únicamente el diseño de la Invitación;
+Contactos, Invitaciones, Asistentes, Confirmación, Croquis y el resto de la configuración se conservan.
+
+`PATCH /events/:eventId` admite `resetInvitationDesign: true` exclusivamente como consentimiento para un cambio
+Flyer ↔ Flipbook que vuelve incompatible el diseño activo. Si el cambio necesita ese reset y el campo no está
+presente, la API rechaza con `409 EVENT_INVITATION_DESIGN_RESET_REQUIRED` sin modificar el Evento. Con consentimiento,
+una sola transacción debe:
+
+1. bloquear y volver a validar el Evento en preparación;
+2. marcar con borrado lógico el diseño incompatible, sus páginas y sus acciones;
+3. ocultar sus FileAssets conforme a la política vigente, sin hard delete;
+4. cambiar el servicio y recalcular readiness;
+5. registrar auditoría del reset y del cambio de servicio.
+
+El resultado deja como máximo un diseño activo y nunca uno incompatible con el servicio configurado. El campo no
+habilita cambios postactivación, no crea diseños paralelos y no reutiliza el workflow de upgrade postactivación.
+
 ## Flyer, Flipbook y Hotspots
 
 Los previews descargan blobs privados y revocan cada Object URL. Flyer acepta solo JPG/PNG, presenta imagen

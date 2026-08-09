@@ -37,6 +37,7 @@ export function FloorplanSurface(props: FloorplanSurfaceProps) {
   const [snap, setSnap] = useState(false);
   const [showSeats, setShowSeats] = useState(false);
   const [panEnabled, setPanEnabled] = useState(false);
+  const [spacePanEnabled, setSpacePanEnabled] = useState(false);
   const [history, setHistory] = useState<HistoryState<FloorplanShapeInput> | undefined>(() =>
     props.draft ? createHistory(props.draft) : undefined
   );
@@ -84,7 +85,7 @@ export function FloorplanSurface(props: FloorplanSurfaceProps) {
     draft: props.draft,
     snap,
     showSeats,
-    panEnabled,
+    panEnabled: panEnabled || spacePanEnabled,
     onDraftChange: changeDraft
   };
 
@@ -133,7 +134,45 @@ export function FloorplanSurface(props: FloorplanSurfaceProps) {
         <Box
           ref={setOwnerRef}
           data-testid="floorplan-renderer-host"
+          tabIndex={0}
+          aria-label="Superficie interactiva del plano"
           sx={{ width: '100%', overflow: 'hidden', bgcolor: floorplanColors.canvas }}
+          onPointerDownCapture={() => ownerRef.current?.focus({ preventScroll: true })}
+          onKeyDown={(event) => {
+            if (event.code === 'Space') {
+              event.preventDefault();
+              setSpacePanEnabled(true);
+              return;
+            }
+            if (event.key === '0') {
+              event.preventDefault();
+              setViewport(defaultViewport);
+              return;
+            }
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+              event.preventDefault();
+              applyHistory(event.shiftKey ? 'redo' : 'undo');
+              return;
+            }
+            if (!props.draft || props.disabled || !event.key.startsWith('Arrow')) return;
+            event.preventDefault();
+            const step = event.shiftKey ? 0.01 : 0.0025;
+            changeDraft({
+              ...props.draft,
+              x: Math.min(
+                1 - props.draft.width,
+                Math.max(0, props.draft.x + (event.key === 'ArrowLeft' ? -step : event.key === 'ArrowRight' ? step : 0))
+              ),
+              y: Math.min(
+                1 - props.draft.height,
+                Math.max(0, props.draft.y + (event.key === 'ArrowUp' ? -step : event.key === 'ArrowDown' ? step : 0))
+              )
+            });
+          }}
+          onKeyUp={(event) => {
+            if (event.code === 'Space') setSpacePanEnabled(false);
+          }}
+          onBlur={() => setSpacePanEnabled(false)}
           onDragOver={(event) => {
             if (props.disabled || !props.onCanvasPlace) return;
             event.preventDefault();

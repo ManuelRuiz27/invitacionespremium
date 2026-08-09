@@ -422,6 +422,23 @@ export class InvitationDesignService {
       if (pages.length !== input.pageIds.length || pages.some((page) => !input.pageIds.includes(page.id))) {
         throw designConflict('Reorder must contain every active Flipbook page exactly once.');
       }
+      const hotspots = await transaction.hotspot.findMany({
+        where: { designId: design.id, deletedAt: null, flipbookPageId: { not: null } },
+        select: { action: true, flipbookPageId: true }
+      });
+      const nextPositions = new Map(input.pageIds.map((id, index) => [id, index + 1]));
+      const qrPages = new Set(
+        hotspots.filter((hotspot) => hotspot.action === HotspotAction.QR_AREA).map((hotspot) => hotspot.flipbookPageId)
+      );
+      const invalidPlacement = hotspots.some((hotspot) => {
+        const position = hotspot.flipbookPageId ? nextPositions.get(hotspot.flipbookPageId) : undefined;
+        if (hotspot.action === HotspotAction.QR_AREA) return false;
+        if (hotspot.action === HotspotAction.EXTERNAL_LINK) {
+          return position !== 1 && !qrPages.has(hotspot.flipbookPageId);
+        }
+        return position !== 1;
+      });
+      if (invalidPlacement) throw hotspotPlacementInvalid();
       const before = await resolveDesignReadiness(transaction, eventId, ServiceCode.FLIPBOOK);
       const beforeOrder = pages.map((page) => page.id);
       for (const [index, id] of input.pageIds.entries()) {

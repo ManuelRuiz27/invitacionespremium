@@ -123,6 +123,51 @@ describe('InvitationDesignModule', () => {
     expect(auditText).not.toContain(initial.checksumSha256);
   });
 
+  it('requires explicit consent and atomically resets only an incompatible pre-activation design in both directions', async () => {
+    const owner = await createOwner(UserRole.INDEPENDENT_PLANNER, ClientType.PLANNER);
+    const event = await createEvent(owner, ServiceCode.FLYER);
+    const cookie = await login(owner.email);
+    const flyer = await createFlyerDesign(event, owner.userId, cookie);
+    await mutate('post', `/events/${event.id}/hotspots`, cookie).send(flyerHotspot(HotspotAction.RSVP)).expect(201);
+    const flipbookService =
+      (await prisma.service.findUnique({ where: { code: ServiceCode.FLIPBOOK } })) ??
+      (await prisma.service.create({ data: { code: ServiceCode.FLIPBOOK } }));
+
+    await mutate('patch', `/events/${event.id}`, cookie)
+      .send({ serviceId: flipbookService.id })
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('EVENT_INVITATION_DESIGN_RESET_REQUIRED'));
+    expect((await prisma.event.findUniqueOrThrow({ where: { id: event.id } })).serviceId).not.toBe(flipbookService.id);
+    expect(await prisma.invitationDesign.count({ where: { eventId: event.id, deletedAt: null } })).toBe(1);
+
+    await mutate('patch', `/events/${event.id}`, cookie)
+      .send({ serviceId: flipbookService.id, resetInvitationDesign: true })
+      .expect(200)
+      .expect(({ body }) =>
+        expect(body).toMatchObject({
+          serviceId: flipbookService.id,
+          serviceCode: 'FLIPBOOK',
+          confirmationEnabled: true
+        })
+      );
+    expect(await prisma.invitationDesign.count({ where: { eventId: event.id, deletedAt: null } })).toBe(0);
+    expect(await prisma.hotspot.count({ where: { designId: flyer.id, deletedAt: null } })).toBe(0);
+    expect(await prisma.fileAsset.count({ where: { eventId: event.id, status: FileAssetStatus.HIDDEN } })).toBe(2);
+
+    const next = await createFlipbookDesign(event, owner.userId, cookie, 1);
+    const flyerService = await prisma.service.findUniqueOrThrow({ where: { code: ServiceCode.FLYER } });
+    await mutate('patch', `/events/${event.id}`, cookie)
+      .send({ serviceId: flyerService.id, resetInvitationDesign: true })
+      .expect(200)
+      .expect(({ body }) => expect(body.serviceCode).toBe('FLYER'));
+    expect(await prisma.invitationDesign.count({ where: { eventId: event.id, deletedAt: null } })).toBe(0);
+    expect((await prisma.invitationDesign.findUniqueOrThrow({ where: { id: next.id } })).deletedAt).not.toBeNull();
+    expect(await prisma.fileAsset.count({ where: { eventId: event.id, status: FileAssetStatus.HIDDEN } })).toBe(3);
+    const auditText = JSON.stringify(await prisma.auditLog.findMany({ where: { eventId: event.id } }));
+    expect(auditText.match(/INVITATION_DESIGN_RESET_FOR_SERVICE_CHANGE/gu)).toHaveLength(2);
+    expect(auditText).toContain('FILE_ASSET_HIDE');
+  });
+
   it('rolls back Flyer creation for foreign or already claimed assets', async () => {
     const owner = await createOwner(UserRole.INDEPENDENT_PLANNER, ClientType.PLANNER);
     const foreign = await createOwner(UserRole.INDEPENDENT_PLANNER, ClientType.PLANNER);
@@ -310,23 +355,13 @@ describe('InvitationDesignModule', () => {
     await setEventStatus(event.id, EventStatus.READY_TO_ACTIVATE);
     await mutate('patch', `/events/${event.id}/design/flipbook/pages/reorder`, cookie)
       .send({ pageIds: [qrPage!.id, cover!.id, otherPage!.id] })
-      .expect(200);
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('HOTSPOT_VISUAL_OWNER_NOT_OPERATIONAL'));
     const afterReorder = (await read(`/events/${event.id}/design/readiness`, cookie).expect(200)).body;
-    expect(afterReorder.complete).toBe(false);
-    expect(afterReorder.blockers).toEqual(
-      expect.arrayContaining([
-        'FLIPBOOK_COVER_RSVP_HOTSPOT_MISSING',
-        'FLIPBOOK_COVER_LOCATION_HOTSPOT_MISSING',
-        'FLIPBOOK_COVER_GIFT_REGISTRY_HOTSPOT_MISSING',
-        'FLIPBOOK_HOTSPOT_PLACEMENT_INVALID'
-      ])
+    expect(afterReorder).toMatchObject({ complete: true, blockers: [] });
+    expect((await prisma.event.findUniqueOrThrow({ where: { id: event.id } })).status).toBe(
+      EventStatus.READY_TO_ACTIVATE
     );
-    expect((await prisma.event.findUniqueOrThrow({ where: { id: event.id } })).status).toBe(EventStatus.CONFIGURED);
-
-    await mutate('patch', `/events/${event.id}/design/flipbook/pages/reorder`, cookie)
-      .send({ pageIds: [cover!.id, qrPage!.id, otherPage!.id] })
-      .expect(200);
-    expect((await read(`/events/${event.id}/design/readiness`, cookie).expect(200)).body.complete).toBe(true);
     await mutate('delete', `/events/${event.id}/design/flipbook/pages/${qrPage!.id}`, cookie).expect(200);
     expect((await read(`/events/${event.id}/design/readiness`, cookie).expect(200)).body.blockers).toContain(
       'FLIPBOOK_QR_PAGE_MISSING'
@@ -563,9 +598,10 @@ describe('InvitationDesignModule', () => {
       }),
       read(`/events/${flipbookEvent.id}/design/readiness`, cookie)
     ]);
-    expect(reorderResult.status).toBe(200);
+    expect(reorderResult.status).toBe(409);
+    expect(reorderResult.body.code).toBe('HOTSPOT_VISUAL_OWNER_NOT_OPERATIONAL');
     expect(concurrentReadiness.status).toBe(200);
-    expect((await read(`/events/${flipbookEvent.id}/design/readiness`, cookie).expect(200)).body.complete).toBe(false);
+    expect((await read(`/events/${flipbookEvent.id}/design/readiness`, cookie).expect(200)).body.complete).toBe(true);
 
     const deleteRaceEvent = await createEvent(owner, ServiceCode.FLIPBOOK);
     const deleteRace = await createFlipbookDesign(deleteRaceEvent, owner.userId, cookie, 2);

@@ -245,11 +245,14 @@ export function createDesignClient(request: ApiRequester) {
         record
       ),
     removePage: (eventId: string, pageId: string) =>
-      request<void>({
-        method: 'DELETE',
-        path: `${base(eventId)}/design/flipbook/pages/${id(pageId)}`,
-        response: 'empty'
-      }),
+      request<InvitationDesign>(
+        {
+          method: 'DELETE',
+          path: `${base(eventId)}/design/flipbook/pages/${id(pageId)}`,
+          response: 'json'
+        },
+        record
+      ),
     hotspots: (eventId: string) => request<Hotspot[]>({ path: `${base(eventId)}/hotspots`, response: 'json' }, records),
     createHotspot: (eventId: string, body: HotspotInput) =>
       request<Hotspot>({ method: 'POST', path: `${base(eventId)}/hotspots`, body, response: 'json' }, record),

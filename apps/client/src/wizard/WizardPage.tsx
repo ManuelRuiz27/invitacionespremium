@@ -113,6 +113,32 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
     setDraft(next);
     if (eventRef.current && isEditableEvent(eventRef.current.status)) autosave.schedule(next);
   };
+  const resetInvitationDesignAndChangeService = async (serviceId: string): Promise<void> => {
+    const current = eventRef.current;
+    if (!current) {
+      changeDraft({ serviceId });
+      return;
+    }
+    if (!(await autosave.flush())) throw new Error('Pending Event changes could not be saved.');
+    setSaveState('saving');
+    try {
+      const request: UpdateEventInput & { resetInvitationDesign: true } = {
+        ...draftRef.current,
+        serviceId,
+        resetInvitationDesign: true
+      };
+      const updated = await apiClient.events.update(current.id, request);
+      const next = toDraft(updated);
+      eventRef.current = updated;
+      draftRef.current = next;
+      setEvent(updated);
+      setDraft(next);
+      setSaveState('saved');
+    } catch (reason) {
+      setSaveState('error');
+      throw reason;
+    }
+  };
   const ensureEvent = async (): Promise<Event | undefined> => {
     if (eventRef.current) {
       if (!(await autosave.flush())) {
@@ -178,7 +204,15 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
       onExit={() => void ensureEvent().then((saved) => saved && navigate('/eventos'))}
     >
       {selectedStep === 'datos' ? (
-        <DataStep services={services ?? []} draft={draft} disabled={!editable || creating} onChange={changeDraft} />
+        <DataStep
+          services={services ?? []}
+          draft={draft}
+          disabled={!editable || creating}
+          onChange={changeDraft}
+          apiClient={apiClient}
+          event={event}
+          onResetInvitationDesign={resetInvitationDesignAndChangeService}
+        />
       ) : null}
       {selectedStep === 'contactos' && event ? (
         <ContactsStep apiClient={apiClient} event={event} disabled={!editable} />

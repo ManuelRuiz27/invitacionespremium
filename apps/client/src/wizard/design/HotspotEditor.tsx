@@ -116,13 +116,23 @@ export function HotspotEditor({
     ownerType === 'FLYER' ? item.visualOwnerType === 'FLYER' : item.flipbookPageId === pageId
   );
   const canvasRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
   const mutationLockRef = useRef(false);
+  const touchesRef = useRef(new Map<number, { x: number; y: number }>());
+  const viewportGestureRef = useRef<
+    | { type: 'pinch'; distance: number; centerX: number; centerY: number; zoom: number; panX: number; panY: number }
+    | { type: 'pan'; x: number; y: number; panX: number; panY: number }
+    | undefined
+  >(undefined);
+  const spacePressedRef = useRef(false);
   const [mode, setMode] = useState<EditorMode>('idle');
   const [selectedId, setSelectedId] = useState<string>();
   const [draft, setDraft] = useState<Draft>(() => newDraft('RSVP'));
   const [urlTouched, setUrlTouched] = useState(false);
   const [mutation, setMutation] = useState<Mutation>();
   const [mutationMessage, setMutationMessage] = useState<string>();
+  const [confirmedMessage, setConfirmedMessage] = useState<string>();
+  const [viewport, setViewport] = useState({ zoom: 1, x: 0, y: 0 });
   const selected = visible.find((item) => item.id === selectedId);
   const editing = mode === 'creating' || mode === 'editing';
   const externalLinkCount = hotspots.filter((hotspot) => hotspot.action === 'EXTERNAL_LINK').length;
@@ -134,12 +144,89 @@ export function HotspotEditor({
   );
   const interactionDisabled = disabled || mutation !== undefined;
 
+  const updateZoom = (nextZoom: number, clientX?: number, clientY?: number) => {
+    const clamped = Math.min(4, Math.max(1, nextZoom));
+    setViewport((current) => {
+      const bounds = viewportRef.current?.getBoundingClientRect();
+      if (!bounds || clientX === undefined || clientY === undefined) return { zoom: clamped, x: 0, y: 0 };
+      const localX = clientX - bounds.left;
+      const localY = clientY - bounds.top;
+      const contentX = (localX - current.x) / current.zoom;
+      const contentY = (localY - current.y) / current.zoom;
+      return { zoom: clamped, x: localX - contentX * clamped, y: localY - contentY * clamped };
+    });
+  };
+
+  const handleViewportPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === 'touch') {
+      touchesRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (touchesRef.current.size === 2) {
+        const [a, b] = [...touchesRef.current.values()] as [{ x: number; y: number }, { x: number; y: number }];
+        viewportGestureRef.current = {
+          type: 'pinch',
+          distance: Math.hypot(b.x - a.x, b.y - a.y),
+          centerX: (a.x + b.x) / 2,
+          centerY: (a.y + b.y) / 2,
+          zoom: viewport.zoom,
+          panX: viewport.x,
+          panY: viewport.y
+        };
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+      }
+      return;
+    }
+    if (spacePressedRef.current) {
+      event.preventDefault();
+      viewportGestureRef.current = {
+        type: 'pan',
+        x: event.clientX,
+        y: event.clientY,
+        panX: viewport.x,
+        panY: viewport.y
+      };
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+    }
+  };
+
+  const handleViewportPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === 'touch' && touchesRef.current.has(event.pointerId)) {
+      touchesRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    }
+    const gesture = viewportGestureRef.current;
+    if (!gesture) return;
+    if (gesture.type === 'pan') {
+      event.preventDefault();
+      setViewport((current) => ({
+        ...current,
+        x: gesture.panX + event.clientX - gesture.x,
+        y: gesture.panY + event.clientY - gesture.y
+      }));
+      return;
+    }
+    if (touchesRef.current.size < 2) return;
+    event.preventDefault();
+    const [a, b] = [...touchesRef.current.values()];
+    if (!a || !b) return;
+    const distance = Math.max(1, Math.hypot(b.x - a.x, b.y - a.y));
+    const centerX = (a.x + b.x) / 2;
+    const centerY = (a.y + b.y) / 2;
+    const zoom = Math.min(4, Math.max(1, gesture.zoom * (distance / Math.max(1, gesture.distance))));
+    setViewport({ zoom, x: gesture.panX + centerX - gesture.centerX, y: gesture.panY + centerY - gesture.centerY });
+  };
+
+  const finishViewportPointer = (event: React.PointerEvent<HTMLDivElement>) => {
+    touchesRef.current.delete(event.pointerId);
+    if (touchesRef.current.size < 2 || viewportGestureRef.current?.type === 'pan')
+      viewportGestureRef.current = undefined;
+  };
+
   useEffect(() => {
     setMode('idle');
     setSelectedId(undefined);
     setDraft(newDraft('RSVP'));
     setUrlTouched(false);
     setMutationMessage(undefined);
+    setConfirmedMessage(undefined);
   }, [ownerType, pageId, pagePosition]);
 
   const cancel = () => {
@@ -204,8 +291,14 @@ export function HotspotEditor({
           ...(url ? { url } : {})
         });
       }
-      await onChanged();
-      cancel();
+      try {
+        await onChanged();
+        cancel();
+      } catch {
+        setMode('idle');
+        setSelectedId(undefined);
+        setConfirmedMessage('La acción sí se guardó. Actualiza la vista para ver la versión más reciente.');
+      }
     } catch (reason) {
       setMutationMessage(mutationError(reason, 'saving'));
     } finally {
@@ -221,8 +314,14 @@ export function HotspotEditor({
     setMutationMessage(undefined);
     try {
       await apiClient.design.removeHotspot(eventId, selected.id);
-      await onChanged();
-      cancel();
+      try {
+        await onChanged();
+        cancel();
+      } catch {
+        setMode('idle');
+        setSelectedId(undefined);
+        setConfirmedMessage('La acción sí se eliminó. Actualiza la vista para ver la versión más reciente.');
+      }
     } catch (reason) {
       setMutationMessage(mutationError(reason, 'deleting'));
     } finally {
@@ -250,6 +349,7 @@ export function HotspotEditor({
     const bounds = canvasRef.current?.getBoundingClientRect();
     if (!bounds?.width || !bounds.height) return;
     const onMove = (next: PointerEvent) => {
+      if (next.pointerType === 'touch' && touchesRef.current.size >= 2) return;
       next.preventDefault();
       const deltaX = (next.clientX - startX) / bounds.width;
       const deltaY = (next.clientY - startY) / bounds.height;
@@ -274,8 +374,17 @@ export function HotspotEditor({
   const currentAction = actionDetails(draft.action);
 
   return (
-    <Stack spacing={2.5} component="section" aria-labelledby="invitation-actions-title">
-      <Stack spacing={0.5}>
+    <Box
+      component="section"
+      aria-labelledby="invitation-actions-title"
+      sx={{
+        display: 'grid',
+        gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1fr) minmax(280px, 340px)' },
+        gap: 1.5,
+        alignItems: 'start'
+      }}
+    >
+      <Stack spacing={0.5} sx={{ gridColumn: '1 / -1' }}>
         <Typography component="h3" variant="h4" id="invitation-actions-title">
           Acciones de la invitación
         </Typography>
@@ -289,104 +398,164 @@ export function HotspotEditor({
         </Typography>
       </Stack>
 
-      <Box
-        ref={canvasRef}
-        aria-label="Vista previa interactiva de la invitación"
-        sx={{
-          position: 'relative',
-          width: '100%',
-          maxWidth: 720,
-          bgcolor: 'grey.100',
-          overflow: 'hidden',
-          outline: '1px solid',
-          outlineColor: 'divider',
-          lineHeight: 0
-        }}
-      >
-        {previewUrl ? (
+      <Box sx={{ gridColumn: { lg: 1 }, gridRow: { lg: '2 / span 8' }, minWidth: 0 }}>
+        <Stack direction="row" spacing={0.5} sx={{ justifyContent: 'flex-end', mb: 0.75 }}>
+          <Button
+            aria-label="Alejar vista previa"
+            disabled={viewport.zoom <= 1}
+            onClick={() => updateZoom(viewport.zoom - 0.25)}
+            sx={{ minWidth: 44, minHeight: 44 }}
+          >
+            −
+          </Button>
+          <Button
+            aria-label="Ajustar vista previa"
+            onClick={() => setViewport({ zoom: 1, x: 0, y: 0 })}
+            sx={{ minWidth: 44, minHeight: 44 }}
+          >
+            {Math.round(viewport.zoom * 100)}%
+          </Button>
+          <Button
+            aria-label="Acercar vista previa"
+            disabled={viewport.zoom >= 4}
+            onClick={() => updateZoom(viewport.zoom + 0.25)}
+            sx={{ minWidth: 44, minHeight: 44 }}
+          >
+            +
+          </Button>
+        </Stack>
+        <Box
+          ref={viewportRef}
+          tabIndex={0}
+          onKeyDown={(event) => {
+            if (event.code === 'Space') {
+              event.preventDefault();
+              spacePressedRef.current = true;
+            }
+          }}
+          onKeyUp={(event) => {
+            if (event.code === 'Space') spacePressedRef.current = false;
+          }}
+          onBlur={() => {
+            spacePressedRef.current = false;
+          }}
+          onWheel={(event) => {
+            event.preventDefault();
+            updateZoom(viewport.zoom * (event.deltaY < 0 ? 1.12 : 0.89), event.clientX, event.clientY);
+          }}
+          onPointerDownCapture={handleViewportPointerDown}
+          onPointerMoveCapture={handleViewportPointerMove}
+          onPointerUpCapture={finishViewportPointer}
+          onPointerCancelCapture={finishViewportPointer}
+          sx={{
+            position: 'relative',
+            width: '100%',
+            maxHeight: '72vh',
+            bgcolor: 'grey.100',
+            overflow: 'hidden',
+            outline: '1px solid',
+            outlineColor: 'divider',
+            lineHeight: 0,
+            touchAction: 'pan-y',
+            cursor: spacePressedRef.current ? 'grab' : 'default',
+            '&:focus-visible': { outline: '3px solid', outlineColor: 'primary.main' }
+          }}
+        >
           <Box
-            component="img"
-            src={previewUrl}
-            alt=""
-            draggable={false}
-            sx={{ display: 'block', width: '100%', height: 'auto' }}
-          />
-        ) : null}
+            ref={canvasRef}
+            aria-label="Vista previa interactiva de la invitación"
+            sx={{
+              position: 'relative',
+              transformOrigin: '0 0',
+              transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`
+            }}
+          >
+            {previewUrl ? (
+              <Box
+                component="img"
+                src={previewUrl}
+                alt=""
+                draggable={false}
+                sx={{ display: 'block', width: '100%', height: 'auto' }}
+              />
+            ) : null}
 
-        {previewUrl
-          ? visible.map((item) => {
-              if (editing && item.id === selectedId) return null;
-              const details = actionDetails(item.action);
-              return (
+            {previewUrl
+              ? visible.map((item) => {
+                  if (editing && item.id === selectedId) return null;
+                  const details = actionDetails(item.action);
+                  return (
+                    <Box
+                      component="button"
+                      type="button"
+                      key={item.id}
+                      aria-label={`Editar acción ${details.label}`}
+                      disabled={interactionDisabled}
+                      onClick={() => selectExisting(item)}
+                      sx={areaStyles(item, false)}
+                    >
+                      <AreaName>{details.areaLabel}</AreaName>
+                    </Box>
+                  );
+                })
+              : null}
+
+            {previewUrl && editing ? (
+              <Box
+                role="group"
+                aria-label={`Mover acción ${currentAction.label}`}
+                onPointerDown={(event) => startPointer(event, 'move')}
+                sx={{
+                  ...areaStyles(draft, true),
+                  borderStyle: 'solid',
+                  borderWidth: 3,
+                  borderColor: 'secondary.main',
+                  zIndex: 2,
+                  cursor: interactionDisabled ? 'default' : 'move',
+                  touchAction: 'none'
+                }}
+              >
+                <AreaName>{currentAction.areaLabel}</AreaName>
                 <Box
                   component="button"
                   type="button"
-                  key={item.id}
-                  aria-label={`Editar acción ${details.label}`}
                   disabled={interactionDisabled}
-                  onClick={() => selectExisting(item)}
-                  sx={areaStyles(item, false)}
-                >
-                  <AreaName>{details.areaLabel}</AreaName>
-                </Box>
-              );
-            })
-          : null}
-
-        {previewUrl && editing ? (
-          <Box
-            role="group"
-            aria-label={`Mover acción ${currentAction.label}`}
-            onPointerDown={(event) => startPointer(event, 'move')}
-            sx={{
-              ...areaStyles(draft, true),
-              borderStyle: 'solid',
-              borderWidth: 3,
-              borderColor: 'secondary.main',
-              zIndex: 2,
-              cursor: interactionDisabled ? 'default' : 'move',
-              touchAction: 'none'
-            }}
-          >
-            <AreaName>{currentAction.areaLabel}</AreaName>
-            <Box
-              component="button"
-              type="button"
-              disabled={interactionDisabled}
-              aria-label={`Cambiar tamaño de ${currentAction.label}`}
-              onPointerDown={(event) => {
-                event.stopPropagation();
-                startPointer(event, 'resize');
-              }}
-              sx={{
-                position: 'absolute',
-                right: 0,
-                bottom: 0,
-                width: 44,
-                height: 44,
-                p: 0,
-                border: 0,
-                bgcolor: 'transparent',
-                cursor: interactionDisabled ? 'default' : 'nwse-resize',
-                touchAction: 'none',
-                '&::after': {
-                  content: '""',
-                  position: 'absolute',
-                  right: 5,
-                  bottom: 5,
-                  width: 12,
-                  height: 12,
-                  borderRight: '3px solid',
-                  borderBottom: '3px solid',
-                  borderColor: 'secondary.main'
-                }
-              }}
-            />
+                  aria-label={`Cambiar tamaño de ${currentAction.label}`}
+                  onPointerDown={(event) => {
+                    event.stopPropagation();
+                    startPointer(event, 'resize');
+                  }}
+                  sx={{
+                    position: 'absolute',
+                    right: 0,
+                    bottom: 0,
+                    width: 44,
+                    height: 44,
+                    p: 0,
+                    border: 0,
+                    bgcolor: 'transparent',
+                    cursor: interactionDisabled ? 'default' : 'nwse-resize',
+                    touchAction: 'none',
+                    '&::after': {
+                      content: '""',
+                      position: 'absolute',
+                      right: 5,
+                      bottom: 5,
+                      width: 12,
+                      height: 12,
+                      borderRight: '3px solid',
+                      borderBottom: '3px solid',
+                      borderColor: 'secondary.main'
+                    }
+                  }}
+                />
+              </Box>
+            ) : null}
           </Box>
-        ) : null}
+        </Box>
       </Box>
 
-      <Stack spacing={1} component="section" aria-labelledby="configured-actions-title">
+      <Stack spacing={1} component="section" aria-labelledby="configured-actions-title" sx={{ gridColumn: { lg: 2 } }}>
         <Typography component="h4" variant="h6" id="configured-actions-title">
           Acciones configuradas
         </Typography>
@@ -405,18 +574,46 @@ export function HotspotEditor({
         </Box>
       </Stack>
 
+      {confirmedMessage ? (
+        <Alert severity="warning" aria-live="polite" sx={{ gridColumn: { lg: 2 } }}>
+          {confirmedMessage}
+        </Alert>
+      ) : null}
+
       {mode === 'idle' && !disabled && availableActions.length ? (
-        <Button variant="contained" sx={{ alignSelf: 'flex-start' }} onClick={() => setMode('choosing')}>
+        <Button
+          variant="contained"
+          sx={{ alignSelf: 'flex-start', gridColumn: { lg: 2 }, minHeight: 44 }}
+          onClick={() => setMode('choosing')}
+        >
           Agregar acción
         </Button>
       ) : null}
 
       {mode === 'idle' && !disabled && ownerType === 'FLIPBOOK_PAGE' && !availableActions.length ? (
-        <Typography color="text.secondary">Esta página no admite acciones adicionales.</Typography>
+        <Typography color="text.secondary" sx={{ gridColumn: { lg: 2 } }}>
+          Esta página no admite acciones adicionales.
+        </Typography>
       ) : null}
 
       {mode === 'choosing' ? (
-        <Stack spacing={1.5} component="section" aria-labelledby="choose-action-title">
+        <Stack
+          spacing={1.5}
+          component="section"
+          aria-labelledby="choose-action-title"
+          sx={{
+            gridColumn: { lg: 2 },
+            position: { xs: 'sticky', lg: 'static' },
+            bottom: { xs: 8, lg: 'auto' },
+            zIndex: { xs: 4, lg: 'auto' },
+            p: 1.5,
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: { xs: '20px 20px 8px 8px', lg: 2 },
+            bgcolor: 'background.paper',
+            boxShadow: { xs: 8, lg: 1 }
+          }}
+        >
           <Typography component="h4" variant="h6" id="choose-action-title">
             ¿Qué quieres que puedan hacer tus invitados?
           </Typography>
@@ -446,7 +643,25 @@ export function HotspotEditor({
       ) : null}
 
       {editing ? (
-        <Stack spacing={2} component="section" aria-labelledby="edit-action-title">
+        <Stack
+          spacing={2}
+          component="section"
+          aria-labelledby="edit-action-title"
+          sx={{
+            gridColumn: { lg: 2 },
+            position: { xs: 'sticky', lg: 'static' },
+            bottom: { xs: 8, lg: 'auto' },
+            zIndex: { xs: 4, lg: 'auto' },
+            p: 1.5,
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: { xs: '20px 20px 8px 8px', lg: 2 },
+            bgcolor: 'background.paper',
+            boxShadow: { xs: 8, lg: 1 },
+            maxHeight: { lg: '72vh' },
+            overflow: { lg: 'auto' }
+          }}
+        >
           <Stack spacing={0.5}>
             <Typography component="h4" variant="h6" id="edit-action-title">
               {mode === 'creating' ? `Agregar: ${currentAction.label}` : `Editar: ${currentAction.label}`}
@@ -546,7 +761,7 @@ export function HotspotEditor({
           </Stack>
         </Stack>
       ) : null}
-    </Stack>
+    </Box>
   );
 }
 

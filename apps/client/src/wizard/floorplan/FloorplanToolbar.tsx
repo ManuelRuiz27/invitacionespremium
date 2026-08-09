@@ -109,14 +109,14 @@ export function FloorplanToolbar({
             <PanToolAltRounded fontSize="small" />
           </ToggleButton>
         </Tooltip>
-        <Tooltip title="Ajuste magnético">
+        <Tooltip title="Ayuda para alinear">
           <span>
             <ToggleButton
               value="snap"
               selected={snap}
               disabled={disabled}
               onChange={() => onSnapChange(!snap)}
-              aria-label="Activar ajuste magnético"
+              aria-label="Activar ayuda para alinear"
               sx={toggleSx}
             >
               <GridOnRounded fontSize="small" />

@@ -4,9 +4,12 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DataStep } from './DataStep';
+import { ApiError } from '@invitaciones/api-client';
+import { configuredEvent, mockApiClient } from '../../test/fixtures';
 
 const services = [
-  { id: 'service-flyer', code: 'FLYER' as const, credits: 5, validFrom: '2026-01-01T00:00:00Z', validUntil: null }
+  { id: 'service-flyer', code: 'FLYER' as const, credits: 5, validFrom: '2026-01-01T00:00:00Z', validUntil: null },
+  { id: 'service-flipbook', code: 'FLIPBOOK' as const, credits: 7, validFrom: '2026-01-01T00:00:00Z', validUntil: null }
 ];
 const draft = (eventDateTime: string, timeZone = 'America/Cancun'): UpdateEventInput => ({
   confirmationEnabled: false,
@@ -96,5 +99,73 @@ describe('DataStep time zones', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
     expect(onChange).not.toHaveBeenCalled();
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+});
+
+describe('DataStep digital service reset confirmation', () => {
+  it.each([
+    ['service-flyer', 'service-flipbook', 'FLYER'],
+    ['service-flipbook', 'service-flyer', 'FLIPBOOK']
+  ])('confirms %s to %s and resets only the invitation design', async (currentId, targetId, designType) => {
+    const api = mockApiClient();
+    vi.mocked(api.design.get).mockResolvedValue({
+      id: 'design-1',
+      eventId: configuredEvent.id,
+      type: designType as 'FLYER' | 'FLIPBOOK',
+      flyerInitialAssetId: null,
+      flyerQrAssetId: null,
+      pages: [],
+      hotspots: [],
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z'
+    });
+    const onChange = vi.fn();
+    const onReset = vi.fn().mockResolvedValue(undefined);
+    render(
+      <AppThemeProvider>
+        <DataStep
+          services={services}
+          draft={{ ...draft('2026-01-15T23:30:00.000Z'), serviceId: currentId }}
+          disabled={false}
+          onChange={onChange}
+          apiClient={api}
+          event={{ ...configuredEvent, serviceId: currentId }}
+          onResetInvitationDesign={onReset}
+        />
+      </AppThemeProvider>
+    );
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Servicio' }));
+    fireEvent.click(
+      await screen.findByRole('option', { name: new RegExp(targetId.includes('flipbook') ? 'Flipbook' : 'Flyer') })
+    );
+    expect(await screen.findByRole('dialog', { name: 'Cambiar el formato de la invitación' })).toBeInTheDocument();
+    expect(screen.getByText(/contactos, invitaciones, confirmaciones, mesas/i)).toBeInTheDocument();
+    expect(onChange).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Reiniciar diseño y cambiar' }));
+    await waitFor(() => expect(onReset).toHaveBeenCalledWith(targetId));
+  });
+
+  it('does not treat a design read failure as absence and exposes retry', async () => {
+    const api = mockApiClient();
+    vi.mocked(api.design.get).mockRejectedValue(new ApiError(500, 'INTERNAL_ERROR', 'boom'));
+    const onChange = vi.fn();
+    render(
+      <AppThemeProvider>
+        <DataStep
+          services={services}
+          draft={{ ...draft('2026-01-15T23:30:00.000Z'), serviceId: 'service-flyer' }}
+          disabled={false}
+          onChange={onChange}
+          apiClient={api}
+          event={{ ...configuredEvent, serviceId: 'service-flyer' }}
+          onResetInvitationDesign={vi.fn()}
+        />
+      </AppThemeProvider>
+    );
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Servicio' }));
+    fireEvent.click(await screen.findByRole('option', { name: /Flipbook/ }));
+    expect(await screen.findByText(/No pudimos verificar el diseño actual/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
+    expect(onChange).not.toHaveBeenCalled();
   });
 });

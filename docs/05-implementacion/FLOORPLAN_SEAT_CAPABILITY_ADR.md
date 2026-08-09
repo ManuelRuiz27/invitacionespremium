@@ -29,7 +29,7 @@ Se propone una entidad `Seat`, pero no una entidad `SeatAssignment`. La asignaci
 una FK compuesta, unicidad parcial y triggers PostgreSQL.
 
 En una Mesa sin asientos habilitados, `FloorplanShape.capacity` sigue siendo la autoridad. En una Mesa con asientos
-habilitados, los `Seat` activos pasan a ser la autoridad y `FloorplanShape.capacity` queda como proyeccion
+habilitados, los `Seat` no retirados pasan a ser la autoridad y `FloorplanShape.capacity` queda como proyeccion
 sincronizada obligatoriamente igual a su conteo. Los endpoints actuales de asignacion por Mesa siguen siendo
 validos y sus payloads actuales conservan exactamente su significado.
 
@@ -101,8 +101,9 @@ de una Mesa ocupada esta bloqueada tanto en servicio como en PostgreSQL.
 10. **Realtime incompatible.** Agregar campos obligatorios al envelope v1 podria romper consumidores estrictos.
 11. **Reportes historicos.** Agregar `seatLabel` a un dataset existente sin version nueva cambia el hash y el
    significado de snapshots ya generados.
-12. **Soft delete ambiguo.** Usar `active` y `deletedAt` como sinonimos crearia estados imposibles; solo son
-    aceptables si representan ciclos de vida distintos.
+12. **Doble ciclo de vida ambiguo.** Combinar `Seat.active` y `Seat.deletedAt` permitiria estados imposibles y
+    obligaria a reconciliar dos indicadores. La propuesta usa solo `deletedAt`; el contexto Evento/Mesa determina
+    si una configuracion preservada esta operativa.
 13. **Cambio de servicio incompatible.** Un Evento con Seats configurados no puede pasar silenciosamente a
     `PHYSICAL_QR` o `DEMO`; `EventsService.update()` debe bloquear el cambio hasta desactivar la capability.
 
@@ -193,7 +194,6 @@ erDiagram
     int sortOrder
     decimal x
     decimal y
-    boolean active
     timestamptz deletedAt
   }
   Assistant {
@@ -229,7 +229,6 @@ model Seat {
   sortOrder       Int       @map("sort_order")
   x               Decimal   @db.Decimal(9, 8)
   y               Decimal   @db.Decimal(9, 8)
-  active          Boolean   @default(true)
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt       DateTime? @map("deleted_at") @db.Timestamptz(6)
@@ -239,8 +238,8 @@ model Seat {
   assistants Assistant[]
 
   @@unique([id, eventId, tableShapeId])
-  @@index([tableShapeId, active, deletedAt, sortOrder])
-  @@index([eventId, active, deletedAt])
+  @@index([tableShapeId, deletedAt, sortOrder])
+  @@index([eventId, deletedAt])
   @@map("seat")
 }
 
@@ -253,15 +252,17 @@ model Assistant {
 La sintaxis Prisma exacta debe validarse durante implementacion; PostgreSQL sigue siendo autoridad para indices
 parciales, constraints diferibles y triggers que Prisma no expresa.
 
-### `active` frente a `deletedAt`
+### Ciclo de vida unico con `deletedAt`
 
-Ambos campos se justifican solo con semanticas distintas:
+Se elimina `Seat.active`. La semantica completa queda expresada sin estados duplicados:
 
-- `active=false`: configuracion preservada mientras el modo de la Mesa esta apagado; permite reactivar los mismos
-  IDs, labels y posiciones;
-- `deletedAt!=null`: identidad retirada de forma individual y no restaurada por una simple reactivacion.
+- `seatModeEnabled=false` y `deletedAt=null`: configuracion preservada e inactiva; una reactivacion reutiliza los
+  mismos IDs, labels, orden y posiciones;
+- `seatModeEnabled=true` y `deletedAt=null`: Seat operativo;
+- `deletedAt!=null`: identidad retirada individualmente, no operativa y no restaurada por una simple reactivacion.
 
-Todo Seat eliminado debe quedar tambien `active=false`. Un Seat activo siempre tiene `deletedAt=null`.
+La capability del Evento debe estar activa para que una Mesa pueda tener `seatModeEnabled=true`. Por tanto, la
+operatividad se deriva de Evento + Mesa + `deletedAt`, sin una columna ni transicion adicional por Seat.
 
 ### Por que no `SeatAssignment`
 
@@ -302,7 +303,7 @@ si table.seatModeEnabled = false:
   capacidad efectiva = table.capacity
 
 si table.seatModeEnabled = true:
-  capacidad efectiva = count(Seat active=true AND deletedAt IS NULL de la Mesa)
+  capacidad efectiva = count(Seat WHERE deletedAt IS NULL de la Mesa)
   y table.capacity DEBE ser exactamente igual a ese conteo
 ```
 
@@ -324,15 +325,15 @@ sincronizada. No puede modificarse independientemente mediante el PATCH legado.
 ### 8.3 Invariantes fisicos
 
 1. `Seat.tableShapeId` referencia una shape `TABLE`, activa, de Floorplan activo y mismo Evento.
-2. Seat activo implica `Event.seatCapabilityEnabled=true`, `table.seatModeEnabled=true` y `deletedAt=null`.
+2. Seat operativo implica `Event.seatCapabilityEnabled=true`, `table.seatModeEnabled=true` y `deletedAt=null`.
 3. Mesa con modo Seat implica capability de Evento activa.
-4. Mesa con modo Seat implica `capacity = activeSeats` al commit.
+4. Mesa con modo Seat implica `capacity = nonDeletedSeats` al commit.
 5. `Assistant.seatId IS NOT NULL` implica `Assistant.floorplanShapeId IS NOT NULL`.
 6. La FK compuesta obliga `Assistant.eventId = Seat.eventId` y
    `Assistant.floorplanShapeId = Seat.tableShapeId`.
 7. Solo un Assistant activo puede referenciar un Seat mediante indice parcial unico.
-8. Un Seat asignado no puede desactivarse ni eliminarse.
-9. Un Seat inactivo o eliminado no puede asignarse.
+8. Un Seat asignado no puede retirarse ni quedar bajo una Mesa cuyo modo se desactive sin resolucion explicita.
+9. Un Seat retirado o preservado bajo modo Mesa desactivado no puede asignarse.
 10. Ocupacion combinada `active Assistants + active PhysicalPasses <= table.capacity` permanece vigente.
 11. No se crea Seat para `DECORATIVE_ZONE`.
 12. Ninguna regla de readiness exige que un Assistant con Mesa tenga Seat.
@@ -371,7 +372,7 @@ Transaccion propuesta:
 1. bloquear Evento -> Floorplan -> Mesa;
 2. exigir capability del Evento, Mesa activa `TABLE` y layout desbloqueado;
 3. verificar replay por llave/firma;
-4. si existe configuracion inactiva reutilizable con exactamente `capacity` Seats no eliminados, reactivarla;
+4. si existe configuracion preservada reutilizable con exactamente `capacity` Seats no eliminados, reactivarla;
 5. si no existe configuracion previa, crear exactamente `capacity` Seats con UUIDs, labels, orden y posiciones
    deterministas;
 6. establecer `seatModeEnabled=true`;
@@ -396,7 +397,8 @@ POST /api/v1/events/:eventId/floorplan/shapes/:tableId/seats/disable
 Idempotency-Key: <8..128>
 
 {
-  "assignmentResolution": "RETAIN_TABLE_CLEAR_SEATS"
+  "assignmentResolution": "RETAIN_TABLE_CLEAR_SEATS",
+  "confirmedAssignmentCount": 7
 }
 ```
 
@@ -405,8 +407,13 @@ Reglas:
 - no existe desactivacion silenciosa;
 - el valor de resolucion es obligatorio si hay al menos un Seat ocupado;
 - omitirlo con ocupacion responde `SEAT_ASSIGNMENTS_RESOLUTION_REQUIRED` sin cambios;
+- antes de confirmar, la respuesta de preflight y la UI muestran el numero exacto de `Assistant.seatId` que se
+  limpiara; si es mayor que cero la confirmacion debe incluir ese conteo y la resolucion explicita;
+- bajo los locks de la transaccion, `confirmedAssignmentCount` debe coincidir con el conteo vigente; si cambio,
+  se responde `SEAT_ASSIGNMENT_COUNT_CHANGED` sin limpiar nada y se solicita una nueva confirmacion;
 - la resolucion permitida en Fase 5 limpia `Assistant.seatId`, nunca `floorplanShapeId`;
-- todos los Seats no eliminados pasan a `active=false`, pero se preservan ID, label, orden y posicion;
+- los Seats no eliminados no se modifican: se preservan ID, label, orden y posicion, y quedan inactivos por
+  `seatModeEnabled=false`;
 - `seatModeEnabled` pasa a false y `capacity` conserva su valor;
 - se auditan los IDs tecnicos y conteos, nunca nombres;
 - se publica un unico `seating.updated` v1 post-commit para provocar recuperacion REST;
@@ -433,13 +440,12 @@ para posible reactivacion posterior.
 
 - FK compuesta `seat(table_shape_id,event_id) -> floorplan_shape(id,event_id)` con `RESTRICT`;
 - FK compuesta `assistant(seat_id,event_id,floorplan_shape_id) -> seat(id,event_id,table_shape_id)`;
-- check `active = false OR deleted_at IS NULL`;
 - check de label normalizado y `sort_order > 0`;
 - check de coordenadas locales finitas dentro del rango aprobado;
 - indice unico parcial por `(table_shape_id, sort_order)` para filas no eliminadas;
 - indice unico parcial por `(table_shape_id, normalized_label)` para label no nulo y fila no eliminada;
 - indice unico parcial `assistant(seat_id)` donde `seat_id IS NOT NULL AND deleted_at IS NULL`;
-- constraint triggers diferibles que comprueben `capacity = activeSeats` al commit;
+- constraint triggers diferibles que comprueben `capacity = nonDeletedSeats` al commit cuando el modo este activo;
 - triggers para capability Evento/Mesa, pertenencia, ocupacion y proteccion de Seat asignado;
 - prechecks sin PII antes de instalar cada constraint.
 
@@ -465,7 +471,7 @@ Esto evita swaps con orden inverso y mantiene compatibilidad con las carreras ac
 
 - dos Assistants al mismo Seat: uno gana, otro recibe `SEAT_ALREADY_OCCUPIED`;
 - mismo Assistant a dos Seats: serializa por Assistant y solo queda la ultima operacion ganadora segun locks;
-- asignar contra retirar/desactivar Seat: nunca queda referencia a Seat no ocupable;
+- asignar contra retirar Seat o desactivar la Mesa: nunca queda referencia a Seat no operable;
 - agregar/retirar Seat contra PATCH de capacidad: no diverge capacidad;
 - activar/desactivar Mesa contra asignacion: resultado completo en uno de los dos ordenes;
 - mover Mesa/asiento despues de check-in contra reversal: conserva locks y snapshot estable;
@@ -499,7 +505,7 @@ existentes no cambien.
 - `SeatingChangeDto.fromSeatId?` y `toSeatId?` como campos opcionales;
 - `SeatingMutationResponseDto.seatChanges?` si se prefiere no mezclar el contrato base.
 
-`AUTO` asigna en orden determinista por `Assistant.id` y `Seat.sortOrder`, solo a Seats activos y libres. Todo el
+`AUTO` asigna en orden determinista por `Assistant.id` y `Seat.sortOrder`, solo a Seats operativos y libres. Todo el
 lote se confirma o revierte; nunca deja una familia o grupo parcialmente procesado por falta de lugar.
 
 ### 12.3 Cambios despues de check-in
@@ -549,7 +555,7 @@ type CheckedInAssistantDto = {
 - Scanner muestra `MESA 14` cuando no existe Seat.
 - Si existe, muestra `MESA 14 · ASIENTO 7`.
 - Seat ausente nunca invalida un QR ni produce un blocker de check-in.
-- Si `seatId` existe, el backend revalida Seat activo y compatible bajo los locks actuales.
+- Si `seatId` existe, el backend revalida Seat operativo y compatible bajo los locks actuales.
 - Snapshots nuevos pueden guardar `seat` opcional; snapshots antiguos sin ese campo siguen siendo validos.
 - Scan/search proyectan ubicacion actual; replay de check-in conserva el snapshot historico.
 
@@ -596,7 +602,7 @@ La inclusion de `seatLabel` en la primera entrega requiere aprobacion humana exp
 | POST | `/events/:eventId/seat-capability/disable` | si | capability deshabilitada |
 | GET | `/events/:eventId/floorplan/shapes/:tableId/seats` | no | Seats de la Mesa |
 | POST | `/events/:eventId/floorplan/shapes/:tableId/seats/enable` | si | configuracion activa |
-| POST | `/events/:eventId/floorplan/shapes/:tableId/seats/disable` | si | configuracion inactiva |
+| POST | `/events/:eventId/floorplan/shapes/:tableId/seats/disable` | si | configuracion preservada |
 | POST | `/events/:eventId/floorplan/shapes/:tableId/seats` | si | Seat creado + capacidad |
 | PATCH | `/events/:eventId/floorplan/shapes/:tableId/seats/:seatId` | si | Seat actualizado |
 | DELETE | `/events/:eventId/floorplan/shapes/:tableId/seats/:seatId` | si | Seat retirado + capacidad |
@@ -606,18 +612,19 @@ PATCH pueda repetirse naturalmente, usar la misma politica simplifica retries y 
 
 ### 16.2 DTOs principales
 
-- `SeatCapabilityResponseDto`: `enabled`, `enabledTableCount`, `activeSeatCount`;
-- `SeatResponseDto`: `id`, `tableShapeId`, `label`, `sortOrder`, `x`, `y`, `active`,
+- `SeatCapabilityResponseDto`: `enabled`, `enabledTableCount`, `operationalSeatCount`;
+- `SeatResponseDto`: `id`, `tableShapeId`, `label`, `sortOrder`, `x`, `y`, `operational`,
   `occupiedByAssistantId|null`, timestamps necesarios;
 - `EnableTableSeatsResponseDto`: Mesa, capacidad, Seats y `replayed` si el patron del API lo autoriza;
-- `DisableTableSeatsRequestDto`: `assignmentResolution?`;
+- `DisableTableSeatsRequestDto`: `assignmentResolution?`, `confirmedAssignmentCount?`; ambos son obligatorios si
+  el preflight informa una o mas asignaciones;
 - `CreateSeatRequestDto`: label opcional y posicion local; posicion omitida usa distribucion determinista;
 - `UpdateSeatRequestDto`: label, orden y/o posicion;
 - campos seating aditivos de la seccion 12;
 - `ScannerSeatDto` opcional de la seccion 14.
 
 `FloorplanResponseDto` agrega `seatCapabilityEnabled` y cada Mesa agrega `seatModeEnabled` y un resumen
-`activeSeats/assignedSeats`. La lista detallada no se embebe en todas las shapes para evitar inflar Croquis masivos;
+`operationalSeats/assignedSeats`. La lista detallada no se embebe en todas las shapes para evitar inflar Croquis masivos;
 se consulta por Mesa.
 
 El SDK se regenera exclusivamente desde OpenAPI. No se escriben tipos duplicados manualmente.
@@ -632,9 +639,10 @@ El SDK se regenera exclusivamente desde OpenAPI. No se escriben tipos duplicados
 - `SEAT_NOT_FOUND`;
 - `SEAT_TABLE_INVALID`;
 - `SEAT_ALREADY_OCCUPIED`;
-- `SEAT_NOT_ACTIVE`;
+- `SEAT_NOT_OPERATIONAL`;
 - `SEAT_ASSIGNMENT_TABLE_MISMATCH`;
 - `SEAT_ASSIGNMENTS_RESOLUTION_REQUIRED`;
+- `SEAT_ASSIGNMENT_COUNT_CHANGED`;
 - `SEAT_CAPACITY_AUTHORITY_CONFLICT`;
 - `SEAT_IDEMPOTENCY_CONFLICT`.
 
@@ -716,8 +724,8 @@ requiera. No se registran nombres de Assistant, Invitacion, Contacto, telefono, 
 - cero backfill y defaults false;
 - FK compuesta Evento/Mesa/Seat/Assistant;
 - unicidad parcial de ocupacion, orden y label;
-- triggers contra Seat de Zona, Mesa eliminada, Floorplan ajeno y Seat inactivo;
-- igualdad diferible `capacity=activeSeats`;
+- triggers contra Seat de Zona, Mesa eliminada, Floorplan ajeno y Seat no operativo;
+- igualdad diferible `capacity=nonDeletedSeats` con modo Seat habilitado;
 - conservacion de ocupacion combinada Assistant + PhysicalPass;
 - bloqueo de eliminar Seat ocupado o reducir bajo ocupacion;
 - proteccion ante SQL directo y rollback de auditoria.
@@ -861,8 +869,9 @@ La implementacion permanece bloqueada hasta aprobar o enmendar expresamente:
 
 1. **Activacion hibrida:** capability por Evento + habilitacion individual por Mesa.
 2. **Modelo minimo:** entidad `Seat` + `Assistant.seatId`; sin `SeatAssignment`.
-3. **Capacidad:** Seats activos mandan en modo Seat y `FloorplanShape.capacity` es proyeccion sincronizada.
-4. **Desactivacion:** limpiar solo detalle Seat, conservar Mesa y mantener configuracion inactiva con los mismos IDs.
+3. **Capacidad:** Seats no retirados mandan en modo Seat y `FloorplanShape.capacity` es proyeccion sincronizada.
+4. **Desactivacion:** mostrar y confirmar el conteo exacto, limpiar solo detalle Seat, conservar Mesa y mantener
+   configuracion preservada con los mismos IDs; cualquier cambio concurrente obliga a reconfirmar.
 5. **Reactivacion:** reutilizar configuracion solo si su conteo coincide; cualquier divergencia exige resolucion.
 6. **Posicion local:** coordenadas `x/y` relativas a Mesa en rango `[-0.5,1.5]`.
 7. **Asignaciones existentes:** activar no autoasigna Seats y ausencia de Seat nunca cambia readiness/check-in.

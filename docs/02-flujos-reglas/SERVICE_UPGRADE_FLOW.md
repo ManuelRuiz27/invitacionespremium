@@ -17,6 +17,14 @@ Mientras el Evento esté en `draft`, `configured` o `ready_to_activate`:
 - no se usa el endpoint de upgrade post-activación;
 - al activar se cobra únicamente el servicio final configurado.
 
+Si el cambio es Flyer ↔ Flipbook y ya existe un diseño activo incompatible, la libertad de cambiar servicio no
+autoriza una limpieza silenciosa. El Planner debe confirmar que se reiniciará únicamente el diseño de la Invitación.
+La API recibe ese consentimiento mediante `resetInvitationDesign: true` en el mismo `PATCH /events/:eventId`; sin él
+responde `409 EVENT_INVITATION_DESIGN_RESET_REQUIRED` y no cambia nada. El reset, el ocultamiento lógico de FileAssets,
+el cambio de servicio y su auditoría son atómicos. Contactos, Invitaciones, Asistentes, Confirmaciones, Croquis y otras
+configuraciones permanecen intactos. Este mecanismo preactivación no crea un diseño pendiente ni usa los endpoints,
+persistencia o reglas financieras del upgrade postactivación descrito más adelante.
+
 ### Después de activar
 
 Solo se permite:
