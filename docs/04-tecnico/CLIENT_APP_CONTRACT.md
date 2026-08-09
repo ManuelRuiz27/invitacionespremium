@@ -9,8 +9,9 @@
 - Planner de Organización.
 
 CODEX-120 implementa shell, sesión, navegación, dashboard de Eventos y consulta financiera. CODEX-121
-agrega el wizard y CODEX-122 agrega dos experiencias públicas aisladas. Scanner, Platform Admin y
-Socket.IO frontend permanecen fuera de alcance.
+agrega el wizard, CODEX-122 agrega dos experiencias públicas aisladas y CODEX-124 inicia el workspace
+operativo definido en `ACTIVE_EVENT_WORKSPACE_CONTRACT.md`. Scanner, Platform Admin y Socket.IO
+frontend permanecen fuera de alcance.
 
 ## Cliente API
 
@@ -99,6 +100,7 @@ backslash o de otro origen para evitar redirecciones abiertas y ciclos.
 | --- | --- | --- | --- | --- |
 | `/login` | Sí | Sí | Sí | redirección Admin |
 | `/eventos` | propio | Organización | creados | no |
+| `/eventos/:eventId` | propio | Organización | creados | no |
 | `/finanzas` | propio | Organización | no | no |
 
 La API conserva la autorización final. Platform Admin se redirige a `VITE_ADMIN_APP_URL` tanto desde
@@ -131,8 +133,8 @@ Indicadores derivados de la respuesta:
 - Finalizados: `CLOSED`, `ALBUM_PUBLISHED`, `ARCHIVED`;
 - `CANCELLED` no cuenta como finalizado.
 
-La lista usa tabla desde desktop y cards en móvil. Ofrece filtros locales, búsqueda por nombre y panel de
-resumen de solo lectura. No crea ni modifica Eventos.
+La lista usa tabla desde desktop y cards en móvil. Ofrece filtros locales y búsqueda por nombre. La
+acción `Ver evento` navega a `/eventos/:eventId`; no abre un resumen paralelo ni crea o modifica Eventos.
 
 Estados visibles:
 
@@ -149,6 +151,21 @@ Estados visibles:
 
 Tipos sociales: Boda, XV años, Corporativo, Cumpleaños y Otro. Las fechas usan `es-MX` y
 `Event.timeZone`; si fecha o zona están pendientes no se reinterpreta el instante.
+
+## Workspace operativo del Evento
+
+`/eventos/:eventId` consulta el Evento autoritativamente. `DRAFT` y `CONFIGURED` redirigen a Datos;
+`READY_TO_ACTIVATE` redirige a Revisión; `ACTIVE`, `EVENT_DAY`, `CLOSED`, `ALBUM_PUBLISHED`, `ARCHIVED`
+y `CANCELLED` montan el workspace.
+
+CODEX-124A implementa únicamente **Resumen** dentro del shell autenticado. Presenta nombre, estado,
+fecha/hora, tipo social, servicio contratado, capacidad y uso de Mesas y distribución cuando esos datos
+están disponibles. No muestra IDs o enums ni inventa métricas. Las áreas futuras **Mesas y distribución**
+y **Staff** se documentan, pero no aparecen hasta que sean funcionales.
+
+Carga, cambio de `eventId`, `401`, `403`, `404`, errores recuperables y retry siguen el contrato de
+sesión y fetching existente. El detalle normativo se encuentra en
+`docs/04-tecnico/ACTIVE_EVENT_WORKSPACE_CONTRACT.md`.
 
 ## Finanzas
 

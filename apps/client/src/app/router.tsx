@@ -13,6 +13,7 @@ import { PublicInvitationPage } from '../public/invitation/PublicInvitationPage'
 import { PublicNotFoundPage } from '../public/PublicNotFoundPage';
 import { financeRoles } from '../shared/roles';
 import { WizardPage } from '../wizard/WizardPage';
+import { ActiveEventWorkspacePage } from '../workspace/ActiveEventWorkspacePage';
 
 export interface RouterDependencies {
   apiClient: ApiClient;
@@ -55,6 +56,10 @@ function createRoutes(dependencies: RouterDependencies): RouteObject[] {
               children: [
                 { index: true, element: <Navigate to="/eventos" replace /> },
                 { path: '/eventos', element: <DashboardPage apiClient={dependencies.apiClient} /> },
+                {
+                  path: '/eventos/:eventId',
+                  element: <ActiveEventWorkspacePage apiClient={dependencies.apiClient} />
+                },
                 { path: '/eventos/nuevo', element: <WizardPage apiClient={dependencies.apiClient} /> },
                 {
                   path: '/eventos/:eventId/configuracion/:step',

@@ -28,6 +28,19 @@ export function formatEventDate(value: string | null, timeZone: string | null, i
   }
 }
 
+export function formatEventDateLong(value: string | null, timeZone: string | null): string {
+  if (!value || !timeZone) return 'Fecha pendiente';
+  try {
+    return new Intl.DateTimeFormat('es-MX', {
+      timeZone,
+      dateStyle: 'full',
+      timeStyle: 'short'
+    }).format(new Date(value));
+  } catch {
+    return 'Fecha pendiente';
+  }
+}
+
 export function formatCredits(value: number): string {
   return new Intl.NumberFormat('es-MX', { maximumFractionDigits: 0 }).format(value);
 }

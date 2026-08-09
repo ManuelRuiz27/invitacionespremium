@@ -5,7 +5,7 @@ import { getEventStatusPresentation } from '../shared/event-status';
 import { formatEventDate, socialTypeLabels } from '../shared/formatters';
 import { Link } from 'react-router-dom';
 
-export function EventCard({ event, onView }: { event: Event; onView: (event: Event) => void }) {
+export function EventCard({ event }: { event: Event }) {
   const presentation = getEventStatusPresentation(event.status);
   return (
     <Box component="article" sx={{ py: 2.5 }}>
@@ -49,7 +49,7 @@ export function EventCard({ event, onView }: { event: Event; onView: (event: Eve
           Activar evento
         </Button>
       ) : (
-        <Button variant="text" onClick={() => onView(event)}>
+        <Button component={Link} to={`/eventos/${event.id}`} variant="text">
           Ver evento
         </Button>
       )}

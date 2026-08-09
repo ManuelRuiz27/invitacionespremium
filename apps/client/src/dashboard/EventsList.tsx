@@ -1,13 +1,10 @@
 import { useMemo, useState } from 'react';
 import type { Event } from '@invitaciones/api-client';
 import { EmptyState, StatusChip } from '@invitaciones/ui';
-import CloseRounded from '@mui/icons-material/CloseRounded';
 import SearchRounded from '@mui/icons-material/SearchRounded';
 import {
   Box,
   Button,
-  Drawer,
-  IconButton,
   InputAdornment,
   Stack,
   Table,
@@ -39,7 +36,6 @@ const filters: { value: Filter; label: string }[] = [
 export function EventsList({ events }: { events: Event[] }) {
   const [filter, setFilter] = useState<Filter>('all');
   const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState<Event | null>(null);
 
   const visible = useMemo(() => {
     const term = search.trim().toLocaleLowerCase('es-MX');
@@ -139,7 +135,9 @@ export function EventsList({ events }: { events: Event[] }) {
                             Activar evento
                           </Button>
                         ) : (
-                          <Button onClick={() => setSelected(event)}>Ver evento</Button>
+                          <Button component={Link} to={`/eventos/${event.id}`}>
+                            Ver evento
+                          </Button>
                         )}
                       </TableCell>
                     </TableRow>
@@ -150,61 +148,11 @@ export function EventsList({ events }: { events: Event[] }) {
           </TableContainer>
           <Box aria-label="Eventos en tarjetas" sx={{ display: { xs: 'block', md: 'none' } }}>
             {visible.map((event) => (
-              <EventCard key={event.id} event={event} onView={setSelected} />
+              <EventCard key={event.id} event={event} />
             ))}
           </Box>
         </>
       )}
-
-      <Drawer
-        anchor="right"
-        open={Boolean(selected)}
-        onClose={() => setSelected(null)}
-        slotProps={{ paper: { sx: { width: { xs: '100%', sm: 440 }, p: 3 } } }}
-      >
-        {selected ? (
-          <Stack spacing={3}>
-            <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography component="h2" variant="h3">
-                Resumen del Evento
-              </Typography>
-              <IconButton aria-label="Cerrar resumen" onClick={() => setSelected(null)}>
-                <CloseRounded />
-              </IconButton>
-            </Stack>
-            <Typography component="h3" variant="h2">
-              {selected.name ?? 'Evento sin nombre'}
-            </Typography>
-            <EventDetails event={selected} />
-            <Button onClick={() => setSelected(null)}>Cerrar</Button>
-          </Stack>
-        ) : null}
-      </Drawer>
     </section>
-  );
-}
-
-function EventDetails({ event }: { event: Event }) {
-  const presentation = getEventStatusPresentation(event.status);
-  const rows = [
-    ['Estado', presentation.label],
-    ['Tipo de evento', event.socialType ? socialTypeLabels[event.socialType] : 'Pendiente'],
-    ['Fecha', formatEventDate(event.eventDateTime, event.timeZone, true)],
-    ['Capacidad', event.capacity?.toString() ?? 'Pendiente'],
-    ['Última actualización', formatEventDate(event.updatedAt, event.timeZone, true)]
-  ];
-  return (
-    <Box component="dl" sx={{ m: 0 }}>
-      {rows.map(([label, value]) => (
-        <Box key={label} sx={{ py: 1.5, borderBottom: 1, borderColor: 'divider' }}>
-          <Typography component="dt" variant="caption" color="text.secondary">
-            {label}
-          </Typography>
-          <Typography component="dd" sx={{ m: 0, mt: 0.5 }}>
-            {value}
-          </Typography>
-        </Box>
-      ))}
-    </Box>
   );
 }

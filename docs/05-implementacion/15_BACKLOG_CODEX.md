@@ -1217,6 +1217,36 @@ Contrato normativo: `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md`.
 Contratos normativos: `docs/04-tecnico/EVENT_WIZARD_CONTRACT.md` y
 `docs/04-tecnico/SCANNER_CHECKIN_CONTRACT.md`.
 
+### CODEX-124A — Workspace operativo del Evento: Shell y Resumen
+
+**Estado:** COMPLETADO
+
+**Repo:** `invitacionespremium-client`
+
+**Dependencias:** CODEX-120, CODEX-121, CODEX-123C-R2
+
+**Alcance**
+
+- establecer `/eventos/:eventId` como entrada canónica al workspace operativo;
+- resolver el Evento con `GET /events/:eventId` y redirigir estados de preparación al paso correcto del
+  wizard;
+- reutilizar el shell autenticado y agregar contexto local del Evento;
+- implementar únicamente Resumen con estado, fecha, tipo social, servicio, capacidad y uso de Mesas y
+  distribución mediante lenguaje natural;
+- conservar sesión, ownership y errores autoritativos, sin metadata obsoleta al cambiar de Evento;
+- cubrir loading, forbidden, not-found, error recuperable y retry aislado;
+- dejar documentadas las áreas futuras Mesas y distribución y Staff sin mostrarlas todavía.
+
+**Fuera de alcance**
+
+- CODEX-124B, seating, asignación o movimiento de Asistentes;
+- CODEX-124C, StaffTokens, accesos Staff, QR Staff o Scanner;
+- lifecycle, cierre, reapertura, cancelación, archivo, Álbum operativo, reportes o realtime;
+- edición de Invitación o Croquis;
+- API, OpenAPI, Prisma, schema, migraciones, endpoints, estados o readiness.
+
+Contrato normativo: `docs/04-tecnico/ACTIVE_EVENT_WORKSPACE_CONTRACT.md`.
+
 ---
 
 ## EPIC 13 — Frontend Admin, Scanner y Landing
