@@ -86,7 +86,7 @@ describe('FloorplanStep con renderer de producción', () => {
     );
     expect(await screen.findByTestId('step-production-konva')).toBeInTheDocument();
     act(() => (production.props?.onSelect as (shape: FloorplanShape) => void)(table));
-    await screen.findByRole('heading', { name: 'Editar mesa' });
+    await screen.findByRole('heading', { name: 'Mesa seleccionada' });
     const baseDraft = production.props?.draft as FloorplanShape;
     act(() => {
       (production.props?.onDraftChange as (shape: FloorplanShape) => void)({ ...baseDraft, x: 0.2 });

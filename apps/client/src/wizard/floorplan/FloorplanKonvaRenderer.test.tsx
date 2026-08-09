@@ -169,7 +169,8 @@ describe('FloorplanKonvaRenderer de producción', () => {
     };
     render(<FloorplanKonvaRenderer {...props({ draft: polygon, onDraftChange })} />);
     const handle = latest('Circle', 'floorplan-polygon-handle').props;
-    expect(handle.radius).toBe(22);
+    expect(handle.radius).toBe(6);
+    expect(handle.hitStrokeWidth).toBe(44);
     act(() => (handle.onDragEnd as (event: unknown) => void)({ target: { x: () => -50, y: () => -25 } }));
     expect(onDraftChange).toHaveBeenCalledWith(expect.objectContaining({ polygonPoints: expect.any(Array) }));
   });
@@ -179,6 +180,7 @@ describe('FloorplanKonvaRenderer de producción', () => {
     const view = render(<FloorplanKonvaRenderer {...props({ showSeats: true, snap: true, onViewportChange })} />);
     expect(latest('Stage').props.style).toEqual({ touchAction: 'pan-y' });
     expect(konva.nodes.filter((node) => node.props.name === 'floorplan-visual-seat')).toHaveLength(4);
+    expect(konva.nodes.some((node) => node.type === 'Text' && node.props.text === '0/4')).toBe(true);
     expect(konva.nodes.filter((node) => node.type === 'Line').length).toBeGreaterThanOrEqual(38);
     act(() =>
       (latest('Stage').props.onWheel as (event: unknown) => void)({

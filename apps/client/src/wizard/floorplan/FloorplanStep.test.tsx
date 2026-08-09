@@ -97,6 +97,11 @@ function mockObservedOwner(initialWidth: number, initialHeight: number) {
   return (width: number, height: number) => act(() => emit(width, height));
 }
 
+async function deleteFromSecondaryMenu(label = 'Eliminar mesa') {
+  await userEvent.click(screen.getByRole('button', { name: 'Más acciones' }));
+  await userEvent.click(screen.getByRole('menuitem', { name: label }));
+}
+
 describe('FloorplanStep', () => {
   beforeEach(() => {
     Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn(() => 'blob:floorplan') });
@@ -145,8 +150,7 @@ describe('FloorplanStep', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Agregar mesa' }));
     await userEvent.type(screen.getByLabelText('Nombre o número de mesa'), `Mesa ${label}`);
     if (label !== 'Redonda') {
-      await userEvent.click(screen.getByRole('combobox', { name: 'Forma' }));
-      await userEvent.click(screen.getByRole('option', { name: label }));
+      await userEvent.click(screen.getByRole('button', { name: `Forma ${label}` }));
     }
     await userEvent.clear(screen.getByLabelText('Número de lugares'));
     await userEvent.type(screen.getByLabelText('Número de lugares'), '10');
@@ -167,8 +171,7 @@ describe('FloorplanStep', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Agregar zona' }));
     expect(screen.queryByLabelText('Número de lugares')).not.toBeInTheDocument();
     await userEvent.type(screen.getByLabelText('Nombre de la zona'), 'Barra');
-    await userEvent.click(screen.getByRole('combobox', { name: 'Forma' }));
-    await userEvent.click(screen.getByRole('option', { name: 'Forma personalizada' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Forma Forma personalizada' }));
     const vertices = screen.getAllByRole('button', { name: /Mover punto \d de la forma personalizada/ });
     expect(vertices).toHaveLength(4);
     expect(vertices[0]).toHaveStyle({ width: '44px', height: '44px', touchAction: 'none' });
@@ -222,7 +225,7 @@ describe('FloorplanStep', () => {
     fireEvent.click(enabled);
 
     expect(name).toHaveValue('Mesa A en edición');
-    expect(screen.getByRole('heading', { name: 'Editar mesa' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Mesa seleccionada' })).toBeInTheDocument();
     expect(api.floorplan.lock).not.toHaveBeenCalled();
     expect(onChange).not.toHaveBeenCalled();
 
@@ -512,10 +515,10 @@ describe('FloorplanStep', () => {
     const { api } = renderEditor();
     vi.mocked(api.floorplan.removeShape).mockRejectedValueOnce(new Error('network'));
     await userEvent.click(await screen.findByRole('button', { name: 'Editar mesa Mesa principal' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Eliminar mesa' }));
+    await deleteFromSecondaryMenu();
     await waitFor(() => expect(api.floorplan.removeShape).toHaveBeenCalledTimes(1));
     expect(await screen.findByText(/No pudimos eliminar este elemento/)).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Editar mesa' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Mesa seleccionada' })).toBeInTheDocument();
     expect(screen.getByLabelText('Nombre o número de mesa')).toHaveValue('Mesa principal');
   });
 
@@ -525,7 +528,7 @@ describe('FloorplanStep', () => {
       new ApiError(409, 'FLOORPLAN_TABLE_OCCUPIED', 'technical detail')
     );
     await userEvent.click(await screen.findByRole('button', { name: 'Editar mesa Mesa principal' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Eliminar mesa' }));
+    await deleteFromSecondaryMenu();
     expect(
       await screen.findByText(
         'Esta mesa tiene lugares ocupados. No puede eliminarse ni reducirse por debajo de su ocupación actual.'
@@ -596,7 +599,7 @@ describe('FloorplanStep', () => {
     vi.mocked(api.floorplan.get)
       .mockRejectedValueOnce(new Error('refresh failed'))
       .mockResolvedValueOnce({ ...floorplan, shapes: [zone] });
-    await userEvent.click(screen.getByRole('button', { name: 'Eliminar mesa' }));
+    await deleteFromSecondaryMenu();
 
     expect(await screen.findByText(/Los cambios se guardaron/)).toBeInTheDocument();
     expect(screen.queryByText(/No pudimos eliminar este elemento/)).not.toBeInTheDocument();

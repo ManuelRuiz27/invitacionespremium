@@ -37,6 +37,7 @@ export function FloorplanKonvaRenderer(
   const stageSize = { width: props.width, height: props.height };
   const selected = props.draft;
   const selectedRect = selected ? shapeToStageRect(selected, stageSize) : undefined;
+  const selectedOccupancy = props.floorplan.shapes.find((shape) => shape.id === props.selectedId)?.occupancy ?? 0;
 
   const place = (event: KonvaEventObject<MouseEvent | TouchEvent>) => {
     if (!props.onCanvasPlace || props.disabled) return;
@@ -148,14 +149,14 @@ export function FloorplanKonvaRenderer(
               <Line
                 key={`vertical-${position}`}
                 points={[position * props.width, 0, position * props.width, props.height]}
-                stroke="rgba(25, 118, 210, 0.24)"
+                stroke={floorplanColors.gridLine}
                 dash={[4, 6]}
                 listening={false}
               />,
               <Line
                 key={`horizontal-${position}`}
                 points={[0, position * props.height, props.width, position * props.height]}
-                stroke="rgba(25, 118, 210, 0.24)"
+                stroke={floorplanColors.gridLine}
                 dash={[4, 6]}
                 listening={false}
               />
@@ -182,6 +183,7 @@ export function FloorplanKonvaRenderer(
             disabled={props.disabled}
             snap={props.snap}
             showSeats={props.showSeats}
+            occupancy={selectedOccupancy}
             onChange={props.onDraftChange}
           />
         ) : null}
@@ -196,6 +198,7 @@ function EditableKonvaShape({
   disabled,
   snap,
   showSeats,
+  occupancy,
   onChange
 }: {
   shape: FloorplanShapeInput;
@@ -203,6 +206,7 @@ function EditableKonvaShape({
   disabled: boolean;
   snap: boolean;
   showSeats: boolean;
+  occupancy: number;
   onChange: (shape: FloorplanShapeInput) => void;
 }) {
   const nodeRef = useRef<Konva.Group>(null);
@@ -263,7 +267,14 @@ function EditableKonvaShape({
         onDragEnd={(event) => commitPosition(event.target as Konva.Group)}
         onTransformEnd={(event) => commitTransform(event.target as Konva.Group)}
       >
-        <KonvaShapeVisual shape={shape} width={rect.width} height={rect.height} selected showSeats={showSeats} />
+        <KonvaShapeVisual
+          shape={shape}
+          width={rect.width}
+          height={rect.height}
+          selected
+          showSeats={showSeats}
+          occupancy={occupancy}
+        />
         {shape.geometry === 'POLYGON'
           ? shape.polygonPoints?.map((point, index) => (
               <Circle
@@ -271,10 +282,11 @@ function EditableKonvaShape({
                 name="floorplan-polygon-handle"
                 x={point.x * rect.width - rect.width / 2}
                 y={point.y * rect.height - rect.height / 2}
-                radius={22}
-                fill="rgba(255,255,255,0.01)"
-                stroke="#8C5000"
-                strokeWidth={4}
+                radius={6}
+                hitStrokeWidth={44}
+                fill={floorplanColors.paper}
+                stroke={floorplanColors.accent}
+                strokeWidth={2}
                 draggable={!disabled}
                 onTouchStart={(event) => event.evt.preventDefault()}
                 onDragEnd={(event) => {
@@ -297,12 +309,12 @@ function EditableKonvaShape({
         rotateEnabled
         flipEnabled={false}
         keepRatio={hasEqualPhysicalSides(shape.geometry)}
-        anchorSize={16}
-        anchorCornerRadius={8}
+        anchorSize={12}
+        anchorCornerRadius={6}
         borderStroke={floorplanColors.accent}
         anchorFill={floorplanColors.paper}
         anchorStroke={floorplanColors.accent}
-        anchorStrokeWidth={2}
+        anchorStrokeWidth={1.5}
         anchorStyleFunc={(anchor) => anchor.hitStrokeWidth(44)}
         enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
         boundBoxFunc={(oldBox, nextBox) => (nextBox.width < 24 || nextBox.height < 24 ? oldBox : nextBox)}
@@ -336,7 +348,7 @@ function KonvaShapeNode({
     return () => {
       node.clearCache();
     };
-  }, [rect.height, rect.width, shape.capacity, shape.geometry, shape.name, showSeats]);
+  }, [rect.height, rect.width, shape.capacity, shape.geometry, shape.name, shape.occupancy, showSeats]);
   return (
     <Group
       ref={groupRef}
@@ -354,6 +366,7 @@ function KonvaShapeNode({
         height={rect.height}
         selected={selected}
         showSeats={showSeats}
+        occupancy={shape.occupancy}
       />
     </Group>
   );
@@ -364,13 +377,15 @@ function KonvaShapeVisual({
   width,
   height,
   selected,
-  showSeats
+  showSeats,
+  occupancy
 }: {
   shape: FloorplanShape | FloorplanShapeInput;
   width: number;
   height: number;
   selected: boolean;
   showSeats: boolean;
+  occupancy?: number;
 }) {
   const table = shape.kind === 'TABLE';
   const background = table ? floorplanColors.paper : floorplanColors.zoneFill;
@@ -385,7 +400,7 @@ function KonvaShapeVisual({
     stroke: selected ? floorplanColors.accent : table ? floorplanColors.line : floorplanColors.warning,
     strokeWidth: selected ? 3 : table ? 1.5 : 2,
     ...(table ? {} : { dash: [7, 5] }),
-    shadowColor: floorplanColors.ink,
+    shadowColor: floorplanColors.stickerShadow,
     shadowBlur: table ? 8 : 0,
     shadowOpacity: table ? 0.14 : 0,
     shadowOffsetY: table ? 3 : 0,
@@ -393,7 +408,7 @@ function KonvaShapeVisual({
     shadowForStrokeEnabled: false
   };
   const halo = selected
-    ? { stroke: floorplanColors.accent, strokeWidth: 10, opacity: 0.2, listening: false }
+    ? { stroke: floorplanColors.selectionHalo, strokeWidth: 7, opacity: 1, listening: false }
     : undefined;
   return (
     <>
@@ -403,10 +418,10 @@ function KonvaShapeVisual({
           name="floorplan-visual-seat"
           x={seat.x - width / 2}
           y={seat.y - height / 2}
-          radius={5}
+          radius={3.75}
           fill={floorplanColors.paper}
-          stroke={floorplanColors.accent}
-          strokeWidth={1.5}
+          stroke={floorplanColors.line}
+          strokeWidth={1}
           listening={false}
         />
       ))}
@@ -461,7 +476,7 @@ function KonvaShapeVisual({
           x={-width / 2 + 4}
           y={6}
           width={Math.max(0, width - 8)}
-          text={`${shape.capacity} lugares`}
+          text={`${occupancy ?? 0}/${shape.capacity}`}
           align="center"
           fontSize={Math.max(8, Math.min(11, width / 6))}
           fill={floorplanColors.mutedInk}

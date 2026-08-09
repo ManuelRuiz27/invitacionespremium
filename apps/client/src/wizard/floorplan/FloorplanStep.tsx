@@ -6,18 +6,28 @@ import type {
   FloorplanShapeInput,
   UpdateEventInput
 } from '@invitaciones/api-client';
+import AddRounded from '@mui/icons-material/AddRounded';
+import CheckRounded from '@mui/icons-material/CheckRounded';
+import CloseRounded from '@mui/icons-material/CloseRounded';
+import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
+import MoreHorizRounded from '@mui/icons-material/MoreHorizRounded';
+import RemoveRounded from '@mui/icons-material/RemoveRounded';
+import RotateLeftRounded from '@mui/icons-material/RotateLeftRounded';
+import RotateRightRounded from '@mui/icons-material/RotateRightRounded';
 import {
   Alert,
   Box,
   Button,
+  ButtonBase,
   Checkbox,
   Drawer,
   FormControlLabel,
-  FormHelperText,
+  IconButton,
+  InputBase,
+  Menu,
   MenuItem,
   Paper,
   Stack,
-  TextField,
   Typography,
   useMediaQuery,
   useTheme
@@ -84,10 +94,6 @@ const geometryOptions: ReadonlyArray<{ value: Geometry; label: string; zonesOnly
   { value: 'RECTANGLE', label: 'Rectangular' },
   { value: 'POLYGON', label: 'Forma personalizada', zonesOnly: true }
 ];
-
-function visibleGeometry(geometry: Geometry): string {
-  return geometryOptions.find((option) => option.value === geometry)?.label ?? 'Rectangular';
-}
 
 function mutationError(reason: unknown, mutation: Mutation): string {
   const translated = errorMessage(reason);
@@ -415,10 +421,10 @@ export function FloorplanStep({
         sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
       >
         <Box>
-          <Typography component="h2" variant="h3" id="floorplan-title">
+          <Typography component="h2" variant="h4" id="floorplan-title">
             Mesas y distribución
           </Typography>
-          <Typography color="text.secondary">
+          <Typography variant="body2" color="text.secondary">
             Organiza las mesas y áreas de tu evento sobre el plano del lugar.
           </Typography>
         </Box>
@@ -595,7 +601,17 @@ export function FloorplanStep({
             anchor="bottom"
             open={compactLayout && Boolean(inspector)}
             onClose={cancel}
-            slotProps={{ paper: { sx: { maxHeight: '86vh', borderRadius: '20px 20px 0 0', p: 2 } } }}
+            slotProps={{
+              paper: {
+                sx: {
+                  maxHeight: '86vh',
+                  borderRadius: '22px 22px 0 0',
+                  bgcolor: 'transparent',
+                  boxShadow: 'none',
+                  '& > section': { borderRadius: '22px 22px 0 0', borderBottom: 0, p: 2 }
+                }
+              }
+            }}
           >
             {inspector}
           </Drawer>
@@ -658,71 +674,197 @@ function ShapeEditor({
   deleting: boolean;
 }) {
   const table = shape.kind === 'TABLE';
-  const actionButtonSx = { minHeight: 44 } as const;
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement>();
+  const saveLabel = mode === 'creating' ? (table ? 'Guardar mesa' : 'Guardar zona') : 'Guardar cambios';
+  const precisionButtonSx = { minHeight: 44, borderRadius: 2, px: 1 } as const;
   return (
     <Box
       component="section"
       aria-labelledby="shape-editor-title"
-      sx={{ border: 1, borderColor: 'divider', borderRadius: 2, bgcolor: 'background.paper', p: 2 }}
+      sx={{
+        border: '1px solid',
+        borderColor: 'divider',
+        borderRadius: 3,
+        bgcolor: 'rgba(255, 254, 251, 0.88)',
+        boxShadow: '0 12px 36px rgba(23, 35, 60, 0.07)',
+        backdropFilter: 'blur(16px)',
+        p: 1.5
+      }}
     >
-      <Stack spacing={1.75}>
-        <Stack spacing={0.5}>
-          <Typography component="h3" variant="h4" id="shape-editor-title">
-            {mode === 'creating' ? (table ? 'Agregar mesa' : 'Agregar zona') : table ? 'Editar mesa' : 'Editar zona'}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Ajusta directamente sobre el plano. Los controles precisos son una alternativa de teclado.
-          </Typography>
+      <Stack spacing={1.5}>
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+          <Box
+            aria-hidden="true"
+            sx={{
+              width: 34,
+              height: 34,
+              flexShrink: 0,
+              borderRadius: shape.geometry === 'CIRCLE' ? '50%' : shape.geometry === 'RECTANGLE' ? 1.5 : 1,
+              border: '2px solid',
+              borderColor: table ? 'primary.main' : 'warning.main',
+              bgcolor: table ? 'rgba(49, 87, 200, 0.08)' : 'rgba(167, 101, 16, 0.12)',
+              transform: `rotate(${shape.rotation}deg)`,
+              transition: 'transform 160ms ease-out'
+            }}
+          />
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography component="h3" variant="overline" color="text.secondary" id="shape-editor-title">
+              {mode === 'creating' ? 'Nuevo sticker' : table ? 'Mesa seleccionada' : 'Zona seleccionada'}
+            </Typography>
+            <InputBase
+              value={shape.name}
+              disabled={disabled}
+              placeholder={table ? 'Nombre o número' : 'Nombre de zona'}
+              inputProps={{
+                'aria-label': table ? 'Nombre o número de mesa' : 'Nombre de la zona',
+                maxLength: 120
+              }}
+              onChange={(event) => onShapeChange({ ...shape, name: event.target.value })}
+              sx={{
+                width: '100%',
+                mt: -0.35,
+                fontSize: '1.08rem',
+                fontWeight: 760,
+                letterSpacing: '-0.02em',
+                '& input': { p: 0, borderBottom: '1px solid transparent' },
+                '& input:hover': { borderColor: 'divider' },
+                '& input:focus': { borderColor: 'primary.main' }
+              }}
+            />
+          </Box>
+          {onRemove ? (
+            <IconButton
+              aria-label="Más acciones"
+              disabled={disabled}
+              onClick={(event) => setMenuAnchor(event.currentTarget)}
+              sx={{ width: 44, height: 44, borderRadius: 2 }}
+            >
+              <MoreHorizRounded />
+            </IconButton>
+          ) : null}
         </Stack>
 
-        <TextField
-          label={table ? 'Nombre o número de mesa' : 'Nombre de la zona'}
-          value={shape.name}
-          disabled={disabled}
-          slotProps={{ htmlInput: { maxLength: 120 } }}
-          onChange={(event) => onShapeChange({ ...shape, name: event.target.value })}
-          size="small"
-          fullWidth
-        />
-
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-          <TextField
-            select
-            label="Forma"
-            value={shape.geometry}
-            disabled={disabled}
-            onChange={(event) => onGeometryChange(event.target.value as Geometry)}
-            size="small"
-            sx={{ minWidth: 0, flex: 1 }}
+        <Box component="fieldset" sx={{ border: 0, m: 0, p: 0 }}>
+          <Typography component="legend" variant="caption" color="text.secondary" sx={{ mb: 0.75 }}>
+            Forma
+          </Typography>
+          <Box
+            role="group"
+            aria-label="Forma"
+            sx={{ display: 'grid', gridTemplateColumns: `repeat(${table ? 3 : 4}, minmax(0, 1fr))`, gap: 0.5 }}
           >
             {geometryOptions
               .filter((option) => !option.zonesOnly || !table)
               .map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  {option.label}
-                </MenuItem>
+                <GeometrySegment
+                  key={option.value}
+                  geometry={option.value}
+                  label={option.label}
+                  selected={shape.geometry === option.value}
+                  disabled={disabled}
+                  onClick={() => onGeometryChange(option.value)}
+                />
               ))}
-          </TextField>
-          {table ? (
-            <TextField
-              type="number"
-              label="Número de lugares"
-              value={shape.capacity}
-              disabled={disabled}
-              slotProps={{ htmlInput: { min: 1, step: 1 } }}
-              onChange={(event) => onShapeChange({ ...shape, capacity: Number(event.target.value) })}
-              size="small"
-              sx={{ minWidth: 0, flex: 1 }}
-            />
-          ) : null}
-        </Stack>
-        <FormHelperText>Forma actual: {visibleGeometry(shape.geometry)}</FormHelperText>
+          </Box>
+        </Box>
 
-        <Box component="details">
+        {table ? (
+          <PropertyRow label="Lugares">
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: 999,
+                p: 0.25
+              }}
+            >
+              <IconButton
+                aria-label="Reducir número de lugares"
+                disabled={disabled || shape.capacity <= 1}
+                onClick={() => onShapeChange({ ...shape, capacity: Math.max(1, shape.capacity - 1) })}
+                sx={{ width: 44, height: 44 }}
+              >
+                <RemoveRounded fontSize="small" />
+              </IconButton>
+              <Box
+                component="input"
+                type="number"
+                aria-label="Número de lugares"
+                value={shape.capacity}
+                min={1}
+                step={1}
+                disabled={disabled}
+                onChange={(event) => onShapeChange({ ...shape, capacity: Number(event.currentTarget.value) })}
+                sx={{
+                  width: 42,
+                  border: 0,
+                  outline: 0,
+                  bgcolor: 'transparent',
+                  color: 'text.primary',
+                  textAlign: 'center',
+                  font: 'inherit',
+                  fontWeight: 800,
+                  fontVariantNumeric: 'tabular-nums',
+                  '&::-webkit-inner-spin-button': { display: 'none' }
+                }}
+              />
+              <IconButton
+                aria-label="Aumentar número de lugares"
+                disabled={disabled}
+                onClick={() => onShapeChange({ ...shape, capacity: shape.capacity + 1 })}
+                sx={{ width: 44, height: 44 }}
+              >
+                <AddRounded fontSize="small" />
+              </IconButton>
+            </Box>
+          </PropertyRow>
+        ) : null}
+
+        <PropertyRow label="Rotación">
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 999,
+              p: 0.25
+            }}
+          >
+            <IconButton
+              aria-label="Girar a la izquierda"
+              disabled={disabled}
+              onClick={() => onRotate(-rotationStep)}
+              sx={{ width: 44, height: 44 }}
+            >
+              <RotateLeftRounded fontSize="small" />
+            </IconButton>
+            <Typography
+              component="output"
+              aria-label="Rotación actual"
+              sx={{ minWidth: 44, textAlign: 'center', fontWeight: 750 }}
+            >
+              {Math.round(shape.rotation)}°
+            </Typography>
+            <IconButton
+              aria-label="Girar a la derecha"
+              disabled={disabled}
+              onClick={() => onRotate(rotationStep)}
+              sx={{ width: 44, height: 44 }}
+            >
+              <RotateRightRounded fontSize="small" />
+            </IconButton>
+          </Box>
+        </PropertyRow>
+
+        <Box component="details" sx={{ borderTop: '1px solid', borderColor: 'divider' }}>
           <Typography
             component="summary"
-            variant="subtitle2"
-            sx={{ cursor: 'pointer', minHeight: 44, display: 'flex', alignItems: 'center' }}
+            variant="caption"
+            color="text.secondary"
+            sx={{ cursor: 'pointer', minHeight: 44, display: 'flex', alignItems: 'center', fontWeight: 700 }}
           >
             Ajustes precisos
           </Typography>
@@ -730,33 +872,33 @@ function ShapeEditor({
             <ControlGroup title="Mover">
               <Button
                 disabled={disabled}
-                variant="outlined"
+                variant="text"
                 onClick={() => onAdjust('y', -adjustmentStep)}
-                sx={actionButtonSx}
+                sx={precisionButtonSx}
               >
                 Mover arriba
               </Button>
               <Button
                 disabled={disabled}
-                variant="outlined"
+                variant="text"
                 onClick={() => onAdjust('y', adjustmentStep)}
-                sx={actionButtonSx}
+                sx={precisionButtonSx}
               >
                 Mover abajo
               </Button>
               <Button
                 disabled={disabled}
-                variant="outlined"
+                variant="text"
                 onClick={() => onAdjust('x', -adjustmentStep)}
-                sx={actionButtonSx}
+                sx={precisionButtonSx}
               >
                 Mover a la izquierda
               </Button>
               <Button
                 disabled={disabled}
-                variant="outlined"
+                variant="text"
                 onClick={() => onAdjust('x', adjustmentStep)}
-                sx={actionButtonSx}
+                sx={precisionButtonSx}
               >
                 Mover a la derecha
               </Button>
@@ -765,49 +907,35 @@ function ShapeEditor({
             <ControlGroup title="Cambiar tamaño">
               <Button
                 disabled={disabled}
-                variant="outlined"
+                variant="text"
                 onClick={() => onAdjust('width', adjustmentStep)}
-                sx={actionButtonSx}
+                sx={precisionButtonSx}
               >
                 Hacer más ancho
               </Button>
               <Button
                 disabled={disabled}
-                variant="outlined"
+                variant="text"
                 onClick={() => onAdjust('width', -adjustmentStep)}
-                sx={actionButtonSx}
+                sx={precisionButtonSx}
               >
                 Hacer más angosto
               </Button>
               <Button
                 disabled={disabled}
-                variant="outlined"
+                variant="text"
                 onClick={() => onAdjust('height', adjustmentStep)}
-                sx={actionButtonSx}
+                sx={precisionButtonSx}
               >
                 Hacer más alto
               </Button>
               <Button
                 disabled={disabled}
-                variant="outlined"
+                variant="text"
                 onClick={() => onAdjust('height', -adjustmentStep)}
-                sx={actionButtonSx}
+                sx={precisionButtonSx}
               >
                 Hacer más bajo
-              </Button>
-            </ControlGroup>
-
-            <ControlGroup title="Orientación">
-              <Button
-                disabled={disabled}
-                variant="outlined"
-                onClick={() => onRotate(-rotationStep)}
-                sx={actionButtonSx}
-              >
-                Girar a la izquierda
-              </Button>
-              <Button disabled={disabled} variant="outlined" onClick={() => onRotate(rotationStep)} sx={actionButtonSx}>
-                Girar a la derecha
               </Button>
             </ControlGroup>
           </Stack>
@@ -819,27 +947,114 @@ function ShapeEditor({
           </Typography>
         ) : null}
 
-        <Stack direction={{ xs: 'column', sm: 'row' }} useFlexGap spacing={1} sx={{ flexWrap: 'wrap' }}>
-          <Button variant="contained" disabled={disabled} onClick={onSave} sx={actionButtonSx}>
-            {saving
-              ? 'Guardando…'
-              : mode === 'creating'
-                ? table
-                  ? 'Guardar mesa'
-                  : 'Guardar zona'
-                : 'Guardar cambios'}
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+          <Button
+            variant="contained"
+            aria-label={saveLabel}
+            startIcon={<CheckRounded />}
+            disabled={disabled}
+            onClick={onSave}
+            sx={{ minHeight: 44, flex: 1, borderRadius: 999, boxShadow: 'none' }}
+          >
+            {saving ? 'Guardando…' : mode === 'creating' ? 'Agregar' : 'Listo'}
           </Button>
-          {onRemove ? (
-            <Button color="error" disabled={disabled} onClick={onRemove} sx={actionButtonSx}>
-              {deleting ? 'Eliminando…' : table ? 'Eliminar mesa' : 'Eliminar zona'}
-            </Button>
-          ) : null}
-          <Button disabled={disabled} onClick={onCancel} sx={actionButtonSx}>
-            Cancelar
-          </Button>
+          <IconButton
+            aria-label="Cancelar"
+            disabled={disabled}
+            onClick={onCancel}
+            sx={{ width: 44, height: 44, border: '1px solid', borderColor: 'divider' }}
+          >
+            <CloseRounded />
+          </IconButton>
         </Stack>
       </Stack>
+
+      <Menu
+        anchorEl={menuAnchor}
+        open={Boolean(menuAnchor)}
+        onClose={() => setMenuAnchor(undefined)}
+        slotProps={{ paper: { sx: { borderRadius: 2, mt: 0.5, minWidth: 190 } } }}
+      >
+        {onRemove ? (
+          <MenuItem
+            disabled={disabled}
+            onClick={() => {
+              setMenuAnchor(undefined);
+              onRemove();
+            }}
+            sx={{ minHeight: 44, color: 'error.main', gap: 1 }}
+          >
+            <DeleteOutlineRounded fontSize="small" />
+            {deleting ? 'Eliminando…' : table ? 'Eliminar mesa' : 'Eliminar zona'}
+          </MenuItem>
+        ) : null}
+      </Menu>
     </Box>
+  );
+}
+
+function GeometrySegment({
+  geometry,
+  label,
+  selected,
+  disabled,
+  onClick
+}: {
+  geometry: Geometry;
+  label: string;
+  selected: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <ButtonBase
+      aria-label={`Forma ${label}`}
+      aria-pressed={selected}
+      disabled={disabled}
+      onClick={onClick}
+      sx={{
+        minWidth: 0,
+        minHeight: 58,
+        borderRadius: 2,
+        border: '1px solid',
+        borderColor: selected ? 'primary.main' : 'divider',
+        bgcolor: selected ? 'rgba(49, 87, 200, 0.08)' : 'transparent',
+        color: selected ? 'primary.dark' : 'text.secondary',
+        display: 'grid',
+        placeItems: 'center',
+        alignContent: 'center',
+        gap: 0.35,
+        transition: 'background-color 140ms ease, border-color 140ms ease, transform 140ms ease',
+        '&:hover': { bgcolor: selected ? 'rgba(49, 87, 200, 0.11)' : 'rgba(23, 35, 60, 0.035)' },
+        '&:active': { transform: 'scale(0.97)' },
+        '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 2 }
+      }}
+    >
+      <Box
+        aria-hidden="true"
+        sx={{
+          width: geometry === 'RECTANGLE' ? 26 : 20,
+          height: geometry === 'RECTANGLE' ? 16 : 20,
+          borderRadius: geometry === 'CIRCLE' ? '50%' : geometry === 'POLYGON' ? '45% 55% 38% 62%' : 0.75,
+          border: '2px solid currentColor',
+          transform: geometry === 'POLYGON' ? 'rotate(18deg)' : undefined
+        }}
+      />
+      <Typography component="span" variant="caption" sx={{ fontSize: '0.66rem', fontWeight: 750 }}>
+        {label.replace('Forma ', '')}
+      </Typography>
+    </ButtonBase>
+  );
+}
+
+function PropertyRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
+      <Typography variant="body2" sx={{ fontWeight: 700 }}>
+        {label}
+      </Typography>
+      {children}
+    </Stack>
   );
 }
 
