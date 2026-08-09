@@ -6,14 +6,10 @@ import type {
   FloorplanShapeInput,
   UpdateEventInput
 } from '@invitaciones/api-client';
-import { projectAspectAwareRect, useElementSize } from '@invitaciones/ui';
-import type { RenderedSize } from '@invitaciones/ui';
 import {
   Alert,
-  Box,
   Button,
   Checkbox,
-  Chip,
   FormControlLabel,
   FormHelperText,
   MenuItem,
@@ -23,18 +19,22 @@ import {
   Typography
 } from '@mui/material';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { relativeRectStyles } from '../../shared/relative-rect';
 import { errorMessage } from '../wizard-utils';
 import { usePrivateAssetUrl } from '../design/usePrivateAssetUrl';
+import { FloorplanShapeValidationError, normalizeFloorplanShape } from './floorplan-geometry';
+import { FloorplanInventory } from './FloorplanInventory';
+import { FloorplanSurface } from './FloorplanSurface';
+import { FloorplanTray } from './FloorplanTray';
 import {
-  FloorplanShapeValidationError,
-  normalizeFloorplanShape,
-  polygonClipPath,
-  screenDeltaToLocal
-} from './floorplan-geometry';
+  autoPlacePoint,
+  createPendingTables,
+  matchesAuthoritativeShape,
+  placePendingTable
+} from './floorplan-inventory';
+import type { InventoryConfiguration, PendingTable } from './floorplan-inventory';
 
 type EditorMode = 'idle' | 'creating' | 'editing';
-type Mutation = 'uploading' | 'saving' | 'deleting' | 'locking' | 'unlocking';
+type Mutation = 'uploading' | 'saving' | 'deleting' | 'locking' | 'unlocking' | 'placing';
 type Geometry = FloorplanShapeInput['geometry'];
 type ShapeKind = FloorplanShapeInput['kind'];
 type MutationResult<T> = { ok: true; value: T } | { ok: false };
@@ -85,8 +85,6 @@ function visibleGeometry(geometry: Geometry): string {
   return geometryOptions.find((option) => option.value === geometry)?.label ?? 'Rectangular';
 }
 
-const hasEqualPhysicalSides = (geometry: Geometry) => geometry === 'CIRCLE' || geometry === 'SQUARE';
-
 function mutationError(reason: unknown, mutation: Mutation): string {
   const translated = errorMessage(reason);
   if (!translated.startsWith('No se pudo completar la operación')) return translated;
@@ -118,15 +116,6 @@ export function FloorplanStep({
   disabled: boolean;
   onChange: (patch: Partial<UpdateEventInput>) => void;
 }) {
-  const canvasRef = useRef<HTMLDivElement>(null);
-  const [measureCanvas, canvasSize] = useElementSize<HTMLDivElement>();
-  const setCanvasRef = useCallback(
-    (node: HTMLDivElement | null) => {
-      canvasRef.current = node;
-      measureCanvas(node);
-    },
-    [measureCanvas]
-  );
   const mutationLockRef = useRef(false);
   const refreshLockRef = useRef(false);
   const [floorplan, setFloorplan] = useState<Floorplan>();
@@ -137,6 +126,8 @@ export function FloorplanStep({
   const [refreshing, setRefreshing] = useState(false);
   const [reconciliationError, setReconciliationError] = useState(false);
   const [message, setMessage] = useState<string>();
+  const [pendingTables, setPendingTables] = useState<PendingTable[]>([]);
+  const [activePendingId, setActivePendingId] = useState<string>();
 
   const refresh = useCallback(async () => {
     const latest = await apiClient.floorplan.get(event.id);
@@ -148,6 +139,15 @@ export function FloorplanStep({
     if (!draft.floorplanEnabled) return;
     void refresh().catch(() => setFloorplan(undefined));
   }, [draft.floorplanEnabled, refresh]);
+
+  useEffect(() => {
+    if (pendingTables.length === 0) return;
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+    };
+    window.addEventListener('beforeunload', warnBeforeUnload);
+    return () => window.removeEventListener('beforeunload', warnBeforeUnload);
+  }, [pendingTables.length]);
 
   const imageUrl = usePrivateAssetUrl(apiClient, event.id, floorplan?.image.fileAssetId);
   const selected = floorplan?.shapes.find((item) => item.id === selectedId);
@@ -239,71 +239,59 @@ export function FloorplanStep({
     setShape((current) => normalizeFloorplanShape({ ...current, rotation: current.rotation + amount }));
   };
 
-  const startPointer = (
-    event: React.PointerEvent<HTMLElement>,
-    interaction: 'move' | 'resize' | 'vertex',
-    vertexIndex?: number
-  ) => {
-    if (interactionDisabled || mode === 'idle') return;
-    event.preventDefault();
-    const target = event.currentTarget;
-    target.setPointerCapture?.(event.pointerId);
-    const startX = event.clientX;
-    const startY = event.clientY;
-    const start = { ...shape, polygonPoints: shape.polygonPoints?.map((point) => ({ ...point })) ?? null };
-    const bounds = canvasRef.current?.getBoundingClientRect();
-    if (!bounds?.width || !bounds.height) return;
+  const createInventory = (configurations: readonly InventoryConfiguration[]) => {
+    if (!floorplan || editingActive || interactionDisabled) return;
+    const requested = configurations.reduce((total, configuration) => total + configuration.quantity, 0);
+    if (pendingTables.length + requested > 200) {
+      setMessage('El inventario puede contener hasta 200 mesas pendientes.');
+      return;
+    }
+    const reservedNames = [...floorplan.shapes, ...pendingTables.map((table) => table.input)];
+    const created = createPendingTables(configurations, reservedNames);
+    setPendingTables((current) => [...current, ...created]);
+    setActivePendingId((current) => current ?? created[0]?.temporaryId);
+    setMessage(undefined);
+  };
 
-    const move = (next: PointerEvent) => {
-      next.preventDefault();
-      const screenDeltaX = next.clientX - startX;
-      const screenDeltaY = next.clientY - startY;
+  const persistPendingTable = async (table: PendingTable, point: { x: number; y: number }, refreshAfter = true) => {
+    const input = placePendingTable(table, point);
+    const result = await runMutation('placing', () => apiClient.floorplan.addShape(event.id, input));
+    if (!result.ok) {
       try {
-        if (interaction === 'vertex' && vertexIndex !== undefined && start.polygonPoints) {
-          const localDelta = screenDeltaToLocal(screenDeltaX, screenDeltaY, start.rotation);
-          const localWidth = start.width * bounds.width;
-          const localHeight = start.height * bounds.height;
-          if (!localWidth || !localHeight) return;
-          const points = start.polygonPoints.map((point, index) =>
-            index === vertexIndex
-              ? {
-                  x: Math.min(1, Math.max(0, point.x + localDelta.x / localWidth)),
-                  y: Math.min(1, Math.max(0, point.y + localDelta.y / localHeight))
-                }
-              : point
-          );
-          setShape(normalizeFloorplanShape({ ...start, polygonPoints: points }));
-          return;
-        }
-        const canvasDeltaX = screenDeltaX / bounds.width;
-        const canvasDeltaY = screenDeltaY / bounds.height;
-        const localDelta = screenDeltaToLocal(screenDeltaX, screenDeltaY, start.rotation);
-        const deltaWidth = localDelta.x / bounds.width;
-        const deltaHeight = localDelta.y / bounds.height;
-        const equalSideDelta = Math.max(localDelta.x, localDelta.y) / Math.min(bounds.width, bounds.height);
-        const nextShape =
-          interaction === 'move'
-            ? { ...start, x: start.x + canvasDeltaX, y: start.y + canvasDeltaY }
-            : equalSides
-              ? {
-                  ...start,
-                  width: start.width + equalSideDelta,
-                  height: start.width + equalSideDelta
-                }
-              : { ...start, width: start.width + deltaWidth, height: start.height + deltaHeight };
-        setShape(normalizeFloorplanShape(nextShape));
+        const latest = await refresh();
+        const reconciled = latest.shapes.find((candidate) => matchesAuthoritativeShape(table, candidate));
+        if (!reconciled) return false;
+        setPendingTables((current) => current.filter((candidate) => candidate.temporaryId !== table.temporaryId));
+        setActivePendingId((current) => (current === table.temporaryId ? undefined : current));
+        setMessage(undefined);
+        return true;
       } catch {
-        // The last valid visual position stays visible while the pointer is outside the plan.
+        return false;
       }
-    };
-    const finish = () => {
-      target.removeEventListener('pointermove', move);
-      target.removeEventListener('pointerup', finish);
-      target.removeEventListener('pointercancel', finish);
-    };
-    target.addEventListener('pointermove', move);
-    target.addEventListener('pointerup', finish);
-    target.addEventListener('pointercancel', finish);
+    }
+    setFloorplan((current) => (current ? { ...current, shapes: [...current.shapes, result.value] } : current));
+    setPendingTables((current) => current.filter((candidate) => candidate.temporaryId !== table.temporaryId));
+    setActivePendingId((current) => (current === table.temporaryId ? undefined : current));
+    if (refreshAfter) await refreshAfterConfirmedMutation();
+    return true;
+  };
+
+  const placePending = (point: { x: number; y: number }, requestedId?: string) => {
+    if (interactionDisabled || editingActive) return;
+    const id = requestedId ?? activePendingId;
+    const table = pendingTables.find((candidate) => candidate.temporaryId === id);
+    if (table) void persistPendingTable(table, point);
+  };
+
+  const autoPlace = async () => {
+    if (interactionDisabled || editingActive || pendingTables.length === 0) return;
+    const snapshot = [...pendingTables];
+    let placed = 0;
+    for (const [index, table] of snapshot.entries()) {
+      if (!(await persistPendingTable(table, autoPlacePoint(index, snapshot.length), false))) break;
+      placed += 1;
+    }
+    if (placed > 0) await refreshAfterConfirmedMutation();
   };
 
   const save = async () => {
@@ -439,57 +427,40 @@ export function FloorplanStep({
           </Paper>
 
           {floorplan && imageUrl ? (
-            <Box
-              ref={setCanvasRef}
-              aria-label="Plano interactivo de mesas y zonas"
-              sx={{
-                position: 'relative',
-                width: '100%',
-                maxWidth: 820,
-                lineHeight: 0,
-                overflow: 'hidden',
-                bgcolor: 'grey.100',
-                outline: '1px solid',
-                outlineColor: 'divider'
-              }}
-            >
-              <Box
-                component="img"
-                src={imageUrl}
-                alt="Plano del lugar"
-                draggable={false}
-                sx={{ display: 'block', width: '100%', height: 'auto' }}
-              />
-
-              {floorplan.shapes.map((item) => {
-                if (mode === 'editing' && selectedId === item.id) return null;
-                return (
-                  <ShapeButton
-                    key={item.id}
-                    shape={item}
-                    renderedSize={canvasSize}
-                    selected={false}
-                    disabled={interactionDisabled || editingActive}
-                    onClick={() => selectExisting(item)}
-                  />
-                );
-              })}
-
-              {mode !== 'idle' ? (
-                <EditableShape
-                  shape={shape}
-                  renderedSize={canvasSize}
-                  disabled={interactionDisabled}
-                  onMove={(event) => startPointer(event, 'move')}
-                  onResize={(event) => startPointer(event, 'resize')}
-                  onVertex={(event, index) => startPointer(event, 'vertex', index)}
-                />
-              ) : null}
-            </Box>
+            <FloorplanSurface
+              floorplan={floorplan}
+              imageUrl={imageUrl}
+              selectedId={selectedId}
+              draft={mode === 'idle' ? undefined : shape}
+              disabled={interactionDisabled}
+              onSelect={selectExisting}
+              onDraftChange={setShape}
+              onCanvasPlace={pendingTables.length > 0 ? placePending : undefined}
+            />
           ) : floorplan ? (
-            <Box sx={{ minHeight: 180, display: 'grid', placeItems: 'center', bgcolor: 'grey.100' }}>
+            <Paper
+              variant="outlined"
+              sx={{ minHeight: 180, display: 'grid', placeItems: 'center', bgcolor: 'grey.100' }}
+            >
               <Typography color="text.secondary">Cargando el plano…</Typography>
-            </Box>
+            </Paper>
+          ) : null}
+
+          {floorplan && !floorplan.locked && !editingActive ? (
+            <>
+              <FloorplanInventory
+                disabled={disabled || operationPending || editingActive}
+                maxTables={200 - pendingTables.length}
+                onCreate={createInventory}
+              />
+              <FloorplanTray
+                tables={pendingTables}
+                activeId={activePendingId}
+                disabled={disabled || operationPending || editingActive}
+                onChoose={(id) => setActivePendingId((current) => (current === id ? undefined : id))}
+                onAutoPlace={() => void autoPlace()}
+              />
+            </>
           ) : null}
 
           {floorplan ? (
@@ -598,186 +569,6 @@ export function FloorplanStep({
         </Alert>
       ) : null}
     </Stack>
-  );
-}
-
-function ShapeButton({
-  shape,
-  renderedSize,
-  selected,
-  disabled,
-  onClick
-}: {
-  shape: FloorplanShape;
-  renderedSize: RenderedSize;
-  selected: boolean;
-  disabled: boolean;
-  onClick: () => void;
-}) {
-  const kind = shape.kind === 'TABLE' ? 'Mesa' : 'Zona';
-  return (
-    <Box
-      component="button"
-      type="button"
-      aria-label={`Editar ${kind.toLowerCase()} ${shape.name}`}
-      disabled={disabled}
-      onClick={onClick}
-      sx={{
-        ...relativeRectStyles(projectAspectAwareRect(shape, renderedSize, hasEqualPhysicalSides(shape.geometry))),
-        position: 'absolute',
-        p: 0,
-        border: selected ? 3 : 2,
-        borderStyle: selected ? 'solid' : 'dashed',
-        borderColor: shape.kind === 'TABLE' ? 'primary.main' : 'secondary.main',
-        bgcolor: 'transparent',
-        transform: `rotate(${shape.rotation}deg)`,
-        transformOrigin: 'center',
-        cursor: disabled ? 'default' : 'pointer',
-        '&:focus-visible': { outline: '3px solid', outlineColor: 'warning.main', outlineOffset: 3 }
-      }}
-    >
-      <ShapeSurface shape={shape} selected={selected} />
-    </Box>
-  );
-}
-
-function ShapeSurface({ shape, selected }: { shape: FloorplanShapeInput; selected: boolean }) {
-  const table = shape.kind === 'TABLE';
-  return (
-    <Box
-      sx={{
-        position: 'absolute',
-        inset: 0,
-        display: 'grid',
-        placeItems: 'center',
-        overflow: 'hidden',
-        borderRadius: shape.geometry === 'CIRCLE' ? '50%' : 0,
-        clipPath: shape.geometry === 'POLYGON' ? polygonClipPath(shape.polygonPoints) : undefined,
-        bgcolor: table ? 'rgba(255,255,255,.82)' : 'rgba(255,248,225,.82)',
-        color: 'text.primary'
-      }}
-    >
-      <Stack spacing={0.25} sx={{ alignItems: 'center', lineHeight: 1.15, px: 0.5, maxWidth: '100%' }}>
-        {selected ? <Chip size="small" label="Seleccionada" sx={{ height: 22 }} /> : null}
-        <Typography component="span" variant="caption" sx={{ fontWeight: 800, lineHeight: 1.15 }}>
-          {shape.name || (table ? 'Nueva mesa' : 'Nueva zona')}
-        </Typography>
-        <Typography component="span" variant="caption" sx={{ lineHeight: 1.15 }}>
-          {table ? `Mesa · ${shape.capacity} lugares` : 'Zona'}
-        </Typography>
-      </Stack>
-    </Box>
-  );
-}
-
-function EditableShape({
-  shape,
-  renderedSize,
-  disabled,
-  onMove,
-  onResize,
-  onVertex
-}: {
-  shape: FloorplanShapeInput;
-  renderedSize: RenderedSize;
-  disabled: boolean;
-  onMove: (event: React.PointerEvent<HTMLElement>) => void;
-  onResize: (event: React.PointerEvent<HTMLElement>) => void;
-  onVertex: (event: React.PointerEvent<HTMLElement>, index: number) => void;
-}) {
-  return (
-    <Box
-      role="group"
-      aria-label={`${shape.kind === 'TABLE' ? 'Mesa' : 'Zona'} seleccionada ${shape.name || 'sin nombre'}`}
-      sx={{
-        ...relativeRectStyles(projectAspectAwareRect(shape, renderedSize, hasEqualPhysicalSides(shape.geometry))),
-        position: 'absolute',
-        transform: `rotate(${shape.rotation}deg)`,
-        transformOrigin: 'center',
-        border: '3px solid',
-        borderColor: 'warning.dark',
-        zIndex: 3
-      }}
-    >
-      <Box
-        aria-label={`Mover ${shape.kind === 'TABLE' ? 'mesa' : 'zona'} seleccionada`}
-        onPointerDown={onMove}
-        sx={{ position: 'absolute', inset: 0, cursor: disabled ? 'default' : 'move', touchAction: 'none' }}
-      >
-        <ShapeSurface shape={shape} selected />
-      </Box>
-      <Box
-        component="button"
-        type="button"
-        disabled={disabled}
-        aria-label={`Cambiar tamaño de ${shape.name || (shape.kind === 'TABLE' ? 'la mesa' : 'la zona')}`}
-        onPointerDown={(event) => {
-          event.stopPropagation();
-          onResize(event);
-        }}
-        sx={{
-          position: 'absolute',
-          right: -22,
-          bottom: -22,
-          width: 44,
-          height: 44,
-          p: 0,
-          border: 0,
-          bgcolor: 'transparent',
-          cursor: disabled ? 'default' : 'nwse-resize',
-          touchAction: 'none',
-          '&::after': {
-            content: '""',
-            position: 'absolute',
-            right: 8,
-            bottom: 8,
-            width: 13,
-            height: 13,
-            borderRight: '4px solid',
-            borderBottom: '4px solid',
-            borderColor: 'warning.dark'
-          },
-          '&:focus-visible': { outline: '3px solid', outlineColor: 'warning.main' }
-        }}
-      />
-      {shape.geometry === 'POLYGON'
-        ? shape.polygonPoints?.map((point, index) => (
-            <Box
-              component="button"
-              type="button"
-              key={index}
-              disabled={disabled}
-              aria-label={`Mover punto ${index + 1} de la forma personalizada`}
-              onPointerDown={(event) => {
-                event.stopPropagation();
-                onVertex(event, index);
-              }}
-              sx={{
-                position: 'absolute',
-                left: `${point.x * 100}%`,
-                top: `${point.y * 100}%`,
-                width: 44,
-                height: 44,
-                p: 0,
-                border: 0,
-                bgcolor: 'transparent',
-                transform: 'translate(-50%, -50%)',
-                touchAction: 'none',
-                cursor: disabled ? 'default' : 'grab',
-                '&::after': {
-                  content: '""',
-                  position: 'absolute',
-                  inset: 14,
-                  borderRadius: '50%',
-                  bgcolor: 'warning.dark',
-                  border: '2px solid white'
-                },
-                '&:focus-visible': { outline: '3px solid', outlineColor: 'warning.main' }
-              }}
-            />
-          ))
-        : null}
-    </Box>
   );
 }
 

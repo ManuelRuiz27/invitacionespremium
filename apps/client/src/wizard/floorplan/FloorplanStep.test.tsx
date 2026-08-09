@@ -702,4 +702,26 @@ describe('FloorplanStep', () => {
     await waitFor(() => expect(api.fileAssets.upload).toHaveBeenCalledTimes(2));
     expect(api.floorplan.replaceImage).toHaveBeenCalledWith(configuredEvent.id, 'asset-retry');
   });
+
+  it('keeps bulk inventory local until a pending table is placed on the plan', async () => {
+    const { api } = renderEditor();
+    await screen.findByAltText('Plano del lugar');
+
+    await userEvent.clear(screen.getByLabelText('Cantidad'));
+    await userEvent.type(screen.getByLabelText('Cantidad'), '2');
+    await userEvent.click(screen.getByRole('button', { name: 'Crear inventario de 2 mesas' }));
+
+    expect(screen.getByRole('heading', { name: 'Mesas sin colocar (2)' })).toBeInTheDocument();
+    expect(api.floorplan.addShape).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByLabelText('Plano interactivo de mesas y zonas'), { clientX: 10, clientY: 10 });
+    await waitFor(() => expect(api.floorplan.addShape).toHaveBeenCalledOnce());
+    expect(vi.mocked(api.floorplan.addShape).mock.calls[0]?.[1]).toMatchObject({
+      name: 'Mesa 1',
+      kind: 'TABLE',
+      geometry: 'CIRCLE',
+      capacity: 10
+    });
+    expect(screen.getByRole('heading', { name: 'Mesas sin colocar (1)' })).toBeInTheDocument();
+  });
 });
