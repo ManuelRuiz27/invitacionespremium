@@ -96,7 +96,15 @@ export function WizardLayout({
             {message}
           </Alert>
         ) : null}
-        <Paper component="section" variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
+        <Paper
+          component="section"
+          variant="outlined"
+          sx={
+            selectedStep === 'croquis'
+              ? { p: 0, border: 0, bgcolor: 'transparent', boxShadow: 'none' }
+              : { p: { xs: 2, md: 3 } }
+          }
+        >
           {children}
         </Paper>
         <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ justifyContent: 'space-between', gap: 1.5 }}>

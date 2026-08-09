@@ -2,11 +2,13 @@ import type { FloorplanShapeInput } from '@invitaciones/api-client';
 import { useElementSize } from '@invitaciones/ui';
 import { Box, Button, Stack, Typography } from '@mui/material';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import { FloorplanDomRenderer } from './FloorplanDomRenderer';
 import type { FloorplanRendererProps } from './FloorplanDomRenderer';
 import { createHistory, commitHistory, redoHistory, undoHistory } from './floorplan-history';
 import type { HistoryState } from './floorplan-history';
 import { stagePointToNormalized } from './floorplan-scene';
+import { floorplanColors } from './floorplan-sticker-style';
 import { FloorplanToolbar } from './FloorplanToolbar';
 import type { ViewportState } from './FloorplanKonvaRenderer';
 
@@ -16,7 +18,9 @@ const LazyKonvaRenderer = lazy(() =>
 
 const defaultViewport: ViewportState = { scale: 1, x: 0, y: 0 };
 
-type FloorplanSurfaceProps = Omit<FloorplanRendererProps, 'showSeats' | 'snap'>;
+type FloorplanSurfaceProps = Omit<FloorplanRendererProps, 'showSeats' | 'snap' | 'panEnabled'> & {
+  dock?: ReactNode;
+};
 
 export function FloorplanSurface(props: FloorplanSurfaceProps) {
   const ownerRef = useRef<HTMLDivElement>(null);
@@ -32,17 +36,14 @@ export function FloorplanSurface(props: FloorplanSurfaceProps) {
   const [viewport, setViewport] = useState(defaultViewport);
   const [snap, setSnap] = useState(false);
   const [showSeats, setShowSeats] = useState(false);
+  const [panEnabled, setPanEnabled] = useState(false);
   const [history, setHistory] = useState<HistoryState<FloorplanShapeInput> | undefined>(() =>
     props.draft ? createHistory(props.draft) : undefined
   );
   const historyIdentity = `${props.selectedId ?? 'new'}:${props.draft?.kind ?? 'idle'}`;
 
   useEffect(() => {
-    if (!props.draft) {
-      setHistory(undefined);
-      return;
-    }
-    setHistory(createHistory(props.draft));
+    setHistory(props.draft ? createHistory(props.draft) : undefined);
   }, [historyIdentity]);
 
   useEffect(() => {
@@ -58,9 +59,7 @@ export function FloorplanSurface(props: FloorplanSurfaceProps) {
     if (!image?.naturalWidth || !ownerSize.width) return 0;
     return (ownerSize.width * image.naturalHeight) / image.naturalWidth;
   }, [image, ownerSize.width]);
-  const useKonva =
-    import.meta.env.MODE !== 'test' &&
-    Boolean(image && image.src === props.imageUrl && ownerSize.width > 0 && stageHeight > 0);
+  const useKonva = Boolean(image && image.src === props.imageUrl && ownerSize.width > 0 && stageHeight > 0);
 
   const changeDraft = (next: FloorplanShapeInput) => {
     setHistory((current) => {
@@ -85,67 +84,101 @@ export function FloorplanSurface(props: FloorplanSurfaceProps) {
     draft: props.draft,
     snap,
     showSeats,
+    panEnabled,
     onDraftChange: changeDraft
   };
 
   return (
-    <Stack spacing={1.5}>
-      <FloorplanToolbar
-        disabled={props.disabled}
-        snap={snap}
-        showSeats={showSeats}
-        canUndo={Boolean(history?.past.length)}
-        canRedo={Boolean(history?.future.length)}
-        onSnapChange={setSnap}
-        onShowSeatsChange={setShowSeats}
-        onZoomIn={() => setViewport((current) => ({ ...current, scale: Math.min(4, current.scale * 1.2) }))}
-        onZoomOut={() => setViewport((current) => ({ ...current, scale: Math.max(0.5, current.scale / 1.2) }))}
-        onFit={() => setViewport(defaultViewport)}
-        onUndo={() => applyHistory('undo')}
-        onRedo={() => applyHistory('redo')}
-      />
-      <Box
-        ref={import.meta.env.MODE === 'test' ? undefined : setOwnerRef}
-        sx={{ width: '100%', maxWidth: 960, overflow: 'hidden', bgcolor: 'grey.100', borderRadius: 1 }}
-        onDragOver={(event) => {
-          if (props.disabled || !props.onCanvasPlace) return;
-          event.preventDefault();
-          event.dataTransfer.dropEffect = 'move';
-        }}
-        onDrop={(event) => {
-          const pendingId = event.dataTransfer.getData('application/x-floorplan-pending-table');
-          const bounds = ownerRef.current?.getBoundingClientRect();
-          if (!pendingId || !bounds) return;
-          event.preventDefault();
-          const point = stagePointToNormalized(
-            bounds.left + (event.clientX - bounds.left - viewport.x) / viewport.scale,
-            bounds.top + (event.clientY - bounds.top - viewport.y) / viewport.scale,
-            bounds
-          );
-          props.onCanvasPlace?.(point, pendingId);
-        }}
-      >
-        {useKonva && image ? (
-          <Suspense fallback={<FloorplanDomRenderer {...rendererProps} />}>
-            <LazyKonvaRenderer
-              {...rendererProps}
-              image={image}
-              width={ownerSize.width}
-              height={stageHeight}
-              viewport={viewport}
-              onViewportChange={setViewport}
+    <Box
+      sx={{
+        overflow: 'hidden',
+        border: `1px solid ${floorplanColors.line}`,
+        borderRadius: 2,
+        bgcolor: floorplanColors.canvas,
+        boxShadow: '0 18px 48px rgba(23, 35, 60, 0.08)'
+      }}
+    >
+      <Box sx={{ position: 'relative', minHeight: { xs: 360, md: 520 }, display: 'grid', placeItems: 'center' }}>
+        <Box sx={{ position: 'absolute', zIndex: 2, top: 12, left: 12, right: 12, pointerEvents: 'none' }}>
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: { xs: 'flex-start', sm: 'center' },
+              overflowX: 'auto',
+              scrollbarWidth: 'thin',
+              pb: 0.5,
+              '& > *': { pointerEvents: 'auto', flexShrink: 0 }
+            }}
+          >
+            <FloorplanToolbar
+              disabled={props.disabled}
+              snap={snap}
+              showSeats={showSeats}
+              panEnabled={panEnabled}
+              zoom={viewport.scale}
+              canUndo={Boolean(history?.past.length)}
+              canRedo={Boolean(history?.future.length)}
+              onSnapChange={setSnap}
+              onShowSeatsChange={setShowSeats}
+              onPanEnabledChange={setPanEnabled}
+              onZoomIn={() => setViewport((current) => ({ ...current, scale: Math.min(4, current.scale * 1.2) }))}
+              onZoomOut={() => setViewport((current) => ({ ...current, scale: Math.max(0.5, current.scale / 1.2) }))}
+              onFit={() => setViewport(defaultViewport)}
+              onUndo={() => applyHistory('undo')}
+              onRedo={() => applyHistory('redo')}
             />
-          </Suspense>
-        ) : (
-          <FloorplanDomRenderer {...rendererProps} />
-        )}
+          </Box>
+        </Box>
+
+        <Box
+          ref={setOwnerRef}
+          data-testid="floorplan-renderer-host"
+          sx={{ width: '100%', overflow: 'hidden', bgcolor: floorplanColors.canvas }}
+          onDragOver={(event) => {
+            if (props.disabled || !props.onCanvasPlace) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+          }}
+          onDrop={(event) => {
+            const pendingId = event.dataTransfer.getData('application/x-floorplan-pending-table');
+            const bounds = ownerRef.current?.getBoundingClientRect();
+            if (!pendingId || !bounds) return;
+            event.preventDefault();
+            const point = stagePointToNormalized(
+              bounds.left + (event.clientX - bounds.left - viewport.x) / viewport.scale,
+              bounds.top + (event.clientY - bounds.top - viewport.y) / viewport.scale,
+              bounds
+            );
+            props.onCanvasPlace?.(point, pendingId);
+          }}
+        >
+          {useKonva && image ? (
+            <Suspense fallback={<FloorplanDomRenderer {...rendererProps} />}>
+              <LazyKonvaRenderer
+                {...rendererProps}
+                image={image}
+                width={ownerSize.width}
+                height={stageHeight}
+                viewport={viewport}
+                onViewportChange={setViewport}
+              />
+            </Suspense>
+          ) : (
+            <FloorplanDomRenderer {...rendererProps} />
+          )}
+        </Box>
       </Box>
 
-      <Box component="section" aria-labelledby="floorplan-elements-title">
-        <Typography id="floorplan-elements-title" variant="subtitle2" sx={{ mb: 1 }}>
-          Elementos del plano
+      {props.dock}
+
+      <Box
+        component="details"
+        sx={{ borderTop: `1px solid ${floorplanColors.line}`, bgcolor: floorplanColors.paper, px: 2, py: 1.25 }}
+      >
+        <Typography component="summary" id="floorplan-elements-title" variant="subtitle2" sx={{ cursor: 'pointer' }}>
+          Lista accesible del plano ({props.floorplan.shapes.length})
         </Typography>
-        <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap' }}>
+        <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap', pt: 1.25 }}>
           {props.floorplan.shapes.map((shape) => (
             <Button
               key={shape.id}
@@ -160,6 +193,6 @@ export function FloorplanSurface(props: FloorplanSurfaceProps) {
           ))}
         </Stack>
       </Box>
-    </Stack>
+    </Box>
   );
 }

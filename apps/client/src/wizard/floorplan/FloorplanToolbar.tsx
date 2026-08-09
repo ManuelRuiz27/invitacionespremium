@@ -1,19 +1,24 @@
 import CenterFocusStrongRounded from '@mui/icons-material/CenterFocusStrongRounded';
+import ChairAltRounded from '@mui/icons-material/ChairAltRounded';
 import GridOnRounded from '@mui/icons-material/GridOnRounded';
+import PanToolAltRounded from '@mui/icons-material/PanToolAltRounded';
 import RedoRounded from '@mui/icons-material/RedoRounded';
 import UndoRounded from '@mui/icons-material/UndoRounded';
 import ZoomInRounded from '@mui/icons-material/ZoomInRounded';
 import ZoomOutRounded from '@mui/icons-material/ZoomOutRounded';
-import { FormControlLabel, IconButton, Paper, Stack, Switch, Tooltip } from '@mui/material';
+import { Box, Divider, IconButton, Stack, ToggleButton, Tooltip, Typography } from '@mui/material';
 
 export function FloorplanToolbar({
   disabled,
   snap,
   showSeats,
+  panEnabled,
+  zoom,
   canUndo,
   canRedo,
   onSnapChange,
   onShowSeatsChange,
+  onPanEnabledChange,
   onZoomIn,
   onZoomOut,
   onFit,
@@ -23,41 +28,113 @@ export function FloorplanToolbar({
   disabled: boolean;
   snap: boolean;
   showSeats: boolean;
+  panEnabled: boolean;
+  zoom: number;
   canUndo: boolean;
   canRedo: boolean;
   onSnapChange: (checked: boolean) => void;
   onShowSeatsChange: (checked: boolean) => void;
+  onPanEnabledChange: (checked: boolean) => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
   onFit: () => void;
   onUndo: () => void;
   onRedo: () => void;
 }) {
-  const buttonSx = { width: 44, height: 44 } as const;
+  const buttonSx = {
+    width: 44,
+    height: 44,
+    borderRadius: 2,
+    color: 'text.primary',
+    '&:hover': { bgcolor: 'rgba(49, 87, 200, 0.08)' }
+  } as const;
+  const toggleSx = {
+    width: 44,
+    height: 44,
+    p: 0,
+    border: 0,
+    borderRadius: '8px !important',
+    color: 'text.secondary',
+    '&.Mui-selected': { bgcolor: 'primary.main', color: 'primary.contrastText' },
+    '&.Mui-selected:hover': { bgcolor: 'primary.dark' }
+  } as const;
+
   return (
-    <Paper variant="outlined" sx={{ px: 1, py: 0.5 }} component="div" aria-label="Herramientas del plano">
-      <Stack direction="row" useFlexGap spacing={0.5} sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
-        <Tooltip title="Acercar">
-          <span>
-            <IconButton aria-label="Acercar plano" onClick={onZoomIn} sx={buttonSx}>
-              <ZoomInRounded />
-            </IconButton>
-          </span>
-        </Tooltip>
+    <Box
+      component="div"
+      aria-label="Herramientas del plano"
+      sx={{
+        px: 0.75,
+        py: 0.625,
+        border: '1px solid',
+        borderColor: 'rgba(226, 222, 213, 0.9)',
+        borderRadius: 3,
+        bgcolor: 'rgba(255, 254, 251, 0.94)',
+        boxShadow: '0 12px 32px rgba(23, 35, 60, 0.13)',
+        backdropFilter: 'blur(14px)'
+      }}
+    >
+      <Stack direction="row" spacing={0.25} sx={{ alignItems: 'center' }}>
         <Tooltip title="Alejar">
-          <span>
-            <IconButton aria-label="Alejar plano" onClick={onZoomOut} sx={buttonSx}>
-              <ZoomOutRounded />
-            </IconButton>
-          </span>
+          <IconButton aria-label="Alejar plano" onClick={onZoomOut} sx={buttonSx}>
+            <ZoomOutRounded fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        <Typography
+          variant="caption"
+          aria-label={`Zoom ${Math.round(zoom * 100)} por ciento`}
+          sx={{ minWidth: 42, textAlign: 'center', fontWeight: 750, fontVariantNumeric: 'tabular-nums' }}
+        >
+          {Math.round(zoom * 100)}%
+        </Typography>
+        <Tooltip title="Acercar">
+          <IconButton aria-label="Acercar plano" onClick={onZoomIn} sx={buttonSx}>
+            <ZoomInRounded fontSize="small" />
+          </IconButton>
         </Tooltip>
         <Tooltip title="Ajustar vista">
+          <IconButton aria-label="Ajustar plano a la vista" onClick={onFit} sx={buttonSx}>
+            <CenterFocusStrongRounded fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+        <Tooltip title="Mover plano">
+          <ToggleButton
+            value="pan"
+            selected={panEnabled}
+            onChange={() => onPanEnabledChange(!panEnabled)}
+            aria-label="Activar modo mover plano"
+            sx={toggleSx}
+          >
+            <PanToolAltRounded fontSize="small" />
+          </ToggleButton>
+        </Tooltip>
+        <Tooltip title="Ajuste magnético">
           <span>
-            <IconButton aria-label="Ajustar plano a la vista" onClick={onFit} sx={buttonSx}>
-              <CenterFocusStrongRounded />
-            </IconButton>
+            <ToggleButton
+              value="snap"
+              selected={snap}
+              disabled={disabled}
+              onChange={() => onSnapChange(!snap)}
+              aria-label="Activar ajuste magnético"
+              sx={toggleSx}
+            >
+              <GridOnRounded fontSize="small" />
+            </ToggleButton>
           </span>
         </Tooltip>
+        <Tooltip title="Mostrar sillas">
+          <ToggleButton
+            value="seats"
+            selected={showSeats}
+            onChange={() => onShowSeatsChange(!showSeats)}
+            aria-label="Mostrar sillas"
+            sx={toggleSx}
+          >
+            <ChairAltRounded fontSize="small" />
+          </ToggleButton>
+        </Tooltip>
+        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
         <Tooltip title="Deshacer">
           <span>
             <IconButton
@@ -66,7 +143,7 @@ export function FloorplanToolbar({
               onClick={onUndo}
               sx={buttonSx}
             >
-              <UndoRounded />
+              <UndoRounded fontSize="small" />
             </IconButton>
           </span>
         </Tooltip>
@@ -78,27 +155,11 @@ export function FloorplanToolbar({
               onClick={onRedo}
               sx={buttonSx}
             >
-              <RedoRounded />
+              <RedoRounded fontSize="small" />
             </IconButton>
           </span>
         </Tooltip>
-        <FormControlLabel
-          control={
-            <Switch checked={snap} disabled={disabled} onChange={(event) => onSnapChange(event.target.checked)} />
-          }
-          label={
-            <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-              <GridOnRounded fontSize="small" /> Ajuste
-            </Stack>
-          }
-          sx={{ minHeight: 44, ml: 0.5 }}
-        />
-        <FormControlLabel
-          control={<Switch checked={showSeats} onChange={(event) => onShowSeatsChange(event.target.checked)} />}
-          label="Mostrar sillas"
-          sx={{ minHeight: 44 }}
-        />
       </Stack>
-    </Paper>
+    </Box>
   );
 }

@@ -8,15 +8,19 @@ import type {
 } from '@invitaciones/api-client';
 import {
   Alert,
+  Box,
   Button,
   Checkbox,
+  Drawer,
   FormControlLabel,
   FormHelperText,
   MenuItem,
   Paper,
   Stack,
   TextField,
-  Typography
+  Typography,
+  useMediaQuery,
+  useTheme
 } from '@mui/material';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { errorMessage } from '../wizard-utils';
@@ -128,6 +132,9 @@ export function FloorplanStep({
   const [message, setMessage] = useState<string>();
   const [pendingTables, setPendingTables] = useState<PendingTable[]>([]);
   const [activePendingId, setActivePendingId] = useState<string>();
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const theme = useTheme();
+  const compactLayout = useMediaQuery(theme.breakpoints.down('md'));
 
   const refresh = useCallback(async () => {
     const latest = await apiClient.floorplan.get(event.id);
@@ -294,6 +301,19 @@ export function FloorplanStep({
     if (placed > 0) await refreshAfterConfirmedMutation();
   };
 
+  const finalize = () => {
+    if (pendingTables.length > 0) {
+      setMessage(
+        `Todavía hay ${pendingTables.length} ${pendingTables.length === 1 ? 'mesa pendiente' : 'mesas pendientes'}. Colócalas o conserva el inventario para continuar después.`
+      );
+      return;
+    }
+    void runMutation('locking', async () => {
+      setFloorplan(await apiClient.floorplan.lock(event.id));
+      cancel();
+    });
+  };
+
   const save = async () => {
     if (!shape.name.trim()) {
       setMessage(shape.kind === 'TABLE' ? 'Escribe el nombre o número de la mesa.' : 'Escribe el nombre de la zona.');
@@ -361,186 +381,224 @@ export function FloorplanStep({
     });
   };
 
+  const inventory =
+    floorplan && !floorplan.locked && !editingActive ? (
+      <FloorplanInventory
+        disabled={disabled || operationPending}
+        maxTables={200 - pendingTables.length}
+        onCreate={createInventory}
+      />
+    ) : null;
+  const inspector =
+    floorplan && !floorplan.locked && mode !== 'idle' ? (
+      <ShapeEditor
+        mode={mode}
+        shape={shape}
+        disabled={disabled || operationPending}
+        onShapeChange={setShape}
+        onGeometryChange={changeGeometry}
+        onAdjust={adjust}
+        onRotate={rotate}
+        onSave={() => void save()}
+        onRemove={selected ? () => void remove() : undefined}
+        onCancel={cancel}
+        saving={mutation === 'saving'}
+        deleting={mutation === 'deleting'}
+      />
+    ) : null;
+
   return (
-    <Stack spacing={2.5} component="section" aria-labelledby="floorplan-title">
-      <Stack spacing={0.5}>
-        <Typography component="h2" variant="h3" id="floorplan-title">
-          Mesas y distribución
-        </Typography>
-        <Typography color="text.secondary">
-          Organiza las mesas y áreas de tu evento sobre el plano del lugar.
-        </Typography>
+    <Stack spacing={2} component="section" aria-labelledby="floorplan-title">
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={1.5}
+        sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
+      >
+        <Box>
+          <Typography component="h2" variant="h3" id="floorplan-title">
+            Mesas y distribución
+          </Typography>
+          <Typography color="text.secondary">
+            Organiza las mesas y áreas de tu evento sobre el plano del lugar.
+          </Typography>
+        </Box>
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={draft.floorplanEnabled}
+              disabled={disabled || operationPending || editingActive}
+              onChange={(event) => {
+                if (!editingActive) onChange({ floorplanEnabled: event.target.checked });
+              }}
+            />
+          }
+          label="Usar distribución de mesas"
+        />
       </Stack>
 
-      <FormControlLabel
-        control={
-          <Checkbox
-            checked={draft.floorplanEnabled}
-            disabled={disabled || operationPending || editingActive}
-            onChange={(event) => {
-              if (!editingActive) onChange({ floorplanEnabled: event.target.checked });
-            }}
-          />
-        }
-        label="Usar distribución de mesas"
-      />
-
       {draft.floorplanEnabled ? (
-        <Stack spacing={2.5}>
-          <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
-            <Stack spacing={1.5}>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: { sm: 'center' } }}>
-                <Button
-                  component="label"
-                  variant={floorplan ? 'outlined' : 'contained'}
-                  disabled={disabled || operationPending || editingActive || floorplan?.locked}
-                  sx={{ minHeight: 44, alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
-                >
-                  {mutation === 'uploading'
-                    ? 'Guardando plano…'
-                    : floorplan
-                      ? 'Cambiar plano'
-                      : 'Agregar plano del lugar'}
-                  <input
-                    hidden
-                    type="file"
-                    disabled={disabled || operationPending || editingActive || floorplan?.locked}
-                    accept="image/jpeg,image/png"
-                    aria-label="Seleccionar imagen del plano"
-                    onChange={(event) => {
-                      const input = event.currentTarget;
-                      const file = input.files?.[0];
-                      if (file)
-                        void uploadImage(file).finally(() => {
-                          input.value = '';
-                        });
-                    }}
-                  />
-                </Button>
-                <Typography variant="body2" color="text.secondary">
-                  Sube una imagen del espacio para colocar las mesas y áreas del evento.
-                </Typography>
-              </Stack>
-
-              <Typography sx={{ fontWeight: 700 }}>Lugares distribuidos: {distributedPlaces}</Typography>
-            </Stack>
-          </Paper>
-
-          {floorplan && imageUrl ? (
-            <FloorplanSurface
-              floorplan={floorplan}
-              imageUrl={imageUrl}
-              selectedId={selectedId}
-              draft={mode === 'idle' ? undefined : shape}
-              disabled={interactionDisabled}
-              onSelect={selectExisting}
-              onDraftChange={setShape}
-              onCanvasPlace={pendingTables.length > 0 ? placePending : undefined}
-            />
-          ) : floorplan ? (
-            <Paper
-              variant="outlined"
-              sx={{ minHeight: 180, display: 'grid', placeItems: 'center', bgcolor: 'grey.100' }}
+        <Stack spacing={2}>
+          <Stack direction="row" useFlexGap spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+            <Button
+              component="label"
+              variant={floorplan ? 'outlined' : 'contained'}
+              disabled={disabled || operationPending || editingActive || floorplan?.locked}
+              sx={{ minHeight: 44 }}
             >
-              <Typography color="text.secondary">Cargando el plano…</Typography>
-            </Paper>
-          ) : null}
+              {mutation === 'uploading' ? 'Guardando plano…' : floorplan ? 'Cambiar plano' : 'Agregar plano del lugar'}
+              <input
+                hidden
+                type="file"
+                disabled={disabled || operationPending || editingActive || floorplan?.locked}
+                accept="image/jpeg,image/png"
+                aria-label="Seleccionar imagen del plano"
+                onChange={(event) => {
+                  const input = event.currentTarget;
+                  const file = input.files?.[0];
+                  if (file) void uploadImage(file).finally(() => (input.value = ''));
+                }}
+              />
+            </Button>
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>
+              Lugares distribuidos: {distributedPlaces}
+            </Typography>
+            {compactLayout && inventory ? (
+              <Button variant="outlined" onClick={() => setLibraryOpen(true)} sx={{ minHeight: 44 }}>
+                Abrir biblioteca
+              </Button>
+            ) : null}
+          </Stack>
 
-          {floorplan && !floorplan.locked && !editingActive ? (
-            <>
-              <FloorplanInventory
-                disabled={disabled || operationPending || editingActive}
-                maxTables={200 - pendingTables.length}
-                onCreate={createInventory}
-              />
-              <FloorplanTray
-                tables={pendingTables}
-                activeId={activePendingId}
-                disabled={disabled || operationPending || editingActive}
-                onChoose={(id) => setActivePendingId((current) => (current === id ? undefined : id))}
-                onAutoPlace={() => void autoPlace()}
-              />
-            </>
+          {floorplan ? (
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: 'minmax(0, 1fr)',
+                  md: inspector ? '240px minmax(0, 1fr) 280px' : '240px minmax(0, 1fr)'
+                },
+                gap: 2,
+                alignItems: 'start'
+              }}
+            >
+              {!compactLayout ? <Box component="aside">{inventory}</Box> : null}
+              <Box sx={{ minWidth: 0 }}>
+                {imageUrl ? (
+                  <FloorplanSurface
+                    floorplan={floorplan}
+                    imageUrl={imageUrl}
+                    selectedId={selectedId}
+                    draft={mode === 'idle' ? undefined : shape}
+                    disabled={interactionDisabled}
+                    onSelect={selectExisting}
+                    onDraftChange={setShape}
+                    onCanvasPlace={pendingTables.length > 0 ? placePending : undefined}
+                    dock={
+                      !floorplan.locked && !editingActive ? (
+                        <FloorplanTray
+                          tables={pendingTables}
+                          activeId={activePendingId}
+                          disabled={disabled || operationPending}
+                          onChoose={(id) => setActivePendingId((current) => (current === id ? undefined : id))}
+                          onAutoPlace={() => void autoPlace()}
+                        />
+                      ) : undefined
+                    }
+                  />
+                ) : (
+                  <Paper variant="outlined" sx={{ minHeight: 360, display: 'grid', placeItems: 'center' }}>
+                    <Typography color="text.secondary">Cargando el plano…</Typography>
+                  </Paper>
+                )}
+              </Box>
+              {!compactLayout && inspector ? <Box component="aside">{inspector}</Box> : null}
+            </Box>
           ) : null}
 
           {floorplan ? (
-            <Stack spacing={1.5}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
               {floorplan.locked ? (
-                <Alert severity="info">
-                  La distribución está finalizada. El plano permanece visible y protegido contra cambios accidentales.
+                <Alert severity="info" sx={{ flex: 1 }}>
+                  Distribución finalizada y protegida contra cambios accidentales.
                 </Alert>
               ) : (
-                <Typography color="text.secondary">
-                  Finaliza la distribución para evitar cambios accidentales y continuar con la configuración del evento.
+                <Typography
+                  variant="body2"
+                  color={pendingTables.length ? 'warning.main' : 'text.secondary'}
+                  sx={{ flex: 1 }}
+                >
+                  {pendingTables.length
+                    ? `Falta colocar ${pendingTables.length} ${pendingTables.length === 1 ? 'mesa' : 'mesas'} antes de finalizar.`
+                    : 'Todo listo para finalizar cuando termines de revisar el croquis.'}
                 </Typography>
               )}
-              <Stack direction={{ xs: 'column', sm: 'row' }} useFlexGap spacing={1} sx={{ flexWrap: 'wrap' }}>
-                {!floorplan.locked ? (
-                  <>
-                    <Button
-                      variant="contained"
-                      disabled={disabled || operationPending || editingActive}
-                      onClick={() => startCreating('TABLE')}
-                      sx={{ minHeight: 44 }}
-                    >
-                      Agregar mesa
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      disabled={disabled || operationPending || editingActive}
-                      onClick={() => startCreating('DECORATIVE_ZONE')}
-                      sx={{ minHeight: 44 }}
-                    >
-                      Agregar zona
-                    </Button>
-                    <Button
-                      disabled={disabled || operationPending || editingActive}
-                      onClick={() =>
-                        void runMutation('locking', async () => {
-                          setFloorplan(await apiClient.floorplan.lock(event.id));
-                          cancel();
-                        })
-                      }
-                      sx={{ minHeight: 44 }}
-                    >
-                      {mutation === 'locking' ? 'Finalizando…' : 'Finalizar distribución'}
-                    </Button>
-                  </>
-                ) : (
+              {!floorplan.locked ? (
+                <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap' }}>
                   <Button
                     variant="outlined"
-                    disabled={disabled || operationPending}
-                    onClick={() =>
-                      void runMutation('unlocking', async () => {
-                        setFloorplan(await apiClient.floorplan.unlock(event.id));
-                        cancel();
-                      })
-                    }
+                    disabled={disabled || operationPending || editingActive}
+                    onClick={() => startCreating('TABLE')}
                     sx={{ minHeight: 44 }}
                   >
-                    {mutation === 'unlocking' ? 'Habilitando edición…' : 'Editar distribución'}
+                    Agregar mesa
                   </Button>
-                )}
-              </Stack>
+                  <Button
+                    variant="outlined"
+                    disabled={disabled || operationPending || editingActive}
+                    onClick={() => startCreating('DECORATIVE_ZONE')}
+                    sx={{ minHeight: 44 }}
+                  >
+                    Agregar zona
+                  </Button>
+                  <Button
+                    variant="contained"
+                    disabled={disabled || operationPending || editingActive || pendingTables.length > 0}
+                    aria-describedby={pendingTables.length ? 'floorplan-finalize-help' : undefined}
+                    onClick={finalize}
+                    sx={{ minHeight: 44 }}
+                  >
+                    {mutation === 'locking' ? 'Finalizando…' : 'Finalizar distribución'}
+                  </Button>
+                  {pendingTables.length ? (
+                    <Typography id="floorplan-finalize-help" variant="caption" sx={{ alignSelf: 'center' }}>
+                      El inventario pendiente se conserva.
+                    </Typography>
+                  ) : null}
+                </Stack>
+              ) : (
+                <Button
+                  variant="outlined"
+                  disabled={disabled || operationPending}
+                  onClick={() =>
+                    void runMutation('unlocking', async () => {
+                      setFloorplan(await apiClient.floorplan.unlock(event.id));
+                      cancel();
+                    })
+                  }
+                  sx={{ minHeight: 44 }}
+                >
+                  {mutation === 'unlocking' ? 'Habilitando edición…' : 'Editar distribución'}
+                </Button>
+              )}
             </Stack>
           ) : null}
 
-          {floorplan && !floorplan.locked && mode !== 'idle' ? (
-            <ShapeEditor
-              mode={mode}
-              shape={shape}
-              disabled={disabled || operationPending}
-              onShapeChange={setShape}
-              onGeometryChange={changeGeometry}
-              onAdjust={adjust}
-              onRotate={rotate}
-              onSave={() => void save()}
-              onRemove={selected ? () => void remove() : undefined}
-              onCancel={cancel}
-              saving={mutation === 'saving'}
-              deleting={mutation === 'deleting'}
-            />
-          ) : null}
+          <Drawer
+            anchor="bottom"
+            open={compactLayout && libraryOpen}
+            onClose={() => setLibraryOpen(false)}
+            slotProps={{ paper: { sx: { maxHeight: '82vh', borderRadius: '20px 20px 0 0', p: 2 } } }}
+          >
+            {inventory}
+          </Drawer>
+          <Drawer
+            anchor="bottom"
+            open={compactLayout && Boolean(inspector)}
+            onClose={cancel}
+            slotProps={{ paper: { sx: { maxHeight: '86vh', borderRadius: '20px 20px 0 0', p: 2 } } }}
+          >
+            {inspector}
+          </Drawer>
         </Stack>
       ) : null}
 
@@ -602,17 +660,18 @@ function ShapeEditor({
   const table = shape.kind === 'TABLE';
   const actionButtonSx = { minHeight: 44 } as const;
   return (
-    <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }} component="section" aria-labelledby="shape-editor-title">
-      <Stack spacing={2}>
+    <Box
+      component="section"
+      aria-labelledby="shape-editor-title"
+      sx={{ border: 1, borderColor: 'divider', borderRadius: 2, bgcolor: 'background.paper', p: 2 }}
+    >
+      <Stack spacing={1.75}>
         <Stack spacing={0.5}>
           <Typography component="h3" variant="h4" id="shape-editor-title">
             {mode === 'creating' ? (table ? 'Agregar mesa' : 'Agregar zona') : table ? 'Editar mesa' : 'Editar zona'}
           </Typography>
-          <Typography color="text.secondary">
-            Coloca este elemento sobre el lugar correspondiente del plano y ajusta su tamaño u orientación.
-          </Typography>
           <Typography variant="body2" color="text.secondary">
-            Guarda o cancela los cambios actuales antes de continuar con otro elemento.
+            Ajusta directamente sobre el plano. Los controles precisos son una alternativa de teclado.
           </Typography>
         </Stack>
 
@@ -622,6 +681,7 @@ function ShapeEditor({
           disabled={disabled}
           slotProps={{ htmlInput: { maxLength: 120 } }}
           onChange={(event) => onShapeChange({ ...shape, name: event.target.value })}
+          size="small"
           fullWidth
         />
 
@@ -632,7 +692,8 @@ function ShapeEditor({
             value={shape.geometry}
             disabled={disabled}
             onChange={(event) => onGeometryChange(event.target.value as Geometry)}
-            sx={{ minWidth: 190 }}
+            size="small"
+            sx={{ minWidth: 0, flex: 1 }}
           >
             {geometryOptions
               .filter((option) => !option.zonesOnly || !table)
@@ -650,90 +711,107 @@ function ShapeEditor({
               disabled={disabled}
               slotProps={{ htmlInput: { min: 1, step: 1 } }}
               onChange={(event) => onShapeChange({ ...shape, capacity: Number(event.target.value) })}
-              sx={{ minWidth: 190 }}
+              size="small"
+              sx={{ minWidth: 0, flex: 1 }}
             />
           ) : null}
         </Stack>
         <FormHelperText>Forma actual: {visibleGeometry(shape.geometry)}</FormHelperText>
 
-        <ControlGroup title="Mover">
-          <Button
-            disabled={disabled}
-            variant="outlined"
-            onClick={() => onAdjust('y', -adjustmentStep)}
-            sx={actionButtonSx}
+        <Box component="details">
+          <Typography
+            component="summary"
+            variant="subtitle2"
+            sx={{ cursor: 'pointer', minHeight: 44, display: 'flex', alignItems: 'center' }}
           >
-            Mover arriba
-          </Button>
-          <Button
-            disabled={disabled}
-            variant="outlined"
-            onClick={() => onAdjust('y', adjustmentStep)}
-            sx={actionButtonSx}
-          >
-            Mover abajo
-          </Button>
-          <Button
-            disabled={disabled}
-            variant="outlined"
-            onClick={() => onAdjust('x', -adjustmentStep)}
-            sx={actionButtonSx}
-          >
-            Mover a la izquierda
-          </Button>
-          <Button
-            disabled={disabled}
-            variant="outlined"
-            onClick={() => onAdjust('x', adjustmentStep)}
-            sx={actionButtonSx}
-          >
-            Mover a la derecha
-          </Button>
-        </ControlGroup>
+            Ajustes precisos
+          </Typography>
+          <Stack spacing={1.5} sx={{ pt: 1 }}>
+            <ControlGroup title="Mover">
+              <Button
+                disabled={disabled}
+                variant="outlined"
+                onClick={() => onAdjust('y', -adjustmentStep)}
+                sx={actionButtonSx}
+              >
+                Mover arriba
+              </Button>
+              <Button
+                disabled={disabled}
+                variant="outlined"
+                onClick={() => onAdjust('y', adjustmentStep)}
+                sx={actionButtonSx}
+              >
+                Mover abajo
+              </Button>
+              <Button
+                disabled={disabled}
+                variant="outlined"
+                onClick={() => onAdjust('x', -adjustmentStep)}
+                sx={actionButtonSx}
+              >
+                Mover a la izquierda
+              </Button>
+              <Button
+                disabled={disabled}
+                variant="outlined"
+                onClick={() => onAdjust('x', adjustmentStep)}
+                sx={actionButtonSx}
+              >
+                Mover a la derecha
+              </Button>
+            </ControlGroup>
 
-        <ControlGroup title="Cambiar tamaño">
-          <Button
-            disabled={disabled}
-            variant="outlined"
-            onClick={() => onAdjust('width', adjustmentStep)}
-            sx={actionButtonSx}
-          >
-            Hacer más ancho
-          </Button>
-          <Button
-            disabled={disabled}
-            variant="outlined"
-            onClick={() => onAdjust('width', -adjustmentStep)}
-            sx={actionButtonSx}
-          >
-            Hacer más angosto
-          </Button>
-          <Button
-            disabled={disabled}
-            variant="outlined"
-            onClick={() => onAdjust('height', adjustmentStep)}
-            sx={actionButtonSx}
-          >
-            Hacer más alto
-          </Button>
-          <Button
-            disabled={disabled}
-            variant="outlined"
-            onClick={() => onAdjust('height', -adjustmentStep)}
-            sx={actionButtonSx}
-          >
-            Hacer más bajo
-          </Button>
-        </ControlGroup>
+            <ControlGroup title="Cambiar tamaño">
+              <Button
+                disabled={disabled}
+                variant="outlined"
+                onClick={() => onAdjust('width', adjustmentStep)}
+                sx={actionButtonSx}
+              >
+                Hacer más ancho
+              </Button>
+              <Button
+                disabled={disabled}
+                variant="outlined"
+                onClick={() => onAdjust('width', -adjustmentStep)}
+                sx={actionButtonSx}
+              >
+                Hacer más angosto
+              </Button>
+              <Button
+                disabled={disabled}
+                variant="outlined"
+                onClick={() => onAdjust('height', adjustmentStep)}
+                sx={actionButtonSx}
+              >
+                Hacer más alto
+              </Button>
+              <Button
+                disabled={disabled}
+                variant="outlined"
+                onClick={() => onAdjust('height', -adjustmentStep)}
+                sx={actionButtonSx}
+              >
+                Hacer más bajo
+              </Button>
+            </ControlGroup>
 
-        <ControlGroup title="Orientación">
-          <Button disabled={disabled} variant="outlined" onClick={() => onRotate(-rotationStep)} sx={actionButtonSx}>
-            Girar a la izquierda
-          </Button>
-          <Button disabled={disabled} variant="outlined" onClick={() => onRotate(rotationStep)} sx={actionButtonSx}>
-            Girar a la derecha
-          </Button>
-        </ControlGroup>
+            <ControlGroup title="Orientación">
+              <Button
+                disabled={disabled}
+                variant="outlined"
+                onClick={() => onRotate(-rotationStep)}
+                sx={actionButtonSx}
+              >
+                Girar a la izquierda
+              </Button>
+              <Button disabled={disabled} variant="outlined" onClick={() => onRotate(rotationStep)} sx={actionButtonSx}>
+                Girar a la derecha
+              </Button>
+            </ControlGroup>
+          </Stack>
+        </Box>
 
         {shape.geometry === 'POLYGON' ? (
           <Typography variant="body2" color="text.secondary">
@@ -761,7 +839,7 @@ function ShapeEditor({
           </Button>
         </Stack>
       </Stack>
-    </Paper>
+    </Box>
   );
 }
 

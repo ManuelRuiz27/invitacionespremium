@@ -1,9 +1,10 @@
 import AutoAwesomeRounded from '@mui/icons-material/AutoAwesomeRounded';
-import PlaceRounded from '@mui/icons-material/PlaceRounded';
-import { Button, Chip, InputAdornment, Paper, Stack, TextField, Typography } from '@mui/material';
+import DragIndicatorRounded from '@mui/icons-material/DragIndicatorRounded';
 import SearchRounded from '@mui/icons-material/SearchRounded';
+import { Box, Button, InputAdornment, Stack, TextField, Typography } from '@mui/material';
 import { useDeferredValue, useMemo, useState } from 'react';
 import type { PendingTable } from './floorplan-inventory';
+import { floorplanColors } from './floorplan-sticker-style';
 
 export function FloorplanTray({
   tables,
@@ -28,68 +29,92 @@ export function FloorplanTray({
   if (tables.length === 0) return null;
 
   return (
-    <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }} component="section" aria-labelledby="tray-title">
-      <Stack spacing={1.5}>
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ justifyContent: 'space-between' }}>
-          <Stack spacing={0.25}>
-            <Typography component="h3" variant="h4" id="tray-title">
-              Mesas sin colocar ({tables.length})
+    <Box
+      component="section"
+      aria-labelledby="tray-title"
+      sx={{
+        borderTop: `1px solid ${floorplanColors.line}`,
+        bgcolor: floorplanColors.paper,
+        px: { xs: 1.5, sm: 2 },
+        py: 1.5
+      }}
+    >
+      <Stack spacing={1.25}>
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box>
+            <Typography component="h3" variant="subtitle2" id="tray-title">
+              Por colocar · {tables.length}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Elige una Mesa y toca el plano, o arrástrala. Estas mesas todavía no se han enviado a la API.
+            <Typography variant="caption" color="text.secondary">
+              Selecciona y toca el plano, o arrastra una mesa.
             </Typography>
-          </Stack>
+          </Box>
           <Button
-            variant="outlined"
+            size="small"
+            variant="text"
             startIcon={<AutoAwesomeRounded />}
             disabled={disabled}
             onClick={onAutoPlace}
-            sx={{ minHeight: 44, alignSelf: { md: 'flex-start' } }}
+            sx={{ minHeight: 44, flexShrink: 0 }}
           >
             Colocar automáticamente
           </Button>
         </Stack>
-        <TextField
-          label="Buscar mesa pendiente"
-          value={search}
-          disabled={disabled}
-          onChange={(event) => setSearch(event.target.value)}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchRounded />
-                </InputAdornment>
-              )
-            }
-          }}
-        />
+
+        {tables.length > 12 ? (
+          <TextField
+            size="small"
+            label="Buscar mesa pendiente"
+            value={search}
+            disabled={disabled}
+            onChange={(event) => setSearch(event.target.value)}
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchRounded fontSize="small" />
+                  </InputAdornment>
+                )
+              }
+            }}
+          />
+        ) : null}
+
         <Stack
           direction="row"
           useFlexGap
           spacing={1}
-          sx={{ flexWrap: 'wrap', maxHeight: 180, overflow: 'auto', py: 0.5 }}
+          sx={{ flexWrap: 'nowrap', overflowX: 'auto', pb: 0.5, scrollbarWidth: 'thin' }}
         >
-          {visible.map((table) => (
-            <Chip
-              key={table.temporaryId}
-              icon={<PlaceRounded />}
-              label={`${table.input.name} · ${table.input.capacity}`}
-              color={activeId === table.temporaryId ? 'primary' : 'default'}
-              variant={activeId === table.temporaryId ? 'filled' : 'outlined'}
-              clickable
-              draggable={!disabled}
-              aria-pressed={activeId === table.temporaryId}
-              onClick={() => onChoose(table.temporaryId)}
-              onDragStart={(event) => {
-                event.dataTransfer.setData('application/x-floorplan-pending-table', table.temporaryId);
-                event.dataTransfer.effectAllowed = 'move';
-              }}
-              sx={{ minHeight: 44, '& .MuiChip-label': { px: 1.5 } }}
-            />
-          ))}
+          {visible.map((table) => {
+            const active = activeId === table.temporaryId;
+            return (
+              <Button
+                key={table.temporaryId}
+                variant={active ? 'contained' : 'outlined'}
+                color="primary"
+                disabled={disabled}
+                draggable={!disabled}
+                aria-pressed={active}
+                onClick={() => onChoose(table.temporaryId)}
+                onDragStart={(event) => {
+                  event.dataTransfer.setData('application/x-floorplan-pending-table', table.temporaryId);
+                  event.dataTransfer.effectAllowed = 'move';
+                }}
+                startIcon={<DragIndicatorRounded fontSize="small" />}
+                sx={{ minHeight: 44, minWidth: 112, flexShrink: 0, justifyContent: 'flex-start' }}
+              >
+                <Stack component="span" sx={{ textAlign: 'left', lineHeight: 1.15 }}>
+                  <span>{table.input.name}</span>
+                  <Typography component="span" variant="caption" color={active ? 'inherit' : 'text.secondary'}>
+                    {table.input.capacity} lugares
+                  </Typography>
+                </Stack>
+              </Button>
+            );
+          })}
         </Stack>
       </Stack>
-    </Paper>
+    </Box>
   );
 }

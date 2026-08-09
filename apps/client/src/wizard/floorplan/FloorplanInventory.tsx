@@ -1,6 +1,7 @@
 import AddRounded from '@mui/icons-material/AddRounded';
-import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
-import { Button, IconButton, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
+import CloseRounded from '@mui/icons-material/CloseRounded';
+import RemoveRounded from '@mui/icons-material/RemoveRounded';
+import { Box, Button, Divider, IconButton, Stack, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { useMemo, useState } from 'react';
 import type { InventoryConfiguration, TableGeometry } from './floorplan-inventory';
 
@@ -41,90 +42,227 @@ export function FloorplanInventory({
   };
 
   return (
-    <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }} component="section" aria-labelledby="inventory-title">
+    <Box component="section" aria-labelledby="inventory-title" sx={{ minWidth: 0 }}>
       <Stack spacing={2}>
-        <Stack spacing={0.5}>
+        <Box>
+          <Typography
+            component="p"
+            variant="overline"
+            sx={{ color: 'primary.main', fontWeight: 800, letterSpacing: '0.12em' }}
+          >
+            Biblioteca
+          </Typography>
           <Typography component="h3" variant="h4" id="inventory-title">
             Inventario de mesas
           </Typography>
-          <Typography color="text.secondary">
-            Prepara varias mesas y después colócalas en el plano. Los elementos pendientes permanecen en esta pantalla.
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            Define tus tipos una vez y colócalos como stickers.
           </Typography>
+        </Box>
+
+        <Stack spacing={1.25}>
+          {configurations.map((configuration, index) => (
+            <Box
+              key={configuration.id}
+              sx={{
+                p: 1.5,
+                borderRadius: 3,
+                border: '1px solid',
+                borderColor: 'divider',
+                bgcolor: 'rgba(255, 254, 251, 0.82)',
+                boxShadow: '0 8px 24px rgba(23, 35, 60, 0.055)'
+              }}
+            >
+              <Stack spacing={1.5}>
+                <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Typography variant="subtitle2">Tipo {index + 1}</Typography>
+                  <IconButton
+                    aria-label={`Eliminar configuración ${index + 1}`}
+                    disabled={disabled || configurations.length === 1}
+                    onClick={() =>
+                      setConfigurations((current) => current.filter((item) => item.id !== configuration.id))
+                    }
+                    size="small"
+                    sx={{ width: 44, height: 44 }}
+                  >
+                    <CloseRounded fontSize="small" />
+                  </IconButton>
+                </Stack>
+
+                <ToggleButtonGroup
+                  exclusive
+                  fullWidth
+                  value={configuration.geometry}
+                  disabled={disabled}
+                  onChange={(_, value: TableGeometry | null) => {
+                    if (value) update(configuration.id, { geometry: value });
+                  }}
+                  aria-label={`Forma de la configuración ${index + 1}`}
+                  sx={{ gap: 0.75, '& .MuiToggleButtonGroup-grouped': { border: '1px solid !important' } }}
+                >
+                  {(Object.keys(geometryLabels) as TableGeometry[]).map((geometry) => (
+                    <ToggleButton
+                      key={geometry}
+                      value={geometry}
+                      aria-label={`${geometryLabels[geometry]} en configuración ${index + 1}`}
+                      sx={{
+                        minHeight: 64,
+                        px: 0.5,
+                        borderRadius: '12px !important',
+                        borderColor: 'divider !important',
+                        display: 'grid',
+                        gap: 0.5,
+                        color: 'text.secondary',
+                        '&.Mui-selected': {
+                          bgcolor: 'rgba(49, 87, 200, 0.09)',
+                          color: 'primary.dark',
+                          borderColor: 'primary.main !important'
+                        }
+                      }}
+                    >
+                      <GeometryMark geometry={geometry} />
+                      <Typography component="span" variant="caption" sx={{ fontWeight: 700 }}>
+                        {geometryLabels[geometry]}
+                      </Typography>
+                    </ToggleButton>
+                  ))}
+                </ToggleButtonGroup>
+
+                <Stack spacing={1}>
+                  <MetricStepper
+                    label="Cantidad"
+                    value={configuration.quantity}
+                    disabled={disabled}
+                    min={1}
+                    max={Math.max(1, maxTables)}
+                    onChange={(quantity) => update(configuration.id, { quantity })}
+                  />
+                  <MetricStepper
+                    label="Lugares"
+                    accessibleLabel="Número de lugares"
+                    value={configuration.capacity}
+                    disabled={disabled}
+                    min={1}
+                    max={500}
+                    onChange={(capacity) => update(configuration.id, { capacity })}
+                  />
+                </Stack>
+              </Stack>
+            </Box>
+          ))}
         </Stack>
 
-        {configurations.map((configuration, index) => (
-          <Stack
-            key={configuration.id}
-            direction={{ xs: 'column', md: 'row' }}
-            spacing={1.5}
-            sx={{ alignItems: { md: 'center' } }}
-          >
-            <TextField
-              select
-              label="Forma"
-              value={configuration.geometry}
-              disabled={disabled}
-              onChange={(event) => update(configuration.id, { geometry: event.target.value as TableGeometry })}
-              sx={{ minWidth: 180 }}
-            >
-              {Object.entries(geometryLabels).map(([value, label]) => (
-                <MenuItem key={value} value={value}>
-                  {label}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              label="Cantidad"
-              type="number"
-              value={configuration.quantity}
-              disabled={disabled}
-              slotProps={{ htmlInput: { min: 1, max: 200, step: 1 } }}
-              onChange={(event) => update(configuration.id, { quantity: Number(event.target.value) })}
-              sx={{ width: { md: 150 } }}
-            />
-            <TextField
-              label="Número de lugares"
-              type="number"
-              value={configuration.capacity}
-              disabled={disabled}
-              slotProps={{ htmlInput: { min: 1, step: 1 } }}
-              onChange={(event) => update(configuration.id, { capacity: Number(event.target.value) })}
-              sx={{ width: { md: 190 } }}
-            />
-            <IconButton
-              aria-label={`Eliminar configuración ${index + 1}`}
-              disabled={disabled || configurations.length === 1}
-              onClick={() => setConfigurations((current) => current.filter((item) => item.id !== configuration.id))}
-              sx={{ minWidth: 44, minHeight: 44 }}
-            >
-              <DeleteOutlineRounded />
-            </IconButton>
-          </Stack>
-        ))}
+        <Button
+          variant="text"
+          startIcon={<AddRounded />}
+          disabled={disabled || total >= maxTables}
+          onClick={() => setConfigurations((current) => [...current, newConfiguration()])}
+          sx={{ alignSelf: 'flex-start', px: 1 }}
+        >
+          Otro tipo de mesa
+        </Button>
 
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
-          <Button
-            variant="outlined"
-            startIcon={<AddRounded />}
-            disabled={disabled || total >= maxTables}
-            onClick={() => setConfigurations((current) => [...current, newConfiguration()])}
-            sx={{ minHeight: 44 }}
-          >
-            Agregar configuración
-          </Button>
+        <Divider />
+
+        <Stack spacing={1}>
+          <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <Typography variant="body2" color="text.secondary">
+              Total preparado
+            </Typography>
+            <Typography variant="h4" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+              {total}
+            </Typography>
+          </Stack>
           <Button
             variant="contained"
             disabled={disabled || !valid}
             onClick={() => onCreate(configurations)}
-            sx={{ minHeight: 44 }}
+            fullWidth
+            sx={{ minHeight: 48, borderRadius: 3 }}
           >
-            Crear inventario de {total} {total === 1 ? 'mesa' : 'mesas'}
+            Crear {total} {total === 1 ? 'mesa' : 'mesas'}
           </Button>
-          <Typography variant="body2" color={total > maxTables ? 'error' : 'text.secondary'} aria-live="polite">
+          <Typography
+            variant="caption"
+            color={total > maxTables ? 'error' : 'text.secondary'}
+            aria-live="polite"
+            sx={{ textAlign: 'center' }}
+          >
             Puedes agregar hasta {maxTables} {maxTables === 1 ? 'mesa' : 'mesas'} pendientes.
           </Typography>
         </Stack>
       </Stack>
-    </Paper>
+    </Box>
+  );
+}
+
+function GeometryMark({ geometry }: { geometry: TableGeometry }) {
+  return (
+    <Box
+      aria-hidden="true"
+      sx={{
+        width: geometry === 'RECTANGLE' ? 30 : 24,
+        height: 24,
+        borderRadius: geometry === 'CIRCLE' ? '50%' : geometry === 'RECTANGLE' ? 1.5 : 1,
+        border: '2px solid currentColor',
+        bgcolor: 'rgba(49, 87, 200, 0.06)'
+      }}
+    />
+  );
+}
+
+function MetricStepper({
+  label,
+  accessibleLabel = label,
+  value,
+  disabled,
+  min,
+  max,
+  onChange
+}: {
+  label: string;
+  accessibleLabel?: string;
+  value: number;
+  disabled: boolean;
+  min: number;
+  max: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
+      <Typography variant="body2" sx={{ fontWeight: 650 }}>
+        {label}
+      </Typography>
+      <Stack
+        direction="row"
+        sx={{ alignItems: 'center', border: '1px solid', borderColor: 'divider', borderRadius: 999, p: 0.25 }}
+      >
+        <IconButton
+          aria-label={`Reducir ${accessibleLabel.toLocaleLowerCase('es-MX')}`}
+          disabled={disabled || value <= min}
+          onClick={() => onChange(Math.max(min, value - 1))}
+          size="small"
+          sx={{ width: 44, height: 44 }}
+        >
+          <RemoveRounded fontSize="small" />
+        </IconButton>
+        <Typography
+          component="output"
+          aria-label={accessibleLabel}
+          sx={{ minWidth: 38, textAlign: 'center', fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}
+        >
+          {value}
+        </Typography>
+        <IconButton
+          aria-label={`Aumentar ${accessibleLabel.toLocaleLowerCase('es-MX')}`}
+          disabled={disabled || value >= max}
+          onClick={() => onChange(Math.min(max, value + 1))}
+          size="small"
+          sx={{ width: 44, height: 44 }}
+        >
+          <AddRounded fontSize="small" />
+        </IconButton>
+      </Stack>
+    </Stack>
   );
 }

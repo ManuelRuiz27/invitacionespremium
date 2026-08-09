@@ -1,0 +1,61 @@
+{
+  "environment": {
+    "os": "Windows 11 Home 10.0.26200",
+    "cpu": "Intel Core i3-1215U",
+    "browser": "HeadlessChrome 151.0.0.0",
+    "build": "Vite 8.1.5 production",
+    "framesPerInteraction": 90
+  },
+  "results": [
+    {
+      "scenario": "10 mesas",
+      "tables": 10,
+      "visualSeats": 0,
+      "konvaNodes": 35,
+      "mountMs": 65.3,
+      "zoom": { "durationMs": 1476.1, "approximateFps": 61.0, "p95FrameMs": 18.4, "framesOver20Ms": 0 },
+      "pan": { "durationMs": 1497.2, "approximateFps": 60.1, "p95FrameMs": 17.5, "framesOver20Ms": 0 },
+      "drag": { "durationMs": 1498.4, "approximateFps": 60.1, "p95FrameMs": 17.4, "framesOver20Ms": 0 }
+    },
+    {
+      "scenario": "60 mesas",
+      "tables": 60,
+      "visualSeats": 0,
+      "konvaNodes": 162,
+      "mountMs": 135.4,
+      "zoom": { "durationMs": 1498.0, "approximateFps": 60.1, "p95FrameMs": 18.0, "framesOver20Ms": 1 },
+      "pan": { "durationMs": 1499.5, "approximateFps": 60.0, "p95FrameMs": 18.4, "framesOver20Ms": 0 },
+      "drag": { "durationMs": 1495.2, "approximateFps": 60.2, "p95FrameMs": 17.4, "framesOver20Ms": 0 }
+    },
+    {
+      "scenario": "180 mesas",
+      "tables": 180,
+      "visualSeats": 0,
+      "konvaNodes": 422,
+      "mountMs": 501.3,
+      "zoom": { "durationMs": 1665.9, "approximateFps": 54.0, "p95FrameMs": 20.1, "framesOver20Ms": 5 },
+      "pan": { "durationMs": 1498.1, "approximateFps": 60.1, "p95FrameMs": 19.0, "framesOver20Ms": 2 },
+      "drag": { "durationMs": 1498.1, "approximateFps": 60.1, "p95FrameMs": 18.5, "framesOver20Ms": 1 }
+    },
+    {
+      "scenario": "200 mesas",
+      "tables": 200,
+      "visualSeats": 0,
+      "konvaNodes": 468,
+      "mountMs": 274.6,
+      "zoom": { "durationMs": 1573.2, "approximateFps": 57.2, "p95FrameMs": 18.9, "framesOver20Ms": 2 },
+      "pan": { "durationMs": 1497.9, "approximateFps": 60.1, "p95FrameMs": 18.7, "framesOver20Ms": 0 },
+      "drag": { "durationMs": 1498.2, "approximateFps": 60.1, "p95FrameMs": 18.7, "framesOver20Ms": 1 }
+    },
+    {
+      "scenario": "20 mesas con sillas visibles",
+      "tables": 20,
+      "visualSeats": 200,
+      "konvaNodes": 268,
+      "mountMs": 83.4,
+      "zoom": { "durationMs": 1487.7, "approximateFps": 60.5, "p95FrameMs": 18.0, "framesOver20Ms": 2 },
+      "pan": { "durationMs": 1498.1, "approximateFps": 60.1, "p95FrameMs": 18.0, "framesOver20Ms": 0 },
+      "drag": { "durationMs": 1497.5, "approximateFps": 60.1, "p95FrameMs": 18.1, "framesOver20Ms": 1 }
+    }
+  ]
+}

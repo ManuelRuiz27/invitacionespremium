@@ -16,6 +16,7 @@ export interface FloorplanRendererProps {
   disabled: boolean;
   showSeats: boolean;
   snap: boolean;
+  panEnabled?: boolean | undefined;
   onSelect: (shape: FloorplanShape) => void;
   onDraftChange: (shape: FloorplanShapeInput) => void;
   onCanvasPlace?: ((point: { x: number; y: number }, pendingId?: string) => void) | undefined;

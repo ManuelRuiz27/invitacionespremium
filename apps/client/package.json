@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 5173",
     "build": "vite build",
+    "build:floorplan-profile": "vite build --config vite.floorplan-profile.config.ts",
+    "preview:floorplan-profile": "vite preview --config vite.floorplan-profile.config.ts --outDir dist-floorplan-profile --host 127.0.0.1 --port 4178",
     "lint": "eslint src",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"

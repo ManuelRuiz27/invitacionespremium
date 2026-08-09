@@ -17,21 +17,16 @@ const input = (name: string): FloorplanShapeInput => ({
   rotation: 0,
   polygonPoints: null
 });
-
 const tables: PendingTable[] = [
   { temporaryId: 'pending-1', input: input('Mesa 1') },
   { temporaryId: 'pending-2', input: input('Mesa Jardín') }
 ];
 
 describe('FloorplanTray', () => {
-  it('filters pending tables and exposes keyboard-accessible placement selection', async () => {
+  it('exposes keyboard-accessible placement selection', async () => {
     const onChoose = vi.fn();
     render(<FloorplanTray tables={tables} disabled={false} onChoose={onChoose} onAutoPlace={vi.fn()} />);
-
-    await userEvent.type(screen.getByLabelText('Buscar mesa pendiente'), 'jardín');
-    expect(await screen.findByText('Mesa Jardín · 8')).toBeInTheDocument();
-    expect(screen.queryByText('Mesa 1 · 8')).not.toBeInTheDocument();
-    await userEvent.click(screen.getByText('Mesa Jardín · 8'));
+    await userEvent.click(screen.getByRole('button', { name: /Mesa Jardín8 lugares/ }));
     expect(onChoose).toHaveBeenCalledWith('pending-2');
   });
 

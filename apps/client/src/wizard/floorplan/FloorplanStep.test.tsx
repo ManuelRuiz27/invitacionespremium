@@ -325,7 +325,7 @@ describe('FloorplanStep', () => {
     const overlay = await screen.findByRole('button', { name: 'Editar mesa Mesa principal' });
     expect(overlay).toHaveStyle({ width: '10%', height: '20%' });
     resizeOwner(500, 1000);
-    await waitFor(() => expect(overlay).toHaveStyle({ width: '20%', height: '10%' }));
+    await waitFor(() => expect(overlay).toHaveStyle({ width: '10%', height: '20%' }));
   });
 
   it.each(['RECTANGLE', 'POLYGON'] as const)('keeps direct relative projection for %s', async (geometry) => {
@@ -707,11 +707,10 @@ describe('FloorplanStep', () => {
     const { api } = renderEditor();
     await screen.findByAltText('Plano del lugar');
 
-    await userEvent.clear(screen.getByLabelText('Cantidad'));
-    await userEvent.type(screen.getByLabelText('Cantidad'), '2');
-    await userEvent.click(screen.getByRole('button', { name: 'Crear inventario de 2 mesas' }));
+    await userEvent.click(screen.getByRole('button', { name: /Aumentar cantidad/i }));
+    await userEvent.click(screen.getByRole('button', { name: 'Crear 2 mesas' }));
 
-    expect(screen.getByRole('heading', { name: 'Mesas sin colocar (2)' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Por colocar · 2' })).toBeInTheDocument();
     expect(api.floorplan.addShape).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByLabelText('Plano interactivo de mesas y zonas'), { clientX: 10, clientY: 10 });
@@ -722,6 +721,16 @@ describe('FloorplanStep', () => {
       geometry: 'CIRCLE',
       capacity: 10
     });
-    expect(screen.getByRole('heading', { name: 'Mesas sin colocar (1)' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Por colocar · 1' })).toBeInTheDocument();
+  });
+
+  it('blocks finalization while local inventory is pending and never discards it silently', async () => {
+    const { api } = renderEditor();
+    await screen.findByAltText('Plano del lugar');
+    await userEvent.click(screen.getByRole('button', { name: 'Crear 1 mesa' }));
+    expect(screen.getByRole('heading', { name: 'Por colocar · 1' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Finalizar distribución' })).toBeDisabled();
+    expect(screen.getByText('El inventario pendiente se conserva.')).toBeInTheDocument();
+    expect(api.floorplan.lock).not.toHaveBeenCalled();
   });
 });

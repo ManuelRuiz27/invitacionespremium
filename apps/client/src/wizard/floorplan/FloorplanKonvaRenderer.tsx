@@ -6,7 +6,7 @@ import { Circle, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text, Tra
 import { normalizeFloorplanShape } from './floorplan-geometry';
 import type { FloorplanRendererProps } from './FloorplanDomRenderer';
 import { hasEqualPhysicalSides, shapeToStageRect, stageRectToShape } from './floorplan-scene';
-import { contrastingText, stickerColor } from './floorplan-sticker-style';
+import { floorplanColors } from './floorplan-sticker-style';
 import { visualSeats } from './floorplan-visual-seats';
 
 export interface ViewportState {
@@ -71,7 +71,7 @@ export function FloorplanKonvaRenderer(
   };
 
   const startPinch = (event: KonvaEventObject<TouchEvent>) => {
-    if (event.evt.touches.length !== 2) return;
+    if (!props.panEnabled || event.evt.touches.length !== 2) return;
     event.evt.preventDefault();
     const stage = stageRef.current;
     if (!stage) return;
@@ -122,9 +122,9 @@ export function FloorplanKonvaRenderer(
       scaleY={props.viewport.scale}
       x={props.viewport.x}
       y={props.viewport.y}
-      draggable={!selected}
+      draggable={Boolean(props.panEnabled && !selected)}
       onDragEnd={(event) => {
-        if (selected) return;
+        if (selected || !props.panEnabled) return;
         props.onViewportChange({ ...props.viewport, x: event.target.x(), y: event.target.y() });
       }}
       onWheel={wheel}
@@ -133,7 +133,7 @@ export function FloorplanKonvaRenderer(
       onTouchEnd={finishPinch}
       onClick={place}
       onTap={place}
-      style={{ touchAction: 'none' }}
+      style={{ touchAction: props.panEnabled ? 'none' : 'pan-y' }}
     >
       <Layer>
         <KonvaImage
@@ -253,25 +253,22 @@ function EditableKonvaShape({
     <>
       <Group
         ref={nodeRef}
+        name="floorplan-editable-shape"
         x={rect.x + rect.width / 2}
         y={rect.y + rect.height / 2}
         rotation={rect.rotation}
         draggable={!disabled}
+        onTouchStart={(event) => event.evt.preventDefault()}
+        onDragStart={(event) => event.evt.preventDefault()}
         onDragEnd={(event) => commitPosition(event.target as Konva.Group)}
         onTransformEnd={(event) => commitTransform(event.target as Konva.Group)}
       >
-        <KonvaShapeVisual
-          shape={shape}
-          width={rect.width}
-          height={rect.height}
-          selected
-          showSeats={showSeats}
-          colorKey={shape.name}
-        />
+        <KonvaShapeVisual shape={shape} width={rect.width} height={rect.height} selected showSeats={showSeats} />
         {shape.geometry === 'POLYGON'
           ? shape.polygonPoints?.map((point, index) => (
               <Circle
                 key={index}
+                name="floorplan-polygon-handle"
                 x={point.x * rect.width - rect.width / 2}
                 y={point.y * rect.height - rect.height / 2}
                 radius={22}
@@ -279,6 +276,7 @@ function EditableKonvaShape({
                 stroke="#8C5000"
                 strokeWidth={4}
                 draggable={!disabled}
+                onTouchStart={(event) => event.evt.preventDefault()}
                 onDragEnd={(event) => {
                   const points = shape.polygonPoints!.map((candidate, pointIndex) =>
                     pointIndex === index
@@ -301,7 +299,11 @@ function EditableKonvaShape({
         keepRatio={hasEqualPhysicalSides(shape.geometry)}
         anchorSize={16}
         anchorCornerRadius={8}
-        borderStroke="#8C5000"
+        borderStroke={floorplanColors.accent}
+        anchorFill={floorplanColors.paper}
+        anchorStroke={floorplanColors.accent}
+        anchorStrokeWidth={2}
+        anchorStyleFunc={(anchor) => anchor.hitStrokeWidth(44)}
         enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
         boundBoxFunc={(oldBox, nextBox) => (nextBox.width < 24 || nextBox.height < 24 ? oldBox : nextBox)}
       />
@@ -324,9 +326,21 @@ function KonvaShapeNode({
   showSeats: boolean;
   onSelect: () => void;
 }) {
+  const groupRef = useRef<Konva.Group>(null);
   const rect = shapeToStageRect(shape, stageSize);
+  useEffect(() => {
+    const node = groupRef.current;
+    if (!node) return;
+    node.cache({ pixelRatio: 1 });
+    node.getLayer()?.batchDraw();
+    return () => {
+      node.clearCache();
+    };
+  }, [rect.height, rect.width, shape.capacity, shape.geometry, shape.name, showSeats]);
   return (
     <Group
+      ref={groupRef}
+      name="floorplan-shape"
       x={rect.x + rect.width / 2}
       y={rect.y + rect.height / 2}
       rotation={rect.rotation}
@@ -340,7 +354,6 @@ function KonvaShapeNode({
         height={rect.height}
         selected={selected}
         showSeats={showSeats}
-        colorKey={shape.id}
       />
     </Group>
   );
@@ -351,68 +364,110 @@ function KonvaShapeVisual({
   width,
   height,
   selected,
-  showSeats,
-  colorKey
+  showSeats
 }: {
   shape: FloorplanShape | FloorplanShapeInput;
   width: number;
   height: number;
   selected: boolean;
   showSeats: boolean;
-  colorKey: string;
 }) {
-  const background = stickerColor(colorKey, shape.kind === 'DECORATIVE_ZONE');
+  const table = shape.kind === 'TABLE';
+  const background = table ? floorplanColors.paper : floorplanColors.zoneFill;
   const seats =
     shape.kind === 'TABLE' && showSeats ? visualSeats(shape.geometry, shape.capacity, width, height, 10) : [];
   const polygonPoints = useMemo(
     () => shape.polygonPoints?.flatMap((point) => [point.x * width - width / 2, point.y * height - height / 2]) ?? [],
     [height, shape.polygonPoints, width]
   );
-  const common = { fill: background, stroke: selected ? '#8C5000' : '#FFFFFF', strokeWidth: selected ? 4 : 2 };
+  const common = {
+    fill: background,
+    stroke: selected ? floorplanColors.accent : table ? floorplanColors.line : floorplanColors.warning,
+    strokeWidth: selected ? 3 : table ? 1.5 : 2,
+    ...(table ? {} : { dash: [7, 5] }),
+    shadowColor: floorplanColors.ink,
+    shadowBlur: table ? 8 : 0,
+    shadowOpacity: table ? 0.14 : 0,
+    shadowOffsetY: table ? 3 : 0,
+    perfectDrawEnabled: false,
+    shadowForStrokeEnabled: false
+  };
+  const halo = selected
+    ? { stroke: floorplanColors.accent, strokeWidth: 10, opacity: 0.2, listening: false }
+    : undefined;
   return (
     <>
       {seats.map((seat, index) => (
         <Circle
           key={index}
+          name="floorplan-visual-seat"
           x={seat.x - width / 2}
           y={seat.y - height / 2}
           radius={5}
-          fill={background}
-          stroke="#FFFFFF"
-          strokeWidth={1}
+          fill={floorplanColors.paper}
+          stroke={floorplanColors.accent}
+          strokeWidth={1.5}
           listening={false}
         />
       ))}
       {shape.geometry === 'CIRCLE' ? (
-        <Circle radius={width / 2} {...common} />
+        <>
+          {halo ? <Circle radius={width / 2 + 4} {...halo} /> : null}
+          <Circle name="floorplan-shape-body" radius={width / 2} {...common} />
+        </>
       ) : shape.geometry === 'POLYGON' ? (
-        <Line points={polygonPoints} closed {...common} />
+        <>
+          {halo ? <Line points={polygonPoints} closed {...halo} /> : null}
+          <Line name="floorplan-shape-body" points={polygonPoints} closed {...common} />
+        </>
       ) : (
-        <Rect
-          x={-width / 2}
-          y={-height / 2}
-          width={width}
-          height={height}
-          cornerRadius={shape.geometry === 'SQUARE' ? 8 : 6}
-          {...common}
-        />
+        <>
+          {halo ? (
+            <Rect
+              x={-width / 2 - 4}
+              y={-height / 2 - 4}
+              width={width + 8}
+              height={height + 8}
+              cornerRadius={shape.geometry === 'SQUARE' ? 12 : 10}
+              {...halo}
+            />
+          ) : null}
+          <Rect
+            name="floorplan-shape-body"
+            x={-width / 2}
+            y={-height / 2}
+            width={width}
+            height={height}
+            cornerRadius={shape.geometry === 'SQUARE' ? 10 : 8}
+            {...common}
+          />
+        </>
       )}
-      <Text
-        x={-width / 2 + 4}
-        y={-12}
-        width={Math.max(0, width - 8)}
-        text={
-          shape.kind === 'TABLE'
-            ? `${shape.name || 'Nueva mesa'}\n${shape.capacity} lugares`
-            : shape.name || 'Nueva zona'
-        }
-        align="center"
-        fontSize={Math.max(10, Math.min(14, width / 5))}
-        fontStyle="bold"
-        lineHeight={1.15}
-        fill={contrastingText(background)}
-        listening={false}
-      />
+      {width >= 38 && height >= 24 ? (
+        <Text
+          x={-width / 2 + 4}
+          y={table && height >= 42 ? -11 : -6}
+          width={Math.max(0, width - 8)}
+          text={shape.name || (table ? 'Nueva mesa' : 'Nueva zona')}
+          align="center"
+          fontSize={Math.max(8, Math.min(15, width / 4.5))}
+          fontStyle="bold"
+          fill={floorplanColors.ink}
+          listening={false}
+        />
+      ) : null}
+      {table && width >= 58 && height >= 42 ? (
+        <Text
+          x={-width / 2 + 4}
+          y={6}
+          width={Math.max(0, width - 8)}
+          text={`${shape.capacity} lugares`}
+          align="center"
+          fontSize={Math.max(8, Math.min(11, width / 6))}
+          fill={floorplanColors.mutedInk}
+          listening={false}
+        />
+      ) : null}
     </>
   );
 }
