@@ -161,6 +161,6 @@ Cada Mesa puede comunicar con texto + forma + color:
 
 ## Referencia renderizada
 
-Archivo: `docs/03-diseno/assets/floorplan-sticker-flow-target.png`.
+Archivo: `docs/03-diseno/assets/floorplan-sticker-flow-target.svg`.
 
-La imagen representa intención de jerarquía, flujo, densidad y comportamiento. No congela literalmente colores, copy, métricas, tamaños ni componentes si contradicen los tokens vigentes o contratos normativos.
+El render representa intención de jerarquía, flujo, densidad y comportamiento. No congela literalmente colores, copy, métricas, tamaños ni componentes si contradicen los tokens vigentes o contratos normativos.
