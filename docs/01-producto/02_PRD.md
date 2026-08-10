@@ -64,6 +64,7 @@ Incluye:
 - QR pase físico;
 - Contactos;
 - Invitaciones;
+- distribución manual de Invitaciones digitales por WhatsApp o copia de enlace después de activar;
 - Asistentes nominales;
 - plus/acompañantes;
 - Confirmación de asistencia;
@@ -84,6 +85,7 @@ Incluye:
 ## Fuera de alcance MVP
 
 - envío automático por WhatsApp API;
+- confirmación de entrega o lectura de mensajes de WhatsApp;
 - modo offline;
 - export CSV/Excel de reportes;
 - conversión PDF a imagen en MVP temprano;
@@ -112,6 +114,8 @@ Incluye:
 ## Reglas de experiencia principales
 
 - Flyer/Flipbook se configuran antes de activar y quedan congelados al activar.
+- La distribución real de Invitaciones digitales ocurre desde el workspace operativo después de activar; el Planner comparte el link individual por WhatsApp o lo copia, sin registrar una entrega que el sistema no puede comprobar.
+- `active` y `event_day` permiten compartir Invitaciones; estados posteriores conservan consulta pero no ofrecen nuevos envíos.
 - QR pertenece a Invitación, pero el check-in pertenece a Asistente.
 - QR solo aparece después de confirmar.
 - Invitación rechazada no muestra QR.
@@ -168,6 +172,8 @@ Después de 30 días post-Evento:
 - Un Admin de Organización puede comprar créditos, ver deuda/línea y activar Eventos.
 - Un Planner de Organización puede crear y operar Eventos propios, pero no comprar créditos ni ver deuda.
 - Una Invitación puede contener uno o varios Asistentes nominales.
+- Un Planner puede compartir cada Invitación digital activa con su Contacto por WhatsApp o copiar su enlace individual sin depender de WhatsApp API.
+- La interfaz no afirma que una Invitación fue enviada, entregada o leída cuando el sistema no recibió evidencia autoritativa de WhatsApp.
 - Contacto y Asistente permanecen como conceptos separados.
 - El QR pertenece a Invitación, pero el check-in es por Asistente.
 - Staff no ve teléfonos, no revierte check-in y no ve reportes.
