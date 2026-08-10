@@ -132,3 +132,14 @@ pnpm build
 ```
 
 Si cambia API/Prisma/OpenAPI, además ejecutar generación del SDK, `generate:check`, validación Prisma, migraciones y pruebas de integración correspondientes.
+
+## M. Checklist manual pendiente de gestos
+
+La cobertura automatizada no sustituye QA física. Registrar navegador, versión, dispositivo y resultado sin marcar
+este bloque como aprobado hasta ejecutar el hardware indicado.
+
+- [ ] Chrome y Edge desktop con mouse: selección, drag, wheel zoom, modo pan y scroll exterior.
+- [ ] Trackpad desktop: zoom/pan disponibles sin navegación accidental ni saltos de viewport.
+- [ ] Android real con Chrome: tap, drag, segundo dedo cancela drag, pinch anclado, pan de dos dedos y scroll de un dedo.
+- [ ] iPhone real con Safari: tap, drag, segundo dedo cancela drag, pinch anclado, pan de dos dedos y scroll de un dedo.
+- [ ] En los cuatro entornos, terminar el gesto conserva el viewport y ninguna interacción produce requests por frame.

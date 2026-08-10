@@ -1,7 +1,7 @@
 import type { FloorplanShape, FloorplanShapeInput } from '@invitaciones/api-client';
 import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, type MutableRefObject } from 'react';
 import { Circle, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text, Transformer } from 'react-konva';
 import { normalizeFloorplanShape } from './floorplan-geometry';
 import type { FloorplanRendererProps } from './FloorplanDomRenderer';
@@ -25,6 +25,7 @@ export function FloorplanKonvaRenderer(
   }
 ) {
   const stageRef = useRef<Konva.Stage>(null);
+  const cancelIndividualCommitRef = useRef(false);
   const pinchRef = useRef<
     | {
         distance: number;
@@ -76,6 +77,7 @@ export function FloorplanKonvaRenderer(
     event.evt.preventDefault();
     const stage = stageRef.current;
     if (!stage) return;
+    cancelIndividualCommitRef.current = true;
     event.target.stopDrag();
     stage.stopDrag();
     const first = touchPoint(event.evt.touches[0]!, stage);
@@ -185,6 +187,7 @@ export function FloorplanKonvaRenderer(
             snap={props.snap}
             showSeats={props.showSeats}
             occupancy={selectedOccupancy}
+            cancelIndividualCommitRef={cancelIndividualCommitRef}
             onChange={props.onDraftChange}
           />
         ) : null}
@@ -200,6 +203,7 @@ function EditableKonvaShape({
   snap,
   showSeats,
   occupancy,
+  cancelIndividualCommitRef,
   onChange
 }: {
   shape: FloorplanShapeInput;
@@ -208,6 +212,7 @@ function EditableKonvaShape({
   snap: boolean;
   showSeats: boolean;
   occupancy: number;
+  cancelIndividualCommitRef: MutableRefObject<boolean>;
   onChange: (shape: FloorplanShapeInput) => void;
 }) {
   const nodeRef = useRef<Konva.Group>(null);
@@ -264,8 +269,17 @@ function EditableKonvaShape({
         rotation={rect.rotation}
         draggable={!disabled}
         onTouchStart={(event) => event.evt.preventDefault()}
-        onDragStart={(event) => event.evt.preventDefault()}
-        onDragEnd={(event) => commitPosition(event.target as Konva.Group)}
+        onDragStart={(event) => {
+          cancelIndividualCommitRef.current = false;
+          event.evt.preventDefault();
+        }}
+        onDragEnd={(event) => {
+          if (cancelIndividualCommitRef.current) {
+            cancelIndividualCommitRef.current = false;
+            return;
+          }
+          commitPosition(event.target as Konva.Group);
+        }}
         onTransformEnd={(event) => commitTransform(event.target as Konva.Group)}
       >
         <KonvaShapeVisual

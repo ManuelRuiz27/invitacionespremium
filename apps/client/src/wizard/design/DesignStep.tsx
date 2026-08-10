@@ -27,6 +27,19 @@ import { usePrivateAssetUrl } from './usePrivateAssetUrl';
 
 type LoadState = 'loading' | 'ready' | 'error';
 type MutationKind = 'upload' | 'replace' | 'reorder' | 'delete';
+type MessageSeverity = 'error' | 'warning' | 'info';
+type PendingPageUpload = { file: File; assetId?: string };
+
+class PartialPageUploadError extends Error {
+  constructor(
+    readonly confirmed: number,
+    readonly total: number,
+    readonly design: InvitationDesign,
+    readonly pending: PendingPageUpload[]
+  ) {
+    super('PARTIAL_PAGE_UPLOAD');
+  }
+}
 
 export function DesignStep({
   apiClient,
@@ -43,12 +56,14 @@ export function DesignStep({
   const [readiness, setReadiness] = useState<string[]>([]);
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [message, setMessage] = useState<string>();
+  const [messageSeverity, setMessageSeverity] = useState<MessageSeverity>('error');
   const [reconcileNeeded, setReconcileNeeded] = useState(false);
   const [mutation, setMutation] = useState<{ kind: MutationKind; label: string }>();
   const [flyerAssets, setFlyerAssets] = useState<{ initial?: string; qr?: string }>({});
   const [activePageId, setActivePageId] = useState<string>();
   const [pendingOrder, setPendingOrder] = useState<string[]>();
   const [pendingDeleteId, setPendingDeleteId] = useState<string>();
+  const [pendingPageUploads, setPendingPageUploads] = useState<PendingPageUpload[]>([]);
   const mutationLockRef = useRef(false);
   const flipbookCreateUncertainRef = useRef(false);
 
@@ -104,11 +119,12 @@ export function DesignStep({
     kind: MutationKind,
     label: string,
     action: () => Promise<InvitationDesign>
-  ): Promise<void> => {
-    if (mutationLockRef.current || loadState !== 'ready') return;
+  ): Promise<boolean> => {
+    if (mutationLockRef.current || loadState !== 'ready') return false;
     mutationLockRef.current = true;
     setMutation({ kind, label });
     setMessage(undefined);
+    setMessageSeverity('error');
     setReconcileNeeded(false);
     try {
       const result = await action();
@@ -117,8 +133,20 @@ export function DesignStep({
         setReconcileNeeded(true);
         setMessage('El cambio sí se guardó. No pudimos actualizar la vista; vuelve a cargarla sin repetir la acción.');
       }
+      return true;
     } catch (reason) {
+      if (reason instanceof PartialPageUploadError) {
+        adopt(reason.design);
+        setPendingPageUploads(reason.pending);
+        setMessageSeverity('warning');
+        setMessage(
+          `Se agregaron ${reason.confirmed} de ${reason.total} páginas. Las confirmadas ya están guardadas; reintenta únicamente las pendientes.`
+        );
+        return false;
+      }
+      if (reason instanceof Error && reason.message === 'FLYER_ASSETS_PENDING') setMessageSeverity('info');
       setMessage(pageMutationMessage(reason, kind));
+      return false;
     } finally {
       mutationLockRef.current = false;
       setMutation(undefined);
@@ -179,35 +207,80 @@ export function DesignStep({
       const next = { ...flyerAssets, [type]: asset.id };
       setFlyerAssets(next);
       if (!next.initial || !next.qr) throw new Error('FLYER_ASSETS_PENDING');
-      return apiClient.design.createFlyer(event.id, { initialAssetId: next.initial, qrAssetId: next.qr });
+      try {
+        return await apiClient.design.createFlyer(event.id, {
+          initialAssetId: next.initial,
+          qrAssetId: next.qr
+        });
+      } catch (reason) {
+        return reconcileAfterUncertain(
+          reason,
+          (candidate) =>
+            candidate?.type === 'FLYER' &&
+            candidate.flyerInitialAssetId === next.initial &&
+            candidate.flyerQrAssetId === next.qr
+        );
+      }
     });
   };
 
-  const addPages = async (files: File[]) => {
+  const addPages = async (files: File[], retryItems?: PendingPageUpload[]) => {
     const remaining = 10 - (design?.pages.length ?? 0);
-    const accepted = files.filter(isImage).slice(0, remaining);
-    if (!accepted.length) return setMessage('Selecciona entre 1 y 10 imágenes JPG o PNG.');
-    await runMutation(
+    const items: PendingPageUpload[] =
+      retryItems ??
+      files
+        .filter(isImage)
+        .slice(0, remaining)
+        .map((file) => ({ file }));
+    if (!items.length) return setMessage('Selecciona entre 1 y 10 imágenes JPG o PNG.');
+    const succeeded = await runMutation(
       'upload',
-      accepted.length === 1 ? 'Agregando página…' : `Agregando ${accepted.length} páginas…`,
+      items.length === 1 ? 'Agregando página…' : `Agregando ${items.length} páginas…`,
       async () => {
         let current = await ensureFlipbook();
-        for (const file of accepted) {
-          const asset = await apiClient.fileAssets.upload(event.id, file, 'FLIPBOOK_PAGE_IMAGE', 'FLIPBOOK_PAGE');
+        let confirmed = 0;
+        for (let index = 0; index < items.length; index += 1) {
+          const item = items[index]!;
+          let assetId = item.assetId;
           try {
-            current = await apiClient.design.addPage(event.id, { fileAssetId: asset.id });
+            if (!assetId) {
+              const asset = await apiClient.fileAssets.upload(
+                event.id,
+                item.file,
+                'FLIPBOOK_PAGE_IMAGE',
+                'FLIPBOOK_PAGE'
+              );
+              assetId = asset.id;
+            }
+            current = await apiClient.design.addPage(event.id, { fileAssetId: assetId });
           } catch (reason) {
-            current = await reconcileAfterUncertain(
-              reason,
-              (candidate) =>
-                candidate?.type === 'FLIPBOOK' && candidate.pages.some((page) => page.fileAssetId === asset.id)
-            );
+            try {
+              if (!assetId) throw reason;
+              current = await reconcileAfterUncertain(
+                reason,
+                (candidate) =>
+                  candidate?.type === 'FLIPBOOK' && candidate.pages.some((page) => page.fileAssetId === assetId)
+              );
+            } catch {
+              throw new PartialPageUploadError(confirmed, items.length, current, [
+                { file: item.file, ...(assetId ? { assetId } : {}) },
+                ...items.slice(index + 1)
+              ]);
+            }
           }
+          confirmed += 1;
           adopt(current);
         }
         return current;
       }
     );
+    if (succeeded) {
+      setPendingPageUploads([]);
+      if (items.length > 1 || retryItems) {
+        setMessageSeverity('info');
+        setMessage(items.length === 1 ? 'Se agregó 1 página.' : `Se agregaron ${items.length} páginas.`);
+      }
+    }
   };
 
   const replacePage = async (pageId: string, file: File) => {
@@ -397,8 +470,14 @@ export function DesignStep({
       ) : null}
       {message ? (
         <Alert
-          severity={reconcileNeeded ? 'warning' : 'error'}
-          action={reconcileNeeded ? <Button onClick={() => void refresh()}>Actualizar vista</Button> : undefined}
+          severity={reconcileNeeded ? 'warning' : messageSeverity}
+          action={
+            reconcileNeeded ? (
+              <Button onClick={() => void refresh()}>Actualizar vista</Button>
+            ) : pendingPageUploads.length ? (
+              <Button onClick={() => void addPages([], pendingPageUploads)}>Reintentar pendientes</Button>
+            ) : undefined
+          }
           aria-live="assertive"
         >
           {message}
@@ -412,20 +491,13 @@ export function DesignStep({
       >
         <DialogTitle id="reorder-warning-title">Revisar acciones antes de ordenar</DialogTitle>
         <DialogContent>
-          Esta página tiene acciones ligadas a su posición. El orden sólo cambiará si todas siguen siendo válidas; si
-          no, elimina o configura las acciones después de ordenar.
+          Esta página tiene acciones que dependen de ser Portada o página QR. Ajusta esas acciones antes de cambiar su
+          posición.
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setPendingOrder(undefined)}>Cancelar</Button>
-          <Button
-            variant="contained"
-            onClick={() => {
-              const ids = pendingOrder;
-              setPendingOrder(undefined);
-              if (ids) void reorder(ids);
-            }}
-          >
-            Intentar cambiar orden
+          <Button variant="contained" onClick={() => setPendingOrder(undefined)}>
+            Entendido
           </Button>
         </DialogActions>
       </Dialog>

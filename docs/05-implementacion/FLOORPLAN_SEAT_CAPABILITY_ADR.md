@@ -794,6 +794,12 @@ Ademas se debe aplicar la migracion desde una copia con datos F0-F4 y probar rol
 - decisiones humanas cerradas;
 - cero cambios ejecutables.
 
+### Precondicion - CODEX-124B por Mesa
+
+Antes de PR 5.1 debe implementarse y aceptarse `CODEX-124B — Workspace operativo: Mesas y asignacion por Mesa`
+con el backend actual. Ese corte establece el Split View funcional y no contiene Seat. Su plan vive en
+`CODEX_124B_IMPLEMENTATION_PLAN.md` y requiere aprobacion humana separada.
+
 ### PR 5.1 - Esquema e integridad PostgreSQL
 
 - Prisma y una migracion;
@@ -825,7 +831,16 @@ Ademas se debe aplicar la migracion desde una copia con datos F0-F4 y probar rol
 - regeneracion exclusiva desde OpenAPI;
 - pruebas de drift y compatibilidad de payloads anteriores.
 
-### PR 5.5 - Proyeccion Scanner
+### PR posterior a 5.4 - Ampliacion Client del Split View a modo Seat
+
+- extender el Split View ya funcional de CODEX-124B;
+- capability opt-in y detalle Seat con progressive disclosure;
+- asignacion explicita por Seat sobre la vertical API/SDK aceptada;
+- sin crear otro workspace ni otro renderer.
+
+Esta vertical Client debe estar funcional antes de proyectar Seat en Scanner.
+
+### PR 5.5 - Proyeccion Scanner, solo despues de la vertical Client
 
 - Seat opcional en REST y snapshots nuevos;
 - render contractual `MESA · ASIENTO`;
@@ -833,16 +848,11 @@ Ademas se debe aplicar la migracion desde una copia con datos F0-F4 y probar rol
 - regresiones Scanner, QR y realtime;
 - sin nueva infraestructura realtime.
 
-### PR 5.6 - Reporte de asistencia, solo si se aprueba
+### PR posterior opcional - Reporte de asistencia, solo si se aprueba
 
 - nueva templateVersion detallada con `seatLabel` nullable;
 - snapshots anteriores intactos;
 - regresion de retencion, PDF y reportes fisicos.
-
-### PR posterior - Client / Split View
-
-No forma parte de la autorizacion backend de este ADR. Debe iniciarse solo cuando PRs 5.1-5.5 esten aceptados y
-con su propio plan UX, manteniendo F0-F4 congeladas.
 
 ## 21. Consecuencias
 
@@ -878,7 +888,13 @@ La implementacion permanece bloqueada hasta aprobar o enmendar expresamente:
 8. **Post-check-in:** permitir cambio de Seat con auditoria, conservando inmutable el snapshot original.
 9. **Physical QR:** excluir Seat de Fase 5 y rechazar capability en Eventos `PHYSICAL_QR`.
 10. **Scanner realtime:** conservar envelope `seating.updated` v1 como invalidacion sin detalle Seat.
-11. **Reportes:** decidir si `seatLabel` se difiere o se agrega mediante `ATTENDANCE templateVersion` nueva.
-12. **Secuencia de PRs:** aprobar primero persistencia/integridad, despues API, seating, SDK y finalmente Scanner.
+11. **Reportes:** los reportes actuales permanecen sin `seatLabel`; cualquier inclusion futura exige una
+    `ATTENDANCE templateVersion` nueva y aprobacion separada.
+
+### Secuencia propuesta
+
+Implementar y aceptar primero CODEX-124B por Mesa; despues 5.1 esquema/integridad, 5.2 capability/API, 5.3 seating
+Seat-aware y 5.4 OpenAPI/SDK; luego ampliar el Split View existente a Seat. Scanner recibe Seat unicamente cuando
+exista una vertical Client funcional. Reportes Seat quedan posteriores y opcionales.
 
 Hasta resolver estos puntos, el estado del ADR permanece **Propuesto** y no debe iniciarse PR 5.1.

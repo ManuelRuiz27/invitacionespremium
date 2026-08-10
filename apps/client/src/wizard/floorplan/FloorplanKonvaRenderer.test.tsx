@@ -3,11 +3,17 @@ import { act, render } from '@testing-library/react';
 import React, { forwardRef, useImperativeHandle } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const konva = vi.hoisted(() => ({ nodes: [] as Array<{ type: string; props: Record<string, unknown> }> }));
+const konva = vi.hoisted(() => ({
+  nodes: [] as Array<{ type: string; props: Record<string, unknown>; node: Record<string, unknown> }>
+}));
 
 vi.mock('react-konva', () => {
   const component = (type: string) =>
     forwardRef<Record<string, unknown>, Record<string, unknown>>((props, ref) => {
+      let currentX = Number(props.x ?? 0);
+      let currentY = Number(props.y ?? 0);
+      let currentScaleX = Number(props.scaleX ?? 1);
+      let currentScaleY = Number(props.scaleY ?? 1);
       const node = {
         nodes: vi.fn(),
         getLayer: () => ({ batchDraw: vi.fn() }),
@@ -16,16 +22,22 @@ vi.mock('react-konva', () => {
         hitStrokeWidth: vi.fn(),
         container: () => ({ getBoundingClientRect: () => ({ left: 0, top: 0 }) }),
         stopDrag: vi.fn(),
-        x: () => Number(props.x ?? 0),
-        y: () => Number(props.y ?? 0),
-        scaleX: () => Number(props.scaleX ?? 1),
-        scaleY: () => Number(props.scaleY ?? 1),
-        scale: vi.fn(),
-        position: vi.fn(),
+        x: () => currentX,
+        y: () => currentY,
+        scaleX: () => currentScaleX,
+        scaleY: () => currentScaleY,
+        scale: vi.fn(({ x, y }: { x: number; y: number }) => {
+          currentScaleX = x;
+          currentScaleY = y;
+        }),
+        position: vi.fn(({ x, y }: { x: number; y: number }) => {
+          currentX = x;
+          currentY = y;
+        }),
         batchDraw: vi.fn()
       };
       useImperativeHandle(ref, () => node);
-      konva.nodes.push({ type, props });
+      konva.nodes.push({ type, props, node });
       return React.createElement(
         'div',
         {
@@ -101,6 +113,11 @@ function props(overrides: Record<string, unknown> = {}) {
 
 const latest = (type: string, name?: string) =>
   [...konva.nodes].reverse().find((node) => node.type === type && (!name || node.props.name === name))!;
+
+const touchEvent = (touches: Array<{ clientX: number; clientY: number }>, preventDefault = vi.fn()) => ({
+  evt: { touches, preventDefault },
+  target: { stopDrag: vi.fn() }
+});
 
 describe('FloorplanKonvaRenderer de producción', () => {
   beforeEach(() => {
@@ -218,5 +235,122 @@ describe('FloorplanKonvaRenderer de producción', () => {
     expect(preventDefault).toHaveBeenCalledOnce();
     expect(stopDrag).toHaveBeenCalledOnce();
     expect(latest('Stage').props.style).toEqual({ touchAction: 'pan-y' });
+  });
+
+  it('aplica escala y pan de dos dedos, mantiene el punto anclado y conserva el viewport al terminar', () => {
+    const onViewportChange = vi.fn();
+    render(<FloorplanKonvaRenderer {...props({ onViewportChange })} />);
+    const stage = latest('Stage');
+    const start = touchEvent([
+      { clientX: 100, clientY: 100 },
+      { clientX: 200, clientY: 100 }
+    ]);
+    act(() => (stage.props.onTouchStart as (event: unknown) => void)(start));
+    const move = touchEvent([
+      { clientX: 100, clientY: 100 },
+      { clientX: 300, clientY: 100 }
+    ]);
+    act(() => (stage.props.onTouchMove as (event: unknown) => void)(move));
+    const stageNode = stage.node as {
+      scaleX: () => number;
+      x: () => number;
+      y: () => number;
+    };
+    expect(stageNode.scaleX()).toBe(2);
+    expect({ x: stageNode.x(), y: stageNode.y() }).toEqual({ x: -100, y: -100 });
+    expect(stageNode.x() + 150 * stageNode.scaleX()).toBe(200);
+    expect(stageNode.y() + 100 * stageNode.scaleX()).toBe(100);
+    expect(onViewportChange).not.toHaveBeenCalled();
+    act(() => (stage.props.onTouchEnd as (event: unknown) => void)(touchEvent([])));
+    expect(onViewportChange).toHaveBeenCalledOnce();
+    expect(onViewportChange).toHaveBeenCalledWith({ scale: 2, x: -100, y: -100 });
+  });
+
+  it('mueve el viewport con el centro de dos dedos aun sin cambiar la distancia', () => {
+    const onViewportChange = vi.fn();
+    render(<FloorplanKonvaRenderer {...props({ onViewportChange })} />);
+    const stage = latest('Stage');
+    act(() =>
+      (stage.props.onTouchStart as (event: unknown) => void)(
+        touchEvent([
+          { clientX: 100, clientY: 100 },
+          { clientX: 200, clientY: 100 }
+        ])
+      )
+    );
+    act(() =>
+      (stage.props.onTouchMove as (event: unknown) => void)(
+        touchEvent([
+          { clientX: 150, clientY: 130 },
+          { clientX: 250, clientY: 130 }
+        ])
+      )
+    );
+    act(() => (stage.props.onTouchEnd as (event: unknown) => void)(touchEvent([])));
+    expect(onViewportChange).toHaveBeenCalledWith({ scale: 1, x: 50, y: 30 });
+  });
+
+  it('cancela el commit individual si aparece un segundo dedo durante drag', () => {
+    const onDraftChange = vi.fn();
+    render(<FloorplanKonvaRenderer {...props({ draft: table, selectedId: table.id, onDraftChange })} />);
+    const group = latest('Group', 'floorplan-editable-shape').props;
+    act(() => (group.onDragStart as (event: unknown) => void)({ evt: { preventDefault: vi.fn() } }));
+    act(() =>
+      (latest('Stage').props.onTouchStart as (event: unknown) => void)(
+        touchEvent([
+          { clientX: 100, clientY: 100 },
+          { clientX: 200, clientY: 100 }
+        ])
+      )
+    );
+    act(() =>
+      (group.onDragEnd as (event: unknown) => void)({
+        target: { x: () => 400, y: () => 200, rotation: () => 0 }
+      })
+    );
+    expect(onDraftChange).not.toHaveBeenCalled();
+  });
+
+  it('mantiene scroll natural con un dedo fuera de una manipulación', () => {
+    render(<FloorplanKonvaRenderer {...props()} />);
+    const preventDefault = vi.fn();
+    act(() =>
+      (latest('Stage').props.onTouchStart as (event: unknown) => void)(
+        touchEvent([{ clientX: 120, clientY: 180 }], preventDefault)
+      )
+    );
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(latest('Stage').props.style).toEqual({ touchAction: 'pan-y' });
+  });
+
+  it('realiza cero requests API durante frames de viewport y drag', () => {
+    const fetchRequest = vi.fn();
+    vi.stubGlobal('fetch', fetchRequest);
+    const onDraftChange = vi.fn();
+    const onViewportChange = vi.fn();
+    render(
+      <FloorplanKonvaRenderer {...props({ draft: table, selectedId: table.id, onDraftChange, onViewportChange })} />
+    );
+    const stage = latest('Stage');
+    act(() =>
+      (stage.props.onTouchStart as (event: unknown) => void)(
+        touchEvent([
+          { clientX: 100, clientY: 100 },
+          { clientX: 200, clientY: 100 }
+        ])
+      )
+    );
+    act(() =>
+      (stage.props.onTouchMove as (event: unknown) => void)(
+        touchEvent([
+          { clientX: 90, clientY: 100 },
+          { clientX: 220, clientY: 100 }
+        ])
+      )
+    );
+    expect(fetchRequest).not.toHaveBeenCalled();
+    expect(onViewportChange).not.toHaveBeenCalled();
+    expect(onDraftChange).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
   });
 });

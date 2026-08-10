@@ -16,6 +16,9 @@ CODEX-124A implementa únicamente **Resumen**. Las otras áreas no se muestran, 
 y no presentan estados deshabilitados ni textos de “próximamente”. CODEX-124B y CODEX-124C las agregarán
 cuando sean funcionales.
 
+La especificación aprobable de CODEX-124B se documenta más abajo, pero permanece sin implementación hasta
+aprobación humana de su Implementation Plan.
+
 ## Ruta canónica y resolución autoritativa
 
 La entrada canónica es:
@@ -134,3 +137,95 @@ tratamiento global de `prefers-reduced-motion`.
 - edición de Invitación o Croquis;
 - Álbum operativo, reportes, realtime o métricas adicionales;
 - cambios de Prisma, schema, migraciones, endpoints, estados o readiness.
+
+## CODEX-124B — Workspace operativo: Mesas y asignación por Mesa (propuesto)
+
+### Alcance y navegación
+
+CODEX-124B agrega únicamente **Mesas y distribución** dentro de `/eventos/:eventId`. La navegación local queda:
+
+```text
+Resumen | Mesas y distribución
+```
+
+**Staff** continúa oculto hasta CODEX-124C. El workspace reutiliza el shell, guard de estado y consulta del Evento
+de CODEX-124A. No crea una ruta paralela, no reabre el wizard y no edita geometría, imagen, nombres, capacidad,
+colores, lock ni coordenadas del Croquis.
+
+La superficie combina un Croquis contextual de solo lectura con un panel de asignación. Seleccionar una Mesa por
+click, tap o alternativa DOM/teclado abre el Split View y muestra nombre, ocupación `X/Y`, lugares disponibles e
+indicador textual de Mesa completa. Zonas decorativas no abren asignación.
+
+### Panel de asignación por Mesa
+
+El panel ofrece:
+
+- búsqueda de Asistentes;
+- tabs **Sin mesa** y **En esta mesa**;
+- filtro por el Grupo existente;
+- selección múltiple;
+- CTA **Asignar X a Mesa Y**;
+- desasignación y cambio de Mesa explícitos;
+- estado de check-in cuando ayude a explicar que un cambio posterior se audita.
+
+Grupo es únicamente filtro y entrada a la mutación bulk existente. No se crean familias, lados, segmentos ni otra
+entidad. La API conserva autoridad de ownership, elegibilidad, capacidad, estado, post-check-in y concurrencia.
+
+### Responsive, touch y accesibilidad
+
+Desktop usa `Croquis read-only/contextual | Panel de asignación`. Tablet y mobile conservan el Croquis como
+superficie principal; tap selecciona Mesa, pinch hace zoom y dos dedos desplazan el viewport. El panel se presenta
+como drawer o bottom sheet sin destruir el contexto del Croquis. Selección y acciones táctiles usan targets de al
+menos 44×44 px y no dependen de hover, right-click ni doble click. El scroll de página con un dedo permanece natural
+fuera de una manipulación.
+
+### Read model operativo mínimo requerido
+
+La auditoría del API vigente concluye que `GET /events/:eventId/invitations` no es suficiente: anida Asistentes pero
+`AssistantResponseDto` no contiene `floorplanShapeId`; Grupo exige correlacionar Contacto e Invitación; y descargar
+todo el agregado para cada búsqueda no ofrece paginación ni un límite estable para ~1,800 Asistentes. Consultar una
+Invitación, Contacto o Mesa por fila produciría N+1.
+
+CODEX-124B propone, sujeto a aprobación, un único read model mínimo:
+
+```http
+GET /api/v1/events/:eventId/seating?scope=UNASSIGNED|TABLE&tableShapeId=<uuid>&groupId=<uuid>&search=<text>&cursor=<opaque>&limit=<n>
+```
+
+La respuesta contiene `items`, `nextCursor` y un resumen autoritativo. Cada item proyecta solamente `assistantId`,
+`name`, `invitationId`, Grupo nullable, Mesa actual nullable y estado de check-in necesario para la operación. El
+resumen incluye conteos de sin Mesa y de la Mesa seleccionada, además de ocupación/capacidad autoritativas. No
+incluye teléfonos, tokens, QR ni reglas duplicadas. Filtros, búsqueda y cursor se resuelven en una consulta acotada
+con joins, sin N+1; el orden estable usa nombre normalizado e ID como desempate.
+
+El endpoint es una proyección de lectura, no una entidad ni nueva regla. Su contrato final, OpenAPI, SDK y pruebas se
+implementarán dentro de CODEX-124B solo tras aprobar el plan. El límite de **150 Contactos/Invitaciones por Evento**
+permanece intacto; la escala operativa de **~1,800 Asistentes** mide filas nominales potenciales y no eleva aquel
+límite contractual.
+
+### Mutaciones, idempotencia y realtime
+
+El panel reutiliza exclusivamente:
+
+- `POST /events/:eventId/seating/assign`;
+- `POST /events/:eventId/seating/assign-family`;
+- `POST /events/:eventId/seating/assign-group`;
+- `PATCH /events/:eventId/seating/:assistantId`.
+
+Cada intención conserva `Idempotency-Key`. Una respuesta confirmada se aplica localmente y se reconcilia con el read
+model; un fallo del refresh nunca repite la mutación. Ante red, `429` o `5xx`, la misma llave y payload quedan
+reservados hasta consultar autoridad. `seating.updated` v1 solo invalida/refresca REST; no se crea otro evento,
+namespace, room ni transporte realtime.
+
+### Concurrencia
+
+- Si una Mesa se llena, el backend rechaza o confirma según el orden real; la UI adopta ocupación autoritativa y
+  conserva seleccionados elegibles para otra decisión.
+- Si otro Planner mueve al mismo Asistente, el siguiente snapshot prevalece y se retira cualquier selección ya no
+  compatible.
+- Si llega realtime durante selección, se invalida el resumen/lista sin rerenderizar el Croquis completo; la
+  selección se intersecta con los IDs todavía elegibles.
+- Un resultado incierto se reconcilia antes de permitir una intención nueva y nunca repite una mutación confirmada.
+- El cambio post-check-in conserva la política backend y se presenta como cambio auditable, no como prohibición de UI.
+- Si el Evento cierra o se cancela, el guard autoritativo convierte el panel a solo lectura, cancela requests en vuelo
+  y no ofrece reintentar mutaciones.

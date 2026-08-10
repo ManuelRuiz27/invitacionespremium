@@ -1282,6 +1282,45 @@ commit deberá actualizar `Event.serviceId` conforme a `SERVICE_UPGRADE_FLOW.md`
 Contratos normativos: `docs/04-tecnico/ACTIVE_EVENT_WORKSPACE_CONTRACT.md`,
 `docs/04-tecnico/EVENTS_CONTRACT.md` y `docs/02-flujos-reglas/SERVICE_UPGRADE_FLOW.md`.
 
+### CODEX-124B — Workspace operativo: Mesas y asignación por Mesa
+
+**Estado:** PLAN PROPUESTO — requiere aprobación humana antes de código
+
+**Repos propuestos:** `invitacionespremium-api`, `packages/api-client`, `invitacionespremium-client`
+
+**Dependencias:** CODEX-124A-R1, CODEX-090, CODEX-082, Croquis Sticker F0–F4
+
+**Alcance propuesto**
+
+- agregar únicamente **Mesas y distribución** al workspace `/eventos/:eventId`;
+- reutilizar el Croquis de producción como superficie contextual read-only, sin edición geométrica;
+- abrir Split View por Mesa con ocupación, búsqueda, tabs Sin mesa/En esta mesa, Grupo, selección múltiple,
+  asignación, desasignación y cambio de Mesa;
+- incorporar el read model paginado y filtrable mínimo definido por
+  `ACTIVE_EVENT_WORKSPACE_CONTRACT.md`, evitando N+1 y cargas completas para ~1,800 Asistentes;
+- reutilizar las cuatro mutaciones actuales de seating con Idempotency-Key, auditoría, capacidad y ownership;
+- consumir `seating.updated` v1 como invalidación y recuperar autoridad por REST;
+- virtualizar la lista o aplicar estrategia equivalente, aislando su estado para que búsqueda/filtros no
+  rerendericen el Croquis;
+- cubrir mouse, teclado, touch, pinch, pan, drawer/bottom sheet, targets 44×44 y estados concurrentes.
+
+**Diferencia de escala**
+
+El límite contractual permanece en 150 Contactos/Invitaciones. El objetivo de ~1,800 Asistentes es una escala
+operativa de filas nominales y no modifica ese límite ni autoriza ampliar Invitaciones.
+
+**Fuera de alcance**
+
+- Seat, `Assistant.seatId`, `SeatAssignment`, Prisma Seat o PR 5.1;
+- edición de Croquis, inventario Sticker, geometría, lock/unlock o retorno inventado al wizard;
+- Staff/CODEX-124C, Scanner Seat, reportes Seat, reglas de seating o nueva infraestructura realtime;
+- cambios a RSVP, Contactos, Invitaciones, servicios, estados, readiness o límites de producto.
+
+**Gate de inicio:** aprobación humana de
+`docs/05-implementacion/CODEX_124B_IMPLEMENTATION_PLAN.md`.
+
+Contrato normativo: `docs/04-tecnico/ACTIVE_EVENT_WORKSPACE_CONTRACT.md`.
+
 ---
 
 ## EPIC 13 — Frontend Admin, Scanner y Landing

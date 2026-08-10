@@ -1,5 +1,5 @@
 import type { ApiClient, Hotspot } from '@invitaciones/api-client';
-import { Alert, Box, Button, FormHelperText, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Collapse, FormHelperText, Stack, TextField, Typography } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
 import { isValidInvitationExternalUrl } from '../../shared/invitation-external-url';
 import { relativeRectStyles } from '../../shared/relative-rect';
@@ -131,6 +131,7 @@ export function HotspotEditor({
   const [urlTouched, setUrlTouched] = useState(false);
   const [mutation, setMutation] = useState<Mutation>();
   const [mutationMessage, setMutationMessage] = useState<string>();
+  const [preciseControlsOpen, setPreciseControlsOpen] = useState(false);
   const [confirmedMessage, setConfirmedMessage] = useState<string>();
   const [viewport, setViewport] = useState({ zoom: 1, x: 0, y: 0 });
   const selected = visible.find((item) => item.id === selectedId);
@@ -671,53 +672,77 @@ export function HotspotEditor({
             </Typography>
           </Stack>
 
-          <Stack spacing={1}>
-            <Typography variant="subtitle2">Ajustar posición</Typography>
-            <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap' }}>
-              <Button disabled={interactionDisabled} variant="outlined" onClick={() => adjust('y', -adjustmentStep)}>
-                Mover arriba
-              </Button>
-              <Button disabled={interactionDisabled} variant="outlined" onClick={() => adjust('y', adjustmentStep)}>
-                Mover abajo
-              </Button>
-              <Button disabled={interactionDisabled} variant="outlined" onClick={() => adjust('x', -adjustmentStep)}>
-                Mover a la izquierda
-              </Button>
-              <Button disabled={interactionDisabled} variant="outlined" onClick={() => adjust('x', adjustmentStep)}>
-                Mover a la derecha
-              </Button>
-            </Stack>
-          </Stack>
+          <Button
+            aria-expanded={preciseControlsOpen}
+            aria-controls="hotspot-precise-controls"
+            onClick={() => setPreciseControlsOpen((current) => !current)}
+            sx={{ alignSelf: 'flex-start', minHeight: 44 }}
+          >
+            Ajustes precisos
+          </Button>
+          <Collapse in={preciseControlsOpen}>
+            <Stack id="hotspot-precise-controls" spacing={2}>
+              <Stack spacing={1}>
+                <Typography variant="subtitle2">Ajustar posición</Typography>
+                <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap' }}>
+                  <Button
+                    disabled={interactionDisabled}
+                    variant="outlined"
+                    onClick={() => adjust('y', -adjustmentStep)}
+                  >
+                    Mover arriba
+                  </Button>
+                  <Button disabled={interactionDisabled} variant="outlined" onClick={() => adjust('y', adjustmentStep)}>
+                    Mover abajo
+                  </Button>
+                  <Button
+                    disabled={interactionDisabled}
+                    variant="outlined"
+                    onClick={() => adjust('x', -adjustmentStep)}
+                  >
+                    Mover a la izquierda
+                  </Button>
+                  <Button disabled={interactionDisabled} variant="outlined" onClick={() => adjust('x', adjustmentStep)}>
+                    Mover a la derecha
+                  </Button>
+                </Stack>
+              </Stack>
 
-          <Stack spacing={1}>
-            <Typography variant="subtitle2">Ajustar tamaño</Typography>
-            <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap' }}>
-              <Button disabled={interactionDisabled} variant="outlined" onClick={() => adjust('width', adjustmentStep)}>
-                Hacer más ancho
-              </Button>
-              <Button
-                disabled={interactionDisabled}
-                variant="outlined"
-                onClick={() => adjust('width', -adjustmentStep)}
-              >
-                Hacer más angosto
-              </Button>
-              <Button
-                disabled={interactionDisabled}
-                variant="outlined"
-                onClick={() => adjust('height', adjustmentStep)}
-              >
-                Hacer más alto
-              </Button>
-              <Button
-                disabled={interactionDisabled}
-                variant="outlined"
-                onClick={() => adjust('height', -adjustmentStep)}
-              >
-                Hacer más bajo
-              </Button>
+              <Stack spacing={1}>
+                <Typography variant="subtitle2">Ajustar tamaño</Typography>
+                <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap' }}>
+                  <Button
+                    disabled={interactionDisabled}
+                    variant="outlined"
+                    onClick={() => adjust('width', adjustmentStep)}
+                  >
+                    Hacer más ancho
+                  </Button>
+                  <Button
+                    disabled={interactionDisabled}
+                    variant="outlined"
+                    onClick={() => adjust('width', -adjustmentStep)}
+                  >
+                    Hacer más angosto
+                  </Button>
+                  <Button
+                    disabled={interactionDisabled}
+                    variant="outlined"
+                    onClick={() => adjust('height', adjustmentStep)}
+                  >
+                    Hacer más alto
+                  </Button>
+                  <Button
+                    disabled={interactionDisabled}
+                    variant="outlined"
+                    onClick={() => adjust('height', -adjustmentStep)}
+                  >
+                    Hacer más bajo
+                  </Button>
+                </Stack>
+              </Stack>
             </Stack>
-          </Stack>
+          </Collapse>
 
           {draft.action === 'EXTERNAL_LINK' ? (
             <TextField

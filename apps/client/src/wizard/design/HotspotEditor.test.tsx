@@ -115,6 +115,7 @@ describe('HotspotEditor as invitation actions', () => {
   it('creates the same technical payload through natural keyboard controls', async () => {
     const { api, onChanged } = renderEditor();
     await beginAction('Ver ubicación');
+    await userEvent.click(screen.getByRole('button', { name: 'Ajustes precisos' }));
     await userEvent.click(screen.getByRole('button', { name: 'Mover a la derecha' }));
     await userEvent.click(screen.getByRole('button', { name: 'Hacer más ancho' }));
     await userEvent.click(screen.getByRole('button', { name: 'Guardar acción' }));
@@ -135,6 +136,7 @@ describe('HotspotEditor as invitation actions', () => {
   it('preserves coordinates and priority while editing, then removes through the existing API flow', async () => {
     const { api, onChanged } = renderEditor({ hotspots: [existingAction] });
     await userEvent.click(screen.getByRole('button', { name: 'Editar acción Confirmar asistencia' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Ajustes precisos' }));
     await userEvent.click(screen.getByRole('button', { name: 'Mover arriba' }));
     await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
 
@@ -148,6 +150,7 @@ describe('HotspotEditor as invitation actions', () => {
     });
 
     await userEvent.click(screen.getByRole('button', { name: 'Editar acción Confirmar asistencia' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Ajustes precisos' }));
     await userEvent.click(screen.getByRole('button', { name: 'Eliminar acción' }));
     expect(api.design.removeHotspot).toHaveBeenCalledWith(configuredEvent.id, existingAction.id);
     expect(onChanged).toHaveBeenCalledTimes(2);
@@ -157,6 +160,9 @@ describe('HotspotEditor as invitation actions', () => {
     const { api } = renderEditor({ hotspots: [existingAction] });
     const area = screen.getByRole('button', { name: 'Editar acción Confirmar asistencia' });
     area.focus();
+    await userEvent.keyboard('{Enter}');
+    const precise = screen.getByRole('button', { name: 'Ajustes precisos' });
+    precise.focus();
     await userEvent.keyboard('{Enter}');
     const moveRight = screen.getByRole('button', { name: 'Mover a la derecha' });
     moveRight.focus();
@@ -524,6 +530,7 @@ describe('HotspotEditor as invitation actions', () => {
       new ApiError(409, 'FLIPBOOK_HOTSPOT_PLACEMENT_INVALID', 'technical detail', 'operation-id')
     );
     await userEvent.click(screen.getByRole('button', { name: 'Editar acción Confirmar asistencia' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Ajustes precisos' }));
     await userEvent.click(screen.getByRole('button', { name: 'Mover a la derecha' }));
     await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
 
