@@ -12,6 +12,7 @@ import {
   Typography
 } from '@mui/material';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { serviceLabels } from '../../shared/formatters';
 import { AttemptManager, isUncertainFailure } from '../wizard-model';
 import type { WizardStep } from '../wizard-model';
@@ -42,6 +43,8 @@ export function ReviewStep({
   const [message, setMessage] = useState<string>();
   const [reference, setReference] = useState<string>();
   const physical = service?.code === 'PHYSICAL_QR';
+  const digital = service?.code === 'FLYER' || service?.code === 'FLIPBOOK';
+  const operational = current.status === 'ACTIVE' || current.status === 'EVENT_DAY';
   const canSeeFinance = user.role !== 'ORGANIZATION_PLANNER';
   const load = useCallback(async () => {
     try {
@@ -181,7 +184,7 @@ export function ReviewStep({
               {check.ok ? '✓' : 'Pendiente:'} {check.label}
               {check.detail ? ` · ${check.detail}` : ''}
             </span>
-            {!check.ok ? (
+            {!check.ok && !operational ? (
               <Button size="small" onClick={() => onGo(check.step)}>
                 Corregir
               </Button>
@@ -189,7 +192,9 @@ export function ReviewStep({
           </ListItem>
         ))}
       </List>
-      {current.status === 'READY_TO_ACTIVATE' ? (
+      {operational ? (
+        <Alert severity="success">El evento está activo y listo para operar.</Alert>
+      ) : current.status === 'READY_TO_ACTIVATE' ? (
         <Alert severity="success">Todo está listo para activar este evento.</Alert>
       ) : (
         <Alert severity="warning">El evento aún no está listo para activar. Resuelve los pendientes indicados.</Alert>
@@ -201,7 +206,7 @@ export function ReviewStep({
             Línea utilizada: {balance?.creditLine.usedCredits ?? '—'} · disponible:{' '}
             {balance?.creditLine.availableCredits ?? '—'} créditos
           </Typography>
-          {insufficient ? (
+          {!operational && insufficient ? (
             <Alert severity="error">
               No tienes créditos suficientes para activar este evento. Compra créditos o solicita línea de crédito para
               continuar.
@@ -211,13 +216,24 @@ export function ReviewStep({
       ) : (
         <Alert severity="info">Tu Organización administra el pago. Tu rol no tiene acceso al detalle financiero.</Alert>
       )}
-      <Button
-        variant="contained"
-        disabled={current.status !== 'READY_TO_ACTIVATE' || busy || insufficient}
-        onClick={() => setDialog(true)}
-      >
-        Activar Evento
-      </Button>
+      {operational ? (
+        <Button
+          component={Link}
+          to={digital ? `/eventos/${event.id}?seccion=invitaciones` : `/eventos/${event.id}`}
+          variant="contained"
+          sx={{ alignSelf: 'flex-start', minHeight: 44 }}
+        >
+          {digital ? 'Enviar invitaciones' : 'Ir al evento'}
+        </Button>
+      ) : (
+        <Button
+          variant="contained"
+          disabled={current.status !== 'READY_TO_ACTIVATE' || busy || insufficient}
+          onClick={() => setDialog(true)}
+        >
+          Activar Evento
+        </Button>
+      )}
       {message ? (
         <Alert severity="info">
           {message}
