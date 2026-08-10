@@ -8,8 +8,9 @@ El PRD siempre definió al Contacto como persona que recibe la Invitación por W
 el **envío automático por WhatsApp API**. El workspace operativo había implementado Resumen y Mesas, pero no exponía
 la acción necesaria para distribuir las Invitaciones digitales ya creadas.
 
-Este corte corrige esa omisión sin inventar una integración externa ni un estado de entrega que el sistema no puede
-probar.
+Además, el handoff posterior a activación conservaba al Planner dentro de **Revisión y activación** sin una siguiente
+acción operativa clara. Este corte corrige ambas omisiones sin inventar una integración externa ni un estado de entrega
+que el sistema no puede probar.
 
 ## Fuentes normativas
 
@@ -85,6 +86,19 @@ Ninguna de estas acciones:
 - crea idempotency key;
 - registra entrega ficticia.
 
+### Handoff posterior a activación
+
+Cuando una activación queda confirmada, **Revisión y activación** deja de presentar al Evento como incompleto y cambia
+a estado operativo:
+
+- `FLYER` / `FLIPBOOK` → CTA **Enviar invitaciones** hacia
+  `/eventos/:eventId?seccion=invitaciones`;
+- `PHYSICAL_QR` → CTA **Ir al evento** hacia `/eventos/:eventId`.
+
+El mismo handoff aplica cuando una activación tuvo respuesta incierta pero la lectura autoritativa posterior confirma
+`ACTIVE`. No se repite la mutación de activación. El Planner conserva la confirmación visible y decide cuándo avanzar
+al workspace.
+
 ## UX
 
 Navegación digital:
@@ -110,6 +124,8 @@ dependen de hover.
 - `apps/client/src/workspace/InvitationDistribution.tsx`.
 - `apps/client/src/workspace/InvitationDistribution.test.tsx`.
 - `apps/client/src/workspace/ActiveEventWorkspacePage.tsx`.
+- `apps/client/src/wizard/review/ReviewStep.tsx`.
+- `apps/client/src/wizard/review/ReviewStepDistributionHandoff.test.tsx`.
 - `docs/01-producto/02_PRD.md`.
 - `docs/02-flujos-reglas/05_REGLAS_NEGOCIO.md`.
 - `docs/04-tecnico/ACTIVE_EVENT_WORKSPACE_CONTRACT.md`.
@@ -129,7 +145,9 @@ Automatizada:
 - copiar usa el link exacto;
 - no aparece copy de estado falso `Enviada`;
 - búsqueda por nombre/WhatsApp y filtros no producen requests adicionales;
-- errores de lectura son recuperables.
+- errores de lectura son recuperables;
+- activación digital confirmada ofrece **Enviar invitaciones** y no vuelve a mostrar advertencia de Evento incompleto;
+- activación Physical QR confirmada ofrece **Ir al evento** y no muestra acción digital.
 
 Manual antes de piloto:
 
