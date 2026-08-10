@@ -4,10 +4,11 @@ import { ErrorState, LoadingState, StatusChip } from '@invitaciones/ui';
 import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded';
 import { Alert, Box, Button, Link as MuiLink, Stack, Typography } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { Link, Navigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { getEventStatusPresentation } from '../shared/event-status';
 import { formatEventDateLong, serviceLabels, socialTypeLabels } from '../shared/formatters';
 import { useSessionExpiry } from '../shared/use-session-expiry';
+import { SeatingWorkspace } from './SeatingWorkspace';
 
 const preparationDestinations: Partial<Record<EventStatus, string>> = {
   DRAFT: 'datos',
@@ -95,10 +96,15 @@ export function ActiveEventWorkspacePage({ apiClient }: { apiClient: ApiClient }
     return <WorkspaceUnavailable title="Este evento no está disponible." />;
   }
 
-  return <EventWorkspace event={event} />;
+  return <EventWorkspace apiClient={apiClient} event={event} />;
 }
 
-function EventWorkspace({ event }: { event: Event }) {
+function EventWorkspace({ apiClient, event }: { apiClient: ApiClient; event: Event }) {
+  const [searchParams] = useSearchParams();
+  const showSeating =
+    event.floorplanEnabled &&
+    (event.serviceCode === 'FLYER' || event.serviceCode === 'FLIPBOOK' || event.serviceCode === 'PHYSICAL_QR');
+  const section = showSeating && searchParams.get('seccion') === 'mesas' ? 'mesas' : 'resumen';
   const status = getEventStatusPresentation(event.status);
   const serviceLabel = event.serviceCode ? serviceLabels[event.serviceCode] : 'Servicio no disponible';
   const details = [
@@ -134,7 +140,7 @@ function EventWorkspace({ event }: { event: Event }) {
         <MuiLink
           component={Link}
           to={`/eventos/${event.id}`}
-          aria-current="page"
+          aria-current={section === 'resumen' ? 'page' : undefined}
           underline="none"
           sx={{
             display: 'inline-flex',
@@ -142,48 +148,81 @@ function EventWorkspace({ event }: { event: Event }) {
             alignItems: 'center',
             px: 1,
             borderBottom: 2,
-            borderColor: 'primary.main',
+            borderColor: section === 'resumen' ? 'primary.main' : 'transparent',
             color: 'text.primary',
             fontWeight: 700
           }}
         >
           Resumen
         </MuiLink>
+        {showSeating ? (
+          <MuiLink
+            component={Link}
+            to={`/eventos/${event.id}?seccion=mesas`}
+            aria-current={section === 'mesas' ? 'page' : undefined}
+            underline="none"
+            sx={{
+              display: 'inline-flex',
+              minHeight: 44,
+              alignItems: 'center',
+              px: 1.5,
+              borderBottom: 2,
+              borderColor: section === 'mesas' ? 'primary.main' : 'transparent',
+              color: 'text.primary',
+              fontWeight: 700
+            }}
+          >
+            Mesas y distribución
+          </MuiLink>
+        ) : null}
       </Box>
 
-      <Box component="section" aria-labelledby="event-overview-title" sx={{ maxWidth: 920 }}>
-        <Typography id="event-overview-title" component="h2" variant="h3" sx={{ mb: 1 }}>
-          Resumen
-        </Typography>
-        <Typography color="text.secondary" sx={{ mb: 3 }}>
-          Información principal para identificar y consultar este evento.
-        </Typography>
-
-        <Alert severity={event.status === 'CANCELLED' ? 'warning' : 'info'} sx={{ mb: 3 }}>
-          {stateMessages[event.status]}
-        </Alert>
-
-        <Box
-          component="dl"
-          sx={{
-            m: 0,
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' },
-            columnGap: 4
-          }}
-        >
-          {details.map(([label, value]) => (
-            <Box key={label} sx={{ minWidth: 0, py: 2, borderBottom: 1, borderColor: 'divider' }}>
-              <Typography component="dt" variant="body2" color="text.secondary">
-                {label}
-              </Typography>
-              <Typography component="dd" sx={{ m: 0, mt: 0.5, fontWeight: 650, overflowWrap: 'anywhere' }}>
-                {value}
-              </Typography>
-            </Box>
-          ))}
+      {section === 'mesas' ? (
+        <Box component="section" aria-labelledby="seating-workspace-title">
+          <Typography id="seating-workspace-title" component="h2" variant="h3" sx={{ mb: 0.75 }}>
+            Mesas y distribución
+          </Typography>
+          <Typography color="text.secondary" sx={{ mb: 2 }}>
+            Selecciona una Mesa en el Croquis para consultar su ocupación
+            {event.serviceCode === 'PHYSICAL_QR' ? '.' : ' y organizar Asistentes.'}
+          </Typography>
+          <SeatingWorkspace apiClient={apiClient} event={event} />
         </Box>
-      </Box>
+      ) : (
+        <Box component="section" aria-labelledby="event-overview-title" sx={{ maxWidth: 920 }}>
+          <Typography id="event-overview-title" component="h2" variant="h3" sx={{ mb: 1 }}>
+            Resumen
+          </Typography>
+          <Typography color="text.secondary" sx={{ mb: 3 }}>
+            Información principal para identificar y consultar este evento.
+          </Typography>
+
+          <Alert severity={event.status === 'CANCELLED' ? 'warning' : 'info'} sx={{ mb: 3 }}>
+            {stateMessages[event.status]}
+          </Alert>
+
+          <Box
+            component="dl"
+            sx={{
+              m: 0,
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' },
+              columnGap: 4
+            }}
+          >
+            {details.map(([label, value]) => (
+              <Box key={label} sx={{ minWidth: 0, py: 2, borderBottom: 1, borderColor: 'divider' }}>
+                <Typography component="dt" variant="body2" color="text.secondary">
+                  {label}
+                </Typography>
+                <Typography component="dd" sx={{ m: 0, mt: 0.5, fontWeight: 650, overflowWrap: 'anywhere' }}>
+                  {value}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        </Box>
+      )}
     </Stack>
   );
 }

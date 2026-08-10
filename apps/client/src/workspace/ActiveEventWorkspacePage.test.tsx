@@ -1,7 +1,13 @@
-import { ApiError, type Event, type EventStatus } from '@invitaciones/api-client';
+import {
+  ApiError,
+  type Event,
+  type EventStatus,
+  type Floorplan,
+  type SeatingWorkspacePage
+} from '@invitaciones/api-client';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { activeEvent, configuredEvent, mockApiClient } from '../test/fixtures';
 import { renderApp } from '../test/render-app';
 
@@ -14,6 +20,91 @@ const workspaceEvent = {
   capacity: 180,
   floorplanEnabled: true
 } satisfies Event;
+
+const floorplan = {
+  id: 'c9bcb994-04fb-410e-bc1d-c87ff6dfab98',
+  eventId: workspaceEvent.id,
+  image: { fileAssetId: 'c6f89399-a5ac-42ba-91c5-392a8c9c7927', contentPath: '/floorplan' },
+  locked: true,
+  lockedAt: '2026-08-09T18:00:00.000Z',
+  shapes: [
+    {
+      id: 'bc23b224-03c9-4e42-a43d-ce4be5cc031d',
+      kind: 'TABLE',
+      geometry: 'CIRCLE',
+      name: '12',
+      capacity: 10,
+      occupancy: 7,
+      availableCapacity: 3,
+      x: 0.2,
+      y: 0.2,
+      width: 0.15,
+      height: 0.15,
+      rotation: 0,
+      polygonPoints: null
+    },
+    {
+      id: '4dffdf39-3e79-4612-9a02-d37ed876c85f',
+      kind: 'TABLE',
+      geometry: 'RECTANGLE',
+      name: '20',
+      capacity: 8,
+      occupancy: 2,
+      availableCapacity: 6,
+      x: 0.55,
+      y: 0.2,
+      width: 0.18,
+      height: 0.14,
+      rotation: 0,
+      polygonPoints: null
+    }
+  ],
+  createdAt: '2026-08-09T18:00:00.000Z',
+  updatedAt: '2026-08-09T18:00:00.000Z'
+} satisfies Floorplan;
+
+const seatingItem = {
+  assistantId: '1bce73ae-71ee-48cd-9af8-6e34c0037f9a',
+  name: 'Ana María',
+  invitation: {
+    id: '0b34cf44-df22-42a6-adfc-b8105223b4a1',
+    eligibleAssistantCount: 3,
+    assignedAssistantCount: 1
+  },
+  group: {
+    id: 'b77037d7-c73b-44ca-875e-8229f90cb7c5',
+    name: 'Familia Ruiz',
+    eligibleAssistantCount: 5,
+    assignedAssistantCount: 2
+  },
+  table: null,
+  checkedIn: false
+} satisfies SeatingWorkspacePage['items'][number];
+
+const unassignedPage = {
+  items: [seatingItem],
+  summary: { unassignedCount: 1, selectedTable: null },
+  nextCursor: null
+} satisfies SeatingWorkspacePage;
+
+const tablePage = {
+  items: [{ ...seatingItem, table: { id: floorplan.shapes[0]!.id, name: floorplan.shapes[0]!.name } }],
+  summary: {
+    unassignedCount: 0,
+    selectedTable: { id: floorplan.shapes[0]!.id, name: floorplan.shapes[0]!.name, occupancy: 7, capacity: 10 }
+  },
+  nextCursor: null
+} satisfies SeatingWorkspacePage;
+
+const mutationResult = {
+  changes: [{ assistantId: seatingItem.assistantId, fromTableId: null, toTableId: floorplan.shapes[0]!.id }],
+  affectedTables: [{ tableId: floorplan.shapes[0]!.id, occupancy: 8, capacity: 10 }]
+};
+
+beforeEach(() => {
+  vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:floorplan');
+  vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+});
 
 describe('Active Event workspace routing', () => {
   it.each([
@@ -90,7 +181,7 @@ describe('Active Event workspace summary', () => {
     expect(screen.queryByText('N/A')).not.toBeInTheDocument();
   });
 
-  it('exposes one contextual h1, named local navigation and no future navigation items', async () => {
+  it('exposes one contextual h1 and only functional local navigation items', async () => {
     const api = mockApiClient();
     vi.mocked(api.events.get).mockResolvedValue(workspaceEvent);
     const user = userEvent.setup();
@@ -100,7 +191,7 @@ describe('Active Event workspace summary', () => {
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     const localNavigation = screen.getByRole('navigation', { name: 'Secciones del Evento' });
     expect(within(localNavigation).getByRole('link', { name: 'Resumen', current: 'page' })).toBeInTheDocument();
-    expect(within(localNavigation).queryByText('Mesas y distribución')).not.toBeInTheDocument();
+    expect(within(localNavigation).getByRole('link', { name: 'Mesas y distribución' })).toBeInTheDocument();
     expect(within(localNavigation).queryByText('Staff')).not.toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
 
@@ -117,6 +208,254 @@ describe('Active Event workspace summary', () => {
     expect(links).toHaveLength(2);
     expect(links.every((link) => link.getAttribute('href') === `/eventos/${activeEvent.id}`)).toBe(true);
     expect(screen.queryByRole('heading', { name: 'Resumen del Evento' })).not.toBeInTheDocument();
+  });
+});
+
+describe('Active Event seating workspace', () => {
+  it('does not expose or request Floorplan when floorplanEnabled is false', async () => {
+    const api = mockApiClient();
+    vi.mocked(api.events.get).mockResolvedValue({ ...workspaceEvent, floorplanEnabled: false });
+    renderApp(api, `/eventos/${workspaceEvent.id}`);
+
+    const navigation = await screen.findByRole('navigation', { name: 'Secciones del Evento' });
+    expect(within(navigation).queryByText('Mesas y distribución')).not.toBeInTheDocument();
+    expect(api.floorplan.get).not.toHaveBeenCalled();
+  });
+
+  it('opens the production Croquis read-only and nominal panel for Flyer', async () => {
+    const api = mockApiClient();
+    vi.mocked(api.events.get).mockResolvedValue(workspaceEvent);
+    vi.mocked(api.floorplan.get).mockResolvedValue(floorplan);
+    vi.mocked(api.fileAssets.content).mockResolvedValue(new Blob(['image'], { type: 'image/png' }));
+    vi.mocked(api.floorplan.seating).mockResolvedValue({
+      items: [],
+      summary: { unassignedCount: 0, selectedTable: null },
+      nextCursor: null
+    });
+    const user = userEvent.setup();
+    renderApp(api, `/eventos/${workspaceEvent.id}`);
+
+    await user.click(await screen.findByRole('link', { name: 'Mesas y distribución' }));
+    expect(await screen.findByRole('heading', { name: 'Mesas y distribución' })).toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: 'Mesa 12 · 10' }));
+    expect(await screen.findByRole('heading', { name: '12', level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Sin mesa/ })).toBeInTheDocument();
+    expect(api.floorplan.seating).toHaveBeenCalled();
+    expect(api.floorplan.updateShape).not.toHaveBeenCalled();
+  });
+
+  it('shows Physical QR occupancy without requesting nominal seating', async () => {
+    const api = mockApiClient();
+    vi.mocked(api.events.get).mockResolvedValue({ ...workspaceEvent, serviceCode: 'PHYSICAL_QR' });
+    vi.mocked(api.floorplan.get).mockResolvedValue(floorplan);
+    vi.mocked(api.fileAssets.content).mockResolvedValue(new Blob(['image'], { type: 'image/png' }));
+    const user = userEvent.setup();
+    renderApp(api, `/eventos/${workspaceEvent.id}`);
+
+    await user.click(await screen.findByRole('link', { name: 'Mesas y distribución' }));
+    await user.click(await screen.findByRole('button', { name: 'Mesa 12 · 10' }));
+    expect(await screen.findByText('7 / 10 lugares')).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /Sin mesa/ })).not.toBeInTheDocument();
+    expect(api.floorplan.seating).not.toHaveBeenCalled();
+  });
+
+  it('assigns a bounded selection with one stable idempotency key and no layout mutation', async () => {
+    const api = mockApiClient();
+    vi.mocked(api.events.get).mockResolvedValue(workspaceEvent);
+    vi.mocked(api.floorplan.get).mockResolvedValue(floorplan);
+    vi.mocked(api.fileAssets.content).mockResolvedValue(new Blob(['image'], { type: 'image/png' }));
+    vi.mocked(api.floorplan.seating).mockResolvedValue(unassignedPage);
+    vi.mocked(api.floorplan.assign).mockResolvedValue(mutationResult);
+    const user = userEvent.setup();
+    renderApp(api, `/eventos/${workspaceEvent.id}`);
+
+    await user.click(await screen.findByRole('link', { name: 'Mesas y distribución' }));
+    await user.click(await screen.findByRole('button', { name: 'Mesa 12 · 10' }));
+    await user.click(await screen.findByRole('checkbox', { name: 'Seleccionar Ana María' }));
+    await user.click(screen.getByRole('button', { name: 'Asignar 1 a 12' }));
+
+    await waitFor(() => expect(api.floorplan.assign).toHaveBeenCalledOnce());
+    expect(api.floorplan.assign).toHaveBeenCalledWith(
+      workspaceEvent.id,
+      { assistantIds: [seatingItem.assistantId], tableShapeId: floorplan.shapes[0]!.id },
+      expect.stringMatching(/^[0-9a-f-]{36}$/u),
+      expect.any(AbortSignal)
+    );
+    expect(api.floorplan.updateShape).not.toHaveBeenCalled();
+  });
+
+  it('retries an uncertain assignment with the same idempotency key', async () => {
+    const api = mockApiClient();
+    vi.mocked(api.events.get).mockResolvedValue(workspaceEvent);
+    vi.mocked(api.floorplan.get).mockResolvedValue(floorplan);
+    vi.mocked(api.fileAssets.content).mockResolvedValue(new Blob(['image'], { type: 'image/png' }));
+    vi.mocked(api.floorplan.seating).mockResolvedValue(unassignedPage);
+    vi.mocked(api.floorplan.assign)
+      .mockRejectedValueOnce(new TypeError('network'))
+      .mockResolvedValueOnce(mutationResult);
+    const user = userEvent.setup();
+    renderApp(api, `/eventos/${workspaceEvent.id}`);
+
+    await user.click(await screen.findByRole('link', { name: 'Mesas y distribución' }));
+    await user.click(await screen.findByRole('button', { name: 'Mesa 12 · 10' }));
+    await user.click(await screen.findByRole('checkbox', { name: 'Seleccionar Ana María' }));
+    await user.click(screen.getByRole('button', { name: 'Asignar 1 a 12' }));
+    await user.click(await screen.findByRole('button', { name: 'Reintentar' }));
+
+    await waitFor(() => expect(api.floorplan.assign).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(api.floorplan.assign).mock.calls[0]?.[2]).toBe(vi.mocked(api.floorplan.assign).mock.calls[1]?.[2]);
+  });
+
+  it('shows aggregate family/group impact before mutation and blocks over-capacity groups', async () => {
+    const api = mockApiClient();
+    vi.mocked(api.events.get).mockResolvedValue(workspaceEvent);
+    vi.mocked(api.floorplan.get).mockResolvedValue(floorplan);
+    vi.mocked(api.fileAssets.content).mockResolvedValue(new Blob(['image'], { type: 'image/png' }));
+    vi.mocked(api.floorplan.seating).mockResolvedValue(unassignedPage);
+    const user = userEvent.setup();
+    renderApp(api, `/eventos/${workspaceEvent.id}`);
+
+    await user.click(await screen.findByRole('link', { name: 'Mesas y distribución' }));
+    await user.click(await screen.findByRole('button', { name: 'Mesa 12 · 10' }));
+    await user.click(await screen.findByRole('button', { name: 'Invitación completa' }));
+    expect(await screen.findByText(/Asignar a las 3 personas/)).toBeInTheDocument();
+    expect(screen.getByText(/1 ya tienen Mesa/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await user.click(await screen.findByRole('button', { name: 'Grupo completo' }));
+    expect(await screen.findByText(/Asignar a las 5 personas de Familia Ruiz/)).toBeInTheDocument();
+    expect(screen.getByText(/supera los 3 lugares disponibles/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Confirmar asignación' })).toBeDisabled();
+    expect(api.floorplan.assignFamily).not.toHaveBeenCalled();
+    expect(api.floorplan.assignGroup).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['Invitación completa', 'Mesa 12 · 10', 'assignFamily'],
+    ['Grupo completo', 'Mesa 20 · 8', 'assignGroup']
+  ] as const)('executes %s only after explicit confirmation', async (action, tableButton, method) => {
+    const api = mockApiClient();
+    vi.mocked(api.events.get).mockResolvedValue(workspaceEvent);
+    vi.mocked(api.floorplan.get).mockResolvedValue(floorplan);
+    vi.mocked(api.fileAssets.content).mockResolvedValue(new Blob(['image'], { type: 'image/png' }));
+    vi.mocked(api.floorplan.seating).mockResolvedValue(unassignedPage);
+    vi.mocked(api.floorplan[method]).mockResolvedValue(mutationResult);
+    const user = userEvent.setup();
+    renderApp(api, `/eventos/${workspaceEvent.id}`);
+
+    await user.click(await screen.findByRole('link', { name: 'Mesas y distribución' }));
+    await user.click(await screen.findByRole('button', { name: tableButton }));
+    await user.click(await screen.findByRole('button', { name: action }));
+    expect(api.floorplan[method]).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Confirmar asignación' }));
+    await waitFor(() => expect(api.floorplan[method]).toHaveBeenCalledOnce());
+    expect(vi.mocked(api.floorplan[method]).mock.calls[0]?.[2]).toEqual(expect.any(String));
+  });
+
+  it('reconciles a 409 and leaves terminal Events read-only', async () => {
+    const api = mockApiClient();
+    vi.mocked(api.events.get).mockResolvedValue(workspaceEvent);
+    vi.mocked(api.floorplan.get).mockResolvedValue(floorplan);
+    vi.mocked(api.fileAssets.content).mockResolvedValue(new Blob(['image'], { type: 'image/png' }));
+    vi.mocked(api.floorplan.seating).mockResolvedValue(unassignedPage);
+    vi.mocked(api.floorplan.assign).mockRejectedValue(new ApiError(409, 'SEATING_CAPACITY_EXCEEDED', 'full'));
+    const user = userEvent.setup();
+    const { unmount } = renderApp(api, `/eventos/${workspaceEvent.id}`);
+
+    await user.click(await screen.findByRole('link', { name: 'Mesas y distribución' }));
+    await user.click(await screen.findByRole('button', { name: 'Mesa 12 · 10' }));
+    await user.click(await screen.findByRole('checkbox', { name: 'Seleccionar Ana María' }));
+    await user.click(screen.getByRole('button', { name: 'Asignar 1 a 12' }));
+    expect(await screen.findByText(/La disponibilidad cambió/)).toBeInTheDocument();
+    expect(api.floorplan.get).toHaveBeenCalledTimes(2);
+
+    unmount();
+    const closedApi = mockApiClient();
+    vi.mocked(closedApi.events.get).mockResolvedValue({ ...workspaceEvent, status: 'CLOSED' });
+    vi.mocked(closedApi.floorplan.get).mockResolvedValue(floorplan);
+    vi.mocked(closedApi.fileAssets.content).mockResolvedValue(new Blob(['image'], { type: 'image/png' }));
+    vi.mocked(closedApi.floorplan.seating).mockResolvedValue(unassignedPage);
+    renderApp(closedApi, `/eventos/${workspaceEvent.id}?seccion=mesas`);
+    expect(await screen.findByText(/modo de consulta/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Asignar/ })).not.toBeInTheDocument();
+  });
+
+  it('sends debounced search and Group filters while keeping the page bounded to 50', async () => {
+    const api = mockApiClient();
+    vi.mocked(api.events.get).mockResolvedValue(workspaceEvent);
+    vi.mocked(api.floorplan.get).mockResolvedValue(floorplan);
+    vi.mocked(api.fileAssets.content).mockResolvedValue(new Blob(['image'], { type: 'image/png' }));
+    vi.mocked(api.contacts.groups).mockResolvedValue([
+      {
+        id: seatingItem.group!.id,
+        eventId: workspaceEvent.id,
+        name: seatingItem.group!.name,
+        createdAt: '2026-08-09T18:00:00.000Z',
+        updatedAt: '2026-08-09T18:00:00.000Z'
+      }
+    ]);
+    vi.mocked(api.floorplan.seating).mockResolvedValue(unassignedPage);
+    const user = userEvent.setup();
+    renderApp(api, `/eventos/${workspaceEvent.id}`);
+
+    await user.click(await screen.findByRole('link', { name: 'Mesas y distribución' }));
+    await user.click(await screen.findByRole('button', { name: 'Mesa 12 · 10' }));
+    await user.type(await screen.findByRole('textbox', { name: 'Buscar Asistente' }), '  María  ');
+    await waitFor(() =>
+      expect(api.floorplan.seating).toHaveBeenCalledWith(
+        workspaceEvent.id,
+        expect.objectContaining({ search: 'María', limit: 50 }),
+        expect.any(AbortSignal)
+      )
+    );
+    await user.click(screen.getByRole('combobox', { name: 'Grupo' }));
+    await user.click(await screen.findByRole('option', { name: 'Familia Ruiz' }));
+    await waitFor(() =>
+      expect(api.floorplan.seating).toHaveBeenCalledWith(
+        workspaceEvent.id,
+        expect.objectContaining({ groupId: seatingItem.group!.id, limit: 50 }),
+        expect.any(AbortSignal)
+      )
+    );
+  });
+
+  it('uses PATCH for changing or unassigning one Assistant and exposes both table scopes', async () => {
+    const api = mockApiClient();
+    vi.mocked(api.events.get).mockResolvedValue(workspaceEvent);
+    vi.mocked(api.floorplan.get).mockResolvedValue(floorplan);
+    vi.mocked(api.fileAssets.content).mockResolvedValue(new Blob(['image'], { type: 'image/png' }));
+    vi.mocked(api.floorplan.seating).mockImplementation((_eventId, query) =>
+      Promise.resolve(query.scope === 'TABLE' ? tablePage : unassignedPage)
+    );
+    vi.mocked(api.floorplan.updateSeating).mockResolvedValue(mutationResult);
+    const user = userEvent.setup();
+    renderApp(api, `/eventos/${workspaceEvent.id}`);
+
+    await user.click(await screen.findByRole('link', { name: 'Mesas y distribución' }));
+    await user.click(await screen.findByRole('button', { name: 'Mesa 12 · 10' }));
+    await user.click(await screen.findByRole('tab', { name: 'En esta mesa' }));
+    expect(await screen.findByRole('list', { name: 'Asistentes en 12' })).toBeInTheDocument();
+    await user.click(screen.getByRole('checkbox', { name: 'Seleccionar Ana María' }));
+    await user.click(screen.getByRole('button', { name: 'Cambiar mesa de 1' }));
+    await user.click(await screen.findByRole('button', { name: /20.*2\/8.*6 disponibles/ }));
+    await waitFor(() => expect(api.floorplan.updateSeating).toHaveBeenCalledOnce());
+    expect(api.floorplan.updateSeating).toHaveBeenLastCalledWith(
+      workspaceEvent.id,
+      seatingItem.assistantId,
+      { tableShapeId: floorplan.shapes[1]!.id },
+      expect.any(String),
+      expect.any(AbortSignal)
+    );
+
+    await user.click(await screen.findByRole('button', { name: 'Quitar Mesa' }));
+    await waitFor(() => expect(api.floorplan.updateSeating).toHaveBeenCalledTimes(2));
+    expect(api.floorplan.updateSeating).toHaveBeenLastCalledWith(
+      workspaceEvent.id,
+      seatingItem.assistantId,
+      { tableShapeId: null },
+      expect.any(String),
+      expect.any(AbortSignal)
+    );
   });
 });
 

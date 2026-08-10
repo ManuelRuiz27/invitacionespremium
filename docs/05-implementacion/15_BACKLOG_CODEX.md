@@ -1284,18 +1284,21 @@ Contratos normativos: `docs/04-tecnico/ACTIVE_EVENT_WORKSPACE_CONTRACT.md`,
 
 ### CODEX-124B — Workspace operativo: Mesas y asignación por Mesa
 
-**Estado:** PLAN PROPUESTO — requiere aprobación humana antes de código
+**Estado:** IMPLEMENTADO — PENDIENTE DE ACEPTACIÓN
+
+**Aprobación humana:** 2026-08-09. El plan fue aprobado con elegibilidad autoritativa del read model y conteos
+completos de Invitación/Grupo como enmiendas obligatorias. Seat PR 5.1 permanece bloqueado.
 
 **Nota de trazabilidad:** el commit `c0e13fbd5f3de58547d697ebbf01c11438770a39` **NO implementa CODEX-124B**.
 Aunque su mensaje de commit lo afirma incorrectamente, ese corte contiene INVITATION-R1.1, hardening automatizado
-de gestos y documentación/plan de 124B. No se reescribe la historia; CODEX-124B continúa en **PLAN PROPUESTO** y su
-implementación permanece bloqueada hasta aprobación humana explícita.
+de gestos y documentación/plan de 124B. No se reescribe la historia; la implementación real posterior queda en la
+rama específica de CODEX-124B y permanece pendiente de aceptación humana.
 
-**Definición contractual cerrada para revisión:** con `floorplanEnabled=false` no hay navegación, placeholder ni
-resolución de Floorplan. Con Croquis, `FLYER`/`FLIPBOOK` proponen Croquis read-only + Split View nominal y
+**Definición contractual implementada:** con `floorplanEnabled=false` no hay navegación, placeholder ni
+resolución de Floorplan. Con Croquis, `FLYER`/`FLIPBOOK` usan Croquis read-only + Split View nominal y
 `PHYSICAL_QR` únicamente Croquis read-only + ocupación, sin `/seating` ni reasignación de PhysicalPass. `DEMO` no
 inventa workspace operativo. El mapping de intenciones, el flujo Cambiar mesa, el read model determinista, estados y
-realtime quedan cerrados en `CODEX_124B_IMPLEMENTATION_PLAN.md`; este cierre documental no autoriza código.
+realtime quedan descritos en `CODEX_124B_IMPLEMENTATION_PLAN.md` y validados en `CODEX_124B_QA.md`.
 
 **Repos propuestos:** `invitacionespremium-api`, `packages/api-client`, `invitacionespremium-client`
 

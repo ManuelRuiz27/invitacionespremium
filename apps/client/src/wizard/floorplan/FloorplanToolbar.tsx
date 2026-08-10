@@ -10,6 +10,7 @@ import { Box, Divider, IconButton, Stack, ToggleButton, Tooltip, Typography } fr
 
 export function FloorplanToolbar({
   disabled,
+  readOnly = false,
   snap,
   showSeats,
   panEnabled,
@@ -26,6 +27,7 @@ export function FloorplanToolbar({
   onRedo
 }: {
   disabled: boolean;
+  readOnly?: boolean;
   snap: boolean;
   showSeats: boolean;
   panEnabled: boolean;
@@ -109,20 +111,22 @@ export function FloorplanToolbar({
             <PanToolAltRounded fontSize="small" />
           </ToggleButton>
         </Tooltip>
-        <Tooltip title="Ayuda para alinear">
-          <span>
-            <ToggleButton
-              value="snap"
-              selected={snap}
-              disabled={disabled}
-              onChange={() => onSnapChange(!snap)}
-              aria-label="Activar ayuda para alinear"
-              sx={toggleSx}
-            >
-              <GridOnRounded fontSize="small" />
-            </ToggleButton>
-          </span>
-        </Tooltip>
+        {!readOnly ? (
+          <Tooltip title="Ayuda para alinear">
+            <span>
+              <ToggleButton
+                value="snap"
+                selected={snap}
+                disabled={disabled}
+                onChange={() => onSnapChange(!snap)}
+                aria-label="Activar ayuda para alinear"
+                sx={toggleSx}
+              >
+                <GridOnRounded fontSize="small" />
+              </ToggleButton>
+            </span>
+          </Tooltip>
+        ) : null}
         <Tooltip title="Mostrar sillas">
           <ToggleButton
             value="seats"
@@ -134,31 +138,35 @@ export function FloorplanToolbar({
             <ChairAltRounded fontSize="small" />
           </ToggleButton>
         </Tooltip>
-        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-        <Tooltip title="Deshacer">
-          <span>
-            <IconButton
-              aria-label="Deshacer cambio visual"
-              disabled={disabled || !canUndo}
-              onClick={onUndo}
-              sx={buttonSx}
-            >
-              <UndoRounded fontSize="small" />
-            </IconButton>
-          </span>
-        </Tooltip>
-        <Tooltip title="Rehacer">
-          <span>
-            <IconButton
-              aria-label="Rehacer cambio visual"
-              disabled={disabled || !canRedo}
-              onClick={onRedo}
-              sx={buttonSx}
-            >
-              <RedoRounded fontSize="small" />
-            </IconButton>
-          </span>
-        </Tooltip>
+        {!readOnly ? <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} /> : null}
+        {!readOnly ? (
+          <Tooltip title="Deshacer">
+            <span>
+              <IconButton
+                aria-label="Deshacer cambio visual"
+                disabled={disabled || !canUndo}
+                onClick={onUndo}
+                sx={buttonSx}
+              >
+                <UndoRounded fontSize="small" />
+              </IconButton>
+            </span>
+          </Tooltip>
+        ) : null}
+        {!readOnly ? (
+          <Tooltip title="Rehacer">
+            <span>
+              <IconButton
+                aria-label="Rehacer cambio visual"
+                disabled={disabled || !canRedo}
+                onClick={onRedo}
+                sx={buttonSx}
+              >
+                <RedoRounded fontSize="small" />
+              </IconButton>
+            </span>
+          </Tooltip>
+        ) : null}
       </Stack>
     </Box>
   );

@@ -17,6 +17,7 @@ export interface FloorplanRendererProps {
   showSeats: boolean;
   snap: boolean;
   panEnabled?: boolean | undefined;
+  readOnly?: boolean | undefined;
   onSelect: (shape: FloorplanShape) => void;
   onDraftChange: (shape: FloorplanShapeInput) => void;
   onCanvasPlace?: ((point: { x: number; y: number }, pendingId?: string) => void) | undefined;
@@ -83,6 +84,7 @@ export function FloorplanDomRenderer(props: FloorplanRendererProps) {
             shape={shape}
             renderedSize={ownerSize}
             disabled={props.disabled || Boolean(props.draft)}
+            readOnly={props.readOnly}
             showSeats={props.showSeats}
             onClick={() => props.onSelect(shape)}
           />
@@ -107,12 +109,14 @@ function ShapeButton({
   shape,
   renderedSize,
   disabled,
+  readOnly,
   showSeats,
   onClick
 }: {
   shape: FloorplanShape;
   renderedSize: RenderedSize;
   disabled: boolean;
+  readOnly?: boolean | undefined;
   showSeats: boolean;
   onClick: () => void;
 }) {
@@ -121,7 +125,7 @@ function ShapeButton({
     <Box
       component="button"
       type="button"
-      aria-label={`Editar ${kind.toLowerCase()} ${shape.name}`}
+      aria-label={`${readOnly ? 'Seleccionar' : 'Editar'} ${kind.toLowerCase()} ${shape.name}`}
       disabled={disabled}
       onClick={onClick}
       sx={{

@@ -1,7 +1,7 @@
 # CODEX-124B — Implementation Plan: Workspace operativo, Mesas y asignación por Mesa
 
-Estado: **PROPUESTO — requiere aprobación humana antes de código**  
-Definición contractual: **CERRADA para revisión; implementación no iniciada**
+Estado: **IMPLEMENTADO — PENDIENTE DE ACEPTACIÓN**
+Definición contractual: **APROBADA con enmiendas obligatorias**
 
 Fecha: 2026-08-09  
 Dependencias: CODEX-124A-R1, CODEX-090, CODEX-082 y Croquis Sticker F0–F4
@@ -12,7 +12,17 @@ Agregar **Mesas y distribución** al workspace operativo existente sin convertir
 una Mesa en el Croquis read-only y asigna, desasigna o mueve Asistentes desde un Split View. El backend vigente sigue
 siendo autoridad de Mesa, capacidad, ownership, estado, concurrencia, auditoría e idempotencia.
 
-Este plan no autoriza implementación. CODEX-124B y Seat PR 5.1 permanecen detenidos hasta aprobación explícita.
+La implementación de CODEX-124B fue aprobada expresamente el 9 de agosto de 2026. Seat PR 5.1 permanece
+bloqueado y no forma parte de este corte.
+
+### Enmiendas aprobadas
+
+1. El read model sólo proyecta candidatos compatibles con las reglas autoritativas vigentes: Asistente activo y
+   confirmado, Invitación activa/no eliminada/no cancelada e identidad compatible con privacidad. En
+   `ACTIVE`/`EVENT_DAY` ningún control mutable opera sobre candidatos distintos.
+2. Cada item expone conteos completos y autoritativos de Invitación y Grupo (`eligibleAssistantCount` y
+   `assignedAssistantCount`) antes de confirmar acciones family/group. Los conteos no dependen de viewport,
+   página, filtro visual o selección local y se resuelven con queries/agregados acotados, sin N+1.
 
 ## 2. Alcance y fronteras
 
@@ -80,8 +90,17 @@ type SeatingWorkspacePage = {
   items: Array<{
     assistantId: string;
     name: string | null;
-    invitationId: string;
-    group: { id: string; name: string } | null;
+    invitation: {
+      id: string;
+      eligibleAssistantCount: number;
+      assignedAssistantCount: number;
+    };
+    group: {
+      id: string;
+      name: string;
+      eligibleAssistantCount: number;
+      assignedAssistantCount: number;
+    } | null;
     table: { id: string; name: string } | null;
     checkedIn: boolean;
   }>;
@@ -256,11 +275,10 @@ docker compose up --build -d
 docker compose ps
 ```
 
-## 11. Gate humano
+## 11. Resultado de implementación
 
-La implementación solo puede comenzar después de aprobación explícita de este plan y del read model propuesto.
-La aprobación de CODEX-124B no autoriza Seat PR 5.1. Al terminar 124B se requiere un gate separado antes de tocar
-Prisma, Seat, Scanner Seat o reportes Seat.
+La implementación fue completada en la rama `feat/codex-124b-seating-workspace` y queda pendiente de aceptación
+humana. La evidencia, mediciones y deuda de QA física están registradas en `CODEX_124B_QA.md`.
 
-Hasta ese gate no se implementa este plan en API, OpenAPI, SDK ni Client operativo. El ADR Seat conserva estado
-propuesto; PR 5.1 continúa bloqueado y no forma parte de CODEX-124B.
+Este resultado no autoriza Seat PR 5.1. El ADR Seat conserva estado propuesto; Prisma Seat, `Assistant.seatId`,
+SeatAssignment, Scanner Seat y reportes Seat no fueron iniciados.
