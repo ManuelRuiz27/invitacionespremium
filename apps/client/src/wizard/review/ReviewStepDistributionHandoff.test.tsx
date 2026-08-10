@@ -2,7 +2,7 @@ import type { Event } from '@invitaciones/api-client';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { configuredEvent, mockApiClient } from '../../test/fixtures';
+import { configuredEvent, financeBalance, mockApiClient, movement, receipt } from '../../test/fixtures';
 import { renderApp } from '../../test/render-app';
 
 const digitalReady = {
@@ -33,11 +33,23 @@ const physicalActive = {
   status: 'ACTIVE'
 } satisfies Event;
 
+const activationResult = (event: Event, credits: number) => ({
+  event,
+  baseCostCredits: credits,
+  promotionDiscountCredits: 0,
+  finalCostCredits: credits,
+  purchasedCreditsUsed: credits,
+  creditLineCreditsUsed: 0,
+  movements: [movement],
+  receipt,
+  balance: financeBalance
+});
+
 describe('post-activation handoff', () => {
   it('hands an activated Flyer directly to invitation distribution', async () => {
     const api = mockApiClient();
     vi.mocked(api.events.get).mockResolvedValue(digitalReady);
-    vi.mocked(api.events.activate).mockResolvedValue({ event: digitalActive });
+    vi.mocked(api.events.activate).mockResolvedValue(activationResult(digitalActive, 5));
     vi.mocked(api.design.readiness).mockResolvedValue({ complete: true, blockers: [], designType: 'FLYER' });
 
     renderApp(api, `/eventos/${digitalReady.id}/configuracion/revision`);
@@ -59,7 +71,7 @@ describe('post-activation handoff', () => {
   it('hands an activated Physical QR event to its operational workspace without digital invitation actions', async () => {
     const api = mockApiClient();
     vi.mocked(api.events.get).mockResolvedValue(physicalReady);
-    vi.mocked(api.events.activate).mockResolvedValue({ event: physicalActive });
+    vi.mocked(api.events.activate).mockResolvedValue(activationResult(physicalActive, 3));
     vi.mocked(api.physicalPasses.list).mockResolvedValue([
       {
         id: '11111111-1111-4111-8111-111111111111',
