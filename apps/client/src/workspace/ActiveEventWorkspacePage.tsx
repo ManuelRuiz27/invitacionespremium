@@ -8,6 +8,7 @@ import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { getEventStatusPresentation } from '../shared/event-status';
 import { formatEventDateLong, serviceLabels, socialTypeLabels } from '../shared/formatters';
 import { useSessionExpiry } from '../shared/use-session-expiry';
+import { InvitationDistribution } from './InvitationDistribution';
 import { SeatingWorkspace } from './SeatingWorkspace';
 
 const preparationDestinations: Partial<Record<EventStatus, string>> = {
@@ -33,6 +34,8 @@ const stateMessages: Partial<Record<EventStatus, string>> = {
   ARCHIVED: 'Este evento está archivado y ya no admite cambios operativos.',
   CANCELLED: 'Este evento fue cancelado.'
 };
+
+type WorkspaceSection = 'resumen' | 'invitaciones' | 'mesas';
 
 export function ActiveEventWorkspacePage({ apiClient }: { apiClient: ApiClient }) {
   const { eventId = '' } = useParams();
@@ -101,10 +104,17 @@ export function ActiveEventWorkspacePage({ apiClient }: { apiClient: ApiClient }
 
 function EventWorkspace({ apiClient, event }: { apiClient: ApiClient; event: Event }) {
   const [searchParams] = useSearchParams();
+  const showInvitations = event.serviceCode === 'FLYER' || event.serviceCode === 'FLIPBOOK';
   const showSeating =
     event.floorplanEnabled &&
     (event.serviceCode === 'FLYER' || event.serviceCode === 'FLIPBOOK' || event.serviceCode === 'PHYSICAL_QR');
-  const section = showSeating && searchParams.get('seccion') === 'mesas' ? 'mesas' : 'resumen';
+  const requestedSection = searchParams.get('seccion');
+  const section: WorkspaceSection =
+    requestedSection === 'invitaciones' && showInvitations
+      ? 'invitaciones'
+      : requestedSection === 'mesas' && showSeating
+        ? 'mesas'
+        : 'resumen';
   const status = getEventStatusPresentation(event.status);
   const serviceLabel = event.serviceCode ? serviceLabels[event.serviceCode] : 'Servicio no disponible';
   const details = [
@@ -155,6 +165,26 @@ function EventWorkspace({ apiClient, event }: { apiClient: ApiClient; event: Eve
         >
           Resumen
         </MuiLink>
+        {showInvitations ? (
+          <MuiLink
+            component={Link}
+            to={`/eventos/${event.id}?seccion=invitaciones`}
+            aria-current={section === 'invitaciones' ? 'page' : undefined}
+            underline="none"
+            sx={{
+              display: 'inline-flex',
+              minHeight: 44,
+              alignItems: 'center',
+              px: 1.5,
+              borderBottom: 2,
+              borderColor: section === 'invitaciones' ? 'primary.main' : 'transparent',
+              color: 'text.primary',
+              fontWeight: 700
+            }}
+          >
+            Invitaciones
+          </MuiLink>
+        ) : null}
         {showSeating ? (
           <MuiLink
             component={Link}
@@ -177,7 +207,17 @@ function EventWorkspace({ apiClient, event }: { apiClient: ApiClient; event: Eve
         ) : null}
       </Box>
 
-      {section === 'mesas' ? (
+      {section === 'invitaciones' ? (
+        <Box component="section" aria-labelledby="invitation-distribution-title">
+          <Typography id="invitation-distribution-title" component="h2" variant="h3" sx={{ mb: 0.75 }}>
+            Enviar invitaciones
+          </Typography>
+          <Typography color="text.secondary" sx={{ mb: 2 }}>
+            Comparte el enlace individual de cada invitación y consulta su respuesta.
+          </Typography>
+          <InvitationDistribution apiClient={apiClient} event={event} />
+        </Box>
+      ) : section === 'mesas' ? (
         <Box component="section" aria-labelledby="seating-workspace-title">
           <Typography id="seating-workspace-title" component="h2" variant="h3" sx={{ mb: 0.75 }}>
             Mesas y distribución
