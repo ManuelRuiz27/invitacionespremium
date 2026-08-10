@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { FloorplanGeometry, FloorplanShapeKind } from '../generated/prisma/client';
-import { normalizeFloorplanName, parseAssignSeating, parseCreateShape, parseUpdateShape } from './floorplan.dto';
+import {
+  normalizeFloorplanName,
+  normalizeSeatingSearch,
+  parseAssignSeating,
+  parseCreateShape,
+  parseSeatingWorkspaceQuery,
+  parseUpdateShape
+} from './floorplan.dto';
 import { requestSignature } from './floorplan.service';
 import { SeatingAction } from '../generated/prisma/client';
 
@@ -64,5 +71,20 @@ describe('Floorplan DTOs', () => {
     expect(first).toBe(repeated);
     expect(first).toMatch(/^[0-9a-f]{64}$/u);
     expect(first).not.toContain('Mesa');
+  });
+
+  it('normalizes seating search and enforces scope, cursor and bounded pagination', () => {
+    const tableShapeId = '11111111-1111-4111-8111-111111111111';
+    expect(normalizeSeatingSearch('  Ána   María  ')).toBe('ana maria');
+    expect(parseSeatingWorkspaceQuery({ scope: 'UNASSIGNED' })).toEqual({ scope: 'UNASSIGNED', limit: 50 });
+    expect(parseSeatingWorkspaceQuery({ scope: 'TABLE', tableShapeId, limit: '100', search: ' ÉL  ' })).toEqual({
+      scope: 'TABLE',
+      tableShapeId,
+      limit: 100,
+      search: 'el'
+    });
+    expect(() => parseSeatingWorkspaceQuery({ scope: 'TABLE' })).toThrow();
+    expect(() => parseSeatingWorkspaceQuery({ scope: 'UNASSIGNED', tableShapeId })).toThrow();
+    expect(() => parseSeatingWorkspaceQuery({ scope: 'UNASSIGNED', limit: 101 })).toThrow();
   });
 });

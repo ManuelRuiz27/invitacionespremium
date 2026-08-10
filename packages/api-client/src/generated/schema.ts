@@ -1504,6 +1504,22 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/events/{eventId}/seating": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["FloorplanController_seatingWorkspace"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events/{eventId}/seating/{assistantId}": {
         parameters: {
             query?: never;
@@ -3194,6 +3210,49 @@ export type components = {
             occupancy: number;
             /** Format: uuid */
             tableId: string;
+        };
+        SeatingWorkspaceGroupDto: {
+            assignedAssistantCount: number;
+            eligibleAssistantCount: number;
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
+        SeatingWorkspaceInvitationDto: {
+            assignedAssistantCount: number;
+            eligibleAssistantCount: number;
+            /** Format: uuid */
+            id: string;
+        };
+        SeatingWorkspaceItemDto: {
+            /** Format: uuid */
+            assistantId: string;
+            checkedIn: boolean;
+            group: components["schemas"]["SeatingWorkspaceGroupDto"] | null;
+            invitation: components["schemas"]["SeatingWorkspaceInvitationDto"];
+            name: string | null;
+            table: components["schemas"]["SeatingWorkspaceTableDto"] | null;
+        };
+        SeatingWorkspacePageDto: {
+            items: components["schemas"]["SeatingWorkspaceItemDto"][];
+            nextCursor: string | null;
+            summary: components["schemas"]["SeatingWorkspaceSummaryDto"];
+        };
+        SeatingWorkspaceSelectedTableDto: {
+            capacity: number;
+            /** Format: uuid */
+            id: string;
+            name: string;
+            occupancy: number;
+        };
+        SeatingWorkspaceSummaryDto: {
+            selectedTable: components["schemas"]["SeatingWorkspaceSelectedTableDto"] | null;
+            unassignedCount: number;
+        };
+        SeatingWorkspaceTableDto: {
+            /** Format: uuid */
+            id: string;
+            name: string;
         };
         ServiceResponseDto: {
             /** @enum {string} */
@@ -5775,6 +5834,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReportAuthorizationResponseDto"];
+                };
+            };
+        };
+    };
+    FloorplanController_seatingWorkspace: {
+        parameters: {
+            query: {
+                cursor?: string;
+                groupId?: string;
+                limit?: number;
+                scope: "UNASSIGNED" | "TABLE";
+                search?: string;
+                tableShapeId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeatingWorkspacePageDto"];
                 };
             };
         };

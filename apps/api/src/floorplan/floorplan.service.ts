@@ -1,5 +1,12 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { HttpStatus, Inject, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpStatus,
+  Inject,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException
+} from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
 import type { AuthPrincipal } from '../auth/auth.types';
 import { PrismaService } from '../common/database/prisma.service';
@@ -32,6 +39,8 @@ import type {
   FloorplanShapeInput,
   FloorplanShapeResponseDto,
   SeatingMutationResponseDto,
+  SeatingWorkspacePageDto,
+  SeatingWorkspaceQueryInput,
   ScannerFloorplanResponseDto,
   UpdateFloorplanShapeInput,
   UpdateSeatingInput
@@ -126,6 +135,156 @@ export class FloorplanService {
   async get(eventId: string, principal: AuthPrincipal): Promise<FloorplanResponseDto> {
     await this.prisma.$transaction((tx) => this.access.requireOwnedEvent(tx, eventId, principal));
     return toFloorplanResponse(await this.requireView(this.prisma, eventId));
+  }
+
+  async seatingWorkspace(
+    eventId: string,
+    input: SeatingWorkspaceQueryInput,
+    principal: AuthPrincipal
+  ): Promise<SeatingWorkspacePageDto> {
+    const cursor = input.cursor ? decodeSeatingCursor(input.cursor) : null;
+    return this.prisma.$transaction(async (tx) => {
+      await this.access.requireOwnedEvent(tx, eventId, principal);
+      const floorplan = await tx.floorplan.findFirst({
+        where: { eventId, deletedAt: null },
+        select: { id: true }
+      });
+      if (!floorplan) throw floorplanNotFound();
+
+      const selectedTable = input.tableShapeId
+        ? await tx.floorplanShape.findFirst({
+            where: {
+              id: input.tableShapeId,
+              eventId,
+              floorplanId: floorplan.id,
+              kind: FloorplanShapeKind.TABLE,
+              deletedAt: null
+            },
+            select: { id: true, name: true, capacity: true }
+          })
+        : null;
+      if (input.scope === 'TABLE' && !selectedTable) {
+        throw floorplanError('SEATING_TABLE_INVALID', 'Seating query requires an active table.');
+      }
+
+      const normalizedName = Prisma.sql`
+        regexp_replace(
+          translate(lower(coalesce(a."name", '')),
+            'áàäâãåéèëêíìïîóòöôõúùüûñç',
+            'aaaaaaeeeeiiiiooooouuuunc'),
+          '\\s+', ' ', 'g'
+        )
+      `;
+      const scopeCondition =
+        input.scope === 'UNASSIGNED'
+          ? Prisma.sql`e.floorplan_shape_id IS NULL`
+          : Prisma.sql`e.floorplan_shape_id = ${input.tableShapeId!}::uuid`;
+      const groupCondition = input.groupId ? Prisma.sql`AND e.group_id = ${input.groupId}::uuid` : Prisma.empty;
+      const searchCondition = input.search
+        ? Prisma.sql`AND e.normalized_name LIKE ${`%${input.search}%`}`
+        : Prisma.empty;
+      const cursorCondition = cursor
+        ? Prisma.sql`AND (e.normalized_name > ${cursor.name} OR
+            (e.normalized_name = ${cursor.name} AND e.assistant_id > ${cursor.assistantId}::uuid))`
+        : Prisma.empty;
+
+      const rows = await tx.$queryRaw<SeatingWorkspaceRow[]>(Prisma.sql`
+        WITH eligible AS (
+          SELECT
+            a."id" AS assistant_id,
+            a."name" AS assistant_name,
+            a."invitation_id" AS invitation_id,
+            a."floorplan_shape_id" AS floorplan_shape_id,
+            c."group_id" AS group_id,
+            g."name" AS group_name,
+            t."name" AS table_name,
+            ${normalizedName} AS normalized_name
+          FROM "assistant" a
+          JOIN "invitation" i
+            ON i."id" = a."invitation_id" AND i."event_id" = a."event_id"
+          JOIN "contact" c
+            ON c."id" = i."contact_id" AND c."event_id" = i."event_id"
+          LEFT JOIN "contact_group" g
+            ON g."id" = c."group_id" AND g."event_id" = c."event_id"
+          LEFT JOIN "floorplan_shape" t
+            ON t."id" = a."floorplan_shape_id" AND t."event_id" = a."event_id" AND t."deleted_at" IS NULL
+          WHERE a."event_id" = ${eventId}::uuid
+            AND a."deleted_at" IS NULL
+            AND a."anonymized_at" IS NULL
+            AND a."name" IS NOT NULL
+            AND a."response_status" = 'CONFIRMED'::"assistant_response_status"
+            AND i."deleted_at" IS NULL
+            AND i."cancelled_at" IS NULL
+            AND c."deleted_at" IS NULL
+        ),
+        invitation_counts AS (
+          SELECT invitation_id, count(*)::int AS eligible_count,
+            count(*) FILTER (WHERE floorplan_shape_id IS NOT NULL)::int AS assigned_count
+          FROM eligible GROUP BY invitation_id
+        ),
+        group_counts AS (
+          SELECT group_id, count(*)::int AS eligible_count,
+            count(*) FILTER (WHERE floorplan_shape_id IS NOT NULL)::int AS assigned_count
+          FROM eligible WHERE group_id IS NOT NULL GROUP BY group_id
+        ),
+        active_check_ins AS (
+          SELECT DISTINCT "assistant_id" FROM "check_in"
+          WHERE "event_id" = ${eventId}::uuid AND "reverted_at" IS NULL
+        )
+        SELECT e.*, ic.eligible_count AS invitation_eligible_count,
+          ic.assigned_count AS invitation_assigned_count,
+          gc.eligible_count AS group_eligible_count,
+          gc.assigned_count AS group_assigned_count,
+          (ci."assistant_id" IS NOT NULL) AS checked_in
+        FROM eligible e
+        JOIN invitation_counts ic ON ic.invitation_id = e.invitation_id
+        LEFT JOIN group_counts gc ON gc.group_id = e.group_id
+        LEFT JOIN active_check_ins ci ON ci."assistant_id" = e.assistant_id
+        WHERE ${scopeCondition} ${groupCondition} ${searchCondition} ${cursorCondition}
+        ORDER BY e.normalized_name ASC, e.assistant_id ASC
+        LIMIT ${input.limit + 1}
+      `);
+
+      const totals = await tx.$queryRaw<SeatingWorkspaceTotalsRow[]>(Prisma.sql`
+        SELECT
+          count(*) FILTER (WHERE a."floorplan_shape_id" IS NULL)::int AS unassigned_count,
+          (SELECT count(*)::int FROM "assistant" seated
+            WHERE seated."floorplan_shape_id" = ${input.tableShapeId ?? null}::uuid
+              AND seated."deleted_at" IS NULL) AS table_assistants,
+          (SELECT count(*)::int FROM "physical_pass" p
+            WHERE p."floorplan_shape_id" = ${input.tableShapeId ?? null}::uuid AND p."deleted_at" IS NULL) AS table_passes
+        FROM "assistant" a
+        JOIN "invitation" i ON i."id" = a."invitation_id" AND i."event_id" = a."event_id"
+        JOIN "contact" c ON c."id" = i."contact_id" AND c."event_id" = i."event_id"
+        WHERE a."event_id" = ${eventId}::uuid
+          AND a."deleted_at" IS NULL
+          AND a."anonymized_at" IS NULL
+          AND a."name" IS NOT NULL
+          AND a."response_status" = 'CONFIRMED'::"assistant_response_status"
+          AND i."deleted_at" IS NULL
+          AND i."cancelled_at" IS NULL
+          AND c."deleted_at" IS NULL
+      `);
+      const total = totals[0] ?? { unassigned_count: 0, table_assistants: 0, table_passes: 0 };
+      const hasNext = rows.length > input.limit;
+      const pageRows = hasNext ? rows.slice(0, input.limit) : rows;
+      const last = pageRows.at(-1);
+      return {
+        items: pageRows.map(toSeatingWorkspaceItem),
+        summary: {
+          unassignedCount: Number(total.unassigned_count),
+          selectedTable: selectedTable
+            ? {
+                id: selectedTable.id,
+                name: selectedTable.name,
+                occupancy: Number(total.table_assistants) + Number(total.table_passes),
+                capacity: selectedTable.capacity
+              }
+            : null
+        },
+        nextCursor: hasNext && last ? encodeSeatingCursor(last.normalized_name, last.assistant_id) : null
+      };
+    });
   }
 
   async scannerFloorplan(rawToken: string): Promise<ScannerFloorplanResponseDto> {
@@ -812,6 +971,74 @@ function toShapeResponse(shape: FloorplanShape, occupancy: number): FloorplanSha
 }
 
 type PolygonPoint = { x: number; y: number };
+
+interface SeatingWorkspaceRow {
+  assistant_id: string;
+  assistant_name: string | null;
+  invitation_id: string;
+  floorplan_shape_id: string | null;
+  group_id: string | null;
+  group_name: string | null;
+  table_name: string | null;
+  normalized_name: string;
+  invitation_eligible_count: number;
+  invitation_assigned_count: number;
+  group_eligible_count: number | null;
+  group_assigned_count: number | null;
+  checked_in: boolean;
+}
+
+interface SeatingWorkspaceTotalsRow {
+  unassigned_count: number;
+  table_assistants: number;
+  table_passes: number;
+}
+
+function toSeatingWorkspaceItem(row: SeatingWorkspaceRow): SeatingWorkspacePageDto['items'][number] {
+  return {
+    assistantId: row.assistant_id,
+    name: row.assistant_name,
+    invitation: {
+      id: row.invitation_id,
+      eligibleAssistantCount: Number(row.invitation_eligible_count),
+      assignedAssistantCount: Number(row.invitation_assigned_count)
+    },
+    group:
+      row.group_id && row.group_name
+        ? {
+            id: row.group_id,
+            name: row.group_name,
+            eligibleAssistantCount: Number(row.group_eligible_count ?? 0),
+            assignedAssistantCount: Number(row.group_assigned_count ?? 0)
+          }
+        : null,
+    table: row.floorplan_shape_id && row.table_name ? { id: row.floorplan_shape_id, name: row.table_name } : null,
+    checkedIn: row.checked_in
+  };
+}
+
+function encodeSeatingCursor(name: string, assistantId: string): string {
+  return Buffer.from(JSON.stringify({ name, assistantId }), 'utf8').toString('base64url');
+}
+
+function decodeSeatingCursor(cursor: string): { name: string; assistantId: string } {
+  try {
+    const value = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8')) as unknown;
+    const record = value as Record<string, unknown>;
+    if (
+      typeof value !== 'object' ||
+      value === null ||
+      typeof record.name !== 'string' ||
+      typeof record.assistantId !== 'string' ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(record.assistantId)
+    ) {
+      throw new Error('invalid cursor');
+    }
+    return value as { name: string; assistantId: string };
+  } catch {
+    throw new BadRequestException({ code: 'SEATING_CURSOR_INVALID', message: 'Seating cursor is invalid.' });
+  }
+}
 
 async function combinedOccupancy(tx: Prisma.TransactionClient, shapeId: string): Promise<number> {
   const [assistants, physicalPasses] = await Promise.all([

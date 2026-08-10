@@ -10,6 +10,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   Res
 } from '@nestjs/common';
@@ -20,6 +21,7 @@ import {
   ApiNoContentResponse,
   ApiOkResponse,
   ApiProduces,
+  ApiQuery,
   ApiTags
 } from '@nestjs/swagger';
 import type { Response } from 'express';
@@ -40,6 +42,7 @@ import {
   FloorplanShapeResponseDto,
   ScannerFloorplanResponseDto,
   SeatingMutationResponseDto,
+  SeatingWorkspacePageDto,
   UpdateFloorplanShapeRequestDto,
   UpdateSeatingRequestDto,
   parseAssignFamily,
@@ -48,6 +51,7 @@ import {
   parseCreateFloorplan,
   parseCreateShape,
   parseFloorplanId,
+  parseSeatingWorkspaceQuery,
   parseUpdateFloorplan,
   parseUpdateSeating,
   parseUpdateShape
@@ -79,6 +83,22 @@ export class FloorplanController {
   @ApiOkResponse({ type: FloorplanResponseDto })
   get(@Param('eventId') eventId: string, @CurrentAuth() principal: AuthPrincipal): Promise<FloorplanResponseDto> {
     return this.floorplan.get(parseEventId(eventId), principal);
+  }
+
+  @Get('seating')
+  @ApiQuery({ name: 'scope', enum: ['UNASSIGNED', 'TABLE'], required: true })
+  @ApiQuery({ name: 'tableShapeId', type: String, format: 'uuid', required: false })
+  @ApiQuery({ name: 'groupId', type: String, format: 'uuid', required: false })
+  @ApiQuery({ name: 'search', type: String, required: false })
+  @ApiQuery({ name: 'cursor', type: String, required: false })
+  @ApiQuery({ name: 'limit', type: Number, minimum: 1, maximum: 100, required: false })
+  @ApiOkResponse({ type: SeatingWorkspacePageDto })
+  seatingWorkspace(
+    @Param('eventId') eventId: string,
+    @Query() query: unknown,
+    @CurrentAuth() principal: AuthPrincipal
+  ): Promise<SeatingWorkspacePageDto> {
+    return this.floorplan.seatingWorkspace(parseEventId(eventId), parseSeatingWorkspaceQuery(query), principal);
   }
 
   @Patch('floorplan')
