@@ -92,6 +92,21 @@ Si alguien reenvía el link, se permite abrir, pero solo puede confirmar con dat
 
 MVP usa token largo no adivinable.
 
+## Distribución de Invitaciones digitales
+
+- Contacto es el receptor del WhatsApp/link y conserva su `invitationLink` individual.
+- La configuración de Flyer/Flipbook ocurre antes de activar; la distribución real ocurre después de activar desde el workspace operativo.
+- `active` y `event_day` permiten compartir Invitaciones digitales. `event_day` conserva las reglas operativas de un Evento activo.
+- `closed`, `album_published`, `archived` y `cancelled` no ofrecen nuevos envíos desde el workspace; pueden conservar consulta histórica conforme a privacidad y disponibilidad pública del estado.
+- `PHYSICAL_QR` no usa esta distribución porque no crea Contactos ni Invitaciones digitales.
+- Demo no distribuye Invitaciones reales.
+- El MVP abre WhatsApp con el número normalizado del Contacto y un mensaje preparado que contiene el link individual; el usuario confirma el envío dentro de WhatsApp.
+- Copiar el enlace individual es una alternativa explícita.
+- Envío automático mediante WhatsApp API, webhooks de entrega/lectura y métricas de mensajería permanecen fuera del MVP.
+- El sistema no persiste `sent`, `delivered` o `read` ni presenta esos estados como hechos si WhatsApp no los confirmó mediante una integración futura autorizada.
+- Una Invitación cancelada no ofrece acciones para compartirla nuevamente.
+- La distribución no edita el diseño, no regenera tokens, no modifica RSVP y no crea auditoría de “envío” porque abrir WhatsApp no demuestra que el mensaje haya sido enviado.
+
 ## Límite de Contactos
 
 Máximo 150 Contactos/Invitaciones por Evento.
