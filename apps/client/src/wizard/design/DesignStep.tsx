@@ -27,8 +27,12 @@ import { usePrivateAssetUrl } from './usePrivateAssetUrl';
 
 type LoadState = 'loading' | 'ready' | 'error';
 type MutationKind = 'upload' | 'replace' | 'reorder' | 'delete';
-type MessageSeverity = 'error' | 'warning' | 'info';
 type PendingPageUpload = { file: File; assetId?: string };
+type Feedback =
+  | { kind: 'error'; message: string }
+  | { kind: 'info'; message: string }
+  | { kind: 'refresh-needed'; message: string }
+  | { kind: 'partial-upload'; message: string; pending: PendingPageUpload[] };
 
 class PartialPageUploadError extends Error {
   constructor(
@@ -55,15 +59,12 @@ export function DesignStep({
   const [design, setDesign] = useState<InvitationDesign>();
   const [readiness, setReadiness] = useState<string[]>([]);
   const [loadState, setLoadState] = useState<LoadState>('loading');
-  const [message, setMessage] = useState<string>();
-  const [messageSeverity, setMessageSeverity] = useState<MessageSeverity>('error');
-  const [reconcileNeeded, setReconcileNeeded] = useState(false);
+  const [feedback, setFeedback] = useState<Feedback>();
   const [mutation, setMutation] = useState<{ kind: MutationKind; label: string }>();
   const [flyerAssets, setFlyerAssets] = useState<{ initial?: string; qr?: string }>({});
   const [activePageId, setActivePageId] = useState<string>();
   const [pendingOrder, setPendingOrder] = useState<string[]>();
   const [pendingDeleteId, setPendingDeleteId] = useState<string>();
-  const [pendingPageUploads, setPendingPageUploads] = useState<PendingPageUpload[]>([]);
   const mutationLockRef = useRef(false);
   const flipbookCreateUncertainRef = useRef(false);
 
@@ -99,12 +100,11 @@ export function DesignStep({
         setReadiness(ready.blockers);
         adopt(next);
         setLoadState('ready');
-        setReconcileNeeded(false);
-        setMessage(undefined);
+        setFeedback(undefined);
         return true;
       } catch (reason) {
         if (!retainConfirmedState) setLoadState('error');
-        setMessage(errorMessage(reason));
+        setFeedback({ kind: 'error', message: errorMessage(reason) });
         return false;
       }
     },
@@ -123,29 +123,31 @@ export function DesignStep({
     if (mutationLockRef.current || loadState !== 'ready') return false;
     mutationLockRef.current = true;
     setMutation({ kind, label });
-    setMessage(undefined);
-    setMessageSeverity('error');
-    setReconcileNeeded(false);
+    setFeedback(undefined);
     try {
       const result = await action();
       adopt(result);
       if (!(await refresh(true))) {
-        setReconcileNeeded(true);
-        setMessage('El cambio sí se guardó. No pudimos actualizar la vista; vuelve a cargarla sin repetir la acción.');
+        setFeedback({
+          kind: 'refresh-needed',
+          message: 'El cambio sí se guardó. No pudimos actualizar la vista; vuelve a cargarla sin repetir la acción.'
+        });
       }
       return true;
     } catch (reason) {
       if (reason instanceof PartialPageUploadError) {
         adopt(reason.design);
-        setPendingPageUploads(reason.pending);
-        setMessageSeverity('warning');
-        setMessage(
-          `Se agregaron ${reason.confirmed} de ${reason.total} páginas. Las confirmadas ya están guardadas; reintenta únicamente las pendientes.`
-        );
+        setFeedback({
+          kind: 'partial-upload',
+          message: `Se agregaron ${reason.confirmed} de ${reason.total} páginas. Las confirmadas ya están guardadas; reintenta únicamente las pendientes.`,
+          pending: reason.pending
+        });
         return false;
       }
-      if (reason instanceof Error && reason.message === 'FLYER_ASSETS_PENDING') setMessageSeverity('info');
-      setMessage(pageMutationMessage(reason, kind));
+      setFeedback({
+        kind: reason instanceof Error && reason.message === 'FLYER_ASSETS_PENDING' ? 'info' : 'error',
+        message: pageMutationMessage(reason, kind)
+      });
       return false;
     } finally {
       mutationLockRef.current = false;
@@ -191,7 +193,7 @@ export function DesignStep({
   };
 
   const uploadFlyer = async (file: File, type: 'initial' | 'qr') => {
-    if (!isImage(file)) return setMessage('Usa únicamente una imagen JPG o PNG.');
+    if (!isImage(file)) return setFeedback({ kind: 'error', message: 'Usa únicamente una imagen JPG o PNG.' });
     await runMutation('upload', 'Guardando imagen…', async () => {
       const asset = await apiClient.fileAssets.upload(
         event.id,
@@ -232,7 +234,7 @@ export function DesignStep({
         .filter(isImage)
         .slice(0, remaining)
         .map((file) => ({ file }));
-    if (!items.length) return setMessage('Selecciona entre 1 y 10 imágenes JPG o PNG.');
+    if (!items.length) return setFeedback({ kind: 'error', message: 'Selecciona entre 1 y 10 imágenes JPG o PNG.' });
     const succeeded = await runMutation(
       'upload',
       items.length === 1 ? 'Agregando página…' : `Agregando ${items.length} páginas…`,
@@ -275,16 +277,17 @@ export function DesignStep({
       }
     );
     if (succeeded) {
-      setPendingPageUploads([]);
       if (items.length > 1 || retryItems) {
-        setMessageSeverity('info');
-        setMessage(items.length === 1 ? 'Se agregó 1 página.' : `Se agregaron ${items.length} páginas.`);
+        setFeedback({
+          kind: 'info',
+          message: items.length === 1 ? 'Se agregó 1 página.' : `Se agregaron ${items.length} páginas.`
+        });
       }
     }
   };
 
   const replacePage = async (pageId: string, file: File) => {
-    if (!isImage(file)) return setMessage('Usa únicamente una imagen JPG o PNG.');
+    if (!isImage(file)) return setFeedback({ kind: 'error', message: 'Usa únicamente una imagen JPG o PNG.' });
     await runMutation('replace', 'Reemplazando página…', async () => {
       const asset = await apiClient.fileAssets.upload(event.id, file, 'FLIPBOOK_PAGE_IMAGE', 'FLIPBOOK_PAGE');
       try {
@@ -468,19 +471,19 @@ export function DesignStep({
       ) : design ? (
         <Alert severity="success">La invitación está lista.</Alert>
       ) : null}
-      {message ? (
+      {feedback ? (
         <Alert
-          severity={reconcileNeeded ? 'warning' : messageSeverity}
+          severity={feedback.kind === 'error' ? 'error' : feedback.kind === 'info' ? 'info' : 'warning'}
           action={
-            reconcileNeeded ? (
+            feedback.kind === 'refresh-needed' ? (
               <Button onClick={() => void refresh()}>Actualizar vista</Button>
-            ) : pendingPageUploads.length ? (
-              <Button onClick={() => void addPages([], pendingPageUploads)}>Reintentar pendientes</Button>
+            ) : feedback.kind === 'partial-upload' ? (
+              <Button onClick={() => void addPages([], feedback.pending)}>Reintentar pendientes</Button>
             ) : undefined
           }
           aria-live="assertive"
         >
-          {message}
+          {feedback.message}
         </Alert>
       ) : null}
 

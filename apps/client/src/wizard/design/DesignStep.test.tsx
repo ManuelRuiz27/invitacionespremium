@@ -123,6 +123,23 @@ describe('DesignStep authoritative Flipbook flow', () => {
     expect(api.design.createFlyer).not.toHaveBeenCalled();
   });
 
+  it('reports a later invalid Flyer file as an error instead of inheriting info severity', async () => {
+    const { api } = setup(undefined, flyerService);
+    vi.mocked(api.fileAssets.upload).mockResolvedValue(asset('asset-initial'));
+    const initialInput = (await screen.findByRole('button', { name: 'Subir imagen principal' })).querySelector('input');
+    if (!initialInput) throw new Error('Upload input missing.');
+    await userEvent.upload(initialInput, new File(['x'], 'principal.png', { type: 'image/png' }));
+    await screen.findByText('Agrega la segunda imagen para crear el Flyer.');
+
+    const qrInput = screen.getByRole('button', { name: 'Subir imagen con QR' }).querySelector('input');
+    if (!qrInput) throw new Error('Upload input missing.');
+    fireEvent.change(qrInput, { target: { files: [new File(['x'], 'not-image.txt', { type: 'text/plain' })] } });
+
+    const notice = await screen.findByText('Usa únicamente una imagen JPG o PNG.');
+    expect(notice.closest('.MuiAlert-root')).toHaveClass('MuiAlert-colorError');
+    expect(api.fileAssets.upload).toHaveBeenCalledTimes(1);
+  });
+
   it('adopts a Flyer committed behind an uncertain response without repeating create', async () => {
     const { api } = setup(undefined, flyerService);
     vi.mocked(api.fileAssets.upload)
@@ -328,4 +345,46 @@ describe('DesignStep authoritative Flipbook flow', () => {
     expect(api.fileAssets.upload).toHaveBeenCalledTimes(2);
     expect(await screen.findByText('Se agregó 1 página.')).toBeInTheDocument();
   });
+
+  it.each(['reorder', 'replace', 'delete', 'another upload'])(
+    'removes partial-upload retry when a later %s error replaces its feedback',
+    async (kind) => {
+      const current = flipbook([page('p1', 1), page('p2', 2)]);
+      const { api, view } = setup(current);
+      const afterFirst = flipbook([page('p1', 1), page('p2', 2), page('p3', 3, 'a1')]);
+      vi.mocked(api.fileAssets.upload).mockResolvedValueOnce(asset('a1')).mockResolvedValueOnce(asset('a2'));
+      vi.mocked(api.design.addPage)
+        .mockResolvedValueOnce(afterFirst)
+        .mockRejectedValueOnce(new ApiError(400, 'VALIDATION_ERROR', 'failed page'));
+      const addInput = (await screen.findByRole('button', { name: 'Agregar páginas' })).querySelector('input');
+      if (!addInput) throw new Error('Add pages input missing.');
+      await userEvent.upload(addInput, [
+        new File(['1'], 'one.png', { type: 'image/png' }),
+        new File(['2'], 'two.png', { type: 'image/png' })
+      ]);
+      expect(await screen.findByRole('button', { name: 'Reintentar pendientes' })).toBeInTheDocument();
+
+      if (kind === 'reorder') {
+        vi.mocked(api.design.reorderPages).mockRejectedValueOnce(new ApiError(400, 'VALIDATION_ERROR', 'failed'));
+        await userEvent.click(screen.getByRole('button', { name: 'Mover Página 1 después' }));
+      } else if (kind === 'replace') {
+        vi.mocked(api.design.replacePage).mockRejectedValueOnce(new ApiError(400, 'VALIDATION_ERROR', 'failed'));
+        const replaceInput = screen.getByRole('button', { name: 'Reemplazar Página 1' }).querySelector('input');
+        if (!replaceInput) throw new Error('Replace input missing.');
+        await userEvent.upload(replaceInput, new File(['3'], 'replacement.png', { type: 'image/png' }));
+      } else if (kind === 'delete') {
+        vi.mocked(api.design.removePage).mockRejectedValueOnce(new ApiError(400, 'VALIDATION_ERROR', 'failed'));
+        await userEvent.click(screen.getByRole('button', { name: 'Eliminar Página 1' }));
+      } else {
+        fireEvent.change(addInput, {
+          target: { files: [new File(['3'], 'not-image.txt', { type: 'text/plain' })] }
+        });
+      }
+
+      await waitFor(() =>
+        expect(screen.queryByRole('button', { name: 'Reintentar pendientes' })).not.toBeInTheDocument()
+      );
+      expect(view.container.querySelector('.MuiAlert-colorError')).not.toBeNull();
+    }
+  );
 });

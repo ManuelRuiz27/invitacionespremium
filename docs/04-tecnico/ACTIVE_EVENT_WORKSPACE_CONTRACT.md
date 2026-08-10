@@ -148,28 +148,69 @@ CODEX-124B agrega únicamente **Mesas y distribución** dentro de `/eventos/:eve
 Resumen | Mesas y distribución
 ```
 
+La entrada está condicionada por la proyección autoritativa del Evento:
+
+- con `floorplanEnabled=false`, **Mesas y distribución** no aparece en la navegación, no muestra placeholder y no
+  inicia ninguna resolución de Floorplan;
+- con `floorplanEnabled=true`, puede aparecer conforme al Servicio y estado descritos debajo;
+- `FLYER` y `FLIPBOOK` muestran Croquis read-only y Split View nominal de Asistentes;
+- `PHYSICAL_QR` muestra únicamente Croquis read-only y ocupación por Mesa. No muestra lista/panel de Asistentes ni
+  consulta `/seating`; no fabrica Assistant, Invitation, Contact o seating para representar `PhysicalPass`;
+- `DEMO` no obtiene un workspace operativo real. Se conservan sus guards existentes y no se inventa esta sección.
+
+La asignación inicial de Mesa de cada `PhysicalPass` conserva exactamente `PHYSICAL_PASSES_CONTRACT.md`. CODEX-124B
+no agrega reasignación de pases físicos ni cambia su tabla, ciclo de vida o capacidad compartida.
+
 **Staff** continúa oculto hasta CODEX-124C. El workspace reutiliza el shell, guard de estado y consulta del Evento
 de CODEX-124A. No crea una ruta paralela, no reabre el wizard y no edita geometría, imagen, nombres, capacidad,
 colores, lock ni coordenadas del Croquis.
 
-La superficie combina un Croquis contextual de solo lectura con un panel de asignación. Seleccionar una Mesa por
-click, tap o alternativa DOM/teclado abre el Split View y muestra nombre, ocupación `X/Y`, lugares disponibles e
-indicador textual de Mesa completa. Zonas decorativas no abren asignación.
+Para `FLYER`/`FLIPBOOK`, la superficie combina un Croquis contextual de solo lectura con un panel de asignación.
+Seleccionar una Mesa por click, tap o alternativa DOM/teclado abre el Split View y muestra nombre, ocupación `X/Y`,
+lugares disponibles e indicador textual de Mesa completa. Para `PHYSICAL_QR`, seleccionar una Mesa muestra esos
+datos de ocupación sin controles nominales. Zonas decorativas no abren asignación.
 
 ### Panel de asignación por Mesa
 
-El panel ofrece:
+El panel nominal, exclusivo de `FLYER`/`FLIPBOOK`, ofrece:
 
 - búsqueda de Asistentes;
 - tabs **Sin mesa** y **En esta mesa**;
 - filtro por el Grupo existente;
 - selección múltiple;
 - CTA **Asignar X a Mesa Y**;
-- desasignación y cambio de Mesa explícitos;
+- desasignación individual y cambio de Mesa explícitos;
 - estado de check-in cuando ayude a explicar que un cambio posterior se audita.
 
-Grupo es únicamente filtro y entrada a la mutación bulk existente. No se crean familias, lados, segmentos ni otra
-entidad. La API conserva autoridad de ownership, elegibilidad, capacidad, estado, post-check-in y concurrencia.
+La semántica de selección es cerrada:
+
+- seleccionar manualmente una o varias filas usa `POST /seating/assign` tanto para asignar como para moverlas en
+  bloque a otra Mesa;
+- `POST /seating/assign-family` sólo se ejecuta desde la acción visible **Asignar familia completa**, después de
+  mostrar la cantidad afectada. Filtrar o seleccionar a un miembro nunca dispara esa intención;
+- `POST /seating/assign-group` sólo se ejecuta desde **Asignar grupo completo**, después de mostrar nombre del Grupo
+  y cantidad afectada. Aplicar un filtro de Grupo nunca muta;
+- `PATCH /seating/:assistantId` cambia la Mesa o desasigna a una sola persona con `tableShapeId:null`;
+- v1 no ofrece bulk-unassign ni emite N `PATCH` silenciosos. Una necesidad futura exige decisión de producto y API
+  explícitas.
+
+No se crean familias, lados, segmentos ni otra entidad. La API conserva autoridad de ownership, elegibilidad,
+capacidad, estado, post-check-in y concurrencia.
+
+### Flujo Cambiar mesa
+
+Desktop, tablet y mobile conservan la misma intención; sólo cambia el contenedor del panel:
+
+```text
+Mesa actual → En esta mesa → seleccionar una o varias filas → Cambiar mesa
+→ selector de Mesas TABLE: nombre + ocupación/capacidad + lugares disponibles
+→ las Mesas completas aparecen deshabilitadas → seleccionar destino
+→ Mover X personas a Mesa Y → POST /seating/assign autoritativo
+```
+
+En desktop el selector vive en el Split View; en tablet, en el drawer; en mobile, en el bottom sheet con CTA sticky
+de al menos 44 px. La disponibilidad mostrada es informativa: el backend decide bajo locks. Un `409` de capacidad
+refresca Mesa origen y destino y conserva únicamente la selección que siga siendo elegible.
 
 ### Responsive, touch y accesibilidad
 
@@ -196,7 +237,14 @@ La respuesta contiene `items`, `nextCursor` y un resumen autoritativo. Cada item
 `name`, `invitationId`, Grupo nullable, Mesa actual nullable y estado de check-in necesario para la operación. El
 resumen incluye conteos de sin Mesa y de la Mesa seleccionada, además de ocupación/capacidad autoritativas. No
 incluye teléfonos, tokens, QR ni reglas duplicadas. Filtros, búsqueda y cursor se resuelven en una consulta acotada
-con joins, sin N+1; el orden estable usa nombre normalizado e ID como desempate.
+con joins, sin N+1. `scope` se limita a `UNASSIGNED|TABLE`; no existe `ALL` sin necesidad demostrada.
+
+La búsqueda normaliza mayúsculas/minúsculas, diacríticos y espacios antes de comparar. El orden es determinista:
+nombre normalizado ascendente, filas con `name=null` después de las filas con nombre y UUID de `assistantId`
+ascendente como desempate total. `checkedIn` se deriva autoritativamente del check-in vigente, nunca de estado
+calculado por Client. El límite es `1..100`, el cursor es opaco y el query count debe permanecer acotado con joins o
+agregados, sin N+1. Una prueba de integración con aproximadamente 1,800 Assistant valida paginación, orden, filtros,
+privacidad y conteo de queries. El límite de 150 Contactos/Invitaciones no cambia.
 
 El endpoint es una proyección de lectura, no una entidad ni nueva regla. Su contrato final, OpenAPI, SDK y pruebas se
 implementarán dentro de CODEX-124B solo tras aprobar el plan. El límite de **150 Contactos/Invitaciones por Evento**
@@ -212,10 +260,17 @@ El panel reutiliza exclusivamente:
 - `POST /events/:eventId/seating/assign-group`;
 - `PATCH /events/:eventId/seating/:assistantId`.
 
+El mapping normativo es: selección manual uno/muchos y movimiento bulk → `assign`; familia completa explícita →
+`assign-family`; grupo completo explícito → `assign-group`; cambio o desasignación individual → `PATCH`. Ningún
+filtro dispara una mutación y ningún movimiento bulk se degrada a N requests si `assign` expresa la intención.
+
 Cada intención conserva `Idempotency-Key`. Una respuesta confirmada se aplica localmente y se reconcilia con el read
 model; un fallo del refresh nunca repite la mutación. Ante red, `429` o `5xx`, la misma llave y payload quedan
 reservados hasta consultar autoridad. `seating.updated` v1 solo invalida/refresca REST; no se crea otro evento,
 namespace, room ni transporte realtime.
+
+Cambiar filtros o páginas invalida únicamente la lectura nominal; no reconstruye Stage, shapes ni Floorplan. Una
+invalidación conserva viewport y Mesa seleccionada cuando continúan siendo válidos.
 
 ### Concurrencia
 
@@ -229,3 +284,8 @@ namespace, room ni transporte realtime.
 - El cambio post-check-in conserva la política backend y se presenta como cambio auditable, no como prohibición de UI.
 - Si el Evento cierra o se cancela, el guard autoritativo convierte el panel a solo lectura, cancela requests en vuelo
   y no ofrece reintentar mutaciones.
+
+Para `FLYER`/`FLIPBOOK` con Croquis, `ACTIVE` y `EVENT_DAY` permiten lectura y sólo las mutaciones que confirme el
+backend. `CLOSED`, `ALBUM_PUBLISHED`, `ARCHIVED` y `CANCELLED` son de solo lectura. Una transición autoritativa a un
+estado no mutable mientras el panel está abierto cancela la intención pendiente y elimina los CTAs de escritura; el
+Client no duplica la máquina de estados del backend.

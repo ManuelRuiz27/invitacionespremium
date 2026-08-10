@@ -1,6 +1,8 @@
 # CODEX-124B — Implementation Plan: Workspace operativo, Mesas y asignación por Mesa
 
 Estado: **PROPUESTO — requiere aprobación humana antes de código**  
+Definición contractual: **CERRADA para revisión; implementación no iniciada**
+
 Fecha: 2026-08-09  
 Dependencias: CODEX-124A-R1, CODEX-090, CODEX-082 y Croquis Sticker F0–F4
 
@@ -20,13 +22,26 @@ Dentro de `/eventos/:eventId` la navegación funcional queda:
 Resumen | Mesas y distribución
 ```
 
+La segunda entrada no es incondicional. Con `floorplanEnabled=false` se omite por completo, no presenta placeholder
+y no resuelve Floorplan. Con `floorplanEnabled=true` se aplica esta matriz:
+
+| Servicio | Experiencia autorizada para el plan |
+| --- | --- |
+| `FLYER` / `FLIPBOOK` | Croquis read-only + Split View nominal; usa el read model `/seating` |
+| `PHYSICAL_QR` | Croquis read-only + ocupación por Mesa; sin panel/lista de Asistentes y sin request `/seating` |
+| `DEMO` | Sin workspace operativo real; conserva los guards existentes |
+
+La rama `PHYSICAL_QR` no crea Assistant, Invitation, Contact ni seating artificial, no cambia
+`PHYSICAL_PASSES_CONTRACT.md` y no incorpora reasignación de `PhysicalPass`.
+
 Staff no aparece hasta CODEX-124C. No se edita imagen, geometría, nombre, capacidad, color, inventario, lock ni
 coordenadas. No se crea FloorplanV2, Seat, SeatAssignment, `Assistant.seatId`, una nueva regla de seating ni otro
 canal realtime. No se modifica Scanner.
 
-Los estados `ACTIVE`, `EVENT_DAY`, `CLOSED`, `ALBUM_PUBLISHED`, `ARCHIVED` y `CANCELLED` conservan el guard de
-CODEX-124A. Las mutaciones solo se ofrecen cuando el backend actual las autoriza; estados terminales permanecen de
-consulta.
+Para `FLYER`/`FLIPBOOK` con Croquis, `ACTIVE` y `EVENT_DAY` permiten lectura y las mutaciones que el backend
+autorice. `CLOSED`, `ALBUM_PUBLISHED`, `ARCHIVED` y `CANCELLED` son de solo lectura. Una transición autoritativa a
+estado no mutable cancela cualquier intención pendiente y retira CTAs de escritura. Client no replica la máquina
+de estados: siempre adopta la autoridad backend.
 
 ## 3. Auditoría API y read model
 
@@ -78,9 +93,15 @@ type SeatingWorkspacePage = {
 };
 ```
 
-La consulta aplica ownership y estado en backend, joins acotados y orden estable por nombre normalizado + ID. No
-expone teléfonos, tokens, QR ni reglas derivadas en frontend. El cursor es opaco. `scope=TABLE` exige
-`tableShapeId`; `UNASSIGNED` no lo admite. El tamaño inicial recomendado es 50 y el máximo 100.
+La consulta aplica ownership y estado en backend y joins acotados. `scope` sólo admite `UNASSIGNED|TABLE`; no se
+agrega `ALL` sin necesidad demostrada. `scope=TABLE` exige `tableShapeId`; `UNASSIGNED` no lo admite. `limit` es
+`1..100`, con valor inicial recomendado 50, y el cursor es opaco.
+
+La búsqueda normaliza mayúsculas/minúsculas, diacríticos y espacios. El orden total es nombre normalizado
+ascendente, luego filas `name=null`, y finalmente UUID `assistantId` ascendente como desempate. `checkedIn` se
+deriva autoritativamente del check-in vigente. La respuesta y logs de esta consulta no exponen teléfonos, tokens ni
+QR. El query count permanece acotado mediante joins/agregados, sin una consulta por fila, y una prueba de integración
+con aproximadamente 1,800 Assistant cubre paginación, filtros, orden, privacidad y ausencia de N+1.
 
 OpenAPI es la única fuente del SDK. La misma entrega agrega wrappers tipados para el GET y las cuatro mutaciones
 existentes; no se mantienen DTOs manuales duplicados.
@@ -112,6 +133,10 @@ derivarse de múltiples Asistentes nominales por Invitación dentro de reglas ex
   → invalidación realtime / refresh GET seating
 ```
 
+Desde `En esta mesa`, **Cambiar mesa** abre el selector TABLE con nombre, ocupación/capacidad y lugares disponibles;
+las Mesas completas están deshabilitadas. La confirmación **Mover X personas a Mesa Y** usa un único
+`POST /seating/assign`. Un `409` refresca origen y destino y conserva los IDs que sigan elegibles.
+
 ### Tablet
 
 ```text
@@ -120,6 +145,8 @@ Croquis principal
   → drawer lateral o inferior sin perder selección
   → lista virtual + selección táctil
   → asignar/desasignar
+  → Cambiar mesa abre el selector TABLE dentro del drawer
+  → Mover X personas a Mesa Y
   → cerrar drawer conserva viewport y Mesa contextual
 ```
 
@@ -132,6 +159,8 @@ Croquis a ancho completo
   → bottom sheet: resumen compacto
   → expandir a lista
   → tabs + búsqueda + Grupo + selección
+  → Cambiar mesa abre selector TABLE en el bottom sheet
+  → Mesas completas deshabilitadas → Mover X personas a Mesa Y
   → CTA sticky de 44px mínimo
   → confirmar resultado y volver al Croquis
 ```
@@ -156,10 +185,14 @@ Un dedo fuera de manipulación conserva scroll natural. Ninguna acción depende 
 
 | Intención | Endpoint vigente | Regla Client |
 | --- | --- | --- |
-| Bulk explícito | `POST seating/assign` | IDs seleccionados + Mesa actual |
-| Invitación familiar | `POST seating/assign-family` | usa `invitationId` autoritativo |
-| Grupo | `POST seating/assign-group` | acción explícita sobre Grupo existente |
-| Desasignar/mover uno | `PATCH seating/:assistantId` | `tableShapeId` nullable o nueva Mesa |
+| Selección manual de uno o varios | `POST seating/assign` | asignar o mover bulk a la Mesa elegida, en una mutación atómica |
+| Familia completa | `POST seating/assign-family` | sólo **Asignar familia completa**; muestra cantidad antes de confirmar |
+| Grupo completo | `POST seating/assign-group` | sólo **Asignar grupo completo**; muestra Grupo y cantidad antes de confirmar |
+| Cambiar uno | `PATCH seating/:assistantId` | nueva `tableShapeId` |
+| Desasignar uno | `PATCH seating/:assistantId` | `tableShapeId:null` |
+
+Filtrar Grupo o seleccionar un miembro nunca ejecuta family/group. V1 no agrega bulk-unassign y no emite N `PATCH`
+silenciosos. Si producto requiere esa operación se diseña una intención y API explícitas en otro gate.
 
 Cada click intencional crea llave. Mientras está pendiente, bloquea un segundo submit síncrono. En éxito, aplica
 `changes` y `affectedTables` sin esperar refresh. Si el refresh posterior falla, informa que el cambio sí se guardó
@@ -167,8 +200,8 @@ y solo ofrece actualizar lectura.
 
 Red, timeout, `429` o `5xx` reservan la misma llave y payload. Antes de reintentar se consulta el read model: si la
 intención ya está reflejada, se adopta; si demuestra que no ocurrió, se habilita retry con la misma llave; si no
-puede concluirse, no se repite. Un `409` de capacidad/estado adopta el snapshot posterior y conserva únicamente las
-selecciones que siguen siendo válidas.
+puede concluirse, no se repite. Un `409` de capacidad/estado refresca las Mesas origen y destino, adopta autoridad y
+conserva únicamente las selecciones que siguen siendo elegibles. La disponibilidad visible siempre es informativa.
 
 ## 8. Matriz de concurrencia
 
@@ -176,7 +209,7 @@ selecciones que siguen siendo válidas.
 | --- | --- |
 | La Mesa se llena con el panel abierto | backend decide; refrescar X/Y, marcar completa y conservar candidatos para otra Mesa |
 | Otro Planner mueve el mismo Asistente | snapshot REST prevalece; retirar selección obsoleta y mostrar destino actual |
-| `seating.updated` durante selección | invalidar lista/resumen, mantener viewport y reconciliar IDs seleccionados |
+| `seating.updated` durante selección | invalidar lista/resumen, mantener viewport/Mesa si siguen válidos y reconciliar IDs seleccionados |
 | Respuesta perdida después de commit | consultar autoridad; adoptar sin repetir si el destino coincide |
 | Cambio después de check-in | permitir si backend confirma; indicar cambio auditable |
 | Evento cierra/cancela | abortar pendientes, desmontar acciones y mostrar solo lectura conforme al estado |
@@ -207,6 +240,8 @@ Cada corte debe ser revisable y mantener los gates verdes. Ningún corte agrega 
 - Accesibilidad: teclado completo, foco del sheet, nombre accesible, aria-live, targets 44×44 y estado no solo color.
 - Performance: ~1,800 filas en fuente, ventana DOM acotada, búsqueda/filtros sin rerender completo del Croquis y
   mediciones reales sin prometer FPS no demostrado.
+- QA física pendiente incluso con gates automatizados verdes: mouse, trackpad, Android físico e iPhone físico. Las
+  pruebas automatizadas son gate técnico y no sustituyen esa ejecución manual.
 
 ```bash
 pnpm format:check
@@ -216,7 +251,7 @@ pnpm test
 pnpm build
 pnpm --filter @invitaciones/api test:integration
 pnpm --filter @invitaciones/api openapi:generate
-pnpm generate:check
+pnpm --filter @invitaciones/api-client generate:check
 docker compose up --build -d
 docker compose ps
 ```
@@ -226,3 +261,6 @@ docker compose ps
 La implementación solo puede comenzar después de aprobación explícita de este plan y del read model propuesto.
 La aprobación de CODEX-124B no autoriza Seat PR 5.1. Al terminar 124B se requiere un gate separado antes de tocar
 Prisma, Seat, Scanner Seat o reportes Seat.
+
+Hasta ese gate no se implementa este plan en API, OpenAPI, SDK ni Client operativo. El ADR Seat conserva estado
+propuesto; PR 5.1 continúa bloqueado y no forma parte de CODEX-124B.

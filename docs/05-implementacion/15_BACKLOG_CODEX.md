@@ -1286,6 +1286,17 @@ Contratos normativos: `docs/04-tecnico/ACTIVE_EVENT_WORKSPACE_CONTRACT.md`,
 
 **Estado:** PLAN PROPUESTO — requiere aprobación humana antes de código
 
+**Nota de trazabilidad:** el commit `c0e13fbd5f3de58547d697ebbf01c11438770a39` **NO implementa CODEX-124B**.
+Aunque su mensaje de commit lo afirma incorrectamente, ese corte contiene INVITATION-R1.1, hardening automatizado
+de gestos y documentación/plan de 124B. No se reescribe la historia; CODEX-124B continúa en **PLAN PROPUESTO** y su
+implementación permanece bloqueada hasta aprobación humana explícita.
+
+**Definición contractual cerrada para revisión:** con `floorplanEnabled=false` no hay navegación, placeholder ni
+resolución de Floorplan. Con Croquis, `FLYER`/`FLIPBOOK` proponen Croquis read-only + Split View nominal y
+`PHYSICAL_QR` únicamente Croquis read-only + ocupación, sin `/seating` ni reasignación de PhysicalPass. `DEMO` no
+inventa workspace operativo. El mapping de intenciones, el flujo Cambiar mesa, el read model determinista, estados y
+realtime quedan cerrados en `CODEX_124B_IMPLEMENTATION_PLAN.md`; este cierre documental no autoriza código.
+
 **Repos propuestos:** `invitacionespremium-api`, `packages/api-client`, `invitacionespremium-client`
 
 **Dependencias:** CODEX-124A-R1, CODEX-090, CODEX-082, Croquis Sticker F0–F4
@@ -1293,6 +1304,7 @@ Contratos normativos: `docs/04-tecnico/ACTIVE_EVENT_WORKSPACE_CONTRACT.md`,
 **Alcance propuesto**
 
 - agregar únicamente **Mesas y distribución** al workspace `/eventos/:eventId`;
+- ocultar completamente esa entrada y evitar resolver Floorplan cuando `floorplanEnabled=false`;
 - reutilizar el Croquis de producción como superficie contextual read-only, sin edición geométrica;
 - abrir Split View por Mesa con ocupación, búsqueda, tabs Sin mesa/En esta mesa, Grupo, selección múltiple,
   asignación, desasignación y cambio de Mesa;
@@ -1303,6 +1315,9 @@ Contratos normativos: `docs/04-tecnico/ACTIVE_EVENT_WORKSPACE_CONTRACT.md`,
 - virtualizar la lista o aplicar estrategia equivalente, aislando su estado para que búsqueda/filtros no
   rerendericen el Croquis;
 - cubrir mouse, teclado, touch, pinch, pan, drawer/bottom sheet, targets 44×44 y estados concurrentes.
+
+La QA automatizada es gate técnico. Mouse, trackpad, Android físico e iPhone físico permanecen pendientes y no se
+marcan completados por esta definición contractual.
 
 **Diferencia de escala**
 
