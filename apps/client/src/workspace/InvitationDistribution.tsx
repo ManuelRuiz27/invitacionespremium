@@ -4,25 +4,16 @@ import { ErrorState, LoadingState } from '@invitaciones/ui';
 import ContentCopyRounded from '@mui/icons-material/ContentCopyRounded';
 import OpenInNewRounded from '@mui/icons-material/OpenInNewRounded';
 import WhatsApp from '@mui/icons-material/WhatsApp';
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  MenuItem,
-  Stack,
-  TextField,
-  Typography
-} from '@mui/material';
+import { Alert, Box, Button, Chip, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useSessionExpiry } from '../shared/use-session-expiry';
 
 type DistributionFilter = 'ALL' | 'PENDING' | 'CONFIRMED' | 'REJECTED' | 'CANCELLED';
+type CopyFeedback = { severity: 'success' | 'error'; message: string };
 
 type DistributionRow = {
   invitation: Invitation;
-  contact: Contact | null;
   displayName: string;
   phone: string | null;
 };
@@ -39,7 +30,7 @@ export function InvitationDistribution({ apiClient, event }: { apiClient: ApiCli
   const returnTo = `/eventos/${event.id}?seccion=invitaciones`;
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<DistributionFilter>('ALL');
-  const [feedback, setFeedback] = useState<string>();
+  const [feedback, setFeedback] = useState<CopyFeedback>();
 
   const contactsQuery = useQuery({
     queryKey: ['events', event.id, 'invitation-distribution', 'contacts'],
@@ -83,11 +74,7 @@ export function InvitationDistribution({ apiClient, event }: { apiClient: ApiCli
   }
 
   if (rows.length === 0) {
-    return (
-      <Alert severity="info">
-        Este evento no tiene invitaciones disponibles para compartir.
-      </Alert>
-    );
+    return <Alert severity="info">Este evento no tiene invitaciones disponibles para compartir.</Alert>;
   }
 
   return (
@@ -104,8 +91,8 @@ export function InvitationDistribution({ apiClient, event }: { apiClient: ApiCli
       )}
 
       {feedback ? (
-        <Alert severity="success" aria-live="polite" onClose={() => setFeedback(undefined)}>
-          {feedback}
+        <Alert severity={feedback.severity} aria-live="polite" onClose={() => setFeedback(undefined)}>
+          {feedback.message}
         </Alert>
       ) : null}
 
@@ -114,7 +101,7 @@ export function InvitationDistribution({ apiClient, event }: { apiClient: ApiCli
           label="Buscar invitación"
           placeholder="Nombre o WhatsApp"
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={(searchEvent) => setSearch(searchEvent.target.value)}
           size="small"
           sx={{ flex: 1, minWidth: 0 }}
         />
@@ -122,7 +109,7 @@ export function InvitationDistribution({ apiClient, event }: { apiClient: ApiCli
           select
           label="Estado"
           value={filter}
-          onChange={(event) => setFilter(event.target.value as DistributionFilter)}
+          onChange={(filterEvent) => setFilter(filterEvent.target.value as DistributionFilter)}
           size="small"
           sx={{ minWidth: { xs: '100%', sm: 180 } }}
         >
@@ -173,7 +160,7 @@ export function InvitationDistribution({ apiClient, event }: { apiClient: ApiCli
                     <Typography fontWeight={750} sx={{ overflowWrap: 'anywhere' }}>
                       {row.displayName}
                     </Typography>
-                    <Chip size="small" label={status.label} color={status.color} variant={status.variant} />
+                    <Chip size="small" label={status.label} color={status.color} variant="outlined" />
                   </Stack>
                   <Typography variant="body2" color="text.secondary">
                     {row.phone ?? 'WhatsApp no disponible'}
@@ -199,7 +186,9 @@ export function InvitationDistribution({ apiClient, event }: { apiClient: ApiCli
                       variant="outlined"
                       startIcon={<ContentCopyRounded />}
                       sx={{ minHeight: 44 }}
-                      onClick={() => void copyInvitationLink(row.invitation.invitationLink, row.displayName, setFeedback)}
+                      onClick={() =>
+                        void copyInvitationLink(row.invitation.invitationLink, row.displayName).then(setFeedback)
+                      }
                     >
                       Copiar enlace
                     </Button>
@@ -252,7 +241,6 @@ function buildRows(contacts: Contact[], invitations: Invitation[]): Distribution
     const contact = contactsById.get(invitation.contactId) ?? null;
     return {
       invitation,
-      contact,
       displayName: contact?.name ?? invitation.contactName ?? 'Contacto sin nombre',
       phone: contact?.whatsappPhone ?? null
     };
@@ -286,12 +274,11 @@ function invitationSummary(rows: DistributionRow[]) {
 function invitationStatus(invitation: Invitation): {
   label: string;
   color: 'default' | 'success' | 'warning' | 'error';
-  variant: 'filled' | 'outlined';
 } {
-  if (invitation.cancelledAt) return { label: 'Cancelada', color: 'warning', variant: 'outlined' };
-  if (invitation.responseStatus === 'CONFIRMED') return { label: 'Confirmada', color: 'success', variant: 'outlined' };
-  if (invitation.responseStatus === 'REJECTED') return { label: 'No asistirá', color: 'error', variant: 'outlined' };
-  return { label: 'Sin respuesta', color: 'default', variant: 'outlined' };
+  if (invitation.cancelledAt) return { label: 'Cancelada', color: 'warning' };
+  if (invitation.responseStatus === 'CONFIRMED') return { label: 'Confirmada', color: 'success' };
+  if (invitation.responseStatus === 'REJECTED') return { label: 'No asistirá', color: 'error' };
+  return { label: 'Sin respuesta', color: 'default' };
 }
 
 function normalize(value: string): string {
@@ -303,16 +290,15 @@ function normalize(value: string): string {
     .toLocaleLowerCase('es-MX');
 }
 
-async function copyInvitationLink(
-  invitationLink: string,
-  displayName: string,
-  setFeedback: (value: string | undefined) => void
-): Promise<void> {
+async function copyInvitationLink(invitationLink: string, displayName: string): Promise<CopyFeedback> {
   try {
     await copyText(invitationLink);
-    setFeedback(`Enlace de ${displayName} copiado.`);
+    return { severity: 'success', message: `Enlace de ${displayName} copiado.` };
   } catch {
-    setFeedback(undefined);
+    return {
+      severity: 'error',
+      message: 'No pudimos copiar el enlace. Abre la invitación y cópialo manualmente.'
+    };
   }
 }
 
