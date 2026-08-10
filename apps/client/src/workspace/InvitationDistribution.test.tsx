@@ -55,9 +55,7 @@ const pendingInvitation = {
   contactName: contactAna.name,
   invitationLink: 'https://example.test/invitacion/token-ana',
   cancelledAt: null,
-  assistants: [
-    assistant('44444444-4444-4444-8444-444444444444', '33333333-3333-4333-8333-333333333333', 'Ana García')
-  ],
+  assistants: [assistant('44444444-4444-4444-8444-444444444444', '33333333-3333-4333-8333-333333333333', 'Ana García')],
   createdAt: '2026-08-01T12:00:00.000Z',
   updatedAt: '2026-08-01T12:00:00.000Z'
 } satisfies Invitation;
@@ -71,11 +69,7 @@ const confirmedInvitation = {
   invitationLink: 'https://example.test/invitacion/token-luis',
   assistants: [
     {
-      ...assistant(
-        '66666666-6666-4666-8666-666666666666',
-        '55555555-5555-4555-8555-555555555555',
-        'Luis Pérez'
-      ),
+      ...assistant('66666666-6666-4666-8666-666666666666', '55555555-5555-4555-8555-555555555555', 'Luis Pérez'),
       responseStatus: 'CONFIRMED'
     }
   ]
@@ -89,11 +83,7 @@ const cancelledInvitation = {
   invitationLink: 'https://example.test/invitacion/token-cancelled',
   cancelledAt: '2026-08-08T12:00:00.000Z',
   assistants: [
-    assistant(
-      '99999999-9999-4999-8999-999999999999',
-      '77777777-7777-4777-8777-777777777777',
-      'Invitación cancelada'
-    )
+    assistant('99999999-9999-4999-8999-999999999999', '77777777-7777-4777-8777-777777777777', 'Invitación cancelada')
   ]
 } satisfies Invitation;
 
