@@ -12,12 +12,11 @@ El destino funcional completo de CODEX-124 tendrá tres áreas:
 - **Mesas y distribución**;
 - **Staff**.
 
-CODEX-124A implementa únicamente **Resumen**. Las otras áreas no se muestran, no tienen rutas placeholder
-y no presentan estados deshabilitados ni textos de “próximamente”. CODEX-124B y CODEX-124C las agregarán
-cuando sean funcionales.
+CODEX-124A implementa **Resumen** y CODEX-124B implementa **Mesas y distribución** cuando el Evento tiene Croquis.
+Las áreas no funcionales no se muestran, no tienen rutas placeholder ni presentan estados deshabilitados o textos de
+“próximamente”. CODEX-124C agregará Staff cuando sea funcional.
 
-La especificación aprobable de CODEX-124B se documenta más abajo, pero permanece sin implementación hasta
-aprobación humana de su Implementation Plan.
+CODEX-124B está implementado y pendiente de aceptación humana; su contrato normativo se documenta más abajo.
 
 ## Ruta canónica y resolución autoritativa
 
@@ -138,7 +137,7 @@ tratamiento global de `prefers-reduced-motion`.
 - Álbum operativo, reportes, realtime o métricas adicionales;
 - cambios de Prisma, schema, migraciones, endpoints, estados o readiness.
 
-## CODEX-124B — Workspace operativo: Mesas y asignación por Mesa (propuesto)
+## CODEX-124B — Workspace operativo: Mesas y asignación por Mesa (implementado, pendiente de aceptación)
 
 ### Alcance y navegación
 
@@ -227,17 +226,24 @@ La auditoría del API vigente concluye que `GET /events/:eventId/invitations` no
 todo el agregado para cada búsqueda no ofrece paginación ni un límite estable para ~1,800 Asistentes. Consultar una
 Invitación, Contacto o Mesa por fila produciría N+1.
 
-CODEX-124B propone, sujeto a aprobación, un único read model mínimo:
+CODEX-124B implementa un único read model mínimo:
 
 ```http
 GET /api/v1/events/:eventId/seating?scope=UNASSIGNED|TABLE&tableShapeId=<uuid>&groupId=<uuid>&search=<text>&cursor=<opaque>&limit=<n>
 ```
 
 La respuesta contiene `items`, `nextCursor` y un resumen autoritativo. Cada item proyecta solamente `assistantId`,
-`name`, `invitationId`, Grupo nullable, Mesa actual nullable y estado de check-in necesario para la operación. El
+`name`, Invitación con conteos elegibles/asignados completos, Grupo nullable con esos mismos conteos, Mesa actual
+nullable y estado de check-in necesario para la operación. El
 resumen incluye conteos de sin Mesa y de la Mesa seleccionada, además de ocupación/capacidad autoritativas. No
 incluye teléfonos, tokens, QR ni reglas duplicadas. Filtros, búsqueda y cursor se resuelven en una consulta acotada
 con joins, sin N+1. `scope` se limita a `UNASSIGNED|TABLE`; no existe `ALL` sin necesidad demostrada.
+
+Los candidatos reflejan las invariantes vigentes de seating: `Assistant.deletedAt=null`, respuesta confirmada,
+Invitación activa/no eliminada/no cancelada e identidad compatible con privacidad. En `ACTIVE`/`EVENT_DAY` los
+controles mutables sólo operan sobre esos candidatos. Los conteos de Invitación y Grupo representan el agregado
+completo elegible, no la página, viewport, búsqueda, filtro ni selección local; `assignedAssistantCount` permite
+advertir antes de mover personas que ya tienen Mesa.
 
 La búsqueda normaliza mayúsculas/minúsculas, diacríticos y espacios antes de comparar. El orden es determinista:
 nombre normalizado ascendente, filas con `name=null` después de las filas con nombre y UUID de `assistantId`
@@ -247,7 +253,7 @@ agregados, sin N+1. Una prueba de integración con aproximadamente 1,800 Assista
 privacidad y conteo de queries. El límite de 150 Contactos/Invitaciones no cambia.
 
 El endpoint es una proyección de lectura, no una entidad ni nueva regla. Su contrato final, OpenAPI, SDK y pruebas se
-implementarán dentro de CODEX-124B solo tras aprobar el plan. El límite de **150 Contactos/Invitaciones por Evento**
+se implementan dentro de CODEX-124B conforme al plan aprobado. El límite de **150 Contactos/Invitaciones por Evento**
 permanece intacto; la escala operativa de **~1,800 Asistentes** mide filas nominales potenciales y no eleva aquel
 límite contractual.
 

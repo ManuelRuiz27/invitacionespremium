@@ -1,4 +1,4 @@
-import type { components } from './generated/schema';
+import type { components, operations } from './generated/schema';
 import { isRecord, isRecordArray, type ApiRequester } from './api-client';
 
 type S = components['schemas'];
@@ -30,6 +30,14 @@ export type Floorplan = S['FloorplanResponseDto'];
 export type FloorplanShape = S['FloorplanShapeResponseDto'];
 export type FloorplanShapeInput = S['FloorplanShapeRequestDto'];
 export type FloorplanShapeUpdate = S['UpdateFloorplanShapeRequestDto'];
+export type SeatingWorkspacePage = S['SeatingWorkspacePageDto'];
+export type SeatingWorkspaceItem = S['SeatingWorkspaceItemDto'];
+export type SeatingWorkspaceQuery = operations['FloorplanController_seatingWorkspace']['parameters']['query'];
+export type AssignSeatingInput = S['AssignSeatingRequestDto'];
+export type AssignFamilyInput = S['AssignFamilyRequestDto'];
+export type AssignGroupInput = S['AssignGroupRequestDto'];
+export type UpdateSeatingInput = S['UpdateSeatingRequestDto'];
+export type SeatingMutationResult = S['SeatingMutationResponseDto'];
 export type PhysicalPass = S['PhysicalPassResponseDto'];
 export type GeneratePhysicalPassesInput = S['GeneratePhysicalPassesRequestDto'];
 export type GeneratePhysicalPassesResult = S['GeneratePhysicalPassesResponseDto'];
@@ -277,8 +285,80 @@ export function createDesignClient(request: ApiRequester) {
 
 export function createFloorplanClient(request: ApiRequester) {
   const base = (eventId: string) => `/events/${id(eventId)}/floorplan`;
+  const eventBase = (eventId: string) => `/events/${id(eventId)}`;
   return {
-    get: (eventId: string) => request<Floorplan>({ path: base(eventId), response: 'json' }, record),
+    get: (eventId: string, signal?: AbortSignal) =>
+      request<Floorplan>({ path: base(eventId), response: 'json', ...(signal ? { signal } : {}) }, record),
+    seating: (eventId: string, query: SeatingWorkspaceQuery, signal?: AbortSignal) => {
+      const parameters = new URLSearchParams({ scope: query.scope });
+      if (query.tableShapeId) parameters.set('tableShapeId', query.tableShapeId);
+      if (query.groupId) parameters.set('groupId', query.groupId);
+      if (query.search) parameters.set('search', query.search);
+      if (query.cursor) parameters.set('cursor', query.cursor);
+      if (query.limit !== undefined) parameters.set('limit', String(query.limit));
+      return request<SeatingWorkspacePage>(
+        {
+          path: `${eventBase(eventId)}/seating?${parameters.toString()}`,
+          response: 'json',
+          ...(signal ? { signal } : {})
+        },
+        record
+      );
+    },
+    assign: (eventId: string, body: AssignSeatingInput, idempotencyKey: string, signal?: AbortSignal) =>
+      request<SeatingMutationResult>(
+        {
+          method: 'POST',
+          path: `${eventBase(eventId)}/seating/assign`,
+          body,
+          headers: { 'Idempotency-Key': idempotencyKey },
+          response: 'json',
+          ...(signal ? { signal } : {})
+        },
+        record
+      ),
+    assignFamily: (eventId: string, body: AssignFamilyInput, idempotencyKey: string, signal?: AbortSignal) =>
+      request<SeatingMutationResult>(
+        {
+          method: 'POST',
+          path: `${eventBase(eventId)}/seating/assign-family`,
+          body,
+          headers: { 'Idempotency-Key': idempotencyKey },
+          response: 'json',
+          ...(signal ? { signal } : {})
+        },
+        record
+      ),
+    assignGroup: (eventId: string, body: AssignGroupInput, idempotencyKey: string, signal?: AbortSignal) =>
+      request<SeatingMutationResult>(
+        {
+          method: 'POST',
+          path: `${eventBase(eventId)}/seating/assign-group`,
+          body,
+          headers: { 'Idempotency-Key': idempotencyKey },
+          response: 'json',
+          ...(signal ? { signal } : {})
+        },
+        record
+      ),
+    updateSeating: (
+      eventId: string,
+      assistantId: string,
+      body: UpdateSeatingInput,
+      idempotencyKey: string,
+      signal?: AbortSignal
+    ) =>
+      request<SeatingMutationResult>(
+        {
+          method: 'PATCH',
+          path: `${eventBase(eventId)}/seating/${id(assistantId)}`,
+          body,
+          headers: { 'Idempotency-Key': idempotencyKey },
+          response: 'json',
+          ...(signal ? { signal } : {})
+        },
+        record
+      ),
     setImage: (eventId: string, imageAssetId: string) =>
       request<Floorplan>({ method: 'POST', path: base(eventId), body: { imageAssetId }, response: 'json' }, record),
     replaceImage: (eventId: string, imageAssetId: string) =>

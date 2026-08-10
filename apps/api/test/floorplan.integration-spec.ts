@@ -295,6 +295,264 @@ describe('Floorplan and seating', () => {
     publish.mockRestore();
   });
 
+  it('projects eligible seating candidates with stable cursor, aggregate context, filters and active check-in', async () => {
+    const fixture = await createFixture({ secondFamily: true });
+    await floorplan.create(
+      fixture.event.id,
+      { imageAssetId: (await createAsset(fixture, 'workspace-read-model')).id },
+      fixture.principal
+    );
+    const table = await createTable(fixture, 4);
+    await prisma.assistant.update({ where: { id: fixture.assistants[0]!.id }, data: { name: 'Ána   María' } });
+    await floorplan.assign(
+      fixture.event.id,
+      randomUUID(),
+      { assistantIds: [fixture.assistants[0]!.id, fixture.assistants[1]!.id], tableShapeId: table.id },
+      fixture.principal
+    );
+    const staff = await createStaffToken(fixture);
+    const checkedInAt = new Date();
+    await prisma.checkIn.create({
+      data: {
+        eventId: fixture.event.id,
+        invitationId: fixture.invitation.id,
+        assistantId: fixture.assistants[1]!.id,
+        staffTokenId: staff.token.id,
+        checkedInAt,
+        createdAt: checkedInAt,
+        idempotencyKey: randomUUID(),
+        requestSignature: createHash('sha256').update(randomUUID()).digest('hex'),
+        resultSnapshot: {}
+      }
+    });
+    await floorplan.updateSeating(
+      fixture.event.id,
+      fixture.assistants[1]!.id,
+      randomUUID(),
+      { tableShapeId: null },
+      fixture.principal
+    );
+    const secondInvitationId = fixture.assistants[2]!.invitationId;
+    await invitations.cancel(fixture.event.id, secondInvitationId, randomUUID(), fixture.principal, randomUUID());
+    const ineligibleIds: string[] = Array.from({ length: 4 }, () => randomUUID());
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe('SET LOCAL session_replication_role = replica');
+      await tx.assistant.createMany({
+        data: [
+          {
+            id: ineligibleIds[0]!,
+            eventId: fixture.event.id,
+            invitationId: fixture.invitation.id,
+            name: 'Pendiente',
+            isPrimary: false,
+            responseStatus: AssistantResponseStatus.PENDING
+          },
+          {
+            id: ineligibleIds[1]!,
+            eventId: fixture.event.id,
+            invitationId: fixture.invitation.id,
+            name: 'Rechazada',
+            isPrimary: false,
+            responseStatus: AssistantResponseStatus.REJECTED
+          },
+          {
+            id: ineligibleIds[2]!,
+            eventId: fixture.event.id,
+            invitationId: fixture.invitation.id,
+            name: 'Eliminada',
+            isPrimary: false,
+            responseStatus: AssistantResponseStatus.CONFIRMED,
+            deletedAt: new Date()
+          },
+          {
+            id: ineligibleIds[3]!,
+            eventId: fixture.event.id,
+            invitationId: fixture.invitation.id,
+            name: null,
+            isPrimary: false,
+            responseStatus: AssistantResponseStatus.CONFIRMED,
+            anonymizedAt: new Date()
+          }
+        ]
+      });
+    });
+
+    const assigned = await floorplan.seatingWorkspace(
+      fixture.event.id,
+      { scope: 'TABLE', tableShapeId: table.id, limit: 50 },
+      fixture.principal
+    );
+    expect(assigned).toMatchObject({
+      items: [
+        {
+          assistantId: fixture.assistants[0]!.id,
+          name: 'Ána   María',
+          invitation: { eligibleAssistantCount: 2, assignedAssistantCount: 1 },
+          group: { id: fixture.group.id, eligibleAssistantCount: 2, assignedAssistantCount: 1 },
+          table: { id: table.id, name: table.name },
+          checkedIn: false
+        }
+      ],
+      summary: { unassignedCount: 1, selectedTable: { id: table.id, occupancy: 1, capacity: 4 } },
+      nextCursor: null
+    });
+
+    const searched = await floorplan.seatingWorkspace(
+      fixture.event.id,
+      { scope: 'TABLE', tableShapeId: table.id, groupId: fixture.group.id, search: 'ana maria', limit: 50 },
+      fixture.principal
+    );
+    expect(searched.items.map(({ assistantId }) => assistantId)).toEqual([fixture.assistants[0]!.id]);
+
+    const firstPage = await floorplan.seatingWorkspace(
+      fixture.event.id,
+      { scope: 'UNASSIGNED', limit: 1 },
+      fixture.principal
+    );
+    expect(firstPage.items).toHaveLength(1);
+    expect(firstPage.items[0]).toMatchObject({ assistantId: fixture.assistants[1]!.id, checkedIn: true });
+    expect(firstPage.nextCursor).toBeNull();
+    expect(firstPage.items.some(({ assistantId }) => ineligibleIds.includes(assistantId))).toBe(false);
+
+    const foreign = await createFixture();
+    await expect(
+      floorplan.seatingWorkspace(fixture.event.id, { scope: 'UNASSIGNED', limit: 50 }, foreign.principal)
+    ).rejects.toMatchObject({ response: { code: 'EVENT_NOT_FOUND' } });
+  });
+
+  it('keeps the seating read model bounded and responsive with 1,800 eligible assistants', async () => {
+    const fixture = await createFixture();
+    await floorplan.create(
+      fixture.event.id,
+      { imageAssetId: (await createAsset(fixture, 'workspace-volume')).id },
+      fixture.principal
+    );
+    const table = await createTable(fixture, 2_000);
+    const generatedAssistantIds: string[] = [];
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe('SET LOCAL session_replication_role = replica');
+      await tx.event.update({ where: { id: fixture.event.id }, data: { capacity: 1_800 } });
+      await tx.invitation.update({
+        where: { id: fixture.invitation.id },
+        data: { additionalAssistantLimit: 11 }
+      });
+      const firstFamily = Array.from({ length: 10 }, (_, index) => ({
+        id: randomUUID(),
+        eventId: fixture.event.id,
+        invitationId: fixture.invitation.id,
+        name: `Volumen ${String(index + 3).padStart(4, '0')}`,
+        isPrimary: false,
+        responseStatus: AssistantResponseStatus.CONFIRMED
+      }));
+      generatedAssistantIds.push(...firstFamily.map(({ id }) => id));
+      await tx.assistant.createMany({ data: firstFamily });
+
+      const contacts = Array.from({ length: 149 }, (_, index) => ({
+        id: randomUUID(),
+        eventId: fixture.event.id,
+        groupId: fixture.group.id,
+        name: `Contacto volumen ${String(index + 2).padStart(3, '0')}`,
+        whatsappPhoneNormalized: `+521${String(index + 1).padStart(10, '0')}`
+      }));
+      await tx.contact.createMany({ data: contacts });
+      const invitations = contacts.map((contact) => ({
+        id: randomUUID(),
+        eventId: fixture.event.id,
+        contactId: contact.id,
+        mode: InvitationMode.FAMILY_NOMINAL,
+        additionalAssistantLimit: 11,
+        responseStatus: InvitationResponseStatus.CONFIRMED,
+        invitationTokenNonce: randomBytes(32).toString('hex'),
+        qrTokenNonce: randomBytes(32).toString('hex')
+      }));
+      await tx.invitation.createMany({ data: invitations });
+      let ordinal = 13;
+      const assistants = invitations.flatMap((invitation) =>
+        Array.from({ length: 12 }, (_, familyIndex) => ({
+          id: randomUUID(),
+          eventId: fixture.event.id,
+          invitationId: invitation.id,
+          name: `Volumen ${String(ordinal++).padStart(4, '0')}`,
+          isPrimary: familyIndex === 0,
+          responseStatus: AssistantResponseStatus.CONFIRMED
+        }))
+      );
+      generatedAssistantIds.push(...assistants.map(({ id }) => id));
+      await tx.assistant.createMany({ data: assistants });
+      await tx.assistant.updateMany({
+        where: { id: { in: [...fixture.assistants.map(({ id }) => id), ...generatedAssistantIds].slice(0, 900) } },
+        data: { floorplanShapeId: table.id }
+      });
+    });
+
+    expect(await prisma.assistant.count({ where: { eventId: fixture.event.id, deletedAt: null } })).toBe(1_800);
+    const measure = async (input: Parameters<FloorplanService['seatingWorkspace']>[1]) => {
+      const startedAt = performance.now();
+      const result = await floorplan.seatingWorkspace(fixture.event.id, input, fixture.principal);
+      return { result, durationMs: performance.now() - startedAt };
+    };
+    const first = await measure({ scope: 'UNASSIGNED', limit: 100 });
+    let middleCursor = first.result.nextCursor;
+    for (let page = 1; page < 4 && middleCursor; page += 1) {
+      middleCursor = (
+        await floorplan.seatingWorkspace(
+          fixture.event.id,
+          { scope: 'UNASSIGNED', cursor: middleCursor, limit: 100 },
+          fixture.principal
+        )
+      ).nextCursor;
+    }
+    const middle = await measure({ scope: 'UNASSIGNED', cursor: middleCursor!, limit: 100 });
+    const search = await measure({ scope: 'UNASSIGNED', search: 'volumen 1200', limit: 100 });
+    const grouped = await measure({ scope: 'UNASSIGNED', groupId: fixture.group.id, limit: 100 });
+    const assigned = await measure({ scope: 'TABLE', tableShapeId: table.id, limit: 100 });
+
+    expect(first.result.items).toHaveLength(100);
+    expect(middle.result.items).toHaveLength(100);
+    expect(search.result.items).toHaveLength(1);
+    expect(grouped.result.items).toHaveLength(100);
+    expect(assigned.result.items).toHaveLength(100);
+    expect(assigned.result.summary).toMatchObject({
+      unassignedCount: 900,
+      selectedTable: { id: table.id, occupancy: 900, capacity: 2_000 }
+    });
+    for (const sample of [first, middle, search, grouped, assigned]) {
+      expect(sample.durationMs).toBeLessThan(5_000);
+    }
+    const activeIds = await prisma.assistant.findMany({
+      where: { eventId: fixture.event.id, deletedAt: null },
+      select: { id: true },
+      orderBy: { id: 'asc' }
+    });
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe('SET LOCAL session_replication_role = replica');
+      await tx.assistant.updateMany({
+        where: { id: { in: activeIds.slice(600).map(({ id }) => id) } },
+        data: { deletedAt: new Date() }
+      });
+    });
+    const sixHundred = await measure({ scope: 'UNASSIGNED', limit: 50 });
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe('SET LOCAL session_replication_role = replica');
+      await tx.assistant.updateMany({
+        where: { id: { in: activeIds.slice(50, 600).map(({ id }) => id) } },
+        data: { deletedAt: new Date() }
+      });
+    });
+    const fifty = await measure({ scope: 'UNASSIGNED', limit: 50 });
+    expect(sixHundred.durationMs).toBeLessThan(5_000);
+    expect(fifty.durationMs).toBeLessThan(5_000);
+    console.info(
+      'CODEX-124B seating read-model timings (ms)',
+      Object.fromEntries(
+        Object.entries({ first, middle, search, grouped, assigned, sixHundred, fifty }).map(([name, sample]) => [
+          name,
+          Number(sample.durationMs.toFixed(2))
+        ])
+      )
+    );
+  }, 60_000);
+
   it('serializes individual/family/group assignment races without overcapacity or partial writes', async () => {
     for (const winnerIndex of [0, 1]) {
       const fixture = await createFixture({ secondFamily: true });

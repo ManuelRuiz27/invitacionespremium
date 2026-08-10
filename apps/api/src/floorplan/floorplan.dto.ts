@@ -57,6 +57,24 @@ const assignSchema = z
 const assignFamilySchema = z.object({ invitationId: uuid, tableShapeId: uuid }).strict();
 const assignGroupSchema = z.object({ groupId: uuid, tableShapeId: uuid }).strict();
 const updateSeatingSchema = z.object({ tableShapeId: uuid.nullable() }).strict();
+const seatingWorkspaceQuerySchema = z
+  .object({
+    scope: z.enum(['UNASSIGNED', 'TABLE']),
+    tableShapeId: uuid.optional(),
+    groupId: uuid.optional(),
+    search: z.string().max(160).transform(normalizeSeatingSearch).optional(),
+    cursor: z.string().min(1).max(1024).optional(),
+    limit: z.coerce.number().int().min(1).max(100).default(50)
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (value.scope === 'TABLE' && !value.tableShapeId) {
+      context.addIssue({ code: 'custom', message: 'TABLE scope requires tableShapeId.' });
+    }
+    if (value.scope === 'UNASSIGNED' && value.tableShapeId) {
+      context.addIssue({ code: 'custom', message: 'UNASSIGNED scope does not accept tableShapeId.' });
+    }
+  });
 
 export type CreateFloorplanInput = z.infer<typeof createFloorplanSchema>;
 export type FloorplanShapeInput = z.infer<typeof floorplanShapeSchema>;
@@ -65,6 +83,7 @@ export type AssignSeatingInput = z.infer<typeof assignSchema>;
 export type AssignFamilyInput = z.infer<typeof assignFamilySchema>;
 export type AssignGroupInput = z.infer<typeof assignGroupSchema>;
 export type UpdateSeatingInput = z.infer<typeof updateSeatingSchema>;
+export type SeatingWorkspaceQueryInput = z.infer<typeof seatingWorkspaceQuerySchema>;
 
 export class FloorplanImageRequestDto {
   @ApiProperty({ type: String, format: 'uuid' })
@@ -220,6 +239,71 @@ export class SeatingMutationResponseDto {
   affectedTables!: SeatingTableOccupancyDto[];
 }
 
+export class SeatingWorkspaceInvitationDto {
+  @ApiProperty({ type: String, format: 'uuid' })
+  id!: string;
+  @ApiProperty({ type: Number, minimum: 0 })
+  eligibleAssistantCount!: number;
+  @ApiProperty({ type: Number, minimum: 0 })
+  assignedAssistantCount!: number;
+}
+
+export class SeatingWorkspaceGroupDto {
+  @ApiProperty({ type: String, format: 'uuid' })
+  id!: string;
+  @ApiProperty({ type: String })
+  name!: string;
+  @ApiProperty({ type: Number, minimum: 0 })
+  eligibleAssistantCount!: number;
+  @ApiProperty({ type: Number, minimum: 0 })
+  assignedAssistantCount!: number;
+}
+
+export class SeatingWorkspaceTableDto {
+  @ApiProperty({ type: String, format: 'uuid' })
+  id!: string;
+  @ApiProperty({ type: String })
+  name!: string;
+}
+
+export class SeatingWorkspaceItemDto {
+  @ApiProperty({ type: String, format: 'uuid' })
+  assistantId!: string;
+  @ApiProperty({ type: String, nullable: true })
+  name!: string | null;
+  @ApiProperty({ type: SeatingWorkspaceInvitationDto })
+  invitation!: SeatingWorkspaceInvitationDto;
+  @ApiProperty({ type: SeatingWorkspaceGroupDto, nullable: true })
+  group!: SeatingWorkspaceGroupDto | null;
+  @ApiProperty({ type: SeatingWorkspaceTableDto, nullable: true })
+  table!: SeatingWorkspaceTableDto | null;
+  @ApiProperty({ type: Boolean })
+  checkedIn!: boolean;
+}
+
+export class SeatingWorkspaceSelectedTableDto extends SeatingWorkspaceTableDto {
+  @ApiProperty({ type: Number, minimum: 0 })
+  occupancy!: number;
+  @ApiProperty({ type: Number, minimum: 0 })
+  capacity!: number;
+}
+
+export class SeatingWorkspaceSummaryDto {
+  @ApiProperty({ type: Number, minimum: 0 })
+  unassignedCount!: number;
+  @ApiProperty({ type: SeatingWorkspaceSelectedTableDto, nullable: true })
+  selectedTable!: SeatingWorkspaceSelectedTableDto | null;
+}
+
+export class SeatingWorkspacePageDto {
+  @ApiProperty({ type: SeatingWorkspaceItemDto, isArray: true })
+  items!: SeatingWorkspaceItemDto[];
+  @ApiProperty({ type: SeatingWorkspaceSummaryDto })
+  summary!: SeatingWorkspaceSummaryDto;
+  @ApiProperty({ type: String, nullable: true })
+  nextCursor!: string | null;
+}
+
 export class ScannerFloorplanResponseDto {
   @ApiProperty({ type: String, format: 'uuid' })
   floorplanId!: string;
@@ -256,9 +340,21 @@ export function parseAssignGroup(input: unknown): AssignGroupInput {
 export function parseUpdateSeating(input: unknown): UpdateSeatingInput {
   return parse(updateSeatingSchema, input);
 }
+export function parseSeatingWorkspaceQuery(input: unknown): SeatingWorkspaceQueryInput {
+  return parse(seatingWorkspaceQuerySchema, input);
+}
 
 export function normalizeFloorplanName(value: string): string {
   return value.trim().replace(/\s+/gu, ' ');
+}
+
+export function normalizeSeatingSearch(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/gu, '')
+    .trim()
+    .replace(/\s+/gu, ' ')
+    .toLocaleLowerCase('es-MX');
 }
 
 function parse<T extends z.ZodType>(schema: T, input: unknown): z.infer<T> {

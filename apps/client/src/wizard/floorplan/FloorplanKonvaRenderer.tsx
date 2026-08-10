@@ -172,7 +172,7 @@ export function FloorplanKonvaRenderer(
               key={shape.id}
               shape={shape}
               stageSize={stageSize}
-              selected={false}
+              selected={props.selectedId === shape.id}
               disabled={props.disabled || Boolean(selected)}
               showSeats={props.showSeats}
               onSelect={() => props.onSelect(shape)}

@@ -113,6 +113,7 @@ export function FloorplanSurface(props: FloorplanSurfaceProps) {
           >
             <FloorplanToolbar
               disabled={props.disabled}
+              {...(props.readOnly === undefined ? {} : { readOnly: props.readOnly })}
               snap={snap}
               showSeats={showSeats}
               panEnabled={panEnabled}
