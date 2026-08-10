@@ -127,7 +127,7 @@ export function InvitationDistribution({ apiClient, event }: { apiClient: ApiCli
 
       {visibleRows.length === 0 ? (
         <Box sx={{ py: 4 }}>
-          <Typography fontWeight={700}>No encontramos invitaciones con esos filtros.</Typography>
+          <Typography sx={{ fontWeight: 700 }}>No encontramos invitaciones con esos filtros.</Typography>
           <Typography color="text.secondary" sx={{ mt: 0.5 }}>
             Cambia la búsqueda o el estado para ver otros resultados.
           </Typography>
@@ -157,9 +157,7 @@ export function InvitationDistribution({ apiClient, event }: { apiClient: ApiCli
               >
                 <Stack spacing={0.75} sx={{ minWidth: 0 }}>
                   <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-                    <Typography fontWeight={750} sx={{ overflowWrap: 'anywhere' }}>
-                      {row.displayName}
-                    </Typography>
+                    <Typography sx={{ fontWeight: 750, overflowWrap: 'anywhere' }}>{row.displayName}</Typography>
                     <Chip size="small" label={status.label} color={status.color} variant="outlined" />
                   </Stack>
                   <Typography variant="body2" color="text.secondary">
