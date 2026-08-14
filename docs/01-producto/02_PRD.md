@@ -8,6 +8,18 @@ InvitacionesPremium es una plataforma SaaS para Planners y Organizaciones que pe
 
 No es solo una herramienta para crear invitaciones digitales. Es una plataforma de operación digital para Eventos privados.
 
+## Perfil de lanzamiento — operator-led
+
+El lanzamiento inicial se realizará como **producto operado con servicio asistido**.
+
+InvitacionesPremium prepara la infraestructura del Evento —incluyendo configuración de Invitación, RSVP y construcción del Croquis cuando aplique— mientras la Planner conserva el control cotidiano sobre invitados, distribución de enlaces, confirmaciones, asignación de personas a Mesas y operación autorizada del Evento.
+
+Este perfil reduce el alcance de self-service necesario para los primeros pilotos y permite instrumentar qué trabajo manual merece automatización. No modifica por sí mismo los tipos de Cliente, créditos, precios, estados de Evento ni roles persistidos.
+
+Fuente de verdad del perfil: `docs/01-producto/04_OPERATOR_LED_MVP.md`.
+
+La capacidad técnica del proveedor para operar un Evento requiere el acceso explícito y auditado definido en `docs/04-tecnico/ADR_OPERATOR_LED_ACCESS.md`; no se permite impersonación.
+
 ## Usuarios objetivo
 
 ### Planner independiente
@@ -97,7 +109,9 @@ Incluye:
 - app móvil nativa;
 - impersonación de Clientes;
 - edición de Flyer/Flipbook después de activar;
-- reembolso monetario al Cliente.
+- reembolso monetario al Cliente;
+- constructor self-service de Croquis para Planner durante el perfil operator-led;
+- asignación persistente por silla/asiento en Croquis V2 inicial.
 
 ## Límites MVP
 
@@ -125,6 +139,7 @@ Incluye:
 - Álbum solo es accesible para Invitaciones con al menos un Asistente ingresado.
 - Álbum público expira a los 30 días y el Evento se archiva.
 - Archivado oculta links públicos y no permite reapertura.
+- En el perfil operator-led, el proveedor construye la geometría del Croquis V2 y la Planner gestiona la asignación de personas sobre Mesas existentes.
 
 ## Servicios y precios iniciales
 
@@ -184,4 +199,5 @@ Después de 30 días post-Evento:
 - Cancelación pública muestra mensaje correcto sin habilitar acciones.
 - Álbum público requiere token separado, elegibilidad y vigencia.
 - Platform Admin consulta Eventos mediante contexto administrativo sin impersonación.
+- La operación provider-led, cuando se implemente, usa una superficie administrativa explícita y auditada; no reutiliza endpoints Planner como impersonación.
 - La anonimización impide conservar nombres/teléfonos en reportes descargables después de la ventana permitida.
