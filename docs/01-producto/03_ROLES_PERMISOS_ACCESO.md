@@ -18,6 +18,29 @@ No existen tipos de Cliente separados para salón, jardín, agencia o empresa.
 
 Staff y Público no son usuarios autenticados permanentes.
 
+## Perfil operator-led de lanzamiento
+
+El perfil operator-led **no agrega un rol persistido nuevo**.
+
+“Operador del proveedor” describe una función interna de lanzamiento. Su capacidad técnica debe implementarse mediante la superficie administrativa explícita, limitada y auditada definida en `docs/04-tecnico/ADR_OPERATOR_LED_ACCESS.md`.
+
+Por tanto:
+
+- Platform Admin no se convierte en Planner;
+- no existe impersonación;
+- no se comparten credenciales;
+- la matriz normal de endpoints de Cliente no se amplía implícitamente;
+- ocultar/mostrar UI no sustituye autorización backend.
+
+Durante el lanzamiento, la **superficie expuesta** a Planner puede ser deliberadamente más estrecha que la capacidad histórica del rol. En particular:
+
+- la Planner conserva gestión de Contactos/Invitaciones, RSVP, distribución y seating;
+- el Croquis se presenta con geometría read-only para Planner;
+- la construcción/mutación de geometría pertenece al proveedor mediante la capacidad operator-led;
+- la Planner puede asignar/mover/desasignar personas sobre Mesas ya creadas.
+
+Esta restricción de exposición para lanzamiento no redefine por sí sola el modelo SaaS futuro.
+
 ## Registro público
 
 Solo el Planner independiente puede registrarse desde la landing.
@@ -85,7 +108,7 @@ Puede:
 - ver reportes generales;
 - restaurar recursos con borrado lógico.
 
-No puede:
+No puede por sus rutas estándar:
 
 - impersonar al Cliente;
 - iniciar sesión como Cliente;
@@ -94,6 +117,8 @@ No puede:
 - crear roles/módulos no definidos.
 
 La lectura administrativa de Eventos no equivale a operar el Evento en nombre del Cliente.
+
+La excepción de lanzamiento provider-led sólo existe cuando una acción está expresamente implementada conforme a `ADR_OPERATOR_LED_ACCESS.md`; no convierte automáticamente todas las rutas Planner en rutas Platform Admin.
 
 ## Planner independiente
 
@@ -104,15 +129,17 @@ Puede, sobre recursos de su propio Cliente:
 - comprar créditos;
 - activar Eventos;
 - gestionar Contactos/Invitaciones;
-- configurar Flyer/Flipbook antes de activar;
+- configurar Flyer/Flipbook antes de activar conforme a la superficie habilitada;
 - gestionar Confirmación;
-- gestionar Croquis/Mesas;
+- gestionar seating sobre Croquis/Mesas disponibles;
 - crear hasta tres StaffTokens activos cuando el Evento esté operativo;
 - cerrar/reabrir/cancelar/archivar conforme a estados;
 - revertir check-in mediante flujo autorizado;
 - crear/publicar Álbum si el servicio aplica;
 - ver reportes operativos propios;
 - usar demo.
+
+En el perfil operator-led de lanzamiento no se expone el constructor de geometría de Croquis a Planner, aunque el modelo futuro pueda ampliarlo mediante una decisión posterior.
 
 No puede:
 
@@ -132,9 +159,11 @@ Puede, sobre recursos de su Organización:
 - activar Eventos;
 - crear Planner de Organización;
 - ver/editar todos los Eventos de la Organización conforme al estado;
-- gestionar Contactos, Invitaciones, Croquis, Staff, Álbum y reportes;
+- gestionar Contactos, Invitaciones, seating, Staff, Álbum y reportes;
 - cerrar/reabrir/cancelar/archivar;
 - ver historial de movimientos de la Organización.
+
+En el perfil operator-led de lanzamiento, la geometría del Croquis se construye por el proveedor y la Organización opera el seating sobre esa geometría.
 
 No puede:
 
@@ -151,14 +180,16 @@ Puede, únicamente sobre Eventos de su Organización creados por su propio `user
 - crear Eventos;
 - editar Eventos en preparación;
 - gestionar Contactos/Invitaciones;
-- configurar Flyer/Flipbook antes de activar;
+- configurar Flyer/Flipbook antes de activar conforme a la superficie habilitada;
 - gestionar Confirmación;
-- gestionar Croquis/Mesas;
+- gestionar seating sobre Croquis/Mesas disponibles;
 - crear hasta tres StaffTokens activos;
 - activar Eventos usando créditos/línea de la Organización;
 - cerrar/reabrir/cancelar/archivar conforme a estados;
 - crear/publicar Álbum si aplica;
 - ver reportes operativos de esos Eventos.
+
+En el perfil operator-led de lanzamiento no recibe el builder de geometría del Croquis.
 
 No puede:
 
@@ -264,6 +295,7 @@ Auditar:
 - suspensión/restauración;
 - creación/expiración de StaffTokens;
 - acciones administrativas;
+- acciones operator-led autorizadas;
 - cambios de ownership permitidos;
 - intentos sensibles fallidos cuando aplique;
 - Confirmaciones/check-ins con actor tipo sin guardar tokens secretos.
@@ -276,10 +308,4 @@ Los tres roles operativos pueden crear y listar StaffTokens únicamente bajo su 
 
 ## Scanner y reversión implementados
 
-StaffToken puede resolver sesión, escanear QR, buscar por coincidencia exacta y registrar una selección
-parcial de Asistentes confirmados pendientes dentro de su Evento. Nunca recibe teléfonos ni capacidad
-de reversión. Planner independiente, Admin de Organización y Planner de Organización pueden revertir
-CheckIn bajo el mismo ownership de Evento; Platform Admin queda fuera de esta ruta operativa.
-Platform Admin no usa estas rutas. Staff no es usuario, no tiene subtipo ni permisos configurables: un
-secreto de una sola entrega lo limita al Evento asociado. El listado nunca devuelve secreto o digest.
-No existe revocación manual; cierre/cancelación expiran y reapertura no reactiva.
+StaffToken puede resolver sesión, escanear QR, buscar por coincidencia exacta y registrar una selección parcial de Asistentes confirmados pendientes dentro de su Evento. Nunca recibe teléfonos ni capacidad de reversión. Planner independiente, Admin de Organización y Planner de Organización pueden revertir CheckIn bajo el mismo ownership de Evento; Platform Admin queda fuera de esta ruta operativa estándar. La futura recuperación provider-led sólo puede añadirse mediante una acción administrativa explícita y auditada. Staff no es usuario, no tiene subtipo ni permisos configurables: un secreto de una sola entrega lo limita al Evento asociado. El listado nunca devuelve secreto o digest. No existe revocación manual; cierre/cancelación expiran y reapertura no reactiva.
