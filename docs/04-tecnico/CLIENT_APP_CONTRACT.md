@@ -9,9 +9,9 @@
 - Planner de Organización.
 
 CODEX-120 implementa shell, sesión, navegación, dashboard de Eventos y consulta financiera. CODEX-121
-agrega el wizard, CODEX-122 agrega dos experiencias públicas aisladas y CODEX-124 inicia el workspace
-operativo definido en `ACTIVE_EVENT_WORKSPACE_CONTRACT.md`. Scanner, Platform Admin y Socket.IO
-frontend permanecen fuera de alcance.
+agrega el wizard, CODEX-122 agrega dos experiencias públicas aisladas y CODEX-124 implementa el workspace
+operativo definido en `ACTIVE_EVENT_WORKSPACE_CONTRACT.md`, incluida la distribución manual de Invitaciones digitales.
+Scanner y Platform Admin permanecen en aplicaciones separadas.
 
 ## Cliente API
 
@@ -21,19 +21,10 @@ frontend permanecen fuera de alcance.
 API OpenAPI → openapi-typescript → src/generated/schema.ts → wrappers de runtime
 ```
 
-Los tipos generados son la única definición frontend de DTOs. Los wrappers implementados cubren:
-
-- `POST /auth/login`;
-- `POST /auth/logout`;
-- `GET /auth/me`;
-- `GET /events`;
-- `GET /events/:eventId`;
-- `GET /finance/balance`;
-- `GET /finance/movements`;
-- `GET /finance/receipts`.
-
-Los requests autenticados usan `credentials: include`; los públicos usan `credentials: omit`. Todos
-aceptan `AbortSignal` y traducen el error uniforme a
+Los tipos generados son la única definición frontend de DTOs. Los wrappers implementados cubren la superficie de
+API consumida por Client, incluido Auth, Eventos, Finanzas, Contactos, Invitaciones, diseño, Croquis, seating y
+recursos públicos. Los requests autenticados usan `credentials: include`; los públicos usan `credentials: omit`.
+Cuando el wrapper lo permite, las lecturas propagan `AbortSignal`; todas traducen el error uniforme a
 `ApiError { status, code, message, operationId? }`. Una respuesta exitosa vacía, no JSON o incompatible
 se rechaza como `UNEXPECTED_API_RESPONSE`. El JSON OpenAPI no se incluye en el build productivo.
 
@@ -158,16 +149,37 @@ Tipos sociales: Boda, XV años, Corporativo, Cumpleaños y Otro. Las fechas usan
 `READY_TO_ACTIVATE` redirige a Revisión; `ACTIVE`, `EVENT_DAY`, `CLOSED`, `ALBUM_PUBLISHED`, `ARCHIVED`
 y `CANCELLED` montan el workspace.
 
-CODEX-124A implementa únicamente **Resumen** dentro del shell autenticado. Presenta nombre, estado,
-fecha/hora, tipo social, servicio contratado, capacidad y uso de Mesas y distribución cuando esos datos
-están disponibles. No muestra IDs o enums ni inventa métricas. Las áreas futuras **Mesas y distribución**
-y **Staff** se documentan, pero no aparecen hasta que sean funcionales.
+Las áreas funcionales se muestran según Servicio y configuración:
+
+- **Resumen** siempre identifica el Evento y sus hechos principales;
+- **Invitaciones** existe para `FLYER`/`FLIPBOOK` y distribuye las Invitaciones ya creadas, sin reabrir el editor;
+- **Mesas y distribución** existe cuando `floorplanEnabled=true` conforme al contrato especializado;
+- **Staff** se agrega únicamente cuando CODEX-124C sea funcional.
+
+### Distribución manual de Invitaciones
+
+En Flyer/Flipbook, la sección **Invitaciones** consulta `GET /contacts` y `GET /invitations`, correlaciona por
+`contactId` y muestra nombre, WhatsApp, cantidad nominal y estado de respuesta. El límite de 150 Invitaciones permite
+búsqueda/filtro local sin introducir un read model adicional.
+
+En `ACTIVE` y `EVENT_DAY`, una Invitación no cancelada permite:
+
+- abrir WhatsApp mediante `wa.me` con el número del Contacto y un mensaje preparado que contiene `invitationLink`;
+- copiar exactamente el enlace individual;
+- abrir la vista pública de la Invitación.
+
+El envío se termina en WhatsApp. Client no crea estado `sent`, `delivered` o `read`, no ejecuta una mutación backend y
+no presenta como hecho una entrega que el sistema no puede comprobar. `CLOSED`, `ALBUM_PUBLISHED`, `ARCHIVED` y
+`CANCELLED` conservan consulta pero eliminan acciones de distribución. `PHYSICAL_QR` y Demo no muestran la sección.
+
+La distribución usa botones/links con targets táctiles mínimos de 44 px, no depende de hover y funciona con teclado.
+Una falla de cualquiera de las dos lecturas muestra estado recuperable y reintenta ambas sin mezclar una respuesta
+parcial con el agregado completo.
 
 Carga, cambio de `eventId`, `401`, `403`, `404`, errores recuperables y retry siguen el contrato de
 sesión y fetching existente. `EventResponseDto.serviceCode` aporta el Servicio contratado; el Resumen lo
 traduce con el mapper compartido y no consulta el catálogo comercial `GET /services`. El detalle
-normativo se encuentra en
-`docs/04-tecnico/ACTIVE_EVENT_WORKSPACE_CONTRACT.md`.
+normativo se encuentra en `docs/04-tecnico/ACTIVE_EVENT_WORKSPACE_CONTRACT.md`.
 
 ## Finanzas
 
@@ -232,7 +244,7 @@ CODEX-120 conserva `VITE_SOCKET_URL`, pero no inicia la integración de tiempo r
 
 CODEX-121 quedó implementado conforme a `EVENT_WIZARD_CONTRACT.md`. El shell incorpora las rutas
 `/eventos/nuevo` y `/eventos/:eventId/configuracion/:step`; su dashboard lleva `DRAFT`/`CONFIGURED` a
-Datos, `READY_TO_ACTIVATE` a Revisión y estados posteriores al resumen. La creación concurrente comparte
+Datos, `READY_TO_ACTIVATE` a Revisión y estados posteriores al workspace. La creación concurrente comparte
 una promesa; las llaves existen solo durante intentos no resueltos. `PHYSICAL_QR` no monta ni consulta
 módulos digitales y Planner de Organización no consulta Finanzas.
 

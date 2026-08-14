@@ -8,6 +8,7 @@ import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { getEventStatusPresentation } from '../shared/event-status';
 import { formatEventDateLong, serviceLabels, socialTypeLabels } from '../shared/formatters';
 import { useSessionExpiry } from '../shared/use-session-expiry';
+import { InvitationDistribution } from './InvitationDistribution';
 import { SeatingWorkspace } from './SeatingWorkspace';
 
 const preparationDestinations: Partial<Record<EventStatus, string>> = {
@@ -33,6 +34,8 @@ const stateMessages: Partial<Record<EventStatus, string>> = {
   ARCHIVED: 'Este evento está archivado y ya no admite cambios operativos.',
   CANCELLED: 'Este evento fue cancelado.'
 };
+
+type WorkspaceSection = 'resumen' | 'invitaciones' | 'mesas';
 
 export function ActiveEventWorkspacePage({ apiClient }: { apiClient: ApiClient }) {
   const { eventId = '' } = useParams();
@@ -101,12 +104,20 @@ export function ActiveEventWorkspacePage({ apiClient }: { apiClient: ApiClient }
 
 function EventWorkspace({ apiClient, event }: { apiClient: ApiClient; event: Event }) {
   const [searchParams] = useSearchParams();
+  const showInvitations = event.serviceCode === 'FLYER' || event.serviceCode === 'FLIPBOOK';
   const showSeating =
     event.floorplanEnabled &&
     (event.serviceCode === 'FLYER' || event.serviceCode === 'FLIPBOOK' || event.serviceCode === 'PHYSICAL_QR');
-  const section = showSeating && searchParams.get('seccion') === 'mesas' ? 'mesas' : 'resumen';
+  const requestedSection = searchParams.get('seccion');
+  const section: WorkspaceSection =
+    requestedSection === 'invitaciones' && showInvitations
+      ? 'invitaciones'
+      : requestedSection === 'mesas' && showSeating
+        ? 'mesas'
+        : 'resumen';
   const status = getEventStatusPresentation(event.status);
   const serviceLabel = event.serviceCode ? serviceLabels[event.serviceCode] : 'Servicio no disponible';
+  const canShareInvitations = event.status === 'ACTIVE' || event.status === 'EVENT_DAY';
   const details = [
     ['Fecha y hora', formatEventDateLong(event.eventDateTime, event.timeZone)],
     ['Tipo de evento', event.socialType ? socialTypeLabels[event.socialType] : 'Tipo pendiente'],
@@ -114,6 +125,17 @@ function EventWorkspace({ apiClient, event }: { apiClient: ApiClient; event: Eve
     ['Capacidad', event.capacity === null ? 'Capacidad pendiente' : `${event.capacity} personas`],
     ['Mesas y distribución', event.floorplanEnabled ? 'Con distribución de mesas' : 'Sin distribución de mesas']
   ];
+
+  const navLinkSx = {
+    display: 'inline-flex',
+    flexShrink: 0,
+    minHeight: 44,
+    alignItems: 'center',
+    px: 1.5,
+    borderBottom: 2,
+    color: 'text.primary',
+    fontWeight: 700
+  } as const;
 
   return (
     <Stack spacing={{ xs: 3, md: 4 }}>
@@ -136,48 +158,63 @@ function EventWorkspace({ apiClient, event }: { apiClient: ApiClient; event: Eve
         <Typography color="text.secondary">{formatEventDateLong(event.eventDateTime, event.timeZone)}</Typography>
       </Stack>
 
-      <Box component="nav" aria-label="Secciones del Evento" sx={{ borderBottom: 1, borderColor: 'divider' }}>
+      <Box
+        component="nav"
+        aria-label="Secciones del Evento"
+        sx={{
+          display: 'flex',
+          overflowX: 'auto',
+          borderBottom: 1,
+          borderColor: 'divider',
+          WebkitOverflowScrolling: 'touch'
+        }}
+      >
         <MuiLink
           component={Link}
           to={`/eventos/${event.id}`}
           aria-current={section === 'resumen' ? 'page' : undefined}
           underline="none"
-          sx={{
-            display: 'inline-flex',
-            minHeight: 44,
-            alignItems: 'center',
-            px: 1,
-            borderBottom: 2,
-            borderColor: section === 'resumen' ? 'primary.main' : 'transparent',
-            color: 'text.primary',
-            fontWeight: 700
-          }}
+          sx={{ ...navLinkSx, px: 1, borderColor: section === 'resumen' ? 'primary.main' : 'transparent' }}
         >
           Resumen
         </MuiLink>
+        {showInvitations ? (
+          <MuiLink
+            component={Link}
+            to={`/eventos/${event.id}?seccion=invitaciones`}
+            aria-current={section === 'invitaciones' ? 'page' : undefined}
+            underline="none"
+            sx={{ ...navLinkSx, borderColor: section === 'invitaciones' ? 'primary.main' : 'transparent' }}
+          >
+            Invitaciones
+          </MuiLink>
+        ) : null}
         {showSeating ? (
           <MuiLink
             component={Link}
             to={`/eventos/${event.id}?seccion=mesas`}
             aria-current={section === 'mesas' ? 'page' : undefined}
             underline="none"
-            sx={{
-              display: 'inline-flex',
-              minHeight: 44,
-              alignItems: 'center',
-              px: 1.5,
-              borderBottom: 2,
-              borderColor: section === 'mesas' ? 'primary.main' : 'transparent',
-              color: 'text.primary',
-              fontWeight: 700
-            }}
+            sx={{ ...navLinkSx, borderColor: section === 'mesas' ? 'primary.main' : 'transparent' }}
           >
             Mesas y distribución
           </MuiLink>
         ) : null}
       </Box>
 
-      {section === 'mesas' ? (
+      {section === 'invitaciones' ? (
+        <Box component="section" aria-labelledby="invitation-distribution-title">
+          <Typography id="invitation-distribution-title" component="h2" variant="h3" sx={{ mb: 0.75 }}>
+            {canShareInvitations ? 'Enviar invitaciones' : 'Invitaciones'}
+          </Typography>
+          <Typography color="text.secondary" sx={{ mb: 2 }}>
+            {canShareInvitations
+              ? 'Comparte el enlace individual de cada invitación y consulta su respuesta.'
+              : 'Consulta la respuesta final de las invitaciones de este evento.'}
+          </Typography>
+          <InvitationDistribution apiClient={apiClient} event={event} />
+        </Box>
+      ) : section === 'mesas' ? (
         <Box component="section" aria-labelledby="seating-workspace-title">
           <Typography id="seating-workspace-title" component="h2" variant="h3" sx={{ mb: 0.75 }}>
             Mesas y distribución

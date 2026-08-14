@@ -6,17 +6,17 @@ El workspace operativo es la experiencia autenticada que utiliza el Planner desp
 Evento. La configuración previa permanece en el wizard y la operación posterior vive en un contexto
 separado dentro del shell autenticado de `apps/client`.
 
-El destino funcional completo de CODEX-124 tendrá tres áreas:
+El destino funcional completo de CODEX-124 tendrá cuatro áreas operativas según Servicio y configuración:
 
 - **Resumen**;
-- **Mesas y distribución**;
+- **Invitaciones** para Flyer/Flipbook;
+- **Mesas y distribución** cuando el Evento usa Croquis;
 - **Staff**.
 
-CODEX-124A implementa **Resumen** y CODEX-124B implementa **Mesas y distribución** cuando el Evento tiene Croquis.
-Las áreas no funcionales no se muestran, no tienen rutas placeholder ni presentan estados deshabilitados o textos de
-“próximamente”. CODEX-124C agregará Staff cuando sea funcional.
-
-CODEX-124B está implementado y pendiente de aceptación humana; su contrato normativo se documenta más abajo.
+CODEX-124A implementa **Resumen**, CODEX-124B implementa **Mesas y distribución** y CODEX-124D implementa la
+distribución manual de **Invitaciones** digitales. Las áreas no funcionales o no aplicables no se muestran, no tienen
+rutas placeholder ni presentan estados deshabilitados o textos de “próximamente”. CODEX-124C agregará Staff cuando
+sea funcional.
 
 ## Ruta canónica y resolución autoritativa
 
@@ -70,10 +70,11 @@ El contexto local muestra:
 - nombre del Evento como único `h1` de la vista cargada;
 - estado natural mediante el mapper compartido;
 - fecha y hora en `es-MX` y `Event.timeZone`;
-- navegación local con únicamente **Resumen** en CODEX-124A.
+- navegación local únicamente con áreas funcionales para el Servicio y configuración actuales.
 
-El workspace no presenta Invitados, Invitación, Confirmación de asistencia ni pasos del wizard como
-navegación operativa. La Invitación digital permanece congelada conforme al PRD.
+La navegación operativa nunca reabre pasos del wizard ni permite editar Flyer/Flipbook después de activar. La sección
+**Invitaciones** es una superficie de distribución y consulta del agregado ya congelado, no el editor de Invitación ni
+la configuración de Confirmación de asistencia.
 
 ## Resumen
 
@@ -96,14 +97,14 @@ información financiera ni “última actividad”. Los datos faltantes usan len
 
 ## Presentación de estados
 
-| Estado API | Etiqueta | Tratamiento en CODEX-124A |
+| Estado API | Etiqueta | Tratamiento operativo |
 | --- | --- | --- |
-| `ACTIVE` | Activo | Evento operativo, sin acciones de lifecycle |
-| `EVENT_DAY` | Día del evento | Estado con jerarquía visible, sin acciones de Staff o Scanner |
-| `CLOSED` | Cerrado | Consulta sin volver al wizard ni ofrecer reapertura |
-| `ALBUM_PUBLISHED` | Álbum publicado | Consulta sin administración del Álbum ni tokens públicos |
-| `ARCHIVED` | Archivado | Solo lectura; informa que ya no admite cambios operativos |
-| `CANCELLED` | Cancelado | Solo lectura; informa que el Evento fue cancelado |
+| `ACTIVE` | Activo | Evento operativo; permite compartir Invitaciones digitales y mutaciones operativas autorizadas |
+| `EVENT_DAY` | Día del evento | Conserva las reglas operativas de `ACTIVE`; permite compartir Invitaciones y operar el día del Evento |
+| `CLOSED` | Cerrado | Consulta; sin nuevos envíos de Invitaciones ni nuevas mutaciones de seating |
+| `ALBUM_PUBLISHED` | Álbum publicado | Consulta; sin nuevos envíos de Invitaciones |
+| `ARCHIVED` | Archivado | Solo lectura; links públicos ocultos y sin cambios operativos |
+| `CANCELLED` | Cancelado | Solo lectura; sin nuevos envíos y con vista pública mínima de cancelación |
 
 El estado no se comunica únicamente mediante color.
 
@@ -114,23 +115,85 @@ El estado no se comunica únicamente mediante color.
 - Un `401` usa la infraestructura común de expiración de sesión y conserva el `returnTo` interno.
 - Un `403` muestra acceso no permitido sin revelar ownership ni existencia de otros Clientes.
 - Un `404` muestra que el Evento no está disponible, sin IDs.
-- Red, `429`, `5xx` o respuesta inválida muestran **No pudimos cargar este evento.** y **Reintentar**.
-- El retry de ese estado vuelve a consultar únicamente `GET /events/:eventId`; el Resumen no inicia
-  requests a `GET /services`.
+- Red, `429`, `5xx` o respuesta inválida muestran un mensaje natural y una acción de reintento sobre las lecturas
+  afectadas; una lectura fallida no se interpreta como ausencia del recurso.
 - `operationId`, si existe, se presenta solo como `Referencia: ...`.
 
 ## Responsive y accesibilidad
 
 La vista usa un ancho legible y layout de una columna en móvil, sin tabla administrativa ni scroll
-horizontal. **Volver a eventos** conserva un target táctil mínimo de 44 × 44 px.
+horizontal obligatorio. **Volver a eventos** y las acciones operativas críticas conservan un target táctil mínimo de
+44 × 44 px.
 
 La vista mantiene landmarks del shell, un único `h1`, navegación local con nombre accesible,
 `aria-current`, foco visible, lectura por teclado, estado textual además del color, carga anunciada y el
 tratamiento global de `prefers-reduced-motion`.
 
+## CODEX-124D — Distribución manual de Invitaciones digitales
+
+### Alcance
+
+`FLYER` y `FLIPBOOK` exponen **Invitaciones** en el workspace. `PHYSICAL_QR` no la muestra porque no crea Contactos ni
+Invitaciones digitales; `DEMO` no distribuye Invitaciones reales.
+
+La superficie consume los contratos existentes:
+
+```http
+GET /api/v1/events/:eventId/contacts
+GET /api/v1/events/:eventId/invitations
+```
+
+No agrega entidad de mensajería, endpoint de envío, migración ni webhook. El máximo contractual de 150 Contactos
+permite correlacionar ambas lecturas en Client por `Invitation.contactId → Contact.id` sin N+1. El backend conserva
+autoridad de ownership y privacidad.
+
+Cada fila presenta únicamente datos operativos ya autorizados al usuario autenticado:
+
+- nombre del Contacto;
+- WhatsApp normalizado cuando siga disponible;
+- cantidad nominal de personas de la Invitación;
+- estado natural derivado de `Invitation.responseStatus`: **Sin respuesta**, **Confirmada** o **No asistirá**;
+- **Cancelada** cuando `cancelledAt` existe.
+
+No existe estado visible **Enviada**, **Entregada** o **Leída** porque el MVP no integra WhatsApp API y abrir una
+conversación externa no demuestra que el mensaje haya sido transmitido. No se persiste `sentAt`, delivery receipt ni
+auditoría ficticia de envío.
+
+### Acciones
+
+En `ACTIVE` y `EVENT_DAY`, una Invitación digital no cancelada puede:
+
+- **Enviar por WhatsApp**: abrir `https://wa.me/<telefono>?text=<mensaje>` con el número E.164 reducido a dígitos y
+  un mensaje preparado que contiene el `invitationLink` individual;
+- **Copiar enlace**: copiar exactamente `invitationLink` sin regenerar token;
+- **Abrir invitación**: abrir el mismo link público para revisión/compartición manual.
+
+El usuario completa el envío dentro de WhatsApp. No hay POST, retry idempotente ni confirmación backend porque esta
+acción no es una mutación del dominio.
+
+Una Invitación cancelada nunca ofrece acciones de distribución. Si el teléfono ya no está disponible por privacidad,
+no se muestra **Enviar por WhatsApp**, aunque copiar el link puede seguir disponible únicamente mientras el Evento
+admita nuevos envíos. `CLOSED`, `ALBUM_PUBLISHED`, `ARCHIVED` y `CANCELLED` conservan consulta de estados pero retiran
+todas las acciones de distribución.
+
+### Búsqueda y filtros
+
+Con un máximo de 150 Invitaciones, búsqueda por nombre/WhatsApp y filtro por respuesta son locales después de las dos
+lecturas autoritativas. Cambiar búsqueda/filtro no produce requests adicionales ni altera Invitaciones. La lista no
+muestra números técnicos, tokens ni IDs.
+
+### Errores y privacidad
+
+- `401` sigue el manejo global de sesión expirada;
+- una falla de Contactos o Invitaciones muestra error recuperable y reintenta ambas lecturas, sin interpretar la otra
+  como fuente completa;
+- Contactos anonimizados no recuperan ni reconstruyen teléfono;
+- el link individual solo se usa en acciones explícitas del Planner y nunca se escribe en logs, métricas o auditoría.
+
 ## Fuera de alcance de CODEX-124A
 
 - asignación de Mesas, seating o movimiento de Asistentes;
+- distribución manual de Invitaciones;
 - StaffTokens, accesos Staff, QR Staff o Scanner;
 - lifecycle, cierre, reapertura, cancelación o archivo;
 - edición de Invitación o Croquis;
@@ -141,13 +204,8 @@ tratamiento global de `prefers-reduced-motion`.
 
 ### Alcance y navegación
 
-CODEX-124B agrega únicamente **Mesas y distribución** dentro de `/eventos/:eventId`. La navegación local queda:
-
-```text
-Resumen | Mesas y distribución
-```
-
-La entrada está condicionada por la proyección autoritativa del Evento:
+CODEX-124B agrega únicamente **Mesas y distribución** dentro de `/eventos/:eventId`. La entrada está condicionada por
+la proyección autoritativa del Evento:
 
 - con `floorplanEnabled=false`, **Mesas y distribución** no aparece en la navegación, no muestra placeholder y no
   inicia ninguna resolución de Floorplan;
@@ -234,10 +292,10 @@ GET /api/v1/events/:eventId/seating?scope=UNASSIGNED|TABLE&tableShapeId=<uuid>&g
 
 La respuesta contiene `items`, `nextCursor` y un resumen autoritativo. Cada item proyecta solamente `assistantId`,
 `name`, Invitación con conteos elegibles/asignados completos, Grupo nullable con esos mismos conteos, Mesa actual
-nullable y estado de check-in necesario para la operación. El
-resumen incluye conteos de sin Mesa y de la Mesa seleccionada, además de ocupación/capacidad autoritativas. No
-incluye teléfonos, tokens, QR ni reglas duplicadas. Filtros, búsqueda y cursor se resuelven en una consulta acotada
-con joins, sin N+1. `scope` se limita a `UNASSIGNED|TABLE`; no existe `ALL` sin necesidad demostrada.
+nullable y estado de check-in necesario para la operación. El resumen incluye conteos de sin Mesa y de la Mesa
+seleccionada, además de ocupación/capacidad autoritativas. No incluye teléfonos, tokens, QR ni reglas duplicadas.
+Filtros, búsqueda y cursor se resuelven en una consulta acotada con joins, sin N+1. `scope` se limita a
+`UNASSIGNED|TABLE`; no existe `ALL` sin necesidad demostrada.
 
 Los candidatos reflejan las invariantes vigentes de seating: `Assistant.deletedAt=null`, respuesta confirmada,
 Invitación activa/no eliminada/no cancelada e identidad compatible con privacidad. En `ACTIVE`/`EVENT_DAY` los
@@ -253,9 +311,7 @@ agregados, sin N+1. Una prueba de integración con aproximadamente 1,800 Assista
 privacidad y conteo de queries. El límite de 150 Contactos/Invitaciones no cambia.
 
 El endpoint es una proyección de lectura, no una entidad ni nueva regla. Su contrato final, OpenAPI, SDK y pruebas se
-se implementan dentro de CODEX-124B conforme al plan aprobado. El límite de **150 Contactos/Invitaciones por Evento**
-permanece intacto; la escala operativa de **~1,800 Asistentes** mide filas nominales potenciales y no eleva aquel
-límite contractual.
+implementan dentro de CODEX-124B conforme al plan aprobado.
 
 ### Mutaciones, idempotencia y realtime
 
