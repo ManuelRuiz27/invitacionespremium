@@ -1,166 +1,256 @@
-# Meta visual y de interacción — Croquis Sticker
+# Meta visual y de interacción — Croquis V2 / Sticker Model
 
-Estado: referencia UX subordinada a `docs/04-tecnico/FLOORPLAN_STICKER_SEATING_CONTRACT.md`.
+Estado: **Referencia UX oficial para Croquis V2**, subordinada a `docs/04-tecnico/FLOORPLAN_STICKER_SEATING_CONTRACT.md` y `docs/04-tecnico/ADR_OPERATOR_LED_ACCESS.md`.
 
-## Principios
+## 1. Objetivo
 
-1. El plano del lugar es la capa base; la Planner distribuye objetos sobre él.
-2. Las Mesas se perciben como stickers manipulables, no como registros técnicos.
-3. La interfaz debe funcionar primero para asignación por Mesa y revelar asientos individuales solo cuando el Evento lo requiera.
-4. Desktop y tablet deben priorizar el canvas; mobile usa paneles a pantalla completa o bottom sheets.
-5. No mostrar IDs, enums, coordenadas, grados ni términos internos.
+Croquis V2 debe sentirse como una herramienta visual de preparación de salón, no como CAD ni como un formulario técnico.
 
-## Flujo visual objetivo
+El lanzamiento separa dos experiencias:
 
-### 1 — Inventario
+- **Builder del proveedor:** InvitacionesPremium construye el espacio.
+- **Seating Workspace de Planner:** la Planner controla personas y acomodo sobre una geometría ya preparada.
 
-Pantalla limpia antes del canvas:
+La experiencia visual rescata la claridad, composición y ergonomía del workspace del repositorio legacy, pero se implementa exclusivamente con la arquitectura, design system y contratos del repositorio canónico.
+
+Referencia legacy permitida: `Soft-Monkey_InvitacionesPremium/docs/floorplan-ux-redesign-roadmap.md`. No es fuente de verdad de dominio ni stack.
+
+## 2. Principios
+
+1. El Builder usa el modelo mental **Sticker → colocar → ajustar → configurar**.
+2. La Planner no necesita conocer coordenadas, enums, geometrías internas ni modelo de persistencia.
+3. El control de infraestructura y el control de personas son superficies distintas.
+4. Progressive Disclosure: mostrar primero lo necesario para completar el trabajo actual.
+5. La interacción debe ser rápida en eventos masivos y precisa en eventos boutique.
+6. Desktop/tablet priorizan canvas; mobile usa paneles de contexto o pantallas dedicadas.
+7. La estética debe sentirse sutil, limpia y premium, sin sacrificar legibilidad operacional.
+8. No migrar de MUI/design tokens actuales a otro stack únicamente para replicar el aspecto legacy.
+
+## 3. Builder del proveedor
+
+### Estructura objetivo
 
 ```text
-Inventario de mesas
+Topbar
+├── Evento
+├── Croquis
+├── Guardado
+├── Deshacer / Rehacer
+└── Salir
 
-Forma        Cantidad    Capacidad
-Redonda         40          10
-Rectangular     10          12
-Cuadrada         5           8
+Workspace
+├── Catálogo de stickers
+├── Canvas central
+└── Panel contextual
 
-Total: 55 mesas
-[Crear 55 mesas]
+Footer/estado
+└── Resumen operativo discreto
 ```
 
-La Planner puede agregar configuraciones adicionales sin repetir formularios mesa por mesa.
+El canvas debe ser el área dominante. Los paneles existen para ayudar a construir; no deben competir visualmente con el plano.
 
-### 2 — Distribución
+### Fondo
 
-Canvas central con plano real. Bandeja inferior/lateral con Mesas aún no colocadas.
+El plano real puede utilizarse como capa base cuando exista un JPG/PNG/PDF convertido conforme a los contratos vigentes.
+
+La ausencia de plano no debe convertir la herramienta en CAD. El usuario sigue trabajando con stickers y una superficie neutra.
+
+## 4. Catálogo inicial de stickers
+
+### Mesas
+
+- Mesa redonda.
+- Mesa rectangular.
+- Mesa imperial.
+- Mesa principal.
+
+Las variaciones visuales no crean automáticamente nuevos `kind` de dominio. Deben mapearse a los contratos existentes siempre que sea posible.
+
+### Zonas / infraestructura visual
+
+- Pista.
+- Barra.
+- Escenario / DJ.
+- Entrada.
+- Baños.
+- Zona genérica.
+- Texto/etiqueta.
+
+Un sticker decorativo no adquiere capacidad ni semántica asignable sólo por su representación visual.
+
+## 5. Interacción del Builder
+
+Una operación base debe poder realizarse sin abrir controles avanzados.
+
+Acciones esperadas según el tipo de sticker y los permisos/estado del Evento:
+
+- colocar con click/tap o drag;
+- seleccionar;
+- arrastrar;
+- rotar;
+- duplicar;
+- redimensionar cuando aplique;
+- renombrar/etiquetar;
+- editar capacidad cuando aplique;
+- eliminar con confirmación contextual cuando corresponda;
+- undo/redo;
+- zoom/pan/ajustar vista.
+
+No mostrar como UI primaria:
+
+- `x/y`;
+- grados numéricos salvo necesidad avanzada demostrada;
+- IDs;
+- `TABLE`, `DECORATIVE_ZONE`;
+- nombres de geometría interna;
+- JSON/layout schema.
+
+## 6. Progressive Disclosure
+
+### Estado base
+
+Al seleccionar un objeto mostrar únicamente:
+
+- nombre/etiqueta;
+- capacidad si es Mesa;
+- ocupación si el contexto la requiere;
+- acciones frecuentes;
+- acceso a `Más opciones` sólo cuando existan propiedades secundarias.
+
+### Controles avanzados
+
+Color, propiedades visuales poco frecuentes, datos técnicos permitidos o ajustes finos se revelan bajo una acción secundaria.
+
+La interfaz no debe transformar un sticker sencillo en un formulario largo permanente.
+
+## 7. Mesa seleccionada
+
+Ejemplo conceptual:
 
 ```text
-[toolbar]
-                 PLANO
-      ○1      ○2       ○3
-             ▭4
-
-Mesas sin colocar (17)
-[6] [7] [8] [9] ...
-```
-
-Acciones rápidas: zoom, ajustar vista, snap, undo/redo, mostrar sillas.
-
-### 3 — Mesa seleccionada
-
-Click/tap selecciona. Aparece toolbar contextual y panel discreto.
-
-```text
-Mesa 1
-Capacidad 10
-8 / 10 asignados
+Mesa 12
+8 / 10 lugares asignados
+2 disponibles
 
 [Nombre]
-[Color]
-[Asignar invitados]
-[Duplicar]
-[Más…]
+[Capacidad]
+
+[Duplicar] [Más opciones]
 ```
 
-El color avanzado vive detrás de `Personalizado…`. Mostrar recientes antes que un color wheel completo.
+En Builder no es obligatorio exponer asignación de invitados. La asignación cotidiana pertenece al Seating Workspace de Planner.
 
-### 4 — Sillas visuales
+## 8. Seating Workspace de Planner
 
-`Mostrar sillas` no cambia reglas de asignación. Solo representa capacidad.
+La Planner recibe el Croquis ya construido.
 
-Si la capability `Por asiento` está activada, las sillas persistentes pueden comunicar libres/ocupadas.
+Reglas visuales:
 
-### 5 — Asignación
+- geometría read-only;
+- una Mesa se puede seleccionar;
+- búsqueda de invitados;
+- filtros por estado/grupo cuando estén soportados;
+- asignar selección a Mesa;
+- mover entre Mesas;
+- desasignar;
+- acciones de familia/grupo conforme al contrato actual;
+- mostrar ocupación/capacidad;
+- reaccionar a cambios realtime y conflictos de concurrencia.
 
-Modo Mesa:
+El workspace vigente en `apps/client/src/workspace/SeatingWorkspace.tsx` es la base funcional y no debe sustituirse por código legacy.
+
+### Modelo mental
 
 ```text
-Mesa 1 · 8/10
-
-Sin asignar | Asignados
-[Buscar] [Grupo]
-□ Ana
-□ Luis
-□ María
-
-[Asignar 3 a Mesa 1]
+Persona → Mesa
 ```
 
-Modo asiento:
+La Planner controla **quién se sienta dónde**, no la infraestructura del salón.
 
-```text
-        ○ Ana
-    ○           ○ Luis
-  ○     Mesa 1      ○
-    ○           ○
-        ○ María
+## 9. Resumen y pendientes
 
-Invitados sin asiento
-□ Carlos
-□ Sofía
-```
+El producto debe poder proyectar de forma clara:
 
-Bulk assignment sigue disponible; drag a silla es precisión opcional.
+- capacidad total;
+- asistentes confirmados;
+- asistentes con Mesa;
+- asistentes sin Mesa;
+- disponibilidad por Mesa;
+- blockers contractuales antes de activación/cierre operativo.
 
-### 6 — Resumen
+No usar color como único indicador.
 
-KPIs legibles y tabla de Mesas. No usar anillos o color como único indicador.
+Una futura experiencia `Resolver pendientes` puede agrupar problemas accionables, pero no es requisito para el primer piloto si el workspace actual permite resolverlos con seguridad.
 
-```text
-620 asistentes
-603 con Mesa
-17 sin Mesa
-36 lugares disponibles
-```
+## 10. Día del Evento
 
-### 7 — Día del Evento
+El croquis operativo es read-only para geometría.
 
-Croquis read-only. Estado de ocupación/check-in actualizado en vivo. Una Mesa puede mostrar `7/10 ingresaron`.
+Puede mostrar estado de check-in/ocupación a partir de la infraestructura realtime/REST existente. No crear una segunda vía de sincronización.
 
-Scanner:
+Scanner y Staff conservan sus reglas de mínima exposición de datos.
 
-```text
-✓ ACCESO VÁLIDO
-MESA 2
-ASIENTO 7   ← solo si existe
-Ana Martínez
-```
-
-## Responsive
+## 11. Responsive
 
 ### Desktop
-- canvas ocupa la mayor parte de pantalla;
-- panel contextual lateral;
-- bandeja de stickers lateral o inferior;
-- asignación en split view.
+
+- canvas dominante;
+- catálogo/panel lateral compacto;
+- contexto visible sin modal cuando haya espacio;
+- shortcuts como aceleradores, nunca como única vía.
 
 ### Tablet
-- canvas dominante;
-- panel contextual colapsable;
+
+- prioridad equivalente a Desktop para operación del Builder;
+- panel contextual colapsable/drawer;
 - targets touch >= 44×44;
-- pinch zoom y pan.
+- pinch zoom y pan cuando el renderer lo soporte de forma segura.
 
 ### Mobile
-- canvas full-screen cuando se manipula;
-- toolbar mínima;
-- bottom sheets para propiedades;
-- asignación en pantalla dedicada;
-- no intentar comprimir el layout desktop.
 
-## Estados visuales mínimos
+- no comprimir el layout Desktop;
+- canvas a pantalla completa cuando corresponda;
+- bottom sheets/pantallas dedicadas;
+- Builder móvil completo no es requisito de lanzamiento si tablet/desktop cubren la operación del proveedor.
 
-Cada Mesa puede comunicar con texto + forma + color:
+## 12. Estados visuales mínimos
+
+Cada Mesa debe poder comunicar mediante texto/forma/estado visual:
 
 - normal;
 - seleccionada;
+- con disponibilidad;
 - completa;
-- con lugares;
-- sobrecupo si contractualmente puede existir;
 - read-only;
-- con asignación individual habilitada.
+- conflicto/actualización cuando corresponda.
 
-## Referencia renderizada
+No introducir `sobrecupo` como comportamiento permitido si el backend lo prohíbe; la UI representa el contrato, no lo redefine.
 
-Archivo: `docs/03-diseno/assets/floorplan-sticker-flow-target.svg`.
+## 13. Performance
 
-El render representa intención de jerarquía, flujo, densidad y comportamiento. No congela literalmente colores, copy, métricas, tamaños ni componentes si contradicen los tokens vigentes o contratos normativos.
+Validar al menos escenarios de:
+
+- 50 Mesas;
+- 100 Mesas;
+- 200 Mesas;
+- listas grandes de asistentes en Seating Workspace.
+
+El objetivo no es un benchmark gráfico aislado sino mantener selección, pan/zoom, movimiento y asignación utilizables durante un Evento real.
+
+## 14. Fuera de alcance del lanzamiento
+
+- herramienta CAD;
+- geometría libre avanzada sin necesidad demostrada;
+- constructor self-service para Planner;
+- migración de stack visual por paridad con legacy;
+- nueva entidad `Sticker` de negocio;
+- asignación persistente por silla/asiento como requisito del Croquis V2 inicial;
+- nuevas reglas de negocio escondidas dentro del refactor visual.
+
+La representación visual de sillas puede seguir existiendo si ya es compatible con el modelo actual, pero una nueva capability persistente de `SeatAssignment` queda en **Not now** hasta evidencia posterior.
+
+## 15. Referencia renderizada
+
+Archivo existente: `docs/03-diseno/assets/floorplan-sticker-flow-target.svg`.
+
+Se considera referencia histórica/visual. Si contradice esta especificación, el contrato técnico o el perfil operator-led, prevalecen los documentos normativos vigentes.
