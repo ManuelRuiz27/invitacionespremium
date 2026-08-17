@@ -3,6 +3,7 @@ import { AuditModule } from '../audit/audit.module';
 import { FinanceModule } from '../finance/finance.module';
 import { ServicesPricingModule } from '../services-pricing/services-pricing.module';
 import { StaffAccessModule } from '../staff-access/staff-access.module';
+import { AdminClientEventsController } from './admin-client-events.controller';
 import { AdminEventsController } from './admin-events.controller';
 import { EventAccessPolicy } from './event-access.policy';
 import { EventLifecycleScheduler } from './event-lifecycle.scheduler';
@@ -12,7 +13,7 @@ import { EventsService } from './events.service';
 
 @Module({
   imports: [AuditModule, FinanceModule, ServicesPricingModule, StaffAccessModule],
-  controllers: [EventsController, AdminEventsController],
+  controllers: [EventsController, AdminEventsController, AdminClientEventsController],
   providers: [EventsService, EventAccessPolicy, EventLifecycleService, EventLifecycleScheduler],
   exports: [EventsService, EventLifecycleService, EventAccessPolicy]
 })

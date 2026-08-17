@@ -48,6 +48,22 @@ export type paths = {
         patch: operations["AdminClientsController_update"];
         trace?: never;
     };
+    "/api/v1/admin/clients/{clientId}/events/{eventId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["AdminClientEventsController_update"];
+        trace?: never;
+    };
     "/api/v1/admin/clients/{clientId}/restore": {
         parameters: {
             query?: never;
@@ -3491,6 +3507,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClientResponseDto"];
+                };
+            };
+        };
+    };
+    AdminClientEventsController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateEventRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventResponseDto"];
                 };
             };
         };

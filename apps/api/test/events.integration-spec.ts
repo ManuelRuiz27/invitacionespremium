@@ -127,6 +127,20 @@ describe('Events CRUD', () => {
       .expect(200);
 
     await request(app.getHttpServer())
+      .patch(`/api/v1/events/${ownedByOne.body.id}`)
+      .set('Origin', trustedOrigin)
+      .set('Cookie', plannerOneCookie)
+      .send({ name: 'Owned by planner one' })
+      .expect(200);
+    await request(app.getHttpServer())
+      .patch(`/api/v1/events/${ownedByTwo.body.id}`)
+      .set('Origin', trustedOrigin)
+      .set('Cookie', plannerOneCookie)
+      .send({ name: 'Forbidden cross-creator update' })
+      .expect(404)
+      .expect((response) => expect(response.body.code).toBe('EVENT_NOT_FOUND'));
+
+    await request(app.getHttpServer())
       .patch(`/api/v1/events/${ownedByTwo.body.id}`)
       .set('Origin', trustedOrigin)
       .set('Cookie', organizationCookie)
@@ -153,6 +167,12 @@ describe('Events CRUD', () => {
     await request(app.getHttpServer()).get('/api/v1/events').set('Cookie', platformCookie).expect(403);
     await createEvent(platformCookie, {}).expect(403);
     await request(app.getHttpServer())
+      .patch(`/api/v1/events/${firstEvent.body.id}`)
+      .set('Origin', trustedOrigin)
+      .set('Cookie', platformCookie)
+      .send({ name: 'Forbidden Platform Admin Planner route' })
+      .expect(403);
+    await request(app.getHttpServer())
       .get('/api/v1/admin/events')
       .set('Cookie', platformCookie)
       .expect(200)
@@ -161,6 +181,112 @@ describe('Events CRUD', () => {
       .get(`/api/v1/admin/events/${firstEvent.body.id}`)
       .set('Cookie', platformCookie)
       .expect(200);
+  });
+
+  it('allows Platform Admin to update one explicit Client/Event target with the real audited actor', async () => {
+    const planner = await createClientUser(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
+    const platform = await createUser(null, UserRole.PLATFORM_ADMIN);
+    const service = await createService(ServiceCode.FLYER);
+    const plannerCookie = await login(planner.email);
+    const platformCookie = await login(platform.email);
+    const created = await createEvent(plannerCookie, { name: 'Before admin setup' }).expect(201);
+    const operationId = randomUUID();
+
+    await patchAdminEvent(
+      platformCookie,
+      planner.clientId,
+      created.body.id,
+      {
+        name: 'Configured by provider',
+        serviceId: service.id,
+        capacity: 180
+      },
+      operationId
+    )
+      .expect(200)
+      .expect((response) => {
+        expect(response.body).toMatchObject({
+          id: created.body.id,
+          clientId: planner.clientId,
+          createdByUserId: planner.userId,
+          name: 'Configured by provider',
+          serviceId: service.id,
+          capacity: 180
+        });
+      });
+
+    expect(await prisma.event.findUniqueOrThrow({ where: { id: created.body.id } })).toMatchObject({
+      clientId: planner.clientId,
+      createdByUserId: planner.userId,
+      name: 'Configured by provider',
+      serviceId: service.id,
+      capacity: 180
+    });
+    const audit = await prisma.auditLog.findFirstOrThrow({
+      where: { action: 'EVENT_UPDATE', operationId }
+    });
+    expect(audit).toMatchObject({
+      actorType: AuditActorType.USER,
+      actorId: platform.userId,
+      clientId: planner.clientId,
+      eventId: created.body.id,
+      resourceType: 'EVENT',
+      resourceId: created.body.id,
+      action: 'EVENT_UPDATE',
+      operationId
+    });
+    expect(audit.beforeData).toMatchObject({ id: created.body.id, name: 'Before admin setup' });
+    expect(audit.afterData).toMatchObject({ id: created.body.id, name: 'Configured by provider', capacity: 180 });
+  });
+
+  it('keeps administrative Event Setup target resolution non-leaking and preserves existing validation', async () => {
+    const firstPlanner = await createClientUser(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
+    const secondPlanner = await createClientUser(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
+    const platform = await createUser(null, UserRole.PLATFORM_ADMIN);
+    const inactiveService = await createService(ServiceCode.FLYER, false);
+    const platformCookie = await login(platform.email);
+    const secondEvent = await createEvent(await login(secondPlanner.email), { name: 'Unchanged target' }).expect(201);
+
+    for (const [clientId, eventId] of [
+      [firstPlanner.clientId, secondEvent.body.id],
+      [firstPlanner.clientId, randomUUID()],
+      [randomUUID(), secondEvent.body.id]
+    ]) {
+      await patchAdminEvent(platformCookie, clientId, eventId, { name: 'Must not mutate' })
+        .expect(404)
+        .expect((response) => expect(response.body.code).toBe('EVENT_NOT_FOUND'));
+    }
+    expect(await prisma.event.findUniqueOrThrow({ where: { id: secondEvent.body.id } })).toMatchObject({
+      name: 'Unchanged target',
+      clientId: secondPlanner.clientId
+    });
+
+    await patchAdminEvent(platformCookie, 'not-a-uuid', secondEvent.body.id, { name: 'Invalid client' })
+      .expect(400)
+      .expect((response) => expect(response.body.code).toBe('VALIDATION_ERROR'));
+    await patchAdminEvent(platformCookie, secondPlanner.clientId, 'not-a-uuid', { name: 'Invalid event' })
+      .expect(400)
+      .expect((response) => expect(response.body.code).toBe('VALIDATION_ERROR'));
+    await patchAdminEvent(platformCookie, secondPlanner.clientId, secondEvent.body.id, {
+      name: 'Strict body',
+      unexpected: true
+    })
+      .expect(400)
+      .expect((response) => expect(response.body.code).toBe('VALIDATION_ERROR'));
+    await patchAdminEvent(platformCookie, secondPlanner.clientId, secondEvent.body.id, {
+      serviceId: inactiveService.id
+    })
+      .expect(400)
+      .expect((response) => expect(response.body.code).toBe('EVENT_SERVICE_NOT_AVAILABLE'));
+
+    await prisma.event.update({ where: { id: secondEvent.body.id }, data: { status: EventStatus.CANCELLED } });
+    await patchAdminEvent(platformCookie, secondPlanner.clientId, secondEvent.body.id, { name: 'Too late' })
+      .expect(409)
+      .expect((response) => expect(response.body.code).toBe('EVENT_INVALID_STATE_TRANSITION'));
+    expect(await prisma.event.findUniqueOrThrow({ where: { id: secondEvent.body.id } })).toMatchObject({
+      name: 'Unchanged target',
+      status: EventStatus.CANCELLED
+    });
   });
 
   it('projects the contracted service independently from the current catalog and price availability', async () => {
@@ -229,7 +355,8 @@ describe('Events CRUD', () => {
       '/api/v1/events/{eventId}',
       '/api/v1/admin/events',
       '/api/v1/admin/events/{eventId}',
-      '/api/v1/admin/events/{eventId}/restore'
+      '/api/v1/admin/events/{eventId}/restore',
+      '/api/v1/admin/clients/{clientId}/events/{eventId}'
     ]) {
       expect(paths).toHaveProperty(path);
     }
@@ -249,6 +376,21 @@ describe('Events CRUD', () => {
       .set('Origin', trustedOrigin)
       .set('Cookie', cookie)
       .send(body);
+  }
+
+  function patchAdminEvent(
+    cookie: string,
+    clientId: string,
+    eventId: string,
+    body: Record<string, unknown>,
+    operationId?: string
+  ) {
+    const pending = request(app.getHttpServer())
+      .patch(`/api/v1/admin/clients/${clientId}/events/${eventId}`)
+      .set('Origin', trustedOrigin)
+      .set('Cookie', cookie)
+      .send(body);
+    return operationId ? pending.set('x-operation-id', operationId) : pending;
   }
 
   async function createClientUser(type: ClientType, role: UserRole) {

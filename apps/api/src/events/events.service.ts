@@ -136,7 +136,31 @@ export class EventsService {
     principal: AuthPrincipal,
     operationId?: string
   ): Promise<EventResponseDto> {
-    const current = await this.findOwnedEvent(this.prisma, eventId, principal);
+    return this.updatePreparation(eventId, input, principal, operationId, (database) =>
+      this.findOwnedEvent(database, eventId, principal)
+    );
+  }
+
+  async updateAdmin(
+    clientId: string,
+    eventId: string,
+    input: UpdateEventInput,
+    principal: AuthPrincipal,
+    operationId?: string
+  ): Promise<EventResponseDto> {
+    return this.updatePreparation(eventId, input, principal, operationId, (database) =>
+      this.findAdministrativeEventTarget(database, clientId, eventId)
+    );
+  }
+
+  private async updatePreparation(
+    eventId: string,
+    input: UpdateEventInput,
+    principal: AuthPrincipal,
+    operationId: string | undefined,
+    resolveTarget: (database: PrismaService | Prisma.TransactionClient) => Promise<EventWithService>
+  ): Promise<EventResponseDto> {
+    const current = await resolveTarget(this.prisma);
     if (!PREPARATION_STATUSES.includes(current.status)) {
       throw invalidEventState('Only Events in preparation may be edited.');
     }
@@ -152,7 +176,7 @@ export class EventsService {
       ...(operationId === undefined ? {} : { operationId }),
       mutate: async (transaction) => {
         await transaction.$queryRaw`SELECT "id" FROM "event" WHERE "id" = ${eventId}::uuid FOR UPDATE`;
-        const locked = await this.findOwnedEvent(transaction, eventId, principal);
+        const locked = await resolveTarget(transaction);
         if (!PREPARATION_STATUSES.includes(locked.status)) {
           throw invalidEventState('Only Events in preparation may be edited.');
         }
@@ -512,6 +536,21 @@ export class EventsService {
   ): Promise<EventWithService> {
     const event = await database.event.findFirst({
       where: activeWhere({ id: eventId, ...this.accessPolicy.ownedWhere(principal) }),
+      include: EVENT_SERVICE_INCLUDE
+    });
+    if (!event) {
+      throw eventNotFound();
+    }
+    return event;
+  }
+
+  private async findAdministrativeEventTarget(
+    database: PrismaService | Prisma.TransactionClient,
+    clientId: string,
+    eventId: string
+  ): Promise<EventWithService> {
+    const event = await database.event.findFirst({
+      where: activeWhere({ id: eventId, clientId }),
       include: EVENT_SERVICE_INCLUDE
     });
     if (!event) {
