@@ -60,6 +60,9 @@ const DESIGN_INCLUDE = {
 type DesignWithChildren = Prisma.InvitationDesignGetPayload<{ include: typeof DESIGN_INCLUDE }>;
 type HotspotRecord = DesignWithChildren['hotspots'][number];
 
+export type InvitationDesignTarget = { kind: 'PLANNER' } | { kind: 'ADMIN'; clientId: string };
+const PLANNER_TARGET: InvitationDesignTarget = { kind: 'PLANNER' };
+
 @Injectable()
 export class InvitationDesignService {
   constructor(
@@ -69,8 +72,12 @@ export class InvitationDesignService {
     @Inject(FileAssetsService) private readonly fileAssets: FileAssetsService
   ) {}
 
-  async get(eventId: string, principal: AuthPrincipal): Promise<InvitationDesignResponseDto> {
-    await this.requireOwnedEvent(this.prisma, eventId, principal, false);
+  async get(
+    eventId: string,
+    principal: AuthPrincipal,
+    target: InvitationDesignTarget = PLANNER_TARGET
+  ): Promise<InvitationDesignResponseDto> {
+    await this.requireTargetEvent(this.prisma, eventId, principal, target, false);
     const design = await this.prisma.invitationDesign.findFirst({
       where: { eventId, deletedAt: null },
       include: DESIGN_INCLUDE
@@ -81,8 +88,12 @@ export class InvitationDesignService {
     return toDesignResponse(design);
   }
 
-  async readiness(eventId: string, principal: AuthPrincipal): Promise<DesignReadinessResponseDto> {
-    const event = await this.requireOwnedEvent(this.prisma, eventId, principal, false);
+  async readiness(
+    eventId: string,
+    principal: AuthPrincipal,
+    target: InvitationDesignTarget = PLANNER_TARGET
+  ): Promise<DesignReadinessResponseDto> {
+    const event = await this.requireTargetEvent(this.prisma, eventId, principal, target, false);
     if (!event.service) {
       return { complete: false, designType: null, blockers: ['INVITATION_DESIGN_SERVICE_UNSUPPORTED'] };
     }
@@ -96,10 +107,11 @@ export class InvitationDesignService {
     eventId: string,
     input: CreateFlyerInput,
     principal: AuthPrincipal,
-    operationId?: string
+    operationId?: string,
+    target: InvitationDesignTarget = PLANNER_TARGET
   ): Promise<InvitationDesignResponseDto> {
     return this.serializable(async (transaction) => {
-      const event = await this.lockMutableEvent(transaction, eventId, principal, ServiceCode.FLYER);
+      const event = await this.lockMutableEvent(transaction, eventId, principal, target, ServiceCode.FLYER);
       await this.requireNoActiveDesign(transaction, eventId);
       await this.requireStagedAsset(
         transaction,
@@ -175,10 +187,11 @@ export class InvitationDesignService {
   async createFlipbook(
     eventId: string,
     principal: AuthPrincipal,
-    operationId?: string
+    operationId?: string,
+    target: InvitationDesignTarget = PLANNER_TARGET
   ): Promise<InvitationDesignResponseDto> {
     return this.serializable(async (transaction) => {
-      const event = await this.lockMutableEvent(transaction, eventId, principal, ServiceCode.FLIPBOOK);
+      const event = await this.lockMutableEvent(transaction, eventId, principal, target, ServiceCode.FLIPBOOK);
       await this.requireNoActiveDesign(transaction, eventId);
       const design = await transaction.invitationDesign.create({
         data: { eventId, type: InvitationDesignType.FLIPBOOK }
@@ -209,10 +222,11 @@ export class InvitationDesignService {
     variant: 'initial' | 'qr',
     input: ReplaceAssetInput,
     principal: AuthPrincipal,
-    operationId?: string
+    operationId?: string,
+    target: InvitationDesignTarget = PLANNER_TARGET
   ): Promise<InvitationDesignResponseDto> {
     return this.serializable(async (transaction) => {
-      const event = await this.lockMutableEvent(transaction, eventId, principal, ServiceCode.FLYER);
+      const event = await this.lockMutableEvent(transaction, eventId, principal, target, ServiceCode.FLYER);
       const design = await this.lockDesign(transaction, eventId, InvitationDesignType.FLYER);
       const field = variant === 'initial' ? 'flyerInitialAssetId' : 'flyerQrAssetId';
       const oldAssetId = design[field];
@@ -274,10 +288,11 @@ export class InvitationDesignService {
     eventId: string,
     input: AddPageInput,
     principal: AuthPrincipal,
-    operationId?: string
+    operationId?: string,
+    target: InvitationDesignTarget = PLANNER_TARGET
   ): Promise<InvitationDesignResponseDto> {
     return this.serializable(async (transaction) => {
-      const event = await this.lockMutableEvent(transaction, eventId, principal, ServiceCode.FLIPBOOK);
+      const event = await this.lockMutableEvent(transaction, eventId, principal, target, ServiceCode.FLIPBOOK);
       const design = await this.lockDesign(transaction, eventId, InvitationDesignType.FLIPBOOK);
       const pages = await transaction.flipbookPage.findMany({
         where: { designId: design.id, deletedAt: null },
@@ -343,10 +358,11 @@ export class InvitationDesignService {
     pageId: string,
     input: ReplaceAssetInput,
     principal: AuthPrincipal,
-    operationId?: string
+    operationId?: string,
+    target: InvitationDesignTarget = PLANNER_TARGET
   ): Promise<InvitationDesignResponseDto> {
     return this.serializable(async (transaction) => {
-      const event = await this.lockMutableEvent(transaction, eventId, principal, ServiceCode.FLIPBOOK);
+      const event = await this.lockMutableEvent(transaction, eventId, principal, target, ServiceCode.FLIPBOOK);
       const design = await this.lockDesign(transaction, eventId, InvitationDesignType.FLIPBOOK);
       const page = await this.lockPage(transaction, design.id, eventId, pageId);
       if (page.fileAssetId === input.assetId) {
@@ -410,10 +426,11 @@ export class InvitationDesignService {
     eventId: string,
     input: ReorderPagesInput,
     principal: AuthPrincipal,
-    operationId?: string
+    operationId?: string,
+    target: InvitationDesignTarget = PLANNER_TARGET
   ): Promise<InvitationDesignResponseDto> {
     return this.serializable(async (transaction) => {
-      const event = await this.lockMutableEvent(transaction, eventId, principal, ServiceCode.FLIPBOOK);
+      const event = await this.lockMutableEvent(transaction, eventId, principal, target, ServiceCode.FLIPBOOK);
       const design = await this.lockDesign(transaction, eventId, InvitationDesignType.FLIPBOOK);
       const pages = await transaction.flipbookPage.findMany({
         where: { designId: design.id, deletedAt: null },
@@ -473,10 +490,11 @@ export class InvitationDesignService {
     eventId: string,
     pageId: string,
     principal: AuthPrincipal,
-    operationId?: string
+    operationId?: string,
+    target: InvitationDesignTarget = PLANNER_TARGET
   ): Promise<InvitationDesignResponseDto> {
     return this.serializable(async (transaction) => {
-      const event = await this.lockMutableEvent(transaction, eventId, principal, ServiceCode.FLIPBOOK);
+      const event = await this.lockMutableEvent(transaction, eventId, principal, target, ServiceCode.FLIPBOOK);
       const design = await this.lockDesign(transaction, eventId, InvitationDesignType.FLIPBOOK);
       const page = await this.lockPage(transaction, design.id, eventId, pageId);
       const before = await resolveDesignReadiness(transaction, eventId, ServiceCode.FLIPBOOK);
@@ -533,10 +551,11 @@ export class InvitationDesignService {
     eventId: string,
     input: CreateHotspotInput,
     principal: AuthPrincipal,
-    operationId?: string
+    operationId?: string,
+    target: InvitationDesignTarget = PLANNER_TARGET
   ): Promise<HotspotResponseDto> {
     return this.serializable(async (transaction) => {
-      const event = await this.lockMutableEvent(transaction, eventId, principal);
+      const event = await this.lockMutableEvent(transaction, eventId, principal, target);
       const design = await this.lockDesignForService(transaction, eventId, event.service!.code);
       this.assertHotspotOwner(design.type, input.visualOwnerType, input.flipbookPageId);
       if (input.flipbookPageId) {
@@ -598,10 +617,11 @@ export class InvitationDesignService {
     hotspotId: string,
     input: UpdateHotspotInput,
     principal: AuthPrincipal,
-    operationId?: string
+    operationId?: string,
+    target: InvitationDesignTarget = PLANNER_TARGET
   ): Promise<HotspotResponseDto> {
     return this.serializable(async (transaction) => {
-      const event = await this.lockMutableEvent(transaction, eventId, principal);
+      const event = await this.lockMutableEvent(transaction, eventId, principal, target);
       const design = await this.lockDesignForService(transaction, eventId, event.service!.code);
       const current = await this.lockHotspot(transaction, design.id, eventId, hotspotId);
       if (input.url !== undefined && input.action === undefined && current.action !== HotspotAction.EXTERNAL_LINK) {
@@ -677,10 +697,11 @@ export class InvitationDesignService {
     eventId: string,
     hotspotId: string,
     principal: AuthPrincipal,
-    operationId?: string
+    operationId?: string,
+    target: InvitationDesignTarget = PLANNER_TARGET
   ): Promise<void> {
     await this.serializable(async (transaction) => {
-      const event = await this.lockMutableEvent(transaction, eventId, principal);
+      const event = await this.lockMutableEvent(transaction, eventId, principal, target);
       const design = await this.lockDesignForService(transaction, eventId, event.service!.code);
       const current = await this.lockHotspot(transaction, design.id, eventId, hotspotId);
       const before = await resolveDesignReadiness(transaction, eventId, event.service!.code);
@@ -720,10 +741,22 @@ export class InvitationDesignService {
     transaction: Prisma.TransactionClient,
     eventId: string,
     principal: AuthPrincipal,
+    target: InvitationDesignTarget,
     expectedService?: ServiceCode
   ) {
-    await transaction.$queryRaw`SELECT "id" FROM "event" WHERE "id" = ${eventId}::uuid FOR UPDATE`;
-    const event = await this.requireOwnedEvent(transaction, eventId, principal, true);
+    if (target.kind === 'ADMIN') {
+      const rows = await transaction.$queryRaw<Array<{ id: string }>>`
+        SELECT "id" FROM "event"
+        WHERE "id" = ${eventId}::uuid
+          AND "client_id" = ${target.clientId}::uuid
+          AND "deleted_at" IS NULL
+        FOR UPDATE
+      `;
+      if (rows.length === 0) throw eventNotFound();
+    } else {
+      await transaction.$queryRaw`SELECT "id" FROM "event" WHERE "id" = ${eventId}::uuid FOR UPDATE`;
+    }
+    const event = await this.requireTargetEvent(transaction, eventId, principal, target, true);
     if (!MUTABLE_EVENT_STATUSES.has(event.status)) {
       throw new DomainError(
         'INVITATION_DESIGN_EVENT_STATE_LOCKED',
@@ -748,17 +781,19 @@ export class InvitationDesignService {
     return event;
   }
 
-  private async requireOwnedEvent(
+  private async requireTargetEvent(
     database: PrismaService | Prisma.TransactionClient,
     eventId: string,
     principal: AuthPrincipal,
+    target: InvitationDesignTarget,
     requireService: boolean
   ) {
+    const scope = target.kind === 'ADMIN' ? { clientId: target.clientId } : this.eventAccess.ownedWhere(principal);
     const event = await database.event.findFirst({
       where: {
         id: eventId,
         deletedAt: null,
-        ...this.eventAccess.ownedWhere(principal)
+        ...scope
       },
       include: { service: true }
     });
