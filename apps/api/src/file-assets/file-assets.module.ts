@@ -13,6 +13,7 @@ import {
   InvitationFileAssetOwnerResolver
 } from './file-asset-owner.registry';
 import { FileImageValidator } from './file-image-validator';
+import { AdminFloorplanFileAssetsController } from './admin-floorplan-file-assets.controller';
 import { FileStorage } from './file-storage';
 import { FileAssetsController } from './file-assets.controller';
 import { FileAssetsScheduler } from './file-assets.scheduler';
@@ -30,7 +31,7 @@ import { LocalFileStorage } from './local-file-storage';
       })
     })
   ],
-  controllers: [FileAssetsController],
+  controllers: [AdminFloorplanFileAssetsController, FileAssetsController],
   providers: [
     FileAssetsService,
     FileAssetsScheduler,

@@ -649,10 +649,15 @@ describe('FileAssets and local storage', () => {
     for (const pathName of [
       '/api/v1/events/{eventId}/file-assets',
       '/api/v1/events/{eventId}/file-assets/{fileAssetId}',
-      '/api/v1/events/{eventId}/file-assets/{fileAssetId}/content'
+      '/api/v1/events/{eventId}/file-assets/{fileAssetId}/content',
+      '/api/v1/admin/clients/{clientId}/events/{eventId}/floorplan/file-assets',
+      '/api/v1/admin/clients/{clientId}/events/{eventId}/floorplan/file-assets/{fileAssetId}/content',
+      '/api/v1/admin/clients/{clientId}/events/{eventId}/floorplan/file-assets/{fileAssetId}'
     ]) {
       expect(document.paths).toHaveProperty(pathName);
     }
+    expect(document.paths).not.toHaveProperty('/api/v1/admin/clients/{clientId}/events/{eventId}/file-assets');
+    expect(document.paths).not.toHaveProperty('/api/v1/admin/clients/{clientId}/events/{eventId}/seating');
     const schema = document.components?.schemas?.FileAssetResponseDto as
       { properties?: Record<string, unknown> } | undefined;
     expect(schema?.properties).not.toHaveProperty('storageKey');
@@ -661,6 +666,96 @@ describe('FileAssets and local storage', () => {
       ?.responses?.['200'] as { headers?: Record<string, unknown> } | undefined;
     expect(contentResponse?.headers).toHaveProperty('Cache-Control');
     expect(contentResponse?.headers).toHaveProperty('X-Content-Type-Options');
+  });
+
+  it('restricts the administrative FileAsset surface to Floorplan images for the explicit target', async () => {
+    const owner = await createClientUser(UserRole.INDEPENDENT_PLANNER);
+    const event = await createEvent(owner);
+    const foreignOwner = await createClientUser(UserRole.INDEPENDENT_PLANNER);
+    const foreignEvent = await createEvent(foreignOwner);
+    const admin = await createUser(null, UserRole.PLATFORM_ADMIN);
+    const adminCookie = await login(admin.email);
+    const operationId = randomUUID();
+    const base = `/api/v1/admin/clients/${owner.clientId}/events/${event.id}/floorplan/file-assets`;
+
+    const uploaded = await request(app.getHttpServer())
+      .post(base)
+      .set('Cookie', adminCookie)
+      .set('Origin', trustedOrigin)
+      .set('x-operation-id', operationId)
+      .field('ownerType', 'FLYER')
+      .field('fileType', 'FLYER_INITIAL_IMAGE')
+      .attach('file', jpeg, { filename: 'floorplan.jpg', contentType: 'image/jpeg' })
+      .expect(201);
+    expect(uploaded.body).toMatchObject({
+      eventId: event.id,
+      ownerType: FileAssetOwnerType.FLOORPLAN,
+      fileType: FileAssetType.FLOORPLAN_IMAGE,
+      status: FileAssetStatus.READY
+    });
+    const audit = await prisma.auditLog.findFirstOrThrow({
+      where: { resourceId: uploaded.body.id, action: 'FILE_ASSET_UPLOAD_READY' }
+    });
+    expect(audit).toMatchObject({ actorId: admin.id, clientId: owner.clientId, eventId: event.id, operationId });
+
+    await createReadyImageAsset(event, owner.userId);
+    const listed = await request(app.getHttpServer()).get(base).set('Cookie', adminCookie).expect(200);
+    expect(listed.body).toHaveLength(1);
+    expect(listed.body[0].id).toBe(uploaded.body.id);
+
+    const content = await request(app.getHttpServer())
+      .get(`${base}/${uploaded.body.id}/content`)
+      .set('Cookie', adminCookie)
+      .buffer(true)
+      .expect(200);
+    expect(content.headers['cache-control']).toBe('private, no-store');
+    expect(content.headers['x-content-type-options']).toBe('nosniff');
+
+    const associatedUpload = await request(app.getHttpServer())
+      .post(base)
+      .set('Cookie', adminCookie)
+      .set('Origin', trustedOrigin)
+      .attach('file', png, { filename: 'associated.png', contentType: 'image/png' })
+      .expect(201);
+    await prisma.$transaction(async (transaction) => {
+      const floorplan = await transaction.floorplan.create({
+        data: { eventId: event.id, imageAssetId: associatedUpload.body.id }
+      });
+      await fileAssets.claimReadyAssetInTransaction(
+        transaction,
+        associatedUpload.body.id,
+        { ownerType: FileAssetOwnerType.FLOORPLAN, ownerId: floorplan.id },
+        admin.id
+      );
+    });
+    await request(app.getHttpServer())
+      .delete(`${base}/${associatedUpload.body.id}`)
+      .set('Cookie', adminCookie)
+      .set('Origin', trustedOrigin)
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('FILE_ASSET_ASSOCIATED'));
+
+    await request(app.getHttpServer())
+      .get(`/api/v1/admin/clients/${foreignOwner.clientId}/events/${event.id}/floorplan/file-assets`)
+      .set('Cookie', adminCookie)
+      .expect(404)
+      .expect(({ body }) => expect(body.code).toBe('EVENT_NOT_FOUND'));
+    await request(app.getHttpServer())
+      .get(
+        `/api/v1/admin/clients/${owner.clientId}/events/${foreignEvent.id}/floorplan/file-assets/${uploaded.body.id}/content`
+      )
+      .set('Cookie', adminCookie)
+      .expect(404);
+
+    await request(app.getHttpServer())
+      .delete(`${base}/${uploaded.body.id}`)
+      .set('Cookie', adminCookie)
+      .set('Origin', trustedOrigin)
+      .expect(204);
+    expect(await prisma.fileAsset.findUniqueOrThrow({ where: { id: uploaded.body.id } })).toMatchObject({
+      status: FileAssetStatus.DELETED,
+      deletedAt: expect.any(Date)
+    });
   });
 
   async function expectUploadError(

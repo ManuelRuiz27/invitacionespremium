@@ -24,4 +24,26 @@ export class FloorplanAccessService {
     if (!event) throw eventNotFound();
     return event;
   }
+
+  async requireAdministrativeEvent(
+    transaction: Prisma.TransactionClient,
+    clientId: string,
+    eventId: string,
+    lock = false
+  ): Promise<Event> {
+    if (lock) {
+      await transaction.$queryRaw`
+        SELECT "id" FROM "event"
+        WHERE "id" = ${eventId}::uuid
+          AND "client_id" = ${clientId}::uuid
+          AND "deleted_at" IS NULL
+        FOR UPDATE
+      `;
+    }
+    const event = await transaction.event.findFirst({
+      where: { id: eventId, clientId, deletedAt: null }
+    });
+    if (!event) throw eventNotFound();
+    return event;
+  }
 }

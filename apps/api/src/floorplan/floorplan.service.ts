@@ -82,6 +82,7 @@ const floorplanInclude = {
 } satisfies Prisma.FloorplanInclude;
 
 type FloorplanView = Prisma.FloorplanGetPayload<{ include: typeof floorplanInclude }>;
+type FloorplanTarget = { kind: 'PLANNER' } | { kind: 'ADMIN'; clientId: string };
 
 interface SeatingOutcome {
   response: SeatingMutationResponseDto;
@@ -108,8 +109,28 @@ export class FloorplanService {
     principal: AuthPrincipal,
     operationId?: string
   ): Promise<FloorplanResponseDto> {
+    return this.createForTarget(eventId, input, principal, { kind: 'PLANNER' }, operationId);
+  }
+
+  createAdministrative(
+    clientId: string,
+    eventId: string,
+    input: CreateFloorplanInput,
+    principal: AuthPrincipal,
+    operationId?: string
+  ): Promise<FloorplanResponseDto> {
+    return this.createForTarget(eventId, input, principal, { kind: 'ADMIN', clientId }, operationId);
+  }
+
+  private async createForTarget(
+    eventId: string,
+    input: CreateFloorplanInput,
+    principal: AuthPrincipal,
+    target: FloorplanTarget,
+    operationId?: string
+  ): Promise<FloorplanResponseDto> {
     return this.serializable(async (tx) => {
-      const event = await this.access.requireOwnedEvent(tx, eventId, principal, true);
+      const event = await this.requireTargetEvent(tx, eventId, principal, target, true);
       this.assertLayoutMutable(event);
       if (await tx.floorplan.findFirst({ where: { eventId, deletedAt: null }, select: { id: true } })) {
         throw floorplanError('FLOORPLAN_ALREADY_EXISTS', 'Event already has an active Floorplan.');
@@ -128,13 +149,25 @@ export class FloorplanService {
         imageAssetId: input.imageAssetId
       });
       await recomputeDigitalEventPreparationStatus(tx, eventId);
-      return toFloorplanResponse(await this.requireView(tx, eventId));
+      return this.toTargetResponse(await this.requireView(tx, eventId), target);
     });
   }
 
   async get(eventId: string, principal: AuthPrincipal): Promise<FloorplanResponseDto> {
-    await this.prisma.$transaction((tx) => this.access.requireOwnedEvent(tx, eventId, principal));
-    return toFloorplanResponse(await this.requireView(this.prisma, eventId));
+    return this.getForTarget(eventId, principal, { kind: 'PLANNER' });
+  }
+
+  getAdministrative(clientId: string, eventId: string, principal: AuthPrincipal): Promise<FloorplanResponseDto> {
+    return this.getForTarget(eventId, principal, { kind: 'ADMIN', clientId });
+  }
+
+  private async getForTarget(
+    eventId: string,
+    principal: AuthPrincipal,
+    target: FloorplanTarget
+  ): Promise<FloorplanResponseDto> {
+    await this.prisma.$transaction((tx) => this.requireTargetEvent(tx, eventId, principal, target));
+    return this.toTargetResponse(await this.requireView(this.prisma, eventId), target);
   }
 
   async seatingWorkspace(
@@ -339,12 +372,34 @@ export class FloorplanService {
     principal: AuthPrincipal,
     operationId?: string
   ): Promise<FloorplanResponseDto> {
+    return this.replaceImageForTarget(eventId, input, principal, { kind: 'PLANNER' }, operationId);
+  }
+
+  replaceImageAdministrative(
+    clientId: string,
+    eventId: string,
+    input: CreateFloorplanInput,
+    principal: AuthPrincipal,
+    operationId?: string
+  ): Promise<FloorplanResponseDto> {
+    return this.replaceImageForTarget(eventId, input, principal, { kind: 'ADMIN', clientId }, operationId);
+  }
+
+  private async replaceImageForTarget(
+    eventId: string,
+    input: CreateFloorplanInput,
+    principal: AuthPrincipal,
+    target: FloorplanTarget,
+    operationId?: string
+  ): Promise<FloorplanResponseDto> {
     return this.serializable(async (tx) => {
-      const event = await this.access.requireOwnedEvent(tx, eventId, principal, true);
+      const event = await this.requireTargetEvent(tx, eventId, principal, target, true);
       this.assertLayoutMutable(event);
       const current = await this.lockFloorplan(tx, eventId);
       this.assertUnlocked(current);
-      if (current.imageAssetId === input.imageAssetId) return toFloorplanResponse(await this.requireView(tx, eventId));
+      if (current.imageAssetId === input.imageAssetId) {
+        return this.toTargetResponse(await this.requireView(tx, eventId), target);
+      }
       await this.fileAssets.claimReadyAssetInTransaction(
         tx,
         input.imageAssetId,
@@ -366,16 +421,34 @@ export class FloorplanService {
         toImageAssetId: input.imageAssetId
       });
       await recomputeDigitalEventPreparationStatus(tx, eventId);
-      return toFloorplanResponse(await this.requireView(tx, eventId));
+      return this.toTargetResponse(await this.requireView(tx, eventId), target);
     });
   }
 
   lock(eventId: string, principal: AuthPrincipal, operationId?: string): Promise<FloorplanResponseDto> {
-    return this.changeLock(eventId, principal, true, operationId);
+    return this.changeLock(eventId, principal, { kind: 'PLANNER' }, true, operationId);
   }
 
   unlock(eventId: string, principal: AuthPrincipal, operationId?: string): Promise<FloorplanResponseDto> {
-    return this.changeLock(eventId, principal, false, operationId);
+    return this.changeLock(eventId, principal, { kind: 'PLANNER' }, false, operationId);
+  }
+
+  lockAdministrative(
+    clientId: string,
+    eventId: string,
+    principal: AuthPrincipal,
+    operationId?: string
+  ): Promise<FloorplanResponseDto> {
+    return this.changeLock(eventId, principal, { kind: 'ADMIN', clientId }, true, operationId);
+  }
+
+  unlockAdministrative(
+    clientId: string,
+    eventId: string,
+    principal: AuthPrincipal,
+    operationId?: string
+  ): Promise<FloorplanResponseDto> {
+    return this.changeLock(eventId, principal, { kind: 'ADMIN', clientId }, false, operationId);
   }
 
   async createShape(
@@ -384,8 +457,28 @@ export class FloorplanService {
     principal: AuthPrincipal,
     operationId?: string
   ): Promise<FloorplanShapeResponseDto> {
+    return this.createShapeForTarget(eventId, input, principal, { kind: 'PLANNER' }, operationId);
+  }
+
+  createShapeAdministrative(
+    clientId: string,
+    eventId: string,
+    input: FloorplanShapeInput,
+    principal: AuthPrincipal,
+    operationId?: string
+  ): Promise<FloorplanShapeResponseDto> {
+    return this.createShapeForTarget(eventId, input, principal, { kind: 'ADMIN', clientId }, operationId);
+  }
+
+  private async createShapeForTarget(
+    eventId: string,
+    input: FloorplanShapeInput,
+    principal: AuthPrincipal,
+    target: FloorplanTarget,
+    operationId?: string
+  ): Promise<FloorplanShapeResponseDto> {
     return this.serializable(async (tx) => {
-      const event = await this.access.requireOwnedEvent(tx, eventId, principal, true);
+      const event = await this.requireTargetEvent(tx, eventId, principal, target, true);
       this.assertLayoutMutable(event);
       const floorplan = await this.lockFloorplan(tx, eventId);
       this.assertUnlocked(floorplan);
@@ -403,8 +496,30 @@ export class FloorplanService {
     principal: AuthPrincipal,
     operationId?: string
   ): Promise<FloorplanShapeResponseDto> {
+    return this.updateShapeForTarget(eventId, shapeId, input, principal, { kind: 'PLANNER' }, operationId);
+  }
+
+  updateShapeAdministrative(
+    clientId: string,
+    eventId: string,
+    shapeId: string,
+    input: UpdateFloorplanShapeInput,
+    principal: AuthPrincipal,
+    operationId?: string
+  ): Promise<FloorplanShapeResponseDto> {
+    return this.updateShapeForTarget(eventId, shapeId, input, principal, { kind: 'ADMIN', clientId }, operationId);
+  }
+
+  private async updateShapeForTarget(
+    eventId: string,
+    shapeId: string,
+    input: UpdateFloorplanShapeInput,
+    principal: AuthPrincipal,
+    target: FloorplanTarget,
+    operationId?: string
+  ): Promise<FloorplanShapeResponseDto> {
     return this.serializable(async (tx) => {
-      const event = await this.access.requireOwnedEvent(tx, eventId, principal, true);
+      const event = await this.requireTargetEvent(tx, eventId, principal, target, true);
       this.assertLayoutMutable(event);
       const floorplan = await this.lockFloorplan(tx, eventId);
       this.assertUnlocked(floorplan);
@@ -441,8 +556,28 @@ export class FloorplanService {
   }
 
   async deleteShape(eventId: string, shapeId: string, principal: AuthPrincipal, operationId?: string): Promise<void> {
+    return this.deleteShapeForTarget(eventId, shapeId, principal, { kind: 'PLANNER' }, operationId);
+  }
+
+  deleteShapeAdministrative(
+    clientId: string,
+    eventId: string,
+    shapeId: string,
+    principal: AuthPrincipal,
+    operationId?: string
+  ): Promise<void> {
+    return this.deleteShapeForTarget(eventId, shapeId, principal, { kind: 'ADMIN', clientId }, operationId);
+  }
+
+  private async deleteShapeForTarget(
+    eventId: string,
+    shapeId: string,
+    principal: AuthPrincipal,
+    target: FloorplanTarget,
+    operationId?: string
+  ): Promise<void> {
     await this.serializable(async (tx) => {
-      const event = await this.access.requireOwnedEvent(tx, eventId, principal, true);
+      const event = await this.requireTargetEvent(tx, eventId, principal, target, true);
       this.assertLayoutMutable(event);
       const floorplan = await this.lockFloorplan(tx, eventId);
       this.assertUnlocked(floorplan);
@@ -721,15 +856,16 @@ export class FloorplanService {
   private async changeLock(
     eventId: string,
     principal: AuthPrincipal,
+    target: FloorplanTarget,
     lock: boolean,
     operationId?: string
   ): Promise<FloorplanResponseDto> {
     return this.serializable(async (tx) => {
-      const event = await this.access.requireOwnedEvent(tx, eventId, principal, true);
+      const event = await this.requireTargetEvent(tx, eventId, principal, target, true);
       this.assertLayoutMutable(event);
       const floorplan = await this.lockFloorplan(tx, eventId);
       if ((lock && floorplan.lockedAt) || (!lock && !floorplan.lockedAt)) {
-        return toFloorplanResponse(await this.requireView(tx, eventId));
+        return this.toTargetResponse(await this.requireView(tx, eventId), target);
       }
       await tx.floorplan.update({
         where: { id: floorplan.id },
@@ -746,8 +882,29 @@ export class FloorplanService {
         floorplan.id,
         { floorplanId: floorplan.id, locked: lock }
       );
-      return toFloorplanResponse(await this.requireView(tx, eventId));
+      return this.toTargetResponse(await this.requireView(tx, eventId), target);
     });
+  }
+
+  private requireTargetEvent(
+    tx: Prisma.TransactionClient,
+    eventId: string,
+    principal: AuthPrincipal,
+    target: FloorplanTarget,
+    lock = false
+  ): Promise<Event> {
+    return target.kind === 'ADMIN'
+      ? this.access.requireAdministrativeEvent(tx, target.clientId, eventId, lock)
+      : this.access.requireOwnedEvent(tx, eventId, principal, lock);
+  }
+
+  private toTargetResponse(floorplan: FloorplanView, target: FloorplanTarget): FloorplanResponseDto {
+    return target.kind === 'ADMIN'
+      ? toFloorplanResponse(
+          floorplan,
+          `/api/v1/admin/clients/${target.clientId}/events/${floorplan.eventId}/floorplan/file-assets/${floorplan.imageAssetId}/content`
+        )
+      : toFloorplanResponse(floorplan);
   }
 
   private async lockFloorplan(tx: Prisma.TransactionClient, eventId: string): Promise<Floorplan> {
@@ -934,13 +1091,13 @@ function shapeAudit(shape: FloorplanShape): Record<string, unknown> {
   };
 }
 
-export function toFloorplanResponse(floorplan: FloorplanView): FloorplanResponseDto {
+export function toFloorplanResponse(floorplan: FloorplanView, contentPath?: string): FloorplanResponseDto {
   return {
     id: floorplan.id,
     eventId: floorplan.eventId,
     image: {
       fileAssetId: floorplan.imageAssetId,
-      contentPath: `/api/v1/events/${floorplan.eventId}/file-assets/${floorplan.imageAssetId}/content`
+      contentPath: contentPath ?? `/api/v1/events/${floorplan.eventId}/file-assets/${floorplan.imageAssetId}/content`
     },
     locked: floorplan.lockedAt !== null,
     lockedAt: floorplan.lockedAt?.toISOString() ?? null,

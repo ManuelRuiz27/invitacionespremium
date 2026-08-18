@@ -12,6 +12,7 @@ import { EventAccessPolicy, eventNotFound } from '../events/event-access.policy'
 import {
   AuditActorType,
   EventStatus,
+  FileAssetOwnerType,
   FileAssetStatus,
   FileAssetType,
   StorageProvider,
@@ -85,6 +86,37 @@ export class FileAssetsService {
       throw fileError('FILE_UNSUPPORTED_TYPE', 'Only JPEG and PNG image uploads are accepted.');
     }
     const event = await this.requireOwnedEvent(eventId, principal);
+    return this.uploadImageForEvent(event, input, file, principal.userId, operationId);
+  }
+
+  async uploadAdministrativeFloorplanImage(
+    clientId: string,
+    eventId: string,
+    file: UploadedImageFile | undefined,
+    principal: AuthPrincipal,
+    operationId?: string
+  ): Promise<FileAssetResponseDto> {
+    if (!file) {
+      throw fileError('FILE_UNSUPPORTED_TYPE', 'Only JPEG and PNG image uploads are accepted.');
+    }
+    const event = await this.requireAdministrativeEvent(clientId, eventId);
+    return this.uploadImageForEvent(
+      event,
+      { ownerType: FileAssetOwnerType.FLOORPLAN, fileType: FileAssetType.FLOORPLAN_IMAGE },
+      file,
+      principal.userId,
+      operationId
+    );
+  }
+
+  private async uploadImageForEvent(
+    event: { id: string; clientId: string; status: EventStatus },
+    input: UploadFileAssetInput,
+    file: UploadedImageFile,
+    actorUserId: string,
+    operationId?: string
+  ): Promise<FileAssetResponseDto> {
+    const eventId = event.id;
     const operationalFloorplanUpload =
       input.fileType === FileAssetType.FLOORPLAN_IMAGE &&
       (event.status === EventStatus.ACTIVE || event.status === EventStatus.EVENT_DAY);
@@ -114,7 +146,7 @@ export class FileAssetsService {
         originalName: safeOriginalName(file.originalname),
         mimeType: 'application/octet-stream',
         sizeBytes: 0,
-        createdByUserId: principal.userId,
+        createdByUserId: actorUserId,
         status: FileAssetStatus.UPLOADING
       }
     });
@@ -137,7 +169,7 @@ export class FileAssetsService {
           }
         });
         await this.audit.record(
-          fileAssetAudit(asset, principal.userId, 'FILE_ASSET_UPLOAD_READY', operationId),
+          fileAssetAudit(asset, actorUserId, 'FILE_ASSET_UPLOAD_READY', operationId),
           transaction
         );
         return asset;
@@ -147,9 +179,56 @@ export class FileAssetsService {
       if (wroteBytes) {
         await this.storage.delete(storageKey).catch(() => undefined);
       }
-      await this.markFailed(staged, failureCode(error), principal.userId, operationId);
+      await this.markFailed(staged, failureCode(error), actorUserId, operationId);
       throw error;
     }
+  }
+
+  async listAdministrativeFloorplanImages(clientId: string, eventId: string): Promise<FileAssetResponseDto[]> {
+    await this.requireAdministrativeEvent(clientId, eventId);
+    const assets = await this.prisma.fileAsset.findMany({
+      where: {
+        clientId,
+        eventId,
+        ownerType: FileAssetOwnerType.FLOORPLAN,
+        fileType: FileAssetType.FLOORPLAN_IMAGE,
+        deletedAt: null
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'asc' }]
+    });
+    return assets.map(toFileAssetResponse);
+  }
+
+  async administrativeFloorplanContent(
+    clientId: string,
+    eventId: string,
+    fileAssetId: string
+  ): Promise<FileAssetContent> {
+    await this.requireAdministrativeEvent(clientId, eventId);
+    const asset = await this.requireAdministrativeFloorplanAsset(clientId, eventId, fileAssetId, false);
+    if (asset.status !== FileAssetStatus.READY || !asset.checksumSha256) {
+      throw new ConflictException({
+        code: 'FILE_NOT_READY',
+        message: 'File asset content is not available.'
+      });
+    }
+    return {
+      bytes: await this.storage.read(asset.storageKey),
+      mimeType: asset.mimeType,
+      sizeBytes: asset.sizeBytes,
+      etag: `"sha256-${asset.checksumSha256.slice(0, 32)}"`
+    };
+  }
+
+  async softDeleteAdministrativeFloorplanImage(
+    clientId: string,
+    eventId: string,
+    fileAssetId: string,
+    principal: AuthPrincipal,
+    operationId?: string
+  ): Promise<void> {
+    await this.requireAdministrativeEvent(clientId, eventId);
+    await this.softDeleteAsset(eventId, fileAssetId, principal.userId, operationId, clientId);
   }
 
   async list(eventId: string, principal: AuthPrincipal): Promise<FileAssetResponseDto[]> {
@@ -191,6 +270,16 @@ export class FileAssetsService {
     operationId?: string
   ): Promise<void> {
     await this.requireOwnedEvent(eventId, principal);
+    await this.softDeleteAsset(eventId, fileAssetId, principal.userId, operationId);
+  }
+
+  private async softDeleteAsset(
+    eventId: string,
+    fileAssetId: string,
+    actorUserId: string,
+    operationId?: string,
+    administrativeClientId?: string
+  ): Promise<void> {
     await this.serializable(async (transaction) => {
       await transaction.$queryRaw`
         SELECT "id"
@@ -199,7 +288,17 @@ export class FileAssetsService {
         FOR UPDATE
       `;
       const current = await transaction.fileAsset.findFirst({
-        where: { id: fileAssetId, eventId }
+        where: {
+          id: fileAssetId,
+          eventId,
+          ...(administrativeClientId
+            ? {
+                clientId: administrativeClientId,
+                ownerType: FileAssetOwnerType.FLOORPLAN,
+                fileType: FileAssetType.FLOORPLAN_IMAGE
+              }
+            : {})
+        }
       });
       if (!current) {
         throw fileAssetNotFound();
@@ -224,10 +323,7 @@ export class FileAssetsService {
           deletedAt: new Date()
         }
       });
-      await this.audit.record(
-        fileAssetAudit(asset, principal.userId, 'FILE_ASSET_SOFT_DELETE', operationId),
-        transaction
-      );
+      await this.audit.record(fileAssetAudit(asset, actorUserId, 'FILE_ASSET_SOFT_DELETE', operationId), transaction);
     });
   }
 
@@ -474,6 +570,35 @@ export class FileAssetsService {
       throw eventNotFound();
     }
     return event;
+  }
+
+  private async requireAdministrativeEvent(clientId: string, eventId: string) {
+    const event = await this.prisma.event.findFirst({
+      where: { id: eventId, clientId, deletedAt: null },
+      select: { id: true, clientId: true, status: true }
+    });
+    if (!event) throw eventNotFound();
+    return event;
+  }
+
+  private async requireAdministrativeFloorplanAsset(
+    clientId: string,
+    eventId: string,
+    fileAssetId: string,
+    includeDeleted: boolean
+  ): Promise<FileAsset> {
+    const asset = await this.prisma.fileAsset.findFirst({
+      where: {
+        id: fileAssetId,
+        clientId,
+        eventId,
+        ownerType: FileAssetOwnerType.FLOORPLAN,
+        fileType: FileAssetType.FLOORPLAN_IMAGE,
+        ...(includeDeleted ? {} : { deletedAt: null })
+      }
+    });
+    if (!asset) throw fileAssetNotFound();
+    return asset;
   }
 
   private async requireEventAsset(eventId: string, fileAssetId: string, includeDeleted: boolean): Promise<FileAsset> {

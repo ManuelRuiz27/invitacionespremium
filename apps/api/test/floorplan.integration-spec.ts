@@ -36,6 +36,7 @@ import { PublicRsvpService } from '../src/public-rsvp/public-rsvp.service';
 import { RealtimePublisherService } from '../src/realtime/realtime-publisher.service';
 import { RealtimeServerService } from '../src/realtime/realtime-server.service';
 import { ScannerService } from '../src/scanner/scanner.service';
+import { createOpenApiDocument } from '../src/openapi/openapi';
 
 const isolatedStorage = vi.hoisted(() => {
   const systemTemp =
@@ -1498,6 +1499,190 @@ describe('Floorplan and seating', () => {
     });
   });
 
+  it('operates the administrative Floorplan target without exposing Planner Seating', async () => {
+    const fixture = await createFixture();
+    const foreign = await createFixture();
+    const admin = await prisma.user.create({
+      data: {
+        email: `${randomUUID()}@example.test`,
+        passwordHash: await hashPassword('correct horse battery staple'),
+        role: UserRole.PLATFORM_ADMIN
+      }
+    });
+    const cookie = await login(admin.email);
+    const base = `/api/v1/admin/clients/${fixture.client.id}/events/${fixture.event.id}/floorplan`;
+    const operationId = randomUUID();
+    const firstAsset = await createAsset(fixture, 'admin-first');
+
+    const created = await request(app.getHttpServer())
+      .post(base)
+      .set('Cookie', cookie)
+      .set('Origin', 'http://localhost:5173')
+      .set('x-operation-id', operationId)
+      .send({ imageAssetId: firstAsset.id })
+      .expect(201);
+    expect(created.body).toMatchObject({
+      eventId: fixture.event.id,
+      image: {
+        fileAssetId: firstAsset.id,
+        contentPath: `${base}/file-assets/${firstAsset.id}/content`
+      }
+    });
+    const createAudit = await prisma.auditLog.findFirstOrThrow({
+      where: { action: 'FLOORPLAN_CREATE', resourceId: created.body.id }
+    });
+    expect(createAudit).toMatchObject({
+      actorId: admin.id,
+      clientId: fixture.client.id,
+      eventId: fixture.event.id,
+      operationId
+    });
+
+    await request(app.getHttpServer()).get(base).set('Cookie', cookie).expect(200);
+    for (const target of [
+      `/api/v1/admin/clients/${foreign.client.id}/events/${fixture.event.id}/floorplan`,
+      `/api/v1/admin/clients/${fixture.client.id}/events/${randomUUID()}/floorplan`,
+      `/api/v1/admin/clients/${randomUUID()}/events/${fixture.event.id}/floorplan`
+    ]) {
+      await request(app.getHttpServer())
+        .get(target)
+        .set('Cookie', cookie)
+        .expect(404)
+        .expect(({ body }) => expect(body.code).toBe('EVENT_NOT_FOUND'));
+    }
+
+    const shape = await request(app.getHttpServer())
+      .post(`${base}/shapes`)
+      .set('Cookie', cookie)
+      .set('Origin', 'http://localhost:5173')
+      .send({
+        kind: FloorplanShapeKind.TABLE,
+        geometry: FloorplanGeometry.CIRCLE,
+        name: 'Mesa admin',
+        capacity: 2,
+        x: 0.1,
+        y: 0.1,
+        width: 0.2,
+        height: 0.2,
+        rotation: 0,
+        polygonPoints: null
+      })
+      .expect(201);
+    await request(app.getHttpServer())
+      .patch(`${base}/shapes/${shape.body.id}`)
+      .set('Cookie', cookie)
+      .set('Origin', 'http://localhost:5173')
+      .send({ name: 'Mesa actualizada' })
+      .expect(200)
+      .expect(({ body }) => expect(body.name).toBe('Mesa actualizada'));
+
+    await request(app.getHttpServer())
+      .post(`${base}/lock`)
+      .set('Cookie', cookie)
+      .set('Origin', 'http://localhost:5173')
+      .expect(201)
+      .expect(({ body }) => expect(body.locked).toBe(true));
+    await request(app.getHttpServer())
+      .patch(`${base}/shapes/${shape.body.id}`)
+      .set('Cookie', cookie)
+      .set('Origin', 'http://localhost:5173')
+      .send({ capacity: 3 })
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('FLOORPLAN_LAYOUT_LOCKED'));
+    await request(app.getHttpServer())
+      .post(`${base}/unlock`)
+      .set('Cookie', cookie)
+      .set('Origin', 'http://localhost:5173')
+      .expect(201);
+
+    await floorplan.assign(
+      fixture.event.id,
+      randomUUID(),
+      { assistantIds: [fixture.assistants[0]!.id], tableShapeId: shape.body.id },
+      fixture.principal
+    );
+    await request(app.getHttpServer())
+      .delete(`${base}/shapes/${shape.body.id}`)
+      .set('Cookie', cookie)
+      .set('Origin', 'http://localhost:5173')
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('FLOORPLAN_TABLE_OCCUPIED'));
+
+    const foreignAsset = await createAsset(foreign, 'foreign-admin');
+    await request(app.getHttpServer())
+      .patch(base)
+      .set('Cookie', cookie)
+      .set('Origin', 'http://localhost:5173')
+      .send({ imageAssetId: foreignAsset.id })
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('FILE_OWNER_MISMATCH'));
+    expect((await prisma.floorplan.findFirstOrThrow({ where: { eventId: fixture.event.id } })).imageAssetId).toBe(
+      firstAsset.id
+    );
+
+    const secondAsset = await createAsset(fixture, 'admin-second');
+    await request(app.getHttpServer())
+      .patch(base)
+      .set('Cookie', cookie)
+      .set('Origin', 'http://localhost:5173')
+      .send({ imageAssetId: secondAsset.id })
+      .expect(200)
+      .expect(({ body }) => expect(body.image.contentPath).toContain('/api/v1/admin/clients/'));
+    expect(await prisma.fileAsset.findUniqueOrThrow({ where: { id: firstAsset.id } })).toMatchObject({
+      status: FileAssetStatus.HIDDEN
+    });
+
+    await prisma.event.update({ where: { id: fixture.event.id }, data: { status: EventStatus.CLOSED } });
+    await request(app.getHttpServer())
+      .post(`${base}/shapes`)
+      .set('Cookie', cookie)
+      .set('Origin', 'http://localhost:5173')
+      .send({
+        kind: FloorplanShapeKind.TABLE,
+        geometry: FloorplanGeometry.CIRCLE,
+        name: 'Estado bloqueado',
+        capacity: 1,
+        x: 0.5,
+        y: 0.5,
+        width: 0.1,
+        height: 0.1,
+        rotation: 0,
+        polygonPoints: null
+      })
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('FLOORPLAN_EVENT_STATE_LOCKED'));
+
+    await request(app.getHttpServer())
+      .get(`/api/v1/events/${fixture.event.id}/floorplan`)
+      .set('Cookie', cookie)
+      .expect(403);
+    await request(app.getHttpServer())
+      .get(`/api/v1/events/${fixture.event.id}/seating?scope=UNASSIGNED`)
+      .set('Cookie', cookie)
+      .expect(403);
+    await request(app.getHttpServer())
+      .get(`/api/v1/admin/clients/${fixture.client.id}/events/${fixture.event.id}/seating`)
+      .set('Cookie', cookie)
+      .expect(404);
+    await expect(floorplan.get(fixture.event.id, fixture.principal)).resolves.toMatchObject({
+      eventId: fixture.event.id
+    });
+  });
+
+  it('publishes only the authorized administrative Floorplan routes in OpenAPI', () => {
+    const paths = createOpenApiDocument(app).paths;
+    for (const pathName of [
+      '/api/v1/admin/clients/{clientId}/events/{eventId}/floorplan',
+      '/api/v1/admin/clients/{clientId}/events/{eventId}/floorplan/lock',
+      '/api/v1/admin/clients/{clientId}/events/{eventId}/floorplan/unlock',
+      '/api/v1/admin/clients/{clientId}/events/{eventId}/floorplan/shapes',
+      '/api/v1/admin/clients/{clientId}/events/{eventId}/floorplan/shapes/{shapeId}'
+    ]) {
+      expect(paths).toHaveProperty(pathName);
+    }
+    expect(paths).not.toHaveProperty('/api/v1/admin/clients/{clientId}/events/{eventId}/seating');
+  });
+
   async function createFixture(
     options: {
       secondFamily?: boolean;
@@ -1840,6 +2025,18 @@ describe('Floorplan and seating', () => {
       await new Promise<void>((resolve) => setImmediate(resolve));
     }
     expect(tracked.isSettled()).toBe(false);
+  }
+
+  async function login(email: string): Promise<string> {
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .set('Origin', 'http://localhost:5173')
+      .send({ email, password: 'correct horse battery staple' })
+      .expect(200);
+    const raw = response.headers['set-cookie'];
+    const cookie = (Array.isArray(raw) ? raw[0] : raw)?.split(';')[0];
+    if (!cookie) throw new Error('Missing session cookie.');
+    return cookie;
   }
 
   async function resetDatabase() {
