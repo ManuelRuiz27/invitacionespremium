@@ -19,11 +19,20 @@ import {
   type FileAsset,
   type Prisma
 } from '../generated/prisma/client';
-import { assertCompatibleFileAssetType, USER_IMAGE_FILE_TYPES } from './file-asset-compatibility';
+import {
+  ADMIN_INVITATION_IMAGE_FILE_TYPES,
+  administrativeInvitationOwnerType,
+  assertCompatibleFileAssetType,
+  USER_IMAGE_FILE_TYPES
+} from './file-asset-compatibility';
 import { FileAssetOwnerRegistry, type FileAssetOwnerReference, ownerMismatch } from './file-asset-owner.registry';
 import { FileImageValidator } from './file-image-validator';
 import { FileStorage } from './file-storage';
-import type { FileAssetResponseDto, UploadFileAssetInput } from './file-assets.dto';
+import type {
+  AdministrativeInvitationUploadInput,
+  FileAssetResponseDto,
+  UploadFileAssetInput
+} from './file-assets.dto';
 
 const UPLOAD_EVENT_STATUSES = new Set<EventStatus>([
   EventStatus.DRAFT,
@@ -103,6 +112,27 @@ export class FileAssetsService {
     return this.uploadImageForEvent(
       event,
       { ownerType: FileAssetOwnerType.FLOORPLAN, fileType: FileAssetType.FLOORPLAN_IMAGE },
+      file,
+      principal.userId,
+      operationId
+    );
+  }
+
+  async uploadAdministrativeInvitationImage(
+    clientId: string,
+    eventId: string,
+    input: AdministrativeInvitationUploadInput,
+    file: UploadedImageFile | undefined,
+    principal: AuthPrincipal,
+    operationId?: string
+  ): Promise<FileAssetResponseDto> {
+    if (!ADMIN_INVITATION_IMAGE_FILE_TYPES.has(input.fileType) || !file) {
+      throw fileError('FILE_UNSUPPORTED_TYPE', 'Only authorized Flyer and Flipbook JPEG/PNG uploads are accepted.');
+    }
+    const event = await this.requireAdministrativeEvent(clientId, eventId);
+    return this.uploadImageForEvent(
+      event,
+      { ownerType: administrativeInvitationOwnerType(input.fileType), fileType: input.fileType },
       file,
       principal.userId,
       operationId
@@ -228,7 +258,60 @@ export class FileAssetsService {
     operationId?: string
   ): Promise<void> {
     await this.requireAdministrativeEvent(clientId, eventId);
-    await this.softDeleteAsset(eventId, fileAssetId, principal.userId, operationId, clientId);
+    await this.softDeleteAsset(eventId, fileAssetId, principal.userId, operationId, {
+      clientId,
+      ownerType: FileAssetOwnerType.FLOORPLAN,
+      fileType: FileAssetType.FLOORPLAN_IMAGE
+    });
+  }
+
+  async listAdministrativeInvitationImages(clientId: string, eventId: string): Promise<FileAssetResponseDto[]> {
+    await this.requireAdministrativeEvent(clientId, eventId);
+    const assets = await this.prisma.fileAsset.findMany({
+      where: {
+        clientId,
+        eventId,
+        deletedAt: null,
+        OR: administrativeInvitationAssetPairs()
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'asc' }]
+    });
+    return assets.map(toFileAssetResponse);
+  }
+
+  async administrativeInvitationContent(
+    clientId: string,
+    eventId: string,
+    fileAssetId: string
+  ): Promise<FileAssetContent> {
+    await this.requireAdministrativeEvent(clientId, eventId);
+    const asset = await this.requireAdministrativeInvitationAsset(clientId, eventId, fileAssetId, false);
+    if (asset.status !== FileAssetStatus.READY || !asset.checksumSha256) {
+      throw new ConflictException({
+        code: 'FILE_NOT_READY',
+        message: 'File asset content is not available.'
+      });
+    }
+    return {
+      bytes: await this.storage.read(asset.storageKey),
+      mimeType: asset.mimeType,
+      sizeBytes: asset.sizeBytes,
+      etag: `"sha256-${asset.checksumSha256.slice(0, 32)}"`
+    };
+  }
+
+  async softDeleteAdministrativeInvitationImage(
+    clientId: string,
+    eventId: string,
+    fileAssetId: string,
+    principal: AuthPrincipal,
+    operationId?: string
+  ): Promise<void> {
+    await this.requireAdministrativeEvent(clientId, eventId);
+    await this.softDeleteAsset(eventId, fileAssetId, principal.userId, operationId, {
+      clientId,
+      OR: administrativeInvitationAssetPairs()
+    });
   }
 
   async list(eventId: string, principal: AuthPrincipal): Promise<FileAssetResponseDto[]> {
@@ -278,7 +361,7 @@ export class FileAssetsService {
     fileAssetId: string,
     actorUserId: string,
     operationId?: string,
-    administrativeClientId?: string
+    administrativeWhere?: Prisma.FileAssetWhereInput
   ): Promise<void> {
     await this.serializable(async (transaction) => {
       await transaction.$queryRaw`
@@ -291,13 +374,7 @@ export class FileAssetsService {
         where: {
           id: fileAssetId,
           eventId,
-          ...(administrativeClientId
-            ? {
-                clientId: administrativeClientId,
-                ownerType: FileAssetOwnerType.FLOORPLAN,
-                fileType: FileAssetType.FLOORPLAN_IMAGE
-              }
-            : {})
+          ...(administrativeWhere ?? {})
         }
       });
       if (!current) {
@@ -601,6 +678,25 @@ export class FileAssetsService {
     return asset;
   }
 
+  private async requireAdministrativeInvitationAsset(
+    clientId: string,
+    eventId: string,
+    fileAssetId: string,
+    includeDeleted: boolean
+  ): Promise<FileAsset> {
+    const asset = await this.prisma.fileAsset.findFirst({
+      where: {
+        id: fileAssetId,
+        clientId,
+        eventId,
+        OR: administrativeInvitationAssetPairs(),
+        ...(includeDeleted ? {} : { deletedAt: null })
+      }
+    });
+    if (!asset) throw fileAssetNotFound();
+    return asset;
+  }
+
   private async requireEventAsset(eventId: string, fileAssetId: string, includeDeleted: boolean): Promise<FileAsset> {
     const asset = await this.prisma.fileAsset.findFirst({
       where: {
@@ -630,6 +726,13 @@ export class FileAssetsService {
       }, CRITICAL_TRANSACTION_OPTIONS)
       .catch(() => undefined);
   }
+}
+
+function administrativeInvitationAssetPairs(): Prisma.FileAssetWhereInput[] {
+  return [...ADMIN_INVITATION_IMAGE_FILE_TYPES].map((fileType) => ({
+    fileType,
+    ownerType: administrativeInvitationOwnerType(fileType)
+  }));
 }
 
 function fileAssetNotFound(): NotFoundException {
