@@ -762,6 +762,7 @@ describe('PhysicalPasses', () => {
     const owner = await createClientOwner(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
     const service = await createPhysicalServiceWithPrice(ClientType.PLANNER);
     const cookie = await login(owner.email);
+    const providerCookie = await login((await createUser(UserRole.PLATFORM_ADMIN, null)).email);
     const created = await request(app.getHttpServer())
       .post('/api/v1/events')
       .set('Cookie', cookie)
@@ -781,23 +782,24 @@ describe('PhysicalPasses', () => {
     })
       .png()
       .toBuffer();
+    const providerBase = `/api/v1/admin/clients/${owner.clientId}/events/${created.body.id}`;
     const asset = await request(app.getHttpServer())
-      .post(`/api/v1/events/${created.body.id}/file-assets`)
-      .set('Cookie', cookie)
+      .post(`${providerBase}/floorplan/file-assets`)
+      .set('Cookie', providerCookie)
       .set('Origin', origin)
       .field('ownerType', 'FLOORPLAN')
       .field('fileType', 'FLOORPLAN_IMAGE')
       .attach('file', image, { filename: 'croquis.png', contentType: 'image/png' })
       .expect(201);
     await request(app.getHttpServer())
-      .post(`/api/v1/events/${created.body.id}/floorplan`)
-      .set('Cookie', cookie)
+      .post(`${providerBase}/floorplan`)
+      .set('Cookie', providerCookie)
       .set('Origin', origin)
       .send({ imageAssetId: asset.body.id })
       .expect(201);
     const table = await request(app.getHttpServer())
-      .post(`/api/v1/events/${created.body.id}/floorplan/shapes`)
-      .set('Cookie', cookie)
+      .post(`${providerBase}/floorplan/shapes`)
+      .set('Cookie', providerCookie)
       .set('Origin', origin)
       .send({
         kind: FloorplanShapeKind.TABLE,

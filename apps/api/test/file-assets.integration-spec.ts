@@ -91,28 +91,29 @@ describe('FileAssets and local storage', () => {
   it('uploads real JPG/PNG, derives safe metadata, serves content and soft-deletes idempotently', async () => {
     const owner = await createClientUser(UserRole.INDEPENDENT_PLANNER);
     const event = await createEvent(owner);
+    await setActivatedStatus(event, owner, EventStatus.ACTIVE);
     const cookie = await login(owner.email);
 
     const jpgResponse = await upload(event.id, cookie, {
       file: jpeg,
       filename: '..\\..\\private-name.jpg',
       contentType: 'text/html',
-      ownerType: 'FLYER',
-      fileType: 'FLYER_INITIAL_IMAGE'
+      ownerType: 'ALBUM_PHOTO',
+      fileType: 'ALBUM_PHOTO_IMAGE'
     }).expect(201);
     const pngResponse = await upload(event.id, cookie, {
       file: png,
       filename: 'image.png',
       contentType: 'application/pdf',
-      ownerType: 'FLYER',
-      fileType: 'FLYER_QR_IMAGE'
+      ownerType: 'ALBUM_PHOTO',
+      fileType: 'ALBUM_PHOTO_IMAGE'
     }).expect(201);
 
     expect(jpgResponse.body).toMatchObject({
       eventId: event.id,
-      ownerType: 'FLYER',
+      ownerType: 'ALBUM_PHOTO',
       ownerId: null,
-      fileType: 'FLYER_INITIAL_IMAGE',
+      fileType: 'ALBUM_PHOTO_IMAGE',
       mimeType: 'image/jpeg',
       width: 4,
       height: 3,
@@ -167,6 +168,7 @@ describe('FileAssets and local storage', () => {
   it('rejects forged, forbidden, corrupt, oversized and incompatible uploads with stable errors', async () => {
     const owner = await createClientUser(UserRole.INDEPENDENT_PLANNER);
     const event = await createEvent(owner);
+    await setActivatedStatus(event, owner, EventStatus.ACTIVE);
     const cookie = await login(owner.email);
 
     await expectUploadError(
@@ -219,8 +221,8 @@ describe('FileAssets and local storage', () => {
       file: Buffer.alloc(10_485_761, 1),
       filename: 'too-large.jpg',
       contentType: 'image/jpeg',
-      ownerType: 'FLYER',
-      fileType: 'FLYER_INITIAL_IMAGE'
+      ownerType: 'ALBUM_PHOTO',
+      fileType: 'ALBUM_PHOTO_IMAGE'
     })
       .expect(413)
       .expect(({ body }) => expect(body.code).toBe('FILE_SIZE_EXCEEDED'));
@@ -239,20 +241,45 @@ describe('FileAssets and local storage', () => {
     }
   });
 
-  it('enforces all three ownership roles, planner isolation, Platform Admin denial and Event state locks', async () => {
+  it('preserves Planner reads and rejects all provider-managed generic mutations without staging bytes', async () => {
     const independent = await createClientUser(UserRole.INDEPENDENT_PLANNER);
     const independentEvent = await createEvent(independent);
     const independentCookie = await login(independent.email);
-    await validUpload(independentEvent.id, independentCookie, 'FLYER_INITIAL_IMAGE').expect(201);
+    const initialRows = await prisma.fileAsset.count({ where: { eventId: independentEvent.id } });
+    for (const [ownerType, fileType] of [
+      ['FLOORPLAN', 'FLOORPLAN_IMAGE'],
+      ['FLYER', 'FLYER_INITIAL_IMAGE'],
+      ['FLYER', 'FLYER_QR_IMAGE'],
+      ['FLIPBOOK_PAGE', 'FLIPBOOK_PAGE_IMAGE']
+    ] as const) {
+      await upload(independentEvent.id, independentCookie, {
+        file: jpeg,
+        filename: 'provider-managed.jpg',
+        contentType: 'image/jpeg',
+        ownerType,
+        fileType
+      })
+        .expect(403)
+        .expect(({ body }) => expect(body.code).toBe('FILE_ASSET_PROVIDER_MANAGED'));
+    }
+    expect(await prisma.fileAsset.count({ where: { eventId: independentEvent.id } })).toBe(initialRows);
 
-    const organization = await createClient(ClientType.ORGANIZATION);
-    const admin = await createUser(organization.id, UserRole.ORGANIZATION_ADMIN);
-    const creator = await createUser(organization.id, UserRole.ORGANIZATION_PLANNER);
-    const otherPlanner = await createUser(organization.id, UserRole.ORGANIZATION_PLANNER);
-    const organizationEvent = await createEvent({ clientId: organization.id, userId: creator.id });
-    await validUpload(organizationEvent.id, await login(admin.email), 'FLYER_INITIAL_IMAGE').expect(201);
-    await validUpload(organizationEvent.id, await login(creator.email), 'FLYER_QR_IMAGE').expect(201);
-    await validUpload(organizationEvent.id, await login(otherPlanner.email), 'FLYER_INITIAL_IMAGE').expect(404);
+    const managed = await createReadyImageAsset(independentEvent, independent.userId);
+    await mutate('delete', `/events/${independentEvent.id}/file-assets/${managed.id}`, independentCookie)
+      .expect(403)
+      .expect(({ body }) => expect(body.code).toBe('FILE_ASSET_PROVIDER_MANAGED'));
+    expect(await prisma.fileAsset.findUniqueOrThrow({ where: { id: managed.id } })).toMatchObject({
+      status: FileAssetStatus.READY,
+      deletedAt: null
+    });
+    await request(app.getHttpServer())
+      .get(`/api/v1/events/${independentEvent.id}/file-assets/${managed.id}`)
+      .set('Cookie', independentCookie)
+      .expect(200);
+    await request(app.getHttpServer())
+      .get(`/api/v1/events/${independentEvent.id}/file-assets/${managed.id}/content`)
+      .set('Cookie', independentCookie)
+      .expect(200);
 
     const outsider = await createClientUser(UserRole.INDEPENDENT_PLANNER);
     await request(app.getHttpServer())
@@ -264,13 +291,6 @@ describe('FileAssets and local storage', () => {
       .get(`/api/v1/events/${independentEvent.id}/file-assets`)
       .set('Cookie', await login(platform.email))
       .expect(403);
-
-    await setEventStatus(independentEvent.id, EventStatus.CANCELLED);
-    await validUpload(independentEvent.id, independentCookie, 'FLYER_QR_IMAGE')
-      .expect(409)
-      .expect(({ body }) => expect(body.code).toBe('FILE_EVENT_STATE_LOCKED'));
-    await prisma.event.update({ where: { id: organizationEvent.id }, data: { deletedAt: new Date() } });
-    await validUpload(organizationEvent.id, await login(admin.email), 'FLYER_INITIAL_IMAGE').expect(404);
   });
 
   it('keeps assets isolated by Event and blocks non-ready content statuses', async () => {
@@ -278,18 +298,18 @@ describe('FileAssets and local storage', () => {
     const event = await createEvent(owner);
     const otherEvent = await createEvent(owner);
     const cookie = await login(owner.email);
-    const response = await validUpload(event.id, cookie, 'FLYER_INITIAL_IMAGE').expect(201);
+    const asset = await createReadyImageAsset(event, owner.userId);
 
     await request(app.getHttpServer())
-      .get(`/api/v1/events/${otherEvent.id}/file-assets/${response.body.id}`)
+      .get(`/api/v1/events/${otherEvent.id}/file-assets/${asset.id}`)
       .set('Cookie', cookie)
       .expect(404);
     await prisma.fileAsset.update({
-      where: { id: response.body.id },
+      where: { id: asset.id },
       data: { status: FileAssetStatus.HIDDEN }
     });
     await request(app.getHttpServer())
-      .get(`/api/v1/events/${event.id}/file-assets/${response.body.id}/content`)
+      .get(`/api/v1/events/${event.id}/file-assets/${asset.id}/content`)
       .set('Cookie', cookie)
       .expect(409)
       .expect(({ body }) => expect(body.code).toBe('FILE_NOT_READY'));
@@ -771,21 +791,11 @@ describe('FileAssets and local storage', () => {
       file: bytes,
       filename,
       contentType,
-      ownerType: 'FLYER',
-      fileType: 'FLYER_INITIAL_IMAGE'
+      ownerType: 'ALBUM_PHOTO',
+      fileType: 'ALBUM_PHOTO_IMAGE'
     })
       .expect(status)
       .expect(({ body }) => expect(body.code).toBe(code));
-  }
-
-  function validUpload(eventId: string, cookie: string, fileType: 'FLYER_INITIAL_IMAGE' | 'FLYER_QR_IMAGE') {
-    return upload(eventId, cookie, {
-      file: jpeg,
-      filename: 'safe.jpg',
-      contentType: 'image/jpeg',
-      ownerType: 'FLYER',
-      fileType
-    });
   }
 
   function upload(
@@ -939,16 +949,15 @@ describe('FileAssets and local storage', () => {
     });
   }
 
-  async function setEventStatus(eventId: string, status: EventStatus): Promise<void> {
-    await prisma.$executeRawUnsafe(`
-      BEGIN;
-      SET LOCAL session_replication_role = replica;
-      UPDATE "event" SET "status" = '${status.toLowerCase()}'::"event_status" WHERE "id" = '${eventId}'::uuid;
-      COMMIT;
-    `);
+  async function setEventArchived(event: { id: string; clientId: string }, owner: { userId: string }): Promise<void> {
+    await setActivatedStatus(event, owner, EventStatus.ARCHIVED);
   }
 
-  async function setEventArchived(event: { id: string; clientId: string }, owner: { userId: string }): Promise<void> {
+  async function setActivatedStatus(
+    event: { id: string; clientId: string },
+    owner: { userId: string },
+    status: EventStatus
+  ): Promise<void> {
     const service = await prisma.service.create({ data: { code: 'FLYER' } });
     const price = await prisma.servicePrice.create({
       data: {
@@ -971,7 +980,7 @@ describe('FileAssets and local storage', () => {
       SET LOCAL session_replication_role = replica;
       UPDATE "event"
       SET
-        "status" = 'archived',
+        "status" = '${status.toLowerCase()}'::"event_status",
         "activated_at" = NOW(),
         "activated_by_user_id" = '${owner.userId}'::uuid,
         "activated_service_id" = '${service.id}'::uuid,

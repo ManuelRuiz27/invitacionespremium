@@ -236,6 +236,7 @@ describe('Generated reports', () => {
   it('runs the real Attendance HTTP flow from Event creation through RSVP, scanner, close and private PDF', async () => {
     const owner = await createClientUser();
     const cookie = await login(owner.email);
+    const providerCookie = await createAdminAndLogin();
     const service = await prisma.service.create({ data: { code: ServiceCode.FLYER } });
     await prisma.servicePrice.create({
       data: {
@@ -262,6 +263,7 @@ describe('Generated reports', () => {
       })
       .expect(201);
     const eventId = created.body.id as string;
+    const providerBase = `/api/v1/admin/clients/${owner.clientId}/events/${eventId}`;
 
     for (const [name, phone] of [
       ['Ingreso activo', '+525511223341'],
@@ -282,12 +284,12 @@ describe('Generated reports', () => {
     });
     expect(invitations).toHaveLength(3);
 
-    const initial = await uploadRealImage(eventId, cookie, 'FLYER', 'FLYER_INITIAL_IMAGE');
-    const qr = await uploadRealImage(eventId, cookie, 'FLYER', 'FLYER_QR_IMAGE');
+    const initial = await uploadRealImage(providerBase, providerCookie, 'FLYER', 'FLYER_INITIAL_IMAGE');
+    const qr = await uploadRealImage(providerBase, providerCookie, 'FLYER', 'FLYER_QR_IMAGE');
     await request(app.getHttpServer())
-      .post(`/api/v1/events/${eventId}/design/flyer`)
+      .post(`${providerBase}/design/flyer`)
       .set('Origin', origin)
-      .set('Cookie', cookie)
+      .set('Cookie', providerCookie)
       .send({ initialAssetId: initial, qrAssetId: qr })
       .expect(201);
     for (const action of [
@@ -297,9 +299,9 @@ describe('Generated reports', () => {
       HotspotAction.QR_AREA
     ]) {
       await request(app.getHttpServer())
-        .post(`/api/v1/events/${eventId}/hotspots`)
+        .post(`${providerBase}/hotspots`)
         .set('Origin', origin)
-        .set('Cookie', cookie)
+        .set('Cookie', providerCookie)
         .send({
           visualOwnerType: HotspotVisualOwnerType.FLYER,
           action,
@@ -1117,8 +1119,8 @@ describe('Generated reports', () => {
   }
 
   async function uploadRealImage(
-    eventId: string,
-    cookie: string[],
+    providerBase: string,
+    providerCookie: string[],
     ownerType: string,
     fileType: string
   ): Promise<string> {
@@ -1128,9 +1130,9 @@ describe('Generated reports', () => {
       .png()
       .toBuffer();
     const response = await request(app.getHttpServer())
-      .post(`/api/v1/events/${eventId}/file-assets`)
+      .post(`${providerBase}/design/file-assets`)
       .set('Origin', origin)
-      .set('Cookie', cookie)
+      .set('Cookie', providerCookie)
       .field('ownerType', ownerType)
       .field('fileType', fileType)
       .attach('file', image, { filename: 'visual.png', contentType: 'image/png' })

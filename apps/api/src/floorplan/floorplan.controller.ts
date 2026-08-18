@@ -1,29 +1,5 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Headers,
-  HttpCode,
-  HttpStatus,
-  Inject,
-  Param,
-  Patch,
-  Post,
-  Query,
-  Req,
-  Res
-} from '@nestjs/common';
-import {
-  ApiBody,
-  ApiCookieAuth,
-  ApiHeader,
-  ApiNoContentResponse,
-  ApiOkResponse,
-  ApiProduces,
-  ApiQuery,
-  ApiTags
-} from '@nestjs/swagger';
+import { Body, Controller, Get, Headers, Inject, Param, Patch, Post, Query, Req, Res } from '@nestjs/common';
+import { ApiBody, ApiCookieAuth, ApiHeader, ApiOkResponse, ApiProduces, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import type { AuthenticatedRequest, AuthPrincipal } from '../auth/auth.types';
 import { CurrentAuth } from '../auth/current-auth.decorator';
@@ -36,25 +12,17 @@ import {
   AssignFamilyRequestDto,
   AssignGroupRequestDto,
   AssignSeatingRequestDto,
-  FloorplanImageRequestDto,
   FloorplanResponseDto,
-  FloorplanShapeRequestDto,
-  FloorplanShapeResponseDto,
   ScannerFloorplanResponseDto,
   SeatingMutationResponseDto,
   SeatingWorkspacePageDto,
-  UpdateFloorplanShapeRequestDto,
   UpdateSeatingRequestDto,
   parseAssignFamily,
   parseAssignGroup,
   parseAssignSeating,
-  parseCreateFloorplan,
-  parseCreateShape,
   parseFloorplanId,
   parseSeatingWorkspaceQuery,
-  parseUpdateFloorplan,
-  parseUpdateSeating,
-  parseUpdateShape
+  parseUpdateSeating
 } from './floorplan.dto';
 import { FloorplanService } from './floorplan.service';
 
@@ -66,18 +34,6 @@ const PLANNER_ROLES = [UserRole.INDEPENDENT_PLANNER, UserRole.ORGANIZATION_ADMIN
 @Controller('events/:eventId')
 export class FloorplanController {
   constructor(@Inject(FloorplanService) private readonly floorplan: FloorplanService) {}
-
-  @Post('floorplan')
-  @ApiBody({ type: FloorplanImageRequestDto })
-  @ApiOkResponse({ type: FloorplanResponseDto })
-  create(
-    @Param('eventId') eventId: string,
-    @Body() body: unknown,
-    @CurrentAuth() principal: AuthPrincipal,
-    @Req() request: AuthenticatedRequest
-  ): Promise<FloorplanResponseDto> {
-    return this.floorplan.create(parseEventId(eventId), parseCreateFloorplan(body), principal, request.operationId);
-  }
 
   @Get('floorplan')
   @ApiOkResponse({ type: FloorplanResponseDto })
@@ -99,86 +55,6 @@ export class FloorplanController {
     @CurrentAuth() principal: AuthPrincipal
   ): Promise<SeatingWorkspacePageDto> {
     return this.floorplan.seatingWorkspace(parseEventId(eventId), parseSeatingWorkspaceQuery(query), principal);
-  }
-
-  @Patch('floorplan')
-  @ApiBody({ type: FloorplanImageRequestDto })
-  @ApiOkResponse({ type: FloorplanResponseDto })
-  replaceImage(
-    @Param('eventId') eventId: string,
-    @Body() body: unknown,
-    @CurrentAuth() principal: AuthPrincipal,
-    @Req() request: AuthenticatedRequest
-  ): Promise<FloorplanResponseDto> {
-    return this.floorplan.replaceImage(
-      parseEventId(eventId),
-      parseUpdateFloorplan(body),
-      principal,
-      request.operationId
-    );
-  }
-
-  @Post('floorplan/lock')
-  @ApiOkResponse({ type: FloorplanResponseDto })
-  lock(
-    @Param('eventId') eventId: string,
-    @CurrentAuth() principal: AuthPrincipal,
-    @Req() request: AuthenticatedRequest
-  ): Promise<FloorplanResponseDto> {
-    return this.floorplan.lock(parseEventId(eventId), principal, request.operationId);
-  }
-
-  @Post('floorplan/unlock')
-  @ApiOkResponse({ type: FloorplanResponseDto })
-  unlock(
-    @Param('eventId') eventId: string,
-    @CurrentAuth() principal: AuthPrincipal,
-    @Req() request: AuthenticatedRequest
-  ): Promise<FloorplanResponseDto> {
-    return this.floorplan.unlock(parseEventId(eventId), principal, request.operationId);
-  }
-
-  @Post('floorplan/shapes')
-  @ApiBody({ type: FloorplanShapeRequestDto })
-  @ApiOkResponse({ type: FloorplanShapeResponseDto })
-  createShape(
-    @Param('eventId') eventId: string,
-    @Body() body: unknown,
-    @CurrentAuth() principal: AuthPrincipal,
-    @Req() request: AuthenticatedRequest
-  ): Promise<FloorplanShapeResponseDto> {
-    return this.floorplan.createShape(parseEventId(eventId), parseCreateShape(body), principal, request.operationId);
-  }
-
-  @Patch('floorplan/shapes/:shapeId')
-  @ApiBody({ type: UpdateFloorplanShapeRequestDto })
-  @ApiOkResponse({ type: FloorplanShapeResponseDto })
-  updateShape(
-    @Param('eventId') eventId: string,
-    @Param('shapeId') shapeId: string,
-    @Body() body: unknown,
-    @CurrentAuth() principal: AuthPrincipal,
-    @Req() request: AuthenticatedRequest
-  ): Promise<FloorplanShapeResponseDto> {
-    return this.floorplan.updateShape(
-      parseEventId(eventId),
-      parseFloorplanId(shapeId),
-      parseUpdateShape(body),
-      principal,
-      request.operationId
-    );
-  }
-
-  @Delete('floorplan/shapes/:shapeId')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiNoContentResponse()
-  async deleteShape(
-    @Param('eventId') eventId: string,
-    @Param('shapeId') shapeId: string,
-    @CurrentAuth() principal: AuthPrincipal,
-    @Req() request: AuthenticatedRequest
-  ): Promise<void> {
-    await this.floorplan.deleteShape(parseEventId(eventId), parseFloorplanId(shapeId), principal, request.operationId);
   }
 
   @Post('seating/assign')

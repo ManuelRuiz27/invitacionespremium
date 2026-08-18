@@ -26,6 +26,8 @@ describe('InvitationDesignModule', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let audit: AuditService;
+  let providerCookie: string;
+  const eventClients = new Map<string, string>();
 
   beforeAll(async () => {
     if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required.');
@@ -42,7 +44,11 @@ describe('InvitationDesignModule', () => {
     audit = app.get(AuditService);
   });
 
-  beforeEach(resetDatabase, 60_000);
+  beforeEach(async () => {
+    await resetDatabase();
+    eventClients.clear();
+    providerCookie = await login((await createUser(null, UserRole.PLATFORM_ADMIN)).email);
+  }, 60_000);
   afterEach(() => vi.restoreAllMocks());
 
   afterAll(async () => {
@@ -663,7 +669,7 @@ describe('InvitationDesignModule', () => {
     ).toBe(3);
   }, 60_000);
 
-  it('enforces ownership for all operational roles and freezes every mutation after activation', async () => {
+  it('enforces read ownership, removes Planner mutations and freezes Provider mutations after activation', async () => {
     const organization = await createOwner(UserRole.ORGANIZATION_PLANNER, ClientType.ORGANIZATION);
     const admin = await createUser(organization.clientId, UserRole.ORGANIZATION_ADMIN);
     const otherPlanner = await createUser(organization.clientId, UserRole.ORGANIZATION_PLANNER);
@@ -672,6 +678,11 @@ describe('InvitationDesignModule', () => {
     const adminCookie = await login(admin.email);
     const otherCookie = await login(otherPlanner.email);
     await mutate('post', `/events/${event.id}/design/flipbook`, plannerCookie).expect(201);
+    await request(app.getHttpServer())
+      .post(`/api/v1/events/${event.id}/design/flipbook`)
+      .set('Cookie', plannerCookie)
+      .set('Origin', trustedOrigin)
+      .expect(404);
     await read(`/events/${event.id}/design`, adminCookie).expect(200);
     await read(`/events/${event.id}/design`, otherCookie)
       .expect(404)
@@ -711,15 +722,22 @@ describe('InvitationDesignModule', () => {
     for (const path of [
       '/api/v1/events/{eventId}/design',
       '/api/v1/events/{eventId}/design/readiness',
+      '/api/v1/events/{eventId}/hotspots'
+    ]) {
+      expect(paths[path]).toBeDefined();
+    }
+    for (const path of [
       '/api/v1/events/{eventId}/design/flyer',
       '/api/v1/events/{eventId}/design/flipbook',
       '/api/v1/events/{eventId}/design/flipbook/pages',
       '/api/v1/events/{eventId}/design/flipbook/pages/reorder',
-      '/api/v1/events/{eventId}/hotspots',
+      '/api/v1/events/{eventId}/design/flipbook/pages/{pageId}',
+      '/api/v1/events/{eventId}/design/flipbook/pages/{pageId}/asset',
       '/api/v1/events/{eventId}/hotspots/{hotspotId}'
     ]) {
-      expect(paths[path]).toBeDefined();
+      expect(paths[path]).toBeUndefined();
     }
+    expect(paths['/api/v1/events/{eventId}/hotspots']?.post).toBeUndefined();
   });
 
   it('rolls back design, asset claims and persistence when transactional auditing fails', async () => {
@@ -784,6 +802,16 @@ describe('InvitationDesignModule', () => {
   });
 
   function mutate(method: 'post' | 'patch' | 'delete', route: string, cookie: string) {
+    const providerRoute = route.match(/^\/events\/([^/]+)\/(design(?:\/.*)?|hotspots(?:\/.*)?)$/u);
+    if (providerRoute) {
+      const [, eventId, suffix] = providerRoute;
+      const clientId = eventClients.get(eventId!);
+      if (!clientId) throw new Error(`Missing Client mapping for Event ${eventId}.`);
+      const providerRequest = request(app.getHttpServer());
+      return providerRequest[method](`/api/v1/admin/clients/${clientId}/events/${eventId}/${suffix}`)
+        .set('Cookie', providerCookie)
+        .set('Origin', trustedOrigin);
+    }
     return request(app.getHttpServer())[method](`/api/v1${route}`).set('Cookie', cookie).set('Origin', trustedOrigin);
   }
 
@@ -809,7 +837,7 @@ describe('InvitationDesignModule', () => {
     const service =
       (await prisma.service.findUnique({ where: { code: serviceCode } })) ??
       (await prisma.service.create({ data: { code: serviceCode } }));
-    return prisma.event.create({
+    const event = await prisma.event.create({
       data: {
         clientId: owner.clientId,
         createdByUserId: owner.userId,
@@ -823,6 +851,8 @@ describe('InvitationDesignModule', () => {
         confirmationEnabled: true
       }
     });
+    eventClients.set(event.id, event.clientId);
+    return event;
   }
 
   async function readyAsset(

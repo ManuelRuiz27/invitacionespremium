@@ -25,6 +25,11 @@ export const ADMIN_INVITATION_IMAGE_FILE_TYPES = new Set<FileAssetType>([
   FileAssetType.FLIPBOOK_PAGE_IMAGE
 ]);
 
+export const PROVIDER_MANAGED_IMAGE_FILE_TYPES = new Set<FileAssetType>([
+  FileAssetType.FLOORPLAN_IMAGE,
+  ...ADMIN_INVITATION_IMAGE_FILE_TYPES
+]);
+
 export function assertCompatibleFileAssetType(ownerType: FileAssetOwnerType, fileType: FileAssetType): void {
   if (!FILE_ASSET_COMPATIBILITY[ownerType].includes(fileType)) {
     throw new ConflictException({

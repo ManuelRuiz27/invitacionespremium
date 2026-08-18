@@ -55,6 +55,9 @@ describe('Albums', () => {
   let invitationTokens: InvitationTokenService;
   let image: Buffer;
   let jpegImage: Buffer;
+  let providerCookie: string[];
+  const eventClients = new Map<string, string>();
+  let latestClientId = '';
 
   beforeAll(async () => {
     if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required.');
@@ -81,7 +84,13 @@ describe('Albums', () => {
     jpegImage = await sharp(image).jpeg().toBuffer();
   });
 
-  beforeEach(resetDatabase, 60_000);
+  beforeEach(async () => {
+    await resetDatabase();
+    eventClients.clear();
+    latestClientId = '';
+    const provider = await createUser(null, UserRole.PLATFORM_ADMIN);
+    providerCookie = await login(provider.email);
+  }, 60_000);
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
@@ -121,6 +130,7 @@ describe('Albums', () => {
       })
       .expect(201);
     const eventId = created.body.id as string;
+    eventClients.set(eventId, owner.clientId);
 
     const contacts = [];
     for (const [name, phone] of [
@@ -146,9 +156,9 @@ describe('Albums', () => {
     const initial = await uploadImage(eventId, cookie, 'FLYER', 'FLYER_INITIAL_IMAGE').expect(201);
     const qr = await uploadImage(eventId, cookie, 'FLYER', 'FLYER_QR_IMAGE').expect(201);
     await request(app.getHttpServer())
-      .post(`/api/v1/events/${eventId}/design/flyer`)
+      .post(providerPath(eventId, 'design/flyer'))
       .set('Origin', origin)
-      .set('Cookie', cookie)
+      .set('Cookie', providerCookie)
       .send({ initialAssetId: initial.body.id, qrAssetId: qr.body.id })
       .expect(201);
     for (const action of [
@@ -158,9 +168,9 @@ describe('Albums', () => {
       HotspotAction.QR_AREA
     ]) {
       await request(app.getHttpServer())
-        .post(`/api/v1/events/${eventId}/hotspots`)
+        .post(providerPath(eventId, 'hotspots'))
         .set('Origin', origin)
-        .set('Cookie', cookie)
+        .set('Cookie', providerCookie)
         .send({
           visualOwnerType: HotspotVisualOwnerType.FLYER,
           action,
@@ -374,6 +384,7 @@ describe('Albums', () => {
       .expect(201);
     expect(draft.body.status).toBe(EventStatus.DRAFT);
     const eventId = draft.body.id as string;
+    eventClients.set(eventId, owner.clientId);
     const configured = await request(app.getHttpServer())
       .patch(`/api/v1/events/${eventId}`)
       .set('Origin', origin)
@@ -392,9 +403,9 @@ describe('Albums', () => {
     const initial = await uploadImage(eventId, cookie, 'FLYER', 'FLYER_INITIAL_IMAGE').expect(201);
     const qr = await uploadImage(eventId, cookie, 'FLYER', 'FLYER_QR_IMAGE').expect(201);
     await request(app.getHttpServer())
-      .post(`/api/v1/events/${eventId}/design/flyer`)
+      .post(providerPath(eventId, 'design/flyer'))
       .set('Origin', origin)
-      .set('Cookie', cookie)
+      .set('Cookie', providerCookie)
       .send({ initialAssetId: initial.body.id, qrAssetId: qr.body.id })
       .expect(201);
     const hotspotIds: Record<string, string> = {};
@@ -404,7 +415,7 @@ describe('Albums', () => {
       HotspotAction.GIFT_REGISTRY,
       HotspotAction.QR_AREA
     ]) {
-      const hotspot = await createFlyerHotspot(eventId, cookie, action).expect(201);
+      const hotspot = await createFlyerHotspot(eventId, action).expect(201);
       hotspotIds[action] = hotspot.body.id as string;
     }
     expect((await prisma.event.findUniqueOrThrow({ where: { id: eventId } })).status).toBe(EventStatus.CONFIGURED);
@@ -432,12 +443,12 @@ describe('Albums', () => {
       EventStatus.READY_TO_ACTIVATE
     );
     await request(app.getHttpServer())
-      .delete(`/api/v1/events/${eventId}/hotspots/${hotspotIds[HotspotAction.QR_AREA]}`)
+      .delete(providerPath(eventId, `hotspots/${hotspotIds[HotspotAction.QR_AREA]}`))
       .set('Origin', origin)
-      .set('Cookie', cookie)
+      .set('Cookie', providerCookie)
       .expect(204);
     expect((await prisma.event.findUniqueOrThrow({ where: { id: eventId } })).status).toBe(EventStatus.CONFIGURED);
-    await createFlyerHotspot(eventId, cookie, HotspotAction.QR_AREA).expect(201);
+    await createFlyerHotspot(eventId, HotspotAction.QR_AREA).expect(201);
     expect((await prisma.event.findUniqueOrThrow({ where: { id: eventId } })).status).toBe(
       EventStatus.READY_TO_ACTIVATE
     );
@@ -457,15 +468,15 @@ describe('Albums', () => {
       .send({ name: 'Flipbook', whatsappPhone: '+525511220003' })
       .expect(201);
     await request(app.getHttpServer())
-      .post(`/api/v1/events/${flipbook.id}/design/flipbook`)
+      .post(providerPath(flipbook.id, 'design/flipbook'))
       .set('Origin', origin)
-      .set('Cookie', cookie)
+      .set('Cookie', providerCookie)
       .expect(201);
     const pageAsset = await uploadImage(flipbook.id, cookie, 'FLIPBOOK_PAGE', 'FLIPBOOK_PAGE_IMAGE').expect(201);
     const withPage = await request(app.getHttpServer())
-      .post(`/api/v1/events/${flipbook.id}/design/flipbook/pages`)
+      .post(providerPath(flipbook.id, 'design/flipbook/pages'))
       .set('Origin', origin)
-      .set('Cookie', cookie)
+      .set('Cookie', providerCookie)
       .send({ fileAssetId: pageAsset.body.id })
       .expect(201);
     const pageId = withPage.body.pages[0].id as string;
@@ -476,9 +487,9 @@ describe('Albums', () => {
       HotspotAction.QR_AREA
     ]) {
       await request(app.getHttpServer())
-        .post(`/api/v1/events/${flipbook.id}/hotspots`)
+        .post(providerPath(flipbook.id, 'hotspots'))
         .set('Origin', origin)
-        .set('Cookie', cookie)
+        .set('Cookie', providerCookie)
         .send({
           visualOwnerType: HotspotVisualOwnerType.FLIPBOOK_PAGE,
           flipbookPageId: pageId,
@@ -544,9 +555,9 @@ describe('Albums', () => {
       hotspotRace.eventId,
       () =>
         request(app.getHttpServer())
-          .delete(`/api/v1/events/${hotspotRace.eventId}/hotspots/${hotspotRace.qrHotspotId}`)
+          .delete(providerPath(hotspotRace.eventId, `hotspots/${hotspotRace.qrHotspotId}`))
           .set('Origin', origin)
-          .set('Cookie', cookie),
+          .set('Cookie', providerCookie),
       () =>
         request(app.getHttpServer())
           .post(`/api/v1/events/${hotspotRace.eventId}/activate`)
@@ -1142,6 +1153,7 @@ describe('Albums', () => {
         }
       });
     });
+    eventClients.set(event.id, owner.clientId);
     return { ...owner, eventId: event.id };
   }
 
@@ -1208,14 +1220,15 @@ describe('Albums', () => {
       .set('Cookie', cookie)
       .send(digitalEventData(serviceId))
       .expect(201);
+    eventClients.set(response.body.id as string, latestClientId);
     return response.body as { id: string; status: EventStatus };
   }
 
-  function createFlyerHotspot(eventId: string, cookie: string[], action: HotspotAction) {
+  function createFlyerHotspot(eventId: string, action: HotspotAction) {
     return request(app.getHttpServer())
-      .post(`/api/v1/events/${eventId}/hotspots`)
+      .post(providerPath(eventId, 'hotspots'))
       .set('Origin', origin)
-      .set('Cookie', cookie)
+      .set('Cookie', providerCookie)
       .send({
         visualOwnerType: HotspotVisualOwnerType.FLYER,
         action,
@@ -1238,9 +1251,9 @@ describe('Albums', () => {
     const initial = await uploadImage(event.id, cookie, 'FLYER', 'FLYER_INITIAL_IMAGE').expect(201);
     const qr = await uploadImage(event.id, cookie, 'FLYER', 'FLYER_QR_IMAGE').expect(201);
     await request(app.getHttpServer())
-      .post(`/api/v1/events/${event.id}/design/flyer`)
+      .post(providerPath(event.id, 'design/flyer'))
       .set('Origin', origin)
-      .set('Cookie', cookie)
+      .set('Cookie', providerCookie)
       .send({ initialAssetId: initial.body.id, qrAssetId: qr.body.id })
       .expect(201);
     let qrHotspotId = '';
@@ -1250,7 +1263,7 @@ describe('Albums', () => {
       HotspotAction.GIFT_REGISTRY,
       HotspotAction.QR_AREA
     ]) {
-      const hotspot = await createFlyerHotspot(event.id, cookie, action).expect(201);
+      const hotspot = await createFlyerHotspot(event.id, action).expect(201);
       if (action === HotspotAction.QR_AREA) qrHotspotId = hotspot.body.id as string;
     }
     expect((await prisma.event.findUniqueOrThrow({ where: { id: event.id } })).status).toBe(
@@ -1268,6 +1281,7 @@ describe('Albums', () => {
       data: { type, name: `Cliente ${randomUUID()}`, status: ClientStatus.ACTIVE }
     });
     const user = await createUser(client.id, role);
+    latestClientId = client.id;
     return { clientId: client.id, userId: user.id, email: user.email };
   }
 
@@ -1329,16 +1343,23 @@ describe('Albums', () => {
     fileType: 'FLYER_INITIAL_IMAGE' | 'FLYER_QR_IMAGE' | 'FLIPBOOK_PAGE_IMAGE' | 'ALBUM_PHOTO_IMAGE',
     format: 'png' | 'jpeg' = 'png'
   ) {
+    const providerManaged = fileType !== 'ALBUM_PHOTO_IMAGE';
     return request(app.getHttpServer())
-      .post(`/api/v1/events/${eventId}/file-assets`)
+      .post(providerManaged ? providerPath(eventId, 'design/file-assets') : `/api/v1/events/${eventId}/file-assets`)
       .set('Origin', origin)
-      .set('Cookie', cookie)
+      .set('Cookie', providerManaged ? providerCookie : cookie)
       .field('ownerType', ownerType)
       .field('fileType', fileType)
       .attach('file', format === 'jpeg' ? jpegImage : image, {
         filename: `album.${format}`,
         contentType: `image/${format}`
       });
+  }
+
+  function providerPath(eventId: string, suffix: string): string {
+    const clientId = eventClients.get(eventId);
+    if (!clientId) throw new Error(`Missing provider target for Event ${eventId}.`);
+    return `/api/v1/admin/clients/${clientId}/events/${eventId}/${suffix}`;
   }
 
   function publicInvitation(token: string) {

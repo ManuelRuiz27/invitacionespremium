@@ -1,6 +1,14 @@
 import { createHash } from 'node:crypto';
 import path from 'node:path';
-import { ConflictException, HttpStatus, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  HttpStatus,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException
+} from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
 import type { AuthPrincipal } from '../auth/auth.types';
 import { PrismaService } from '../common/database/prisma.service';
@@ -23,6 +31,7 @@ import {
   ADMIN_INVITATION_IMAGE_FILE_TYPES,
   administrativeInvitationOwnerType,
   assertCompatibleFileAssetType,
+  PROVIDER_MANAGED_IMAGE_FILE_TYPES,
   USER_IMAGE_FILE_TYPES
 } from './file-asset-compatibility';
 import { FileAssetOwnerRegistry, type FileAssetOwnerReference, ownerMismatch } from './file-asset-owner.registry';
@@ -91,6 +100,9 @@ export class FileAssetsService {
     operationId?: string
   ): Promise<FileAssetResponseDto> {
     assertCompatibleFileAssetType(input.ownerType, input.fileType);
+    if (PROVIDER_MANAGED_IMAGE_FILE_TYPES.has(input.fileType)) {
+      throw providerManagedFileAsset();
+    }
     if (!USER_IMAGE_FILE_TYPES.has(input.fileType) || !file) {
       throw fileError('FILE_UNSUPPORTED_TYPE', 'Only JPEG and PNG image uploads are accepted.');
     }
@@ -353,7 +365,7 @@ export class FileAssetsService {
     operationId?: string
   ): Promise<void> {
     await this.requireOwnedEvent(eventId, principal);
-    await this.softDeleteAsset(eventId, fileAssetId, principal.userId, operationId);
+    await this.softDeleteAsset(eventId, fileAssetId, principal.userId, operationId, undefined, true);
   }
 
   private async softDeleteAsset(
@@ -361,7 +373,8 @@ export class FileAssetsService {
     fileAssetId: string,
     actorUserId: string,
     operationId?: string,
-    administrativeWhere?: Prisma.FileAssetWhereInput
+    administrativeWhere?: Prisma.FileAssetWhereInput,
+    rejectProviderManaged = false
   ): Promise<void> {
     await this.serializable(async (transaction) => {
       await transaction.$queryRaw`
@@ -382,6 +395,9 @@ export class FileAssetsService {
       }
       if (current.fileType === FileAssetType.GENERATED_REPORT_PDF) {
         throw fileAssetNotFound();
+      }
+      if (rejectProviderManaged && PROVIDER_MANAGED_IMAGE_FILE_TYPES.has(current.fileType)) {
+        throw providerManagedFileAsset();
       }
       if (current.status === FileAssetStatus.DELETED && current.deletedAt !== null) {
         return;
@@ -739,6 +755,13 @@ function fileAssetNotFound(): NotFoundException {
   return new NotFoundException({
     code: 'FILE_ASSET_NOT_FOUND',
     message: 'File asset not found.'
+  });
+}
+
+function providerManagedFileAsset(): ForbiddenException {
+  return new ForbiddenException({
+    code: 'FILE_ASSET_PROVIDER_MANAGED',
+    message: 'This file asset is managed through the provider administration surface.'
   });
 }
 

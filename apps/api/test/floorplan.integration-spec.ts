@@ -1502,6 +1502,12 @@ describe('Floorplan and seating', () => {
   it('operates the administrative Floorplan target without exposing Planner Seating', async () => {
     const fixture = await createFixture();
     const foreign = await createFixture();
+    await request(app.getHttpServer())
+      .post(`/api/v1/events/${fixture.event.id}/floorplan`)
+      .set('Cookie', await login(fixture.user.email))
+      .set('Origin', 'http://localhost:5173')
+      .send({ imageAssetId: randomUUID() })
+      .expect(404);
     const admin = await prisma.user.create({
       data: {
         email: `${randomUUID()}@example.test`,
@@ -1680,6 +1686,14 @@ describe('Floorplan and seating', () => {
     ]) {
       expect(paths).toHaveProperty(pathName);
     }
+    expect(paths?.['/api/v1/events/{eventId}/floorplan']?.get).toBeDefined();
+    expect(paths?.['/api/v1/events/{eventId}/floorplan']?.post).toBeUndefined();
+    expect(paths?.['/api/v1/events/{eventId}/floorplan']?.patch).toBeUndefined();
+    expect(paths).not.toHaveProperty('/api/v1/events/{eventId}/floorplan/lock');
+    expect(paths).not.toHaveProperty('/api/v1/events/{eventId}/floorplan/unlock');
+    expect(paths).not.toHaveProperty('/api/v1/events/{eventId}/floorplan/shapes');
+    expect(paths).not.toHaveProperty('/api/v1/events/{eventId}/floorplan/shapes/{shapeId}');
+    expect(paths).toHaveProperty('/api/v1/events/{eventId}/seating');
     expect(paths).not.toHaveProperty('/api/v1/admin/clients/{clientId}/events/{eventId}/seating');
   });
 

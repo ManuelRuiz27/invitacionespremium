@@ -530,6 +530,7 @@ describe('Realtime Socket.IO', () => {
   it('completes the HTTP and Socket.IO vertical slice from Event creation through close', async () => {
     const owner = await createClientUser(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
     const cookie = await login(owner.email);
+    const providerCookie = await login((await createUser(null, UserRole.PLATFORM_ADMIN)).email);
     const service = await prisma.service.create({ data: { code: ServiceCode.FLYER } });
     await prisma.servicePrice.create({
       data: {
@@ -558,6 +559,7 @@ describe('Realtime Socket.IO', () => {
       })
       .expect(201);
     const eventId = createdEvent.body.id as string;
+    const providerBase = `/api/v1/admin/clients/${owner.clientId}/events/${eventId}`;
     const contact = await request(app.getHttpServer())
       .post(`/api/v1/events/${eventId}/contacts`)
       .set('Origin', origin)
@@ -581,9 +583,11 @@ describe('Realtime Socket.IO', () => {
       fileType: 'FLYER_INITIAL_IMAGE' | 'FLYER_QR_IMAGE' | 'FLOORPLAN_IMAGE'
     ) =>
       request(app.getHttpServer())
-        .post(`/api/v1/events/${eventId}/file-assets`)
+        .post(
+          ownerType === 'FLOORPLAN' ? `${providerBase}/floorplan/file-assets` : `${providerBase}/design/file-assets`
+        )
         .set('Origin', origin)
-        .set('Cookie', cookie)
+        .set('Cookie', providerCookie)
         .field('ownerType', ownerType)
         .field('fileType', fileType)
         .attach('file', image, { filename: `${fileType}.png`, contentType: 'image/png' });
@@ -591,22 +595,22 @@ describe('Realtime Socket.IO', () => {
     const qrImage = await upload('FLYER', 'FLYER_QR_IMAGE').expect(201);
     const floorplanImage = await upload('FLOORPLAN', 'FLOORPLAN_IMAGE').expect(201);
     await request(app.getHttpServer())
-      .post(`/api/v1/events/${eventId}/design/flyer`)
+      .post(`${providerBase}/design/flyer`)
       .set('Origin', origin)
-      .set('Cookie', cookie)
+      .set('Cookie', providerCookie)
       .send({ initialAssetId: initial.body.id, qrAssetId: qrImage.body.id })
       .expect(201);
     await request(app.getHttpServer())
-      .post(`/api/v1/events/${eventId}/floorplan`)
+      .post(`${providerBase}/floorplan`)
       .set('Origin', origin)
-      .set('Cookie', cookie)
+      .set('Cookie', providerCookie)
       .send({ imageAssetId: floorplanImage.body.id })
       .expect(201);
     const createTable = (name: string, x: number) =>
       request(app.getHttpServer())
-        .post(`/api/v1/events/${eventId}/floorplan/shapes`)
+        .post(`${providerBase}/floorplan/shapes`)
         .set('Origin', origin)
-        .set('Cookie', cookie)
+        .set('Cookie', providerCookie)
         .send({
           kind: FloorplanShapeKind.TABLE,
           geometry: FloorplanGeometry.CIRCLE,
@@ -628,9 +632,9 @@ describe('Realtime Socket.IO', () => {
       HotspotAction.QR_AREA
     ]) {
       await request(app.getHttpServer())
-        .post(`/api/v1/events/${eventId}/hotspots`)
+        .post(`${providerBase}/hotspots`)
         .set('Origin', origin)
-        .set('Cookie', cookie)
+        .set('Cookie', providerCookie)
         .send({
           visualOwnerType: HotspotVisualOwnerType.FLYER,
           action,
