@@ -2,6 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { z } from 'zod';
 import { FileAssetOwnerType, FileAssetStatus, FileAssetType, StorageProvider } from '../generated/prisma/client';
+import { ADMIN_INVITATION_IMAGE_FILE_TYPES } from './file-asset-compatibility';
 
 const uuidSchema = z.string().uuid();
 const uploadSchema = z
@@ -10,8 +11,14 @@ const uploadSchema = z
     fileType: z.enum(FileAssetType)
   })
   .strict();
+const administrativeInvitationUploadSchema = z.object({ fileType: z.enum(FileAssetType) }).strict().superRefine((value, context) => {
+  if (!ADMIN_INVITATION_IMAGE_FILE_TYPES.has(value.fileType)) {
+    context.addIssue({ code: 'custom', message: 'File type is not available through the administrative Invitation surface.' });
+  }
+});
 
 export type UploadFileAssetInput = z.infer<typeof uploadSchema>;
+export type AdministrativeInvitationUploadInput = z.infer<typeof administrativeInvitationUploadSchema>;
 
 export class UploadFileAssetRequestDto {
   @ApiProperty({ type: 'string', format: 'binary' })
@@ -21,6 +28,16 @@ export class UploadFileAssetRequestDto {
   ownerType!: FileAssetOwnerType;
 
   @ApiProperty({ enum: FileAssetType, enumName: 'FileAssetType' })
+  fileType!: FileAssetType;
+}
+
+export class AdministrativeInvitationFileAssetUploadRequestDto {
+  @ApiProperty({ type: 'string', format: 'binary' })
+  file!: unknown;
+
+  @ApiProperty({
+    enum: [FileAssetType.FLYER_INITIAL_IMAGE, FileAssetType.FLYER_QR_IMAGE, FileAssetType.FLIPBOOK_PAGE_IMAGE]
+  })
   fileType!: FileAssetType;
 }
 
@@ -76,6 +93,10 @@ export class FileAssetResponseDto {
 
 export function parseFileAssetUpload(input: unknown): UploadFileAssetInput {
   return parse(uploadSchema, input);
+}
+
+export function parseAdministrativeInvitationFileAssetUpload(input: unknown): AdministrativeInvitationUploadInput {
+  return parse(administrativeInvitationUploadSchema, input);
 }
 
 export function parseFileAssetId(input: unknown): string {
