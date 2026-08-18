@@ -11,11 +11,17 @@ const uploadSchema = z
     fileType: z.enum(FileAssetType)
   })
   .strict();
-const administrativeInvitationUploadSchema = z.object({ fileType: z.enum(FileAssetType) }).strict().superRefine((value, context) => {
-  if (!ADMIN_INVITATION_IMAGE_FILE_TYPES.has(value.fileType)) {
-    context.addIssue({ code: 'custom', message: 'File type is not available through the administrative Invitation surface.' });
-  }
-});
+const administrativeInvitationUploadSchema = z
+  .object({ fileType: z.enum(FileAssetType) })
+  .strict()
+  .superRefine((value, context) => {
+    if (!ADMIN_INVITATION_IMAGE_FILE_TYPES.has(value.fileType)) {
+      context.addIssue({
+        code: 'custom',
+        message: 'File type is not available through the administrative Invitation surface.'
+      });
+    }
+  });
 
 export type UploadFileAssetInput = z.infer<typeof uploadSchema>;
 export type AdministrativeInvitationUploadInput = z.infer<typeof administrativeInvitationUploadSchema>;
