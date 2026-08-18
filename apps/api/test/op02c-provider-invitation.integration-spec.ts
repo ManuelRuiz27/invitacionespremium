@@ -69,7 +69,9 @@ describe('OP-02C provider Invitation Design', () => {
       .expect(200)
       .expect(({ body }) => expect(body.blockers).toContain('INVITATION_DESIGN_MISSING'));
 
-    const wrongClient = await prisma.client.create({ data: { type: ClientType.PLANNER, name: `Wrong ${randomUUID()}` } });
+    const wrongClient = await prisma.client.create({
+      data: { type: ClientType.PLANNER, name: `Wrong ${randomUUID()}` }
+    });
     await adminGet(wrongClient.id, fixture.event.id, 'design/readiness', adminCookie)
       .expect(404)
       .expect(({ body }) => expect(body.code).toBe('EVENT_NOT_FOUND'));
@@ -175,10 +177,12 @@ describe('OP-02C provider Invitation Design', () => {
       .send({ assetId: foreignReplacement.id })
       .expect(409)
       .expect(({ body }) => expect(body.code).toBe('FILE_OWNER_MISMATCH'));
-    expect((await prisma.invitationDesign.findUniqueOrThrow({ where: { id: created.body.id } })).flyerInitialAssetId).toBe(
-      initial.id
+    expect(
+      (await prisma.invitationDesign.findUniqueOrThrow({ where: { id: created.body.id } })).flyerInitialAssetId
+    ).toBe(initial.id);
+    expect((await prisma.fileAsset.findUniqueOrThrow({ where: { id: initial.id } })).status).toBe(
+      FileAssetStatus.READY
     );
-    expect((await prisma.fileAsset.findUniqueOrThrow({ where: { id: initial.id } })).status).toBe(FileAssetStatus.READY);
   });
 
   it('manages Flipbook pages through the existing shared domain', async () => {
@@ -188,12 +192,7 @@ describe('OP-02C provider Invitation Design', () => {
 
     const assets = await Promise.all(
       Array.from({ length: 4 }, () =>
-        readyAsset(
-          fixture.event,
-          fixture.admin.id,
-          FileAssetOwnerType.FLIPBOOK_PAGE,
-          FileAssetType.FLIPBOOK_PAGE_IMAGE
-        )
+        readyAsset(fixture.event, fixture.admin.id, FileAssetOwnerType.FLIPBOOK_PAGE, FileAssetType.FLIPBOOK_PAGE_IMAGE)
       )
     );
     let pages: Array<{ id: string; fileAssetId: string; position: number }> = [];
@@ -217,12 +216,7 @@ describe('OP-02C provider Invitation Design', () => {
     expect(reordered.body.pages.map(({ id }: { id: string }) => id)).toEqual(reversed);
 
     const first = reordered.body.pages[0];
-    await adminPatch(
-      fixture.client.id,
-      fixture.event.id,
-      `design/flipbook/pages/${first.id}/asset`,
-      adminCookie
-    )
+    await adminPatch(fixture.client.id, fixture.event.id, `design/flipbook/pages/${first.id}/asset`, adminCookie)
       .send({ assetId: assets[3]!.id })
       .expect(200);
     expect((await prisma.fileAsset.findUniqueOrThrow({ where: { id: first.fileAssetId } })).status).toBe(
@@ -242,7 +236,7 @@ describe('OP-02C provider Invitation Design', () => {
   it('preserves state/service guards and exposes only the authorized Admin OpenAPI paths', async () => {
     const active = await createFixture(ServiceCode.FLIPBOOK);
     const adminCookie = await login(active.admin.email);
-    await setEventStatus(active.event.id, EventStatus.ACTIVE);
+    await setEventStatus(active.event.id, EventStatus.CANCELLED);
     await adminPost(active.client.id, active.event.id, 'design/flipbook', adminCookie)
       .expect(409)
       .expect(({ body }) => expect(body.code).toBe('INVITATION_DESIGN_EVENT_STATE_LOCKED'));

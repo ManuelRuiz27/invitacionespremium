@@ -41,9 +41,9 @@ export function administrativeInvitationOwnerType(fileType: FileAssetType): File
       message: 'File type is not available through the administrative Invitation surface.'
     });
   }
-  const match = (Object.entries(FILE_ASSET_COMPATIBILITY) as Array<[FileAssetOwnerType, readonly FileAssetType[]]>).find(
-    ([, compatible]) => compatible.includes(fileType)
-  );
+  const match = (
+    Object.entries(FILE_ASSET_COMPATIBILITY) as Array<[FileAssetOwnerType, readonly FileAssetType[]]>
+  ).find(([, compatible]) => compatible.includes(fileType));
   if (!match || (match[0] !== FileAssetOwnerType.FLYER && match[0] !== FileAssetOwnerType.FLIPBOOK_PAGE)) {
     throw new ConflictException({
       code: 'FILE_TYPE_OWNER_MISMATCH',

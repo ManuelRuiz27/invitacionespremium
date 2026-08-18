@@ -93,12 +93,9 @@ describe('OP-02C provider Invitation FileAssets', () => {
       FileAssetType.FLYER_INITIAL_IMAGE
     ).expect(201);
     const qr = await upload(fixture.clientId, fixture.eventId, adminCookie, FileAssetType.FLYER_QR_IMAGE).expect(201);
-    const page = await upload(
-      fixture.clientId,
-      fixture.eventId,
-      adminCookie,
-      FileAssetType.FLIPBOOK_PAGE_IMAGE
-    ).expect(201);
+    const page = await upload(fixture.clientId, fixture.eventId, adminCookie, FileAssetType.FLIPBOOK_PAGE_IMAGE).expect(
+      201
+    );
 
     await prisma.fileAsset.create({
       data: {
@@ -126,9 +123,9 @@ describe('OP-02C provider Invitation FileAssets', () => {
     expect(new Set(listed.body.map(({ id }: { id: string }) => id))).toEqual(
       new Set([initial.body.id, qr.body.id, page.body.id])
     );
-    expect(listed.body.every(({ fileType }: { fileType: FileAssetType }) => fileType !== FileAssetType.FLOORPLAN_IMAGE)).toBe(
-      true
-    );
+    expect(
+      listed.body.every(({ fileType }: { fileType: FileAssetType }) => fileType !== FileAssetType.FLOORPLAN_IMAGE)
+    ).toBe(true);
 
     const content = await request(app.getHttpServer())
       .get(
@@ -170,7 +167,9 @@ describe('OP-02C provider Invitation FileAssets', () => {
       .send({ initialAssetId: initial.body.id, qrAssetId: qr.body.id })
       .expect(201);
     await request(app.getHttpServer())
-      .delete(`/api/v1/admin/clients/${fixture.clientId}/events/${fixture.eventId}/design/file-assets/${initial.body.id}`)
+      .delete(
+        `/api/v1/admin/clients/${fixture.clientId}/events/${fixture.eventId}/design/file-assets/${initial.body.id}`
+      )
       .set('Cookie', adminCookie)
       .set('Origin', trustedOrigin)
       .expect(409)
