@@ -3,6 +3,8 @@ import { MulterModule } from '@nestjs/platform-express';
 import { AuditModule } from '../audit/audit.module';
 import { AppConfigService } from '../config/app-config.service';
 import { EventsModule } from '../events/events.module';
+import { AdminFloorplanFileAssetsController } from './admin-floorplan-file-assets.controller';
+import { AdminInvitationFileAssetsController } from './admin-invitation-file-assets.controller';
 import {
   AlbumPhotoFileAssetOwnerResolver,
   FileAssetOwnerRegistry,
@@ -13,7 +15,6 @@ import {
   InvitationFileAssetOwnerResolver
 } from './file-asset-owner.registry';
 import { FileImageValidator } from './file-image-validator';
-import { AdminFloorplanFileAssetsController } from './admin-floorplan-file-assets.controller';
 import { FileStorage } from './file-storage';
 import { FileAssetsController } from './file-assets.controller';
 import { FileAssetsScheduler } from './file-assets.scheduler';
@@ -31,7 +32,7 @@ import { LocalFileStorage } from './local-file-storage';
       })
     })
   ],
-  controllers: [AdminFloorplanFileAssetsController, FileAssetsController],
+  controllers: [AdminFloorplanFileAssetsController, AdminInvitationFileAssetsController, FileAssetsController],
   providers: [
     FileAssetsService,
     FileAssetsScheduler,
