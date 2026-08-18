@@ -8,6 +8,8 @@ export interface LandingEyebrowProps {
   label: string;
   /** Optional leading icon */
   icon?: ReactNode;
+  /** Color treatment for the surface where the eyebrow is rendered. */
+  tone?: 'accent' | 'dark';
   /** sx overrides */
   sx?: SxProps<Theme>;
 }
@@ -16,7 +18,10 @@ export interface LandingEyebrowProps {
  * Styled eyebrow / badge for section introductions.
  * Replaces raw MUI Chip with a landing-specific treatment.
  */
-export function LandingEyebrow({ label, icon, sx }: LandingEyebrowProps) {
+export function LandingEyebrow({ label, icon, tone = 'accent', sx }: LandingEyebrowProps) {
+  const foreground =
+    tone === 'dark' ? landingTokens.colors.dark.text : designTokens.colors.accent;
+
   return (
     <Box
       component="span"
@@ -27,8 +32,9 @@ export function LandingEyebrow({ label, icon, sx }: LandingEyebrowProps) {
         px: 1.5,
         py: 0.5,
         borderRadius: `${landingTokens.radius.badge}px`,
-        border: `1px solid ${designTokens.colors.accent}33`,
-        backgroundColor: `${designTokens.colors.accent}0A`,
+        color: foreground,
+        border: `1px solid ${foreground}${tone === 'dark' ? '66' : '33'}`,
+        backgroundColor: `${foreground}${tone === 'dark' ? '14' : '0A'}`,
         ...sx
       }}
     >
@@ -38,7 +44,7 @@ export function LandingEyebrow({ label, icon, sx }: LandingEyebrowProps) {
           sx={{
             display: 'inline-flex',
             alignItems: 'center',
-            color: designTokens.colors.accent,
+            color: 'inherit',
             fontSize: '1rem'
           }}
         >
@@ -49,7 +55,7 @@ export function LandingEyebrow({ label, icon, sx }: LandingEyebrowProps) {
         component="span"
         sx={{
           ...landingTokens.typography.eyebrow,
-          color: designTokens.colors.accent
+          color: 'inherit'
         }}
       >
         {label}

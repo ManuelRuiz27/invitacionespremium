@@ -57,9 +57,9 @@ export function LandingHero({ onOpenRegister, config }: LandingHeroProps) {
         >
           <Box>
             <LandingEyebrow
-              icon={<EventAvailableIcon fontSize="small" sx={{ color: landingTokens.colors.dark.accent }} />}
+              icon={<EventAvailableIcon fontSize="small" />}
               label={landingContent.hero.badge}
-              sx={{ color: landingTokens.colors.dark.textMuted }}
+              tone="dark"
             />
           </Box>
 
@@ -121,7 +121,7 @@ export function LandingHero({ onOpenRegister, config }: LandingHeroProps) {
                 minHeight: 56,
                 px: 4,
                 fontSize: '1rem',
-                borderColor: landingTokens.colors.dark.border,
+                borderColor: landingTokens.colors.dark.textMuted,
                 color: landingTokens.colors.dark.text,
                 borderRadius: 0,
                 textTransform: 'none',

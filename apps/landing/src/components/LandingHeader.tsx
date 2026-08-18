@@ -157,7 +157,7 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
                 sx={{
                   borderRadius: 0,
                   color: landingTokens.colors.dark.text,
-                  borderColor: landingTokens.borders.hairlineDark,
+                  borderColor: landingTokens.colors.dark.textMuted,
                   ...landingTokens.typography.headline,
                   fontSize: '0.9rem',
                   px: 3,
@@ -295,7 +295,7 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
               sx={{
                 borderRadius: 0,
                 color: landingTokens.colors.dark.text,
-                borderColor: landingTokens.borders.hairlineDark,
+                borderColor: landingTokens.colors.dark.textMuted,
                 ...landingTokens.typography.headline,
                 fontSize: '0.95rem',
                 py: 1.5,

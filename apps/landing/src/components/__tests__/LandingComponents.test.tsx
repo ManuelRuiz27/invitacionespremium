@@ -378,6 +378,35 @@ describe('Landing accessibility and navigation', () => {
     expect(handleRegister).toHaveBeenCalledOnce();
   });
 
+  it('uses the dark-surface palette for the hero badge and login outlines', () => {
+    renderWithTheme(<LandingHero onOpenRegister={vi.fn()} />);
+
+    expect(screen.getByText(content.hero.badge).parentElement).toHaveStyle({
+      color: landingTokens.colors.dark.text
+    });
+    expect(screen.getByRole('link', { name: content.hero.secondaryCta })).toHaveStyle({
+      borderColor: landingTokens.colors.dark.textMuted
+    });
+  });
+
+  it('uses a valid dark-surface border color for the header login action', () => {
+    vi.mocked(window.matchMedia).mockImplementation((query) => ({
+      matches: query.includes('min-width'),
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn()
+    }));
+    renderWithTheme(<LandingHeader onOpenRegister={vi.fn()} />);
+
+    expect(screen.getByRole('link', { name: content.hero.secondaryCta })).toHaveStyle({
+      borderColor: landingTokens.colors.dark.textMuted
+    });
+  });
+
   it('login is disabled in header when no URL is configured', () => {
     vi.mocked(window.matchMedia).mockImplementation((query) => ({
       matches: query.includes('min-width'),
