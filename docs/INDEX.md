@@ -86,6 +86,7 @@ Leer primero `docs/04-tecnico/REPOSITORY_SOURCE_OF_TRUTH.md` cuando una tarea me
 - `19_OPERATOR_LED_FLOORPLAN_ROADMAP.md` — orden de ejecución hacia piloto
 - `OP03A_PLANNER_PROVIDER_CAPABILITY_SEPARATION.md` — contrato de reducción backend de mutaciones Planner y preservación de lectura/Seating
 - `OP03B_OPERATOR_PLANNER_SURFACES.md` — gating de launch surface Planner y preparación provider-led en Admin
+- `FP01_PROVIDER_FLOORPLAN_SHELL.md` — shell Croquis V2 provider-led y extracción autorizada del engine compartido
 
 ## Precedencia para el cambio operator-led / Croquis V2
 
@@ -97,10 +98,11 @@ Cuando una tarea pertenezca a este cambio, usar este orden práctico:
 4. `FLOORPLAN_UX_TARGET.md` y `LEGACY_UI_VISUAL_PORT_GUIDE.md` para UI/UX.
 5. `14_CODEX_RULES.md` + `14A_OPERATOR_LED_CODEX_RULES.md` para implementación.
 6. `19_OPERATOR_LED_FLOORPLAN_ROADMAP.md` para secuencia de ejecución.
-7. Render o referencia legacy únicamente al final y sólo para intención visual autorizada.
+7. Contrato de implementación del ticket activo (`FP01_PROVIDER_FLOORPLAN_SHELL.md`, etc.).
+8. Render o referencia legacy únicamente al final y sólo para intención visual autorizada.
 
 Una referencia visual nunca puede cambiar dominio, permisos, estados, contratos API o reglas financieras.
 
 ## Regla monorepo
 
-`MONOREPO_ARCHITECTURE.md` sustituye cualquier instrucción anterior de crear repos separados. Los nombres históricos se mapean a rutas dentro de `apps/` y `packages/`.
+`MONOREPO_ARCHITECTURE.md` sustituye cualquier instrucción anterior de crear repos separados. Los nombres históricos se mapean a rutas dentro de `apps/` y `packages/`. `FP01_PROVIDER_FLOORPLAN_SHELL.md` autoriza específicamente `packages/floorplan` como package compartido del engine frontend de Croquis, sin API/auth/persistencia propia.
