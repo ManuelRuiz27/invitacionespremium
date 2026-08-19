@@ -4,6 +4,7 @@ import {
   createAdminCatalogClient,
   createAdminClientsClient,
   createAdminEventsClient,
+  createAdminEventPreparationClient,
   createAdminFinanceClient,
   createAdminReportsClient
 } from './admin';
@@ -77,6 +78,7 @@ export function createApiClient(config: ApiClientRuntimeConfig) {
     auth: createAuthClient(request),
     adminClients: createAdminClientsClient(request),
     adminEvents: createAdminEventsClient(request),
+    adminEventPreparation: createAdminEventPreparationClient(request),
     adminFinance: createAdminFinanceClient(request),
     adminCatalog: createAdminCatalogClient(request),
     adminReports: createAdminReportsClient(request),

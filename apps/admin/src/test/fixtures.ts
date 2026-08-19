@@ -157,6 +157,28 @@ export function mockAdminApi(user: AuthUser = platformAdmin): AdminTestApiClient
       get: vi.fn().mockResolvedValue(adminEvent),
       restore: vi.fn().mockResolvedValue(adminEvent)
     },
+    adminEventPreparation: {
+      updateEvent: vi.fn().mockResolvedValue(adminEvent),
+      getDesign: vi.fn(),
+      getReadiness: vi.fn().mockResolvedValue({ complete: false, blockers: [] }),
+      createFlyer: vi.fn(),
+      replaceFlyerInitial: vi.fn(),
+      replaceFlyerQr: vi.fn(),
+      createFlipbook: vi.fn(),
+      addPage: vi.fn(),
+      reorderPages: vi.fn(),
+      replacePage: vi.fn(),
+      removePage: vi.fn(),
+      listHotspots: vi.fn().mockResolvedValue([]),
+      createHotspot: vi.fn(),
+      updateHotspot: vi.fn(),
+      removeHotspot: vi.fn(),
+      listInvitationAssets: vi.fn().mockResolvedValue([]),
+      uploadInvitationAsset: vi.fn(),
+      invitationAssetContent: vi.fn(),
+      removeInvitationAsset: vi.fn(),
+      getFloorplan: vi.fn()
+    },
     adminFinance: {
       balance: vi.fn().mockResolvedValue(adminBalance),
       assignCredits: vi.fn().mockResolvedValue(mutationResult),

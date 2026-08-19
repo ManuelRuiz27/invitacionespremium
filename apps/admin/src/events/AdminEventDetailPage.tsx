@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { ApiClient } from '@invitaciones/api-client';
 import { PageHeader, StatusChip } from '@invitaciones/ui';
-import { ArrowBackOutlined, RestoreOutlined } from '@mui/icons-material';
+import { ArrowBackOutlined, BuildOutlined, RestoreOutlined } from '@mui/icons-material';
 import { Button, Card, CardContent, Divider, Grid, Stack, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
@@ -69,6 +69,16 @@ function AdminEventDetail({ apiClient, eventId }: { apiClient: ApiClient; eventI
         description="Detalle administrativo global de solo lectura."
         action={
           <Stack direction="row" spacing={1}>
+            {!data.deletedAt ? (
+              <Button
+                component={Link}
+                to={`/eventos/${data.id}/preparar`}
+                variant="contained"
+                startIcon={<BuildOutlined />}
+              >
+                Preparar evento
+              </Button>
+            ) : null}
             {data.deletedAt ? (
               <Button variant="contained" startIcon={<RestoreOutlined />} onClick={() => setRestoring(true)}>
                 Restaurar

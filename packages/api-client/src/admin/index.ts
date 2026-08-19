@@ -2,6 +2,8 @@ export { createAdminClientsClient } from './clients';
 export type * from './clients';
 export { createAdminEventsClient } from './events';
 export type * from './events';
+export { createAdminEventPreparationClient } from './event-preparation';
+export type * from './event-preparation';
 export { createAdminFinanceClient } from './finance';
 export type * from './finance';
 export { createAdminCatalogClient } from './catalog';

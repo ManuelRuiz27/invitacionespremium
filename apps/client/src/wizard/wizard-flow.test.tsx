@@ -54,6 +54,49 @@ describe('integrated Event wizard flows', () => {
     expect(api.design.hotspots).not.toHaveBeenCalled();
   });
 
+  it.each(['invitacion', 'croquis'])(
+    'normalizes the retired %s deep link without mounting provider editors',
+    async (step) => {
+      const api = mockApiClient();
+      vi.mocked(api.events.get).mockResolvedValue({
+        ...configuredEvent,
+        serviceId: 'service-flyer',
+        serviceCode: 'FLYER'
+      });
+      const { router } = renderApp(api, `/eventos/${configuredEvent.id}/configuracion/${step}`);
+      expect(await screen.findByRole('heading', { name: 'Datos del Evento' })).toBeInTheDocument();
+      await waitFor(() =>
+        expect(router.state.location.pathname).toBe(`/eventos/${configuredEvent.id}/configuracion/datos`)
+      );
+      expect(api.design.get).not.toHaveBeenCalled();
+      expect(api.design.hotspots).not.toHaveBeenCalled();
+      expect(api.fileAssets.list).not.toHaveBeenCalled();
+      expect(api.floorplan.get).not.toHaveBeenCalled();
+    }
+  );
+
+  it('keeps provider readiness visible without offering Planner correction links', async () => {
+    const api = mockApiClient();
+    vi.mocked(api.events.get).mockResolvedValue({
+      ...configuredEvent,
+      serviceId: 'service-flyer',
+      serviceCode: 'FLYER',
+      floorplanEnabled: true
+    });
+    vi.mocked(api.design.readiness).mockResolvedValue({
+      complete: false,
+      blockers: ['FLYER_INITIAL_ASSET_REQUIRED'],
+      designType: 'FLYER'
+    });
+    vi.mocked(api.floorplan.get).mockRejectedValue(new Error('missing'));
+    renderApp(api, `/eventos/${configuredEvent.id}/configuracion/revision`);
+    const invitation = await screen.findByText(/Pendiente: Invitación/);
+    const tables = await screen.findByText(/Pendiente: Mesas listas/);
+    expect(invitation.closest('li')?.querySelector('button')).toBeNull();
+    expect(tables.closest('li')?.querySelector('button')).toBeNull();
+    expect(screen.getByText(/Pendiente de preparación técnica/)).toBeInTheDocument();
+  });
+
   it('uses a fresh key for two intentional equal Physical pass batches', async () => {
     const api = mockApiClient();
     vi.mocked(api.events.get).mockResolvedValue(physicalEvent);

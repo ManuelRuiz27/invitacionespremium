@@ -1,7 +1,7 @@
 import type { ApiClient } from '@invitaciones/api-client';
 import type { QueryClient } from '@tanstack/react-query';
 import { Button, Stack, Typography } from '@mui/material';
-import { createBrowserRouter, createMemoryRouter, Link, Outlet, type RouteObject } from 'react-router-dom';
+import { createBrowserRouter, createMemoryRouter, Link, Navigate, Outlet, type RouteObject } from 'react-router-dom';
 import { AdminAuthProvider } from '../auth/AdminAuthProvider';
 import type { AdminUnauthorizedController } from '../auth/admin-unauthorized-controller';
 import { AdminLoginPage } from '../auth/AdminLoginPage';
@@ -11,6 +11,7 @@ import { AdminClientDetailPage } from '../clients/AdminClientDetailPage';
 import { AdminClientsPage } from '../clients/AdminClientsPage';
 import { AdminDashboardPage } from '../dashboard/AdminDashboardPage';
 import { AdminEventDetailPage } from '../events/AdminEventDetailPage';
+import { AdminEventPreparationPage } from '../events/preparation/AdminEventPreparationPage';
 import { AdminEventsPage } from '../events/AdminEventsPage';
 import { AdminFinanceIntentProvider, type AdminFinanceIntentRegistry } from '../finance/admin-finance-intents';
 import { AdminShell } from '../layout/AdminShell';
@@ -69,6 +70,19 @@ function createRoutes({
                     { path: 'clientes/:clientId', element: <AdminClientDetailPage apiClient={apiClient} /> },
                     { path: 'eventos', element: <AdminEventsPage apiClient={apiClient} /> },
                     { path: 'eventos/:eventId', element: <AdminEventDetailPage apiClient={apiClient} /> },
+                    { path: 'eventos/:eventId/preparar', element: <Navigate replace to="datos" /> },
+                    {
+                      path: 'eventos/:eventId/preparar/datos',
+                      element: <AdminEventPreparationPage apiClient={apiClient} />
+                    },
+                    {
+                      path: 'eventos/:eventId/preparar/invitacion',
+                      element: <AdminEventPreparationPage apiClient={apiClient} />
+                    },
+                    {
+                      path: 'eventos/:eventId/preparar/croquis',
+                      element: <AdminEventPreparationPage apiClient={apiClient} />
+                    },
                     { path: 'catalogo', element: <AdminCatalogPage apiClient={apiClient} /> },
                     { path: 'reportes', element: <AdminReportsPage apiClient={apiClient} /> },
                     { path: 'reportes/eventos/:eventId', element: <AdminEventReportsRoute apiClient={apiClient} /> },

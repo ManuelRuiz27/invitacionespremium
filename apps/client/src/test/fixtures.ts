@@ -162,6 +162,28 @@ export function mockApiClient(user: AuthUser = independentUser): ApiClient {
       updateUser: vi.fn()
     },
     adminEvents: { list: vi.fn().mockResolvedValue([]), get: vi.fn(), restore: vi.fn() },
+    adminEventPreparation: {
+      updateEvent: vi.fn(),
+      getDesign: vi.fn(),
+      getReadiness: vi.fn(),
+      createFlyer: vi.fn(),
+      replaceFlyerInitial: vi.fn(),
+      replaceFlyerQr: vi.fn(),
+      createFlipbook: vi.fn(),
+      addPage: vi.fn(),
+      reorderPages: vi.fn(),
+      replacePage: vi.fn(),
+      removePage: vi.fn(),
+      listHotspots: vi.fn(),
+      createHotspot: vi.fn(),
+      updateHotspot: vi.fn(),
+      removeHotspot: vi.fn(),
+      listInvitationAssets: vi.fn(),
+      uploadInvitationAsset: vi.fn(),
+      invitationAssetContent: vi.fn(),
+      removeInvitationAsset: vi.fn(),
+      getFloorplan: vi.fn()
+    },
     adminFinance: {
       balance: vi.fn(),
       assignCredits: vi.fn(),

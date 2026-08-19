@@ -18,7 +18,7 @@ import { AttemptManager, isUncertainFailure } from '../wizard-model';
 import type { WizardStep } from '../wizard-model';
 import { blockerMessage, errorMessage, operationReference } from '../wizard-utils';
 
-type Check = { label: string; ok: boolean; step: WizardStep; detail?: string };
+type Check = { label: string; ok: boolean; step?: WizardStep; detail?: string; managedByProvider?: boolean };
 export function ReviewStep({
   apiClient,
   event,
@@ -70,7 +70,10 @@ export function ReviewStep({
                 {
                   label: 'Mesas listas',
                   ok: Boolean(floorplan?.locked && floorplan.shapes.length),
-                  step: 'croquis' as const
+                  managedByProvider: true,
+                  ...(!floorplan?.locked || !floorplan.shapes.length
+                    ? { detail: 'Pendiente de preparación técnica.' }
+                    : {})
                 }
               ]
             : [])
@@ -95,8 +98,12 @@ export function ReviewStep({
           {
             label: 'Invitación',
             ok: readiness.complete,
-            step: 'invitacion',
-            detail: readiness.blockers.map(blockerMessage).join(' ')
+            managedByProvider: true,
+            ...(readiness.complete
+              ? {}
+              : {
+                  detail: readiness.blockers.map(blockerMessage).join(' ') || 'Pendiente de preparación técnica.'
+                })
           },
           { label: 'Confirmación de asistencia', ok: latest.confirmationEnabled, step: 'confirmacion' },
           { label: 'Ubicación', ok: Boolean(latest.locationUrl), step: 'datos' },
@@ -106,7 +113,10 @@ export function ReviewStep({
                 {
                   label: 'Mesas listas',
                   ok: Boolean(floorplan?.locked && floorplan.shapes.length),
-                  step: 'croquis' as const
+                  managedByProvider: true,
+                  ...(!floorplan?.locked || !floorplan.shapes.length
+                    ? { detail: 'Pendiente de preparación técnica.' }
+                    : {})
                 }
               ]
             : [])
@@ -184,8 +194,8 @@ export function ReviewStep({
               {check.ok ? '✓' : 'Pendiente:'} {check.label}
               {check.detail ? ` · ${check.detail}` : ''}
             </span>
-            {!check.ok && !operational ? (
-              <Button size="small" onClick={() => onGo(check.step)}>
+            {!check.ok && !operational && check.step && !check.managedByProvider ? (
+              <Button size="small" onClick={() => onGo(check.step!)}>
                 Corregir
               </Button>
             ) : null}
