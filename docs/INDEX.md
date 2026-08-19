@@ -85,6 +85,7 @@ Leer primero `docs/04-tecnico/REPOSITORY_SOURCE_OF_TRUTH.md` cuando una tarea me
 - `18_MONOREPO_BOOTSTRAP.md`
 - `19_OPERATOR_LED_FLOORPLAN_ROADMAP.md` — orden de ejecución hacia piloto
 - `OP03A_PLANNER_PROVIDER_CAPABILITY_SEPARATION.md` — contrato de reducción backend de mutaciones Planner y preservación de lectura/Seating
+- `OP03B_OPERATOR_PLANNER_SURFACES.md` — gating de launch surface Planner y preparación provider-led en Admin
 
 ## Precedencia para el cambio operator-led / Croquis V2
 
