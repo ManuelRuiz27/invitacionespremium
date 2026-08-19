@@ -14,7 +14,7 @@ export type AdminHotspot = S['HotspotResponseDto'];
 export type AdminHotspotInput = S['CreateHotspotRequestDto'];
 export type AdminHotspotUpdate = S['UpdateHotspotRequestDto'];
 export type AdminInvitationFileAsset = S['FileAssetResponseDto'];
-export type AdminInvitationFileAssetType = S['FileAssetType'];
+export type AdminInvitationFileAssetType = S['AdministrativeInvitationFileAssetUploadRequestDto']['fileType'];
 export type AdminFloorplan = S['FloorplanResponseDto'];
 
 const id = encodeURIComponent;
@@ -168,7 +168,7 @@ export function createAdminEventPreparationClient(request: ApiRequester) {
       }),
     listInvitationAssets: (clientId: string, eventId: string, signal?: AbortSignal) =>
       request<AdminInvitationFileAsset[]>(
-        { path: `${base(clientId, eventId)}/invitation-file-assets`, response: 'json', ...withSignal(signal) },
+        { path: `${base(clientId, eventId)}/design/file-assets`, response: 'json', ...withSignal(signal) },
         records
       ),
     uploadInvitationAsset: (
@@ -184,7 +184,7 @@ export function createAdminEventPreparationClient(request: ApiRequester) {
       return request<AdminInvitationFileAsset>(
         {
           method: 'POST',
-          path: `${base(clientId, eventId)}/invitation-file-assets`,
+          path: `${base(clientId, eventId)}/design/file-assets`,
           body,
           response: 'json',
           ...withSignal(signal)
@@ -194,14 +194,14 @@ export function createAdminEventPreparationClient(request: ApiRequester) {
     },
     invitationAssetContent: (clientId: string, eventId: string, assetId: string, signal?: AbortSignal) =>
       request<Blob>({
-        path: `${base(clientId, eventId)}/invitation-file-assets/${id(assetId)}/content`,
+        path: `${base(clientId, eventId)}/design/file-assets/${id(assetId)}/content`,
         response: 'blob',
         ...withSignal(signal)
       }),
     removeInvitationAsset: (clientId: string, eventId: string, assetId: string, signal?: AbortSignal) =>
       request<void>({
         method: 'DELETE',
-        path: `${base(clientId, eventId)}/invitation-file-assets/${id(assetId)}`,
+        path: `${base(clientId, eventId)}/design/file-assets/${id(assetId)}`,
         response: 'empty',
         ...withSignal(signal)
       }),

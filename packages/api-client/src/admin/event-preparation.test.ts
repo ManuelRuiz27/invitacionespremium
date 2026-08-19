@@ -1,7 +1,14 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, expectTypeOf, it, vi } from 'vitest';
+import type { AdminInvitationFileAssetType } from './event-preparation';
 import { createApiClient } from '../index';
 
 describe('administrative Event preparation API client', () => {
+  it('exposes only Invitation image types from the generated administrative upload schema', () => {
+    expectTypeOf<AdminInvitationFileAssetType>().toEqualTypeOf<
+      'FLYER_INITIAL_IMAGE' | 'FLYER_QR_IMAGE' | 'FLIPBOOK_PAGE_IMAGE'
+    >();
+  });
+
   it('uses only client-scoped Admin routes and the authoritative multipart fields', async () => {
     const fetchImpl = vi.fn<typeof fetch>(async (input, init) => {
       const path = new URL(String(input)).pathname;
@@ -9,7 +16,7 @@ describe('administrative Event preparation API client', () => {
         return new Response(null, { status: 204 });
       if (path.endsWith('/content')) return new Response(new Blob(['image']), { status: 200 });
       if (path.endsWith('/hotspots') && (!init?.method || init.method === 'GET')) return json([]);
-      if (path.endsWith('/invitation-file-assets') && (!init?.method || init.method === 'GET')) return json([]);
+      if (path.endsWith('/design/file-assets') && (!init?.method || init.method === 'GET')) return json([]);
       return json({}, init?.method === 'POST' ? 201 : 200);
     });
     const api = createApiClient({ baseUrl: 'https://api.example.com/api/v1', fetchImpl });
@@ -77,10 +84,10 @@ describe('administrative Event preparation API client', () => {
       `${base}/hotspots`,
       `${base}/hotspots/hotspot%2Fvalue`,
       `${base}/hotspots/hotspot%2Fvalue`,
-      `${base}/invitation-file-assets`,
-      `${base}/invitation-file-assets`,
-      `${base}/invitation-file-assets/asset%2Fvalue/content`,
-      `${base}/invitation-file-assets/asset%2Fvalue`,
+      `${base}/design/file-assets`,
+      `${base}/design/file-assets`,
+      `${base}/design/file-assets/asset%2Fvalue/content`,
+      `${base}/design/file-assets/asset%2Fvalue`,
       `${base}/floorplan`
     ]);
     expect(calls.map(([, init]) => init?.method ?? 'GET')).toEqual([
@@ -106,10 +113,9 @@ describe('administrative Event preparation API client', () => {
       'GET'
     ]);
     expect(calls.every(([url]) => !new URL(String(url)).pathname.startsWith('/api/v1/events/'))).toBe(true);
+    expect(calls.every(([url]) => !String(url).includes('/invitation-file-assets'))).toBe(true);
     expect(calls.every(([, init]) => init?.signal === signal && init.credentials === 'include')).toBe(true);
-    const upload = calls.find(
-      ([url, init]) => String(url).endsWith('/invitation-file-assets') && init?.method === 'POST'
-    );
+    const upload = calls.find(([url, init]) => String(url).endsWith('/design/file-assets') && init?.method === 'POST');
     expect(upload?.[1]?.body).toBeInstanceOf(FormData);
     const form = upload?.[1]?.body as FormData;
     expect(form.has('file')).toBe(true);
