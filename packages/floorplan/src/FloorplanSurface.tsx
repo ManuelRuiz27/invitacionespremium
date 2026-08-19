@@ -18,7 +18,7 @@ const LazyKonvaRenderer = lazy(() =>
 
 const defaultViewport: ViewportState = { scale: 1, x: 0, y: 0 };
 
-type FloorplanSurfaceProps = Omit<FloorplanRendererProps, 'showSeats' | 'snap' | 'panEnabled'> & {
+export type FloorplanSurfaceProps = Omit<FloorplanRendererProps, 'showSeats' | 'snap' | 'panEnabled'> & {
   dock?: ReactNode;
 };
 

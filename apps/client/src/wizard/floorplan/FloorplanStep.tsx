@@ -6,6 +6,19 @@ import type {
   FloorplanShapeInput,
   UpdateEventInput
 } from '@invitaciones/api-client';
+import {
+  FloorplanInventory,
+  FloorplanShapeValidationError,
+  FloorplanSurface,
+  FloorplanTray,
+  autoPlacePoint,
+  createPendingTables,
+  matchesAuthoritativeShape,
+  normalizeFloorplanShape,
+  placePendingTable,
+  type InventoryConfiguration,
+  type PendingTable
+} from '@invitaciones/floorplan';
 import AddRounded from '@mui/icons-material/AddRounded';
 import CheckRounded from '@mui/icons-material/CheckRounded';
 import CloseRounded from '@mui/icons-material/CloseRounded';
@@ -35,17 +48,6 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { errorMessage } from '../wizard-utils';
 import { usePrivateAssetUrl } from '../design/usePrivateAssetUrl';
-import { FloorplanShapeValidationError, normalizeFloorplanShape } from './floorplan-geometry';
-import { FloorplanInventory } from './FloorplanInventory';
-import { FloorplanSurface } from './FloorplanSurface';
-import { FloorplanTray } from './FloorplanTray';
-import {
-  autoPlacePoint,
-  createPendingTables,
-  matchesAuthoritativeShape,
-  placePendingTable
-} from './floorplan-inventory';
-import type { InventoryConfiguration, PendingTable } from './floorplan-inventory';
 
 type EditorMode = 'idle' | 'creating' | 'editing';
 type Mutation = 'uploading' | 'saving' | 'deleting' | 'locking' | 'unlocking' | 'placing';

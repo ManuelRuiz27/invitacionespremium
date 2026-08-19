@@ -1,13 +1,18 @@
 {
-  "name": "@invitaciones/client",
+  "name": "@invitaciones/floorplan",
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "scripts": {
-    "dev": "vite --host 0.0.0.0 --port 5173",
-    "build": "vite build",
-    "build:floorplan-profile": "vite build --config vite.floorplan-profile.config.ts",
-    "preview:floorplan-profile": "vite preview --config vite.floorplan-profile.config.ts --outDir dist-floorplan-profile --host 127.0.0.1 --port 4178",
+    "build": "tsc -p tsconfig.build.json",
     "lint": "eslint src",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
@@ -16,17 +21,15 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@invitaciones/api-client": "workspace:*",
-    "@invitaciones/floorplan": "workspace:*",
     "@invitaciones/ui": "workspace:*",
     "@mui/icons-material": "^9.2.0",
     "@mui/material": "^9.2.0",
-    "@tanstack/react-query": "^5.101.4",
     "konva": "^10.3.0",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "react-konva": "^19.2.5",
-    "react-router-dom": "^7.18.2",
-    "socket.io-client": "^4.8.3"
+    "react-konva": "^19.2.5"
+  },
+  "peerDependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^7.0.0",
@@ -34,8 +37,9 @@
     "@testing-library/user-event": "^14.6.1",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
-    "@vitejs/plugin-react": "^6.0.3",
     "jsdom": "^30.0.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "vite": "^8.1.5",
     "vitest": "^4.1.10"
   }

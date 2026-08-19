@@ -7,8 +7,9 @@ import { FloorplanStep } from './FloorplanStep';
 
 const production = vi.hoisted(() => ({ props: undefined as Record<string, unknown> | undefined }));
 vi.mock('../design/usePrivateAssetUrl', () => ({ usePrivateAssetUrl: () => 'blob:plan' }));
-vi.mock('./FloorplanKonvaRenderer', () => ({
-  FloorplanKonvaRenderer: (props: Record<string, unknown>) => {
+vi.mock('@invitaciones/floorplan', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@invitaciones/floorplan')>()),
+  FloorplanSurface: (props: Record<string, unknown>) => {
     production.props = props;
     return <div data-testid="step-production-konva">Renderer Konva</div>;
   }

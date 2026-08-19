@@ -35,7 +35,7 @@ import {
 } from '@mui/material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
-import { FloorplanSurface } from '../wizard/floorplan/FloorplanSurface';
+import { FloorplanSurface } from '@invitaciones/floorplan';
 import { useWorkspaceRealtime } from './useWorkspaceRealtime';
 
 type Scope = 'UNASSIGNED' | 'TABLE';

@@ -205,6 +205,9 @@ importers:
       '@invitaciones/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
+      '@invitaciones/floorplan':
+        specifier: workspace:*
+        version: link:../../packages/floorplan
       '@invitaciones/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -391,6 +394,64 @@ importers:
       openapi-typescript:
         specifier: ^7.13.0
         version: 7.13.0(typescript@5.9.3)
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@22.20.1)(jsdom@30.0.1(@noble/hashes@1.8.0))(msw@2.15.0(@types/node@22.20.1)(typescript@5.9.3))(vite@8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1))
+
+  packages/floorplan:
+    dependencies:
+      '@emotion/react':
+        specifier: ^11.14.0
+        version: 11.14.0(@types/react@19.2.17)(react@19.2.8)(supports-color@10.2.2)
+      '@emotion/styled':
+        specifier: ^11.14.1
+        version: 11.14.1(@emotion/react@11.14.0(@types/react@19.2.17)(react@19.2.8)(supports-color@10.2.2))(@types/react@19.2.17)(react@19.2.8)(supports-color@10.2.2)
+      '@invitaciones/api-client':
+        specifier: workspace:*
+        version: link:../api-client
+      '@invitaciones/ui':
+        specifier: workspace:*
+        version: link:../ui
+      '@mui/icons-material':
+        specifier: ^9.2.0
+        version: 9.2.0(@mui/material@9.2.0(@emotion/react@11.14.0(@types/react@19.2.17)(react@19.2.8)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.17)(react@19.2.8)(supports-color@10.2.2))(@types/react@19.2.17)(react@19.2.8)(supports-color@10.2.2))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(@types/react@19.2.17)(react@19.2.8)
+      '@mui/material':
+        specifier: ^9.2.0
+        version: 9.2.0(@emotion/react@11.14.0(@types/react@19.2.17)(react@19.2.8)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.17)(react@19.2.8)(supports-color@10.2.2))(@types/react@19.2.17)(react@19.2.8)(supports-color@10.2.2))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      konva:
+        specifier: ^10.3.0
+        version: 10.3.0
+      react-konva:
+        specifier: ^19.2.5
+        version: 19.2.5(@types/react@19.2.17)(konva@10.3.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+    devDependencies:
+      '@testing-library/jest-dom':
+        specifier: ^7.0.0
+        version: 7.0.0(@testing-library/dom@10.4.1)
+      '@testing-library/react':
+        specifier: ^16.3.2
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@testing-library/user-event':
+        specifier: ^14.6.1
+        version: 14.6.1(@testing-library/dom@10.4.1)
+      '@types/react':
+        specifier: ^19.2.0
+        version: 19.2.17
+      '@types/react-dom':
+        specifier: ^19.2.0
+        version: 19.2.3(@types/react@19.2.17)
+      jsdom:
+        specifier: ^30.0.1
+        version: 30.0.1(@noble/hashes@1.8.0)
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
+      vite:
+        specifier: ^8.1.5
+        version: 8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)
       vitest:
         specifier: ^4.1.10
         version: 4.1.10(@types/node@22.20.1)(jsdom@30.0.1(@noble/hashes@1.8.0))(msw@2.15.0(@types/node@22.20.1)(typescript@5.9.3))(vite@8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1))
