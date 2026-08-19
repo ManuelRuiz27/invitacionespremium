@@ -1,5 +1,5 @@
 import { ApiError, type AdminFloorplan, type AdminFloorplanShape } from '@invitaciones/api-client';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -224,7 +224,9 @@ describe('Admin Event preparation surfaces', () => {
     const zone = shape({ id: 'zone-a', name: 'Pista', kind: 'DECORATIVE_ZONE', capacity: 0, geometry: 'RECTANGLE' });
     const api = preparedFloorplanApi(floorplan({ shapes: [zone] }));
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
-    await userEvent.click(await screen.findByRole('button', { name: 'Pista' }));
+    await userEvent.click(
+      within(await screen.findByTestId('admin-floorplan-surface')).getByRole('button', { name: 'Pista' })
+    );
     expect((await screen.findAllByText('Zona seleccionada')).length).toBeGreaterThan(0);
     expect(screen.queryByLabelText('Número de lugares')).not.toBeInTheDocument();
     expect(screen.queryByText('DECORATIVE_ZONE')).not.toBeInTheDocument();
@@ -234,17 +236,31 @@ describe('Admin Event preparation surfaces', () => {
     const api = preparedFloorplanApi();
     vi.mocked(api.adminEventPreparation.createFloorplanShape).mockResolvedValue(shape());
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
-    await userEvent.click((await screen.findAllByRole('button', { name: 'Agregar mesa' }))[0]!);
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Mesa redonda' }))[0]!);
+    expect(api.adminEventPreparation.createFloorplanShape).not.toHaveBeenCalled();
+    act(() => canvasPlace()({ x: 0.5, y: 0.5 }));
+    expect(api.adminEventPreparation.createFloorplanShape).not.toHaveBeenCalled();
     const names = await screen.findAllByLabelText('Nombre o número');
+    await userEvent.clear(names.at(-1)!);
     await userEvent.type(names.at(-1)!, 'Mesa Uno');
     await userEvent.click(enabledButton('Agregar mesa'));
     await waitFor(() =>
       expect(api.adminEventPreparation.createFloorplanShape).toHaveBeenCalledWith(
         adminEvent.clientId,
         adminEvent.id,
-        expect.objectContaining({ name: 'Mesa Uno', kind: 'TABLE', capacity: 8 })
+        expect.objectContaining({
+          name: 'Mesa Uno',
+          kind: 'TABLE',
+          geometry: 'CIRCLE',
+          capacity: 10,
+          x: 0.44,
+          y: 0.44
+        })
       )
     );
+    const payload = vi.mocked(api.adminEventPreparation.createFloorplanShape).mock.calls[0]![2];
+    expect(payload).not.toHaveProperty('presetId');
+    expect(payload).not.toHaveProperty('stickerId');
   });
 
   it('creates a Zona with capacity zero and natural geometry labels', async () => {
@@ -252,8 +268,7 @@ describe('Admin Event preparation surfaces', () => {
     const zone = shape({ id: 'zone-a', name: 'Pista', kind: 'DECORATIVE_ZONE', capacity: 0, geometry: 'RECTANGLE' });
     vi.mocked(api.adminEventPreparation.createFloorplanShape).mockResolvedValue(zone);
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
-    await userEvent.click((await screen.findAllByRole('button', { name: 'Agregar zona' }))[0]!);
-    await userEvent.type((await screen.findAllByLabelText('Nombre de zona')).at(-1)!, 'Pista');
+    await chooseStickerAndPlace('Pista', { x: 0.55, y: 0.45 });
     expect(screen.getAllByRole('combobox', { name: 'Forma' }).at(-1)).toHaveTextContent('Rectangular');
     await userEvent.click(enabledButton('Agregar zona'));
     await waitFor(() =>
@@ -310,8 +325,9 @@ describe('Admin Event preparation surfaces', () => {
     const api = preparedFloorplanApi();
     vi.mocked(api.adminEventPreparation.createFloorplanShape).mockRejectedValue(new Error('network'));
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
-    await userEvent.click((await screen.findAllByRole('button', { name: 'Agregar mesa' }))[0]!);
+    await chooseStickerAndPlace('Mesa redonda');
     const input = (await screen.findAllByLabelText('Nombre o número')).at(-1)!;
+    await userEvent.clear(input);
     await userEvent.type(input, 'Mesa pendiente');
     await userEvent.click(enabledButton('Agregar mesa'));
     expect((await screen.findAllByDisplayValue('Mesa pendiente')).at(-1)).toBeInTheDocument();
@@ -325,8 +341,10 @@ describe('Admin Event preparation surfaces', () => {
       .mockResolvedValueOnce(floorplan())
       .mockRejectedValueOnce(new Error('refresh'));
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
-    await userEvent.click((await screen.findAllByRole('button', { name: 'Agregar mesa' }))[0]!);
-    await userEvent.type((await screen.findAllByLabelText('Nombre o número')).at(-1)!, 'Mesa confirmada');
+    await chooseStickerAndPlace('Mesa redonda');
+    const input = (await screen.findAllByLabelText('Nombre o número')).at(-1)!;
+    await userEvent.clear(input);
+    await userEvent.type(input, 'Mesa confirmada');
     await userEvent.click(enabledButton('Agregar mesa'));
     expect(await screen.findByText(/El cambio se guardó/)).toBeInTheDocument();
     expect(api.adminEventPreparation.createFloorplanShape).toHaveBeenCalledOnce();
@@ -354,9 +372,97 @@ describe('Admin Event preparation surfaces', () => {
   it('disables Builder mutations while the authoritative Floorplan is locked', async () => {
     const api = preparedFloorplanApi(floorplan({ locked: true, lockedAt: adminEvent.updatedAt }));
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
-    expect((await screen.findAllByRole('button', { name: 'Agregar mesa' }))[0]).toBeDisabled();
-    expect(screen.getAllByRole('button', { name: 'Agregar zona' })[0]).toBeDisabled();
+    expect((await screen.findAllByRole('button', { name: 'Mesa redonda' }))[0]).toBeDisabled();
+    expect(screen.getAllByRole('button', { name: 'Pista' })[0]).toBeDisabled();
     expect(api.adminEventPreparation.createFloorplanShape).not.toHaveBeenCalled();
+  });
+
+  it('cancels and switches unpersisted Sticker drafts without creating orphan shapes', async () => {
+    const api = preparedFloorplanApi();
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await chooseStickerAndPlace('Mesa redonda');
+    await userEvent.click(enabledButton('Cancelar'));
+    expect(api.adminEventPreparation.createFloorplanShape).not.toHaveBeenCalled();
+
+    await chooseStickerAndPlace('Mesa redonda');
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Pista' }))[0]!);
+    expect(screen.queryByLabelText('Nombre o número')).not.toBeInTheDocument();
+    expect(api.adminEventPreparation.createFloorplanShape).not.toHaveBeenCalled();
+    act(() => canvasPlace()({ x: 0.5, y: 0.5 }));
+    expect((await screen.findAllByDisplayValue('Pista')).length).toBeGreaterThan(0);
+  });
+
+  it('persists Texto / etiqueta as an ordinary decorative zone', async () => {
+    const api = preparedFloorplanApi();
+    vi.mocked(api.adminEventPreparation.createFloorplanShape).mockResolvedValue(
+      shape({ id: 'label-a', name: 'Etiqueta', kind: 'DECORATIVE_ZONE', geometry: 'RECTANGLE', capacity: 0 })
+    );
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await chooseStickerAndPlace('Texto / etiqueta');
+    await userEvent.click(enabledButton('Agregar zona'));
+    await waitFor(() => expect(api.adminEventPreparation.createFloorplanShape).toHaveBeenCalledOnce());
+    expect(vi.mocked(api.adminEventPreparation.createFloorplanShape).mock.calls[0]![2]).toEqual(
+      expect.objectContaining({
+        name: 'Etiqueta',
+        kind: 'DECORATIVE_ZONE',
+        geometry: 'RECTANGLE',
+        capacity: 0,
+        width: 0.18,
+        height: 0.05
+      })
+    );
+  });
+
+  it('duplicates a table through one Admin create without copying derived fields or replaying after refresh failure', async () => {
+    const table = shape({ name: 'Mesa principal', occupancy: 4, availableCapacity: 4 });
+    const api = preparedFloorplanApi(floorplan({ shapes: [table] }));
+    const duplicateShape = shape({ id: 'table-copy', name: 'Mesa 1', x: 0.12, y: 0.12 });
+    vi.mocked(api.adminEventPreparation.createFloorplanShape).mockResolvedValue(duplicateShape);
+    vi.mocked(api.adminEventPreparation.getFloorplan)
+      .mockResolvedValueOnce(floorplan({ shapes: [table] }))
+      .mockRejectedValueOnce(new Error('refresh'));
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await userEvent.click(
+      within(await screen.findByTestId('admin-floorplan-surface')).getByRole('button', { name: table.name })
+    );
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Duplicar' })).at(-1)!);
+    expect(await screen.findByText(/El cambio se guardó/)).toBeInTheDocument();
+    expect(api.adminEventPreparation.createFloorplanShape).toHaveBeenCalledOnce();
+    const payload = vi.mocked(api.adminEventPreparation.createFloorplanShape).mock.calls[0]![2];
+    expect(payload).toEqual(
+      expect.objectContaining({
+        name: 'Mesa 1',
+        kind: table.kind,
+        geometry: table.geometry,
+        capacity: table.capacity
+      })
+    );
+    expect(payload.x).toBeCloseTo(0.12);
+    expect(payload.y).toBeCloseTo(0.12);
+    expect(payload).not.toHaveProperty('id');
+    expect(payload).not.toHaveProperty('occupancy');
+    expect(payload).not.toHaveProperty('availableCapacity');
+    await userEvent.click(screen.getByRole('button', { name: 'Actualizar plano' }));
+    expect(api.adminEventPreparation.createFloorplanShape).toHaveBeenCalledOnce();
+  });
+
+  it('duplicates a decorative zone with capacity zero and a natural unique name', async () => {
+    const zone = shape({ id: 'zone-a', name: 'Pista', kind: 'DECORATIVE_ZONE', geometry: 'RECTANGLE', capacity: 0 });
+    const api = preparedFloorplanApi(floorplan({ shapes: [zone] }));
+    vi.mocked(api.adminEventPreparation.createFloorplanShape).mockResolvedValue({
+      ...zone,
+      id: 'zone-b',
+      name: 'Pista 2'
+    });
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await userEvent.click(
+      within(await screen.findByTestId('admin-floorplan-surface')).getByRole('button', { name: zone.name })
+    );
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Duplicar' })).at(-1)!);
+    await waitFor(() => expect(api.adminEventPreparation.createFloorplanShape).toHaveBeenCalledOnce());
+    expect(vi.mocked(api.adminEventPreparation.createFloorplanShape).mock.calls[0]![2]).toEqual(
+      expect.objectContaining({ name: 'Pista 2', kind: 'DECORATIVE_ZONE', capacity: 0 })
+    );
   });
 
   it('rejects a non-image upload before calling the Admin asset API', async () => {
@@ -461,4 +567,14 @@ function floorplanAsset(overrides: Record<string, unknown> = {}) {
 
 function enabledButton(name: string) {
   return screen.getAllByRole('button', { name }).find((button) => !button.hasAttribute('disabled'))!;
+}
+
+function canvasPlace() {
+  return floorplanHarness.props?.onCanvasPlace as (point: { x: number; y: number }) => void;
+}
+
+async function chooseStickerAndPlace(label: string, point = { x: 0.5, y: 0.5 }) {
+  await userEvent.click((await screen.findAllByRole('button', { name: label }))[0]!);
+  expect(canvasPlace()).toEqual(expect.any(Function));
+  act(() => canvasPlace()(point));
 }

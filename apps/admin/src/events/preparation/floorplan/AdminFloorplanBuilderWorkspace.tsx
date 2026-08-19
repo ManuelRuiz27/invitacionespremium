@@ -9,17 +9,22 @@ import {
 import {
   FloorplanInventory,
   FloorplanShapeValidationError,
+  FloorplanStickerCatalog,
   FloorplanSurface,
   FloorplanTray,
   autoPlacePoint,
   createPendingTables,
+  createStickerDraft,
+  createUniqueFloorplanName,
   matchesAuthoritativeShape,
   normalizeFloorplanShape,
   placePendingTable,
+  placeStickerDraft,
+  type FloorplanStickerPresetId,
   type InventoryConfiguration,
   type PendingTable
 } from '@invitaciones/floorplan';
-import AddRounded from '@mui/icons-material/AddRounded';
+import ContentCopyRounded from '@mui/icons-material/ContentCopyRounded';
 import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
 import ImageOutlined from '@mui/icons-material/ImageOutlined';
 import LockOpenRounded from '@mui/icons-material/LockOpenRounded';
@@ -44,9 +49,8 @@ import { Link } from 'react-router-dom';
 import { adminErrorMessage } from '../../../shared/admin-error';
 import { AdminErrorState, AdminLoadingState } from '../../../shared/AdminStates';
 
-type EditorMode = 'idle' | 'creating' | 'editing';
-type Mutation = 'uploading' | 'saving' | 'deleting' | 'locking' | 'unlocking' | 'placing';
-type ShapeKind = AdminFloorplanShapeInput['kind'];
+type EditorMode = 'idle' | 'placing-preset' | 'creating-draft' | 'editing-existing';
+type Mutation = 'uploading' | 'saving' | 'duplicating' | 'deleting' | 'locking' | 'unlocking' | 'placing';
 type Geometry = AdminFloorplanShapeInput['geometry'];
 
 const initialPolygon = [
@@ -61,15 +65,15 @@ const geometryLabels: ReadonlyArray<{ value: Geometry; label: string; zonesOnly?
   { value: 'RECTANGLE', label: 'Rectangular' },
   { value: 'POLYGON', label: 'Forma personalizada', zonesOnly: true }
 ];
-const newDraft = (kind: ShapeKind): AdminFloorplanShapeInput => ({
+const emptyDraft = (): AdminFloorplanShapeInput => ({
   name: '',
-  kind,
-  geometry: kind === 'TABLE' ? 'CIRCLE' : 'RECTANGLE',
-  capacity: kind === 'TABLE' ? 8 : 0,
+  kind: 'TABLE',
+  geometry: 'CIRCLE',
+  capacity: 8,
   x: 0.1,
   y: 0.1,
   width: 0.18,
-  height: kind === 'TABLE' ? 0.18 : 0.14,
+  height: 0.18,
   rotation: 0,
   polygonPoints: null
 });
@@ -95,7 +99,8 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   const [loadError, setLoadError] = useState(false);
   const [mode, setMode] = useState<EditorMode>('idle');
   const [selectedId, setSelectedId] = useState<string>();
-  const [draft, setDraft] = useState<AdminFloorplanShapeInput>(() => newDraft('TABLE'));
+  const [draft, setDraft] = useState<AdminFloorplanShapeInput>(emptyDraft);
+  const [selectedPresetId, setSelectedPresetId] = useState<FloorplanStickerPresetId>();
   const [mutation, setMutation] = useState<Mutation>();
   const [message, setMessage] = useState<string>();
   const [reconciliationError, setReconciliationError] = useState(false);
@@ -147,7 +152,8 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   const cancel = () => {
     setMode('idle');
     setSelectedId(undefined);
-    setDraft(newDraft('TABLE'));
+    setSelectedPresetId(undefined);
+    setDraft(emptyDraft());
     setInspectorOpen(false);
   };
 
@@ -178,19 +184,25 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
       refreshLock.current = false;
     }
   };
-  const startCreating = (kind: ShapeKind) => {
-    if (!floorplan || editing || readOnly) return;
+  const selectPreset = (presetId: FloorplanStickerPresetId) => {
+    if (!floorplan || mode === 'editing-existing' || readOnly) return;
+    const reservedNames = [
+      ...floorplan.shapes.map(({ name }) => name),
+      ...pendingTables.map(({ input }) => input.name)
+    ];
     setSelectedId(undefined);
-    setDraft(newDraft(kind));
-    setMode('creating');
-    setInspectorOpen(true);
+    setSelectedPresetId(presetId);
+    setDraft(createStickerDraft(presetId, { existingNames: reservedNames }));
+    setMode('placing-preset');
+    setInspectorOpen(false);
     setMessage(undefined);
   };
   const selectShape = (shape: AdminFloorplanShape) => {
     if (editing || floorplan?.locked || pending) return;
+    setSelectedPresetId(undefined);
     setSelectedId(shape.id);
     setDraft(editable(shape));
-    setMode('editing');
+    setMode('editing-existing');
     setInspectorOpen(true);
     setMessage(undefined);
   };
@@ -266,6 +278,33 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     cancel();
     await refreshAfterConfirmedMutation();
   };
+  const duplicate = async () => {
+    if (!selected || !floorplan || readOnly) return;
+    const names = floorplan.shapes.map(({ name }) => name);
+    const name =
+      selected.kind === 'TABLE'
+        ? createStickerDraft('round-table', { existingNames: names }).name
+        : createUniqueFloorplanName(selected.name, names);
+    const input = normalizeFloorplanShape({
+      name,
+      kind: selected.kind,
+      geometry: selected.geometry,
+      capacity: selected.kind === 'TABLE' ? selected.capacity : 0,
+      x: selected.x + 0.02,
+      y: selected.y + 0.02,
+      width: selected.width,
+      height: selected.height,
+      rotation: selected.rotation,
+      polygonPoints: selected.polygonPoints?.map(({ x, y }) => ({ x, y })) ?? null
+    });
+    const saved = await runMutation('duplicating', () =>
+      apiClient.adminEventPreparation.createFloorplanShape(event.clientId, event.id, input)
+    );
+    if (!saved) return;
+    setFloorplan((current) => (current ? { ...current, shapes: [...current.shapes, saved] } : current));
+    cancel();
+    await refreshAfterConfirmedMutation();
+  };
   const createInventory = (configurations: readonly InventoryConfiguration[]) => {
     if (!floorplan || editing || readOnly) return;
     const requested = configurations.reduce((total, configuration) => total + configuration.quantity, 0);
@@ -300,7 +339,13 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     return true;
   };
   const placePending = (point: { x: number; y: number }, requestedId?: string) => {
-    if (readOnly || editing) return;
+    if (readOnly || mode === 'creating-draft' || mode === 'editing-existing') return;
+    if (mode === 'placing-preset' && selectedPresetId) {
+      setDraft((current) => placeStickerDraft(current, point));
+      setMode('creating-draft');
+      setInspectorOpen(true);
+      return;
+    }
     const table = pendingTables.find((candidate) => candidate.temporaryId === (requestedId ?? activePendingId));
     if (table) void persistPending(table, point);
   };
@@ -391,7 +436,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
       disabled={pending}
       onChange={setDraft}
       onSave={() => void save()}
-      {...(selected ? { onDelete: () => void remove() } : {})}
+      {...(selected ? { onDuplicate: () => void duplicate(), onDelete: () => void remove() } : {})}
       onCancel={cancel}
     />
   ) : null;
@@ -459,27 +504,40 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
         >
           <Stack spacing={1.5}>
             <Palette
-              disabled={readOnly || editing}
-              onTable={() => startCreating('TABLE')}
-              onZone={() => startCreating('DECORATIVE_ZONE')}
+              selectedPresetId={selectedPresetId}
+              disabled={readOnly || mode === 'editing-existing'}
+              onSelect={selectPreset}
               onInventory={() => setInventoryOpen(true)}
             />
             {!compactLayout && inventoryOpen ? inventory : null}
           </Stack>
         </Paper>
         <Box sx={{ minWidth: 0 }}>
+          {mode === 'placing-preset' ? (
+            <Alert
+              severity="info"
+              action={
+                <Button color="inherit" onClick={cancel}>
+                  Cancelar
+                </Button>
+              }
+              sx={{ mb: 1 }}
+            >
+              Haz click o toca el punto del plano donde quieres colocar el elemento.
+            </Alert>
+          ) : null}
           {imageUrl ? (
             <FloorplanSurface
               floorplan={floorplan}
               imageUrl={imageUrl}
               selectedId={selectedId}
-              draft={editing ? draft : undefined}
+              draft={mode === 'creating-draft' || mode === 'editing-existing' ? draft : undefined}
               disabled={readOnly}
               onSelect={selectShape}
               onDraftChange={setDraft}
-              onCanvasPlace={pendingTables.length ? placePending : undefined}
+              onCanvasPlace={mode === 'placing-preset' || pendingTables.length ? placePending : undefined}
               dock={
-                !floorplan.locked && !editing ? (
+                !floorplan.locked && mode === 'idle' ? (
                   <FloorplanTray
                     tables={pendingTables}
                     activeId={activePendingId}
@@ -504,10 +562,9 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
       </Box>
       <Stack direction="row" spacing={1} sx={{ display: { xs: 'flex', lg: 'none' }, flexWrap: 'wrap' }}>
         <Palette
-          compact
-          disabled={readOnly || editing}
-          onTable={() => startCreating('TABLE')}
-          onZone={() => startCreating('DECORATIVE_ZONE')}
+          selectedPresetId={selectedPresetId}
+          disabled={readOnly || mode === 'editing-existing'}
+          onSelect={selectPreset}
           onInventory={() => setInventoryOpen(true)}
         />
       </Stack>
@@ -532,42 +589,28 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
 }
 
 function Palette({
-  compact = false,
+  selectedPresetId,
   disabled,
-  onTable,
-  onZone,
+  onSelect,
   onInventory
 }: {
-  compact?: boolean;
+  selectedPresetId?: FloorplanStickerPresetId | undefined;
   disabled: boolean;
-  onTable: () => void;
-  onZone: () => void;
+  onSelect: (presetId: FloorplanStickerPresetId) => void;
   onInventory: () => void;
 }) {
-  const buttons = [
-    { label: 'Agregar mesa', icon: <TableRestaurantRounded />, action: onTable },
-    { label: 'Agregar zona', icon: <AddRounded />, action: onZone },
-    { label: 'Crear varias mesas', icon: <TableRestaurantRounded />, action: onInventory }
-  ];
   return (
-    <Stack spacing={compact ? 0 : 1} direction={compact ? 'row' : 'column'} useFlexGap sx={{ flexWrap: 'wrap' }}>
-      {!compact ? (
-        <Typography variant="overline" color="text.secondary">
-          Paleta
-        </Typography>
-      ) : null}
-      {buttons.map((item) => (
-        <Button
-          key={item.label}
-          variant="text"
-          startIcon={item.icon}
-          disabled={disabled}
-          onClick={item.action}
-          sx={{ minHeight: 44, justifyContent: 'flex-start' }}
-        >
-          {item.label}
-        </Button>
-      ))}
+    <Stack spacing={1.25} sx={{ minWidth: 0 }}>
+      <FloorplanStickerCatalog selectedId={selectedPresetId} disabled={disabled} onSelect={onSelect} />
+      <Button
+        variant="text"
+        startIcon={<TableRestaurantRounded />}
+        disabled={disabled}
+        onClick={onInventory}
+        sx={{ minHeight: 44, justifyContent: 'flex-start' }}
+      >
+        Crear varias mesas
+      </Button>
     </Stack>
   );
 }
@@ -578,6 +621,7 @@ function ShapeInspector({
   disabled,
   onChange,
   onSave,
+  onDuplicate,
   onDelete,
   onCancel
 }: {
@@ -586,6 +630,7 @@ function ShapeInspector({
   disabled: boolean;
   onChange: (value: AdminFloorplanShapeInput) => void;
   onSave: () => void;
+  onDuplicate?: () => void;
   onDelete?: () => void;
   onCancel: () => void;
 }) {
@@ -595,7 +640,7 @@ function ShapeInspector({
       <Stack spacing={2}>
         <Box>
           <Typography variant="overline" color="text.secondary">
-            {mode === 'creating' ? 'Nuevo elemento' : table ? 'Mesa seleccionada' : 'Zona seleccionada'}
+            {mode === 'creating-draft' ? 'Nuevo elemento' : table ? 'Mesa seleccionada' : 'Zona seleccionada'}
           </Typography>
           <Typography component="h3" variant="h6">
             {table ? 'Mesa' : 'Zona'}
@@ -647,12 +692,17 @@ function ShapeInspector({
         </TextField>
         <Stack direction="row" spacing={1}>
           <Button variant="contained" disabled={disabled} onClick={onSave} sx={{ minHeight: 44, flex: 1 }}>
-            {mode === 'creating' ? `Agregar ${table ? 'mesa' : 'zona'}` : 'Guardar cambios'}
+            {mode === 'creating-draft' ? `Agregar ${table ? 'mesa' : 'zona'}` : 'Guardar cambios'}
           </Button>
           <Button disabled={disabled} onClick={onCancel} sx={{ minHeight: 44 }}>
             Cancelar
           </Button>
         </Stack>
+        {onDuplicate ? (
+          <Button startIcon={<ContentCopyRounded />} disabled={disabled} onClick={onDuplicate} sx={{ minHeight: 44 }}>
+            Duplicar
+          </Button>
+        ) : null}
         {onDelete ? (
           <Button
             color="error"
