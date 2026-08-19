@@ -1,6 +1,7 @@
 export { FloorplanDomRenderer } from './FloorplanDomRenderer';
 export type { FloorplanRendererProps } from './FloorplanDomRenderer';
 export { FloorplanInventory } from './FloorplanInventory';
+export { FloorplanStickerCatalog } from './FloorplanStickerCatalog';
 export type { ViewportState } from './FloorplanKonvaRenderer';
 export { FloorplanSurface } from './FloorplanSurface';
 export type { FloorplanSurfaceProps } from './FloorplanSurface';
@@ -26,3 +27,16 @@ export type { SceneShape, StageRect } from './floorplan-scene';
 export { contrastingText, floorplanColors, stickerColor } from './floorplan-sticker-style';
 export { visualSeats } from './floorplan-visual-seats';
 export type { VisualSeat } from './floorplan-visual-seats';
+export {
+  createStickerDraft,
+  createUniqueFloorplanName,
+  floorplanStickerPresets,
+  getFloorplanStickerPreset,
+  placeStickerDraft
+} from './floorplan-sticker-catalog';
+export type {
+  CreateStickerDraftContext,
+  FloorplanStickerGroup,
+  FloorplanStickerPreset,
+  FloorplanStickerPresetId
+} from './floorplan-sticker-catalog';
