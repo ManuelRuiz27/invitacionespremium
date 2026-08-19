@@ -285,7 +285,8 @@ describe('Admin Event preparation surfaces', () => {
     const api = preparedFloorplanApi(floorplan({ shapes: [table] }));
     vi.mocked(api.adminEventPreparation.removeFloorplanShape).mockResolvedValue(undefined);
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
-    await userEvent.click(await screen.findByRole('button', { name: table.name }));
+    const surface = await screen.findByTestId('admin-floorplan-surface', {}, { timeout: 5_000 });
+    await userEvent.click(within(surface).getByRole('button', { name: table.name }));
     await userEvent.click((await screen.findAllByRole('button', { name: 'Eliminar mesa' }))[0]!);
     await waitFor(() =>
       expect(api.adminEventPreparation.removeFloorplanShape).toHaveBeenCalledWith(
@@ -350,6 +351,77 @@ describe('Admin Event preparation surfaces', () => {
     expect(api.adminEventPreparation.createFloorplanShape).toHaveBeenCalledOnce();
     await userEvent.click(screen.getByRole('button', { name: 'Actualizar plano' }));
     expect(api.adminEventPreparation.createFloorplanShape).toHaveBeenCalledOnce();
+  });
+
+  it('does not replay a confirmed update when its reconciliation GET fails', async () => {
+    const table = shape();
+    const api = preparedFloorplanApi(floorplan({ shapes: [table] }));
+    vi.mocked(api.adminEventPreparation.updateFloorplanShape).mockResolvedValue({ ...table, name: 'Mesa guardada' });
+    vi.mocked(api.adminEventPreparation.getFloorplan)
+      .mockResolvedValueOnce(floorplan({ shapes: [table] }))
+      .mockRejectedValueOnce(new Error('refresh'))
+      .mockResolvedValueOnce(floorplan({ shapes: [{ ...table, name: 'Mesa guardada' }] }));
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await userEvent.click(await screen.findByRole('button', { name: table.name }));
+    const name = screen.getAllByLabelText('Nombre o número').at(-1)!;
+    await userEvent.clear(name);
+    await userEvent.type(name, 'Mesa guardada');
+    await userEvent.click(enabledButton('Guardar cambios'));
+    expect(await screen.findByText(/El cambio se guardó/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Actualizar plano' }));
+    expect(api.adminEventPreparation.updateFloorplanShape).toHaveBeenCalledOnce();
+    expect(api.adminEventPreparation.getFloorplan).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not replay a confirmed delete when its reconciliation GET fails', async () => {
+    const table = shape();
+    const api = preparedFloorplanApi(floorplan({ shapes: [table] }));
+    vi.mocked(api.adminEventPreparation.removeFloorplanShape).mockResolvedValue(undefined);
+    vi.mocked(api.adminEventPreparation.getFloorplan)
+      .mockResolvedValueOnce(floorplan({ shapes: [table] }))
+      .mockRejectedValueOnce(new Error('refresh'))
+      .mockResolvedValueOnce(floorplan({ shapes: [] }));
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await userEvent.click(await screen.findByRole('button', { name: table.name }));
+    await userEvent.click(enabledButton('Eliminar mesa'));
+    expect(await screen.findByText(/El cambio se guardó/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Actualizar plano' }));
+    expect(api.adminEventPreparation.removeFloorplanShape).toHaveBeenCalledOnce();
+    expect(api.adminEventPreparation.getFloorplan).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not replay a confirmed lock when its reconciliation GET fails', async () => {
+    const unlocked = floorplan();
+    const locked = floorplan({ locked: true, lockedAt: adminEvent.updatedAt });
+    const api = preparedFloorplanApi(unlocked);
+    vi.mocked(api.adminEventPreparation.lockFloorplan).mockResolvedValue(locked);
+    vi.mocked(api.adminEventPreparation.getFloorplan)
+      .mockResolvedValueOnce(unlocked)
+      .mockRejectedValueOnce(new Error('refresh'))
+      .mockResolvedValueOnce(locked);
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await userEvent.click(await screen.findByRole('button', { name: 'Finalizar distribución' }));
+    expect(await screen.findByText(/El cambio se guardó/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Actualizar plano' }));
+    expect(api.adminEventPreparation.lockFloorplan).toHaveBeenCalledOnce();
+    expect(api.adminEventPreparation.getFloorplan).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not replay a confirmed unlock when its reconciliation GET fails', async () => {
+    const locked = floorplan({ locked: true, lockedAt: adminEvent.updatedAt });
+    const unlocked = floorplan();
+    const api = preparedFloorplanApi(locked);
+    vi.mocked(api.adminEventPreparation.unlockFloorplan).mockResolvedValue(unlocked);
+    vi.mocked(api.adminEventPreparation.getFloorplan)
+      .mockResolvedValueOnce(locked)
+      .mockRejectedValueOnce(new Error('refresh'))
+      .mockResolvedValueOnce(unlocked);
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await userEvent.click(await screen.findByRole('button', { name: 'Editar distribución' }));
+    expect(await screen.findByText(/El cambio se guardó/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Actualizar plano' }));
+    expect(api.adminEventPreparation.unlockFloorplan).toHaveBeenCalledOnce();
+    expect(api.adminEventPreparation.getFloorplan).toHaveBeenCalledTimes(3);
   });
 
   it('keeps the shared canvas operable with more than twenty elements', async () => {
@@ -484,6 +556,157 @@ describe('Admin Event preparation surfaces', () => {
     await screen.findByTestId('admin-floorplan-surface');
     view.unmount();
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:admin-floorplan');
+  });
+
+  it('recovers a concurrency conflict through one PATCH and one authoritative refetch without replay', async () => {
+    const table = shape();
+    const authoritative = floorplan({ shapes: [{ ...table, name: 'Mesa externa', x: 0.4 }] });
+    const api = preparedFloorplanApi(floorplan({ shapes: [table] }));
+    vi.mocked(api.adminEventPreparation.getFloorplan)
+      .mockResolvedValueOnce(floorplan({ shapes: [table] }))
+      .mockResolvedValueOnce(authoritative);
+    vi.mocked(api.adminEventPreparation.updateFloorplanShape).mockRejectedValue(
+      new ApiError(409, 'FLOORPLAN_CONCURRENCY_CONFLICT', 'serialization')
+    );
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await userEvent.click(await screen.findByRole('button', { name: table.name }));
+    const name = screen.getAllByLabelText('Nombre o número').at(-1)!;
+    await userEvent.clear(name);
+    await userEvent.type(name, 'Cambio local');
+    await userEvent.click(enabledButton('Guardar cambios'));
+    expect(await screen.findByText(/cambió al mismo tiempo/i)).toBeInTheDocument();
+    expect(api.adminEventPreparation.updateFloorplanShape).toHaveBeenCalledOnce();
+    expect(api.adminEventPreparation.getFloorplan).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText('Mesa seleccionada')).not.toBeInTheDocument();
+    expect((floorplanHarness.props?.floorplan as AdminFloorplan).shapes[0]?.name).toBe('Mesa externa');
+  });
+
+  it('adopts an external lock, exits the editor and blocks further mutations', async () => {
+    const table = shape();
+    const locked = floorplan({ shapes: [table], locked: true, lockedAt: adminEvent.updatedAt });
+    const api = preparedFloorplanApi(floorplan({ shapes: [table] }));
+    vi.mocked(api.adminEventPreparation.getFloorplan)
+      .mockResolvedValueOnce(floorplan({ shapes: [table] }))
+      .mockResolvedValueOnce(locked);
+    vi.mocked(api.adminEventPreparation.updateFloorplanShape).mockRejectedValue(
+      new ApiError(409, 'FLOORPLAN_LAYOUT_LOCKED', 'locked')
+    );
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await userEvent.click(await screen.findByRole('button', { name: table.name }));
+    await userEvent.click(enabledButton('Guardar cambios'));
+    expect(await screen.findByRole('button', { name: 'Editar distribución' })).toBeInTheDocument();
+    expect((floorplanHarness.props?.disabled as boolean) ?? false).toBe(true);
+    expect((await screen.findAllByRole('button', { name: 'Mesa redonda' }))[0]).toBeDisabled();
+    expect(api.adminEventPreparation.updateFloorplanShape).toHaveBeenCalledOnce();
+  });
+
+  it('closes a stale inspector when the selected shape disappeared externally', async () => {
+    const table = shape();
+    const api = preparedFloorplanApi(floorplan({ shapes: [table] }));
+    vi.mocked(api.adminEventPreparation.getFloorplan)
+      .mockResolvedValueOnce(floorplan({ shapes: [table] }))
+      .mockResolvedValueOnce(floorplan({ shapes: [] }));
+    vi.mocked(api.adminEventPreparation.updateFloorplanShape).mockRejectedValue(
+      new ApiError(404, 'FLOORPLAN_SHAPE_NOT_FOUND', 'missing')
+    );
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await userEvent.click(await screen.findByRole('button', { name: table.name }));
+    await userEvent.click(enabledButton('Guardar cambios'));
+    expect(await screen.findByText(/ya no está disponible/i)).toBeInTheDocument();
+    expect(screen.queryByText('Mesa seleccionada')).not.toBeInTheDocument();
+    expect(api.adminEventPreparation.updateFloorplanShape).toHaveBeenCalledOnce();
+    expect(api.adminEventPreparation.createFloorplanShape).not.toHaveBeenCalled();
+  });
+
+  it('enables beforeunload only for unsaved draft changes and clears it on cancel', async () => {
+    const api = preparedFloorplanApi();
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await screen.findByTestId('admin-floorplan-surface');
+    const clean = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(clean);
+    expect(clean.defaultPrevented).toBe(false);
+
+    await chooseStickerAndPlace('Mesa redonda');
+    await screen.findByText('Cambios sin guardar');
+    const dirty = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(dirty);
+    expect(dirty.defaultPrevented).toBe(true);
+
+    await userEvent.click(enabledButton('Cancelar'));
+    await screen.findByText('Guardado');
+    const cancelled = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(cancelled);
+    expect(cancelled.defaultPrevented).toBe(false);
+  });
+
+  it('keeps pending inventory dirty until its local work is resolved', async () => {
+    const api = preparedFloorplanApi();
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Crear varias mesas' }))[0]!);
+    await userEvent.click(screen.getByRole('button', { name: 'Preparar dos mesas' }));
+    await screen.findByText('Cambios sin guardar');
+    const dirty = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(dirty);
+    expect(dirty.defaultPrevented).toBe(true);
+  });
+
+  it('blocks internal navigation only while local Croquis work is dirty', async () => {
+    const api = preparedFloorplanApi();
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const view = renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await chooseStickerAndPlace('Mesa redonda');
+    await screen.findByText('Cambios sin guardar');
+    void view.router.navigate(`/eventos/${adminEvent.id}/preparar/datos`);
+    await waitFor(() => expect(confirm).toHaveBeenCalledOnce());
+    expect(view.router.state.location.pathname).toBe(`/eventos/${adminEvent.id}/preparar/croquis`);
+
+    await userEvent.click(enabledButton('Cancelar'));
+    await screen.findByText('Guardado');
+    await view.router.navigate(`/eventos/${adminEvent.id}/preparar/datos`);
+    expect(view.router.state.location.pathname).toBe(`/eventos/${adminEvent.id}/preparar/datos`);
+    expect(confirm).toHaveBeenCalledOnce();
+  });
+
+  it('does not repeat a confirmed background upload/PATCH when reconciliation fails', async () => {
+    const original = floorplan({ shapes: [shape()] });
+    const replacement = floorplan({
+      shapes: original.shapes,
+      image: { fileAssetId: 'asset-replacement', contentPath: '/private/new' }
+    });
+    const api = preparedFloorplanApi(original);
+    vi.mocked(api.adminEventPreparation.uploadFloorplanAsset).mockResolvedValue(
+      floorplanAsset({ id: 'asset-replacement' })
+    );
+    vi.mocked(api.adminEventPreparation.replaceFloorplanImage).mockResolvedValue(replacement);
+    vi.mocked(api.adminEventPreparation.getFloorplan)
+      .mockResolvedValueOnce(original)
+      .mockRejectedValueOnce(new Error('refresh'))
+      .mockResolvedValueOnce(replacement);
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    const button = await screen.findByRole('button', { name: 'Cambiar plano' });
+    await userEvent.upload(button.querySelector('input')!, new File(['next'], 'nuevo.jpg', { type: 'image/jpeg' }));
+    expect(await screen.findByText(/El cambio se guardó/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Actualizar plano' }));
+    expect(api.adminEventPreparation.uploadFloorplanAsset).toHaveBeenCalledOnce();
+    expect(api.adminEventPreparation.replaceFloorplanImage).toHaveBeenCalledOnce();
+    expect(api.adminEventPreparation.getFloorplan).toHaveBeenCalledTimes(3);
+    expect((floorplanHarness.props?.floorplan as AdminFloorplan).shapes).toEqual(original.shapes);
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:admin-floorplan');
+  });
+
+  it('keeps an occupied table after one rejected DELETE with natural copy', async () => {
+    const table = shape({ occupancy: 2, availableCapacity: 6 });
+    const current = floorplan({ shapes: [table] });
+    const api = preparedFloorplanApi(current);
+    vi.mocked(api.adminEventPreparation.removeFloorplanShape).mockRejectedValue(
+      new ApiError(409, 'FLOORPLAN_TABLE_OCCUPIED', 'occupied')
+    );
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await userEvent.click(await screen.findByRole('button', { name: table.name }));
+    await userEvent.click(enabledButton('Eliminar mesa'));
+    expect(await screen.findByText(/tiene lugares asignados/i)).toBeInTheDocument();
+    expect(api.adminEventPreparation.removeFloorplanShape).toHaveBeenCalledOnce();
+    expect((floorplanHarness.props?.floorplan as AdminFloorplan).shapes).toContainEqual(table);
   });
 });
 

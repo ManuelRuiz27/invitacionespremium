@@ -45,7 +45,7 @@ import {
   useTheme
 } from '@mui/material';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useBlocker } from 'react-router-dom';
 import { adminErrorMessage } from '../../../shared/admin-error';
 import { AdminErrorState, AdminLoadingState } from '../../../shared/AdminStates';
 
@@ -104,6 +104,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   const [mutation, setMutation] = useState<Mutation>();
   const [message, setMessage] = useState<string>();
   const [reconciliationError, setReconciliationError] = useState(false);
+  const [refreshRequired, setRefreshRequired] = useState(false);
   const [pendingTables, setPendingTables] = useState<PendingTable[]>([]);
   const [activePendingId, setActivePendingId] = useState<string>();
   const [inventoryOpen, setInventoryOpen] = useState(false);
@@ -146,6 +147,11 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   const pending = Boolean(mutation);
   const editing = mode !== 'idle';
   const readOnly = pending || floorplan?.locked === true;
+  const dirty =
+    mode === 'creating-draft' ||
+    (mode === 'editing-existing' && Boolean(selected) && !sameShapeInput(draft, editable(selected!))) ||
+    pendingTables.length > 0;
+  const navigationBlocker = useBlocker(dirty);
   const places =
     floorplan?.shapes.filter((shape) => shape.kind === 'TABLE').reduce((total, shape) => total + shape.capacity, 0) ??
     0;
@@ -157,7 +163,55 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     setInspectorOpen(false);
   };
 
-  const runMutation = async <T,>(kind: Mutation, operation: () => Promise<T>) => {
+  useEffect(() => {
+    if (!dirty) return;
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warnBeforeUnload);
+    return () => window.removeEventListener('beforeunload', warnBeforeUnload);
+  }, [dirty]);
+
+  useEffect(() => {
+    if (navigationBlocker.state !== 'blocked') return;
+    if (window.confirm('Hay cambios del Croquis sin guardar. ¿Quieres salir y descartarlos?')) {
+      navigationBlocker.proceed();
+    } else {
+      navigationBlocker.reset();
+    }
+  }, [navigationBlocker]);
+
+  const adoptRecoveredFloorplan = (latest: AdminFloorplan, cause?: unknown) => {
+    const selectedMissing = Boolean(selectedId) && !latest.shapes.some((shape) => shape.id === selectedId);
+    const conflict = cause instanceof ApiError && cause.code === 'FLOORPLAN_CONCURRENCY_CONFLICT';
+    if (latest.locked || selectedMissing || (conflict && mode === 'editing-existing')) cancel();
+  };
+
+  const recoverAfterFailedMutation = async (cause: unknown) => {
+    const code = cause instanceof ApiError ? cause.code : undefined;
+    const requiresImmediateAuthority =
+      code === 'FLOORPLAN_CONCURRENCY_CONFLICT' ||
+      code === 'FLOORPLAN_LAYOUT_LOCKED' ||
+      code === 'FLOORPLAN_EVENT_STATE_LOCKED' ||
+      code === 'FLOORPLAN_SHAPE_NOT_FOUND' ||
+      code === 'FLOORPLAN_NOT_FOUND';
+    if (!requiresImmediateAuthority) {
+      setRefreshRequired(
+        !(cause instanceof ApiError) || cause.status === 429 || cause.status >= 500 || cause.code === 'NETWORK_ERROR'
+      );
+      return;
+    }
+    try {
+      const latest = await load();
+      adoptRecoveredFloorplan(latest, cause);
+      setRefreshRequired(false);
+    } catch {
+      setRefreshRequired(true);
+    }
+  };
+
+  const runMutation = async <T,>(kind: Mutation, operation: () => Promise<T>, options: { recover?: boolean } = {}) => {
     if (mutationLock.current) return undefined;
     mutationLock.current = true;
     setMutation(kind);
@@ -166,6 +220,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
       return await operation();
     } catch (cause) {
       setMessage(mutationMessage(kind, cause));
+      if (options.recover !== false) await recoverAfterFailedMutation(cause);
       return undefined;
     } finally {
       mutationLock.current = false;
@@ -176,10 +231,25 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     if (refreshLock.current) return;
     refreshLock.current = true;
     setReconciliationError(false);
+    setRefreshRequired(false);
     try {
       await load();
     } catch {
       setReconciliationError(true);
+    } finally {
+      refreshLock.current = false;
+    }
+  };
+  const refreshAuthoritative = async () => {
+    if (refreshLock.current) return;
+    refreshLock.current = true;
+    try {
+      const latest = await load();
+      adoptRecoveredFloorplan(latest);
+      setRefreshRequired(false);
+      setReconciliationError(false);
+    } catch {
+      if (!reconciliationError) setRefreshRequired(true);
     } finally {
       refreshLock.current = false;
     }
@@ -320,14 +390,21 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   };
   const persistPending = async (table: PendingTable, point: { x: number; y: number }, refresh = true) => {
     const input = placePendingTable(table, point);
-    const saved = await runMutation('placing', () =>
-      apiClient.adminEventPreparation.createFloorplanShape(event.clientId, event.id, input)
+    const saved = await runMutation(
+      'placing',
+      () => apiClient.adminEventPreparation.createFloorplanShape(event.clientId, event.id, input),
+      { recover: false }
     );
     if (!saved) {
       try {
         const latest = await load();
-        if (!latest.shapes.some((shape) => matchesAuthoritativeShape(table, shape))) return false;
+        if (!latest.shapes.some((shape) => matchesAuthoritativeShape(table, shape))) {
+          setRefreshRequired(true);
+          return false;
+        }
+        setRefreshRequired(false);
       } catch {
+        setRefreshRequired(true);
         return false;
       }
     } else {
@@ -417,6 +494,18 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
             onFile={upload}
           />
           {message ? <Alert severity="warning">{message}</Alert> : null}
+          {refreshRequired ? (
+            <Alert
+              severity="warning"
+              action={
+                <Button color="inherit" onClick={() => void refreshAuthoritative()}>
+                  Actualizar plano
+                </Button>
+              }
+            >
+              No pudimos confirmar si el plano se creó. Actualiza antes de volver a subirlo.
+            </Alert>
+          ) : null}
         </Stack>
       </Paper>
     );
@@ -455,8 +544,24 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
             </Typography>
           </Box>
           <Chip
-            label={mutation ? 'Guardando...' : message || reconciliationError ? 'Error al guardar' : 'Guardado'}
-            color={mutation ? 'warning' : message || reconciliationError ? 'error' : 'success'}
+            label={
+              mutation
+                ? 'Guardando...'
+                : message || reconciliationError || refreshRequired
+                  ? 'Error al guardar'
+                  : dirty
+                    ? 'Cambios sin guardar'
+                    : 'Guardado'
+            }
+            color={
+              mutation
+                ? 'warning'
+                : message || reconciliationError || refreshRequired
+                  ? 'error'
+                  : dirty
+                    ? 'warning'
+                    : 'success'
+            }
             variant="outlined"
             aria-live="polite"
           />
@@ -478,12 +583,25 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
         <Alert
           severity="warning"
           action={
-            <Button color="inherit" onClick={() => void refreshAfterConfirmedMutation()}>
+            <Button color="inherit" onClick={() => void refreshAuthoritative()}>
               Actualizar plano
             </Button>
           }
         >
           El cambio se guardó, pero no pudimos actualizar el plano. La acción no se repetirá.
+        </Alert>
+      ) : null}
+      {refreshRequired && !reconciliationError ? (
+        <Alert
+          severity="warning"
+          action={
+            <Button color="inherit" onClick={() => void refreshAuthoritative()}>
+              Actualizar plano
+            </Button>
+          }
+        >
+          No pudimos confirmar el estado final. Conservamos tu trabajo local; actualiza el plano antes de decidir si
+          reintentas.
         </Alert>
       ) : null}
       <Box
@@ -782,9 +900,33 @@ function useAdminFloorplanImageUrl(apiClient: ApiClient, event: AdminEvent, asse
 }
 
 function mutationMessage(kind: Mutation, cause: unknown) {
+  if (cause instanceof ApiError) {
+    if (cause.code === 'FLOORPLAN_CONCURRENCY_CONFLICT')
+      return 'El plano cambió al mismo tiempo. Actualizamos la información sin repetir tu operación.';
+    if (cause.code === 'FLOORPLAN_LAYOUT_LOCKED' || cause.code === 'FLOORPLAN_EVENT_STATE_LOCKED')
+      return 'La distribución fue protegida y ahora está en modo de lectura.';
+    if (cause.code === 'FLOORPLAN_SHAPE_NOT_FOUND')
+      return 'Esta mesa o zona ya no está disponible. Actualizamos el plano.';
+    if (cause.code === 'FLOORPLAN_TABLE_OCCUPIED') return 'Esta mesa tiene lugares asignados y no puede eliminarse.';
+  }
   if (kind === 'deleting') return 'No pudimos eliminar este elemento. Inténtalo nuevamente.';
   if (kind === 'locking') return 'No pudimos finalizar la distribución. Inténtalo nuevamente.';
   if (kind === 'unlocking') return 'No pudimos habilitar la edición. Inténtalo nuevamente.';
   if (kind === 'uploading') return 'No pudimos guardar el plano. Inténtalo nuevamente.';
   return adminErrorMessage(cause).message || 'No pudimos guardar los cambios. Inténtalo nuevamente.';
+}
+
+function sameShapeInput(left: AdminFloorplanShapeInput, right: AdminFloorplanShapeInput) {
+  return (
+    left.name === right.name &&
+    left.kind === right.kind &&
+    left.geometry === right.geometry &&
+    left.capacity === right.capacity &&
+    left.x === right.x &&
+    left.y === right.y &&
+    left.width === right.width &&
+    left.height === right.height &&
+    left.rotation === right.rotation &&
+    JSON.stringify(left.polygonPoints ?? null) === JSON.stringify(right.polygonPoints ?? null)
+  );
 }
