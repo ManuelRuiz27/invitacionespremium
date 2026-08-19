@@ -38,6 +38,29 @@ describe('floorplan geometry normalization', () => {
     expect(result.height).toBeGreaterThan(0);
   });
 
+  it.each([
+    ['top-left', -0.4, -0.2],
+    ['top-right', 0.95, -0.2],
+    ['bottom-left', -0.4, 0.95],
+    ['bottom-right', 0.95, 0.95]
+  ])('clamps drag/resize safely at the %s edge', (_edge, x, y) => {
+    const result = normalizeFloorplanShape({ ...shape('RECTANGLE'), x, y, width: 0.4, height: 0.4 });
+    expect(result.x).toBeGreaterThanOrEqual(0);
+    expect(result.y).toBeGreaterThanOrEqual(0);
+    expect(result.width).toBeGreaterThan(0);
+    expect(result.height).toBeGreaterThan(0);
+    expect(result.x + result.width).toBeLessThanOrEqual(1);
+    expect(result.y + result.height).toBeLessThanOrEqual(1);
+  });
+
+  it.each([
+    [-30, 330],
+    [390, 30],
+    [720, 0]
+  ])('normalizes rotation %s to %s', (rotation, expected) => {
+    expect(normalizeFloorplanShape({ ...shape('RECTANGLE'), rotation }).rotation).toBe(expected);
+  });
+
   it.each(['SQUARE', 'CIRCLE'] as const)('uses one bounded side for %s', (geometry) => {
     const result = normalizeFloorplanShape(shape(geometry));
     expect(result.width).toBe(result.height);
@@ -98,6 +121,8 @@ describe('floorplan geometry normalization', () => {
   });
 
   it('builds the visible polygon from its points', () => {
-    expect(polygonClipPath(shape('POLYGON').polygonPoints)).toBe('polygon(0% 0%, 100% 0%, 50% 100%)');
+    const polygon = normalizeFloorplanShape(shape('POLYGON'));
+    expect(polygon.polygonPoints).toEqual(shape('POLYGON').polygonPoints);
+    expect(polygonClipPath(polygon.polygonPoints)).toBe('polygon(0% 0%, 100% 0%, 50% 100%)');
   });
 });

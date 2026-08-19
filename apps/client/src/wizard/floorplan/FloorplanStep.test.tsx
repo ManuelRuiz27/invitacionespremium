@@ -275,10 +275,12 @@ describe('FloorplanStep', () => {
     expect(mover).toHaveStyle({ touchAction: 'none' });
     fireEvent.pointerDown(mover, { pointerId: 2, pointerType: 'touch', clientX: 100, clientY: 50 });
     fireEvent.pointerMove(mover, { pointerId: 2, pointerType: 'touch', clientX: 200, clientY: 100 });
+    fireEvent.pointerUp(mover, { pointerId: 2, pointerType: 'touch', clientX: 200, clientY: 100 });
     const resize = screen.getByRole('button', { name: 'Cambiar tamaño de Mesa principal' });
     expect(resize).toHaveStyle({ width: '44px', height: '44px', touchAction: 'none' });
     fireEvent.pointerDown(resize, { pointerId: 3, pointerType: 'touch', clientX: 200, clientY: 100 });
     fireEvent.pointerMove(resize, { pointerId: 3, pointerType: 'touch', clientX: 250, clientY: 150 });
+    fireEvent.pointerUp(resize, { pointerId: 3, pointerType: 'touch', clientX: 250, clientY: 150 });
     await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
     const payload = vi.mocked(api.floorplan.updateShape).mock.calls.at(-1)?.[2];
     expect(payload?.x).toBe(0.2);
@@ -377,6 +379,11 @@ describe('FloorplanStep', () => {
       clientX: 170.710678,
       clientY: 170.710678
     });
+    fireEvent.pointerUp(resize, {
+      pointerId: 8,
+      clientX: 170.710678,
+      clientY: 170.710678
+    });
     await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
     const payload = vi.mocked(api.floorplan.updateShape).mock.calls[0]?.[2];
     expect(payload?.width).toBeCloseTo(0.4, 5);
@@ -430,6 +437,7 @@ describe('FloorplanStep', () => {
     const vertex = screen.getByRole('button', { name: 'Mover punto 1 de la forma personalizada' });
     fireEvent.pointerDown(vertex, { pointerId: 4, pointerType: 'touch', clientX: 30, clientY: 18 });
     fireEvent.pointerMove(vertex, { pointerId: 4, pointerType: 'touch', clientX: 60, clientY: 28.8 });
+    fireEvent.pointerUp(vertex, { pointerId: 4, pointerType: 'touch', clientX: 60, clientY: 28.8 });
     await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
     expect(vi.mocked(api.floorplan.updateShape).mock.calls[0]?.[2].polygonPoints?.[0]).toEqual({ x: 0.2, y: 0.2 });
   });
@@ -462,6 +470,7 @@ describe('FloorplanStep', () => {
     const vertex = screen.getByRole('button', { name: 'Mover punto 1 de la forma personalizada' });
     fireEvent.pointerDown(vertex, { pointerId: 9, clientX: 100, clientY: 100 });
     fireEvent.pointerMove(vertex, { pointerId: 9, clientX: 100, clientY: 130 });
+    fireEvent.pointerUp(vertex, { pointerId: 9, clientX: 100, clientY: 130 });
     await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
     const point = vi.mocked(api.floorplan.updateShape).mock.calls[0]?.[2].polygonPoints?.[0];
     expect(point?.x).toBeCloseTo(0.2, 5);

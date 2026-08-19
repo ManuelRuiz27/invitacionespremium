@@ -32,4 +32,16 @@ describe('floorplan scene adapters', () => {
     const rect = shapeToStageRect(rectangle, { width: 1000, height: 500 });
     expect(rect).toMatchObject({ x: 200, y: 125, width: 300, height: 75, rotation: 30 });
   });
+
+  it('keeps Stage conversion independent from any viewport transform', () => {
+    const size = { width: 1000, height: 500 };
+    const rect = shapeToStageRect(shape, size);
+    const transformedViewport = { scale: 2.4, x: -180, y: 75 };
+    const viewportPixels = {
+      x: rect.x * transformedViewport.scale + transformedViewport.x,
+      y: rect.y * transformedViewport.scale + transformedViewport.y
+    };
+    expect(viewportPixels).not.toEqual({ x: rect.x, y: rect.y });
+    expect(stageRectToShape(shape, rect, size)).toMatchObject(shape);
+  });
 });

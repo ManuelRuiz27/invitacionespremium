@@ -2,7 +2,7 @@ import type { Floorplan, FloorplanShape, FloorplanShapeInput } from '@invitacion
 import { projectAspectAwareRect, relativeRectStyles, useElementSize } from '@invitaciones/ui';
 import type { RenderedSize } from '@invitaciones/ui';
 import { Box, Chip, Stack, Typography } from '@mui/material';
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { normalizeFloorplanShape, polygonClipPath, screenDeltaToLocal } from './floorplan-geometry';
 import { hasEqualPhysicalSides, stagePointToNormalized } from './floorplan-scene';
 import { contrastingText, stickerColor } from './floorplan-sticker-style';
@@ -35,6 +35,7 @@ export function FloorplanDomRenderer(props: FloorplanRendererProps) {
   );
 
   const placeFromEvent = (clientX: number, clientY: number, pendingId?: string) => {
+    if (props.disabled) return;
     const bounds = ownerRef.current?.getBoundingClientRect();
     if (!bounds) return;
     props.onCanvasPlace?.(stagePointToNormalized(clientX, clientY, bounds), pendingId);
@@ -225,6 +226,13 @@ function EditableShape({
   showSeats: boolean;
   onChange: (shape: FloorplanShapeInput) => void;
 }) {
+  const [preview, setPreview] = useState(shape);
+  const interactingRef = useRef(false);
+
+  useEffect(() => {
+    if (!interactingRef.current) setPreview(shape);
+  }, [shape]);
+
   const startPointer = (
     event: React.PointerEvent<HTMLElement>,
     interaction: 'move' | 'resize' | 'vertex',
@@ -236,9 +244,11 @@ function EditableShape({
     target.setPointerCapture?.(event.pointerId);
     const startX = event.clientX;
     const startY = event.clientY;
-    const start = { ...shape, polygonPoints: shape.polygonPoints?.map((point) => ({ ...point })) ?? null };
+    const start = { ...preview, polygonPoints: preview.polygonPoints?.map((point) => ({ ...point })) ?? null };
     const bounds = ownerRef.current?.getBoundingClientRect();
     if (!bounds?.width || !bounds.height) return;
+    interactingRef.current = true;
+    let finalShape: FloorplanShapeInput = start;
     const move = (next: PointerEvent) => {
       next.preventDefault();
       const screenDeltaX = next.clientX - startX;
@@ -256,7 +266,8 @@ function EditableShape({
                 }
               : point
           );
-          onChange(normalizeFloorplanShape({ ...start, polygonPoints: points }));
+          finalShape = normalizeFloorplanShape({ ...start, polygonPoints: points });
+          setPreview(finalShape);
           return;
         }
         const canvasDeltaX = screenDeltaX / bounds.width;
@@ -275,37 +286,46 @@ function EditableShape({
                   height: start.height + localDelta.y / bounds.height
                 };
         const normalized = normalizeFloorplanShape(nextShape);
-        onChange(
+        finalShape =
           snap && interaction === 'move'
             ? normalizeFloorplanShape({
                 ...normalized,
                 x: Math.round(normalized.x * 20) / 20,
                 y: Math.round(normalized.y * 20) / 20
               })
-            : normalized
-        );
+            : normalized;
+        setPreview(finalShape);
       } catch {
         // Keep the last valid shape while the pointer is outside the plan.
       }
     };
-    const finish = () => {
+    const cleanup = () => {
       target.removeEventListener('pointermove', move);
       target.removeEventListener('pointerup', finish);
-      target.removeEventListener('pointercancel', finish);
+      target.removeEventListener('pointercancel', cancelInteraction);
+      interactingRef.current = false;
+    };
+    const finish = () => {
+      cleanup();
+      onChange(finalShape);
+    };
+    const cancelInteraction = () => {
+      cleanup();
+      setPreview(shape);
     };
     target.addEventListener('pointermove', move);
     target.addEventListener('pointerup', finish);
-    target.addEventListener('pointercancel', finish);
+    target.addEventListener('pointercancel', cancelInteraction);
   };
 
   return (
     <Box
       role="group"
-      aria-label={`${shape.kind === 'TABLE' ? 'Mesa' : 'Zona'} seleccionada ${shape.name || 'sin nombre'}`}
+      aria-label={`${preview.kind === 'TABLE' ? 'Mesa' : 'Zona'} seleccionada ${preview.name || 'sin nombre'}`}
       sx={{
-        ...relativeRectStyles(projectAspectAwareRect(shape, renderedSize, hasEqualPhysicalSides(shape.geometry))),
+        ...relativeRectStyles(projectAspectAwareRect(preview, renderedSize, hasEqualPhysicalSides(preview.geometry))),
         position: 'absolute',
-        transform: `rotate(${shape.rotation}deg)`,
+        transform: `rotate(${preview.rotation}deg)`,
         transformOrigin: 'center',
         border: '3px solid',
         borderColor: 'warning.dark',
@@ -314,17 +334,17 @@ function EditableShape({
       }}
     >
       <Box
-        aria-label={`Mover ${shape.kind === 'TABLE' ? 'mesa' : 'zona'} seleccionada`}
+        aria-label={`Mover ${preview.kind === 'TABLE' ? 'mesa' : 'zona'} seleccionada`}
         onPointerDown={(event) => startPointer(event, 'move')}
         sx={{ position: 'absolute', inset: 0, cursor: disabled ? 'default' : 'move', touchAction: 'none' }}
       >
-        <ShapeSurface shape={shape} selected showSeats={showSeats} colorKey={shape.name} />
+        <ShapeSurface shape={preview} selected showSeats={showSeats} colorKey={preview.name} />
       </Box>
       <Box
         component="button"
         type="button"
         disabled={disabled}
-        aria-label={`Cambiar tamaño de ${shape.name || (shape.kind === 'TABLE' ? 'la mesa' : 'la zona')}`}
+        aria-label={`Cambiar tamaño de ${preview.name || (preview.kind === 'TABLE' ? 'la mesa' : 'la zona')}`}
         onPointerDown={(event) => {
           event.stopPropagation();
           startPointer(event, 'resize');
@@ -354,8 +374,8 @@ function EditableShape({
           '&:focus-visible': { outline: '3px solid', outlineColor: 'warning.main' }
         }}
       />
-      {shape.geometry === 'POLYGON'
-        ? shape.polygonPoints?.map((point, index) => (
+      {preview.geometry === 'POLYGON'
+        ? preview.polygonPoints?.map((point, index) => (
             <Box
               component="button"
               type="button"

@@ -170,6 +170,42 @@ describe('FloorplanKonvaRenderer de producción', () => {
     expect(onDraftChange).toHaveBeenCalledWith(expect.objectContaining({ width: 0.3, height: 0.3, rotation: 30 }));
   });
 
+  it('deshabilita explícitamente Transformer, rotate, drag y handles de polígono', () => {
+    const onDraftChange = vi.fn();
+    const polygon: FloorplanShapeInput = {
+      ...table,
+      kind: 'DECORATIVE_ZONE',
+      geometry: 'POLYGON',
+      capacity: 0,
+      polygonPoints: [
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+        { x: 0.5, y: 1 }
+      ]
+    };
+    render(<FloorplanKonvaRenderer {...props({ draft: polygon, disabled: true, onDraftChange })} />);
+    const transformer = latest('Transformer').props;
+    expect(transformer).toEqual(
+      expect.objectContaining({ listening: false, resizeEnabled: false, rotateEnabled: false, enabledAnchors: [] })
+    );
+    const group = latest('Group', 'floorplan-editable-shape').props;
+    expect(group.draggable).toBe(false);
+    act(() =>
+      (group.onDragEnd as (event: unknown) => void)({
+        target: { x: () => 400, y: () => 200, rotation: () => 45 }
+      })
+    );
+    act(() =>
+      (group.onTransformEnd as (event: unknown) => void)({
+        target: { x: () => 200, y: () => 150, rotation: () => 45, scaleX: () => 2, scaleY: () => 2 }
+      })
+    );
+    const handle = latest('Circle', 'floorplan-polygon-handle').props;
+    expect(handle.draggable).toBe(false);
+    act(() => (handle.onDragEnd as (event: unknown) => void)({ target: { x: () => 20, y: () => 20 } }));
+    expect(onDraftChange).not.toHaveBeenCalled();
+  });
+
   it('edita polygonPoints normalizados con targets táctiles de 44px', () => {
     const onDraftChange = vi.fn();
     const polygon: FloorplanShapeInput = {

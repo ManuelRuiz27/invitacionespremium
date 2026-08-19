@@ -41,11 +41,16 @@ export function FloorplanSurface(props: FloorplanSurfaceProps) {
   const [history, setHistory] = useState<HistoryState<FloorplanShapeInput> | undefined>(() =>
     props.draft ? createHistory(props.draft) : undefined
   );
-  const historyIdentity = `${props.selectedId ?? 'new'}:${props.draft?.kind ?? 'idle'}`;
-
+  const historySelectedIdRef = useRef(props.selectedId);
   useEffect(() => {
-    setHistory(props.draft ? createHistory(props.draft) : undefined);
-  }, [historyIdentity]);
+    const selectedShapeChanged = historySelectedIdRef.current !== props.selectedId;
+    historySelectedIdRef.current = props.selectedId;
+    setHistory((current) => {
+      if (!props.draft) return undefined;
+      if (!current || selectedShapeChanged) return createHistory(props.draft);
+      return sameFloorplanDraft(current.present, props.draft) ? current : commitHistory(current, props.draft);
+    });
+  }, [props.draft, props.selectedId]);
 
   useEffect(() => {
     const next = new Image();
@@ -65,19 +70,19 @@ export function FloorplanSurface(props: FloorplanSurfaceProps) {
   const changeDraft = (next: FloorplanShapeInput) => {
     setHistory((current) => {
       if (!current) return createHistory(next);
-      const synchronized =
-        props.draft && current.present !== props.draft ? commitHistory(current, props.draft) : current;
-      return commitHistory(synchronized, next);
+      return sameFloorplanDraft(current.present, next) ? current : commitHistory(current, next);
     });
     props.onDraftChange(next);
   };
 
   const applyHistory = (direction: 'undo' | 'redo') => {
-    if (!history) return;
-    const next = direction === 'undo' ? undoHistory(history) : redoHistory(history);
-    if (next === history) return;
-    setHistory(next);
-    props.onDraftChange(next.present);
+    if (props.disabled) return;
+    setHistory((current) => {
+      if (!current) return current;
+      const next = direction === 'undo' ? undoHistory(current) : redoHistory(current);
+      if (next !== current) props.onDraftChange(next.present);
+      return next;
+    });
   };
 
   const rendererProps = {
@@ -234,5 +239,20 @@ export function FloorplanSurface(props: FloorplanSurfaceProps) {
         </Stack>
       </Box>
     </Box>
+  );
+}
+
+function sameFloorplanDraft(left: FloorplanShapeInput, right: FloorplanShapeInput) {
+  return (
+    left.name === right.name &&
+    left.kind === right.kind &&
+    left.geometry === right.geometry &&
+    left.capacity === right.capacity &&
+    left.x === right.x &&
+    left.y === right.y &&
+    left.width === right.width &&
+    left.height === right.height &&
+    left.rotation === right.rotation &&
+    JSON.stringify(left.polygonPoints ?? null) === JSON.stringify(right.polygonPoints ?? null)
   );
 }

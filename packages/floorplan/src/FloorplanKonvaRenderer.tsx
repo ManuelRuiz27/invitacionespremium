@@ -274,13 +274,16 @@ function EditableKonvaShape({
           event.evt.preventDefault();
         }}
         onDragEnd={(event) => {
+          if (disabled) return;
           if (cancelIndividualCommitRef.current) {
             cancelIndividualCommitRef.current = false;
             return;
           }
           commitPosition(event.target as Konva.Group);
         }}
-        onTransformEnd={(event) => commitTransform(event.target as Konva.Group)}
+        onTransformEnd={(event) => {
+          if (!disabled && !cancelIndividualCommitRef.current) commitTransform(event.target as Konva.Group);
+        }}
       >
         <KonvaShapeVisual
           shape={shape}
@@ -305,6 +308,7 @@ function EditableKonvaShape({
                 draggable={!disabled}
                 onTouchStart={(event) => event.evt.preventDefault()}
                 onDragEnd={(event) => {
+                  if (disabled || cancelIndividualCommitRef.current) return;
                   const points = shape.polygonPoints!.map((candidate, pointIndex) =>
                     pointIndex === index
                       ? {
@@ -321,7 +325,9 @@ function EditableKonvaShape({
       </Group>
       <Transformer
         ref={transformerRef}
-        rotateEnabled
+        listening={!disabled}
+        resizeEnabled={!disabled}
+        rotateEnabled={!disabled}
         flipEnabled={false}
         keepRatio={hasEqualPhysicalSides(shape.geometry)}
         anchorSize={12}
@@ -331,7 +337,7 @@ function EditableKonvaShape({
         anchorStroke={floorplanColors.accent}
         anchorStrokeWidth={1.5}
         anchorStyleFunc={(anchor) => anchor.hitStrokeWidth(44)}
-        enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
+        enabledAnchors={disabled ? [] : ['top-left', 'top-right', 'bottom-left', 'bottom-right']}
         boundBoxFunc={(oldBox, nextBox) => (nextBox.width < 24 || nextBox.height < 24 ? oldBox : nextBox)}
       />
     </>

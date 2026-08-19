@@ -164,11 +164,79 @@ describe('FloorplanSurface', () => {
     expect((onDraftChange.mock.lastCall?.[0] as FloorplanShape).x).toBeCloseTo(0.1025);
     act(() => (renderer.props?.onDraftChange as (shape: FloorplanShape) => void)({ ...table, x: 0.2 }));
     fireEvent.keyDown(host, { key: 'z', ctrlKey: true });
+    expect((onDraftChange.mock.lastCall?.[0] as FloorplanShape).x).toBeCloseTo(0.1025);
+    fireEvent.keyDown(host, { key: 'z', ctrlKey: true });
     expect(onDraftChange).toHaveBeenLastCalledWith(table);
+    fireEvent.keyDown(host, { key: 'z', ctrlKey: true, shiftKey: true });
     fireEvent.keyDown(host, { key: 'z', ctrlKey: true, shiftKey: true });
     expect(onDraftChange).toHaveBeenLastCalledWith(expect.objectContaining({ x: 0.2 }));
     act(() => (renderer.props?.onViewportChange as (value: unknown) => void)({ scale: 2, x: 40, y: 30 }));
     fireEvent.keyDown(host, { key: '0' });
     await waitFor(() => expect(renderer.props?.viewport).toEqual({ scale: 1, x: 0, y: 0 }));
+  });
+
+  it('sincroniza cambios externos sin duplicarlos y reinicia historial al cambiar de shape', async () => {
+    const onDraftChange = vi.fn();
+    const view = render(
+      <FloorplanSurface
+        floorplan={floorplan}
+        imageUrl="blob:plan"
+        disabled={false}
+        selectedId={table.id}
+        draft={table}
+        onSelect={vi.fn()}
+        onDraftChange={onDraftChange}
+      />
+    );
+    await screen.findByTestId('production-konva-renderer');
+    const edited = { ...table, x: 0.2 };
+    view.rerender(
+      <FloorplanSurface
+        floorplan={floorplan}
+        imageUrl="blob:plan"
+        disabled={false}
+        selectedId={table.id}
+        draft={edited}
+        onSelect={vi.fn()}
+        onDraftChange={onDraftChange}
+      />
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Deshacer cambio visual' }));
+    expect(onDraftChange).toHaveBeenLastCalledWith(table);
+
+    const second = { ...table, id: 'table-2', name: 'Dos', x: 0.55 };
+    const nextFloorplan = { ...floorplan, shapes: [table, second] };
+    view.rerender(
+      <FloorplanSurface
+        floorplan={nextFloorplan}
+        imageUrl="blob:plan"
+        disabled={false}
+        selectedId={second.id}
+        draft={second}
+        onSelect={vi.fn()}
+        onDraftChange={onDraftChange}
+      />
+    );
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Deshacer cambio visual' })).toBeDisabled());
+  });
+
+  it('bloquea nudges y undo por teclado cuando la superficie está disabled', async () => {
+    const onDraftChange = vi.fn();
+    render(
+      <FloorplanSurface
+        floorplan={floorplan}
+        imageUrl="blob:plan"
+        disabled
+        selectedId={table.id}
+        draft={table}
+        onSelect={vi.fn()}
+        onDraftChange={onDraftChange}
+      />
+    );
+    await screen.findByTestId('production-konva-renderer');
+    const host = screen.getByRole('generic', { name: 'Superficie interactiva del plano' });
+    fireEvent.keyDown(host, { key: 'ArrowRight' });
+    fireEvent.keyDown(host, { key: 'z', ctrlKey: true });
+    expect(onDraftChange).not.toHaveBeenCalled();
   });
 });
