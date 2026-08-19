@@ -17,6 +17,7 @@ describe('administrative Event preparation API client', () => {
       if (path.endsWith('/content')) return new Response(new Blob(['image']), { status: 200 });
       if (path.endsWith('/hotspots') && (!init?.method || init.method === 'GET')) return json([]);
       if (path.endsWith('/design/file-assets') && (!init?.method || init.method === 'GET')) return json([]);
+      if (path.endsWith('/floorplan/file-assets') && (!init?.method || init.method === 'GET')) return json([]);
       return json({}, init?.method === 'POST' ? 201 : 200);
     });
     const api = createApiClient({ baseUrl: 'https://api.example.com/api/v1', fetchImpl });
@@ -65,6 +66,44 @@ describe('administrative Event preparation API client', () => {
     await api.adminEventPreparation.invitationAssetContent(clientId, eventId, 'asset/value', signal);
     await api.adminEventPreparation.removeInvitationAsset(clientId, eventId, 'asset/value', signal);
     await api.adminEventPreparation.getFloorplan(clientId, eventId, signal);
+    await api.adminEventPreparation.createFloorplan(clientId, eventId, { imageAssetId: 'floorplan-asset' }, signal);
+    await api.adminEventPreparation.replaceFloorplanImage(
+      clientId,
+      eventId,
+      { imageAssetId: 'floorplan-asset-2' },
+      signal
+    );
+    await api.adminEventPreparation.listFloorplanAssets(clientId, eventId, signal);
+    await api.adminEventPreparation.uploadFloorplanAsset(clientId, eventId, new Blob(['floorplan']), signal);
+    await api.adminEventPreparation.floorplanAssetContent(clientId, eventId, 'floorplan/asset', signal);
+    await api.adminEventPreparation.removeFloorplanAsset(clientId, eventId, 'floorplan/asset', signal);
+    await api.adminEventPreparation.lockFloorplan(clientId, eventId, signal);
+    await api.adminEventPreparation.createFloorplanShape(
+      clientId,
+      eventId,
+      {
+        name: 'Mesa principal',
+        kind: 'TABLE',
+        geometry: 'CIRCLE',
+        capacity: 10,
+        x: 0.1,
+        y: 0.1,
+        width: 0.2,
+        height: 0.2,
+        rotation: 0,
+        polygonPoints: null
+      },
+      signal
+    );
+    await api.adminEventPreparation.updateFloorplanShape(
+      clientId,
+      eventId,
+      'shape/value',
+      { name: 'Mesa actualizada' },
+      signal
+    );
+    await api.adminEventPreparation.removeFloorplanShape(clientId, eventId, 'shape/value', signal);
+    await api.adminEventPreparation.unlockFloorplan(clientId, eventId, signal);
 
     const calls = fetchImpl.mock.calls;
     const base = 'https://api.example.com/api/v1/admin/clients/client%2Fvalue/events/event%2Fvalue';
@@ -88,7 +127,18 @@ describe('administrative Event preparation API client', () => {
       `${base}/design/file-assets`,
       `${base}/design/file-assets/asset%2Fvalue/content`,
       `${base}/design/file-assets/asset%2Fvalue`,
-      `${base}/floorplan`
+      `${base}/floorplan`,
+      `${base}/floorplan`,
+      `${base}/floorplan`,
+      `${base}/floorplan/file-assets`,
+      `${base}/floorplan/file-assets`,
+      `${base}/floorplan/file-assets/floorplan%2Fasset/content`,
+      `${base}/floorplan/file-assets/floorplan%2Fasset`,
+      `${base}/floorplan/lock`,
+      `${base}/floorplan/shapes`,
+      `${base}/floorplan/shapes/shape%2Fvalue`,
+      `${base}/floorplan/shapes/shape%2Fvalue`,
+      `${base}/floorplan/unlock`
     ]);
     expect(calls.map(([, init]) => init?.method ?? 'GET')).toEqual([
       'PATCH',
@@ -110,7 +160,18 @@ describe('administrative Event preparation API client', () => {
       'POST',
       'GET',
       'DELETE',
-      'GET'
+      'GET',
+      'POST',
+      'PATCH',
+      'GET',
+      'POST',
+      'GET',
+      'DELETE',
+      'POST',
+      'POST',
+      'PATCH',
+      'DELETE',
+      'POST'
     ]);
     expect(calls.every(([url]) => !new URL(String(url)).pathname.startsWith('/api/v1/events/'))).toBe(true);
     expect(calls.every(([url]) => !String(url).includes('/invitation-file-assets'))).toBe(true);
@@ -122,6 +183,14 @@ describe('administrative Event preparation API client', () => {
     expect(form.has('fileType')).toBe(true);
     expect(form.has('ownerType')).toBe(false);
     expect(form.get('fileType')).toBe('FLYER_INITIAL_IMAGE');
+    const floorplanUpload = calls.find(
+      ([url, init]) => String(url).endsWith('/floorplan/file-assets') && init?.method === 'POST'
+    );
+    expect(floorplanUpload?.[1]?.body).toBeInstanceOf(FormData);
+    const floorplanForm = floorplanUpload?.[1]?.body as FormData;
+    expect(floorplanForm.has('file')).toBe(true);
+    expect(floorplanForm.has('fileType')).toBe(false);
+    expect(floorplanForm.has('ownerType')).toBe(false);
   });
 });
 

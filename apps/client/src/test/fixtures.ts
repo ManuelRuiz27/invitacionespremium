@@ -182,7 +182,18 @@ export function mockApiClient(user: AuthUser = independentUser): ApiClient {
       uploadInvitationAsset: vi.fn(),
       invitationAssetContent: vi.fn(),
       removeInvitationAsset: vi.fn(),
-      getFloorplan: vi.fn()
+      getFloorplan: vi.fn(),
+      createFloorplan: vi.fn(),
+      replaceFloorplanImage: vi.fn(),
+      listFloorplanAssets: vi.fn().mockResolvedValue([]),
+      uploadFloorplanAsset: vi.fn(),
+      floorplanAssetContent: vi.fn(),
+      removeFloorplanAsset: vi.fn(),
+      lockFloorplan: vi.fn(),
+      createFloorplanShape: vi.fn(),
+      updateFloorplanShape: vi.fn(),
+      removeFloorplanShape: vi.fn(),
+      unlockFloorplan: vi.fn()
     },
     adminFinance: {
       balance: vi.fn(),

@@ -16,6 +16,11 @@ export type AdminHotspotUpdate = S['UpdateHotspotRequestDto'];
 export type AdminInvitationFileAsset = S['FileAssetResponseDto'];
 export type AdminInvitationFileAssetType = S['AdministrativeInvitationFileAssetUploadRequestDto']['fileType'];
 export type AdminFloorplan = S['FloorplanResponseDto'];
+export type AdminFloorplanImageInput = S['FloorplanImageRequestDto'];
+export type AdminFloorplanShape = S['FloorplanShapeResponseDto'];
+export type AdminFloorplanShapeInput = S['FloorplanShapeRequestDto'];
+export type AdminFloorplanShapeUpdate = S['UpdateFloorplanShapeRequestDto'];
+export type AdminFloorplanFileAsset = S['FileAssetResponseDto'];
 
 const id = encodeURIComponent;
 const record = isRecord as (value: unknown) => value is never;
@@ -208,6 +213,115 @@ export function createAdminEventPreparationClient(request: ApiRequester) {
     getFloorplan: (clientId: string, eventId: string, signal?: AbortSignal) =>
       request<AdminFloorplan>(
         { path: `${base(clientId, eventId)}/floorplan`, response: 'json', ...withSignal(signal) },
+        record
+      ),
+    createFloorplan: (clientId: string, eventId: string, body: AdminFloorplanImageInput, signal?: AbortSignal) =>
+      request<AdminFloorplan>(
+        {
+          method: 'POST',
+          path: `${base(clientId, eventId)}/floorplan`,
+          body,
+          response: 'json',
+          ...withSignal(signal)
+        },
+        record
+      ),
+    replaceFloorplanImage: (clientId: string, eventId: string, body: AdminFloorplanImageInput, signal?: AbortSignal) =>
+      request<AdminFloorplan>(
+        {
+          method: 'PATCH',
+          path: `${base(clientId, eventId)}/floorplan`,
+          body,
+          response: 'json',
+          ...withSignal(signal)
+        },
+        record
+      ),
+    listFloorplanAssets: (clientId: string, eventId: string, signal?: AbortSignal) =>
+      request<AdminFloorplanFileAsset[]>(
+        { path: `${base(clientId, eventId)}/floorplan/file-assets`, response: 'json', ...withSignal(signal) },
+        records
+      ),
+    uploadFloorplanAsset: (clientId: string, eventId: string, file: Blob, signal?: AbortSignal) => {
+      const body = new FormData();
+      body.append('file', file);
+      return request<AdminFloorplanFileAsset>(
+        {
+          method: 'POST',
+          path: `${base(clientId, eventId)}/floorplan/file-assets`,
+          body,
+          response: 'json',
+          ...withSignal(signal)
+        },
+        record
+      );
+    },
+    floorplanAssetContent: (clientId: string, eventId: string, assetId: string, signal?: AbortSignal) =>
+      request<Blob>({
+        path: `${base(clientId, eventId)}/floorplan/file-assets/${id(assetId)}/content`,
+        response: 'blob',
+        ...withSignal(signal)
+      }),
+    removeFloorplanAsset: (clientId: string, eventId: string, assetId: string, signal?: AbortSignal) =>
+      request<void>({
+        method: 'DELETE',
+        path: `${base(clientId, eventId)}/floorplan/file-assets/${id(assetId)}`,
+        response: 'empty',
+        ...withSignal(signal)
+      }),
+    lockFloorplan: (clientId: string, eventId: string, signal?: AbortSignal) =>
+      request<AdminFloorplan>(
+        {
+          method: 'POST',
+          path: `${base(clientId, eventId)}/floorplan/lock`,
+          response: 'json',
+          ...withSignal(signal)
+        },
+        record
+      ),
+    createFloorplanShape: (clientId: string, eventId: string, body: AdminFloorplanShapeInput, signal?: AbortSignal) =>
+      request<AdminFloorplanShape>(
+        {
+          method: 'POST',
+          path: `${base(clientId, eventId)}/floorplan/shapes`,
+          body,
+          response: 'json',
+          ...withSignal(signal)
+        },
+        record
+      ),
+    updateFloorplanShape: (
+      clientId: string,
+      eventId: string,
+      shapeId: string,
+      body: AdminFloorplanShapeUpdate,
+      signal?: AbortSignal
+    ) =>
+      request<AdminFloorplanShape>(
+        {
+          method: 'PATCH',
+          path: `${base(clientId, eventId)}/floorplan/shapes/${id(shapeId)}`,
+          body,
+          response: 'json',
+          ...withSignal(signal)
+        },
+        record
+      ),
+    removeFloorplanShape: (clientId: string, eventId: string, shapeId: string, signal?: AbortSignal) =>
+      request<void>({
+        method: 'DELETE',
+        path: `${base(clientId, eventId)}/floorplan/shapes/${id(shapeId)}`,
+        response: 'empty',
+        ...withSignal(signal)
+      }),
+    unlockFloorplan: (clientId: string, eventId: string, signal?: AbortSignal) =>
+      request<AdminFloorplan>(
+        {
+          method: 'POST',
+          path: `${base(clientId, eventId)}/floorplan/unlock`,
+          response: 'json',
+          ...withSignal(signal)
+        },
         record
       )
   };

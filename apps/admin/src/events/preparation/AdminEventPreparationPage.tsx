@@ -27,6 +27,7 @@ import { adminQueryKeys } from '../../app/query-client';
 import { adminErrorMessage } from '../../shared/admin-error';
 import { eventStatusLabel } from '../../shared/admin-labels';
 import { AdminErrorState, AdminLoadingState } from '../../shared/AdminStates';
+import { AdminFloorplanBuilderWorkspace } from './floorplan/AdminFloorplanBuilderWorkspace';
 
 type Section = 'datos' | 'invitacion' | 'croquis';
 
@@ -81,7 +82,7 @@ export function AdminEventPreparationPage({ apiClient }: { apiClient: ApiClient 
       </Stack>
       {section === 'datos' ? <EventDataSection apiClient={apiClient} event={data} /> : null}
       {section === 'invitacion' ? <InvitationSection apiClient={apiClient} event={data} /> : null}
-      {section === 'croquis' ? <FloorplanSection apiClient={apiClient} event={data} /> : null}
+      {section === 'croquis' ? <AdminFloorplanBuilderWorkspace apiClient={apiClient} event={data} /> : null}
     </Stack>
   );
 }
@@ -588,35 +589,6 @@ function Hotspots({
               </Button>
             </Stack>
           ))}
-        </Stack>
-      </CardContent>
-    </Card>
-  );
-}
-
-function FloorplanSection({ apiClient, event }: { apiClient: ApiClient; event: AdminEvent }) {
-  const floorplan = useQuery({
-    queryKey: ['admin-event-floorplan', event.clientId, event.id],
-    queryFn: ({ signal }) => apiClient.adminEventPreparation.getFloorplan(event.clientId, event.id, signal),
-    retry: false
-  });
-  if (!event.floorplanEnabled) return <Alert severity="info">El croquis no está habilitado para este Evento.</Alert>;
-  if (floorplan.isPending) return <AdminLoadingState label="Consultando croquis..." />;
-  if (floorplan.isError) {
-    if (floorplan.error instanceof ApiError && floorplan.error.status === 404)
-      return <Alert severity="info">El Evento todavía no tiene croquis.</Alert>;
-    return <AdminErrorState onRetry={() => void floorplan.refetch()} />;
-  }
-  return (
-    <Card>
-      <CardContent>
-        <Stack spacing={1}>
-          <Typography component="h2" variant="h4">
-            Estado del Croquis
-          </Typography>
-          <Typography>Bloqueo: {floorplan.data.locked ? 'Bloqueado' : 'Editable por el proveedor'}</Typography>
-          <Typography>Mesas y zonas: {floorplan.data.shapes.length}</Typography>
-          <Alert severity="info">La edición del croquis no forma parte de este corte.</Alert>
         </Stack>
       </CardContent>
     </Card>

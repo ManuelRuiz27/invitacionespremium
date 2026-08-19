@@ -44,6 +44,9 @@ importers:
       '@invitaciones/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
+      '@invitaciones/floorplan':
+        specifier: workspace:*
+        version: link:../../packages/floorplan
       '@invitaciones/ui':
         specifier: workspace:*
         version: link:../../packages/ui
