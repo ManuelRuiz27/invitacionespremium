@@ -88,6 +88,7 @@ Leer primero `docs/04-tecnico/REPOSITORY_SOURCE_OF_TRUTH.md` cuando una tarea me
 - `OP03B_OPERATOR_PLANNER_SURFACES.md` — gating de launch surface Planner y preparación provider-led en Admin
 - `FP01_PROVIDER_FLOORPLAN_SHELL.md` — shell Croquis V2 provider-led y extracción autorizada del engine compartido
 - `FP02_STICKER_CATALOG.md` — catálogo/presets Sticker sobre `FloorplanShape` sin nuevo dominio persistente
+- `FP03_FLOORPLAN_INTERACTION_ROBUSTNESS.md` — robustez de transformaciones, historial, persistencia y reconciliación sin cambiar el contrato de dominio
 
 ## Precedencia para el cambio operator-led / Croquis V2
 
@@ -99,7 +100,7 @@ Cuando una tarea pertenezca a este cambio, usar este orden práctico:
 4. `FLOORPLAN_UX_TARGET.md` y `LEGACY_UI_VISUAL_PORT_GUIDE.md` para UI/UX.
 5. `14_CODEX_RULES.md` + `14A_OPERATOR_LED_CODEX_RULES.md` para implementación.
 6. `19_OPERATOR_LED_FLOORPLAN_ROADMAP.md` para secuencia de ejecución.
-7. Contrato de implementación del ticket activo (`FP01_PROVIDER_FLOORPLAN_SHELL.md`, `FP02_STICKER_CATALOG.md`, etc.).
+7. Contrato de implementación del ticket activo (`FP01_PROVIDER_FLOORPLAN_SHELL.md`, `FP02_STICKER_CATALOG.md`, `FP03_FLOORPLAN_INTERACTION_ROBUSTNESS.md`, etc.).
 8. Render o referencia legacy únicamente al final y sólo para intención visual autorizada.
 
 Una referencia visual nunca puede cambiar dominio, permisos, estados, contratos API o reglas financieras.
