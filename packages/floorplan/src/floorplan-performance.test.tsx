@@ -2,6 +2,7 @@ import type { Floorplan, FloorplanShape } from '@invitaciones/api-client';
 import { cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { FloorplanDomRenderer } from './FloorplanDomRenderer';
+import { buildFloorplanScale, FLOORPLAN_SCALE_COUNTS } from './test/floorplan-scale-fixtures';
 
 const shape = (index: number): FloorplanShape => ({
   id: `table-${index}`,
@@ -33,30 +34,33 @@ const floorplan = (count: number): Floorplan => ({
 afterEach(cleanup);
 
 describe('floorplan renderer profiling matrix', () => {
-  it.each([
-    ['50 asistentes', 10],
-    ['600 asistentes', 60],
-    ['1,800 asistentes', 180],
-    ['límite visual', 200]
-  ])('renders the DOM rollback baseline for %s / %d Mesas', (scenario, count) => {
+  it.each(FLOORPLAN_SCALE_COUNTS)('renders and selects representative tables across %d Mesas', (count) => {
+    const selected: string[] = [];
     const startedAt = performance.now();
     const view = render(
       <FloorplanDomRenderer
-        floorplan={floorplan(count)}
+        floorplan={buildFloorplanScale(count)}
         imageUrl="profile-image.png"
         disabled={false}
         showSeats={false}
         snap={false}
-        onSelect={() => undefined}
+        onSelect={(table) => selected.push(table.id)}
         onDraftChange={() => undefined}
       />
     );
     const elapsedMs = performance.now() - startedAt;
-    const tableNodes = view.getAllByRole('button', { name: /Editar mesa/ });
+    const tableNodes = [...view.container.querySelectorAll<HTMLButtonElement>('[aria-label^="Editar mesa"]')];
     expect(tableNodes).toHaveLength(count);
+    for (const index of [0, Math.floor(count / 2), count - 1]) tableNodes[index]!.click();
+    expect(selected).toEqual(['scale-table-1', `scale-table-${Math.floor(count / 2) + 1}`, `scale-table-${count}`]);
     if (import.meta.env.FLOORPLAN_PROFILE === '1') {
       console.info(
-        JSON.stringify({ scenario, tables: count, domNodes: view.container.querySelectorAll('*').length, elapsedMs })
+        JSON.stringify({
+          scenario: `scale-${count}`,
+          tables: count,
+          domNodes: view.container.querySelectorAll('*').length,
+          elapsedMs
+        })
       );
     }
   });

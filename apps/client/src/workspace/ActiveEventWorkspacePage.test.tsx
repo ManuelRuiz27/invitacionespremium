@@ -5,11 +5,44 @@ import {
   type Floorplan,
   type SeatingWorkspacePage
 } from '@invitaciones/api-client';
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { activeEvent, configuredEvent, mockApiClient } from '../test/fixtures';
 import { renderApp } from '../test/render-app';
+
+const seatingFloorplanHarness = vi.hoisted(() => ({ props: undefined as Record<string, unknown> | undefined }));
+const workspaceRealtimeHarness = vi.hoisted(() => ({
+  callbacks: undefined as { onSeatingUpdated: () => void; onTerminal: () => void } | undefined
+}));
+vi.mock('@invitaciones/floorplan', () => ({
+  FloorplanSurface: (props: {
+    floorplan: Floorplan;
+    disabled: boolean;
+    readOnly?: boolean;
+    onSelect: (shape: Floorplan['shapes'][number]) => void;
+  }) => {
+    seatingFloorplanHarness.props = props as unknown as Record<string, unknown>;
+    return (
+      <div data-testid="planner-floorplan-surface">
+        {props.floorplan.shapes.map((shape) => (
+          <button key={shape.id} onClick={() => props.onSelect(shape)}>
+            Mesa {shape.name} · {shape.capacity}
+          </button>
+        ))}
+      </div>
+    );
+  }
+}));
+vi.mock('./useWorkspaceRealtime', () => ({
+  useWorkspaceRealtime: (
+    _eventId: string,
+    _enabled: boolean,
+    callbacks: { onSeatingUpdated: () => void; onTerminal: () => void }
+  ) => {
+    workspaceRealtimeHarness.callbacks = callbacks;
+  }
+}));
 
 const workspaceEvent = {
   ...activeEvent,
@@ -103,6 +136,7 @@ const mutationResult = {
 
 beforeEach(() => {
   setViewportWidth(1280);
+  workspaceRealtimeHarness.callbacks = undefined;
   vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:floorplan');
   vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
 });
@@ -432,6 +466,35 @@ describe('Active Event seating workspace', () => {
     expect(screen.queryByRole('button', { name: /Asignar/ })).not.toBeInTheDocument();
   });
 
+  it('aborts an in-flight seating mutation and stays read-only after a terminal realtime event', async () => {
+    const api = mockApiClient();
+    vi.mocked(api.events.get).mockResolvedValue(workspaceEvent);
+    vi.mocked(api.floorplan.get).mockResolvedValue(floorplan);
+    vi.mocked(api.fileAssets.content).mockResolvedValue(new Blob(['image'], { type: 'image/png' }));
+    vi.mocked(api.floorplan.seating).mockResolvedValue(unassignedPage);
+    vi.mocked(api.floorplan.assign).mockImplementation(
+      (_eventId, _input, _idempotencyKey, signal) =>
+        new Promise((_, reject) => {
+          signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+        })
+    );
+    const user = userEvent.setup();
+    renderApp(api, `/eventos/${workspaceEvent.id}?seccion=mesas`);
+
+    await user.click(await screen.findByRole('button', { name: 'Mesa 12 · 10' }));
+    await user.click(await screen.findByRole('checkbox', { name: 'Seleccionar Ana María' }));
+    await user.click(screen.getByRole('button', { name: 'Asignar 1 a 12' }));
+    const mutationSignal = vi.mocked(api.floorplan.assign).mock.calls[0]?.[3];
+    expect(mutationSignal?.aborted).toBe(false);
+
+    act(() => workspaceRealtimeHarness.callbacks?.onTerminal());
+
+    expect(mutationSignal?.aborted).toBe(true);
+    expect(await screen.findByText(/El Evento finalizó.*modo de consulta/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Asignar/ })).not.toBeInTheDocument();
+    expect(api.floorplan.assign).toHaveBeenCalledOnce();
+  });
+
   it('sends debounced search and Group filters while keeping the page bounded to 50', async () => {
     const api = mockApiClient();
     vi.mocked(api.events.get).mockResolvedValue(workspaceEvent);
@@ -566,6 +629,62 @@ describe('Active Event seating workspace', () => {
     expect(api.floorplan.assign).not.toHaveBeenCalled();
   });
 
+  it('operates 200 read-only tables with one bounded 50-person page and no per-table requests', async () => {
+    setViewportWidth(800);
+    const largeFloorplan = scaleClientFloorplan(200);
+    const firstPage = scaleSeatingPage(50, 'cursor-50');
+    const api = mockApiClient();
+    vi.mocked(api.events.get).mockResolvedValue(workspaceEvent);
+    vi.mocked(api.floorplan.get).mockResolvedValue(largeFloorplan);
+    vi.mocked(api.fileAssets.content).mockResolvedValue(new Blob(['image'], { type: 'image/png' }));
+    vi.mocked(api.floorplan.seating).mockResolvedValue(firstPage);
+    let resolveAssign!: (value: typeof mutationResult) => void;
+    vi.mocked(api.floorplan.assign).mockReturnValue(
+      new Promise((resolve) => {
+        resolveAssign = resolve;
+      })
+    );
+    renderApp(api, `/eventos/${workspaceEvent.id}?seccion=mesas`);
+
+    const summary = await screen.findByLabelText('Resumen de la distribución');
+    expect(within(summary).getByText('Mesas').parentElement).toHaveTextContent('200');
+    expect(within(summary).getByText('Capacidad').parentElement).toHaveTextContent('2000');
+    expect(within(summary).getByText('Asignados').parentElement).toHaveTextContent('400');
+    expect(within(summary).getByText('Disponibles').parentElement).toHaveTextContent('1600');
+    fireEvent.click(await screen.findByRole('button', { name: 'Mesa 200 · 10' }));
+    expect(await screen.findByTestId('seating-tablet-drawer')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '200', level: 2 })).toBeInTheDocument();
+    expect(await screen.findAllByRole('checkbox', { name: /Seleccionar Persona/ })).toHaveLength(50);
+    expectGeometryMutationsNotCalled(api);
+    expect((seatingFloorplanHarness.props?.floorplan as Floorplan).shapes).toHaveLength(200);
+    expect(seatingFloorplanHarness.props?.readOnly).toBe(true);
+    expect(api.floorplan.get).toHaveBeenCalledOnce();
+    expect(api.fileAssets.content).toHaveBeenCalledOnce();
+    for (const [, query] of vi.mocked(api.floorplan.seating).mock.calls) expect(query.limit).toBe(50);
+    expect(vi.mocked(api.floorplan.seating).mock.calls.length).toBeLessThan(5);
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Seleccionar Persona 1' }));
+    const assign = screen.getByRole('button', { name: 'Asignar 1 a 200' });
+    fireEvent.click(assign);
+    fireEvent.click(assign);
+    expect(api.floorplan.assign).toHaveBeenCalledOnce();
+    resolveAssign({
+      changes: [
+        { assistantId: firstPage.items[0]!.assistantId, fromTableId: null, toTableId: largeFloorplan.shapes.at(-1)!.id }
+      ],
+      affectedTables: [{ tableId: largeFloorplan.shapes.at(-1)!.id, occupancy: 1, capacity: 10 }]
+    });
+    await waitFor(() => expect(screen.getByText(/Cambio guardado|actualizando la distribución/i)).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Ver siguientes 50' }));
+    await waitFor(() =>
+      expect(api.floorplan.seating).toHaveBeenLastCalledWith(
+        workspaceEvent.id,
+        expect.objectContaining({ cursor: 'cursor-50', limit: 50 }),
+        expect.any(AbortSignal)
+      )
+    );
+  });
+
   it.each([
     [800, 'seating-tablet-drawer'],
     [390, 'seating-mobile-drawer']
@@ -686,4 +805,36 @@ function expectGeometryMutationsNotCalled(api: ReturnType<typeof mockApiClient>)
   expect(api.floorplan.removeShape).not.toHaveBeenCalled();
   expect(api.floorplan.lock).not.toHaveBeenCalled();
   expect(api.floorplan.unlock).not.toHaveBeenCalled();
+}
+
+function scaleClientFloorplan(count: 200): Floorplan {
+  return {
+    ...floorplan,
+    shapes: Array.from({ length: count }, (_, index) => ({
+      ...floorplan.shapes[0]!,
+      id: `scale-client-table-${index + 1}`,
+      name: `${index + 1}`,
+      capacity: 10,
+      occupancy: index % 5,
+      availableCapacity: 10 - (index % 5),
+      x: 0.005 + (index % 20) * 0.048,
+      y: 0.005 + Math.floor(index / 20) * 0.09,
+      width: 0.035,
+      height: 0.035
+    }))
+  };
+}
+
+function scaleSeatingPage(count: 50, nextCursor: string | null): SeatingWorkspacePage {
+  return {
+    items: Array.from({ length: count }, (_, index) => ({
+      ...seatingItem,
+      assistantId: `scale-assistant-${index + 1}`,
+      name: `Persona ${index + 1}`,
+      invitation: { ...seatingItem.invitation, id: `scale-invitation-${index + 1}` },
+      group: { ...seatingItem.group!, id: `scale-group-${Math.floor(index / 5) + 1}` }
+    })),
+    summary: { unassignedCount: 300, selectedTable: null },
+    nextCursor
+  };
 }

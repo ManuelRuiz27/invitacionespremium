@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FloorplanSurface } from './FloorplanSurface';
+import { buildFloorplanScale, FLOORPLAN_SCALE_COUNTS } from './test/floorplan-scale-fixtures';
 
 const renderer = vi.hoisted(() => ({ props: undefined as Record<string, unknown> | undefined }));
 const resize = vi.hoisted(() => ({ emit: undefined as ((width: number, height: number) => void) | undefined }));
@@ -239,4 +240,61 @@ describe('FloorplanSurface', () => {
     fireEvent.keyDown(host, { key: 'z', ctrlKey: true });
     expect(onDraftChange).not.toHaveBeenCalled();
   });
+
+  it.each(FLOORPLAN_SCALE_COUNTS)(
+    'mantiene una sola superficie, geometría separada del viewport y contratos editable/read-only con %d Mesas',
+    async (count) => {
+      const scaled = buildFloorplanScale(count);
+      const geometryBefore = structuredClone(scaled.shapes);
+      const onSelect = vi.fn();
+      const onDraftChange = vi.fn();
+      const view = render(
+        <FloorplanSurface
+          floorplan={scaled}
+          imageUrl="blob:scale"
+          disabled={false}
+          selectedId={scaled.shapes.at(-1)!.id}
+          draft={scaled.shapes.at(-1)}
+          onSelect={onSelect}
+          onDraftChange={onDraftChange}
+        />
+      );
+      await waitFor(() => expect(renderer.props).toBeDefined());
+      expect(view.container.querySelectorAll('[data-testid="production-konva-renderer"]')).toHaveLength(1);
+      expect((renderer.props?.floorplan as Floorplan).shapes).toHaveLength(count);
+      for (const index of [0, Math.floor(count / 2), count - 1]) {
+        act(() => (renderer.props?.onSelect as (shape: FloorplanShape) => void)(scaled.shapes[index]!));
+      }
+      expect(onSelect.mock.calls.map(([selected]) => selected.id)).toEqual([
+        'scale-table-1',
+        `scale-table-${Math.floor(count / 2) + 1}`,
+        `scale-table-${count}`
+      ]);
+      act(() =>
+        (renderer.props?.onDraftChange as (shape: FloorplanShape) => void)({ ...scaled.shapes.at(-1)!, x: 0.4 })
+      );
+      expect(onDraftChange).toHaveBeenCalledOnce();
+      fireEvent.click(view.container.querySelector('[aria-label="Acercar plano"]')!);
+      act(() => (renderer.props?.onViewportChange as (value: unknown) => void)({ scale: 1.5, x: 20, y: 10 }));
+      expect(scaled.shapes).toEqual(geometryBefore);
+      expect(renderer.props).not.toHaveProperty('api');
+
+      view.rerender(
+        <FloorplanSurface
+          floorplan={{ ...scaled, locked: true }}
+          imageUrl="blob:scale"
+          disabled
+          selectedId={scaled.shapes.at(-1)!.id}
+          draft={scaled.shapes.at(-1)}
+          onSelect={onSelect}
+          onDraftChange={onDraftChange}
+        />
+      );
+      await waitFor(() => expect(renderer.props?.disabled).toBe(true));
+      fireEvent.keyDown(view.container.querySelector('[aria-label="Superficie interactiva del plano"]')!, {
+        key: 'ArrowRight'
+      });
+      expect(onDraftChange).toHaveBeenCalledOnce();
+    }
+  );
 });

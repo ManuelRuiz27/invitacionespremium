@@ -40,6 +40,7 @@ vi.mock('@invitaciones/floorplan', async (importOriginal) => {
 describe('Admin Event preparation surfaces', () => {
   beforeEach(() => {
     floorplanHarness.props = undefined;
+    setAdminViewportWidth(1440);
     Object.defineProperty(URL, 'createObjectURL', {
       configurable: true,
       value: vi.fn(() => 'blob:admin-floorplan')
@@ -433,6 +434,74 @@ describe('Admin Event preparation surfaces', () => {
     expect((floorplanHarness.props?.floorplan as AdminFloorplan).shapes).toHaveLength(24);
   });
 
+  it.each([50, 100, 200])('mounts the single shared Builder with %d deterministic tables', async (count) => {
+    const shapes = scaleAdminShapes(count);
+    const api = preparedFloorplanApi(floorplan({ shapes }));
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    expect(await screen.findByText(`${count} elementos · ${count * 10} lugares`)).toBeInTheDocument();
+    await screen.findByTestId('admin-floorplan-surface');
+    expect((floorplanHarness.props?.floorplan as AdminFloorplan).shapes).toHaveLength(count);
+    expect(screen.getAllByTestId('admin-floorplan-surface')).toHaveLength(1);
+    expect((await screen.findAllByRole('button', { name: 'Mesa redonda' }))[0]).toBeEnabled();
+    expect(api.adminEventPreparation.getFloorplan).toHaveBeenCalledOnce();
+  });
+
+  it('operates on Mesa 200 without selection writes, double submit, replay or duplicate create', async () => {
+    const shapes = scaleAdminShapes(200);
+    const source = floorplan({ shapes });
+    const api = preparedFloorplanApi(source);
+    let resolveUpdate!: (value: AdminFloorplanShape) => void;
+    vi.mocked(api.adminEventPreparation.updateFloorplanShape).mockReturnValue(
+      new Promise((resolve) => {
+        resolveUpdate = resolve;
+      })
+    );
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    const surface = await screen.findByTestId('admin-floorplan-surface');
+    await userEvent.click(within(surface).getByRole('button', { name: 'Mesa 200' }));
+    expect(api.adminEventPreparation.updateFloorplanShape).not.toHaveBeenCalled();
+    expect(api.adminEventPreparation.createFloorplanShape).not.toHaveBeenCalled();
+    expect((await screen.findAllByText('Mesa seleccionada')).length).toBeGreaterThan(0);
+    const name = screen.getAllByLabelText('Nombre o número').at(-1)!;
+    await userEvent.clear(name);
+    await userEvent.type(name, 'Mesa 200 actualizada');
+    const save = enabledButton('Guardar cambios');
+    fireEvent.click(save);
+    fireEvent.click(save);
+    expect(api.adminEventPreparation.updateFloorplanShape).toHaveBeenCalledOnce();
+    resolveUpdate({ ...shapes.at(-1)!, name: 'Mesa 200 actualizada' });
+    await waitFor(() => expect(api.adminEventPreparation.getFloorplan).toHaveBeenCalledTimes(2));
+    expect(api.adminEventPreparation.updateFloorplanShape).toHaveBeenCalledOnce();
+
+    expect(api.floorplan.updateShape).not.toHaveBeenCalled();
+  });
+
+  it('duplicates Mesa 200 through exactly one Admin POST', async () => {
+    const shapes = scaleAdminShapes(200);
+    const api = preparedFloorplanApi(floorplan({ shapes }));
+    vi.mocked(api.adminEventPreparation.createFloorplanShape).mockResolvedValue(
+      shape({ ...shapes.at(-1), id: 'table-201', name: 'Mesa 201' })
+    );
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    fireEvent.click(
+      within(await screen.findByTestId('admin-floorplan-surface')).getByRole('button', { name: 'Mesa 200' })
+    );
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Duplicar' })).at(-1)!);
+    await waitFor(() => expect(api.adminEventPreparation.createFloorplanShape).toHaveBeenCalledOnce());
+    expect(api.floorplan.addShape).not.toHaveBeenCalled();
+  });
+
+  it('keeps the 200-table canvas, catalog and contextual inspector usable at 1024x768', async () => {
+    setAdminViewportWidth(1024);
+    const api = preparedFloorplanApi(floorplan({ shapes: scaleAdminShapes(200) }));
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    expect(await screen.findByTestId('admin-floorplan-surface')).toBeInTheDocument();
+    expect((await screen.findAllByRole('button', { name: 'Mesa redonda' }))[0]).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Mesa 200' }));
+    expect((await screen.findAllByText('Mesa seleccionada')).length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText('Nombre o número').at(-1)).toHaveValue('Mesa 200');
+  });
+
   it('keeps multi-table inventory available from the provider palette', async () => {
     const api = preparedFloorplanApi();
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
@@ -442,8 +511,12 @@ describe('Admin Event preparation surfaces', () => {
   });
 
   it('disables Builder mutations while the authoritative Floorplan is locked', async () => {
-    const api = preparedFloorplanApi(floorplan({ locked: true, lockedAt: adminEvent.updatedAt }));
+    const api = preparedFloorplanApi(
+      floorplan({ locked: true, lockedAt: adminEvent.updatedAt, shapes: scaleAdminShapes(200) })
+    );
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await screen.findByTestId('admin-floorplan-surface');
+    expect(floorplanHarness.props?.disabled).toBe(true);
     expect((await screen.findAllByRole('button', { name: 'Mesa redonda' }))[0]).toBeDisabled();
     expect(screen.getAllByRole('button', { name: 'Pista' })[0]).toBeDisabled();
     expect(api.adminEventPreparation.createFloorplanShape).not.toHaveBeenCalled();
@@ -767,6 +840,41 @@ function shape(overrides: Partial<AdminFloorplanShape> = {}): AdminFloorplanShap
     polygonPoints: null,
     ...overrides
   };
+}
+
+function scaleAdminShapes(count: number): AdminFloorplanShape[] {
+  return Array.from({ length: count }, (_, index) =>
+    shape({
+      id: `scale-admin-table-${index + 1}`,
+      name: `Mesa ${index + 1}`,
+      capacity: 10,
+      availableCapacity: 10,
+      x: 0.005 + (index % 20) * 0.048,
+      y: 0.005 + Math.floor(index / 20) * 0.09,
+      width: 0.035,
+      height: 0.035
+    })
+  );
+}
+
+function setAdminViewportWidth(width: number) {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => {
+      const maxWidth = Number(/max-width:\s*([\d.]+)px/u.exec(query)?.[1]);
+      return {
+        matches: Number.isFinite(maxWidth) && width <= maxWidth,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(() => false)
+      };
+    })
+  });
 }
 
 function floorplanAsset(overrides: Record<string, unknown> = {}) {

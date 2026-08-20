@@ -1,4 +1,4 @@
-import { useQueryClient } from '@tanstack/react-query';
+import { type QueryClient, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { readClientEnv } from '../app/env';
@@ -23,7 +23,6 @@ export function useWorkspaceRealtime(eventId: string, enabled: boolean, callback
   useEffect(() => {
     if (!enabled || import.meta.env.MODE === 'test') return;
 
-    const remember = createOperationDeduper();
     const serverUrl = new URL(readClientEnv().apiBaseUrl).origin;
     const socket = io(`${serverUrl}/realtime`, {
       auth: { protocolVersion: 1, actorMode: 'USER', roomType: 'floorplan', eventId, administrative: false },
@@ -31,38 +30,54 @@ export function useWorkspaceRealtime(eventId: string, enabled: boolean, callback
       transports: ['websocket'],
       withCredentials: true
     });
-    const refresh = () => {
-      void queryClient.invalidateQueries({ queryKey: ['workspace-floorplan', eventId] });
-      void queryClient.invalidateQueries({ queryKey: ['workspace-seating', eventId] });
-    };
-    const onSeating = (value: unknown) => {
-      const envelope = parseWorkspaceEnvelope(value, eventId);
-      if (!envelope || !remember(envelope.operationId)) return;
-      const affectedTables = parseAffectedTables(envelope.data);
-      if (!affectedTables) return;
-      callbacksRef.current.onSeatingUpdated(affectedTables);
-      refresh();
-    };
-    const onTerminal = (value: unknown) => {
-      const envelope = parseWorkspaceEnvelope(value, eventId);
-      if (!envelope || !remember(envelope.operationId)) return;
-      callbacksRef.current.onTerminal();
-      void queryClient.cancelQueries({ queryKey: ['workspace-seating', eventId] });
-      void queryClient.invalidateQueries({ queryKey: ['events', eventId] });
-      refresh();
-      socket.disconnect();
-    };
-    const recover = () => refresh();
-    socket.on('connect', recover);
-    socket.io.on('reconnect', recover);
-    socket.on('seating.updated', onSeating);
-    socket.on('event.closed', onTerminal);
-    socket.on('event.cancelled', onTerminal);
-    return () => {
-      socket.io.off('reconnect', recover);
-      socket.disconnect();
-    };
+    return wireWorkspaceRealtime(socket, eventId, queryClient, () => callbacksRef.current);
   }, [enabled, eventId, queryClient]);
+}
+
+export function wireWorkspaceRealtime(
+  socket: ReturnType<typeof io>,
+  eventId: string,
+  queryClient: QueryClient,
+  getCallbacks: () => WorkspaceRealtimeCallbacks
+) {
+  const remember = createOperationDeduper();
+  let terminalHandled = false;
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: ['workspace-floorplan', eventId] });
+    void queryClient.invalidateQueries({ queryKey: ['workspace-seating', eventId] });
+  };
+  const onSeating = (value: unknown) => {
+    const envelope = parseWorkspaceEnvelope(value, eventId);
+    if (!envelope || !remember(envelope.operationId)) return;
+    const affectedTables = parseAffectedTables(envelope.data);
+    if (!affectedTables) return;
+    getCallbacks().onSeatingUpdated(affectedTables);
+    refresh();
+  };
+  const onTerminal = (value: unknown) => {
+    const envelope = parseWorkspaceEnvelope(value, eventId);
+    if (!envelope || terminalHandled || !remember(envelope.operationId)) return;
+    terminalHandled = true;
+    getCallbacks().onTerminal();
+    void queryClient.cancelQueries({ queryKey: ['workspace-seating', eventId] });
+    void queryClient.invalidateQueries({ queryKey: ['events', eventId] });
+    refresh();
+    socket.disconnect();
+  };
+  const recover = () => refresh();
+  socket.on('connect', recover);
+  socket.io.on('reconnect', recover);
+  socket.on('seating.updated', onSeating);
+  socket.on('event.closed', onTerminal);
+  socket.on('event.cancelled', onTerminal);
+  return () => {
+    socket.off('connect', recover);
+    socket.io.off('reconnect', recover);
+    socket.off('seating.updated', onSeating);
+    socket.off('event.closed', onTerminal);
+    socket.off('event.cancelled', onTerminal);
+    socket.disconnect();
+  };
 }
 
 export function parseWorkspaceEnvelope(value: unknown, eventId: string): RealtimeEnvelope | undefined {
