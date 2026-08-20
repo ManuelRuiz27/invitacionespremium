@@ -90,6 +90,7 @@ Leer primero `docs/04-tecnico/REPOSITORY_SOURCE_OF_TRUTH.md` cuando una tarea me
 - `FP02_STICKER_CATALOG.md` — catálogo/presets Sticker sobre `FloorplanShape` sin nuevo dominio persistente
 - `FP03_FLOORPLAN_INTERACTION_ROBUSTNESS.md` — robustez de transformaciones, historial, persistencia y reconciliación sin cambiar el contrato de dominio
 - `FP04_PLANNER_SEATING_WORKSPACE_ALIGNMENT.md` — alineación visual/operativa del Seating Workspace conservando su lógica e idempotencia vigentes
+- `FP05_SCALE_OPERATION_QA.md` — certificación de escala 50/100/200 Mesas, Seating masivo, concurrencia, realtime y recuperación antes de PILOT-01
 
 ## Precedencia para el cambio operator-led / Croquis V2
 
@@ -101,7 +102,7 @@ Cuando una tarea pertenezca a este cambio, usar este orden práctico:
 4. `FLOORPLAN_UX_TARGET.md` y `LEGACY_UI_VISUAL_PORT_GUIDE.md` para UI/UX.
 5. `14_CODEX_RULES.md` + `14A_OPERATOR_LED_CODEX_RULES.md` para implementación.
 6. `19_OPERATOR_LED_FLOORPLAN_ROADMAP.md` para secuencia de ejecución.
-7. Contrato de implementación del ticket activo (`FP01_PROVIDER_FLOORPLAN_SHELL.md`, `FP02_STICKER_CATALOG.md`, `FP03_FLOORPLAN_INTERACTION_ROBUSTNESS.md`, `FP04_PLANNER_SEATING_WORKSPACE_ALIGNMENT.md`, etc.).
+7. Contrato de implementación del ticket activo (`FP01_PROVIDER_FLOORPLAN_SHELL.md`, `FP02_STICKER_CATALOG.md`, `FP03_FLOORPLAN_INTERACTION_ROBUSTNESS.md`, `FP04_PLANNER_SEATING_WORKSPACE_ALIGNMENT.md`, `FP05_SCALE_OPERATION_QA.md`, etc.).
 8. Render o referencia legacy únicamente al final y sólo para intención visual autorizada.
 
 Una referencia visual nunca puede cambiar dominio, permisos, estados, contratos API o reglas financieras.
