@@ -193,7 +193,9 @@ export function mockApiClient(user: AuthUser = independentUser): ApiClient {
       createFloorplanShape: vi.fn(),
       updateFloorplanShape: vi.fn(),
       removeFloorplanShape: vi.fn(),
-      unlockFloorplan: vi.fn()
+      unlockFloorplan: vi.fn(),
+      listPilotObservations: vi.fn(),
+      createPilotObservation: vi.fn()
     },
     adminFinance: {
       balance: vi.fn(),

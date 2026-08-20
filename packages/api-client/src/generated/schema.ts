@@ -432,6 +432,22 @@ export type paths = {
         patch: operations["AdminInvitationDesignController_updateHotspot"];
         trace?: never;
     };
+    "/api/v1/admin/clients/{clientId}/events/{eventId}/pilot-observations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminPilotObservationsController_get"];
+        put?: never;
+        post: operations["AdminPilotObservationsController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/clients/{clientId}/restore": {
         parameters: {
             query?: never;
@@ -3019,6 +3035,47 @@ export type components = {
             id: string;
             name: string;
         };
+        PilotObservationJournalResponseDto: {
+            observations: components["schemas"]["PilotObservationResponseDto"][];
+            summary: components["schemas"]["PilotObservationSummaryDto"];
+        };
+        PilotObservationRequestDto: {
+            /** @enum {string} */
+            area: "GENERAL" | "INVITATION" | "FLOORPLAN" | "GUESTS" | "RSVP" | "SEATING" | "STAFF" | "CHECKIN" | "CLOSE_REPORT";
+            /** @default 1 */
+            count: number;
+            durationMinutes?: number;
+            /** @enum {string} */
+            kind: "PREPARATION_TIME" | "INCIDENT" | "PLANNER_SUPPORT" | "LAST_MINUTE_CHANGE" | "MANUAL_WORK";
+            note?: string;
+        };
+        PilotObservationResponseDto: {
+            /** @enum {string} */
+            area: "GENERAL" | "INVITATION" | "FLOORPLAN" | "GUESTS" | "RSVP" | "SEATING" | "STAFF" | "CHECKIN" | "CLOSE_REPORT";
+            count: number;
+            /** Format: date-time */
+            createdAt: string;
+            durationMinutes?: number;
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "PREPARATION_TIME" | "INCIDENT" | "PLANNER_SUPPORT" | "LAST_MINUTE_CHANGE" | "MANUAL_WORK";
+            note?: string;
+        };
+        PilotObservationSummaryDto: {
+            checkinIncidents: number;
+            floorplanPreparationMinutes: number;
+            guestCount: number;
+            incidents: number;
+            invitationPreparationMinutes: number;
+            lastMinuteChanges: number;
+            manualWorkEntries: number;
+            manualWorkMinutes: number;
+            plannerSupportEntries: number;
+            plannerSupportMinutes: number;
+            preparationMinutesTotal: number;
+            tableCount: number;
+        };
         PolygonPointDto: {
             x: number;
             y: number;
@@ -4315,6 +4372,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HotspotResponseDto"];
+                };
+            };
+        };
+    };
+    AdminPilotObservationsController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PilotObservationJournalResponseDto"];
+                };
+            };
+        };
+    };
+    AdminPilotObservationsController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PilotObservationRequestDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PilotObservationResponseDto"];
                 };
             };
         };

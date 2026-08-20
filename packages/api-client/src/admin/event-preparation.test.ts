@@ -104,6 +104,13 @@ describe('administrative Event preparation API client', () => {
     );
     await api.adminEventPreparation.removeFloorplanShape(clientId, eventId, 'shape/value', signal);
     await api.adminEventPreparation.unlockFloorplan(clientId, eventId, signal);
+    await api.adminEventPreparation.listPilotObservations(clientId, eventId, signal);
+    await api.adminEventPreparation.createPilotObservation(
+      clientId,
+      eventId,
+      { kind: 'INCIDENT', area: 'CHECKIN', count: 2, note: 'Falla operativa' },
+      signal
+    );
 
     const calls = fetchImpl.mock.calls;
     const base = 'https://api.example.com/api/v1/admin/clients/client%2Fvalue/events/event%2Fvalue';
@@ -138,7 +145,9 @@ describe('administrative Event preparation API client', () => {
       `${base}/floorplan/shapes`,
       `${base}/floorplan/shapes/shape%2Fvalue`,
       `${base}/floorplan/shapes/shape%2Fvalue`,
-      `${base}/floorplan/unlock`
+      `${base}/floorplan/unlock`,
+      `${base}/pilot-observations`,
+      `${base}/pilot-observations`
     ]);
     expect(calls.map(([, init]) => init?.method ?? 'GET')).toEqual([
       'PATCH',
@@ -171,6 +180,8 @@ describe('administrative Event preparation API client', () => {
       'POST',
       'PATCH',
       'DELETE',
+      'POST',
+      'GET',
       'POST'
     ]);
     expect(calls.every(([url]) => !new URL(String(url)).pathname.startsWith('/api/v1/events/'))).toBe(true);

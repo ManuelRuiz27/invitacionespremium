@@ -21,6 +21,9 @@ export type AdminFloorplanShape = S['FloorplanShapeResponseDto'];
 export type AdminFloorplanShapeInput = S['FloorplanShapeRequestDto'];
 export type AdminFloorplanShapeUpdate = S['UpdateFloorplanShapeRequestDto'];
 export type AdminFloorplanFileAsset = S['FileAssetResponseDto'];
+export type AdminPilotObservationInput = S['PilotObservationRequestDto'];
+export type AdminPilotObservation = S['PilotObservationResponseDto'];
+export type AdminPilotObservationJournal = S['PilotObservationJournalResponseDto'];
 
 const id = encodeURIComponent;
 const record = isRecord as (value: unknown) => value is never;
@@ -319,6 +322,27 @@ export function createAdminEventPreparationClient(request: ApiRequester) {
         {
           method: 'POST',
           path: `${base(clientId, eventId)}/floorplan/unlock`,
+          response: 'json',
+          ...withSignal(signal)
+        },
+        record
+      ),
+    listPilotObservations: (clientId: string, eventId: string, signal?: AbortSignal) =>
+      request<AdminPilotObservationJournal>(
+        { path: `${base(clientId, eventId)}/pilot-observations`, response: 'json', ...withSignal(signal) },
+        record
+      ),
+    createPilotObservation: (
+      clientId: string,
+      eventId: string,
+      body: AdminPilotObservationInput,
+      signal?: AbortSignal
+    ) =>
+      request<AdminPilotObservation>(
+        {
+          method: 'POST',
+          path: `${base(clientId, eventId)}/pilot-observations`,
+          body,
           response: 'json',
           ...withSignal(signal)
         },
