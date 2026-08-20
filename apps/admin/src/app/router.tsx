@@ -83,6 +83,10 @@ function createRoutes({
                       path: 'eventos/:eventId/preparar/croquis',
                       element: <AdminEventPreparationPage apiClient={apiClient} />
                     },
+                    {
+                      path: 'eventos/:eventId/preparar/registro',
+                      element: <AdminEventPreparationPage apiClient={apiClient} />
+                    },
                     { path: 'catalogo', element: <AdminCatalogPage apiClient={apiClient} /> },
                     { path: 'reportes', element: <AdminReportsPage apiClient={apiClient} /> },
                     { path: 'reportes/eventos/:eventId', element: <AdminEventReportsRoute apiClient={apiClient} /> },

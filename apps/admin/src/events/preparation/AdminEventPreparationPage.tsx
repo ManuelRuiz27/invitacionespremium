@@ -28,8 +28,9 @@ import { adminErrorMessage } from '../../shared/admin-error';
 import { eventStatusLabel } from '../../shared/admin-labels';
 import { AdminErrorState, AdminLoadingState } from '../../shared/AdminStates';
 import { AdminFloorplanBuilderWorkspace } from './floorplan/AdminFloorplanBuilderWorkspace';
+import { AdminPilotOperationalLog } from './pilot/AdminPilotOperationalLog';
 
-type Section = 'datos' | 'invitacion' | 'croquis';
+type Section = 'datos' | 'invitacion' | 'croquis' | 'registro';
 
 export function AdminEventPreparationPage({ apiClient }: { apiClient: ApiClient }) {
   const { eventId = '' } = useParams();
@@ -38,7 +39,9 @@ export function AdminEventPreparationPage({ apiClient }: { apiClient: ApiClient 
     ? 'invitacion'
     : location.pathname.endsWith('/croquis')
       ? 'croquis'
-      : 'datos';
+      : location.pathname.endsWith('/registro')
+        ? 'registro'
+        : 'datos';
   const event = useQuery({
     queryKey: adminQueryKeys.event(eventId),
     queryFn: ({ signal }) => apiClient.adminEvents.get(eventId, signal),
@@ -69,20 +72,27 @@ export function AdminEventPreparationPage({ apiClient }: { apiClient: ApiClient 
         action={<StatusChip label={eventStatusLabel[data.status]} tone="neutral" />}
       />
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} aria-label="Secciones de preparación">
-        {(['datos', 'invitacion', 'croquis'] as const).map((item) => (
+        {(['datos', 'invitacion', 'croquis', 'registro'] as const).map((item) => (
           <Button
             key={item}
             component={Link}
             to={`${base}/${item}`}
             variant={section === item ? 'contained' : 'outlined'}
           >
-            {item === 'datos' ? 'Datos' : item === 'invitacion' ? 'Invitación' : 'Croquis'}
+            {item === 'datos'
+              ? 'Datos'
+              : item === 'invitacion'
+                ? 'Invitación'
+                : item === 'croquis'
+                  ? 'Croquis'
+                  : 'Registro operativo'}
           </Button>
         ))}
       </Stack>
       {section === 'datos' ? <EventDataSection apiClient={apiClient} event={data} /> : null}
       {section === 'invitacion' ? <InvitationSection apiClient={apiClient} event={data} /> : null}
       {section === 'croquis' ? <AdminFloorplanBuilderWorkspace apiClient={apiClient} event={data} /> : null}
+      {section === 'registro' ? <AdminPilotOperationalLog apiClient={apiClient} event={data} /> : null}
     </Stack>
   );
 }

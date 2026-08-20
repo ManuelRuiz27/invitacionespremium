@@ -188,7 +188,25 @@ export function mockAdminApi(user: AuthUser = platformAdmin): AdminTestApiClient
       createFloorplanShape: vi.fn(),
       updateFloorplanShape: vi.fn(),
       removeFloorplanShape: vi.fn(),
-      unlockFloorplan: vi.fn()
+      unlockFloorplan: vi.fn(),
+      listPilotObservations: vi.fn().mockResolvedValue({
+        observations: [],
+        summary: {
+          preparationMinutesTotal: 0,
+          invitationPreparationMinutes: 0,
+          floorplanPreparationMinutes: 0,
+          plannerSupportMinutes: 0,
+          plannerSupportEntries: 0,
+          incidents: 0,
+          checkinIncidents: 0,
+          lastMinuteChanges: 0,
+          manualWorkMinutes: 0,
+          manualWorkEntries: 0,
+          guestCount: 0,
+          tableCount: 0
+        }
+      }),
+      createPilotObservation: vi.fn()
     },
     adminFinance: {
       balance: vi.fn().mockResolvedValue(adminBalance),
