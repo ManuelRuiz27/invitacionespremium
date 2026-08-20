@@ -60,6 +60,7 @@ describe('post-activation handoff', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Confirmar activación' }));
 
     expect(await screen.findByText('El evento está activo y listo para operar.')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(screen.queryByText(/aún no está listo para activar/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Activar Evento' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Enviar invitaciones' })).toHaveAttribute(
@@ -92,6 +93,7 @@ describe('post-activation handoff', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Confirmar activación' }));
 
     expect(await screen.findByText('El evento está activo y listo para operar.')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(screen.getByRole('link', { name: 'Ir al evento' })).toHaveAttribute('href', `/eventos/${physicalReady.id}`);
     expect(screen.queryByRole('link', { name: 'Enviar invitaciones' })).not.toBeInTheDocument();
   });

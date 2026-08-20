@@ -102,7 +102,7 @@ describe('Invitation distribution workspace', () => {
     renderApp(api, `/eventos/${digitalEvent.id}?seccion=invitaciones`);
 
     expect(await screen.findByRole('heading', { name: 'Enviar invitaciones', level: 2 })).toBeInTheDocument();
-    expect(screen.getByText('Sin respuesta')).toBeInTheDocument();
+    expect(await screen.findByText('Sin respuesta')).toBeInTheDocument();
     expect(screen.getByText('Confirmada')).toBeInTheDocument();
     expect(screen.getByText('Cancelada')).toBeInTheDocument();
     expect(screen.queryByText(/enviada/i)).not.toBeInTheDocument();
@@ -135,7 +135,7 @@ describe('Invitation distribution workspace', () => {
     renderApp(api, `/eventos/${digitalEvent.id}?seccion=invitaciones`);
 
     expect(await screen.findByRole('heading', { name: 'Enviar invitaciones', level: 2 })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Enviar por WhatsApp' })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Enviar por WhatsApp' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Copiar enlace' })).toBeInTheDocument();
   });
 
@@ -145,8 +145,8 @@ describe('Invitation distribution workspace', () => {
     vi.mocked(api.contacts.list).mockResolvedValue([contactAna]);
     vi.mocked(api.invitations.list).mockResolvedValue([pendingInvitation]);
     const writeText = vi.fn().mockResolvedValue(undefined);
-    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
     const user = userEvent.setup();
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
 
     renderApp(api, `/eventos/${digitalEvent.id}?seccion=invitaciones`);
     await user.click(await screen.findByRole('button', { name: 'Copiar enlace' }));
@@ -161,11 +161,11 @@ describe('Invitation distribution workspace', () => {
     vi.mocked(api.events.get).mockResolvedValue(digitalEvent);
     vi.mocked(api.contacts.list).mockResolvedValue([contactAna]);
     vi.mocked(api.invitations.list).mockResolvedValue([pendingInvitation]);
+    const user = userEvent.setup();
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
       value: { writeText: vi.fn().mockRejectedValue(new Error('denied')) }
     });
-    const user = userEvent.setup();
 
     renderApp(api, `/eventos/${digitalEvent.id}?seccion=invitaciones`);
     await user.click(await screen.findByRole('button', { name: 'Copiar enlace' }));
