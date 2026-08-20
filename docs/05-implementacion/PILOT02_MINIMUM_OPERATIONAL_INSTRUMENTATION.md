@@ -215,7 +215,7 @@ Campos mínimos conceptuales:
 = suma/count de observaciones `MANUAL_WORK`.
 
 `guestCount`
-= agregado de Contactos/Invitaciones/Asistentes según el contrato actual que mejor represente el volumen operativo. **No devolver registros ni PII.** Antes de implementar, usar una fuente ya existente y documentar exactamente cuál se eligió.
+= cantidad de **Contactos vigentes del Evento**, usando exactamente el mismo criterio de elegibilidad/visibilidad del contrato/listado actual de Contacts. Es la medida del tamaño de la lista operativa cargada por Planner. Calcular sólo el agregado; no devolver registros ni PII. No usar `Event.capacity`, Invitation count ni Assistant count como sustitutos.
 
 `tableCount`
 = count de `FloorplanShape.kind === TABLE` del Evento.
@@ -414,7 +414,7 @@ Cubrir como mínimo:
 11. GET lista sólo observaciones del Event;
 12. summary suma tiempos correctamente;
 13. checkinIncidents deriva sólo `INCIDENT + CHECKIN`;
-14. guestCount es agregado sin PII;
+14. guestCount usa Contactos vigentes y es agregado sin PII;
 15. tableCount cuenta sólo TABLE;
 16. no endpoint Planner equivalente.
 
