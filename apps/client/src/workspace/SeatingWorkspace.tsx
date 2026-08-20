@@ -7,6 +7,7 @@ import {
   type SeatingWorkspaceItem,
   type SeatingWorkspacePage
 } from '@invitaciones/api-client';
+import { FloorplanSurface } from '@invitaciones/floorplan';
 import CloseRounded from '@mui/icons-material/CloseRounded';
 import SearchRounded from '@mui/icons-material/SearchRounded';
 import {
@@ -34,8 +35,7 @@ import {
   useTheme
 } from '@mui/material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
-import { FloorplanSurface } from '../wizard/floorplan/FloorplanSurface';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useWorkspaceRealtime } from './useWorkspaceRealtime';
 
 type Scope = 'UNASSIGNED' | 'TABLE';
@@ -114,6 +114,19 @@ export function SeatingWorkspace({ apiClient, event }: { apiClient: ApiClient; e
   });
 
   const floorplan = floorplanQuery.data;
+  const { tables, floorplanSummary } = useMemo(() => {
+    const nextTables: FloorplanShape[] = [];
+    const summary = { tableCount: 0, capacity: 0, occupancy: 0, available: 0 };
+    for (const shape of floorplan?.shapes ?? []) {
+      if (shape.kind !== 'TABLE') continue;
+      nextTables.push(shape);
+      summary.tableCount += 1;
+      summary.capacity += shape.capacity;
+      summary.occupancy += shape.occupancy;
+      summary.available += Math.max(0, shape.capacity - shape.occupancy);
+    }
+    return { tables: nextTables, floorplanSummary: summary };
+  }, [floorplan]);
   const selectedTable = floorplan?.shapes.find((shape) => shape.id === selectedTableId && shape.kind === 'TABLE');
   const tableSummary = seatingQuery.data?.summary.selectedTable;
   const available = selectedTable ? Math.max(0, selectedTable.capacity - selectedTable.occupancy) : 0;
@@ -253,6 +266,8 @@ export function SeatingWorkspace({ apiClient, event }: { apiClient: ApiClient; e
         groupId={groupId}
         groups={groupsQuery.data ?? []}
         {...(seatingQuery.data === undefined ? {} : { page: seatingQuery.data })}
+        loading={seatingQuery.isPending}
+        error={seatingQuery.isError}
         mutable={mutable}
         {...(feedback ? { feedback } : {})}
         uncertain={Boolean(uncertainIntent)}
@@ -260,6 +275,10 @@ export function SeatingWorkspace({ apiClient, event }: { apiClient: ApiClient; e
         onScopeChange={setScope}
         onSearchChange={setSearch}
         onGroupChange={setGroupId}
+        onClearFilters={() => {
+          setSearch('');
+          setGroupId('');
+        }}
         onToggle={(assistantId) =>
           setSelectedIds((current) => {
             const next = new Set(current);
@@ -299,30 +318,40 @@ export function SeatingWorkspace({ apiClient, event }: { apiClient: ApiClient; e
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: compact || !selectedTable ? 'minmax(0, 1fr)' : 'minmax(0, 3fr) minmax(340px, 2fr)',
+          gridTemplateColumns: compact || !selectedTable ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(360px, 420px)',
           gap: 2,
           alignItems: 'start'
         }}
       >
-        <FloorplanSurface
-          floorplan={floorplan}
-          imageUrl={imageUrl}
-          selectedId={selectedTableId}
-          disabled={false}
-          readOnly
-          onSelect={selectTable}
-          onDraftChange={() => undefined}
-        />
+        <Stack spacing={1.5} sx={{ minWidth: 0 }}>
+          {!selectedTable ? (
+            <Typography color="text.secondary">Selecciona una mesa para gestionar sus lugares.</Typography>
+          ) : null}
+          <FloorplanSurface
+            floorplan={floorplan}
+            imageUrl={imageUrl}
+            selectedId={selectedTableId}
+            disabled={false}
+            readOnly
+            onSelect={selectTable}
+            onDraftChange={() => undefined}
+          />
+          <SeatingSummary
+            {...floorplanSummary}
+            {...(digital && seatingQuery.data ? { unassignedCount: seatingQuery.data.summary.unassignedCount } : {})}
+          />
+        </Stack>
         {!compact ? panel : null}
       </Box>
       {compact ? (
         <Drawer
+          data-testid={mobile ? 'seating-mobile-drawer' : 'seating-tablet-drawer'}
           anchor={mobile ? 'bottom' : 'right'}
           open={Boolean(panel)}
           onClose={() => setSelectedTableId(undefined)}
           slotProps={{
             paper: {
-              sx: mobile ? { maxHeight: '88dvh', borderRadius: '20px 20px 0 0' } : { width: 'min(460px, 92vw)' }
+              sx: mobile ? { maxHeight: '88dvh', borderRadius: '20px 20px 0 0' } : { width: 'min(420px, 92vw)' }
             }
           }}
         >
@@ -332,7 +361,7 @@ export function SeatingWorkspace({ apiClient, event }: { apiClient: ApiClient; e
       {selectedTable ? (
         <DestinationDialog
           open={destinationOpen}
-          tables={floorplan.shapes.filter((shape) => shape.kind === 'TABLE')}
+          tables={tables}
           sourceTableId={selectedTable.id}
           count={selectedIds.size}
           onClose={() => setDestinationOpen(false)}
@@ -378,6 +407,53 @@ export function SeatingWorkspace({ apiClient, event }: { apiClient: ApiClient; e
   );
 }
 
+function SeatingSummary({
+  tableCount,
+  capacity,
+  occupancy,
+  available,
+  unassignedCount
+}: {
+  tableCount: number;
+  capacity: number;
+  occupancy: number;
+  available: number;
+  unassignedCount?: number;
+}) {
+  const metrics = [
+    ['Mesas', tableCount],
+    ['Capacidad', capacity],
+    ['Asignados', occupancy],
+    ['Disponibles', available],
+    ...(unassignedCount === undefined ? [] : ([['Sin mesa', unassignedCount]] as const))
+  ] as const;
+
+  return (
+    <Box
+      component="dl"
+      aria-label="Resumen de la distribución"
+      sx={{
+        m: 0,
+        display: 'grid',
+        gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(5, minmax(0, 1fr))' },
+        borderTop: 1,
+        borderColor: 'divider'
+      }}
+    >
+      {metrics.map(([label, value]) => (
+        <Box key={label} sx={{ py: 1.25, pr: 2, minWidth: 0 }}>
+          <Typography component="dt" variant="caption" color="text.secondary">
+            {label}
+          </Typography>
+          <Typography component="dd" sx={{ m: 0, fontWeight: 750, fontVariantNumeric: 'tabular-nums' }}>
+            {value}
+          </Typography>
+        </Box>
+      ))}
+    </Box>
+  );
+}
+
 function AssignmentPanel(props: {
   table: FloorplanShape;
   tableSummary?: SeatingWorkspacePage['summary']['selectedTable'];
@@ -388,6 +464,8 @@ function AssignmentPanel(props: {
   groupId: string;
   groups: Array<{ id: string; name: string }>;
   page?: SeatingWorkspacePage;
+  loading: boolean;
+  error: boolean;
   mutable: boolean;
   feedback?: string;
   uncertain: boolean;
@@ -395,6 +473,7 @@ function AssignmentPanel(props: {
   onScopeChange: (scope: Scope) => void;
   onSearchChange: (value: string) => void;
   onGroupChange: (value: string) => void;
+  onClearFilters: () => void;
   onToggle: (id: string) => void;
   onNextPage: () => void;
   onAssign: () => void;
@@ -407,15 +486,23 @@ function AssignmentPanel(props: {
 }) {
   const occupancy = props.tableSummary?.occupancy ?? props.table.occupancy;
   const available = Math.max(0, props.table.capacity - occupancy);
+  const hasFilters = Boolean(props.search.trim() || props.groupId);
+  const emptyMessage = hasFilters
+    ? 'No encontramos asistentes con estos filtros.'
+    : props.scope === 'UNASSIGNED'
+      ? 'No hay asistentes sin mesa.'
+      : 'Esta mesa aún no tiene asistentes.';
   return (
     <Stack sx={{ minWidth: 0, maxHeight: { md: 'calc(100dvh - 180px)' }, bgcolor: 'background.paper' }}>
       <Stack direction="row" sx={{ px: 2.5, pt: 2.5, alignItems: 'flex-start', justifyContent: 'space-between' }}>
-        <Box>
+        <Box sx={{ minWidth: 0, py: 0.5 }}>
           <Typography component="h2" variant="h5">
             {props.table.name}
           </Typography>
-          <Typography color="text.secondary">
-            {occupancy} / {props.table.capacity} lugares ·{' '}
+          <Typography color="text.secondary" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+            {occupancy} / {props.table.capacity} lugares
+          </Typography>
+          <Typography variant="body2" sx={{ fontWeight: 700 }}>
             {available === 0 ? 'Mesa completa' : `${available} disponibles`}
           </Typography>
         </Box>
@@ -434,41 +521,46 @@ function AssignmentPanel(props: {
           label={`Sin mesa${props.page ? ` (${props.page.summary.unassignedCount})` : ''}`}
           sx={{ minHeight: 48 }}
         />
-        <Tab value="TABLE" label="En esta mesa" sx={{ minHeight: 48 }} />
+        <Tab value="TABLE" label={`En esta mesa (${occupancy})`} sx={{ minHeight: 48 }} />
       </Tabs>
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ px: 2, py: 1.5 }}>
-        <TextField
-          value={props.search}
-          onChange={(event) => props.onSearchChange(event.target.value)}
-          placeholder="Buscar Asistente"
-          slotProps={{
-            htmlInput: { 'aria-label': 'Buscar Asistente' },
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchRounded />
-                </InputAdornment>
-              )
-            }
-          }}
-          fullWidth
-        />
-        <FormControl sx={{ minWidth: 150 }}>
-          <InputLabel id="group-filter-label">Grupo</InputLabel>
-          <Select
-            labelId="group-filter-label"
-            label="Grupo"
-            value={props.groupId}
-            onChange={(event) => props.onGroupChange(event.target.value)}
-          >
-            <MenuItem value="">Todos</MenuItem>
-            {props.groups.map((group) => (
-              <MenuItem key={group.id} value={group.id}>
-                {group.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+      <Stack spacing={1} sx={{ px: 2, py: 1.5, borderTop: 1, borderColor: 'divider' }}>
+        <Typography variant="overline" color="text.secondary">
+          Personas
+        </Typography>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+          <TextField
+            value={props.search}
+            onChange={(event) => props.onSearchChange(event.target.value)}
+            placeholder="Buscar Asistente"
+            slotProps={{
+              htmlInput: { 'aria-label': 'Buscar Asistente' },
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchRounded />
+                  </InputAdornment>
+                )
+              }
+            }}
+            fullWidth
+          />
+          <FormControl sx={{ minWidth: 150 }}>
+            <InputLabel id="group-filter-label">Grupo</InputLabel>
+            <Select
+              labelId="group-filter-label"
+              label="Grupo"
+              value={props.groupId}
+              onChange={(event) => props.onGroupChange(event.target.value)}
+            >
+              <MenuItem value="">Todos</MenuItem>
+              {props.groups.map((group) => (
+                <MenuItem key={group.id} value={group.id}>
+                  {group.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Stack>
       </Stack>
       {props.feedback ? (
         <Alert
@@ -495,58 +587,85 @@ function AssignmentPanel(props: {
         aria-label={props.scope === 'UNASSIGNED' ? 'Asistentes sin mesa' : `Asistentes en ${props.table.name}`}
         sx={{ listStyle: 'none', p: 0, m: 0, overflowY: 'auto', minHeight: 180 }}
       >
-        {props.items.map((item) => (
-          <Box
+        {props.loading ? (
+          <Typography component="li" role="status" color="text.secondary" sx={{ p: 3, textAlign: 'center' }}>
+            Cargando asistentes…
+          </Typography>
+        ) : null}
+        {props.error ? (
+          <Alert
             component="li"
-            key={item.assistantId}
-            sx={{
-              display: 'flex',
-              gap: 1,
-              alignItems: 'center',
-              px: 2,
-              py: 0.75,
-              minHeight: 56,
-              borderTop: 1,
-              borderColor: 'divider'
-            }}
+            severity="error"
+            sx={{ m: 2 }}
+            action={<Button onClick={props.onRefresh}>Actualizar lectura</Button>}
           >
-            <Checkbox
-              checked={props.selectedIds.has(item.assistantId)}
-              onChange={() => props.onToggle(item.assistantId)}
-              slotProps={{ input: { 'aria-label': `Seleccionar ${item.name ?? 'Asistente'}` } }}
-              sx={{ width: 44, height: 44 }}
-            />
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography noWrap sx={{ fontWeight: 700 }}>
-                {item.name ?? 'Nombre protegido'}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {item.checkedIn ? 'Ingreso registrado' : (item.group?.name ?? 'Sin grupo')}
-              </Typography>
-              {props.mutable && props.scope === 'UNASSIGNED' ? (
-                <Stack direction="row" useFlexGap sx={{ flexWrap: 'wrap', mt: 0.25, ml: -1 }}>
-                  <Button size="small" onClick={() => props.onFamily(item)} sx={{ minHeight: 44 }}>
-                    Invitación completa
-                  </Button>
-                  {item.group ? (
-                    <Button size="small" onClick={() => props.onGroup(item)} sx={{ minHeight: 44 }}>
-                      Grupo completo
-                    </Button>
+            No pudimos cargar a los asistentes de esta vista.
+          </Alert>
+        ) : null}
+        {!props.loading && !props.error
+          ? props.items.map((item) => (
+              <Box
+                component="li"
+                key={item.assistantId}
+                sx={{
+                  display: 'flex',
+                  gap: 1,
+                  alignItems: 'center',
+                  px: 2,
+                  py: 0.75,
+                  minHeight: 56,
+                  borderTop: 1,
+                  borderColor: 'divider'
+                }}
+              >
+                <Checkbox
+                  checked={props.selectedIds.has(item.assistantId)}
+                  onChange={() => props.onToggle(item.assistantId)}
+                  slotProps={{ input: { 'aria-label': `Seleccionar ${item.name ?? 'Asistente'}` } }}
+                  sx={{ width: 44, height: 44 }}
+                />
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography noWrap sx={{ fontWeight: 700 }}>
+                    {item.name ?? 'Nombre protegido'}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {item.checkedIn ? 'Ingreso registrado' : (item.group?.name ?? 'Sin grupo')}
+                  </Typography>
+                  {props.mutable && props.scope === 'UNASSIGNED' ? (
+                    <Stack direction="row" useFlexGap sx={{ flexWrap: 'wrap', mt: 0.25, ml: -1 }}>
+                      <Button size="small" onClick={() => props.onFamily(item)} sx={{ minHeight: 44 }}>
+                        Invitación completa
+                      </Button>
+                      {item.group ? (
+                        <Button size="small" onClick={() => props.onGroup(item)} sx={{ minHeight: 44 }}>
+                          Grupo completo
+                        </Button>
+                      ) : null}
+                    </Stack>
                   ) : null}
-                </Stack>
-              ) : null}
-            </Box>
-            {props.mutable && props.scope === 'TABLE' ? (
-              <Button size="small" color="inherit" onClick={() => props.onUnassign(item.assistantId)}>
-                Quitar Mesa
+                </Box>
+                {props.mutable && props.scope === 'TABLE' ? (
+                  <Button
+                    size="small"
+                    color="inherit"
+                    onClick={() => props.onUnassign(item.assistantId)}
+                    sx={{ minHeight: 44 }}
+                  >
+                    Quitar Mesa
+                  </Button>
+                ) : null}
+              </Box>
+            ))
+          : null}
+        {!props.loading && !props.error && props.items.length === 0 ? (
+          <Stack component="li" spacing={1} sx={{ p: 3, alignItems: 'center', textAlign: 'center' }}>
+            <Typography color="text.secondary">{emptyMessage}</Typography>
+            {hasFilters ? (
+              <Button onClick={props.onClearFilters} sx={{ minHeight: 44 }}>
+                Limpiar filtros
               </Button>
             ) : null}
-          </Box>
-        ))}
-        {props.items.length === 0 ? (
-          <Typography component="li" color="text.secondary" sx={{ p: 3, textAlign: 'center' }}>
-            No hay Asistentes en esta vista.
-          </Typography>
+          </Stack>
         ) : null}
       </Stack>
       {props.page?.nextCursor ? (
@@ -556,6 +675,7 @@ function AssignmentPanel(props: {
       ) : null}
       {props.mutable ? (
         <Box
+          aria-label="Resumen de selección"
           sx={{
             position: 'sticky',
             bottom: 0,
@@ -565,6 +685,14 @@ function AssignmentPanel(props: {
             borderColor: 'divider'
           }}
         >
+          <Stack direction="row" sx={{ justifyContent: 'space-between', mb: 1 }}>
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>
+              {props.selectedIds.size} seleccionados
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {available} disponibles
+            </Typography>
+          </Stack>
           <Button
             variant="contained"
             fullWidth

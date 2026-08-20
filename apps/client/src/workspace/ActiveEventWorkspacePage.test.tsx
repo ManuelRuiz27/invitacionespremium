@@ -102,6 +102,7 @@ const mutationResult = {
 };
 
 beforeEach(() => {
+  setViewportWidth(1280);
   vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:floorplan');
   vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
 });
@@ -241,7 +242,56 @@ describe('Active Event seating workspace', () => {
     expect(await screen.findByRole('heading', { name: '12', level: 2 })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /Sin mesa/ })).toBeInTheDocument();
     expect(api.floorplan.seating).toHaveBeenCalled();
-    expect(api.floorplan.updateShape).not.toHaveBeenCalled();
+    expectGeometryMutationsNotCalled(api);
+  });
+
+  it('keeps the full-width Floorplan oriented with an authoritative operational summary before Table selection', async () => {
+    const api = mockApiClient();
+    vi.mocked(api.events.get).mockResolvedValue(workspaceEvent);
+    vi.mocked(api.floorplan.get).mockResolvedValue(floorplan);
+    vi.mocked(api.fileAssets.content).mockResolvedValue(new Blob(['image'], { type: 'image/png' }));
+    vi.mocked(api.floorplan.seating).mockResolvedValue(unassignedPage);
+    const user = userEvent.setup();
+    renderApp(api, `/eventos/${workspaceEvent.id}`);
+
+    await user.click(await screen.findByRole('link', { name: 'Mesas y distribución' }));
+    expect(await screen.findByText('Selecciona una mesa para gestionar sus lugares.')).toBeInTheDocument();
+    const summary = screen.getByLabelText('Resumen de la distribución');
+    expect(within(summary).getByText('Mesas').parentElement).toHaveTextContent('2');
+    expect(within(summary).getByText('Capacidad').parentElement).toHaveTextContent('18');
+    expect(within(summary).getByText('Asignados').parentElement).toHaveTextContent('9');
+    expect(within(summary).getByText('Disponibles').parentElement).toHaveTextContent('9');
+    expect(within(summary).getByText('Sin mesa').parentElement).toHaveTextContent('1');
+    expect(screen.queryByText(/Confirmados/i)).not.toBeInTheDocument();
+    expectGeometryMutationsNotCalled(api);
+  });
+
+  it('prioritizes selected Table occupancy and identifies a full Table naturally', async () => {
+    const api = mockApiClient();
+    const fullFloorplan = {
+      ...floorplan,
+      shapes: [{ ...floorplan.shapes[0]!, occupancy: 10, availableCapacity: 0 }, floorplan.shapes[1]!]
+    } satisfies Floorplan;
+    vi.mocked(api.events.get).mockResolvedValue(workspaceEvent);
+    vi.mocked(api.floorplan.get).mockResolvedValue(fullFloorplan);
+    vi.mocked(api.fileAssets.content).mockResolvedValue(new Blob(['image'], { type: 'image/png' }));
+    vi.mocked(api.floorplan.seating).mockResolvedValue({
+      items: [],
+      summary: {
+        unassignedCount: 0,
+        selectedTable: { id: fullFloorplan.shapes[0]!.id, name: '12', occupancy: 10, capacity: 10 }
+      },
+      nextCursor: null
+    });
+    const user = userEvent.setup();
+    renderApp(api, `/eventos/${workspaceEvent.id}`);
+
+    await user.click(await screen.findByRole('link', { name: 'Mesas y distribución' }));
+    await user.click(await screen.findByRole('button', { name: 'Mesa 12 · 10' }));
+    expect(await screen.findByRole('heading', { name: '12', level: 2 })).toBeInTheDocument();
+    expect(screen.getByText('10 / 10 lugares')).toBeInTheDocument();
+    expect(screen.getByText('Mesa completa')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cerrar panel de Mesa' })).toBeInTheDocument();
   });
 
   it('shows Physical QR occupancy without requesting nominal seating', async () => {
@@ -257,6 +307,8 @@ describe('Active Event seating workspace', () => {
     expect(await screen.findByText('7 / 10 lugares')).toBeInTheDocument();
     expect(screen.queryByRole('tab', { name: /Sin mesa/ })).not.toBeInTheDocument();
     expect(api.floorplan.seating).not.toHaveBeenCalled();
+    expect(screen.queryByText('Sin mesa')).not.toBeInTheDocument();
+    expectGeometryMutationsNotCalled(api);
   });
 
   it('assigns a bounded selection with one stable idempotency key and no layout mutation', async () => {
@@ -433,7 +485,7 @@ describe('Active Event seating workspace', () => {
 
     await user.click(await screen.findByRole('link', { name: 'Mesas y distribución' }));
     await user.click(await screen.findByRole('button', { name: 'Mesa 12 · 10' }));
-    await user.click(await screen.findByRole('tab', { name: 'En esta mesa' }));
+    await user.click(await screen.findByRole('tab', { name: /En esta mesa/ }));
     expect(await screen.findByRole('list', { name: 'Asistentes en 12' })).toBeInTheDocument();
     await user.click(screen.getByRole('checkbox', { name: 'Seleccionar Ana María' }));
     await user.click(screen.getByRole('button', { name: 'Cambiar mesa de 1' }));
@@ -456,6 +508,82 @@ describe('Active Event seating workspace', () => {
       expect.any(String),
       expect.any(AbortSignal)
     );
+  });
+
+  it('differentiates unassigned, selected Table and filtered empty states', async () => {
+    const api = mockApiClient();
+    const emptyPage = {
+      items: [],
+      summary: { unassignedCount: 0, selectedTable: null },
+      nextCursor: null
+    } satisfies SeatingWorkspacePage;
+    vi.mocked(api.events.get).mockResolvedValue(workspaceEvent);
+    vi.mocked(api.floorplan.get).mockResolvedValue(floorplan);
+    vi.mocked(api.fileAssets.content).mockResolvedValue(new Blob(['image'], { type: 'image/png' }));
+    vi.mocked(api.floorplan.seating).mockResolvedValue(emptyPage);
+    const user = userEvent.setup();
+    renderApp(api, `/eventos/${workspaceEvent.id}`);
+
+    await user.click(await screen.findByRole('link', { name: 'Mesas y distribución' }));
+    await user.click(await screen.findByRole('button', { name: 'Mesa 12 · 10' }));
+    expect(await screen.findByText('No hay asistentes sin mesa.')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: /En esta mesa/ }));
+    expect(await screen.findByText('Esta mesa aún no tiene asistentes.')).toBeInTheDocument();
+
+    await user.type(screen.getByRole('textbox', { name: 'Buscar Asistente' }), 'nadie');
+    expect(await screen.findByText('No encontramos asistentes con estos filtros.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Limpiar filtros' })).toBeInTheDocument();
+  });
+
+  it('keeps multiple selected people visible and blocks assignment beyond available capacity', async () => {
+    const api = mockApiClient();
+    const constrainedFloorplan = {
+      ...floorplan,
+      shapes: [{ ...floorplan.shapes[0]!, occupancy: 9, availableCapacity: 1 }, floorplan.shapes[1]!]
+    } satisfies Floorplan;
+    const secondItem = { ...seatingItem, assistantId: 'ae35947c-6542-4efe-9948-f054d3c85220', name: 'Luis Ruiz' };
+    vi.mocked(api.events.get).mockResolvedValue(workspaceEvent);
+    vi.mocked(api.floorplan.get).mockResolvedValue(constrainedFloorplan);
+    vi.mocked(api.fileAssets.content).mockResolvedValue(new Blob(['image'], { type: 'image/png' }));
+    vi.mocked(api.floorplan.seating).mockResolvedValue({
+      items: [seatingItem, secondItem],
+      summary: { unassignedCount: 2, selectedTable: null },
+      nextCursor: null
+    });
+    const user = userEvent.setup();
+    renderApp(api, `/eventos/${workspaceEvent.id}`);
+
+    await user.click(await screen.findByRole('link', { name: 'Mesas y distribución' }));
+    await user.click(await screen.findByRole('button', { name: 'Mesa 12 · 10' }));
+    await user.click(await screen.findByRole('checkbox', { name: 'Seleccionar Ana María' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Seleccionar Luis Ruiz' }));
+    const selectionSummary = screen.getByLabelText('Resumen de selección');
+    expect(within(selectionSummary).getByText('2 seleccionados')).toBeInTheDocument();
+    expect(within(selectionSummary).getByText('1 disponibles')).toBeInTheDocument();
+    expect(screen.getByText('La selección supera los lugares disponibles.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Asignar 2 a 12' })).toBeDisabled();
+    expect(api.floorplan.assign).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [800, 'seating-tablet-drawer'],
+    [390, 'seating-mobile-drawer']
+  ])('uses the contextual Drawer at a %spx viewport', async (width, drawerTestId) => {
+    setViewportWidth(width);
+    const api = mockApiClient();
+    vi.mocked(api.events.get).mockResolvedValue(workspaceEvent);
+    vi.mocked(api.floorplan.get).mockResolvedValue(floorplan);
+    vi.mocked(api.fileAssets.content).mockResolvedValue(new Blob(['image'], { type: 'image/png' }));
+    vi.mocked(api.floorplan.seating).mockResolvedValue(unassignedPage);
+    const user = userEvent.setup();
+    renderApp(api, `/eventos/${workspaceEvent.id}`);
+
+    await user.click(await screen.findByRole('link', { name: 'Mesas y distribución' }));
+    await user.click(await screen.findByRole('button', { name: 'Mesa 12 · 10' }));
+    expect(await screen.findByTestId(drawerTestId)).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Buscar Asistente' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Asignar 0 a 12' })).toBeInTheDocument();
   });
 });
 
@@ -529,3 +657,33 @@ describe('Active Event workspace loading and errors', () => {
     expect(screen.queryByText('technical message')).not.toBeInTheDocument();
   });
 });
+
+function setViewportWidth(width: number) {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => {
+      const maxWidth = Number(/max-width:\s*([\d.]+)px/u.exec(query)?.[1]);
+      return {
+        matches: Number.isFinite(maxWidth) && width <= maxWidth,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(() => false)
+      };
+    })
+  });
+}
+
+function expectGeometryMutationsNotCalled(api: ReturnType<typeof mockApiClient>) {
+  expect(api.floorplan.setImage).not.toHaveBeenCalled();
+  expect(api.floorplan.replaceImage).not.toHaveBeenCalled();
+  expect(api.floorplan.addShape).not.toHaveBeenCalled();
+  expect(api.floorplan.updateShape).not.toHaveBeenCalled();
+  expect(api.floorplan.removeShape).not.toHaveBeenCalled();
+  expect(api.floorplan.lock).not.toHaveBeenCalled();
+  expect(api.floorplan.unlock).not.toHaveBeenCalled();
+}
