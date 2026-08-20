@@ -18,6 +18,8 @@ import {
   ClientType,
   EventSocialType,
   EventStatus,
+  FloorplanGeometry,
+  FloorplanShapeKind,
   GeneratedReportPrivacyMode,
   GeneratedReportStatus,
   GeneratedReportType,
@@ -258,6 +260,7 @@ describe('Generated reports', () => {
         timeZone: 'America/Mexico_City',
         capacity: 10,
         confirmationEnabled: true,
+        floorplanEnabled: true,
         locationUrl: 'https://example.com/ubicacion',
         giftRegistryUrl: 'https://example.com/regalos'
       })
@@ -291,6 +294,36 @@ describe('Generated reports', () => {
       .set('Origin', origin)
       .set('Cookie', providerCookie)
       .send({ initialAssetId: initial, qrAssetId: qr })
+      .expect(201);
+    const floorplanImageId = await uploadFloorplanImage(providerBase, providerCookie);
+    await request(app.getHttpServer())
+      .post(`${providerBase}/floorplan`)
+      .set('Origin', origin)
+      .set('Cookie', providerCookie)
+      .send({ imageAssetId: floorplanImageId })
+      .expect(201);
+    const table = await request(app.getHttpServer())
+      .post(`${providerBase}/floorplan/shapes`)
+      .set('Origin', origin)
+      .set('Cookie', providerCookie)
+      .send({
+        kind: FloorplanShapeKind.TABLE,
+        geometry: FloorplanGeometry.CIRCLE,
+        name: 'Mesa piloto',
+        capacity: 3,
+        x: 0.1,
+        y: 0.1,
+        width: 0.2,
+        height: 0.2,
+        rotation: 0,
+        polygonPoints: null
+      })
+      .expect(201);
+    await request(app.getHttpServer())
+      .post(`${providerBase}/floorplan/lock`)
+      .set('Origin', origin)
+      .set('Cookie', providerCookie)
+      .send({})
       .expect(201);
     for (const action of [
       HotspotAction.RSVP,
@@ -328,6 +361,16 @@ describe('Generated reports', () => {
         .send({ additionalAssistants: [] })
         .expect(200);
     }
+    await request(app.getHttpServer())
+      .post(`/api/v1/events/${eventId}/seating/assign`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .set('Idempotency-Key', 'reports-e2e-seating')
+      .send({
+        assistantIds: invitations.map((invitation) => invitation.assistants.find(({ isPrimary }) => isPrimary)!.id),
+        tableShapeId: table.body.id
+      })
+      .expect(201);
     const staff = await request(app.getHttpServer())
       .post(`/api/v1/events/${eventId}/staff-tokens`)
       .set('Origin', origin)
@@ -337,11 +380,12 @@ describe('Generated reports', () => {
     for (const index of [0, 1]) {
       const invitation = invitations[index]!;
       const assistant = invitation.assistants.find(({ isPrimary }) => isPrimary)!;
-      await request(app.getHttpServer())
+      const checkedIn = await request(app.getHttpServer())
         .post(`/api/v1/scanner/${encodeURIComponent(staff.body.token as string)}/check-in`)
         .set('Idempotency-Key', `reports-e2e-check-in-${index}`)
         .send({ invitationId: invitation.id, assistantIds: [assistant.id] })
         .expect(200);
+      expect(checkedIn.body.checkedIn[0].table).toEqual({ id: table.body.id, name: 'Mesa piloto' });
     }
     const reverted = await prisma.checkIn.findFirstOrThrow({
       where: { assistantId: invitations[1]!.assistants[0]!.id, revertedAt: null }
@@ -377,6 +421,9 @@ describe('Generated reports', () => {
     expect(
       authorized.body.dataset.rows.map((row: { attendanceStatus: string }) => row.attendanceStatus).sort()
     ).toEqual(['CHECKED_IN', 'NO_SHOW']);
+    expect(
+      authorized.body.dataset.rows.every((row: { tableName: string | null }) => row.tableName === 'Mesa piloto')
+    ).toBe(true);
     expect(JSON.stringify(authorized.body.dataset)).not.toMatch(
       /52551122334|contactId|assistantId|invitationId|staffToken|qrToken/iu
     );
@@ -1140,6 +1187,21 @@ describe('Generated reports', () => {
     return response.body.id as string;
   }
 
+  async function uploadFloorplanImage(providerBase: string, providerCookie: string[]): Promise<string> {
+    const image = await sharp({
+      create: { width: 64, height: 64, channels: 3, background: '#e2e8f0' }
+    })
+      .png()
+      .toBuffer();
+    const response = await request(app.getHttpServer())
+      .post(`${providerBase}/floorplan/file-assets`)
+      .set('Origin', origin)
+      .set('Cookie', providerCookie)
+      .attach('file', image, { filename: 'floorplan.png', contentType: 'image/png' })
+      .expect(201);
+    return response.body.id as string;
+  }
+
   async function resetDatabase() {
     if (!prisma) return;
     await prisma.$executeRawUnsafe(`
@@ -1147,7 +1209,8 @@ describe('Generated reports', () => {
       SET LOCAL session_replication_role = replica;
       TRUNCATE TABLE
         "generated_report", "album_photo", "album", "physical_pass_generation_operation", "physical_pass",
-        "staff_token", "check_in", "hotspot", "flipbook_page", "invitation_design", "file_asset", "assistant",
+        "staff_token", "check_in", "hotspot", "flipbook_page", "invitation_design", "seating_operation",
+        "floorplan_shape", "floorplan", "file_asset", "assistant",
         "invitation", "contact_import_preview", "contact", "contact_group", "event_state_operation", "event",
         "debt_payment_allocation", "ledger_entry", "payment", "receipt", "credit_line", "finance_balance",
         "promotion", "service_price", "service", "audit_log", "auth_session", "app_user", "client"
