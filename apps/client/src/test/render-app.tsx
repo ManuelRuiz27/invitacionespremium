@@ -9,7 +9,8 @@ import { createClientMemoryRouter } from '../app/router';
 export function renderApp(
   apiClient: ApiClient,
   initialEntry = '/eventos',
-  navigateExternal = (_url: string) => undefined
+  navigateExternal = (_url: string) => undefined,
+  scannerAppUrl?: string
 ) {
   const queryClient = createClientQueryClient();
   const router = createClientMemoryRouter(
@@ -18,6 +19,7 @@ export function renderApp(
       queryClient,
       adminAppUrl: 'http://localhost:5174',
       landingUrl: 'http://localhost:5176',
+      ...(scannerAppUrl ? { scannerAppUrl } : {}),
       navigateExternal
     },
     [initialEntry]

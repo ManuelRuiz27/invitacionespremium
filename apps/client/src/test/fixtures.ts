@@ -303,6 +303,7 @@ export function mockApiClient(user: AuthUser = independentUser): ApiClient {
       unlock: vi.fn()
     },
     physicalPasses: { list: vi.fn().mockResolvedValue([]), generate: vi.fn(), svg: vi.fn() },
+    staffTokens: { list: vi.fn().mockResolvedValue([]), create: vi.fn() },
     scanner: {
       getSession: vi.fn(),
       scan: vi.fn(),

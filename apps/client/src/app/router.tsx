@@ -19,6 +19,7 @@ export interface RouterDependencies {
   apiClient: ApiClient;
   queryClient: QueryClient;
   adminAppUrl: string;
+  scannerAppUrl?: string;
   landingUrl: string;
   navigateExternal?: (url: string) => void;
 }
@@ -58,7 +59,12 @@ function createRoutes(dependencies: RouterDependencies): RouteObject[] {
                 { path: '/eventos', element: <DashboardPage apiClient={dependencies.apiClient} /> },
                 {
                   path: '/eventos/:eventId',
-                  element: <ActiveEventWorkspacePage apiClient={dependencies.apiClient} />
+                  element: (
+                    <ActiveEventWorkspacePage
+                      apiClient={dependencies.apiClient}
+                      {...(dependencies.scannerAppUrl ? { scannerAppUrl: dependencies.scannerAppUrl } : {})}
+                    />
+                  )
                 },
                 { path: '/eventos/nuevo', element: <WizardPage apiClient={dependencies.apiClient} /> },
                 {

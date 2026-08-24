@@ -12,6 +12,8 @@ import { createAuthClient } from './auth';
 import { createEventsClient } from './events';
 import { createFinanceClient } from './finance';
 import { createPublicAlbumClient, createPublicClientsClient, createPublicInvitationClient } from './public';
+import { createScannerClient } from './scanner';
+import { createStaffTokensClient } from './staff';
 import {
   createContactsClient,
   createDesignClient,
@@ -21,7 +23,6 @@ import {
   createPhysicalPassesClient,
   createServicesClient
 } from './wizard';
-import { createScannerClient } from './scanner';
 
 export { ApiError } from './api-error';
 export { normalizeApiBaseUrl } from './api-client';
@@ -53,6 +54,7 @@ export type {
   ScannerTable,
   ScannerClient
 } from './scanner';
+export type { CreateStaffTokenInput, CreatedStaffToken, StaffToken, StaffTokensClient } from './staff';
 export type { FinanceBalance, FinanceClient, FinanceListOptions, LedgerMovement, Receipt } from './finance';
 export type {
   PublicAlbum,
@@ -92,6 +94,7 @@ export function createApiClient(config: ApiClientRuntimeConfig) {
     design: createDesignClient(request),
     floorplan: createFloorplanClient(request),
     physicalPasses: createPhysicalPassesClient(request),
+    staffTokens: createStaffTokensClient(request),
     publicInvitation: createPublicInvitationClient(request),
     publicAlbum: createPublicAlbumClient(request),
     scanner: createScannerClient(request)

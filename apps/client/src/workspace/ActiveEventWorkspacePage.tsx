@@ -10,6 +10,7 @@ import { formatEventDateLong, serviceLabels, socialTypeLabels } from '../shared/
 import { useSessionExpiry } from '../shared/use-session-expiry';
 import { InvitationDistribution } from './InvitationDistribution';
 import { SeatingWorkspace } from './SeatingWorkspace';
+import { StaffAccessPanel } from './StaffAccessPanel';
 
 const preparationDestinations: Partial<Record<EventStatus, string>> = {
   DRAFT: 'datos',
@@ -35,9 +36,15 @@ const stateMessages: Partial<Record<EventStatus, string>> = {
   CANCELLED: 'Este evento fue cancelado.'
 };
 
-type WorkspaceSection = 'resumen' | 'invitaciones' | 'mesas';
+type WorkspaceSection = 'resumen' | 'invitaciones' | 'mesas' | 'staff';
 
-export function ActiveEventWorkspacePage({ apiClient }: { apiClient: ApiClient }) {
+export function ActiveEventWorkspacePage({
+  apiClient,
+  scannerAppUrl
+}: {
+  apiClient: ApiClient;
+  scannerAppUrl?: string;
+}) {
   const { eventId = '' } = useParams();
   const returnTo = `/eventos/${eventId}`;
   const eventQuery = useQuery({
@@ -99,22 +106,39 @@ export function ActiveEventWorkspacePage({ apiClient }: { apiClient: ApiClient }
     return <WorkspaceUnavailable title="Este evento no está disponible." />;
   }
 
-  return <EventWorkspace apiClient={apiClient} event={event} />;
+  return (
+    <EventWorkspace
+      apiClient={apiClient}
+      event={event}
+      {...(scannerAppUrl ? { scannerAppUrl } : {})}
+    />
+  );
 }
 
-function EventWorkspace({ apiClient, event }: { apiClient: ApiClient; event: Event }) {
+function EventWorkspace({
+  apiClient,
+  event,
+  scannerAppUrl
+}: {
+  apiClient: ApiClient;
+  event: Event;
+  scannerAppUrl?: string;
+}) {
   const [searchParams] = useSearchParams();
   const showInvitations = event.serviceCode === 'FLYER' || event.serviceCode === 'FLIPBOOK';
   const showSeating =
     event.floorplanEnabled &&
     (event.serviceCode === 'FLYER' || event.serviceCode === 'FLIPBOOK' || event.serviceCode === 'PHYSICAL_QR');
+  const showStaff = Boolean(scannerAppUrl && (event.status === 'ACTIVE' || event.status === 'EVENT_DAY'));
   const requestedSection = searchParams.get('seccion');
   const section: WorkspaceSection =
     requestedSection === 'invitaciones' && showInvitations
       ? 'invitaciones'
       : requestedSection === 'mesas' && showSeating
         ? 'mesas'
-        : 'resumen';
+        : requestedSection === 'staff' && showStaff
+          ? 'staff'
+          : 'resumen';
   const status = getEventStatusPresentation(event.status);
   const serviceLabel = event.serviceCode ? serviceLabels[event.serviceCode] : 'Servicio no disponible';
   const canShareInvitations = event.status === 'ACTIVE' || event.status === 'EVENT_DAY';
@@ -200,6 +224,17 @@ function EventWorkspace({ apiClient, event }: { apiClient: ApiClient; event: Eve
             Mesas y distribución
           </MuiLink>
         ) : null}
+        {showStaff ? (
+          <MuiLink
+            component={Link}
+            to={`/eventos/${event.id}?seccion=staff`}
+            aria-current={section === 'staff' ? 'page' : undefined}
+            underline="none"
+            sx={{ ...navLinkSx, borderColor: section === 'staff' ? 'primary.main' : 'transparent' }}
+          >
+            Staff
+          </MuiLink>
+        ) : null}
       </Box>
 
       {section === 'invitaciones' ? (
@@ -225,6 +260,8 @@ function EventWorkspace({ apiClient, event }: { apiClient: ApiClient; event: Eve
           </Typography>
           <SeatingWorkspace apiClient={apiClient} event={event} />
         </Box>
+      ) : section === 'staff' && scannerAppUrl ? (
+        <StaffAccessPanel apiClient={apiClient} event={event} scannerAppUrl={scannerAppUrl} />
       ) : (
         <Box component="section" aria-labelledby="event-overview-title" sx={{ maxWidth: 920 }}>
           <Typography id="event-overview-title" component="h2" variant="h3" sx={{ mb: 1 }}>

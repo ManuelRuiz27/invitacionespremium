@@ -23,6 +23,7 @@ export function App(props: AppProps) {
       apiClient,
       queryClient,
       adminAppUrl: env.adminAppUrl,
+      scannerAppUrl: env.scannerAppUrl,
       landingUrl: env.landingUrl,
       ...(props.navigateExternal ? { navigateExternal: props.navigateExternal } : {})
     });

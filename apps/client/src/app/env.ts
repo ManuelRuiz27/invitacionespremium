@@ -1,6 +1,7 @@
 export interface ClientEnv {
   apiBaseUrl: string;
   adminAppUrl: string;
+  scannerAppUrl: string;
   landingUrl: string;
 }
 
@@ -9,6 +10,7 @@ type EnvSource = Record<string, string | boolean | undefined>;
 const developmentDefaults: ClientEnv = {
   apiBaseUrl: developmentUrl(3000, '/api/v1'),
   adminAppUrl: developmentUrl(5174),
+  scannerAppUrl: developmentUrl(5175),
   landingUrl: developmentUrl(5176)
 };
 
@@ -16,6 +18,7 @@ export function readClientEnv(source: EnvSource = import.meta.env, production = 
   return {
     apiBaseUrl: readUrl(source, 'VITE_API_BASE_URL', production, developmentDefaults.apiBaseUrl),
     adminAppUrl: readUrl(source, 'VITE_ADMIN_APP_URL', production, developmentDefaults.adminAppUrl),
+    scannerAppUrl: readUrl(source, 'VITE_SCANNER_APP_URL', production, developmentDefaults.scannerAppUrl),
     landingUrl: readUrl(source, 'VITE_LANDING_URL', production, developmentDefaults.landingUrl)
   };
 }

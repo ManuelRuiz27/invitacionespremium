@@ -12,6 +12,7 @@ describe('client environment', () => {
         {
           VITE_API_BASE_URL: 'https://api.example.com/api/v1/',
           VITE_ADMIN_APP_URL: 'https://admin.example.com/',
+          VITE_SCANNER_APP_URL: 'https://scanner.example.com/',
           VITE_LANDING_URL: 'https://example.com/'
         },
         true
@@ -19,7 +20,21 @@ describe('client environment', () => {
     ).toEqual({
       apiBaseUrl: 'https://api.example.com/api/v1',
       adminAppUrl: 'https://admin.example.com',
+      scannerAppUrl: 'https://scanner.example.com',
       landingUrl: 'https://example.com'
     });
+  });
+
+  it('requires the Scanner URL in production once other URLs are configured', () => {
+    expect(() =>
+      readClientEnv(
+        {
+          VITE_API_BASE_URL: 'https://api.example.com/api/v1',
+          VITE_ADMIN_APP_URL: 'https://admin.example.com',
+          VITE_LANDING_URL: 'https://example.com'
+        },
+        true
+      )
+    ).toThrow('VITE_SCANNER_APP_URL is required in production.');
   });
 });

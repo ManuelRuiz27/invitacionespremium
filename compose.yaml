@@ -31,6 +31,7 @@ services:
       VITE_SOCKET_URL: http://localhost:3000
       VITE_ADMIN_APP_URL: http://localhost:5174
       VITE_CLIENT_APP_URL: http://localhost:5173
+      VITE_SCANNER_APP_URL: http://localhost:5175
       VITE_LANDING_URL: http://localhost:5176
       VITE_APP_URL: http://localhost:5176
     depends_on:
