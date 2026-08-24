@@ -7,7 +7,7 @@ describe('Event wizard model scenarios', () => {
   it.each([
     ['FLYER', ['datos', 'contactos', 'confirmacion', 'revision']],
     ['FLIPBOOK', ['datos', 'contactos', 'confirmacion', 'revision']],
-    ['PHYSICAL_QR', ['datos', 'pases', 'revision']],
+    ['PHYSICAL_QR', ['datos', 'croquis', 'pases', 'revision']],
     [undefined, ['datos', 'contactos', 'confirmacion', 'revision']]
   ] as const)('derives the authoritative navigation for %s', (service, expected) => {
     expect(stepsForService(service)).toEqual(expected);
@@ -56,6 +56,7 @@ describe('Event wizard model scenarios', () => {
     ['PHYSICAL_QR', 'contactos', false],
     ['PHYSICAL_QR', 'invitacion', false],
     ['PHYSICAL_QR', 'confirmacion', false],
+    ['PHYSICAL_QR', 'croquis', true],
     ['PHYSICAL_QR', 'pases', true],
     [undefined, 'datos', true],
     [undefined, 'invitacion', false],

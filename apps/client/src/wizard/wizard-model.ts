@@ -13,7 +13,7 @@ export type WizardStep = (typeof wizardSteps)[number];
 export type SaveState = 'idle' | 'pending' | 'saving' | 'saved' | 'error';
 
 const digitalSteps: WizardStep[] = ['datos', 'contactos', 'confirmacion', 'revision'];
-const physicalSteps: WizardStep[] = ['datos', 'pases', 'revision'];
+const physicalSteps: WizardStep[] = ['datos', 'croquis', 'pases', 'revision'];
 
 export function stepsForService(code: AvailableService['code'] | undefined): WizardStep[] {
   return code === 'PHYSICAL_QR' ? physicalSteps : digitalSteps;

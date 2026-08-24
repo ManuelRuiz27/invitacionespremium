@@ -54,6 +54,22 @@ describe('integrated Event wizard flows', () => {
     expect(api.design.hotspots).not.toHaveBeenCalled();
   });
 
+  it('keeps read-only Mesas in the Physical QR sequence and continues to Pases', async () => {
+    const api = mockApiClient();
+    vi.mocked(api.events.get).mockResolvedValue(physicalEvent);
+    const { router } = renderApp(api, `/eventos/${physicalEvent.id}/configuracion/croquis`);
+
+    expect(await screen.findByRole('heading', { name: 'Mesas y distribución' })).toBeInTheDocument();
+    expect(screen.getByText(/todavía no usa distribución de Mesas/)).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: 'Usar distribución de mesas' })).not.toBeInTheDocument();
+    expect(router.state.location.pathname).toBe(`/eventos/${physicalEvent.id}/configuracion/croquis`);
+    expect(api.floorplan.get).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
+    expect(await screen.findByRole('heading', { name: 'Pases físicos' })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe(`/eventos/${physicalEvent.id}/configuracion/pases`);
+  });
+
   it.each(['invitacion', 'croquis'])(
     'normalizes the retired %s deep link without mounting provider editors',
     async (step) => {

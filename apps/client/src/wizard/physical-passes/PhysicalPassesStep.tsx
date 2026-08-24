@@ -11,6 +11,7 @@ import {
 } from './physical-passes-pdf';
 
 type Batch = { id: string; first: number; last: number; quantity: number; table: string | null };
+type TableOption = { id: string; name: string; capacity: number; availableCapacity: number };
 type Message = { severity: 'error' | 'info' | 'success'; text: string };
 export function PhysicalPassesStep({
   apiClient,
@@ -25,7 +26,9 @@ export function PhysicalPassesStep({
   const [quantity, setQuantity] = useState(1);
   const [tableShapeId, setTableShapeId] = useState('');
   const [passes, setPasses] = useState<Awaited<ReturnType<ApiClient['physicalPasses']['list']>>>([]);
-  const [tables, setTables] = useState<{ id: string; name: string }[]>([]);
+  const [tables, setTables] = useState<TableOption[]>([]);
+  const [tablesState, setTablesState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const [tablesRequest, setTablesRequest] = useState(0);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [uncertain, setUncertain] = useState<
     { key: string; identity: string; quantity: number; tableShapeId: string } | undefined
@@ -37,16 +40,44 @@ export function PhysicalPassesStep({
   const refresh = useCallback(() => apiClient.physicalPasses.list(event.id).then(setPasses), [apiClient, event.id]);
   useEffect(() => {
     void refresh();
-    if (event.floorplanEnabled)
-      void apiClient.floorplan
-        .get(event.id)
-        .then((value) =>
-          setTables(value.shapes.filter((shape) => shape.kind === 'TABLE').map(({ id, name }) => ({ id, name })))
-        )
-        .catch(() => setTables([]));
-  }, [apiClient, event.floorplanEnabled, event.id, refresh]);
+  }, [refresh]);
+  useEffect(() => {
+    if (!event.floorplanEnabled) {
+      setTables([]);
+      setTableShapeId('');
+      setTablesState('idle');
+      return;
+    }
+    const controller = new AbortController();
+    setTablesState('loading');
+    void apiClient.floorplan
+      .get(event.id, controller.signal)
+      .then((value) => {
+        const nextTables = value.shapes
+          .filter((shape) => shape.kind === 'TABLE')
+          .map(({ id, name, capacity, availableCapacity }) => ({ id, name, capacity, availableCapacity }));
+        setTables(nextTables);
+        setTableShapeId((current) =>
+          nextTables.some((table) => table.id === current && table.availableCapacity > 0) ? current : ''
+        );
+        setTablesState('ready');
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setTables([]);
+          setTableShapeId('');
+          setTablesState('error');
+        }
+      });
+    return () => controller.abort();
+  }, [apiClient, event.floorplanEnabled, event.id, tablesRequest]);
+  const selectedTableAvailable = tables.some(
+    (table) => table.id === tableShapeId && table.availableCapacity > 0
+  );
+  const tableSelectionInvalid =
+    event.floorplanEnabled && (tablesState !== 'ready' || !selectedTableAvailable);
   const run = async (retry = false) => {
-    if (busy || exporting) return;
+    if (busy || exporting || (!retry && tableSelectionInvalid)) return;
     setBusy(true);
     const attemptedQuantity = retry && uncertain ? uncertain.quantity : quantity;
     const attemptedTable = retry && uncertain ? uncertain.tableShapeId : tableShapeId;
@@ -150,23 +181,40 @@ export function PhysicalPassesStep({
           slotProps={{ htmlInput: { min: 1 } }}
           onChange={(e) => setQuantity(Number(e.target.value))}
         />
-        <TextField
-          select
-          label="Mesa opcional"
-          value={tableShapeId}
-          disabled={busy || exporting || Boolean(uncertain)}
-          onChange={(e) => setTableShapeId(e.target.value)}
-        >
-          <MenuItem value="">Sin Mesa</MenuItem>
-          {tables.map((table) => (
-            <MenuItem key={table.id} value={table.id}>
-              {table.name}
+        {event.floorplanEnabled ? (
+          <TextField
+            select
+            required
+            label="Mesa"
+            value={tableShapeId}
+            disabled={busy || exporting || Boolean(uncertain) || tablesState !== 'ready' || tables.length === 0}
+            helperText="Cada lote debe asignarse a una Mesa preparada."
+            onChange={(e) => setTableShapeId(e.target.value)}
+          >
+            <MenuItem value="" disabled>
+              Selecciona una Mesa
             </MenuItem>
-          ))}
-        </TextField>
+            {tables.map((table) => (
+              <MenuItem key={table.id} value={table.id} disabled={table.availableCapacity === 0}>
+                {table.name} · {table.availableCapacity} de {table.capacity} lugares disponibles
+              </MenuItem>
+            ))}
+          </TextField>
+        ) : (
+          <Typography variant="body2" color="text.secondary" sx={{ alignSelf: 'center' }}>
+            Los pases se generarán sin Mesa.
+          </Typography>
+        )}
         <Button
           variant="contained"
-          disabled={disabled || busy || exporting || Boolean(uncertain) || quantity < 1}
+          disabled={
+            disabled ||
+            busy ||
+            exporting ||
+            Boolean(uncertain) ||
+            quantity < 1 ||
+            tableSelectionInvalid
+          }
           onClick={() => void run(false)}
         >
           Generar lote
@@ -177,6 +225,26 @@ export function PhysicalPassesStep({
           </Button>
         ) : null}
       </Stack>
+      {event.floorplanEnabled && tablesState === 'loading' ? (
+        <Typography role="status">Cargando Mesas…</Typography>
+      ) : null}
+      {event.floorplanEnabled && tablesState === 'error' ? (
+        <Alert
+          severity="error"
+          action={
+            <Button color="inherit" size="small" onClick={() => setTablesRequest((current) => current + 1)}>
+              Reintentar
+            </Button>
+          }
+        >
+          No pudimos cargar las Mesas. Reintenta antes de generar el lote.
+        </Alert>
+      ) : null}
+      {event.floorplanEnabled && tablesState === 'ready' && tables.length === 0 ? (
+        <Alert severity="warning">
+          No hay Mesas preparadas para este Evento. Solicita al equipo de InvitacionesPremium completar la distribución.
+        </Alert>
+      ) : null}
       <Typography>
         {passes.length} pases generados · {passes.filter((pass) => pass.status === 'USED').length} usados ·{' '}
         {passes.filter((pass) => pass.status === 'UNUSED').length} no usados

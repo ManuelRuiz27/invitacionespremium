@@ -1,4 +1,4 @@
-import type { Hotspot, InvitationDesign } from '@invitaciones/api-client';
+import type { Floorplan, Hotspot, InvitationDesign } from '@invitaciones/api-client';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -24,6 +24,33 @@ const hotspot: Hotspot = {
   width: 0.2,
   height: 0.1,
   priority: 0,
+  createdAt: '2026-01-01T00:00:00Z',
+  updatedAt: '2026-01-01T00:00:00Z'
+};
+
+const physicalFloorplan: Floorplan = {
+  id: 'floorplan-physical',
+  eventId: configuredEvent.id,
+  image: { fileAssetId: 'floorplan-image', contentPath: '/private' },
+  locked: true,
+  lockedAt: '2026-01-01T00:00:00Z',
+  shapes: [
+    {
+      id: 'table-1',
+      name: 'Mesa principal',
+      kind: 'TABLE',
+      geometry: 'CIRCLE',
+      capacity: 8,
+      occupancy: 1,
+      availableCapacity: 7,
+      x: 0.1,
+      y: 0.1,
+      width: 0.2,
+      height: 0.2,
+      rotation: 0,
+      polygonPoints: null
+    }
+  ],
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z'
 };
@@ -191,6 +218,58 @@ describe('visual wizard editors', () => {
     render(<PhysicalPassesStep apiClient={api} event={configuredEvent} disabled={false} />);
     await userEvent.click(await screen.findByRole('button', { name: 'Descargar SVG' }));
     await waitFor(() => expect(filename).toBe('pase-0001.svg'));
+  });
+
+  it('requires an available Mesa when the Physical QR event uses a floorplan', async () => {
+    const api = mockApiClient();
+    const event = { ...configuredEvent, floorplanEnabled: true };
+    vi.mocked(api.floorplan.get).mockResolvedValue(physicalFloorplan);
+    vi.mocked(api.physicalPasses.generate).mockResolvedValue({
+      eventId: event.id,
+      firstPassNumber: 1,
+      lastPassNumber: 1,
+      generationOperationId: 'batch-table-1',
+      quantity: 1,
+      passes: [],
+      table: { id: 'table-1', name: 'Mesa principal' }
+    });
+
+    render(<PhysicalPassesStep apiClient={api} event={event} disabled={false} />);
+
+    const generate = await screen.findByRole('button', { name: 'Generar lote' });
+    expect(generate).toBeDisabled();
+    expect(screen.queryByText('Sin Mesa')).not.toBeInTheDocument();
+
+    await userEvent.click(await screen.findByRole('combobox', { name: /Mesa/ }));
+    await userEvent.click(screen.getByRole('option', { name: /Mesa principal/ }));
+    expect(generate).toBeEnabled();
+    await userEvent.click(generate);
+
+    await waitFor(() =>
+      expect(api.physicalPasses.generate).toHaveBeenCalledWith(
+        event.id,
+        { quantity: 1, tableShapeId: 'table-1' },
+        expect.any(String)
+      )
+    );
+  });
+
+  it('blocks generation and allows retry when Mesas cannot be loaded', async () => {
+    const api = mockApiClient();
+    const event = { ...configuredEvent, floorplanEnabled: true };
+    vi.mocked(api.floorplan.get).mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(physicalFloorplan);
+
+    render(<PhysicalPassesStep apiClient={api} event={event} disabled={false} />);
+
+    expect(await screen.findByText(/No pudimos cargar las Mesas/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Generar lote' })).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+
+    const tableSelect = screen.getByRole('combobox', { name: /Mesa/ });
+    await waitFor(() => expect(tableSelect).toBeEnabled());
+    expect(api.floorplan.get).toHaveBeenCalledTimes(2);
+    await userEvent.click(tableSelect);
+    expect(await screen.findByRole('option', { name: /Mesa principal/ })).toBeInTheDocument();
   });
 
   it('exports every listed pass to one printable PDF in read-only mode', async () => {
