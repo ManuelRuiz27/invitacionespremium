@@ -13,6 +13,13 @@ const RASTERIZE_CONCURRENCY = 4;
 
 type PrintablePass = { id: string; passNumber: number };
 
+export class PhysicalPassesPdfError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PhysicalPassesPdfError';
+  }
+}
+
 interface PhysicalPassesPdfOptions {
   eventName: string | null;
   passes: PrintablePass[];
@@ -28,7 +35,7 @@ export async function createPhysicalPassesPdf({
   onProgress,
   rasterizeSvg = rasterizePhysicalPassSvg
 }: PhysicalPassesPdfOptions): Promise<Blob> {
-  if (passes.length === 0) throw new Error('No hay pases para exportar.');
+  if (passes.length === 0) throw new PhysicalPassesPdfError('No hay pases para exportar.');
 
   const { PDFDocument, rgb } = await import('pdf-lib');
   const document = await PDFDocument.create();
@@ -116,30 +123,24 @@ async function mapWithConcurrency<T, R>(
   return results;
 }
 
-async function rasterizePhysicalPassSvg(svg: string): Promise<Uint8Array> {
+export async function rasterizePhysicalPassSvg(svg: string): Promise<Uint8Array> {
   const source = new Blob([svg], { type: 'image/svg+xml' });
   const canvas = document.createElement('canvas');
   canvas.width = SVG_WIDTH;
   canvas.height = SVG_HEIGHT;
   const context = canvas.getContext('2d');
-  if (!context) throw new Error('El navegador no permite preparar el PDF.');
+  if (!context) throw new PhysicalPassesPdfError('El navegador no permite preparar el PDF.');
   context.fillStyle = '#FFFFFF';
   context.fillRect(0, 0, SVG_WIDTH, SVG_HEIGHT);
 
-  if ('createImageBitmap' in window) {
-    const bitmap = await createImageBitmap(source);
-    try {
-      context.drawImage(bitmap, 0, 0, SVG_WIDTH, SVG_HEIGHT);
-    } finally {
-      bitmap.close();
-    }
-  } else {
-    await drawSvgWithImage(context, source);
-  }
+  await drawSvgWithImage(context, source);
 
   const png = await new Promise<Blob>((resolve, reject) =>
     canvas.toBlob(
-      (value) => (value ? resolve(value) : reject(new Error('No fue posible convertir un pase para el PDF.'))),
+      (value) =>
+        value
+          ? resolve(value)
+          : reject(new PhysicalPassesPdfError('No fue posible convertir un pase para el PDF.')),
       'image/png'
     )
   );
@@ -153,7 +154,7 @@ async function drawSvgWithImage(context: CanvasRenderingContext2D, source: Blob)
     image.decoding = 'async';
     await new Promise<void>((resolve, reject) => {
       image.onload = () => resolve();
-      image.onerror = () => reject(new Error('No fue posible leer un pase para el PDF.'));
+      image.onerror = () => reject(new PhysicalPassesPdfError('No fue posible leer un pase para el PDF.'));
       image.src = url;
     });
     context.drawImage(image, 0, 0, SVG_WIDTH, SVG_HEIGHT);

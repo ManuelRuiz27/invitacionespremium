@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { configuredEvent, mockApiClient } from '../test/fixtures';
 import { DesignStep } from './design/DesignStep';
 import { PhysicalPassesStep } from './physical-passes/PhysicalPassesStep';
-import { createPhysicalPassesPdf } from './physical-passes/physical-passes-pdf';
+import { createPhysicalPassesPdf, PhysicalPassesPdfError } from './physical-passes/physical-passes-pdf';
 
 vi.mock('./physical-passes/physical-passes-pdf', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./physical-passes/physical-passes-pdf')>()),
@@ -341,14 +341,20 @@ describe('visual wizard editors', () => {
         createdAt: '2026-01-01T00:00:00Z'
       }
     ]);
-    vi.mocked(createPhysicalPassesPdf).mockRejectedValue(new Error('canvas unavailable'));
+    vi.mocked(createPhysicalPassesPdf).mockRejectedValue(
+      new PhysicalPassesPdfError('No fue posible leer un pase para el PDF.')
+    );
     const download = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
 
     render(<PhysicalPassesStep apiClient={api} event={configuredEvent} disabled={false} />);
     const exportButton = await screen.findByRole('button', { name: 'Exportar plantilla PDF' });
     await userEvent.click(exportButton);
 
-    expect(await screen.findByText(/No fue posible exportar la plantilla/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        'No fue posible exportar la plantilla. No fue posible leer un pase para el PDF.'
+      )
+    ).toBeInTheDocument();
     expect(download).not.toHaveBeenCalled();
     expect(exportButton).toBeEnabled();
   });

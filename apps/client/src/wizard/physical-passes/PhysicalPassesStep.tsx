@@ -7,6 +7,7 @@ import { downloadBlob, errorMessage } from '../wizard-utils';
 import {
   createPhysicalPassesPdf,
   PHYSICAL_PASSES_PER_PDF_PAGE,
+  PhysicalPassesPdfError,
   physicalPassesPdfFilename
 } from './physical-passes-pdf';
 
@@ -161,7 +162,8 @@ export function PhysicalPassesStep({
         text: `PDF listo: ${latestPasses.length} pases en ${Math.ceil(latestPasses.length / PHYSICAL_PASSES_PER_PDF_PAGE)} hoja(s).`
       });
     } catch (reason) {
-      setMessage({ severity: 'error', text: `No fue posible exportar la plantilla. ${errorMessage(reason)}` });
+      const detail = reason instanceof PhysicalPassesPdfError ? reason.message : errorMessage(reason);
+      setMessage({ severity: 'error', text: `No fue posible exportar la plantilla. ${detail}` });
     } finally {
       setExporting(false);
       setExportProgress(undefined);
