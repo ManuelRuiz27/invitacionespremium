@@ -47,9 +47,7 @@ describe('Planner Staff access workspace', () => {
   it('crea una sola vez, muestra el secreto en memoria y deriva la URL Scanner configurable', async () => {
     const api = mockApiClient();
     vi.mocked(api.events.get).mockResolvedValue(activeEvent);
-    vi.mocked(api.staffTokens.list)
-      .mockResolvedValueOnce([])
-      .mockResolvedValue([activeAccess]);
+    vi.mocked(api.staffTokens.list).mockResolvedValueOnce([]).mockResolvedValue([activeAccess]);
     vi.mocked(api.staffTokens.create).mockResolvedValue(createdAccess);
     const user = userEvent.setup();
     const first = renderApp(api, `/eventos/${activeEvent.id}?seccion=staff`, undefined, scannerAppUrl);
@@ -88,9 +86,7 @@ describe('Planner Staff access workspace', () => {
   it('no reintenta un POST incierto y reconcilia por GET sin fingir que puede recuperar el secreto', async () => {
     const api = mockApiClient();
     vi.mocked(api.events.get).mockResolvedValue(activeEvent);
-    vi.mocked(api.staffTokens.list)
-      .mockResolvedValueOnce([])
-      .mockResolvedValue([activeAccess]);
+    vi.mocked(api.staffTokens.list).mockResolvedValueOnce([]).mockResolvedValue([activeAccess]);
     vi.mocked(api.staffTokens.create).mockRejectedValue(new TypeError('Failed to fetch'));
     const user = userEvent.setup();
     renderApp(api, `/eventos/${activeEvent.id}?seccion=staff`, undefined, scannerAppUrl);

@@ -45,7 +45,8 @@ export function StaffAccessPanel({
       if (refreshed.isError) {
         setNotice({
           severity: 'warning',
-          message: 'El acceso fue creado, pero no pudimos actualizar la lista. El enlace recién generado sigue disponible abajo.'
+          message:
+            'El acceso fue creado, pero no pudimos actualizar la lista. El enlace recién generado sigue disponible abajo.'
         });
       }
     },
@@ -96,7 +97,8 @@ export function StaffAccessPanel({
           Staff
         </Typography>
         <Typography color="text.secondary">
-          Crea accesos temporales para el personal que operará Scanner y check-in. Cada Evento admite hasta tres accesos activos.
+          Crea accesos temporales para el personal que operará Scanner y check-in. Cada Evento admite hasta tres accesos
+          activos.
         </Typography>
       </Stack>
 
@@ -149,14 +151,19 @@ export function StaffAccessPanel({
       </Stack>
 
       {createdAccess && scannerUrl ? (
-        <Box component="section" aria-labelledby="new-staff-access-title" sx={{ p: 2.5, border: 1, borderColor: 'divider', borderRadius: 2 }}>
+        <Box
+          component="section"
+          aria-labelledby="new-staff-access-title"
+          sx={{ p: 2.5, border: 1, borderColor: 'divider', borderRadius: 2 }}
+        >
           <Stack spacing={2}>
             <Stack spacing={0.5}>
               <Typography id="new-staff-access-title" component="h3" variant="h4">
                 Acceso recién creado: {createdAccess.alias}
               </Typography>
               <Typography color="text.secondary">
-                Este token se muestra una sola vez. Al recargar esta página seguirá existiendo el acceso, pero el secreto ya no podrá recuperarse.
+                Este token se muestra una sola vez. Al recargar esta página seguirá existiendo el acceso, pero el
+                secreto ya no podrá recuperarse.
               </Typography>
             </Stack>
             <TextField
@@ -165,12 +172,7 @@ export function StaffAccessPanel({
               fullWidth
               slotProps={{ input: { readOnly: true } }}
             />
-            <TextField
-              label="Enlace Scanner"
-              value={scannerUrl}
-              fullWidth
-              slotProps={{ input: { readOnly: true } }}
-            />
+            <TextField label="Enlace Scanner" value={scannerUrl} fullWidth slotProps={{ input: { readOnly: true } }} />
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
               <Button
                 variant="outlined"
@@ -178,7 +180,9 @@ export function StaffAccessPanel({
                 onClick={() =>
                   void copyText(scannerUrl)
                     .then(() => setNotice({ severity: 'success', message: 'Enlace Scanner copiado.' }))
-                    .catch(() => setNotice({ severity: 'error', message: 'No pudimos copiar el enlace. Cópialo manualmente.' }))
+                    .catch(() =>
+                      setNotice({ severity: 'error', message: 'No pudimos copiar el enlace. Cópialo manualmente.' })
+                    )
                 }
               >
                 Copiar enlace
@@ -212,7 +216,16 @@ export function StaffAccessPanel({
               <Box
                 component="li"
                 key={staffToken.id}
-                sx={{ py: 2, borderBottom: 1, borderColor: 'divider', display: 'flex', gap: 2, justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}
+                sx={{
+                  py: 2,
+                  borderBottom: 1,
+                  borderColor: 'divider',
+                  display: 'flex',
+                  gap: 2,
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap'
+                }}
               >
                 <Stack spacing={0.5}>
                   <Typography sx={{ fontWeight: 700 }}>{staffToken.alias}</Typography>
@@ -240,10 +253,16 @@ export function buildScannerUrl(scannerAppUrl: string, token: string): string {
 
 function staffCreationError(cause: unknown): { severity: 'warning' | 'error'; message: string } {
   if (cause instanceof ApiError && cause.code === 'STAFF_TOKEN_LIMIT_REACHED') {
-    return { severity: 'warning', message: 'Ya existen tres accesos activos. Actualizamos la lista para mostrar el estado actual.' };
+    return {
+      severity: 'warning',
+      message: 'Ya existen tres accesos activos. Actualizamos la lista para mostrar el estado actual.'
+    };
   }
   if (cause instanceof ApiError && cause.code === 'STAFF_EVENT_NOT_OPERATIONAL') {
-    return { severity: 'warning', message: 'El Evento ya no admite nuevos accesos Staff. Actualiza el Evento antes de continuar.' };
+    return {
+      severity: 'warning',
+      message: 'El Evento ya no admite nuevos accesos Staff. Actualiza el Evento antes de continuar.'
+    };
   }
   if (cause instanceof ApiError && cause.status >= 400 && cause.status < 500) {
     return { severity: 'error', message: 'No pudimos crear el acceso Staff. Revisa el alias y el estado del Evento.' };

@@ -106,13 +106,7 @@ export function ActiveEventWorkspacePage({
     return <WorkspaceUnavailable title="Este evento no está disponible." />;
   }
 
-  return (
-    <EventWorkspace
-      apiClient={apiClient}
-      event={event}
-      {...(scannerAppUrl ? { scannerAppUrl } : {})}
-    />
-  );
+  return <EventWorkspace apiClient={apiClient} event={event} {...(scannerAppUrl ? { scannerAppUrl } : {})} />;
 }
 
 function EventWorkspace({

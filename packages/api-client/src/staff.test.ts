@@ -60,4 +60,33 @@ describe('StaffTokensClient', () => {
 
     await expect(client.staffTokens.list(active.eventId)).rejects.toMatchObject({ code: 'UNEXPECTED_API_RESPONSE' });
   });
+
+  it('rechaza secretos, digest y creador en el listado', async () => {
+    const leaked = {
+      ...active,
+      token,
+      sessionPath: `/api/v1/scanner/${token}/session`,
+      tokenDigestSha256: 'a'.repeat(64),
+      createdByUserId: '33333333-3333-4333-8333-333333333333'
+    };
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(json([leaked]));
+    const client = createApiClient({ baseUrl: 'https://api.example.test/api/v1', fetchImpl });
+
+    await expect(client.staffTokens.list(active.eventId)).rejects.toMatchObject({ code: 'UNEXPECTED_API_RESPONSE' });
+  });
+
+  it('rechaza campos internos en la respuesta de creación', async () => {
+    const created = {
+      ...active,
+      token,
+      sessionPath: `/api/v1/scanner/${token}/session`,
+      tokenDigestSha256: 'a'.repeat(64)
+    };
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(json(created, 201));
+    const client = createApiClient({ baseUrl: 'https://api.example.test/api/v1', fetchImpl });
+
+    await expect(client.staffTokens.create(active.eventId, { alias: 'Puerta' })).rejects.toMatchObject({
+      code: 'UNEXPECTED_API_RESPONSE'
+    });
+  });
 });

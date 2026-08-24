@@ -13,6 +13,8 @@ export interface StaffTokensClient {
 const segment = (value: string) => encodeURIComponent(value);
 const withSignal = (signal?: AbortSignal) => (signal ? { signal } : {});
 const staffTokenPattern = /^st1\.[A-Za-z0-9_-]{43}$/u;
+const listedStaffTokenFields = ['alias', 'createdAt', 'eventId', 'expiredAt', 'id', 'state'] as const;
+const createdStaffTokenFields = [...listedStaffTokenFields, 'sessionPath', 'token'] as const;
 
 export function createStaffTokensClient(request: ApiRequester): StaffTokensClient {
   return {
@@ -44,17 +46,23 @@ function isStaffTokenArray(value: unknown): value is StaffToken[] {
 }
 
 function isStaffToken(value: unknown): value is StaffToken {
-  return isRecord(value) && hasStaffTokenFields(value);
+  return isRecord(value) && hasOnlyFields(value, listedStaffTokenFields) && hasStaffTokenFields(value);
 }
 
 function isCreatedStaffToken(value: unknown): value is CreatedStaffToken {
   return (
     isRecord(value) &&
+    hasOnlyFields(value, createdStaffTokenFields) &&
     hasStaffTokenFields(value) &&
     typeof value.token === 'string' &&
     staffTokenPattern.test(value.token) &&
     isNonEmptyString(value.sessionPath)
   );
+}
+
+function hasOnlyFields(value: Record<string, unknown>, allowedFields: readonly string[]): boolean {
+  const allowed = new Set(allowedFields);
+  return Object.keys(value).every((field) => allowed.has(field));
 }
 
 function hasStaffTokenFields(value: Record<string, unknown>): boolean {
