@@ -14,6 +14,7 @@ Leer primero `docs/04-tecnico/REPOSITORY_SOURCE_OF_TRUTH.md` cuando una tarea me
 - `02_PRD.md`
 - `03_ROLES_PERMISOS_ACCESO.md`
 - `04_OPERATOR_LED_MVP.md` — perfil de lanzamiento asistido/operator-led
+- `05_MODELO_COMERCIAL_PRICING_Y_OPERACION.md` — fuente de verdad comercial vigente para SKU vs canal, pricing por capacidad/volumen, gate financiero, intake Provider y ajustes del flujo operator-led
 - `ACCESS_MATRIX.md` — matriz estándar de roles/endpoints
 - `ACCESS_MATRIX_OPERATOR_LED_ADDENDUM.md` — capability administrativa adicional para lanzamiento, sin nuevo rol
 
@@ -95,12 +96,24 @@ Leer primero `docs/04-tecnico/REPOSITORY_SOURCE_OF_TRUTH.md` cuando una tarea me
 - `PILOT02_MINIMUM_OPERATIONAL_INSTRUMENTATION.md` — journal operativo event-scoped para medir esfuerzo, incidencias, soporte y trabajo manual sin plataforma de analytics
 - `LOCAL_PILOT_OPERATION_RUNBOOK.md` — manual local reproducible Admin/Planner/Invitado/Staff, fixture CSV y gaps operativos detectados al ejecutar el recorrido humano
 
+## Precedencia para el modelo comercial/operator-led vigente
+
+Cuando una tarea afecte SKU, pricing, canal, volumen, unit economics, inicio de preparación, creator/assignment de Evento o responsabilidades Provider/Planner:
+
+1. `05_MODELO_COMERCIAL_PRICING_Y_OPERACION.md` para la decisión comercial vigente.
+2. `04_OPERATOR_LED_MVP.md` para la separación general Provider/Planner, salvo ajustes expresamente sustituidos por el documento comercial.
+3. `02_PRD.md`, `04_APP_FLOW.md`, `05_REGLAS_NEGOCIO.md` y `06_FINANZAS_CREDITOS_CONTABILIDAD.md` para reglas no sustituidas.
+4. Contrato técnico especializado del dominio afectado.
+5. Código sólo después de convertir cualquier gap restante en ticket/contrato explícito.
+
+En particular, `ClientType` no debe interpretarse como canal comercial y las tablas históricas Planner/Organization no deben hardcodearse como pricing definitivo.
+
 ## Precedencia para el cambio operator-led / Croquis V2
 
 Cuando una tarea pertenezca a este cambio, usar este orden práctico:
 
 1. `REPOSITORY_SOURCE_OF_TRUTH.md` para decidir qué repositorio/material es autoritativo.
-2. `02_PRD.md`, `03_ROLES_PERMISOS_ACCESO.md` y `04_OPERATOR_LED_MVP.md` para producto.
+2. `02_PRD.md`, `03_ROLES_PERMISOS_ACCESO.md`, `04_OPERATOR_LED_MVP.md` y, cuando aplique pricing/operación comercial, `05_MODELO_COMERCIAL_PRICING_Y_OPERACION.md` para producto.
 3. ADR/contrato especializado del área (`ADR_OPERATOR_LED_ACCESS.md`, `FLOORPLAN_STICKER_SEATING_CONTRACT.md`, etc.).
 4. `FLOORPLAN_UX_TARGET.md` y `LEGACY_UI_VISUAL_PORT_GUIDE.md` para UI/UX.
 5. `14_CODEX_RULES.md` + `14A_OPERATOR_LED_CODEX_RULES.md` para implementación.
