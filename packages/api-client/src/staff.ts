@@ -44,8 +44,21 @@ function isStaffTokenArray(value: unknown): value is StaffToken[] {
 }
 
 function isStaffToken(value: unknown): value is StaffToken {
+  return isRecord(value) && hasStaffTokenFields(value);
+}
+
+function isCreatedStaffToken(value: unknown): value is CreatedStaffToken {
+  return (
+    isRecord(value) &&
+    hasStaffTokenFields(value) &&
+    typeof value.token === 'string' &&
+    staffTokenPattern.test(value.token) &&
+    isNonEmptyString(value.sessionPath)
+  );
+}
+
+function hasStaffTokenFields(value: Record<string, unknown>): boolean {
   if (
-    !isRecord(value) ||
     !isNonEmptyString(value.id) ||
     !isNonEmptyString(value.eventId) ||
     !isNonEmptyString(value.alias) ||
@@ -57,16 +70,6 @@ function isStaffToken(value: unknown): value is StaffToken {
   }
 
   return value.state === 'ACTIVE' ? value.expiredAt === null : value.expiredAt !== null;
-}
-
-function isCreatedStaffToken(value: unknown): value is CreatedStaffToken {
-  return (
-    isStaffToken(value) &&
-    isRecord(value) &&
-    typeof value.token === 'string' &&
-    staffTokenPattern.test(value.token) &&
-    isNonEmptyString(value.sessionPath)
-  );
 }
 
 function isNonEmptyString(value: unknown): value is string {
