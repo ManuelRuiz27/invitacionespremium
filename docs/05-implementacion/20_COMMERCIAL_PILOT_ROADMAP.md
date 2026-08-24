@@ -2,7 +2,7 @@
 
 Estado: **Roadmap de ejecución propuesto sobre baseline técnico ya certificado**  
 Fecha: **24 agosto 2026**  
-Objetivo: adaptar pricing, intake y medición económica al modelo comercial aprobado sin reabrir ni reescribir el núcleo técnico operator-led.
+Objetivo: adaptar pricing, funnel de venta, intake y medición económica al modelo comercial aprobado sin reabrir ni reescribir el núcleo técnico operator-led.
 
 ## 1. Punto de partida
 
@@ -19,16 +19,16 @@ El roadmap técnico anterior (`19_OPERATOR_LED_FLOORPLAN_ROADMAP.md`) se conside
 - PILOT-01 readiness E2E: DONE;
 - PILOT-02 instrumentación operativa: DONE.
 
-El producto ya dispone de un recorrido técnico operator-led certificado. Esta segunda etapa no invalida esos cierres.
+La etapa técnica permanece **10/10 DONE**. Los nuevos bloques no reabren esos cierres.
 
 ## 2. Nueva tesis de ejecución
-
-La prioridad deja de ser construir infraestructura base y pasa a:
 
 ```text
 modelo técnico operator-led certificado
         +
 pricing comercial correcto
+        +
+landing/funnel alineado a SKU y canal
         +
 autorización/price lock antes de COGS
         +
@@ -41,6 +41,8 @@ unit economics por Evento
 piloto comercial medible
 ```
 
+La meta ya no es demostrar únicamente que el software funciona. Debemos demostrar que puede **venderse, cotizarse, operarse y medirse** sin contradicciones.
+
 ## 3. Fuentes obligatorias
 
 Antes de ejecutar cualquier bloque de esta etapa leer:
@@ -49,30 +51,34 @@ Antes de ejecutar cualquier bloque de esta etapa leer:
 2. `docs/04-tecnico/REPOSITORY_SOURCE_OF_TRUTH.md`;
 3. `docs/01-producto/05_MODELO_COMERCIAL_PRICING_Y_OPERACION.md`;
 4. `docs/01-producto/05A_PRICING_RESOLUTION_CLARIFICATION.md`;
-5. `docs/01-producto/04_OPERATOR_LED_MVP.md`;
-6. `docs/02-flujos-reglas/06_FINANZAS_CREDITOS_CONTABILIDAD.md`;
-7. contrato técnico especializado del módulo;
-8. `docs/05-implementacion/14_CODEX_RULES.md`;
-9. `docs/05-implementacion/14A_OPERATOR_LED_CODEX_RULES.md`.
+5. `docs/01-producto/05B_LANDING_COMMERCIAL_SALES_CONTRACT.md` cuando la tarea toque landing/adquisición;
+6. `docs/01-producto/04_OPERATOR_LED_MVP.md`;
+7. `docs/02-flujos-reglas/06_FINANZAS_CREDITOS_CONTABILIDAD.md`;
+8. contrato técnico especializado del módulo;
+9. `docs/05-implementacion/14_CODEX_RULES.md`;
+10. `docs/05-implementacion/14A_OPERATOR_LED_CODEX_RULES.md`.
 
-Para pricing, `05A_PRICING_RESOLUTION_CLARIFICATION.md` prevalece sobre cualquier fórmula general que obligue a inventar cruces de canal/capacidad no aprobados.
+`05A_PRICING_RESOLUTION_CLARIFICATION.md` prevalece sobre fórmulas generales que obliguen a inventar cruces no aprobados. `05B_LANDING_COMMERCIAL_SALES_CONTRACT.md` prevalece sobre el copy comercial histórico de `apps/landing`.
 
-## 4. Bloque GOV-COM-01 — Gobierno comercial
+## 4. GOV-COM-01 — Gobierno comercial
 
-Estado actual: **IN REVIEW / documentación en rama `docs/commercial-business-rules-2026-08`**.
+Estado: **IN REVIEW / rama `docs/commercial-business-rules-2026-08`**.
 
 Objetivo:
 
-- integrar a `main` las decisiones comerciales del 24 agosto 2026;
+- integrar a `main` las decisiones comerciales;
 - indexar precedencia;
-- no modificar código en este bloque;
-- evitar que Codex implemente pricing sobre reglas históricas Planner/Organization.
+- incluir contrato de landing/funnel;
+- no modificar runtime en este bloque.
 
 Criterio de salida:
 
-- `05_MODELO_COMERCIAL_PRICING_Y_OPERACION.md` y `05A_PRICING_RESOLUTION_CLARIFICATION.md` existen en `main`;
-- `docs/INDEX.md` los referencia;
-- no hay contradicción no documentada sobre standard/partner/venue.
+- `05_MODELO_COMERCIAL_PRICING_Y_OPERACION.md` en `main`;
+- `05A_PRICING_RESOLUTION_CLARIFICATION.md` en `main`;
+- `05B_LANDING_COMMERCIAL_SALES_CONTRACT.md` en `main`;
+- `20_COMMERCIAL_PILOT_ROADMAP.md` en `main`;
+- `docs/INDEX.md` actualizado;
+- sin contradicción pendiente sobre pricing/canal/landing.
 
 ## 5. COM-01 — Pricing V2 por SKU, canal y volumen
 
@@ -80,182 +86,176 @@ Issue: **#36**
 Prioridad: **P0**  
 Estado: **QUEUED / bloqueado por GOV-COM-01**.
 
-Objetivo:
-
-Adaptar `ServicePrice`/resolver de pricing sin reescribir ledger, créditos, deuda, Payments o Receipts.
-
-Reglas:
+Objetivo: adaptar `ServicePrice`/resolver sin reescribir ledger, créditos, deuda, Payments o Receipts.
 
 ### Standard/PVP
 
-- precio por SKU + bracket de capacidad + vigencia;
-- brackets 1–50, 51–100, 101–150.
+- SKU + bracket de capacidad + vigencia;
+- 1–50, 51–100, 101–150.
 
 ### Planner/agencia
 
 - tarifa partner explícita;
-- actualmente sólo existe hipótesis aprobada para hasta 100;
-- no inferir descuento para brackets sin tarifa aprobada;
-- ausencia de tarifa partner no crea precio derivado automáticamente.
+- actualmente sólo hay hipótesis aprobada para hasta 100;
+- no inferir tarifas ausentes.
 
 ### Venue
 
-- QR/EventOps por tier de volumen efectivo M-1;
+- QR/EventOps por tier M-1 de volumen efectivo;
 - 1–2, 3–5, 6–10, 11+;
-- sin matriz venue por capacidad durante piloto;
-- venue nuevo inicia tier 1–2;
+- sin matriz Venue × capacidad durante piloto;
 - sin repricing retroactivo.
 
-Conservar:
+Además debe existir una forma segura de proyectar **PVP público** para la landing sin exponer pricing privado, deuda, líneas de crédito, COGS ni wholesale no publicado.
 
-- 1 crédito = $20 MXN;
-- créditos enteros;
-- activación transaccional;
-- snapshots históricos;
-- Promotions después del precio base;
-- compatibilidad histórica.
+Conservar 1 crédito = $20 MXN, créditos enteros, activación transaccional, snapshots y Promotions después del precio base.
 
-Criterio de salida:
+## 6. LAND-01 — Landing comercial V2
 
-- `ClientType` deja de decidir por sí solo pricing comercial;
-- price book configurable y temporal;
-- tier venue autoritativo;
-- tests Finance/Activation sin regresión.
+Issue: **#40**  
+Prioridad: **P0**  
+Dependencias: **GOV-COM-01 + #36 para pricing público autoritativo**.
 
-## 6. COM-02 — Autorización comercial y price lock
+Objetivo: alinear `apps/landing` al nuevo modelo de venta sin reescribir el design system.
+
+Cambios obligatorios:
+
+- dejar de posicionar el producto principalmente como SaaS self-service;
+- vender servicio gestionado de logística digital/operación;
+- presentar QR/EventOps, Flyer y Flipbook como SKU;
+- retirar `DEMO` como producto pagado comparable;
+- reemplazar tabla `Planner vs Organization`;
+- mostrar PVP estándar por capacidad en MXN;
+- créditos pasan a información secundaria;
+- sección Planner/agencia enfocada a alianza/partner;
+- sección Venue enfocada a recurrencia/volumen;
+- no prometer partner pricing automático por `ClientType.PLANNER`;
+- no prometer registro público de Venue/Organization;
+- actualizar SEO, Hero, Services, Pricing, Planner, Organization/Venue, FAQ, CTA y demo copy;
+- pricing público debe provenir de la fuente autoritativa definida por #36 o una proyección pública mínima equivalente, no de números divergentes hardcodeados en componentes.
+
+Criterio de salida: un visitante entiende SKU, PVP estándar, diferencia Planner/Venue y siguiente paso comercial correcto.
+
+## 7. LAND-02 — Intake comercial B2B desde landing
+
+Issue: **#41**  
+Prioridad: **P1**  
+Dependencia: **#40**.
+
+Objetivo: evitar que Planner partner/Venue terminen en un CTA sin salida comercial.
+
+Superficie mínima:
+
+- `Quiero trabajar como Planner partner` / `Conocer condiciones para Planners`;
+- `Solicitar propuesta para mi venue` / `Cotizar operación recurrente`;
+- formulario B2B separado del registro Planner.
+
+Datos mínimos autorizados:
+
+- contacto;
+- empresa/venue/agencia;
+- tipo de oportunidad;
+- email;
+- teléfono/WhatsApp opcional;
+- volumen estimado opcional;
+- notas opcionales;
+- consentimiento/aviso de privacidad cuando corresponda.
+
+Reglas:
+
+- no crear automáticamente Client/User/Event;
+- no otorgar tarifa partner/venue automáticamente;
+- rate limit/anti-spam;
+- acceso restringido a Platform Admin;
+- sin CRM externo ni WhatsApp API durante piloto.
+
+Criterio de salida: el lead B2B llega a un intake administrable sin falsear registro/roles/pricing.
+
+## 8. COM-02 — Autorización comercial y price lock
 
 Issue: **#37**  
 Prioridad: **P0**  
 Dependencia: **#36**.
 
-Objetivo:
-
-Evitar trabajo personalizado sin aceptación comercial y congelar el precio aceptado antes de que un cambio posterior del price book afecte al Evento.
-
-Reglas:
+Objetivo: evitar trabajo personalizado sin aceptación comercial y congelar términos antes de que cambios posteriores del price book afecten el Evento.
 
 - no nuevo `EventStatus`;
-- el movimiento contable sigue ocurriendo al activar;
-- antes de design kickoff debe existir autorización comercial;
-- Flyer/Flipbook adquieren price lock al iniciar preparación personalizada;
-- QR/EventOps no requiere kickoff de diseño personalizado;
-- cambio de SKU antes del kickoff recalcula términos;
-- después del kickoff requiere re-cotización explícita.
+- ledger sigue moviéndose al activar;
+- Flyer/Flipbook requieren autorización antes de design kickoff;
+- price lock Event-scoped;
+- cambio de SKU antes del kickoff recalcula;
+- después del kickoff exige re-cotización explícita.
 
-Criterio de salida:
+DoD: activación cobra exactamente los términos autorizados y no existen cargos sorpresa.
 
-- términos Event-scoped auditables;
-- activación cobra exactamente los términos autorizados;
-- ledger no se mueve antes de activar;
-- no existen cargos sorpresa por cambios posteriores del price book.
-
-## 7. OP-04 — Operator intake y asignación de Planner
+## 9. OP-04 — Operator intake y asignación de Planner
 
 Issue: **#34**  
 Prioridad: **P0**  
 Dependencias: **#36 + #37**.
 
-Decisión resuelta:
+Decisión:
 
 - `clientId` = tenant propietario;
-- `createdByUserId` = actor/provenance real;
-- Platform Admin puede crear el registro desde superficie Admin;
+- `createdByUserId` = provenance real;
+- Platform Admin puede crear;
 - no falsificar Planner creator;
-- ownership operativo se separa mediante asignación explícita de Planner.
+- ownership operativo mediante assignment explícito.
 
-Objetivo:
+Objetivo: eliminar el workaround donde Planner debe crear el shell inicial.
 
-Eliminar el workaround actual donde Planner debe crear el shell del Evento antes de que Provider lo prepare.
+DoD: Provider crea Evento comercialmente autorizado, asigna Planner y entra a preparación sin impersonación.
 
-Alcance:
-
-- Admin create event para Client explícito;
-- contexto comercial autorizado;
-- SKU/servicio y capacidad inicial;
-- Planner assignment cuando corresponda;
-- tenant isolation/auditoría;
-- compatibilidad de Eventos históricos creados por Planner.
-
-Criterio de salida:
-
-- Provider puede iniciar el Evento completo sin credenciales Planner;
-- Organization Planner sólo opera Eventos asignados;
-- Organization Admin mantiene visibilidad correspondiente;
-- no regresión de ownership histórico.
-
-## 8. OPS-01 — Staff access en Client
+## 10. OPS-01 — Staff access en Client
 
 Issue: **#35**  
 Prioridad: **P1**  
 Estado: **READY FOR CODE / paralelizable**.
 
-Este bloque es independiente de Pricing V2 y puede ejecutarse mientras #36/#37 avanzan.
+Objetivo: sección Staff en Evento activo usando backend vigente.
 
-Objetivo:
+No cambiar Staff roles, Scanner, check-in, límite 3, secreto one-time ni permisos Provider.
 
-Añadir superficie `Staff` al Evento activo para que Planner pueda listar y crear accesos usando backend vigente.
+DoD: desaparece el workaround de crear StaffToken manualmente por API.
 
-No cambiar:
-
-- Staff roles;
-- Scanner;
-- check-in;
-- límite 3;
-- secreto one-time;
-- permisos Provider.
-
-Criterio de salida:
-
-- desaparece el workaround de crear StaffToken manualmente por API.
-
-## 9. FIN-OPS-01 — Unit economics por Evento
+## 11. FIN-OPS-01 — Unit economics por Evento
 
 Issue: **#38**  
 Prioridad: **P1**  
-Dependencia: **#36** y PILOT-02 ya cerrado.
+Dependencia: **#36**; PILOT-02 ya cerrado.
 
-Objetivo:
+Medir:
 
-Extender instrumentación operativa para medir contribution margin sin convertir el ledger del Cliente en contabilidad de COGS.
-
-Registrar/derivar:
-
+- ingreso comercial;
 - costo diseñador;
-- otros costos externos;
+- otros COGS;
 - costo tecnológico marginal estimado;
 - rondas de diseño;
-- tiempo operador;
-- soporte;
+- tiempo operador/soporte;
 - trabajo manual;
-- SKU/canal;
-- bracket/tier cuando correspondan;
-- cargo final;
-- devolución comercial si existe.
+- SKU/canal/bracket/tier;
+- devolución comercial;
+- contribution margin.
 
-Costo sombra del fundador:
+No mezclar COGS con ledger del Cliente.
 
-`horas operador × tarifa interna de referencia`.
-
-Criterio de salida:
-
-- por Evento se puede comparar ingreso, COGS, tiempo y contribution margin;
-- ningún costo interno genera movimiento en ledger del Cliente.
-
-## 10. PILOT-03 — UAT comercial de Evento pagado
+## 12. PILOT-03 — UAT comercial de Evento pagado
 
 Issue: **#39**  
 Prioridad: **P1**  
-Dependencias: **#34, #35, #36, #37, #38**.
+Dependencias: **#34, #35, #36, #37, #38, #40, #41**.
 
 Escenarios mínimos:
 
 1. Planner/agencia — Flyer hasta 100 con tarifa partner explícita.
 2. Venue — QR/EventOps con tier por volumen efectivo.
 
-Journey objetivo:
+El journey debe comenzar desde la landing/funnel correspondiente:
 
 ```text
-Canal
+Landing
+  ↓
+Canal / lead o registro
   ↓
 SKU / precio
   ↓
@@ -267,7 +267,7 @@ Provider intake
   ↓
 Preparación operator-led
   ↓
-Planner invitados / operación
+Planner operación
   ↓
 Staff / Scanner
   ↓
@@ -276,18 +276,11 @@ Cierre
 COGS + tiempo + margen
 ```
 
-Criterio de salida:
+DoD: recorrido sin workarounds P0/P1 desde adquisición hasta cierre, con precio, actor, costos y margen auditables.
 
-- recorrido sin workarounds P0/P1;
-- precio y actor auditables;
-- no cargo sorpresa;
-- unit economics calculables;
-- incidencias capturadas;
-- decisión posterior basada en evidencia.
+## 13. Estado de capacidades que no se reabren
 
-## 11. Estado de capacidades existentes
-
-No reabrir salvo regresión reproducible:
+Salvo regresión reproducible:
 
 - Invitation Design provider-led;
 - Croquis V2 Builder;
@@ -303,75 +296,76 @@ No reabrir salvo regresión reproducible:
 - line of credit/debt;
 - privacidad/anonimización.
 
-## 12. Not now
-
-Hasta evidencia comercial:
+## 14. Not now
 
 - Mercado Pago;
 - CFDI automático;
 - add-ons automáticos;
 - fee no recuperable automático de diseño;
-- price matrix venue × capacidad;
-- partner pricing inferido para brackets no aprobados;
+- Venue × capacidad pricing;
+- partner pricing inferido;
 - QR/EventOps + RSVP público;
 - WhatsApp API;
+- CRM externo;
 - BI/warehouse;
 - nueva contabilidad general;
 - marketplace;
-- roles nuevos;
+- nuevos roles;
 - Planner Croquis Builder;
 - Seat/SeatAssignment persistente.
 
-## 13. Orden de ejecución
+## 15. Orden de ejecución
 
-Camino crítico:
+### Camino crítico de pricing/operación
 
 ```text
 GOV-COM-01
     ↓
 COM-01 #36
-    ↓
-COM-02 #37
-    ↓
-OP-04 #34
-    ↓
-PILOT-03 #39
+    ├─────────────→ LAND-01 #40 → LAND-02 #41 ───────┐
+    ↓                                                │
+COM-02 #37                                          │
+    ↓                                                │
+OP-04 #34                                           │
+    └────────────────────────────────────────────────┤
+                                                     ↓
+                                                PILOT-03 #39
 ```
 
-Paralelo autorizado:
+### Paralelo autorizado
 
 ```text
-OPS-01 #35 ───────────────┐
-                          ├─→ PILOT-03 #39
-FIN-OPS-01 #38 (tras #36) ┘
+OPS-01 #35 ──────────────────────────────────────────┐
+FIN-OPS-01 #38 (después de #36) ─────────────────────┤
+                                                     └→ PILOT-03 #39
 ```
 
-## 14. Dashboard de esta etapa
+## 16. Dashboard de esta etapa
 
-La etapa técnica anterior no se recalcula: permanece **10/10 DONE**.
-
-La etapa comercial nueva tiene siete bloques:
+La etapa comercial tiene **nueve bloques**:
 
 1. GOV-COM-01;
 2. COM-01;
-3. COM-02;
-4. OP-04;
-5. OPS-01;
-6. FIN-OPS-01;
-7. PILOT-03 como gate final de validación.
+3. LAND-01;
+4. LAND-02;
+5. COM-02;
+6. OP-04;
+7. OPS-01;
+8. FIN-OPS-01;
+9. PILOT-03.
 
-No utilizar un único porcentaje global mezclando ambos roadmaps sin explicar el denominador.
+No mezclar su porcentaje con el roadmap técnico 10/10 sin explicar denominadores.
 
-## 15. Definición de éxito
+## 17. Definición de éxito
 
-El objetivo ya no es demostrar únicamente que el software funciona.
+InvitacionesPremium debe poder:
 
-Es demostrar que InvitacionesPremium puede:
-
+- explicar y vender correctamente sus SKU desde la landing;
+- convertir Planner/agencia y Venue por rutas distintas;
 - cotizar correctamente por canal/SKU;
-- proteger margen antes de incurrir en diseño/operación;
-- crear y asignar Eventos desde Provider sin impersonación;
-- operar Staff desde Planner sin workaround;
-- ejecutar un Evento real/pagado;
-- medir tiempo, COGS y margen de contribución;
+- proteger margen antes de COGS;
+- crear/asignar Eventos desde Provider sin impersonación;
+- operar Staff desde Planner;
+- ejecutar un Evento pagado;
+- medir tiempo, COGS y contribution margin;
 - usar recompra y volumen sostenido como evidencia comercial posterior.
