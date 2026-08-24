@@ -5,6 +5,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { configuredEvent, mockApiClient } from '../test/fixtures';
 import { DesignStep } from './design/DesignStep';
 import { PhysicalPassesStep } from './physical-passes/PhysicalPassesStep';
+import { createPhysicalPassesPdf } from './physical-passes/physical-passes-pdf';
+
+vi.mock('./physical-passes/physical-passes-pdf', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./physical-passes/physical-passes-pdf')>()),
+  createPhysicalPassesPdf: vi.fn()
+}));
 
 const hotspot: Hotspot = {
   id: 'hotspot-1',
@@ -71,6 +77,8 @@ const uploadedAsset = {
 
 describe('visual wizard editors', () => {
   beforeEach(() => {
+    vi.mocked(createPhysicalPassesPdf).mockReset();
+    vi.mocked(createPhysicalPassesPdf).mockResolvedValue(new Blob(['pdf'], { type: 'application/pdf' }));
     Object.defineProperty(URL, 'createObjectURL', {
       configurable: true,
       value: vi.fn(() => `blob:${crypto.randomUUID()}`)
@@ -183,5 +191,86 @@ describe('visual wizard editors', () => {
     render(<PhysicalPassesStep apiClient={api} event={configuredEvent} disabled={false} />);
     await userEvent.click(await screen.findByRole('button', { name: 'Descargar SVG' }));
     await waitFor(() => expect(filename).toBe('pase-0001.svg'));
+  });
+
+  it('exports every listed pass to one printable PDF in read-only mode', async () => {
+    const api = mockApiClient();
+    const passes = [
+      {
+        id: 'pass-2',
+        eventId: configuredEvent.id,
+        passNumber: 2,
+        status: 'USED' as const,
+        table: null,
+        usedAt: '2026-01-01T03:00:00Z',
+        createdAt: '2026-01-01T00:00:00Z'
+      },
+      {
+        id: 'pass-1',
+        eventId: configuredEvent.id,
+        passNumber: 1,
+        status: 'UNUSED' as const,
+        table: null,
+        usedAt: null,
+        createdAt: '2026-01-01T00:00:00Z'
+      }
+    ];
+    vi.mocked(api.physicalPasses.list).mockResolvedValue(passes);
+    vi.mocked(api.physicalPasses.svg).mockResolvedValue('<svg/>');
+    vi.mocked(createPhysicalPassesPdf).mockImplementation(async ({ passes: printable, loadSvg, onProgress }) => {
+      for (const [index, pass] of printable.entries()) {
+        await loadSvg(pass);
+        onProgress?.(index + 1, printable.length);
+      }
+      return new Blob(['pdf'], { type: 'application/pdf' });
+    });
+    let filename = '';
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      filename = this.download;
+    });
+
+    render(<PhysicalPassesStep apiClient={api} event={configuredEvent} disabled={true} />);
+    const exportButton = await screen.findByRole('button', { name: 'Exportar plantilla PDF' });
+    expect(exportButton).toBeEnabled();
+    await userEvent.click(exportButton);
+
+    await waitFor(() => expect(filename).toBe('plantilla-pases-boda-de-ana-y-luis.pdf'));
+    expect(api.physicalPasses.svg).toHaveBeenCalledTimes(2);
+    expect(api.physicalPasses.svg).toHaveBeenCalledWith(configuredEvent.id, 'pass-2');
+    expect(api.physicalPasses.svg).toHaveBeenCalledWith(configuredEvent.id, 'pass-1');
+    expect(await screen.findByText('PDF listo: 2 pases en 1 hoja(s).')).toBeInTheDocument();
+  });
+
+  it('disables PDF export when the event has no passes', async () => {
+    const api = mockApiClient();
+    render(<PhysicalPassesStep apiClient={api} event={configuredEvent} disabled={false} />);
+
+    expect(await screen.findByRole('button', { name: 'Exportar plantilla PDF' })).toBeDisabled();
+    expect(createPhysicalPassesPdf).not.toHaveBeenCalled();
+  });
+
+  it('keeps PDF export retryable when preparation fails', async () => {
+    const api = mockApiClient();
+    vi.mocked(api.physicalPasses.list).mockResolvedValue([
+      {
+        id: 'pass-1',
+        eventId: configuredEvent.id,
+        passNumber: 1,
+        status: 'UNUSED',
+        table: null,
+        usedAt: null,
+        createdAt: '2026-01-01T00:00:00Z'
+      }
+    ]);
+    vi.mocked(createPhysicalPassesPdf).mockRejectedValue(new Error('canvas unavailable'));
+    const download = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+
+    render(<PhysicalPassesStep apiClient={api} event={configuredEvent} disabled={false} />);
+    const exportButton = await screen.findByRole('button', { name: 'Exportar plantilla PDF' });
+    await userEvent.click(exportButton);
+
+    expect(await screen.findByText(/No fue posible exportar la plantilla/)).toBeInTheDocument();
+    expect(download).not.toHaveBeenCalled();
+    expect(exportButton).toBeEnabled();
   });
 });

@@ -1,10 +1,17 @@
 import type { ApiClient, Event } from '@invitaciones/api-client';
+import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import { Alert, Button, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AttemptManager, isUncertainFailure } from '../wizard-model';
 import { downloadBlob, errorMessage } from '../wizard-utils';
+import {
+  createPhysicalPassesPdf,
+  PHYSICAL_PASSES_PER_PDF_PAGE,
+  physicalPassesPdfFilename
+} from './physical-passes-pdf';
 
 type Batch = { id: string; first: number; last: number; quantity: number; table: string | null };
+type Message = { severity: 'error' | 'info' | 'success'; text: string };
 export function PhysicalPassesStep({
   apiClient,
   event,
@@ -24,7 +31,9 @@ export function PhysicalPassesStep({
     { key: string; identity: string; quantity: number; tableShapeId: string } | undefined
   >();
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string>();
+  const [exporting, setExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState<{ completed: number; total: number }>();
+  const [message, setMessage] = useState<Message>();
   const refresh = useCallback(() => apiClient.physicalPasses.list(event.id).then(setPasses), [apiClient, event.id]);
   useEffect(() => {
     void refresh();
@@ -37,7 +46,7 @@ export function PhysicalPassesStep({
         .catch(() => setTables([]));
   }, [apiClient, event.floorplanEnabled, event.id, refresh]);
   const run = async (retry = false) => {
-    if (busy) return;
+    if (busy || exporting) return;
     setBusy(true);
     const attemptedQuantity = retry && uncertain ? uncertain.quantity : quantity;
     const attemptedTable = retry && uncertain ? uncertain.tableShapeId : tableShapeId;
@@ -76,7 +85,10 @@ export function PhysicalPassesStep({
             quantity: attemptedQuantity,
             tableShapeId: attemptedTable
           });
-          setMessage('No conocemos el resultado. Reintenta este mismo intento para conservar la llave.');
+          setMessage({
+            severity: 'info',
+            text: 'No conocemos el resultado. Reintenta este mismo intento para conservar la llave.'
+          });
         } catch {
           setUncertain({
             key: attempt.key,
@@ -84,15 +96,44 @@ export function PhysicalPassesStep({
             quantity: attemptedQuantity,
             tableShapeId: attemptedTable
           });
-          setMessage('No conocemos el resultado. Reintenta este mismo intento para conservar la llave.');
+          setMessage({
+            severity: 'info',
+            text: 'No conocemos el resultado. Reintenta este mismo intento para conservar la llave.'
+          });
         }
       } else {
         attempts.current.clear('passes', attempt.key);
         setUncertain(undefined);
-        setMessage(errorMessage(reason));
+        setMessage({ severity: 'error', text: errorMessage(reason) });
       }
     } finally {
       setBusy(false);
+    }
+  };
+  const exportPdf = async () => {
+    if (busy || exporting || passes.length === 0) return;
+    setExporting(true);
+    setExportProgress({ completed: 0, total: passes.length });
+    setMessage(undefined);
+    try {
+      const latestPasses = await apiClient.physicalPasses.list(event.id);
+      setPasses(latestPasses);
+      const pdf = await createPhysicalPassesPdf({
+        eventName: event.name,
+        passes: latestPasses,
+        loadSvg: (pass) => apiClient.physicalPasses.svg(event.id, pass.id),
+        onProgress: (completed, total) => setExportProgress({ completed, total })
+      });
+      downloadBlob(pdf, physicalPassesPdfFilename(event.name));
+      setMessage({
+        severity: 'success',
+        text: `PDF listo: ${latestPasses.length} pases en ${Math.ceil(latestPasses.length / PHYSICAL_PASSES_PER_PDF_PAGE)} hoja(s).`
+      });
+    } catch (reason) {
+      setMessage({ severity: 'error', text: `No fue posible exportar la plantilla. ${errorMessage(reason)}` });
+    } finally {
+      setExporting(false);
+      setExportProgress(undefined);
     }
   };
   return (
@@ -105,7 +146,7 @@ export function PhysicalPassesStep({
           type="number"
           label="Cantidad"
           value={quantity}
-          disabled={busy || Boolean(uncertain)}
+          disabled={busy || exporting || Boolean(uncertain)}
           slotProps={{ htmlInput: { min: 1 } }}
           onChange={(e) => setQuantity(Number(e.target.value))}
         />
@@ -113,7 +154,7 @@ export function PhysicalPassesStep({
           select
           label="Mesa opcional"
           value={tableShapeId}
-          disabled={busy || Boolean(uncertain)}
+          disabled={busy || exporting || Boolean(uncertain)}
           onChange={(e) => setTableShapeId(e.target.value)}
         >
           <MenuItem value="">Sin Mesa</MenuItem>
@@ -125,13 +166,13 @@ export function PhysicalPassesStep({
         </TextField>
         <Button
           variant="contained"
-          disabled={disabled || busy || Boolean(uncertain) || quantity < 1}
+          disabled={disabled || busy || exporting || Boolean(uncertain) || quantity < 1}
           onClick={() => void run(false)}
         >
           Generar lote
         </Button>
         {uncertain ? (
-          <Button disabled={busy} onClick={() => void run(true)}>
+          <Button disabled={busy || exporting} onClick={() => void run(true)}>
             Reintentar lote incierto
           </Button>
         ) : null}
@@ -140,6 +181,23 @@ export function PhysicalPassesStep({
         {passes.length} pases generados · {passes.filter((pass) => pass.status === 'USED').length} usados ·{' '}
         {passes.filter((pass) => pass.status === 'UNUSED').length} no usados
       </Typography>
+      <Stack spacing={0.5} sx={{ alignItems: 'flex-start' }}>
+        <Button
+          variant="outlined"
+          startIcon={<DownloadOutlinedIcon />}
+          disabled={busy || exporting || passes.length === 0}
+          onClick={() => void exportPdf()}
+        >
+          {exporting && exportProgress
+            ? `Preparando PDF ${exportProgress.completed}/${exportProgress.total}`
+            : 'Exportar plantilla PDF'}
+        </Button>
+        <Typography variant="body2" color="text.secondary" aria-live="polite">
+          {exporting && exportProgress
+            ? `Se han preparado ${exportProgress.completed} de ${exportProgress.total} pases.`
+            : `Descarga todos los pases en hojas A4 listas para imprimir, con ${PHYSICAL_PASSES_PER_PDF_PAGE} pases por hoja.`}
+        </Typography>
+      </Stack>
       {batches.map((batch) => (
         <Alert key={batch.id} severity="success">
           Lote {batch.first}–{batch.last} · {batch.quantity} pases · Mesa: {batch.table ?? 'sin Mesa'}
@@ -152,6 +210,7 @@ export function PhysicalPassesStep({
             {pass.table?.name ?? 'sin Mesa'}
           </Typography>
           <Button
+            disabled={exporting}
             onClick={() =>
               void apiClient.physicalPasses
                 .svg(event.id, pass.id)
@@ -167,7 +226,7 @@ export function PhysicalPassesStep({
           </Button>
         </Stack>
       ))}
-      {message ? <Alert severity="info">{message}</Alert> : null}
+      {message ? <Alert severity={message.severity}>{message.text}</Alert> : null}
     </Stack>
   );
 }

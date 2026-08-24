@@ -211,8 +211,9 @@ protege imagen y formas contra cambios accidentales, pero no agrega una regla de
 continúa en backend. El estado finalizado mantiene plano, Mesas, Zonas y **Lugares distribuidos** visibles
 en modo de solo lectura.
 
-Pases permite cantidad y Mesa opcional, conserva varios lotes y rangos, lista usados/no usados y Mesa, y
-descarga SVG como `pase-0001.svg`.
+Pases permite cantidad y Mesa opcional, conserva varios lotes y rangos, lista usados/no usados y Mesa,
+descarga SVG como `pase-0001.svg` y exporta todos los pases a una plantilla PDF A4 horizontal de 30 pases
+por hoja.
 
 ## Revisión y activación
 
@@ -232,6 +233,6 @@ como referencia secundaria. `401` conserva `returnTo`; red o `500` no expiran la
 
 Las pruebas de componentes cubren creación concurrente, pasos incompatibles, CSV sucesivos, lotes iguales,
 retry incierto frente a concurrencia ajena, zona distinta al navegador, DST, patches atómicos,
-Flyer/Flipbook, CRUD de Hotspots y páginas, Object URLs, geometrías de Mesa/Zona, SVG,
-Revisión digital/física, permisos financieros, diálogo y activación. Los tipos proceden exclusivamente de
+Flyer/Flipbook, CRUD de Hotspots y páginas, Object URLs, geometrías de Mesa/Zona, SVG, plantilla PDF de
+pases, Revisión digital/física, permisos financieros, diálogo y activación. Los tipos proceden exclusivamente de
 OpenAPI mediante `@invitaciones/api-client`.

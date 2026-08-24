@@ -80,6 +80,11 @@ El SVG se deriva bajo demanda con nombre del Evento, número, QR y Mesa opcional
 estructura controlada, no contiene el token como texto, PII, scripts, imágenes o URLs externas y no se
 persiste. `PHYSICAL_PASS_QR_SVG` continúa reservado sin crear FileAsset.
 
+El Wizard autenticado puede componer bajo demanda una plantilla PDF A4 horizontal exclusivamente con
+esos SVG autorizados, a razón de 30 pases por hoja (5 columnas por 6 filas). La composición ocurre en el
+navegador, no persiste el PDF, no crea `FileAsset`, no agrega endpoints y conserva la descarga SVG
+individual.
+
 Headers: `image/svg+xml`, `Content-Length`, `Content-Disposition: inline`, ETag SHA-256,
 `private, no-store`, `nosniff`, `no-referrer` y CSP `default-src 'none'`.
 
@@ -150,5 +155,6 @@ con `jsQR` y usan el token decodificado; no crean FileAsset de QR.
 
 ## Fuera de alcance
 
-Contactos, Invitaciones, Asistentes artificiales, Confirmación, Álbum, PDF, frontend, WhatsApp,
+Contactos, Invitaciones, Asistentes artificiales, Confirmación, Álbum, PDF persistido o generado por
+backend, frontend distinto de la composición imprimible descrita, WhatsApp,
 transferencia/reversión de pase, offline, Redis, outbox, Socket.IO nuevo y `CODEX-110`.
