@@ -350,7 +350,7 @@ FIN-OPS-01 #38 (tras #36) ┘
 
 La etapa técnica anterior no se recalcula: permanece **10/10 DONE**.
 
-La etapa comercial nueva tiene seis bloques operativos:
+La etapa comercial nueva tiene siete bloques:
 
 1. GOV-COM-01;
 2. COM-01;
