@@ -14,7 +14,8 @@ Leer primero `docs/04-tecnico/REPOSITORY_SOURCE_OF_TRUTH.md` cuando una tarea me
 - `02_PRD.md`
 - `03_ROLES_PERMISOS_ACCESO.md`
 - `04_OPERATOR_LED_MVP.md` — perfil de lanzamiento asistido/operator-led
-- `05_MODELO_COMERCIAL_PRICING_Y_OPERACION.md` — fuente de verdad comercial vigente para SKU vs canal, pricing por capacidad/volumen, gate financiero, intake Provider y ajustes del flujo operator-led
+- `05_MODELO_COMERCIAL_PRICING_Y_OPERACION.md` — fuente de verdad comercial vigente para SKU vs canal, pricing, gate financiero, intake Provider y ajustes del flujo operator-led
+- `05A_PRICING_RESOLUTION_CLARIFICATION.md` — aclaración obligatoria: standard por capacidad, partner explícito y venue QR/EventOps por volumen sin inventar matriz de capacidad
 - `ACCESS_MATRIX.md` — matriz estándar de roles/endpoints
 - `ACCESS_MATRIX_OPERATOR_LED_ADDENDUM.md` — capability administrativa adicional para lanzamiento, sin nuevo rol
 
@@ -84,7 +85,8 @@ Leer primero `docs/04-tecnico/REPOSITORY_SOURCE_OF_TRUTH.md` cuando una tarea me
 - `16_BACKLOG_QA_AMENDMENTS.md`
 - `17_QA_OPEN_DECISIONS.md`
 - `18_MONOREPO_BOOTSTRAP.md`
-- `19_OPERATOR_LED_FLOORPLAN_ROADMAP.md` — orden de ejecución hacia piloto
+- `19_OPERATOR_LED_FLOORPLAN_ROADMAP.md` — roadmap técnico original hacia piloto; su objetivo quedó completado
+- `20_COMMERCIAL_PILOT_ROADMAP.md` — segunda etapa: Pricing V2, autorización comercial, Operator intake, Staff UI, unit economics y UAT comercial
 - `OP03A_PLANNER_PROVIDER_CAPABILITY_SEPARATION.md` — contrato de reducción backend de mutaciones Planner y preservación de lectura/Seating
 - `OP03B_OPERATOR_PLANNER_SURFACES.md` — gating de launch surface Planner y preparación provider-led en Admin
 - `FP01_PROVIDER_FLOORPLAN_SHELL.md` — shell Croquis V2 provider-led y extracción autorizada del engine compartido
@@ -101,24 +103,26 @@ Leer primero `docs/04-tecnico/REPOSITORY_SOURCE_OF_TRUTH.md` cuando una tarea me
 Cuando una tarea afecte SKU, pricing, canal, volumen, unit economics, inicio de preparación, creator/assignment de Evento o responsabilidades Provider/Planner:
 
 1. `05_MODELO_COMERCIAL_PRICING_Y_OPERACION.md` para la decisión comercial vigente.
-2. `04_OPERATOR_LED_MVP.md` para la separación general Provider/Planner, salvo ajustes expresamente sustituidos por el documento comercial.
-3. `02_PRD.md`, `04_APP_FLOW.md`, `05_REGLAS_NEGOCIO.md` y `06_FINANZAS_CREDITOS_CONTABILIDAD.md` para reglas no sustituidas.
-4. Contrato técnico especializado del dominio afectado.
-5. Código sólo después de convertir cualquier gap restante en ticket/contrato explícito.
+2. `05A_PRICING_RESOLUTION_CLARIFICATION.md` para resolver standard/partner/venue sin inventar dimensiones de precio.
+3. `04_OPERATOR_LED_MVP.md` para la separación general Provider/Planner, salvo ajustes expresamente sustituidos por el documento comercial.
+4. `02_PRD.md`, `04_APP_FLOW.md`, `05_REGLAS_NEGOCIO.md` y `06_FINANZAS_CREDITOS_CONTABILIDAD.md` para reglas no sustituidas.
+5. Contrato técnico especializado del dominio afectado.
+6. `20_COMMERCIAL_PILOT_ROADMAP.md` para orden de ejecución de la segunda etapa.
+7. Código sólo después de convertir cualquier gap restante en ticket/contrato explícito.
 
 En particular, `ClientType` no debe interpretarse como canal comercial y las tablas históricas Planner/Organization no deben hardcodearse como pricing definitivo.
 
 ## Precedencia para el cambio operator-led / Croquis V2
 
-Cuando una tarea pertenezca a este cambio, usar este orden práctico:
+Cuando una tarea pertenezca al baseline Croquis/operator-led, usar este orden práctico:
 
 1. `REPOSITORY_SOURCE_OF_TRUTH.md` para decidir qué repositorio/material es autoritativo.
 2. `02_PRD.md`, `03_ROLES_PERMISOS_ACCESO.md`, `04_OPERATOR_LED_MVP.md` y, cuando aplique pricing/operación comercial, `05_MODELO_COMERCIAL_PRICING_Y_OPERACION.md` para producto.
 3. ADR/contrato especializado del área (`ADR_OPERATOR_LED_ACCESS.md`, `FLOORPLAN_STICKER_SEATING_CONTRACT.md`, etc.).
 4. `FLOORPLAN_UX_TARGET.md` y `LEGACY_UI_VISUAL_PORT_GUIDE.md` para UI/UX.
 5. `14_CODEX_RULES.md` + `14A_OPERATOR_LED_CODEX_RULES.md` para implementación.
-6. `19_OPERATOR_LED_FLOORPLAN_ROADMAP.md` para secuencia de ejecución.
-7. Contrato de implementación del ticket activo (`FP01_PROVIDER_FLOORPLAN_SHELL.md`, `FP02_STICKER_CATALOG.md`, `FP03_FLOORPLAN_INTERACTION_ROBUSTNESS.md`, `FP04_PLANNER_SEATING_WORKSPACE_ALIGNMENT.md`, `FP05_SCALE_OPERATION_QA.md`, `PILOT01_END_TO_END_READINESS.md`, `PILOT02_MINIMUM_OPERATIONAL_INSTRUMENTATION.md`, etc.).
+6. `19_OPERATOR_LED_FLOORPLAN_ROADMAP.md` como historial del roadmap técnico completado.
+7. `20_COMMERCIAL_PILOT_ROADMAP.md` para cambios posteriores derivados del modelo comercial.
 8. Render o referencia legacy únicamente al final y sólo para intención visual autorizada.
 
 Una referencia visual nunca puede cambiar dominio, permisos, estados, contratos API o reglas financieras.
