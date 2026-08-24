@@ -93,6 +93,7 @@ Leer primero `docs/04-tecnico/REPOSITORY_SOURCE_OF_TRUTH.md` cuando una tarea me
 - `FP05_SCALE_OPERATION_QA.md` — certificación de escala 50/100/200 Mesas, Seating masivo, concurrencia, realtime y recuperación antes de PILOT-01
 - `PILOT01_END_TO_END_READINESS.md` — certificación del primer recorrido FLYER + Croquis de preparación provider-led a activación, distribución, RSVP, Seating, Staff, Scanner y cierre
 - `PILOT02_MINIMUM_OPERATIONAL_INSTRUMENTATION.md` — journal operativo event-scoped para medir esfuerzo, incidencias, soporte y trabajo manual sin plataforma de analytics
+- `LOCAL_PILOT_OPERATION_RUNBOOK.md` — manual local reproducible Admin/Planner/Invitado/Staff, fixture CSV y gaps operativos detectados al ejecutar el recorrido humano
 
 ## Precedencia para el cambio operator-led / Croquis V2
 
