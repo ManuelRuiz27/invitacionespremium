@@ -10,15 +10,18 @@ import { AuditedMutationService, auditedResult } from '../audit/audited-mutation
 import type { AuthPrincipal } from '../auth/auth.types';
 import { PrismaService } from '../common/database/prisma.service';
 import { DomainError } from '../common/errors/domain-error';
+import { AppConfigService } from '../config/app-config.service';
 import {
   AuditActorType,
   type ClientType,
+  CommercialChannel,
   type Prisma,
   type Promotion,
   type PromotionScope,
   ServiceCode,
   type Service,
-  type ServicePrice
+  type ServicePrice,
+  VenuePriceTier
 } from '../generated/prisma/client';
 import type {
   AvailableServiceResponseDto,
@@ -28,6 +31,7 @@ import type {
   CreateServiceInput,
   PriceResponseDto,
   PromotionResponseDto,
+  PublicPricingResponseDto,
   ServiceResponseDto,
   UpdatePromotionInput,
   UpdateServiceInput
@@ -36,6 +40,9 @@ import type {
 type PriceWithService = ServicePrice & { service: Pick<Service, 'code'> };
 type CurrentPriceWithService = ServicePrice & { service: Pick<Service, 'id' | 'code'> };
 type PricingDatabase = PrismaService | Prisma.TransactionClient;
+
+const PRICING_VERSION_V2 = 2;
+export const COMMERCIAL_TIME_ZONE = 'America/Mexico_City';
 
 export interface PromotionEligibilityInput {
   scope: PromotionScope;
@@ -49,7 +56,8 @@ export interface PromotionEligibilityInput {
 export class ServicesPricingService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
-    @Inject(AuditedMutationService) private readonly auditedMutation: AuditedMutationService
+    @Inject(AuditedMutationService) private readonly auditedMutation: AuditedMutationService,
+    @Inject(AppConfigService) private readonly config: AppConfigService
   ) {}
 
   async listAvailable(principal: AuthPrincipal): Promise<AvailableServiceResponseDto[]> {
@@ -60,59 +68,102 @@ export class ServicesPricingService {
       });
     }
 
-    const prices = await this.findCurrentPrices(this.prisma, principal.clientType, new Date(), {
-      activeServicesOnly: true
-    });
-
-    return prices.map((price) => ({
-      id: price.service.id,
-      code: price.service.code,
-      credits: price.credits,
-      validFrom: price.validFrom.toISOString(),
-      validUntil: price.validUntil?.toISOString() ?? null
-    }));
+    const at = new Date();
+    const client = await this.requirePricingClient(this.prisma, principal.clientId);
+    const channel = client.commercialChannel ?? CommercialChannel.STANDARD;
+    const prices =
+      channel === CommercialChannel.VENUE
+        ? [await this.resolveVenuePrice(this.prisma, principal.clientId, ServiceCode.PHYSICAL_QR, at)]
+        : await this.findCurrentV2Prices(this.prisma, channel, at, { activeServicesOnly: true });
+    const services = new Map<string, AvailableServiceResponseDto>();
+    for (const price of prices) {
+      const service = services.get(price.serviceId) ?? {
+        id: price.service.id,
+        code: price.service.code,
+        priceRules: []
+      };
+      service.priceRules.push({
+        id: price.id,
+        capacityMin: price.capacityMin,
+        capacityMax: price.capacityMax,
+        venueTier: price.venueTier,
+        credits: price.credits,
+        validFrom: price.validFrom.toISOString(),
+        validUntil: price.validUntil?.toISOString() ?? null
+      });
+      services.set(price.serviceId, service);
+    }
+    return [...services.values()];
   }
 
   async resolveCurrentPrice(
+    clientId: string,
     serviceCode: ServiceCode,
-    clientType: ClientType,
+    capacity: number | null,
     at: Date = new Date()
   ): Promise<PriceResponseDto> {
-    return this.resolveCurrentPriceWithDatabase(this.prisma, serviceCode, clientType, at);
+    return this.resolveCurrentPriceWithDatabase(this.prisma, clientId, serviceCode, capacity, at);
   }
 
   async resolveCurrentPriceInTransaction(
     transaction: Prisma.TransactionClient,
+    clientId: string,
     serviceCode: ServiceCode,
-    clientType: ClientType,
+    capacity: number | null,
     at: Date = new Date()
   ): Promise<PriceResponseDto> {
-    return this.resolveCurrentPriceWithDatabase(transaction, serviceCode, clientType, at);
+    return this.resolveCurrentPriceWithDatabase(transaction, clientId, serviceCode, capacity, at);
   }
 
   private async resolveCurrentPriceWithDatabase(
     database: PricingDatabase,
+    clientId: string,
     serviceCode: ServiceCode,
-    clientType: ClientType,
+    capacity: number | null,
     at: Date
   ): Promise<PriceResponseDto> {
-    const prices = await this.findCurrentPrices(database, clientType, at, { serviceCode });
-    const price = prices[0];
+    const client = await this.requirePricingClient(database, clientId);
+    const channel = client.commercialChannel ?? CommercialChannel.STANDARD;
+    const price =
+      channel === CommercialChannel.VENUE
+        ? await this.resolveVenuePrice(database, clientId, serviceCode, at)
+        : await this.resolveCapacityPrice(database, channel, serviceCode, capacity, at);
 
     if (!price) {
       throw new DomainError(
         'CURRENT_PRICE_NOT_FOUND',
-        'No current price exists for the service and Client type at the requested instant.',
+        `No applicable ${channel} price exists for the service, capacity and requested instant.`,
         HttpStatus.NOT_FOUND,
         {
           serviceCode,
-          clientType,
+          commercialChannel: channel,
+          capacity,
           at: at.toISOString()
         }
       );
     }
 
     return toPriceResponse(price);
+  }
+
+  async listPublicPricing(at: Date = new Date()): Promise<PublicPricingResponseDto[]> {
+    const prices = await this.findCurrentV2Prices(this.prisma, CommercialChannel.STANDARD, at, {
+      activeServicesOnly: true
+    });
+    return prices
+      .filter(
+        (price) => price.service.code !== ServiceCode.DEMO && price.capacityMin !== null && price.capacityMax !== null
+      )
+      .map((price) => ({
+        serviceCode: price.service.code,
+        displayName: publicServiceName(price.service.code),
+        capacityMin: price.capacityMin!,
+        capacityMax: price.capacityMax!,
+        credits: price.credits,
+        amountMxnCents: price.credits * this.config.creditUnitValueMxnCents,
+        validFrom: price.validFrom.toISOString(),
+        validUntil: price.validUntil?.toISOString() ?? null
+      }));
   }
 
   async createService(
@@ -178,7 +229,14 @@ export class ServicesPricingService {
   async listPrices(): Promise<PriceResponseDto[]> {
     const prices = await this.prisma.servicePrice.findMany({
       include: { service: { select: { code: true } } },
-      orderBy: [{ service: { code: 'asc' } }, { clientType: 'asc' }, { validFrom: 'desc' }]
+      orderBy: [
+        { pricingVersion: 'desc' },
+        { service: { code: 'asc' } },
+        { commercialChannel: 'asc' },
+        { capacityMin: 'asc' },
+        { venueTier: 'asc' },
+        { validFrom: 'desc' }
+      ]
     });
 
     return prices.map(toPriceResponse);
@@ -198,7 +256,7 @@ export class ServicesPricingService {
         resourceType: 'SERVICE_PRICE',
         action: 'SERVICE_PRICE_CREATE',
         ...(operationId === undefined ? {} : { operationId }),
-        metadata: { serviceId: input.serviceId, clientType: input.clientType },
+        metadata: { serviceId: input.serviceId, commercialChannel: input.commercialChannel },
         mutate: async (transaction) => {
           const service = await transaction.service.findUnique({ where: { id: input.serviceId } });
 
@@ -207,11 +265,21 @@ export class ServicesPricingService {
           }
 
           assertDemoPrice(service.code, input.credits);
+          if (input.commercialChannel === CommercialChannel.VENUE && service.code !== ServiceCode.PHYSICAL_QR) {
+            throw new BadRequestException({
+              code: 'INVALID_VENUE_PRICE_SERVICE',
+              message: 'Venue pricing is only available for PHYSICAL_QR.'
+            });
+          }
 
           const priorOpen = await transaction.servicePrice.findFirst({
             where: {
               serviceId: input.serviceId,
-              clientType: input.clientType,
+              pricingVersion: PRICING_VERSION_V2,
+              commercialChannel: input.commercialChannel,
+              capacityMin: input.capacityMin ?? null,
+              capacityMax: input.capacityMax ?? null,
+              venueTier: input.venueTier ?? null,
               validUntil: null,
               validFrom: { lt: validFrom }
             },
@@ -235,10 +303,17 @@ export class ServicesPricingService {
           const overlap = await transaction.servicePrice.findFirst({
             where: {
               serviceId: input.serviceId,
-              clientType: input.clientType,
+              pricingVersion: PRICING_VERSION_V2,
+              commercialChannel: input.commercialChannel,
               ...(priorOpen ? { id: { not: priorOpen.id } } : {}),
               validFrom: validUntil === null ? {} : { lt: validUntil },
-              OR: [{ validUntil: null }, { validUntil: { gt: validFrom } }]
+              OR: [{ validUntil: null }, { validUntil: { gt: validFrom } }],
+              ...(input.commercialChannel === CommercialChannel.VENUE
+                ? { venueTier: input.venueTier ?? null }
+                : {
+                    capacityMin: { lte: input.capacityMax! },
+                    capacityMax: { gte: input.capacityMin! }
+                  })
             },
             select: { id: true }
           });
@@ -250,7 +325,11 @@ export class ServicesPricingService {
           const price = await transaction.servicePrice.create({
             data: {
               serviceId: input.serviceId,
-              clientType: input.clientType,
+              pricingVersion: PRICING_VERSION_V2,
+              commercialChannel: input.commercialChannel,
+              capacityMin: input.capacityMin ?? null,
+              capacityMax: input.capacityMax ?? null,
+              venueTier: input.venueTier ?? null,
               credits: input.credits,
               validFrom,
               validUntil
@@ -466,8 +545,22 @@ export class ServicesPricingService {
   }
 
   async findEligiblePromotions(input: PromotionEligibilityInput): Promise<PromotionResponseDto[]> {
+    return this.findEligiblePromotionsWithDatabase(this.prisma, input);
+  }
+
+  async findEligiblePromotionsInTransaction(
+    transaction: Prisma.TransactionClient,
+    input: PromotionEligibilityInput
+  ): Promise<PromotionResponseDto[]> {
+    return this.findEligiblePromotionsWithDatabase(transaction, input);
+  }
+
+  private async findEligiblePromotionsWithDatabase(
+    database: PricingDatabase,
+    input: PromotionEligibilityInput
+  ): Promise<PromotionResponseDto[]> {
     const at = input.at ?? new Date();
-    const promotions = await this.prisma.promotion.findMany({
+    const promotions = await database.promotion.findMany({
       where: {
         isActive: true,
         scope: input.scope,
@@ -495,15 +588,16 @@ export class ServicesPricingService {
     return service;
   }
 
-  private findCurrentPrices(
+  private findCurrentV2Prices(
     database: PricingDatabase,
-    clientType: ClientType,
+    commercialChannel: CommercialChannel,
     at: Date,
     options: { serviceCode?: ServiceCode; activeServicesOnly?: boolean } = {}
   ): Promise<CurrentPriceWithService[]> {
     return database.servicePrice.findMany({
       where: {
-        clientType,
+        pricingVersion: PRICING_VERSION_V2,
+        commercialChannel,
         validFrom: { lte: at },
         OR: [{ validUntil: null }, { validUntil: { gt: at } }],
         service: {
@@ -512,8 +606,131 @@ export class ServicesPricingService {
         }
       },
       include: { service: { select: { id: true, code: true } } },
-      orderBy: [{ service: { code: 'asc' } }, { validFrom: 'desc' }]
+      orderBy: [{ service: { code: 'asc' } }, { capacityMin: 'asc' }, { venueTier: 'asc' }, { validFrom: 'desc' }]
     });
+  }
+
+  private async resolveCapacityPrice(
+    database: PricingDatabase,
+    channel: CommercialChannel,
+    serviceCode: ServiceCode,
+    capacity: number | null,
+    at: Date
+  ): Promise<CurrentPriceWithService | null> {
+    if (capacity === null || !Number.isInteger(capacity) || capacity < 1 || capacity > 150) {
+      throw new DomainError(
+        'PRICE_CAPACITY_NOT_SUPPORTED',
+        'Pricing requires an Event capacity between 1 and 150.',
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        { capacity }
+      );
+    }
+    return database.servicePrice.findFirst({
+      where: {
+        pricingVersion: PRICING_VERSION_V2,
+        commercialChannel: channel,
+        capacityMin: { lte: capacity },
+        capacityMax: { gte: capacity },
+        validFrom: { lte: at },
+        OR: [{ validUntil: null }, { validUntil: { gt: at } }],
+        service: { code: serviceCode, isActive: true }
+      },
+      include: { service: { select: { id: true, code: true } } },
+      orderBy: { validFrom: 'desc' }
+    });
+  }
+
+  private async resolveVenuePrice(
+    database: PricingDatabase,
+    clientId: string,
+    serviceCode: ServiceCode,
+    at: Date
+  ): Promise<CurrentPriceWithService> {
+    if (serviceCode !== ServiceCode.PHYSICAL_QR) {
+      throw new DomainError(
+        'VENUE_SERVICE_PRICE_NOT_AVAILABLE',
+        'Venue commercial pricing is only configured for PHYSICAL_QR.',
+        HttpStatus.NOT_FOUND,
+        { serviceCode }
+      );
+    }
+    const volume = await this.countVenueEffectiveVolume(database, clientId, at);
+    const venueTier = venueTierForVolume(volume);
+    const price = await database.servicePrice.findFirst({
+      where: {
+        pricingVersion: PRICING_VERSION_V2,
+        commercialChannel: CommercialChannel.VENUE,
+        venueTier,
+        validFrom: { lte: at },
+        OR: [{ validUntil: null }, { validUntil: { gt: at } }],
+        service: { code: serviceCode, isActive: true }
+      },
+      include: { service: { select: { id: true, code: true } } },
+      orderBy: { validFrom: 'desc' }
+    });
+    if (!price) {
+      throw new DomainError(
+        'CURRENT_PRICE_NOT_FOUND',
+        'No current Venue price exists for the effective volume tier.',
+        HttpStatus.NOT_FOUND,
+        {
+          serviceCode,
+          commercialChannel: CommercialChannel.VENUE,
+          venueTier,
+          effectiveVolume: volume,
+          at: at.toISOString()
+        }
+      );
+    }
+    return price;
+  }
+
+  private async countVenueEffectiveVolume(database: PricingDatabase, clientId: string, at: Date): Promise<number> {
+    const [row] = await database.$queryRaw<Array<{ effectiveVolume: number }>>`
+      WITH commercial_period AS (
+        SELECT
+          (date_trunc('month', ${at}::timestamptz AT TIME ZONE ${COMMERCIAL_TIME_ZONE}) - interval '1 month')
+            AT TIME ZONE ${COMMERCIAL_TIME_ZONE} AS period_start,
+          date_trunc('month', ${at}::timestamptz AT TIME ZONE ${COMMERCIAL_TIME_ZONE})
+            AT TIME ZONE ${COMMERCIAL_TIME_ZONE} AS period_end
+      )
+      SELECT COUNT(*)::integer AS "effectiveVolume"
+      FROM "event" event
+      JOIN "service" service ON service."id" = event."activated_service_id"
+      CROSS JOIN commercial_period period
+      WHERE event."client_id" = ${clientId}::uuid
+        AND event."activated_at" >= period.period_start
+        AND event."activated_at" < period.period_end
+        AND service."code" <> 'DEMO'
+        AND event."final_cost_credits" IS NOT NULL
+        AND EXISTS (
+          SELECT 1 FROM "ledger_entry" charged
+          WHERE charged."event_id" = event."id"
+            AND charged."movement_type" IN ('EVENT_ACTIVATION_CHARGE', 'CREDIT_LINE_USAGE')
+        )
+        AND COALESCE((
+          SELECT SUM(refund."purchased_credit_delta" - refund."credit_line_used_delta")
+          FROM "ledger_entry" refund
+          WHERE refund."event_id" = event."id"
+            AND refund."movement_type" = 'EVENT_CREDIT_REFUND'
+            AND NOT EXISTS (
+              SELECT 1 FROM "ledger_entry" reversal
+              WHERE reversal."reverses_ledger_entry_id" = refund."id"
+            )
+        ), 0) < event."final_cost_credits"
+    `;
+    return row?.effectiveVolume ?? 0;
+  }
+
+  private async requirePricingClient(database: PricingDatabase, clientId: string) {
+    const client = await database.client.findFirst({
+      where: { id: clientId, deletedAt: null },
+      select: { id: true, commercialChannel: true }
+    });
+    if (!client) {
+      throw new NotFoundException({ code: 'CLIENT_NOT_FOUND', message: 'Client not found.' });
+    }
+    return client;
   }
 
   private async requirePromotion(promotionId: string): Promise<Promotion> {
@@ -545,7 +762,12 @@ function toPriceResponse(price: PriceWithService): PriceResponseDto {
     id: price.id,
     serviceId: price.serviceId,
     serviceCode: price.service.code,
+    pricingVersion: price.pricingVersion,
     clientType: price.clientType,
+    commercialChannel: price.commercialChannel,
+    capacityMin: price.capacityMin,
+    capacityMax: price.capacityMax,
+    venueTier: price.venueTier,
     credits: price.credits,
     validFrom: price.validFrom.toISOString(),
     validUntil: price.validUntil?.toISOString() ?? null,
@@ -582,7 +804,12 @@ function priceSnapshot(price: ServicePrice): Record<string, unknown> {
   return {
     id: price.id,
     serviceId: price.serviceId,
+    pricingVersion: price.pricingVersion,
     clientType: price.clientType,
+    commercialChannel: price.commercialChannel,
+    capacityMin: price.capacityMin,
+    capacityMax: price.capacityMax,
+    venueTier: price.venueTier,
     credits: price.credits,
     validFrom: price.validFrom,
     validUntil: price.validUntil
@@ -670,8 +897,28 @@ function priceNotFound(): NotFoundException {
 function priceOverlap(): ConflictException {
   return new ConflictException({
     code: 'PRICE_OVERLAP',
-    message: 'The price validity overlaps another price for the service and Client type.'
+    message: 'The price validity overlaps another entry for the same commercial rule.'
   });
+}
+
+export function venueTierForVolume(volume: number): VenuePriceTier {
+  if (volume >= 11) return VenuePriceTier.ELEVEN_PLUS;
+  if (volume >= 6) return VenuePriceTier.SIX_TO_TEN;
+  if (volume >= 3) return VenuePriceTier.THREE_TO_FIVE;
+  return VenuePriceTier.ONE_TO_TWO;
+}
+
+function publicServiceName(code: ServiceCode): string {
+  switch (code) {
+    case ServiceCode.PHYSICAL_QR:
+      return 'QR / EventOps';
+    case ServiceCode.FLYER:
+      return 'Flyer digital';
+    case ServiceCode.FLIPBOOK:
+      return 'Flipbook digital';
+    case ServiceCode.DEMO:
+      return 'Demo';
+  }
 }
 
 function mapPriceMutationError(error: unknown): unknown {

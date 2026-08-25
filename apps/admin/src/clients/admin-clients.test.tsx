@@ -58,6 +58,28 @@ describe('Admin Clients', () => {
     expect(screen.queryByRole('button', { name: /imperson/i })).not.toBeInTheDocument();
   });
 
+  it('shows the implicit Standard channel and lets Platform Admin select Venue without changing ClientType', async () => {
+    const api = mockAdminApi();
+    const user = userEvent.setup();
+    renderAdminApp(api, '/clientes/client-a');
+    expect(await screen.findByText(/Canal comercial: Est.ndar \/ PVP/)).toBeVisible();
+    expect(screen.getByText(/Organizacion/)).toBeVisible();
+
+    await user.click(screen.getByRole('button', { name: 'Configurar canal comercial' }));
+    fireEvent.mouseDown(screen.getByRole('combobox'));
+    await user.click(await screen.findByRole('option', { name: 'Venue recurrente' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    await waitFor(() =>
+      expect(api.adminClients.update).toHaveBeenCalledWith(
+        'client-a',
+        { commercialChannel: 'VENUE' },
+        expect.any(AbortSignal)
+      )
+    );
+    expect(organization.type).toBe('ORGANIZATION');
+  });
+
   it('suspends only after explicit confirmation and reloads authoritative data', async () => {
     const api = mockAdminApi();
     const user = userEvent.setup();

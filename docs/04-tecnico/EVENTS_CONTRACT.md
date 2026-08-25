@@ -96,7 +96,7 @@ El resolver expone un checklist extensible. Contactos, diseño, Confirmación co
 Después de establecer `activatedAt`, un trigger PostgreSQL protege individualmente todos los campos del
 snapshot mediante `IS DISTINCT FROM`. La protección aplica también contra SQL directo, permite cambios
 legítimos de estado y conserva el snapshot durante todo estado posterior. Otro trigger valida al establecerlo
-que servicio y precio coincidan, que el precio corresponda al tipo real del Cliente, que el comprobante
+que servicio y precio coincidan, que una fila V1 histórica corresponda al tipo real o una fila V2 a la clasificación comercial persistida y aplicabilidad, que el comprobante
 pertenezca al Cliente y Evento correctos y que el actor tenga ownership y rol operativo autorizado.
 
 ## Ownership

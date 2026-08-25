@@ -2,21 +2,29 @@ import { useState } from 'react';
 import type { AdminClientUser, ApiClient } from '@invitaciones/api-client';
 import { PageHeader, StatusChip } from '@invitaciones/ui';
 import { ArrowBackOutlined, PersonAddOutlined } from '@mui/icons-material';
-import { Alert, Box, Button, Card, CardContent, Divider, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Card, CardContent, Divider, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import { adminQueryKeys } from '../app/query-client';
 import { AdminClientFinancePanel } from '../finance/AdminClientFinancePanel';
 import { adminErrorMessage } from '../shared/admin-error';
-import { clientStatusLabel, clientTypeLabel, formatDate, userRoleLabel } from '../shared/admin-labels';
+import {
+  clientStatusLabel,
+  clientTypeLabel,
+  commercialChannelLabel,
+  formatDate,
+  resolvedCommercialChannelLabel,
+  userRoleLabel
+} from '../shared/admin-labels';
 import { AdminEmptyState, AdminErrorState, AdminLoadingState } from '../shared/AdminStates';
 import { ConfirmSensitiveActionDialog } from '../shared/ConfirmSensitiveActionDialog';
 import { isAbortError, type AdminScopedOperation, useAdminOperationScope } from '../shared/useAdminOperationScope';
 
-type ClientAction = 'rename' | 'suspend' | 'restore' | 'planner' | null;
+type ClientAction = 'rename' | 'classification' | 'suspend' | 'restore' | 'planner' | null;
 type ClientMutationRequest =
   | { operation: AdminScopedOperation; kind: 'user'; userId: string; email: string; password: string }
   | { operation: AdminScopedOperation; kind: 'rename'; name: string }
+  | { operation: AdminScopedOperation; kind: 'classification'; commercialChannel: 'STANDARD' | 'PARTNER' | 'VENUE' }
   | { operation: AdminScopedOperation; kind: 'suspend'; reason: string }
   | { operation: AdminScopedOperation; kind: 'restore' }
   | { operation: AdminScopedOperation; kind: 'planner'; email: string; password: string };
@@ -31,6 +39,7 @@ function AdminClientDetail({ apiClient, clientId }: { apiClient: ApiClient; clie
   const [action, setAction] = useState<ClientAction>(null);
   const [name, setName] = useState('');
   const [reason, setReason] = useState('');
+  const [commercialChannel, setCommercialChannel] = useState<'STANDARD' | 'PARTNER' | 'VENUE'>('STANDARD');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [editingUser, setEditingUser] = useState<AdminClientUser | null>(null);
@@ -68,6 +77,12 @@ function AdminClientDetail({ apiClient, clientId }: { apiClient: ApiClient; clie
           signal
         );
       if (request.kind === 'rename') return apiClient.adminClients.update(clientId, { name: request.name }, signal);
+      if (request.kind === 'classification')
+        return apiClient.adminClients.update(
+          clientId,
+          { commercialChannel: request.commercialChannel === 'STANDARD' ? null : request.commercialChannel },
+          signal
+        );
       if (request.kind === 'suspend')
         return apiClient.adminClients.suspend(clientId, request.reason ? { reason: request.reason } : {}, signal);
       if (request.kind === 'restore') return apiClient.adminClients.restore(clientId, signal);
@@ -105,6 +120,7 @@ function AdminClientDetail({ apiClient, clientId }: { apiClient: ApiClient; clie
       return;
     }
     if (action === 'rename') mutation.mutate({ operation, kind: 'rename', name: name.trim() });
+    else if (action === 'classification') mutation.mutate({ operation, kind: 'classification', commercialChannel });
     else if (action === 'suspend') mutation.mutate({ operation, kind: 'suspend', reason: reason.trim() });
     else if (action === 'restore') mutation.mutate({ operation, kind: 'restore' });
     else if (action === 'planner') mutation.mutate({ operation, kind: 'planner', email: email.trim(), password });
@@ -139,6 +155,9 @@ function AdminClientDetail({ apiClient, clientId }: { apiClient: ApiClient; clie
         <CardContent>
           <Stack spacing={2}>
             <Typography variant="h2">Cuenta</Typography>
+            <Typography color="text.secondary">
+              Canal comercial: {resolvedCommercialChannelLabel(data.commercialChannel)}
+            </Typography>
             {data.status === 'SUSPENDED' ? (
               <Alert severity="warning">
                 Suspendido {data.suspendedAt ? formatDate(data.suspendedAt) : ''}
@@ -153,6 +172,14 @@ function AdminClientDetail({ apiClient, clientId }: { apiClient: ApiClient; clie
                 }}
               >
                 Editar nombre
+              </Button>
+              <Button
+                onClick={() => {
+                  setCommercialChannel(data.commercialChannel ?? 'STANDARD');
+                  setAction('classification');
+                }}
+              >
+                Configurar canal comercial
               </Button>
               {data.status === 'ACTIVE' ? (
                 <Button color="error" onClick={() => setAction('suspend')}>
@@ -224,13 +251,15 @@ function AdminClientDetail({ apiClient, clientId }: { apiClient: ApiClient; clie
         title={
           dialogAction === 'rename'
             ? 'Editar Cliente'
-            : dialogAction === 'suspend'
-              ? 'Suspender Cliente'
-              : dialogAction === 'restore'
-                ? 'Restaurar Cliente'
-                : dialogAction === 'planner'
-                  ? 'Crear planner'
-                  : 'Editar usuario'
+            : dialogAction === 'classification'
+              ? 'Canal comercial'
+              : dialogAction === 'suspend'
+                ? 'Suspender Cliente'
+                : dialogAction === 'restore'
+                  ? 'Restaurar Cliente'
+                  : dialogAction === 'planner'
+                    ? 'Crear planner'
+                    : 'Editar usuario'
         }
         description={
           dialogAction === 'suspend'
@@ -248,6 +277,20 @@ function AdminClientDetail({ apiClient, clientId }: { apiClient: ApiClient; clie
       >
         {dialogAction === 'rename' ? (
           <TextField label="Nombre" value={name} onChange={(e) => setName(e.target.value)} required />
+        ) : null}
+        {dialogAction === 'classification' ? (
+          <TextField
+            select
+            label="Clasificación comercial"
+            value={commercialChannel}
+            onChange={(event) => setCommercialChannel(event.target.value as typeof commercialChannel)}
+          >
+            {Object.entries(commercialChannelLabel).map(([value, label]) => (
+              <MenuItem key={value} value={value}>
+                {label}
+              </MenuItem>
+            ))}
+          </TextField>
         ) : null}
         {dialogAction === 'suspend' ? (
           <TextField label="Motivo" value={reason} onChange={(e) => setReason(e.target.value)} multiline />

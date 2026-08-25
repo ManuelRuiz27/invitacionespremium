@@ -8,9 +8,20 @@ import { ApiError } from '@invitaciones/api-client';
 import { configuredEvent, mockApiClient } from '../../test/fixtures';
 
 const services = [
-  { id: 'service-flyer', code: 'FLYER' as const, credits: 5, validFrom: '2026-01-01T00:00:00Z', validUntil: null },
-  { id: 'service-flipbook', code: 'FLIPBOOK' as const, credits: 7, validFrom: '2026-01-01T00:00:00Z', validUntil: null }
+  { id: 'service-flyer', code: 'FLYER' as const, priceRules: [priceRule('flyer', 5)] },
+  { id: 'service-flipbook', code: 'FLIPBOOK' as const, priceRules: [priceRule('flipbook', 7)] }
 ];
+function priceRule(id: string, credits: number) {
+  return {
+    id,
+    capacityMin: 1,
+    capacityMax: 150,
+    venueTier: null,
+    credits,
+    validFrom: '2026-01-01T00:00:00Z',
+    validUntil: null
+  };
+}
 const draft = (eventDateTime: string, timeZone = 'America/Cancun'): UpdateEventInput => ({
   confirmationEnabled: false,
   floorplanEnabled: false,
@@ -38,7 +49,12 @@ describe('DataStep time zones', () => {
   afterEach(() => vi.restoreAllMocks());
 
   it('shows commercial service names and event types in Spanish without technical formats', async () => {
-    view({ ...draft('2026-01-15T23:30:00.000Z'), serviceId: 'service-flyer', socialType: 'WEDDING' });
+    view({
+      ...draft('2026-01-15T23:30:00.000Z'),
+      serviceId: 'service-flyer',
+      socialType: 'WEDDING',
+      capacity: 50
+    });
 
     expect(screen.getByText('Flyer · 5 créditos')).toBeInTheDocument();
     expect(screen.queryByText('FLYER')).not.toBeInTheDocument();

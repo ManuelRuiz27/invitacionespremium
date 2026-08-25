@@ -39,7 +39,7 @@ Dentro de la transacción se valida:
 - Cliente existente y `ACTIVE`;
 - servicio configurado, existente y activo;
 - servicio distinto de `DEMO`;
-- precio vigente en `[validFrom, validUntil)` para el tipo real del Cliente;
+- precio V2 vigente en `[validFrom, validUntil)` para la clasificación comercial persistida y su aplicabilidad;
 - saldo comprado y línea activa, no vencida y disponible suficientes.
 
 No existe endpoint para forzar `READY_TO_ACTIVATE`.
@@ -49,10 +49,10 @@ No existe endpoint para forzar `READY_TO_ACTIVATE`.
 La activación reutiliza `ServicesPricingService.resolveCurrentPriceInTransaction`, que comparte la misma resolución temporal de:
 
 ```typescript
-resolveCurrentPrice(serviceCode, clientType, at?)
+resolveCurrentPrice(clientId, serviceCode, capacity, at?)
 ```
 
-El tipo de Cliente se relee desde PostgreSQL. Un precio inexistente conserva el error `CURRENT_PRICE_NOT_FOUND`.
+La clasificación comercial se relee desde PostgreSQL dentro de la transacción. `ClientType` no selecciona precio. STANDARD y PARTNER requieren un rango que cubra `Event.capacity`; VENUE solo resuelve `PHYSICAL_QR` mediante volumen efectivo M-1. Un precio inexistente conserva el error `CURRENT_PRICE_NOT_FOUND` o un error específico de contexto comercial.
 
 ## Consumo financiero
 

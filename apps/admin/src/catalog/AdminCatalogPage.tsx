@@ -53,6 +53,31 @@ import { useCatalogMutationState } from './useCatalogMutationState';
 
 type ServiceReference = Pick<AdminService, 'id' | 'code'> & { isActive?: boolean };
 
+const commercialChannelLabels = {
+  STANDARD: 'Estándar / PVP',
+  PARTNER: 'Planner / agencia partner',
+  VENUE: 'Venue recurrente'
+} as const;
+const venueTierLabels = {
+  ONE_TO_TWO: '1–2 eventos',
+  THREE_TO_FIVE: '3–5 eventos',
+  SIX_TO_TEN: '6–10 eventos',
+  ELEVEN_PLUS: '11+ eventos'
+} as const;
+
+function priceApplicabilityLabel(price: AdminPrice): string {
+  if (price.pricingVersion === 1) {
+    return `Legado · ${price.clientType ? clientTypeLabels[price.clientType] : 'sin tipo'}`;
+  }
+  const channel = price.commercialChannel ? commercialChannelLabels[price.commercialChannel] : 'Canal inválido';
+  if (price.venueTier) return `${channel} · ${venueTierLabels[price.venueTier]}`;
+  return `${channel} · ${price.capacityMin ?? '—'}–${price.capacityMax ?? '—'} personas`;
+}
+
+function formatMxn(value: number): string {
+  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(value);
+}
+
 export function AdminCatalogPage({ apiClient }: { apiClient: ApiClient }) {
   const [tab, setTab] = useState(0);
   const [knownServices, setKnownServices] = useState<AdminService[]>([]);
@@ -267,8 +292,9 @@ function PricesSection({
               <TableHead>
                 <TableRow>
                   <TableCell>Servicio</TableCell>
-                  <TableCell>Tipo de Cliente</TableCell>
+                  <TableCell>Canal / aplicabilidad</TableCell>
                   <TableCell>Creditos</TableCell>
+                  <TableCell>MXN</TableCell>
                   <TableCell>Vigencia</TableCell>
                   <TableCell align="right">Accion</TableCell>
                 </TableRow>
@@ -277,8 +303,9 @@ function PricesSection({
                 {query.data.map((price) => (
                   <TableRow key={price.id}>
                     <TableCell>{serviceLabels[price.serviceCode]}</TableCell>
-                    <TableCell>{clientTypeLabels[price.clientType]}</TableCell>
+                    <TableCell>{priceApplicabilityLabel(price)}</TableCell>
                     <TableCell>{price.credits}</TableCell>
+                    <TableCell>{formatMxn(price.credits * 20)}</TableCell>
                     <TableCell>
                       {intervalLabel(price)}
                       <br />[ {formatDate(price.validFrom)},{' '}
@@ -300,9 +327,11 @@ function PricesSection({
                 <Stack direction={{ xs: 'column', md: 'row' }} sx={{ gap: 2, justifyContent: 'space-between' }}>
                   <Box>
                     <Typography sx={{ fontWeight: 700 }}>
-                      {serviceLabels[price.serviceCode]} · {clientTypeLabels[price.clientType]}
+                      {serviceLabels[price.serviceCode]} · {priceApplicabilityLabel(price)}
                     </Typography>
-                    <Typography>{price.credits} creditos</Typography>
+                    <Typography>
+                      {price.credits} creditos · {formatMxn(price.credits * 20)}
+                    </Typography>
                     <Typography variant="body2" color="text.secondary">
                       [ {formatDate(price.validFrom)}, {price.validUntil ? formatDate(price.validUntil) : 'sin limite'}{' '}
                       )
@@ -546,7 +575,10 @@ function PromotionTargets({
 function priceMatchesInput(price: AdminPrice, input: CreateAdminPriceInput) {
   return (
     price.serviceId === input.serviceId &&
-    price.clientType === input.clientType &&
+    price.commercialChannel === input.commercialChannel &&
+    price.capacityMin === (input.capacityMin ?? null) &&
+    price.capacityMax === (input.capacityMax ?? null) &&
+    price.venueTier === (input.venueTier ?? null) &&
     price.credits === input.credits &&
     price.validFrom === input.validFrom &&
     price.validUntil === (input.validUntil ?? null)
@@ -707,7 +739,10 @@ function PriceDialog({
   onNotice: (message: string) => void;
 }) {
   const [serviceId, setServiceId] = useState('');
-  const [clientType, setClientType] = useState<CreateAdminPriceInput['clientType']>('PLANNER');
+  const [commercialChannel, setCommercialChannel] = useState<CreateAdminPriceInput['commercialChannel']>('STANDARD');
+  const [capacityMin, setCapacityMin] = useState('1');
+  const [capacityMax, setCapacityMax] = useState('50');
+  const [venueTier, setVenueTier] = useState<NonNullable<CreateAdminPriceInput['venueTier']>>('ONE_TO_TWO');
   const [credits, setCredits] = useState('');
   const [from, setFrom] = useState('');
   const [until, setUntil] = useState('');
@@ -716,13 +751,25 @@ function PriceDialog({
   const queryClient = useQueryClient();
   const buildBody = () => {
     const numeric = Number(credits);
-    if (!serviceId || !Number.isInteger(numeric) || numeric < 0 || !from) {
+    const minimum = Number(capacityMin);
+    const maximum = Number(capacityMax);
+    if (
+      !serviceId ||
+      !Number.isInteger(numeric) ||
+      numeric < 0 ||
+      !from ||
+      (commercialChannel !== 'VENUE' &&
+        (!Number.isInteger(minimum) || !Number.isInteger(maximum) || minimum < 1 || maximum > 150 || minimum > maximum))
+    ) {
       setValidationError('Completa una revision valida del precio.');
       return null;
     }
     const body: CreateAdminPriceInput = {
       serviceId,
-      clientType,
+      commercialChannel,
+      ...(commercialChannel === 'VENUE'
+        ? { venueTier, capacityMin: null, capacityMax: null }
+        : { capacityMin: minimum, capacityMax: maximum, venueTier: null }),
       credits: numeric,
       validFrom: toIso(from),
       validUntil: until ? toIso(until) : null
@@ -733,7 +780,13 @@ function PriceDialog({
     }
     if (
       prices.some(
-        (price) => price.serviceId === serviceId && price.clientType === clientType && intervalsOverlap(price, body)
+        (price) =>
+          price.serviceId === serviceId &&
+          price.commercialChannel === commercialChannel &&
+          price.capacityMin === (body.capacityMin ?? null) &&
+          price.capacityMax === (body.capacityMax ?? null) &&
+          price.venueTier === (body.venueTier ?? null) &&
+          intervalsOverlap(price, body)
       )
     ) {
       setValidationError(
@@ -795,16 +848,45 @@ function PriceDialog({
           </TextField>
           <TextField
             select
-            label="Tipo de Cliente"
-            value={clientType}
-            onChange={(e) => setClientType(e.target.value as CreateAdminPriceInput['clientType'])}
+            label="Canal comercial"
+            value={commercialChannel}
+            onChange={(e) => setCommercialChannel(e.target.value as CreateAdminPriceInput['commercialChannel'])}
           >
-            {Object.entries(clientTypeLabels).map(([value, label]) => (
+            {Object.entries(commercialChannelLabels).map(([value, label]) => (
               <MenuItem key={value} value={value}>
                 {label}
               </MenuItem>
             ))}
           </TextField>
+          {commercialChannel === 'VENUE' ? (
+            <TextField
+              select
+              label="Volumen efectivo M-1"
+              value={venueTier}
+              onChange={(e) => setVenueTier(e.target.value as NonNullable<CreateAdminPriceInput['venueTier']>)}
+            >
+              {Object.entries(venueTierLabels).map(([value, label]) => (
+                <MenuItem key={value} value={value}>
+                  {label}
+                </MenuItem>
+              ))}
+            </TextField>
+          ) : (
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField
+                label="Capacidad mínima"
+                type="number"
+                value={capacityMin}
+                onChange={(e) => setCapacityMin(e.target.value)}
+              />
+              <TextField
+                label="Capacidad máxima"
+                type="number"
+                value={capacityMax}
+                onChange={(e) => setCapacityMax(e.target.value)}
+              />
+            </Stack>
+          )}
           <TextField
             label="Creditos"
             type="number"
@@ -926,8 +1008,8 @@ function ClosePriceDialog({
     >
       {currentPrice ? (
         <Typography variant="body2">
-          {serviceLabels[currentPrice.serviceCode]} · {clientTypeLabels[currentPrice.clientType]} ·{' '}
-          {currentPrice.credits} creditos · inicio {formatDate(currentPrice.validFrom)}
+          {serviceLabels[currentPrice.serviceCode]} · {priceApplicabilityLabel(currentPrice)} · {currentPrice.credits}{' '}
+          creditos · inicio {formatDate(currentPrice.validFrom)}
         </Typography>
       ) : null}
       <TextField

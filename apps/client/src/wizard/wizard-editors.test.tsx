@@ -128,9 +128,17 @@ describe('visual wizard editors', () => {
         service={{
           id: 'service-flyer',
           code: 'FLYER',
-          credits: 5,
-          validFrom: '2026-01-01T00:00:00Z',
-          validUntil: null
+          priceRules: [
+            {
+              id: 'price-flyer',
+              capacityMin: 1,
+              capacityMax: 150,
+              venueTier: null,
+              credits: 5,
+              validFrom: '2026-01-01T00:00:00Z',
+              validUntil: null
+            }
+          ]
         }}
         disabled={false}
       />
@@ -172,9 +180,17 @@ describe('visual wizard editors', () => {
         service={{
           id: 'service-flipbook',
           code: 'FLIPBOOK',
-          credits: 7,
-          validFrom: '2026-01-01T00:00:00Z',
-          validUntil: null
+          priceRules: [
+            {
+              id: 'price-flipbook',
+              capacityMin: 1,
+              capacityMax: 150,
+              venueTier: null,
+              credits: 7,
+              validFrom: '2026-01-01T00:00:00Z',
+              validUntil: null
+            }
+          ]
         }}
         disabled={false}
       />
@@ -351,9 +367,7 @@ describe('visual wizard editors', () => {
     await userEvent.click(exportButton);
 
     expect(
-      await screen.findByText(
-        'No fue posible exportar la plantilla. No fue posible leer un pase para el PDF.'
-      )
+      await screen.findByText('No fue posible exportar la plantilla. No fue posible leer un pase para el PDF.')
     ).toBeInTheDocument();
     expect(download).not.toHaveBeenCalled();
     expect(exportButton).toBeEnabled();

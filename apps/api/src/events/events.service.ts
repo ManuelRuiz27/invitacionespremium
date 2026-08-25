@@ -14,6 +14,7 @@ import {
   FileAssetStatus,
   InvitationDesignType,
   Prisma,
+  PromotionScope,
   ServiceCode,
   UserRole,
   type Event
@@ -363,11 +364,19 @@ export class EventsService {
           const activatedAt = new Date();
           const price = await this.pricing.resolveCurrentPriceInTransaction(
             transaction,
+            current.clientId,
             service.code,
-            client.type,
+            current.capacity,
             activatedAt
           );
           const baseCostCredits = price.credits;
+          await this.pricing.findEligiblePromotionsInTransaction(transaction, {
+            scope: PromotionScope.EVENT_ACTIVATION,
+            clientId: current.clientId,
+            clientType: client.type,
+            serviceId: service.id,
+            at: activatedAt
+          });
           const promotionDiscountCredits = 0 as const;
           const finalCostCredits = baseCostCredits;
           const financial = await this.finance.consumeEventActivation(transaction, {

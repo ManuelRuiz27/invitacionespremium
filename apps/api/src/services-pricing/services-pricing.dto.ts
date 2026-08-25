@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { ApiProperty } from '@nestjs/swagger';
 import { z } from 'zod';
-import { ClientType, PromotionScope, ServiceCode } from '../generated/prisma/client';
+import { ClientType, CommercialChannel, PromotionScope, ServiceCode, VenuePriceTier } from '../generated/prisma/client';
 
 const uuidSchema = z.string().uuid();
 const instantSchema = z.string().datetime({ offset: true });
@@ -22,12 +22,31 @@ const updateServiceSchema = z
 const createPriceSchema = z
   .object({
     serviceId: uuidSchema,
-    clientType: z.enum(ClientType),
+    commercialChannel: z.enum(CommercialChannel),
+    capacityMin: z.number().int().min(1).max(150).nullable().optional(),
+    capacityMax: z.number().int().min(1).max(150).nullable().optional(),
+    venueTier: z.enum(VenuePriceTier).nullable().optional(),
     credits: z.number().int().nonnegative(),
     validFrom: instantSchema,
     validUntil: instantSchema.nullable().optional()
   })
   .strict()
+  .superRefine((value, context) => {
+    if (value.commercialChannel === CommercialChannel.VENUE) {
+      if (value.capacityMin != null || value.capacityMax != null || value.venueTier == null) {
+        context.addIssue({ code: 'custom', message: 'Venue prices require only venueTier.' });
+      }
+      return;
+    }
+    if (
+      value.capacityMin == null ||
+      value.capacityMax == null ||
+      value.capacityMin > value.capacityMax ||
+      value.venueTier != null
+    ) {
+      context.addIssue({ code: 'custom', message: 'Standard and Partner prices require only a valid capacity range.' });
+    }
+  })
   .refine((value) => value.validUntil == null || new Date(value.validUntil) > new Date(value.validFrom), {
     message: 'validUntil must be after validFrom.'
   });
@@ -107,6 +126,23 @@ export class AvailableServiceResponseDto {
   @ApiProperty({ enum: ServiceCode })
   code!: ServiceCode;
 
+  @ApiProperty({ type: () => AvailableServicePriceRuleResponseDto, isArray: true })
+  priceRules!: AvailableServicePriceRuleResponseDto[];
+}
+
+export class AvailableServicePriceRuleResponseDto {
+  @ApiProperty({ type: String, format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ type: Number, minimum: 1, maximum: 150, nullable: true })
+  capacityMin!: number | null;
+
+  @ApiProperty({ type: Number, minimum: 1, maximum: 150, nullable: true })
+  capacityMax!: number | null;
+
+  @ApiProperty({ enum: VenuePriceTier, nullable: true })
+  venueTier!: VenuePriceTier | null;
+
   @ApiProperty({ type: Number, minimum: 0 })
   credits!: number;
 
@@ -121,8 +157,17 @@ export class CreatePriceRequestDto {
   @ApiProperty({ type: String, format: 'uuid' })
   serviceId!: string;
 
-  @ApiProperty({ enum: ClientType })
-  clientType!: ClientType;
+  @ApiProperty({ enum: CommercialChannel })
+  commercialChannel!: CommercialChannel;
+
+  @ApiProperty({ type: Number, minimum: 1, maximum: 150, required: false, nullable: true })
+  capacityMin?: number | null;
+
+  @ApiProperty({ type: Number, minimum: 1, maximum: 150, required: false, nullable: true })
+  capacityMax?: number | null;
+
+  @ApiProperty({ enum: VenuePriceTier, required: false, nullable: true })
+  venueTier?: VenuePriceTier | null;
 
   @ApiProperty({ type: Number, minimum: 0 })
   credits!: number;
@@ -149,8 +194,23 @@ export class PriceResponseDto {
   @ApiProperty({ enum: ServiceCode })
   serviceCode!: ServiceCode;
 
-  @ApiProperty({ enum: ClientType })
-  clientType!: ClientType;
+  @ApiProperty({ type: Number, enum: [1, 2] })
+  pricingVersion!: number;
+
+  @ApiProperty({ enum: ClientType, nullable: true })
+  clientType!: ClientType | null;
+
+  @ApiProperty({ enum: CommercialChannel, nullable: true })
+  commercialChannel!: CommercialChannel | null;
+
+  @ApiProperty({ type: Number, minimum: 1, maximum: 150, nullable: true })
+  capacityMin!: number | null;
+
+  @ApiProperty({ type: Number, minimum: 1, maximum: 150, nullable: true })
+  capacityMax!: number | null;
+
+  @ApiProperty({ enum: VenuePriceTier, nullable: true })
+  venueTier!: VenuePriceTier | null;
 
   @ApiProperty({ type: Number, minimum: 0 })
   credits!: number;
@@ -163,6 +223,32 @@ export class PriceResponseDto {
 
   @ApiProperty({ type: String, format: 'date-time' })
   createdAt!: string;
+}
+
+export class PublicPricingResponseDto {
+  @ApiProperty({ enum: ServiceCode })
+  serviceCode!: ServiceCode;
+
+  @ApiProperty({ type: String })
+  displayName!: string;
+
+  @ApiProperty({ type: Number, minimum: 1, maximum: 150 })
+  capacityMin!: number;
+
+  @ApiProperty({ type: Number, minimum: 1, maximum: 150 })
+  capacityMax!: number;
+
+  @ApiProperty({ type: Number, minimum: 0 })
+  credits!: number;
+
+  @ApiProperty({ type: Number, minimum: 0, description: 'Public MXN amount in cents.' })
+  amountMxnCents!: number;
+
+  @ApiProperty({ type: String, format: 'date-time' })
+  validFrom!: string;
+
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  validUntil!: string | null;
 }
 
 export class CreatePromotionRequestDto {

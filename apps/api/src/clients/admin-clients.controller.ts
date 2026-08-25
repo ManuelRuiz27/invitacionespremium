@@ -9,10 +9,10 @@ import {
   ClientResponseDto,
   CreateOrganizationRequestDto,
   SuspendClientRequestDto,
-  UpdateClientRequestDto,
+  UpdateAdminClientRequestDto,
   parseCreateOrganizationRequest,
   parseSuspendClientRequest,
-  parseUpdateClientRequest,
+  parseUpdateAdminClientRequest,
   parseUuidParameter
 } from './clients.dto';
 import { ClientsService } from './clients.service';
@@ -48,7 +48,7 @@ export class AdminClientsController {
   }
 
   @Patch(':clientId')
-  @ApiBody({ type: UpdateClientRequestDto })
+  @ApiBody({ type: UpdateAdminClientRequestDto })
   @ApiOkResponse({ type: ClientResponseDto })
   update(
     @Param('clientId') clientIdInput: string,
@@ -58,7 +58,7 @@ export class AdminClientsController {
   ): Promise<ClientResponseDto> {
     return this.clients.updateAdmin(
       parseUuidParameter(clientIdInput, 'clientId'),
-      parseUpdateClientRequest(body),
+      parseUpdateAdminClientRequest(body),
       principal,
       request.operationId
     );

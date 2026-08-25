@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { ApiProperty } from '@nestjs/swagger';
 import { z } from 'zod';
-import { ClientStatus, ClientType, UserRole } from '../generated/prisma/client';
+import { ClientStatus, ClientType, CommercialChannel, UserRole } from '../generated/prisma/client';
 
 const clientNameSchema = z.string().trim().min(2).max(160);
 const emailSchema = z.string().trim().email().max(320);
@@ -29,6 +29,16 @@ const updateClientSchema = z
   })
   .strict()
   .refine((value) => value.name !== undefined, { message: 'At least one field is required.' });
+
+const updateAdminClientSchema = z
+  .object({
+    name: clientNameSchema.optional(),
+    commercialChannel: z.enum(CommercialChannel).nullable().optional()
+  })
+  .strict()
+  .refine((value) => value.name !== undefined || value.commercialChannel !== undefined, {
+    message: 'At least one field is required.'
+  });
 
 const suspendClientSchema = z
   .object({
@@ -80,6 +90,11 @@ export class UpdateClientRequestDto {
   name?: string;
 }
 
+export class UpdateAdminClientRequestDto extends UpdateClientRequestDto {
+  @ApiProperty({ enum: CommercialChannel, required: false, nullable: true })
+  commercialChannel?: CommercialChannel | null;
+}
+
 export class SuspendClientRequestDto {
   @ApiProperty({ type: String, minLength: 2, maxLength: 500, required: false })
   reason?: string;
@@ -107,6 +122,9 @@ export class ClientResponseDto {
 
   @ApiProperty({ enum: ClientType })
   type!: ClientType;
+
+  @ApiProperty({ enum: CommercialChannel, nullable: true })
+  commercialChannel!: CommercialChannel | null;
 
   @ApiProperty({ type: String })
   name!: string;
@@ -158,6 +176,7 @@ export class ClientCreatedResponseDto {
 export type RegisterPlannerInput = z.infer<typeof registerPlannerSchema>;
 export type CreateOrganizationInput = z.infer<typeof createOrganizationSchema>;
 export type UpdateClientInput = z.infer<typeof updateClientSchema>;
+export type UpdateAdminClientInput = z.infer<typeof updateAdminClientSchema>;
 export type SuspendClientInput = z.infer<typeof suspendClientSchema>;
 export type CreatePlannerUserInput = z.infer<typeof createPlannerUserSchema>;
 export type UpdateClientUserInput = z.infer<typeof updateClientUserSchema>;
@@ -172,6 +191,10 @@ export function parseCreateOrganizationRequest(input: unknown): CreateOrganizati
 
 export function parseUpdateClientRequest(input: unknown): UpdateClientInput {
   return parse(updateClientSchema, input);
+}
+
+export function parseUpdateAdminClientRequest(input: unknown): UpdateAdminClientInput {
+  return parse(updateAdminClientSchema, input);
 }
 
 export function parseSuspendClientRequest(input: unknown): SuspendClientInput {

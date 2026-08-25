@@ -9,9 +9,17 @@ import { DesignStep } from './DesignStep';
 const service: AvailableService = {
   id: 'service-flipbook',
   code: 'FLIPBOOK' as const,
-  credits: 7,
-  validFrom: '2026-01-01T00:00:00Z',
-  validUntil: null
+  priceRules: [
+    {
+      id: 'price',
+      capacityMin: 1,
+      capacityMax: 150,
+      venueTier: null,
+      credits: 7,
+      validFrom: '2026-01-01T00:00:00Z',
+      validUntil: null
+    }
+  ]
 };
 const flyerService: AvailableService = { ...service, id: 'service-flyer', code: 'FLYER' };
 const event = { ...configuredEvent, serviceId: service.id, serviceCode: service.code };

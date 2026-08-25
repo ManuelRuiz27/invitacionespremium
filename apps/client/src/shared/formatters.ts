@@ -15,6 +15,20 @@ export const serviceLabels: Record<AvailableService['code'], string> = {
   DEMO: 'Demo'
 };
 
+export function priceRuleForCapacity(service: AvailableService | undefined, capacity: number | null | undefined) {
+  if (!service) return undefined;
+  const venueRule = service.priceRules.find((rule) => rule.venueTier !== null);
+  if (venueRule) return venueRule;
+  if (capacity == null) return undefined;
+  return service.priceRules.find(
+    (rule) =>
+      rule.capacityMin !== null &&
+      rule.capacityMax !== null &&
+      capacity >= rule.capacityMin &&
+      capacity <= rule.capacityMax
+  );
+}
+
 export function formatEventDate(value: string | null, timeZone: string | null, includeTime = false): string {
   if (!value || !timeZone) return 'Fecha pendiente';
   try {

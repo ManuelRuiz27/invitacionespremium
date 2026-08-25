@@ -234,13 +234,35 @@ export function mockApiClient(user: AuthUser = independentUser): ApiClient {
     },
     services: {
       listAvailable: vi.fn().mockResolvedValue([
-        { id: 'service-flyer', code: 'FLYER', credits: 5, validFrom: '2026-01-01T00:00:00.000Z', validUntil: null },
+        {
+          id: 'service-flyer',
+          code: 'FLYER',
+          priceRules: [
+            {
+              id: 'price-flyer',
+              capacityMin: 1,
+              capacityMax: 150,
+              venueTier: null,
+              credits: 5,
+              validFrom: '2026-01-01T00:00:00.000Z',
+              validUntil: null
+            }
+          ]
+        },
         {
           id: 'service-physical',
           code: 'PHYSICAL_QR',
-          credits: 3,
-          validFrom: '2026-01-01T00:00:00.000Z',
-          validUntil: null
+          priceRules: [
+            {
+              id: 'price-physical',
+              capacityMin: 1,
+              capacityMax: 150,
+              venueTier: null,
+              credits: 3,
+              validFrom: '2026-01-01T00:00:00.000Z',
+              validUntil: null
+            }
+          ]
         }
       ])
     },
@@ -320,6 +342,7 @@ export function mockApiClient(user: AuthUser = independentUser): ApiClient {
       asset: vi.fn(),
       qr: vi.fn()
     },
+    publicPricing: { list: vi.fn().mockResolvedValue([]) },
     publicAlbum: { resolve: vi.fn(), photo: vi.fn() }
   };
 }

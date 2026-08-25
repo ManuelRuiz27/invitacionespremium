@@ -24,6 +24,23 @@ enum ClientType {
   @@map("client_type")
 }
 
+enum CommercialChannel {
+  STANDARD
+  PARTNER
+  VENUE
+
+  @@map("commercial_channel")
+}
+
+enum VenuePriceTier {
+  ONE_TO_TWO
+  THREE_TO_FIVE
+  SIX_TO_TEN
+  ELEVEN_PLUS
+
+  @@map("venue_price_tier")
+}
+
 enum ClientStatus {
   ACTIVE
   SUSPENDED
@@ -291,6 +308,7 @@ model AuditLog {
 model Client {
   id               String            @id @default(uuid()) @db.Uuid
   type             ClientType
+  commercialChannel CommercialChannel? @map("commercial_channel")
   name             String            @db.VarChar(160)
   status           ClientStatus      @default(ACTIVE)
   suspendedAt      DateTime?         @map("suspended_at") @db.Timestamptz(6)
@@ -375,20 +393,28 @@ model Service {
 }
 
 model ServicePrice {
-  id              String     @id @default(uuid()) @db.Uuid
-  serviceId       String     @map("service_id") @db.Uuid
-  clientType      ClientType @map("client_type")
-  credits         Int
-  validFrom       DateTime   @map("valid_from") @db.Timestamptz(6)
-  validUntil      DateTime?  @map("valid_until") @db.Timestamptz(6)
-  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
-  service         Service    @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  id                String             @id @default(uuid()) @db.Uuid
+  serviceId         String             @map("service_id") @db.Uuid
+  pricingVersion    Int                @default(1) @map("pricing_version")
+  clientType        ClientType?        @map("client_type")
+  commercialChannel CommercialChannel? @map("commercial_channel")
+  capacityMin       Int?               @map("capacity_min")
+  capacityMax       Int?               @map("capacity_max")
+  venueTier         VenuePriceTier?    @map("venue_tier")
+  credits           Int
+  validFrom         DateTime           @map("valid_from") @db.Timestamptz(6)
+  validUntil        DateTime?          @map("valid_until") @db.Timestamptz(6)
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  service           Service            @relation(fields: [serviceId], references: [id], onDelete: Restrict)
   activatedEvents Event[]
 
-  @@unique([serviceId, clientType, validFrom])
+  @@unique([serviceId, clientType, validFrom], map: "service_price_service_id_client_type_valid_from_key")
   @@index([clientType, validFrom, validUntil])
   @@index([serviceId, clientType, validFrom])
+  @@index([pricingVersion, commercialChannel, validFrom, validUntil])
+  @@index([serviceId, commercialChannel, capacityMin, capacityMax])
+  @@index([serviceId, commercialChannel, venueTier])
   @@map("service_price")
 }
 

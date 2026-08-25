@@ -5,7 +5,7 @@ export type AdminClient = operations['AdminClientsController_get']['responses'][
 export type AdminClientUser = components['schemas']['ClientUserResponseDto'];
 export type AdminClientCreated = components['schemas']['ClientCreatedResponseDto'];
 export type CreateOrganizationInput = components['schemas']['CreateOrganizationRequestDto'];
-export type UpdateAdminClientInput = components['schemas']['UpdateClientRequestDto'];
+export type UpdateAdminClientInput = components['schemas']['UpdateAdminClientRequestDto'];
 export type SuspendAdminClientInput = components['schemas']['SuspendClientRequestDto'];
 export type CreateAdminPlannerInput = components['schemas']['CreatePlannerUserRequestDto'];
 export type UpdateAdminClientUserInput = components['schemas']['UpdateClientUserRequestDto'];
@@ -93,6 +93,7 @@ function isClient(value: unknown): value is AdminClient {
     typeof value.id === 'string' &&
     typeof value.name === 'string' &&
     (value.type === 'PLANNER' || value.type === 'ORGANIZATION') &&
+    (value.commercialChannel === null || ['STANDARD', 'PARTNER', 'VENUE'].includes(String(value.commercialChannel))) &&
     (value.status === 'ACTIVE' || value.status === 'SUSPENDED') &&
     typeof value.createdAt === 'string'
   );

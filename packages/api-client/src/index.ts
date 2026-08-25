@@ -11,7 +11,12 @@ import {
 import { createAuthClient } from './auth';
 import { createEventsClient } from './events';
 import { createFinanceClient } from './finance';
-import { createPublicAlbumClient, createPublicClientsClient, createPublicInvitationClient } from './public';
+import {
+  createPublicAlbumClient,
+  createPublicClientsClient,
+  createPublicInvitationClient,
+  createPublicPricingClient
+} from './public';
 import { createScannerClient } from './scanner';
 import { createStaffTokensClient } from './staff';
 import {
@@ -64,7 +69,7 @@ export type {
   PublicRsvpAssistantInput,
   PublicRsvpMutation
 } from './public';
-export type { RegisterPlannerInput, RegisterPlannerResult } from './public';
+export type { PublicPricing, RegisterPlannerInput, RegisterPlannerResult } from './public';
 export type * from './wizard';
 export type * from './admin';
 
@@ -72,6 +77,10 @@ export const API_CLIENT_STATUS = 'Operational typed client generated from the AP
 
 export function createPublicRegistrationClient(config: ApiClientRuntimeConfig) {
   return createPublicClientsClient(createRequester(config));
+}
+
+export function createPublicPricingApiClient(config: ApiClientRuntimeConfig) {
+  return createPublicPricingClient(createRequester(config));
 }
 
 export function createApiClient(config: ApiClientRuntimeConfig) {
@@ -97,6 +106,7 @@ export function createApiClient(config: ApiClientRuntimeConfig) {
     staffTokens: createStaffTokensClient(request),
     publicInvitation: createPublicInvitationClient(request),
     publicAlbum: createPublicAlbumClient(request),
+    publicPricing: createPublicPricingClient(request),
     scanner: createScannerClient(request)
   };
 }

@@ -1,174 +1,61 @@
-# Contrato de servicios, precios y promociones
+# Contrato de servicios, Pricing V2 y promociones
 
 ## Alcance
 
-`ServicesPricingModule`, dentro de `apps/api`, es la fuente de verdad del catálogo de servicios, sus precios históricos y la elegibilidad base de promociones. Los frontends consumen este contrato por API y no duplican sus reglas.
+`ServicesPricingModule`, dentro de `apps/api`, es la fuente de verdad del catálogo, el Price Book histórico y la elegibilidad de promociones. Los únicos `ServiceCode` son `FLIPBOOK`, `FLYER`, `PHYSICAL_QR` y `DEMO`.
 
-Los únicos códigos de servicio autorizados son:
+`ClientType` (`PLANNER`/`ORGANIZATION`) sigue siendo identidad de cuenta y autorización. No selecciona tarifa. `Client.commercialChannel` es nullable y solo Platform Admin puede modificarlo:
 
-- `FLIPBOOK`;
-- `FLYER`;
-- `PHYSICAL_QR`;
-- `DEMO`.
+- `null` o `STANDARD`: Estándar / PVP;
+- `PARTNER`: Planner / agencia partner;
+- `VENUE`: Venue recurrente.
 
-## Modelos
+Una cuenta de cualquier `ClientType` puede pertenecer a cualquiera de esos canales. Los endpoints propios del tenant no aceptan `commercialChannel`.
 
-### Service
+## ServicePrice compatible
 
-- `id`: UUID;
-- `code`: `ServiceCode`, único e inmutable desde la API;
-- `isActive`: controla si el servicio aparece en el catálogo del Cliente;
-- `createdAt`;
-- `updatedAt`.
+`ServicePrice` conserva su `id` y la FK restrictiva usada por `Event.activatedServicePriceId`.
 
-### ServicePrice
+- V1 histórica: `pricingVersion=1`, `clientType` presente y todas las dimensiones V2 ausentes.
+- V2 vigente: `pricingVersion=2`, `clientType=null`, `commercialChannel` presente.
+- STANDARD/PARTNER: `capacityMin` y `capacityMax` presentes; `venueTier` ausente.
+- VENUE: `venueTier` presente; capacidades ausentes; solo `PHYSICAL_QR`.
 
-- `id`: UUID;
-- `serviceId`: FK restrictiva a `Service`;
-- `clientType`: `PLANNER` u `ORGANIZATION`;
-- `credits`: entero no negativo;
-- `validFrom`;
-- `validUntil`, nullable;
-- `createdAt`;
-- `updatedAt`.
+Toda fila conserva `credits`, `[validFrom, validUntil)`, `createdAt` y `updatedAt`. Los créditos son enteros no negativos. Un precio cerrado no se edita ni elimina por API; `PATCH /admin/prices/:priceId` solo fija el límite superior preservando historia transcurrida.
 
-Un cambio de precio crea una nueva fila. Un precio cerrado no se sobrescribe ni se elimina por API. `PATCH /admin/prices/:priceId` únicamente puede cerrar una vigencia abierta sin alterar servicio, tipo de Cliente, créditos ni inicio histórico.
+PostgreSQL valida forma V1/V2, rango `1..150`, vigencia, DEMO en cero y Venue exclusivo de `PHYSICAL_QR`. Exclusiones GiST separadas impiden solapamientos temporales del mismo rango aplicable o del mismo tier. Las filas V1 no se reinterpretan como canales comerciales.
 
-### Promotion
+## Resolución autoritativa
 
-- `id`: UUID;
-- `name`;
-- `scope`: `CREDIT_PURCHASE` o `EVENT_ACTIVATION`;
-- `clientId`, opcional;
-- `clientType`, opcional;
-- `serviceId`, opcional;
-- `validFrom`;
-- `validUntil`, nullable;
-- `isActive`;
-- `allowsStacking`;
-- `createdAt`;
-- `updatedAt`.
+La operación interna recibe `clientId`, `serviceCode`, capacidad e instante. Relee `Client.commercialChannel` dentro de la misma transacción; ningún caller puede declarar un canal alterno.
 
-Si una promoción define simultáneamente `clientId` y `clientType`, el tipo configurado debe coincidir con el tipo real del Cliente.
+1. Sin clasificación explícita resuelve STANDARD por rango.
+2. PARTNER resuelve únicamente una regla explícita que cubra la capacidad; no cae silenciosamente a STANDARD.
+3. VENUE solo admite `PHYSICAL_QR`, calcula volumen efectivo M-1 y resuelve el tier.
+4. La vigencia es `validFrom <= at AND (validUntil IS NULL OR at < validUntil)`.
+5. Debe existir exactamente una fila V2 aplicable; si no, responde `CURRENT_PRICE_NOT_FOUND` o un error de dominio más específico.
 
-## Vigencias y resolución de precio
+Capacidad nula, menor que 1 o mayor que 150 no tiene precio STANDARD/PARTNER. `GET /services` devuelve descubrimiento de servicios y `priceRules[]`; ya no fabrica un único `credits`. El frontend puede proyectar el costo, pero activación vuelve a resolverlo autoritativamente.
 
-Todos los intervalos usan semántica semiabierta:
+## Venue M-1
 
-```text
-[validFrom, validUntil)
-```
+El corte usa meses calendario en `America/Mexico_City`, zona operativa del piloto mientras no exista timezone comercial persistido por Cliente. No usa rolling 30 days.
 
-Un precio es vigente en `at` cuando:
+Cuenta Eventos del mismo Cliente cuya `activatedAt` pertenece a M-1, con servicio no DEMO y movimiento real `EVENT_ACTIVATION_CHARGE` o `CREDIT_LINE_USAGE`. Un Evento queda excluido solo cuando movimientos `EVENT_CREDIT_REFUND` no revertidos restituyen al menos `finalCostCredits`; un reembolso parcial sigue contando. No se persiste un segundo flag de refund o volumen.
 
-```text
-validFrom <= at AND (validUntil IS NULL OR at < validUntil)
-```
+Tiers: `ONE_TO_TWO` (0–2), `THREE_TO_FIVE` (3–5), `SIX_TO_TEN` (6–10), `ELEVEN_PLUS` (11+). El tier de M queda fijado por M-1; no repricia activaciones existentes.
 
-La operación pública reutilizable del dominio es:
+## Bootstrap
 
-```typescript
-resolveCurrentPrice(serviceCode, clientType, at?)
-```
+La migración `20260824180000_add_commercial_pricing_v2` conserva V1, cierra sus vigencias abiertas al despliegue y crea 16 filas V2: nueve STANDARD, tres PARTNER hasta 100 y cuatro VENUE para `PHYSICAL_QR`. El seed `services-pricing:seed` reproduce ese Price Book de forma idempotente sin crear Partner 101–150 ni matriz Venue × capacidad. DEMO permanece en catálogo y no es activable como Evento real.
 
-Devuelve exactamente el `ServicePrice` vigente para el código y tipo de Cliente indicados. Si no existe, responde con el error estable:
+## API
 
-```text
-CURRENT_PRICE_NOT_FOUND
-```
+- `GET /api/v1/services`: autenticado; servicios activos con reglas del canal persistido.
+- `GET /api/v1/public/pricing`: público, read-only y sin cookie; únicamente nueve reglas STANDARD pagadas con nombre, rango, créditos, MXN cents y vigencia. MXN se deriva de `CREDIT_UNIT_VALUE_MXN_CENTS`; no expone Client, Partner, Venue ni finanzas.
+- `/api/v1/admin/prices*`: solo Platform Admin; lista V1/V2, crea reglas V2 futuras y cierra vigencias.
+- `PATCH /api/v1/admin/clients/:clientId`: solo Platform Admin; configura clasificación y genera auditoría.
 
-`GET /services` usa la misma resolución temporal, filtra servicios activos y obtiene `clientType` exclusivamente de `AuthPrincipal`.
+## Promociones
 
-## Constraints PostgreSQL
-
-- enum cerrado `service_code`;
-- enum cerrado `promotion_scope`;
-- `service.code` único;
-- `service_price.credits >= 0`;
-- `validUntil IS NULL OR validUntil > validFrom` para precios y promociones;
-- unique key de precio por servicio, tipo de Cliente e inicio;
-- exclusion constraint GiST que impide solapamientos por servicio y tipo de Cliente usando `tstzrange(valid_from, valid_until, '[)')`;
-- trigger que exige créditos cero para todo precio de `DEMO`;
-- trigger que impide convertir un servicio a `DEMO` si conserva precios distintos de cero;
-- FKs de precios y promociones con `ON DELETE RESTRICT`.
-
-Las mutaciones del módulo usan transacciones `Serializable` y escriben auditoría dentro de la misma transacción.
-
-## Precios iniciales
-
-Vigencia inicial: `2026-07-24T00:00:00.000Z`.
-
-| Servicio | Planner | Organización |
-|---|---:|---:|
-| `FLIPBOOK` | 30 | 27 |
-| `FLYER` | 20 | 17 |
-| `PHYSICAL_QR` | 15 | 10 |
-| `DEMO` | 0 | 0 |
-
-La migración crea cuatro servicios y ocho precios. El comando idempotente:
-
-```bash
-pnpm --filter @invitaciones/api services-pricing:seed
-```
-
-puede ejecutarse repetidamente sin duplicar servicios ni precios.
-
-## Endpoints
-
-Cliente autenticado:
-
-```http
-GET /api/v1/services
-```
-
-Platform Admin:
-
-```http
-POST  /api/v1/admin/services
-PATCH /api/v1/admin/services/:serviceId
-
-GET   /api/v1/admin/prices
-POST  /api/v1/admin/prices
-PATCH /api/v1/admin/prices/:priceId
-
-GET   /api/v1/admin/promotions
-POST  /api/v1/admin/promotions
-PATCH /api/v1/admin/promotions/:promotionId
-POST  /api/v1/admin/promotions/:promotionId/activate
-POST  /api/v1/admin/promotions/:promotionId/deactivate
-```
-
-Las creaciones responden `201`. Actualizaciones y transiciones responden `200`.
-
-## Permisos
-
-- `GET /services`: `INDEPENDENT_PLANNER`, `ORGANIZATION_ADMIN` y `ORGANIZATION_PLANNER`;
-- todas las rutas `/admin/services`, `/admin/prices` y `/admin/promotions`: únicamente `PLATFORM_ADMIN`;
-- Platform Admin no impersona un Cliente;
-- el frontend no envía ni decide el tipo de Cliente para resolver el catálogo.
-
-## Elegibilidad de promociones
-
-Una promoción es elegible cuando:
-
-- está activa;
-- su `scope` coincide;
-- el instante evaluado pertenece a `[validFrom, validUntil)`;
-- el Cliente coincide con `clientId` cuando está definido;
-- el tipo de Cliente coincide con `clientType` cuando está definido;
-- el servicio coincide con `serviceId` cuando está definido.
-
-`allowsStacking` solo declara si la promoción admite acumulación. Este módulo no calcula efectos económicos.
-
-## Alcance diferido
-
-Quedan fuera de este contrato y corresponden a tareas posteriores:
-
-- ledger y movimientos financieros;
-- saldo y balance cache;
-- deuda y línea de crédito;
-- pagos y comprobantes;
-- Eventos y activación;
-- snapshots de precio o promoción en Eventos;
-- porcentaje, importe fijo, bonos, cupones, prioridad, límites de uso y fórmulas económicas;
-- Mercado Pago.
+`Promotion` continúa separado del Price Book y puede filtrar por scope, Client, `ClientType`, servicio y vigencia. En activación la elegibilidad se evalúa después del precio base y dentro de la transacción. El modelo actual no define porcentaje ni créditos de beneficio, por lo que `promotionDiscountCredits` permanece en cero hasta un contrato posterior.

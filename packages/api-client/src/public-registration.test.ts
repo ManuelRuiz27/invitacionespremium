@@ -172,6 +172,7 @@ function validResult() {
       name: input.name,
       status: 'ACTIVE',
       type: 'PLANNER',
+      commercialChannel: null,
       suspendedAt: null,
       suspensionReason: null,
       createdAt: '2026-08-03T00:00:00.000Z',

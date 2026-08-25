@@ -28,6 +28,7 @@ export const organization = {
   id: 'client-a',
   name: 'Casa Aurora',
   type: 'ORGANIZATION',
+  commercialChannel: null,
   status: 'ACTIVE',
   suspendedAt: null,
   suspensionReason: null,
@@ -338,6 +339,7 @@ export function mockAdminApi(user: AuthUser = platformAdmin): AdminTestApiClient
       asset: vi.fn(),
       qr: vi.fn()
     },
-    publicAlbum: { resolve: vi.fn(), photo: vi.fn() }
+    publicAlbum: { resolve: vi.fn(), photo: vi.fn() },
+    publicPricing: { list: vi.fn().mockResolvedValue([]) }
   };
 }

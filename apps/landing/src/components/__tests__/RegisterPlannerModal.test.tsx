@@ -272,6 +272,7 @@ function successfulResult() {
       name: 'Sofía Planners',
       status: 'ACTIVE',
       type: 'PLANNER',
+      commercialChannel: null,
       suspendedAt: null,
       suspensionReason: null,
       createdAt: 'now',

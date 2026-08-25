@@ -9,7 +9,12 @@ const price = {
   id: 'price-1',
   serviceId: 'service-1',
   serviceCode: 'FLYER',
-  clientType: 'PLANNER',
+  pricingVersion: 2,
+  clientType: null,
+  commercialChannel: 'STANDARD',
+  capacityMin: 1,
+  capacityMax: 50,
+  venueTier: null,
   credits: 20,
   validFrom: '2026-01-01T00:00:00.000Z',
   validUntil: null,
@@ -48,7 +53,7 @@ describe('catalogo administrativo', () => {
     expect(screen.getAllByText('Flyer').length).toBeGreaterThan(0);
     expect(api.services.listAvailable).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole('tab', { name: 'Precios' }));
-    expect(screen.getByText('20 creditos')).toBeVisible();
+    expect(screen.getByText(/20 creditos/)).toBeVisible();
     expect(screen.getAllByRole('button', { name: 'Cerrar vigencia' }).length).toBeGreaterThan(0);
     await userEvent.click(screen.getByRole('tab', { name: 'Promociones' }));
     expect(screen.getByText(/No calculan descuentos ni bonos/i)).toBeVisible();

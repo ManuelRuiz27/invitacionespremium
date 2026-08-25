@@ -5,6 +5,7 @@ const client = {
   id: 'client-1',
   name: 'Casa Norte',
   type: 'ORGANIZATION',
+  commercialChannel: null,
   status: 'ACTIVE',
   suspendedAt: null,
   suspensionReason: null,
@@ -53,7 +54,12 @@ describe('administrative API client', () => {
       id: 'price-1',
       serviceId: service.id,
       serviceCode: service.code,
-      clientType: 'PLANNER',
+      pricingVersion: 2,
+      clientType: null,
+      commercialChannel: 'STANDARD',
+      capacityMin: 1,
+      capacityMax: 50,
+      venueTier: null,
       credits: 20,
       validFrom: client.createdAt,
       validUntil: null,
@@ -91,7 +97,14 @@ describe('administrative API client', () => {
     await api.adminCatalog.updateService('service/value', { isActive: false }, signal);
     await api.adminCatalog.listPrices(signal);
     await api.adminCatalog.createPrice(
-      { serviceId: service.id, clientType: 'PLANNER', credits: 20, validFrom: client.createdAt },
+      {
+        serviceId: service.id,
+        commercialChannel: 'STANDARD',
+        capacityMin: 1,
+        capacityMax: 50,
+        credits: 20,
+        validFrom: client.createdAt
+      },
       signal
     );
     await api.adminCatalog.closePrice('price/value', { validUntil: client.updatedAt }, signal);
@@ -172,7 +185,9 @@ describe('administrative API client', () => {
         id: 'price-1',
         serviceId: 'service-1',
         serviceCode: 'FLYER',
-        clientType: 'PLANNER',
+        commercialChannel: 'STANDARD',
+        capacityMin: 1,
+        capacityMax: 50,
         credits: 1.5,
         validFrom: client.createdAt,
         validUntil: null,
@@ -215,7 +230,9 @@ describe('administrative API client', () => {
     await expect(
       api.adminCatalog.createPrice({
         serviceId: 'service-1',
-        clientType: 'PLANNER',
+        commercialChannel: 'STANDARD',
+        capacityMin: 1,
+        capacityMax: 50,
         credits: 1,
         validFrom: client.createdAt
       })

@@ -346,6 +346,31 @@ describe('generated API client runtime', () => {
 });
 
 describe('public API client', () => {
+  it('reads the public Standard price projection without credentials', async () => {
+    const pricing = [
+      {
+        serviceCode: 'FLYER',
+        displayName: 'Flyer digital',
+        capacityMin: 1,
+        capacityMax: 50,
+        credits: 225,
+        amountMxnCents: 450000,
+        validFrom: '2026-08-24T00:00:00.000Z',
+        validUntil: null
+      }
+    ];
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(pricing));
+    const signal = new AbortController().signal;
+
+    await expect(
+      createApiClient({ baseUrl: 'https://api.example.com/api/v1', fetchImpl }).publicPricing.list(signal)
+    ).resolves.toEqual(pricing);
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'https://api.example.com/api/v1/public/pricing',
+      expect.objectContaining({ method: 'GET', credentials: 'omit', signal })
+    );
+  });
+
   it('keeps public 401 responses outside private session expiration', async () => {
     const onUnauthorized = vi.fn();
     const client = createApiClient({

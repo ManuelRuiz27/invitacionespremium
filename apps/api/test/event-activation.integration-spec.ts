@@ -10,6 +10,7 @@ import { EventsService } from '../src/events/events.service';
 import {
   ClientStatus,
   ClientType,
+  CommercialChannel,
   CreditLineStatus,
   EventSocialType,
   EventStatus,
@@ -442,11 +443,9 @@ describe('Event activation', () => {
     const plannerOne = await createUser(organization.clientId, UserRole.ORGANIZATION_PLANNER);
     const plannerTwo = await createUser(organization.clientId, UserRole.ORGANIZATION_PLANNER);
     const platform = await createUser(null, UserRole.PLATFORM_ADMIN);
-    const service = await prisma.service.create({ data: { code: ServiceCode.FLIPBOOK } });
-    await createPrice(service.id, ClientType.PLANNER, 7);
-    await createPrice(service.id, ClientType.ORGANIZATION, 11);
+    const { service } = await createPricedService(ServiceCode.FLIPBOOK, ClientType.PLANNER, 7);
     await grantCredits(independent.clientId, independent.userId, 7);
-    await grantCredits(organization.clientId, organization.userId, 33);
+    await grantCredits(organization.clientId, organization.userId, 21);
 
     const independentEvent = await createReadyEvent(independent, service.id);
     const adminEvent = await createReadyEvent(
@@ -464,11 +463,11 @@ describe('Event activation', () => {
     expect(
       (await activate(adminEvent.id, await login(organization.email), 'activation-owner-admin').expect(200)).body
         .finalCostCredits
-    ).toBe(11);
+    ).toBe(7);
     expect(
       (await activate(plannerEvent.id, await login(plannerTwo.email), 'activation-owner-planner').expect(200)).body
         .finalCostCredits
-    ).toBe(11);
+    ).toBe(7);
 
     const forbiddenEvent = await createReadyEvent(
       { clientId: organization.clientId, userId: plannerTwo.userId },
@@ -534,6 +533,67 @@ describe('Event activation', () => {
     await activate(event.id, cookie, 'activation-deleted-new-key')
       .expect(404)
       .expect((response) => expect(response.body.code).toBe('EVENT_NOT_FOUND'));
+  });
+
+  it('activates explicit Partner and Venue clients with their V2 price entries', async () => {
+    const partner = await createClientUser(ClientType.ORGANIZATION, UserRole.ORGANIZATION_ADMIN);
+    await prisma.client.update({
+      where: { id: partner.clientId },
+      data: { commercialChannel: CommercialChannel.PARTNER }
+    });
+    const partnerService = await prisma.service.create({ data: { code: ServiceCode.FLIPBOOK } });
+    const partnerPrice = await createCommercialPrice(partnerService.id, CommercialChannel.PARTNER, 275, 1, 100);
+    const partnerEvent = await createReadyEvent(partner, partnerService.id);
+    await grantCredits(partner.clientId, partner.userId, 275);
+    const partnerResult = await activate(partnerEvent.id, await login(partner.email), 'activation-partner-v2').expect(
+      200
+    );
+    expect(partnerResult.body).toMatchObject({
+      baseCostCredits: 275,
+      finalCostCredits: 275,
+      purchasedCreditsUsed: 275,
+      creditLineCreditsUsed: 0,
+      event: { activatedServicePriceId: partnerPrice.id }
+    });
+    expect(await prisma.ledgerEntry.count({ where: { eventId: partnerEvent.id } })).toBe(1);
+    expect(await prisma.receipt.count({ where: { operationReference: partnerEvent.id } })).toBe(1);
+
+    const venue = await createClientUser(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
+    await prisma.client.update({ where: { id: venue.clientId }, data: { commercialChannel: CommercialChannel.VENUE } });
+    const venueService = await prisma.service.create({ data: { code: ServiceCode.PHYSICAL_QR } });
+    const venuePrice = await prisma.servicePrice.create({
+      data: {
+        serviceId: venueService.id,
+        pricingVersion: 2,
+        commercialChannel: CommercialChannel.VENUE,
+        venueTier: 'ONE_TO_TWO',
+        credits: 120,
+        validFrom: new Date(Date.now() - 60_000)
+      }
+    });
+    const venueEvent = await createReadyEvent(venue, venueService.id);
+    await prisma.physicalPass.create({
+      data: {
+        eventId: venueEvent.id,
+        passNumber: 1,
+        qrTokenNonce: randomBytes(32).toString('hex'),
+        createdByUserId: venue.userId
+      }
+    });
+    await grantCredits(venue.clientId, venue.userId, 120);
+    const venueResult = await activate(venueEvent.id, await login(venue.email), 'activation-venue-v2').expect(200);
+    expect(venueResult.body).toMatchObject({
+      baseCostCredits: 120,
+      finalCostCredits: 120,
+      purchasedCreditsUsed: 120,
+      creditLineCreditsUsed: 0,
+      event: { activatedServicePriceId: venuePrice.id }
+    });
+    expect(await activate(venueEvent.id, await login(venue.email), 'activation-venue-v2').expect(200)).toHaveProperty(
+      'body.event.activationReceiptId',
+      venueResult.body.event.activationReceiptId
+    );
+    expect(await prisma.ledgerEntry.count({ where: { eventId: venueEvent.id } })).toBe(1);
   });
 
   it('rolls back completely on a late audit error and enforces the ledger Event FK', async () => {
@@ -619,9 +679,19 @@ describe('Event activation', () => {
     return { userId: user.id, email };
   }
 
-  async function createPricedService(code: ServiceCode, clientType: ClientType, credits: number) {
+  async function createPricedService(code: ServiceCode, _clientType: ClientType, credits: number) {
     const service = await prisma.service.create({ data: { code } });
-    const price = await createPrice(service.id, clientType, credits);
+    const price = await prisma.servicePrice.create({
+      data: {
+        serviceId: service.id,
+        pricingVersion: 2,
+        commercialChannel: CommercialChannel.STANDARD,
+        capacityMin: 1,
+        capacityMax: 150,
+        credits,
+        validFrom: new Date(Date.now() - 60_000)
+      }
+    });
     return { service, price };
   }
 
@@ -630,6 +700,26 @@ describe('Event activation', () => {
       data: {
         serviceId,
         clientType,
+        credits,
+        validFrom: new Date(Date.now() - 60_000)
+      }
+    });
+  }
+
+  function createCommercialPrice(
+    serviceId: string,
+    commercialChannel: CommercialChannel,
+    credits: number,
+    capacityMin: number,
+    capacityMax: number
+  ) {
+    return prisma.servicePrice.create({
+      data: {
+        serviceId,
+        pricingVersion: 2,
+        commercialChannel,
+        capacityMin,
+        capacityMax,
         credits,
         validFrom: new Date(Date.now() - 60_000)
       }

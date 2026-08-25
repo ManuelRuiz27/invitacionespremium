@@ -5,6 +5,13 @@ export const clientTypeLabel: Record<AdminClient['type'], string> = {
   ORGANIZATION: 'Organizacion'
 };
 export const clientStatusLabel: Record<AdminClient['status'], string> = { ACTIVE: 'Activo', SUSPENDED: 'Suspendido' };
+export const commercialChannelLabel = {
+  STANDARD: 'Estándar / PVP',
+  PARTNER: 'Planner / agencia partner',
+  VENUE: 'Venue recurrente'
+} as const;
+export const resolvedCommercialChannelLabel = (value: AdminClient['commercialChannel']) =>
+  commercialChannelLabel[value ?? 'STANDARD'];
 export const userRoleLabel: Record<AdminClientUser['role'], string> = {
   PLATFORM_ADMIN: 'Platform Admin',
   INDEPENDENT_PLANNER: 'Planner independiente',

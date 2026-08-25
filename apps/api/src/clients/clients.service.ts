@@ -12,12 +12,21 @@ import type {
   CreateOrganizationInput,
   RegisterPlannerInput,
   SuspendClientInput,
+  UpdateAdminClientInput,
   UpdateClientInput
 } from './clients.dto';
 
 export type ClientRecord = Pick<
   Client,
-  'id' | 'type' | 'name' | 'status' | 'suspendedAt' | 'suspensionReason' | 'createdAt' | 'updatedAt'
+  | 'id'
+  | 'type'
+  | 'commercialChannel'
+  | 'name'
+  | 'status'
+  | 'suspendedAt'
+  | 'suspensionReason'
+  | 'createdAt'
+  | 'updatedAt'
 >;
 
 export type ClientUserRecord = Pick<User, 'id' | 'email' | 'role' | 'clientId' | 'createdAt' | 'updatedAt'>;
@@ -146,11 +155,11 @@ export class ClientsService {
 
   async updateAdmin(
     clientId: string,
-    input: UpdateClientInput,
+    input: UpdateAdminClientInput,
     principal: AuthPrincipal,
     operationId?: string
   ): Promise<ClientResponseDto> {
-    return this.update(clientId, input, principal, operationId);
+    return this.update(clientId, input, principal, operationId, input.commercialChannel !== undefined);
   }
 
   async updateOwned(
@@ -160,7 +169,7 @@ export class ClientsService {
     operationId?: string
   ): Promise<ClientResponseDto> {
     this.accessPolicy.assertOwnedClient(principal, clientId);
-    return this.update(clientId, input, principal, operationId);
+    return this.update(clientId, input, principal, operationId, false);
   }
 
   async suspend(
@@ -248,9 +257,10 @@ export class ClientsService {
 
   private async update(
     clientId: string,
-    input: UpdateClientInput,
+    input: UpdateAdminClientInput | UpdateClientInput,
     principal: AuthPrincipal,
-    operationId?: string
+    operationId?: string,
+    commercialClassificationChanged = false
   ): Promise<ClientResponseDto> {
     const current = await this.findActiveClient(clientId);
 
@@ -259,14 +269,17 @@ export class ClientsService {
       clientId,
       resourceType: 'CLIENT',
       resourceId: clientId,
-      action: 'CLIENT_UPDATE',
+      action: commercialClassificationChanged ? 'CLIENT_COMMERCIAL_CLASSIFICATION_UPDATE' : 'CLIENT_UPDATE',
       beforeData: clientAuditSnapshot(current),
       ...(operationId === undefined ? {} : { operationId }),
       mutate: async (transaction) => {
         const client = await transaction.client.update({
           where: { id: clientId },
           data: {
-            ...(input.name === undefined ? {} : { name: input.name })
+            ...(input.name === undefined ? {} : { name: input.name }),
+            ...('commercialChannel' in input && input.commercialChannel !== undefined
+              ? { commercialChannel: input.commercialChannel }
+              : {})
           }
         });
 
@@ -295,6 +308,7 @@ export function toClientResponse(client: ClientRecord): ClientResponseDto {
   return {
     id: client.id,
     type: client.type,
+    commercialChannel: client.commercialChannel,
     name: client.name,
     status: client.status,
     suspendedAt: client.suspendedAt?.toISOString() ?? null,
@@ -323,6 +337,7 @@ function clientAuditSnapshot(client: ClientRecord): Record<string, unknown> {
   return {
     id: client.id,
     type: client.type,
+    commercialChannel: client.commercialChannel,
     name: client.name,
     status: client.status,
     suspendedAt: client.suspendedAt,

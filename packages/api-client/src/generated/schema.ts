@@ -1984,6 +1984,22 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/pricing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["PublicPricingController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/scanner/{staffToken}/check-in": {
         parameters: {
             query?: never;
@@ -2307,9 +2323,9 @@ export type components = {
             /** @enum {string} */
             role: "PLATFORM_ADMIN" | "INDEPENDENT_PLANNER" | "ORGANIZATION_ADMIN" | "ORGANIZATION_PLANNER";
         };
-        AvailableServiceResponseDto: {
-            /** @enum {string} */
-            code: "FLIPBOOK" | "FLYER" | "PHYSICAL_QR" | "DEMO";
+        AvailableServicePriceRuleResponseDto: {
+            capacityMax: number | null;
+            capacityMin: number | null;
             credits: number;
             /** Format: uuid */
             id: string;
@@ -2317,6 +2333,15 @@ export type components = {
             validFrom: string;
             /** Format: date-time */
             validUntil: string | null;
+            /** @enum {string|null} */
+            venueTier: "ONE_TO_TWO" | "THREE_TO_FIVE" | "SIX_TO_TEN" | "ELEVEN_PLUS" | null;
+        };
+        AvailableServiceResponseDto: {
+            /** @enum {string} */
+            code: "FLIPBOOK" | "FLYER" | "PHYSICAL_QR" | "DEMO";
+            /** Format: uuid */
+            id: string;
+            priceRules: components["schemas"]["AvailableServicePriceRuleResponseDto"][];
         };
         BalanceReconciliationDto: {
             creditLineUsed: number;
@@ -2351,6 +2376,8 @@ export type components = {
             user: components["schemas"]["ClientUserResponseDto"];
         };
         ClientResponseDto: {
+            /** @enum {string|null} */
+            commercialChannel: "STANDARD" | "PARTNER" | "VENUE" | null;
             /** Format: date-time */
             createdAt: string;
             /** Format: uuid */
@@ -2530,8 +2557,10 @@ export type components = {
             password: string;
         };
         CreatePriceRequestDto: {
+            capacityMax?: number | null;
+            capacityMin?: number | null;
             /** @enum {string} */
-            clientType: "PLANNER" | "ORGANIZATION";
+            commercialChannel: "STANDARD" | "PARTNER" | "VENUE";
             credits: number;
             /** Format: uuid */
             serviceId: string;
@@ -2539,6 +2568,8 @@ export type components = {
             validFrom: string;
             /** Format: date-time */
             validUntil?: string | null;
+            /** @enum {string|null} */
+            venueTier?: "ONE_TO_TWO" | "THREE_TO_FIVE" | "SIX_TO_TEN" | "ELEVEN_PLUS" | null;
         };
         CreatePromotionRequestDto: {
             allowsStacking: boolean;
@@ -3081,13 +3112,19 @@ export type components = {
             y: number;
         };
         PriceResponseDto: {
-            /** @enum {string} */
-            clientType: "PLANNER" | "ORGANIZATION";
+            capacityMax: number | null;
+            capacityMin: number | null;
+            /** @enum {string|null} */
+            clientType: "PLANNER" | "ORGANIZATION" | null;
+            /** @enum {string|null} */
+            commercialChannel: "STANDARD" | "PARTNER" | "VENUE" | null;
             /** Format: date-time */
             createdAt: string;
             credits: number;
             /** Format: uuid */
             id: string;
+            /** @enum {number} */
+            pricingVersion: 1 | 2;
             /** @enum {string} */
             serviceCode: "FLIPBOOK" | "FLYER" | "PHYSICAL_QR" | "DEMO";
             /** Format: uuid */
@@ -3096,6 +3133,8 @@ export type components = {
             validFrom: string;
             /** Format: date-time */
             validUntil: string | null;
+            /** @enum {string|null} */
+            venueTier: "ONE_TO_TWO" | "THREE_TO_FIVE" | "SIX_TO_TEN" | "ELEVEN_PLUS" | null;
         };
         PromotionResponseDto: {
             allowsStacking: boolean;
@@ -3173,6 +3212,20 @@ export type components = {
             qr?: components["schemas"]["PublicInvitationQrResponseDto"];
             /** @enum {string} */
             status: "AVAILABLE" | "CANCELLED" | "CLOSED";
+        };
+        PublicPricingResponseDto: {
+            /** @description Public MXN amount in cents. */
+            amountMxnCents: number;
+            capacityMax: number;
+            capacityMin: number;
+            credits: number;
+            displayName: string;
+            /** @enum {string} */
+            serviceCode: "FLIPBOOK" | "FLYER" | "PHYSICAL_QR" | "DEMO";
+            /** Format: date-time */
+            validFrom: string;
+            /** Format: date-time */
+            validUntil: string | null;
         };
         PublicRsvpAssetReferenceDto: {
             /**
@@ -3522,6 +3575,11 @@ export type components = {
         SuspendClientRequestDto: {
             reason?: string;
         };
+        UpdateAdminClientRequestDto: {
+            /** @enum {string|null} */
+            commercialChannel?: "STANDARD" | "PARTNER" | "VENUE" | null;
+            name?: string;
+        };
         UpdateAlbumRequestDto: {
             externalButton?: components["schemas"]["AlbumExternalButtonDto"] | null;
             thankYouMessage?: string | null;
@@ -3720,7 +3778,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UpdateClientRequestDto"];
+                "application/json": components["schemas"]["UpdateAdminClientRequestDto"];
             };
         };
         responses: {
@@ -6796,6 +6854,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RsvpMutationResponseDto"];
+                };
+            };
+        };
+    };
+    PublicPricingController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicPricingResponseDto"][];
                 };
             };
         };

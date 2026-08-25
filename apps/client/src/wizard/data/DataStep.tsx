@@ -18,7 +18,7 @@ import {
   Typography
 } from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
-import { serviceLabels, socialTypeLabels } from '../../shared/formatters';
+import { priceRuleForCapacity, serviceLabels, socialTypeLabels } from '../../shared/formatters';
 import { instantToWallClock, supportedTimeZones, wallClockToInstant } from './timezone';
 import { errorMessage } from '../wizard-utils';
 
@@ -110,11 +110,14 @@ export function DataStep({
         disabled={disabled || serviceBusy}
         onChange={(e) => void chooseService(e.target.value)}
       >
-        {services.map((service) => (
-          <MenuItem key={service.id} value={service.id}>
-            {serviceLabels[service.code]} · {service.credits} créditos
-          </MenuItem>
-        ))}
+        {services.map((service) => {
+          const price = priceRuleForCapacity(service, draft.capacity);
+          return (
+            <MenuItem key={service.id} value={service.id}>
+              {serviceLabels[service.code]} · {price ? `${price.credits} créditos` : 'precio según capacidad'}
+            </MenuItem>
+          );
+        })}
       </TextField>
       {serviceError ? (
         <Alert

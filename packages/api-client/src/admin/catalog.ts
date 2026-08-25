@@ -78,7 +78,12 @@ function isPrice(value: unknown): value is AdminPrice {
     typeof value.id === 'string' &&
     typeof value.serviceId === 'string' &&
     serviceCodes.has(value.serviceCode) &&
-    clientTypes.has(value.clientType) &&
+    (value.pricingVersion === 1 || value.pricingVersion === 2) &&
+    (value.clientType === null || clientTypes.has(value.clientType)) &&
+    (value.commercialChannel === null || commercialChannels.has(value.commercialChannel)) &&
+    (value.capacityMin === null || isFiniteInteger(value.capacityMin)) &&
+    (value.capacityMax === null || isFiniteInteger(value.capacityMax)) &&
+    (value.venueTier === null || venuePriceTiers.has(value.venueTier)) &&
     isFiniteInteger(value.credits) &&
     isDateTime(value.validFrom) &&
     (value.validUntil === null || isDateTime(value.validUntil)) &&
@@ -110,6 +115,8 @@ const isPromotionArray = (value: unknown): value is AdminPromotion[] =>
 
 const serviceCodes = new Set<unknown>(['FLIPBOOK', 'FLYER', 'PHYSICAL_QR', 'DEMO']);
 const clientTypes = new Set<unknown>(['PLANNER', 'ORGANIZATION']);
+const commercialChannels = new Set<unknown>(['STANDARD', 'PARTNER', 'VENUE']);
+const venuePriceTiers = new Set<unknown>(['ONE_TO_TWO', 'THREE_TO_FIVE', 'SIX_TO_TEN', 'ELEVEN_PLUS']);
 const promotionScopes = new Set<unknown>(['CREDIT_PURCHASE', 'EVENT_ACTIVATION']);
 
 const isFiniteInteger = (value: unknown): value is number =>

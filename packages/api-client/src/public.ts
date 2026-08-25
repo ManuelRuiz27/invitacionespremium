@@ -8,6 +8,7 @@ export type PublicRsvpMutation = components['schemas']['RsvpMutationResponseDto'
 export type PublicAlbum = components['schemas']['PublicAlbumResponseDto'];
 export type PublicAlbumPhoto = components['schemas']['PublicAlbumPhotoDto'];
 export type RegisterPlannerInput = components['schemas']['RegisterPlannerRequestDto'];
+export type PublicPricing = components['schemas']['PublicPricingResponseDto'];
 export type RegisterPlannerResult =
   operations['ClientsController_registerPlanner']['responses'][201]['content']['application/json'];
 
@@ -112,6 +113,8 @@ const isRegisterPlannerResult = (value: unknown): value is RegisterPlannerResult
   isString(value.client.name) &&
   ['ACTIVE', 'SUSPENDED'].includes(String(value.client.status)) &&
   ['PLANNER', 'ORGANIZATION'].includes(String(value.client.type)) &&
+  (value.client.commercialChannel === null ||
+    ['STANDARD', 'PARTNER', 'VENUE'].includes(String(value.client.commercialChannel))) &&
   isString(value.client.createdAt) &&
   isString(value.client.updatedAt) &&
   (value.client.suspendedAt === null || isString(value.client.suspendedAt)) &&
@@ -129,6 +132,17 @@ const isRegisterPlannerResult = (value: unknown): value is RegisterPlannerResult
   value.user.role === 'INDEPENDENT_PLANNER' &&
   value.user.clientId === value.client.id;
 
+const isPublicPricing = (value: unknown): value is PublicPricing =>
+  isRecord(value) &&
+  ['PHYSICAL_QR', 'FLYER', 'FLIPBOOK'].includes(String(value.serviceCode)) &&
+  isString(value.displayName) &&
+  isNumber(value.capacityMin) &&
+  isNumber(value.capacityMax) &&
+  isNumber(value.credits) &&
+  isNumber(value.amountMxnCents) &&
+  isString(value.validFrom) &&
+  (value.validUntil === null || isString(value.validUntil));
+
 export function createPublicClientsClient(request: ApiRequester) {
   return {
     registerPlanner: (input: RegisterPlannerInput, signal?: AbortSignal) =>
@@ -142,6 +156,17 @@ export function createPublicClientsClient(request: ApiRequester) {
           ...(signal ? { signal } : {})
         },
         isRegisterPlannerResult
+      )
+  };
+}
+
+export function createPublicPricingClient(request: ApiRequester) {
+  return {
+    list: (signal?: AbortSignal) =>
+      publicRequest<PublicPricing[]>(
+        request,
+        { path: '/public/pricing', response: 'json', ...(signal ? { signal } : {}) },
+        (value): value is PublicPricing[] => Array.isArray(value) && value.every(isPublicPricing)
       )
   };
 }
