@@ -9,30 +9,31 @@ export interface LandingConfigOptions {
 }
 
 const productName = 'InvitacionesPremium';
-const seoTitle = `${productName} — Operación digital de Eventos privados`;
+const seoTitle = `${productName} — Operación digital gestionada para Eventos`;
 const seoDescription =
-  'Plataforma SaaS para Planners y Organizaciones que permite administrar invitaciones, Confirmación de asistencia y acceso a Eventos privados.';
+  'Servicio gestionado de operación digital para Eventos: invitados, RSVP, Mesas y acceso QR/check-in según el SKU contratado.';
 
 const commercialContent = {
   brand: {
     name: productName,
-    tagline: 'Plataforma SaaS de operación digital para Eventos privados.'
+    tagline: 'Servicio gestionado de operación digital para Eventos privados.'
   },
   nav: [
     { label: 'Servicios', href: '#servicios' },
-    { label: 'Demo', href: '#demo' },
     { label: 'Precios', href: '#precios' },
     { label: 'Planners', href: '#planners' },
-    { label: 'Organizaciones', href: '#organizaciones' },
-    { label: 'Preguntas frecuentes', href: '#faq' }
+    { label: 'Venues', href: '#venues' },
+    { label: 'Demo', href: '#demo' },
+    { label: 'FAQ', href: '#faq' }
   ],
   hero: {
-    badge: 'Invitaciones digitales y control de acceso para Eventos',
-    title: 'Haz que tu Evento se sienta organizado desde la primera Invitación',
+    badge: 'Servicio gestionado de operación digital de Eventos',
+    title:
+      'InvitacionesPremium gestiona la infraestructura digital de tu Evento para que tú mantengas el control de tus invitados y operación.',
     subtitle:
-      'Crea una experiencia cuidada para tus Invitados y mantén Confirmaciones, Mesas y accesos bajo control desde un solo lugar.',
-    primaryCta: 'Registrarme como Planner',
-    secondaryCta: 'Iniciar sesión'
+      'Preparamos la infraestructura técnica, la Invitación y el Croquis cuando aplican; tú o tu Planner conservan la operación de invitados.',
+    primaryCta: 'Ver precios',
+    secondaryCta: 'Para Planners y agencias'
   },
   problem: {
     title: 'Organizar un Evento no debería significar perseguir mensajes y listas',
@@ -56,219 +57,201 @@ const commercialContent = {
     ]
   },
   solution: {
-    title: 'Una experiencia clara para tus Invitados. Control real para tu equipo',
-    subtitle: 'Conecta Invitación, Confirmación, Mesas y acceso dentro de un mismo flujo.',
+    title: 'Infraestructura preparada por nosotros. Operación bajo tu control',
+    subtitle: 'Cada parte del Evento tiene un responsable claro desde la preparación hasta el día de operación.',
     ruleNotice: 'Cada Invitación utiliza un QR único y el ingreso se registra por Asistente.',
     pillars: [
       {
-        title: 'Una Invitación que representa tu Evento',
+        title: 'Infraestructura técnica lista para operar',
         description:
-          'Presenta la información esencial y las acciones importantes dentro de una experiencia digital cuidada.'
+          'InvitacionesPremium configura el Evento, su infraestructura digital y la Invitación personalizada cuando el SKU la incluye.'
       },
       {
-        title: 'Confirmaciones fáciles de seguir',
-        description: 'Consulta quién asistirá y los acompañantes permitidos sin depender de conversaciones dispersas.'
+        title: 'Confirmaciones bajo control del cliente',
+        description:
+          'El Planner o cliente mantiene invitados, distribución y seguimiento RSVP mientras el Provider sostiene la infraestructura.'
       },
       {
-        title: 'Mesas organizadas en un mismo lugar',
-        description: 'Asigna a cada Asistente y consulta la distribución del Evento desde una vista central.'
+        title: 'Croquis técnico y Seating separados',
+        description:
+          'InvitacionesPremium prepara el Croquis técnico cuando aplica; el Planner decide y opera la asignación de personas a Mesas.'
       },
       {
-        title: 'Una recepción más ágil',
-        description: 'Tu equipo accede de forma temporal y registra el ingreso de cada Asistente desde la Invitación.'
+        title: 'Staff preparado para el día del Evento',
+        description:
+          'El Planner administra los accesos temporales de Staff y coordina la recepción con Scanner y check-in.'
       },
       {
-        title: 'Un cierre que también forma parte de la experiencia',
-        description: 'Entrega un Álbum post-Evento a los asistentes y conserva el resumen operativo del Evento.'
+        title: 'Cierre operativo con información útil',
+        description:
+          'El Evento concluye con reporte operativo y, para Flyer o Flipbook, una experiencia de Álbum postevento.'
       }
     ]
   },
   services: {
-    title: 'Servicios contratados',
-    subtitle: 'Elige la modalidad que corresponda a la operación de tu Evento.',
+    title: 'Tres formas de operar tu Evento',
+    subtitle: 'Elige el SKU por la experiencia y la operación que realmente necesitas.',
     items: [
       {
-        code: 'FLIPBOOK',
-        name: 'Flipbook',
-        description: 'Invitación digital interactiva de hasta 10 páginas.',
+        code: 'PHYSICAL_QR',
+        name: 'QR / EventOps',
+        description: 'Control de acceso y operación digital sin diseño personalizado de Invitación.',
         features: [
-          'Hasta 10 páginas de diseño',
-          'Confirmación nominal de asistencia',
-          'Croquis y asignación de Mesas opcional',
-          'QR por Invitación; check-in por Asistente',
-          'Álbum de hasta 35 fotos, público durante 30 días'
-        ],
-        prices: {
-          planner: { credits: 30, mxn: 600 },
-          organization: { credits: 27, mxn: 540 }
-        }
+          'QR y control de acceso',
+          'Staff y Scanner',
+          'Croquis y Mesas cuando aplique',
+          'Reporte operativo',
+          'Sin diseño personalizado de Invitación',
+          'Sin Álbum',
+          'Sin RSVP público digital'
+        ]
       },
       {
         code: 'FLYER',
         name: 'Flyer',
-        description: 'Invitación digital de una sola página con Hotspots.',
+        description: 'Diseño personalizado de dos piezas principales para una experiencia digital directa.',
         features: [
-          'Una página de diseño visual con Hotspots',
-          'Confirmación nominal de asistencia',
-          'Croquis y asignación de Mesas opcional',
-          'QR por Invitación; check-in por Asistente',
-          'Álbum de hasta 35 fotos, público durante 30 días'
-        ],
-        prices: {
-          planner: { credits: 20, mxn: 400 },
-          organization: { credits: 17, mxn: 340 }
-        }
+          'Dos piezas principales de diseño personalizado',
+          'RSVP y gestión de invitados',
+          'Croquis y Mesas opcional',
+          'QR y check-in',
+          'Álbum',
+          'Hasta dos rondas consolidadas de cambios'
+        ]
       },
       {
-        code: 'PHYSICAL_QR',
-        name: 'QR pase físico',
-        description: 'Pases individuales para control de acceso directo en puerta.',
+        code: 'FLIPBOOK',
+        name: 'Flipbook',
+        description: 'Diseño personalizado de hasta 10 páginas para una experiencia digital narrativa.',
         features: [
-          'Pases individuales impresos o digitales',
-          'El segundo ingreso del mismo pase queda bloqueado',
-          'Asignación a Mesa si el Evento usa Croquis',
-          'Sin Contactos, Confirmación de asistencia ni Álbum'
-        ],
-        prices: {
-          planner: { credits: 15, mxn: 300 },
-          organization: { credits: 10, mxn: 200 }
-        }
-      },
-      {
-        code: 'DEMO',
-        name: 'Demo',
-        description: 'Simulación visual para conocer la experiencia.',
-        features: ['No usa backend', 'No crea Eventos', 'No consume créditos', 'No genera accesos reales'],
-        prices: {
-          planner: { credits: 0, mxn: 0 },
-          organization: { credits: 0, mxn: 0 }
-        }
+          'Hasta 10 páginas de diseño personalizado',
+          'RSVP y gestión de invitados',
+          'Croquis y Mesas opcional',
+          'QR y check-in',
+          'Álbum',
+          'Hasta dos rondas consolidadas de cambios'
+        ]
       }
     ]
   },
   pricing: {
-    title: 'Elige la experiencia que mejor representa tu Evento',
-    subtitle:
-      'Compara las modalidades disponibles y selecciona la que corresponda a la experiencia y operación que necesitas.',
-    unitValueMxn: 20,
-    planner: {
-      title: 'Planner independiente',
-      description: 'Registro público y créditos propios para operar sus Eventos.'
-    },
-    organization: {
-      title: 'Organización',
-      description: 'Cliente creado exclusivamente por Platform Admin.'
-    }
+    title: 'Precio estándar por SKU y capacidad',
+    subtitle: 'Consulta el PVP vigente para Eventos de hasta 50, 100 o 150 personas.',
+    note: 'Los precios en MXN provienen del Price Book público vigente; los créditos se muestran como referencia secundaria.'
   },
   planners: {
-    title: 'Crea experiencias memorables sin perder el control',
+    title: 'Una alianza para Planners y agencias',
     subtitle:
-      'Diseña, organiza y opera cada Evento desde un solo lugar, con una experiencia clara para tus Invitados y tu equipo.',
+      'InvitacionesPremium prepara la infraestructura técnica mientras tú conservas la relación y operación con tu cliente.',
     bulletPoints: [
-      'Presenta tu Evento con una Invitación digital cuidada.',
-      'Gestiona Confirmaciones y acompañantes sin listas dispersas.',
-      'Organiza Mesas y accesos desde un mismo flujo.',
-      'Coordina la recepción con accesos temporales para tu Staff.'
+      'Conservas la relación comercial con tu cliente.',
+      'Operas invitados y seguimiento RSVP.',
+      'Decides Seating y administras accesos de Staff.',
+      'Pueden existir tarifas Partner explícitas según condiciones comerciales.'
     ],
-    onboardingNotice: 'Regístrate como Planner independiente y comienza a preparar tu próximo Evento.',
-    cta: 'Registrarme como Planner'
-  },
-  organizations: {
-    title: 'Una operación consistente para cada Evento de tu Organización',
-    subtitle: 'Centraliza la gestión del equipo y la operación de tus Eventos sin perder visibilidad.',
+    commercialCta: 'Conocer condiciones para Planners',
+    registerCta: 'Crear cuenta de Planner',
     notice:
-      'Las Organizaciones se crean de forma administrada dentro de la plataforma y no cuentan con registro público.',
-    roles: [
-      {
-        name: 'Admin de Organización',
-        description:
-          'Administra créditos, deuda y acceso del equipo, además de supervisar los Eventos de la Organización.'
-      },
-      {
-        name: 'Planner de Organización',
-        description: 'Configura y opera únicamente los Eventos que creó, sin acceso a saldo, deuda o línea de crédito.'
-      }
-    ]
+      'El registro de cuenta no garantiza una tarifa Partner. El formulario de solicitud comercial se habilitará próximamente.'
+  },
+  venue: {
+    title: 'Operación recurrente para salones, jardines y venues',
+    subtitle: 'Estandariza el acceso y la operación digital de cada Evento con una infraestructura repetible.',
+    bulletPoints: [
+      'QR / EventOps para control de acceso',
+      'Staff y Scanner para la recepción',
+      'Croquis y Mesas cuando aplique',
+      'Reportes operativos por Evento',
+      'Tarifas que pueden mejorar según volumen efectivo'
+    ],
+    cta: 'Solicitar propuesta para mi venue',
+    notice: 'El formulario comercial estará disponible en el siguiente paso.'
   },
   faq: {
     title: 'Preguntas frecuentes',
-    subtitle: 'Respuestas sobre el alcance operativo de InvitacionesPremium.',
+    subtitle: 'Respuestas sobre el alcance comercial y operativo de InvitacionesPremium.',
     items: [
+      {
+        question: '¿Cómo se define el precio estándar?',
+        answer: 'Por el SKU contratado y la capacidad del Evento: hasta 50, 100 o 150 personas.'
+      },
       {
         question: '¿Qué es un crédito?',
         answer:
-          'Es la unidad entera usada para activar Eventos. Su valor comercial confirmado es de $20 MXN y el costo depende del servicio contratado y del tipo de Cliente.'
+          'Es la unidad financiera del sistema. Un crédito equivale a $20 MXN; el precio público se muestra principalmente en MXN.'
       },
       {
-        question: '¿Cómo funciona el QR y el ingreso?',
+        question: '¿Registrarme como Planner me da tarifa Partner?',
         answer:
-          'El QR pertenece a la Invitación. En puerta, el check-in se registra individualmente por cada Asistente nominal.'
+          'No. El registro de cuenta y la clasificación Partner son procesos distintos y requieren condiciones comerciales explícitas.'
       },
       {
-        question: '¿Quién puede registrarse públicamente?',
+        question: '¿Cómo funciona Venue?',
         answer:
-          'Únicamente el Planner independiente. Las Organizaciones son creadas por Platform Admin y sus Planners internos no tienen acceso financiero.'
+          'Puede acceder a un esquema comercial recurrente según volumen efectivo. No existe registro público de Organization.'
+      },
+      {
+        question: '¿Qué incluye QR / EventOps?',
+        answer:
+          'Incluye control de acceso, Staff/Scanner, Croquis y Mesas cuando aplican, y reporte operativo. No incluye RSVP público digital ni Álbum.'
       },
       {
         question: '¿Cuáles son los límites por Evento?',
-        answer: 'Cada Evento admite como máximo 150 Contactos/Invitaciones y tres StaffTokens activos.'
-      },
-      {
-        question: '¿Cuánto tiempo está disponible el Álbum?',
-        answer:
-          'Flyer y Flipbook admiten hasta 35 fotos. El Álbum público permanece disponible durante 30 días desde su publicación. QR pase físico no incluye Álbum.'
+        answer: 'Cada Evento admite como máximo 150 invitados y tres accesos Staff activos.'
       }
     ]
   },
   demo: {
     label: 'Recorrido visual',
-    title: 'Mira cómo se vive el Evento antes de operarlo',
-    subtitle: 'Explora una experiencia visual desde la Invitación hasta la recepción, sin crear un Evento real.',
+    title: 'Mira cómo se vive un flujo digital',
+    subtitle:
+      'Explora una simulación de Flyer o Flipbook desde la Invitación hasta la recepción; las capacidades varían según el SKU.',
     disclaimer:
-      'Esta demostración es una simulación visual: no usa backend, no crea Eventos, no consume créditos y no genera accesos reales.',
+      'Esta demostración es un recorrido visual: no es un servicio, no usa backend, no crea Eventos, no consume créditos y no genera accesos reales.',
     scenes: [
       {
         code: 'INVITATION',
         label: 'Invitación',
         title: 'Una primera impresión a la altura del Evento',
         description:
-          'Presenta la información esencial y facilita las acciones importantes dentro de una experiencia cuidada.'
+          'Flyer y Flipbook pueden presentar la información y acciones principales dentro de una experiencia personalizada.'
       },
       {
         code: 'CONFIRMATION',
         label: 'Confirmación',
         title: 'Respuestas claras, sin perseguir mensajes',
-        description: 'Cada Invitación concentra la asistencia y los acompañantes permitidos.'
+        description: 'En Flyer y Flipbook, cada Invitación concentra la asistencia y los acompañantes permitidos.'
       },
       {
         code: 'ACCESS',
         label: 'Acceso',
         title: 'Una recepción más ágil',
-        description: 'El equipo consulta la Invitación y registra el ingreso de cada Asistente.'
+        description: 'El equipo usa QR y Scanner para registrar el ingreso de cada Asistente.'
       },
       {
         code: 'TABLES',
         label: 'Mesas',
         title: 'Cada persona en el lugar correcto',
-        description: 'Consulta la asignación y ubica la Mesa desde el mismo flujo de recepción.'
+        description: 'Cuando el Evento usa Croquis, el Planner consulta y opera la asignación a Mesas.'
       }
     ]
   },
   registration: {
-    title: 'Registro de Planner independiente',
-    intro: 'Crea tu cuenta de Planner independiente. Solo se solicitarán los datos definidos por el registro actual.',
+    title: 'Crear cuenta de Planner',
+    intro:
+      'Crea una cuenta Standard de Planner independiente. El registro no asigna automáticamente condiciones Partner.',
     success: 'Tu cuenta fue creada. Inicia sesión para continuar con la configuración de tu perfil.'
   },
   cta: {
-    title: 'Lleva tu Evento al siguiente nivel',
-    description:
-      'Comienza a organizar la experiencia completa con InvitacionesPremium. El registro como Planner independiente es público y sin costo inicial.',
-    primaryCta: 'Registrarme como Planner',
-    secondaryCta: 'Iniciar sesión'
+    title: 'Elige la operación correcta para tu Evento',
+    description: 'Compara el precio estándar o revisa las opciones comerciales para Planners y venues.',
+    primaryCta: 'Ver precios',
+    secondaryCta: 'Opciones para Planners',
+    venueLink: 'Opciones para venues'
   },
   footer: {
     copyright: `© 2026 ${productName}. Todos los derechos reservados.`,
-    legalNotice: 'Plataforma SaaS para administración y operación digital de Eventos.'
+    legalNotice: 'Servicio gestionado de administración y operación digital de Eventos.'
   },
   limits: {
     contactsPerEvent: 150,

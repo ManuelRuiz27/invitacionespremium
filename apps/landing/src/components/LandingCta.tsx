@@ -1,22 +1,18 @@
-import { getLandingConfig } from '../config/landing-config';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import PersonAddIcon from '@mui/icons-material/PersonAdd';
-import { Box, Button, Stack, Typography } from '@mui/material';
-import { landingTokens } from '../theme/landing-theme';
-import { LandingContainer } from './primitives/LandingContainer';
-import { LandingActionGroup } from './primitives';
 import ctaFinaleBg from '../assets/landing/cta-finale.webp';
-
-export interface LandingCtaProps {
-  onOpenRegister: () => void;
-}
+import { getLandingConfig } from '../config/landing-config';
+import { scrollToLandingSection } from '../navigation';
+import { landingTokens } from '../theme/landing-theme';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import { Box, Button, Link, Stack, Typography } from '@mui/material';
+import { LandingActionGroup, LandingContainer } from './primitives';
 
 const landingContent = getLandingConfig();
 
-export function LandingCta({ onOpenRegister }: LandingCtaProps) {
+export function LandingCta() {
   return (
     <Box
       component="section"
+      aria-labelledby="landing-final-cta-heading"
       sx={{
         position: 'relative',
         py: { xs: 12, md: 16 },
@@ -26,31 +22,22 @@ export function LandingCta({ onOpenRegister }: LandingCtaProps) {
         overflow: 'hidden'
       }}
     >
-      {/* Cinematic Background Image */}
       <Box
+        aria-hidden
         sx={{
           position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
+          inset: 0,
           backgroundImage: `url(${ctaFinaleBg})`,
           backgroundSize: 'cover',
-          backgroundPosition: 'center center',
-          '&::after': {
-            content: '""',
-            position: 'absolute',
-            inset: 0,
-            background: landingTokens.overlays.ctaGradient
-          }
+          backgroundPosition: 'center',
+          '&::after': { content: '""', position: 'absolute', inset: 0, background: landingTokens.overlays.ctaGradient }
         }}
-        aria-hidden="true"
       />
 
       <LandingContainer sx={{ position: 'relative', zIndex: 1 }}>
         <Stack spacing={4} sx={{ alignItems: 'center', textAlign: 'center', maxWidth: 800, mx: 'auto' }}>
           <Typography
-            variant="h2"
+            id="landing-final-cta-heading"
             component="h2"
             sx={{
               color: landingTokens.colors.dark.text,
@@ -61,15 +48,7 @@ export function LandingCta({ onOpenRegister }: LandingCtaProps) {
           >
             {landingContent.cta.title}
           </Typography>
-          <Typography
-            variant="body1"
-            sx={{
-              color: landingTokens.colors.dark.textMuted,
-              ...landingTokens.typography.body,
-              fontSize: '1.15rem',
-              maxWidth: 600
-            }}
-          >
+          <Typography sx={{ color: landingTokens.colors.dark.textMuted, ...landingTokens.typography.body }}>
             {landingContent.cta.description}
           </Typography>
 
@@ -77,21 +56,14 @@ export function LandingCta({ onOpenRegister }: LandingCtaProps) {
             <Button
               variant="contained"
               size="large"
-              startIcon={<PersonAddIcon />}
-              onClick={onOpenRegister}
+              onClick={() => scrollToLandingSection('#precios')}
               sx={{
                 minHeight: 56,
                 px: 4,
-                fontSize: '1rem',
                 backgroundColor: landingTokens.colors.dark.text,
                 color: landingTokens.colors.dark.background,
                 borderRadius: 0,
-                textTransform: 'none',
-                fontWeight: 600,
-                transition: landingTokens.transitions.duration,
-                '&:hover': {
-                  backgroundColor: landingTokens.colors.dark.textMuted
-                }
+                textTransform: 'none'
               }}
             >
               {landingContent.cta.primaryCta}
@@ -100,27 +72,30 @@ export function LandingCta({ onOpenRegister }: LandingCtaProps) {
               variant="outlined"
               size="large"
               endIcon={<ArrowForwardIcon />}
-              href={landingContent.urls.login}
-              disabled={!landingContent.urls.login}
+              onClick={() => scrollToLandingSection('#planners')}
               sx={{
                 minHeight: 56,
                 px: 4,
-                fontSize: '1rem',
                 borderColor: landingTokens.colors.dark.border,
                 color: landingTokens.colors.dark.text,
                 borderRadius: 0,
-                textTransform: 'none',
-                fontWeight: 500,
-                transition: landingTokens.transitions.duration,
-                '&:hover': {
-                  borderColor: landingTokens.colors.dark.text,
-                  backgroundColor: 'transparent'
-                }
+                textTransform: 'none'
               }}
             >
               {landingContent.cta.secondaryCta}
             </Button>
           </LandingActionGroup>
+
+          <Link
+            href="#venues"
+            onClick={(event) => {
+              event.preventDefault();
+              scrollToLandingSection('#venues');
+            }}
+            sx={{ ...landingTokens.typography.body, color: landingTokens.colors.dark.textMuted }}
+          >
+            {landingContent.cta.venueLink}
+          </Link>
         </Stack>
       </LandingContainer>
     </Box>

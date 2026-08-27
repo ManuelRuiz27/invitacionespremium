@@ -6,15 +6,13 @@ import { landingTokens } from '../theme/landing-theme';
 import serviceFlipbook from '../assets/landing/service-flipbook.svg';
 import serviceFlyer from '../assets/landing/service-flyer.svg';
 import servicePass from '../assets/landing/service-pass.svg';
-import serviceDemo from '../assets/landing/service-demo.svg';
 
 const landingContent = getLandingConfig();
 
 const assetMap: Record<string, string> = {
   FLIPBOOK: serviceFlipbook,
   FLYER: serviceFlyer,
-  PHYSICAL_QR: servicePass,
-  DEMO: serviceDemo
+  PHYSICAL_QR: servicePass
 };
 
 export function LandingServices() {

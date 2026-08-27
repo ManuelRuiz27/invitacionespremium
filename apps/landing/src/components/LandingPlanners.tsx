@@ -1,11 +1,10 @@
-import { getLandingConfig } from '../config/landing-config';
-import { Box, Button, Grid, Typography } from '@mui/material';
-import PersonAddIcon from '@mui/icons-material/PersonAdd';
-import { landingTokens } from '../theme/landing-theme';
-import { LandingSectionIntro } from './primitives/LandingSectionIntro';
-import { LandingContainer } from './primitives/LandingContainer';
-
 import plannerOperationImg from '../assets/landing/planner-operation.webp';
+import { getLandingConfig } from '../config/landing-config';
+import { scrollToLandingSection } from '../navigation';
+import { landingTokens } from '../theme/landing-theme';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import { Box, Button, Grid, Stack, Typography } from '@mui/material';
+import { LandingContainer, LandingSectionIntro } from './primitives';
 
 export interface LandingPlannersProps {
   onOpenRegister: () => void;
@@ -25,7 +24,6 @@ export function LandingPlanners({ onOpenRegister }: LandingPlannersProps) {
     >
       <LandingContainer>
         <Grid container spacing={{ xs: 6, md: 8 }} sx={{ alignItems: 'center' }}>
-          {/* Text Area */}
           <Grid size={{ xs: 12, md: 6 }}>
             <LandingSectionIntro
               headingId={headingId}
@@ -35,89 +33,69 @@ export function LandingPlanners({ onOpenRegister }: LandingPlannersProps) {
               dark={false}
             />
 
-            <Box
-              component="ul"
-              sx={{ listStyle: 'none', p: 0, m: 0, mb: 5, display: 'flex', flexDirection: 'column', gap: 3 }}
-            >
+            <Box component="ul" sx={{ listStyle: 'none', p: 0, m: 0, mb: 5, display: 'grid', gap: 3 }}>
               {landingContent.planners.bulletPoints.map((point, index) => (
                 <Box component="li" key={point} sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                  <Typography
-                    aria-hidden="true"
-                    sx={{
-                      ...landingTokens.typography.display,
-                      fontSize: '1.25rem',
-                      color: landingTokens.colors.light.text,
-                      opacity: 0.3,
-                      mt: 0.2
-                    }}
-                  >
+                  <Typography aria-hidden sx={{ ...landingTokens.typography.display, opacity: 0.3 }}>
                     {String(index + 1).padStart(2, '0')}
                   </Typography>
-                  <Typography
-                    variant="body1"
-                    sx={{ ...landingTokens.typography.body, color: landingTokens.colors.light.text, lineHeight: 1.6 }}
-                  >
+                  <Typography sx={{ ...landingTokens.typography.body, color: landingTokens.colors.light.text }}>
                     {point}
                   </Typography>
                 </Box>
               ))}
             </Box>
 
-            <Box
-              sx={{ p: 4, bgcolor: landingTokens.colors.light.surface, border: landingTokens.borders.hairlineLight }}
-            >
-              <Typography
-                variant="body2"
-                sx={{ ...landingTokens.typography.body, color: landingTokens.colors.light.textMuted, mb: 3 }}
-              >
-                {landingContent.planners.onboardingNotice}
-              </Typography>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ alignItems: { sm: 'stretch' } }}>
               <Button
                 variant="contained"
-                onClick={onOpenRegister}
-                startIcon={<PersonAddIcon aria-hidden="true" />}
+                onClick={() => scrollToLandingSection('#planner-commercial-notice')}
                 sx={{
                   ...landingTokens.typography.headline,
-                  fontSize: '1rem',
                   textTransform: 'none',
                   minHeight: 56,
-                  px: 4,
+                  px: 3,
                   bgcolor: landingTokens.colors.light.text,
                   color: landingTokens.colors.light.background,
                   borderRadius: 0,
-                  boxShadow: 'none',
-                  '&:hover': {
-                    bgcolor: landingTokens.colors.light.text,
-                    opacity: 0.9,
-                    boxShadow: 'none'
-                  }
+                  boxShadow: 'none'
                 }}
               >
-                {landingContent.planners.cta}
+                {landingContent.planners.commercialCta}
               </Button>
-            </Box>
+              <Button
+                variant="outlined"
+                onClick={onOpenRegister}
+                startIcon={<PersonAddIcon aria-hidden />}
+                sx={{
+                  ...landingTokens.typography.headline,
+                  textTransform: 'none',
+                  minHeight: 56,
+                  px: 3,
+                  color: landingTokens.colors.light.text,
+                  borderColor: landingTokens.colors.light.text,
+                  borderRadius: 0
+                }}
+              >
+                {landingContent.planners.registerCta}
+              </Button>
+            </Stack>
+
+            <Typography
+              id="planner-commercial-notice"
+              tabIndex={-1}
+              sx={{ ...landingTokens.typography.body, color: landingTokens.colors.light.textMuted, mt: 3 }}
+            >
+              {landingContent.planners.notice}
+            </Typography>
           </Grid>
 
-          {/* Visual Mockup Area */}
           <Grid size={{ xs: 12, md: 6 }}>
-            <Box
-              sx={{
-                width: '100%',
-                height: { xs: 400, md: 600 },
-                position: 'relative',
-                overflow: 'hidden',
-                border: landingTokens.borders.hairlineLight
-              }}
-            >
+            <Box sx={{ width: '100%', height: { xs: 400, md: 600 }, overflow: 'hidden' }}>
               <img
                 src={plannerOperationImg}
-                alt="Operación de evento"
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  display: 'block'
-                }}
+                alt="Planner coordinando la operación de un Evento"
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
               />
             </Box>
           </Grid>

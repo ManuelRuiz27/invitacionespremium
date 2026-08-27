@@ -1,4 +1,5 @@
 import { getLandingConfig, type LandingConfig } from '../config/landing-config';
+import { scrollToLandingSection } from '../navigation';
 import { landingTokens } from '../theme/landing-theme';
 import { LandingActionGroup, LandingContainer, LandingEyebrow } from './primitives';
 import heroBg from '../assets/landing/hero-bg.webp';
@@ -7,11 +8,10 @@ import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import { Box, Button, Stack, Typography } from '@mui/material';
 
 export interface LandingHeroProps {
-  onOpenRegister: () => void;
   config?: LandingConfig;
 }
 
-export function LandingHero({ onOpenRegister, config }: LandingHeroProps) {
+export function LandingHero({ config }: LandingHeroProps) {
   const landingContent = config ?? getLandingConfig();
 
   return (
@@ -92,7 +92,7 @@ export function LandingHero({ onOpenRegister, config }: LandingHeroProps) {
             <Button
               variant="contained"
               size="large"
-              onClick={onOpenRegister}
+              onClick={() => scrollToLandingSection('#precios')}
               sx={{
                 minHeight: 56,
                 px: 4,
@@ -115,8 +115,7 @@ export function LandingHero({ onOpenRegister, config }: LandingHeroProps) {
               variant="outlined"
               size="large"
               endIcon={<ArrowForwardIcon />}
-              href={landingContent.urls.login}
-              disabled={!landingContent.urls.login}
+              onClick={() => scrollToLandingSection('#planners')}
               sx={{
                 minHeight: 56,
                 px: 4,

@@ -169,7 +169,7 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
                   }
                 }}
               >
-                {landingContent.hero.secondaryCta}
+                Iniciar sesión
               </Button>
             )}
 
@@ -196,7 +196,7 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
                   }
                 }}
               >
-                Registrarme
+                Crear cuenta de Planner
               </Button>
             )}
 
@@ -284,7 +284,7 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
                 }
               }}
             >
-              Registrarme como Planner
+              Crear cuenta de Planner
             </Button>
 
             <Button
@@ -306,7 +306,7 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
                 }
               }}
             >
-              {landingContent.hero.secondaryCta}
+              Iniciar sesión
             </Button>
           </Box>
         </Box>

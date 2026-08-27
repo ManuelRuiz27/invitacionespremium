@@ -1,13 +1,21 @@
 import { getLandingConfig } from '../config/landing-config';
-import { Box, Typography } from '@mui/material';
+import { buildPublicPricingMatrix, formatMxnFromCents } from '../public-pricing-model';
+import type { PublicPricingState } from '../use-public-pricing';
 import { landingTokens } from '../theme/landing-theme';
-import { LandingSectionIntro } from './primitives/LandingSectionIntro';
-import { LandingContainer } from './primitives/LandingContainer';
+import { Alert, Box, Button, CircularProgress, Typography } from '@mui/material';
+import type { ReactNode } from 'react';
+import { LandingContainer, LandingSectionIntro } from './primitives';
 
 const landingContent = getLandingConfig();
 
-export function LandingPricing() {
+export interface LandingPricingProps {
+  state: PublicPricingState;
+  onRetry: () => void;
+}
+
+export function LandingPricing({ state, onRetry }: LandingPricingProps) {
   const headingId = 'landing-pricing-heading';
+  const matrix = state.status === 'ready' ? buildPublicPricingMatrix(state.prices) : null;
 
   return (
     <Box
@@ -22,217 +30,174 @@ export function LandingPricing() {
           title={landingContent.pricing.title}
           subtitle={landingContent.pricing.subtitle}
           align="center"
-          dark={true}
+          dark
         />
 
-        <Box sx={{ mb: { xs: 4, md: 6 }, textAlign: 'center' }}>
-          <Typography
-            variant="body2"
-            sx={{ ...landingTokens.typography.eyebrow, color: landingTokens.colors.dark.textMuted }}
-          >
-            1 crédito = ${landingContent.pricing.unitValueMxn} MXN
-          </Typography>
-        </Box>
-
-        <Box
+        <Typography
+          variant="body2"
           sx={{
-            bgcolor: landingTokens.colors.dark.surface,
-            border: landingTokens.borders.hairlineDark,
-            borderRadius: 0,
-            overflow: 'hidden',
-            maxWidth: 1000,
-            mx: 'auto'
+            ...landingTokens.typography.body,
+            color: landingTokens.colors.dark.textMuted,
+            textAlign: 'center',
+            maxWidth: 720,
+            mx: 'auto',
+            mb: 6
           }}
         >
-          {/* Header Row (Desktop only) */}
+          {landingContent.pricing.note}
+        </Typography>
+
+        {state.status === 'loading' && (
+          <Box role="status" aria-live="polite" sx={{ minHeight: 240, display: 'grid', placeItems: 'center' }}>
+            <CircularProgress aria-label="Consultando precios públicos" color="inherit" />
+          </Box>
+        )}
+
+        {state.status === 'unavailable' && (
+          <PricingMessage>Los precios no están disponibles en este entorno.</PricingMessage>
+        )}
+
+        {state.status === 'error' && (
+          <PricingMessage action={<RetryButton onRetry={onRetry} />}>
+            No pudimos consultar los precios en este momento.
+          </PricingMessage>
+        )}
+
+        {state.status === 'ready' && !matrix && (
+          <PricingMessage action={<RetryButton onRetry={onRetry} />}>
+            Los precios públicos están temporalmente no disponibles.
+          </PricingMessage>
+        )}
+
+        {matrix && (
           <Box
+            aria-label="Precios estándar por SKU y capacidad"
             sx={{
-              display: { xs: 'none', md: 'grid' },
-              gridTemplateColumns: '340px 1fr 1fr',
+              borderTop: landingTokens.borders.hairlineDark,
               borderBottom: landingTokens.borders.hairlineDark,
-              bgcolor: landingTokens.colors.dark.surface
+              maxWidth: 1080,
+              mx: 'auto'
             }}
           >
-            <Box sx={{ p: 4 }} />
-            <Box sx={{ p: 4, borderLeft: landingTokens.borders.hairlineDark }}>
-              <Typography
-                variant="h3"
-                sx={{
-                  ...landingTokens.typography.headline,
-                  color: landingTokens.colors.dark.text,
-                  fontSize: '1.25rem',
-                  mb: 1
-                }}
-              >
-                {landingContent.pricing.planner.title}
-              </Typography>
-              <Typography
-                variant="body2"
-                sx={{ ...landingTokens.typography.body, color: landingTokens.colors.dark.textMuted }}
-              >
-                {landingContent.pricing.planner.description}
-              </Typography>
-            </Box>
-            <Box sx={{ p: 4, borderLeft: landingTokens.borders.hairlineDark }}>
-              <Typography
-                variant="h3"
-                sx={{
-                  ...landingTokens.typography.headline,
-                  color: landingTokens.colors.dark.text,
-                  fontSize: '1.25rem',
-                  mb: 1
-                }}
-              >
-                {landingContent.pricing.organization.title}
-              </Typography>
-              <Typography
-                variant="body2"
-                sx={{ ...landingTokens.typography.body, color: landingTokens.colors.dark.textMuted }}
-              >
-                {landingContent.pricing.organization.description}
-              </Typography>
-            </Box>
-          </Box>
-
-          {/* Service Rows */}
-          {landingContent.services.items.map((service, index) => (
             <Box
-              key={service.code}
-              data-service-code={service.code}
               sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr', md: '340px 1fr 1fr' },
-                borderBottom:
-                  index < landingContent.services.items.length - 1 ? landingTokens.borders.hairlineDark : 'none'
+                display: { xs: 'none', md: 'grid' },
+                gridTemplateColumns: 'minmax(210px, 1.2fr) repeat(3, 1fr)',
+                borderBottom: landingTokens.borders.hairlineDark
               }}
             >
-              {/* Service Info */}
-              <Box sx={{ p: 4, borderBottom: { xs: landingTokens.borders.hairlineDark, md: 'none' } }}>
+              <Box sx={{ p: 3 }} />
+              {matrix.columns.map((column) => (
                 <Typography
-                  variant="h4"
+                  key={column}
+                  sx={{
+                    ...landingTokens.typography.eyebrow,
+                    color: landingTokens.colors.dark.textMuted,
+                    p: 3,
+                    borderLeft: landingTokens.borders.hairlineDark
+                  }}
+                >
+                  {column}
+                </Typography>
+              ))}
+            </Box>
+
+            {matrix.rows.map((row, rowIndex) => (
+              <Box
+                key={row.serviceCode}
+                data-service-code={row.serviceCode}
+                sx={{
+                  display: { xs: 'block', md: 'grid' },
+                  gridTemplateColumns: 'minmax(210px, 1.2fr) repeat(3, 1fr)',
+                  borderBottom: rowIndex < matrix.rows.length - 1 ? landingTokens.borders.hairlineDark : undefined
+                }}
+              >
+                <Typography
+                  component="h3"
                   sx={{
                     ...landingTokens.typography.headline,
                     color: landingTokens.colors.dark.text,
                     fontSize: '1.25rem',
-                    mb: 1
+                    p: 3
                   }}
                 >
-                  {service.name}
+                  {row.displayName}
                 </Typography>
-                <Typography
-                  variant="body2"
-                  sx={{ ...landingTokens.typography.body, color: landingTokens.colors.dark.textMuted }}
-                >
-                  {service.description}
-                </Typography>
-              </Box>
-
-              {/* Planner Price */}
-              <Box
-                data-client-type="planner"
-                sx={{
-                  p: 4,
-                  borderLeft: { md: landingTokens.borders.hairlineDark },
-                  borderBottom: { xs: landingTokens.borders.hairlineDark, md: 'none' },
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center'
-                }}
-              >
-                <Typography
-                  variant="overline"
-                  sx={{
-                    ...landingTokens.typography.eyebrow,
-                    display: { xs: 'block', md: 'none' },
-                    mb: 1,
-                    color: landingTokens.colors.dark.textMuted
-                  }}
-                >
-                  {landingContent.pricing.planner.title}
-                </Typography>
-                <Typography
-                  variant="h3"
-                  sx={{
-                    ...landingTokens.typography.display,
-                    color: landingTokens.colors.dark.text,
-                    fontSize: '2rem',
-                    mb: 0.5,
-                    display: 'flex',
-                    alignItems: 'baseline',
-                    gap: 1
-                  }}
-                >
-                  {service.prices.planner.credits}
-                  <Typography
-                    component="span"
-                    variant="body1"
-                    sx={{ ...landingTokens.typography.body, color: landingTokens.colors.dark.textMuted }}
+                {row.brackets.map((bracket) => (
+                  <Box
+                    key={bracket.label}
+                    sx={{
+                      p: 3,
+                      borderLeft: { md: landingTokens.borders.hairlineDark },
+                      borderTop: { xs: landingTokens.borders.hairlineDark, md: 'none' }
+                    }}
                   >
-                    créditos
-                  </Typography>
-                </Typography>
-                <Typography
-                  variant="body2"
-                  sx={{ ...landingTokens.typography.body, color: landingTokens.colors.dark.textMuted }}
-                >
-                  ${service.prices.planner.mxn} MXN
-                </Typography>
+                    <Typography
+                      sx={{
+                        ...landingTokens.typography.eyebrow,
+                        color: landingTokens.colors.dark.textMuted,
+                        display: { xs: 'block', md: 'none' },
+                        mb: 1
+                      }}
+                    >
+                      {bracket.label}
+                    </Typography>
+                    <Typography
+                      sx={{
+                        ...landingTokens.typography.display,
+                        color: landingTokens.colors.dark.text,
+                        fontSize: { xs: '1.75rem', md: '2rem' },
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {formatMxnFromCents(bracket.amountMxnCents)}{' '}
+                      <Typography
+                        component="span"
+                        sx={{ ...landingTokens.typography.body, color: landingTokens.colors.dark.textMuted }}
+                      >
+                        MXN
+                      </Typography>
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{ ...landingTokens.typography.body, color: landingTokens.colors.dark.textMuted, mt: 0.5 }}
+                    >
+                      {bracket.credits} créditos
+                    </Typography>
+                  </Box>
+                ))}
               </Box>
-
-              {/* Organization Price */}
-              <Box
-                data-client-type="organization"
-                sx={{
-                  p: 4,
-                  borderLeft: { md: landingTokens.borders.hairlineDark },
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center'
-                }}
-              >
-                <Typography
-                  variant="overline"
-                  sx={{
-                    ...landingTokens.typography.eyebrow,
-                    display: { xs: 'block', md: 'none' },
-                    mb: 1,
-                    color: landingTokens.colors.dark.textMuted
-                  }}
-                >
-                  {landingContent.pricing.organization.title}
-                </Typography>
-                <Typography
-                  variant="h3"
-                  sx={{
-                    ...landingTokens.typography.display,
-                    color: landingTokens.colors.dark.text,
-                    fontSize: '2rem',
-                    mb: 0.5,
-                    display: 'flex',
-                    alignItems: 'baseline',
-                    gap: 1
-                  }}
-                >
-                  {service.prices.organization.credits}
-                  <Typography
-                    component="span"
-                    variant="body1"
-                    sx={{ ...landingTokens.typography.body, color: landingTokens.colors.dark.textMuted }}
-                  >
-                    créditos
-                  </Typography>
-                </Typography>
-                <Typography
-                  variant="body2"
-                  sx={{ ...landingTokens.typography.body, color: landingTokens.colors.dark.textMuted }}
-                >
-                  ${service.prices.organization.mxn} MXN
-                </Typography>
-              </Box>
-            </Box>
-          ))}
-        </Box>
+            ))}
+          </Box>
+        )}
       </LandingContainer>
     </Box>
+  );
+}
+
+function RetryButton({ onRetry }: { onRetry: () => void }) {
+  return (
+    <Button color="inherit" onClick={onRetry} sx={{ textTransform: 'none' }}>
+      Reintentar
+    </Button>
+  );
+}
+
+function PricingMessage({ children, action }: { children: string; action?: ReactNode }) {
+  return (
+    <Alert
+      severity="info"
+      action={action}
+      sx={{
+        maxWidth: 720,
+        mx: 'auto',
+        bgcolor: landingTokens.colors.dark.surface,
+        color: landingTokens.colors.dark.text,
+        border: landingTokens.borders.hairlineDark,
+        borderRadius: 0
+      }}
+    >
+      {children}
+    </Alert>
   );
 }
