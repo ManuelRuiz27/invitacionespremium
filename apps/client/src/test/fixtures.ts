@@ -45,6 +45,7 @@ export const configuredEvent = {
   id: 'ac1c081a-3893-47ce-a63d-aa2d33bf57e1',
   clientId: independentUser.clientId,
   createdByUserId: independentUser.id,
+  assignedPlannerUserId: independentUser.id,
   serviceId: null,
   serviceCode: null,
   name: 'Boda de Ana y Luis',
@@ -171,7 +172,14 @@ export function mockApiClient(user: AuthUser = independentUser): ApiClient {
       createPlanner: vi.fn(),
       updateUser: vi.fn()
     },
-    adminEvents: { list: vi.fn().mockResolvedValue([]), get: vi.fn(), restore: vi.fn() },
+    adminEvents: {
+      list: vi.fn().mockResolvedValue([]),
+      get: vi.fn(),
+      restore: vi.fn(),
+      quoteIntake: vi.fn(),
+      createForClient: vi.fn(),
+      updateAssignment: vi.fn()
+    },
     adminEventPreparation: {
       getCommercialQuote: vi.fn(),
       authorizeCommercial: vi.fn(),

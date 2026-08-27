@@ -294,8 +294,12 @@ describe('Event activation', () => {
     const organizationReceipt = await createActivationReceipt(
       organization.clientId,
       organizationEvent.id,
-      'activation-wrong-planner-owner'
+      'activation-assigned-planner-owner'
     );
+    await prisma.event.update({
+      where: { id: organizationEvent.id },
+      data: { assignedPlannerUserId: differentPlanner.userId }
+    });
     await expect(
       prisma.event.update({
         where: { id: organizationEvent.id },
@@ -306,7 +310,33 @@ describe('Event activation', () => {
             service.id,
             organizationPrice.id,
             organizationReceipt.id,
-            'activation-wrong-planner-owner',
+            'activation-assigned-planner-owner',
+            9
+          )
+        }
+      })
+    ).resolves.toMatchObject({ activatedByUserId: differentPlanner.userId });
+
+    const mismatchedEvent = await createReadyEvent(
+      { clientId: organization.clientId, userId: creator.userId },
+      service.id
+    );
+    const mismatchedReceipt = await createActivationReceipt(
+      organization.clientId,
+      mismatchedEvent.id,
+      'activation-unassigned-planner-owner'
+    );
+    await expect(
+      prisma.event.update({
+        where: { id: mismatchedEvent.id },
+        data: {
+          status: EventStatus.ACTIVE,
+          ...activationSnapshotData(
+            differentPlanner.userId,
+            service.id,
+            organizationPrice.id,
+            mismatchedReceipt.id,
+            'activation-unassigned-planner-owner',
             9
           )
         }
@@ -751,10 +781,15 @@ describe('Event activation', () => {
     status: EventStatus = EventStatus.READY_TO_ACTIVATE,
     overrides: { confirmationEnabled?: boolean } = {}
   ) {
+    const ownerUser = await prisma.user.findUniqueOrThrow({ where: { id: owner.userId }, select: { role: true } });
     const event = await prisma.event.create({
       data: {
         clientId: owner.clientId,
         createdByUserId: owner.userId,
+        assignedPlannerUserId:
+          ownerUser.role === UserRole.INDEPENDENT_PLANNER || ownerUser.role === UserRole.ORGANIZATION_PLANNER
+            ? owner.userId
+            : null,
         serviceId,
         name: `Event ${randomUUID()}`,
         socialType: EventSocialType.OTHER,

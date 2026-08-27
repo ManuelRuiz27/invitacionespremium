@@ -51,6 +51,24 @@ const updateEventSchema = z
   })
   .strict()
   .refine((value) => Object.keys(value).length > 0, { message: 'At least one field is required.' });
+const paidServiceCodeSchema = z.enum([ServiceCode.FLYER, ServiceCode.FLIPBOOK, ServiceCode.PHYSICAL_QR]);
+const adminEventIntakeSchema = z
+  .object({
+    name: z.string().trim().min(1).max(160).nullable().optional(),
+    serviceCode: paidServiceCodeSchema,
+    capacity: z.number().int().min(1).max(150),
+    acceptedServicePriceId: z.string().uuid(),
+    assignedPlannerUserId: z.string().uuid().nullable(),
+    acceptanceConfirmed: z.literal(true)
+  })
+  .strict();
+const adminEventAssignmentSchema = z.object({ assignedPlannerUserId: z.string().uuid().nullable() }).strict();
+const adminEventIntakeQuoteSchema = z
+  .object({
+    serviceCode: paidServiceCodeSchema,
+    capacity: z.coerce.number().int().min(1).max(150)
+  })
+  .strict();
 
 export class CreateEventRequestDto {
   @ApiProperty({ type: String, minLength: 1, maxLength: 160, required: false, nullable: true })
@@ -108,6 +126,39 @@ export class UpdateEventRequestDto extends CreateEventRequestDto {
   resetInvitationDesign?: true;
 }
 
+export class AdminEventIntakeRequestDto {
+  @ApiProperty({ type: String, minLength: 1, maxLength: 160, required: false, nullable: true })
+  name?: string | null;
+
+  @ApiProperty({ enum: [ServiceCode.FLYER, ServiceCode.FLIPBOOK, ServiceCode.PHYSICAL_QR] })
+  serviceCode!: ServiceCode;
+
+  @ApiProperty({ type: Number, minimum: 1, maximum: 150 })
+  capacity!: number;
+
+  @ApiProperty({ type: String, format: 'uuid' })
+  acceptedServicePriceId!: string;
+
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  assignedPlannerUserId!: string | null;
+
+  @ApiProperty({ type: Boolean, enum: [true] })
+  acceptanceConfirmed!: true;
+}
+
+export class AdminEventAssignmentRequestDto {
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  assignedPlannerUserId!: string | null;
+}
+
+export class AdminEventIntakeQuoteRequestDto {
+  @ApiProperty({ enum: [ServiceCode.FLYER, ServiceCode.FLIPBOOK, ServiceCode.PHYSICAL_QR] })
+  serviceCode!: ServiceCode;
+
+  @ApiProperty({ type: Number, minimum: 1, maximum: 150 })
+  capacity!: number;
+}
+
 export class EventResponseDto {
   @ApiProperty({ type: String, format: 'uuid' })
   id!: string;
@@ -117,6 +168,9 @@ export class EventResponseDto {
 
   @ApiProperty({ type: String, format: 'uuid' })
   createdByUserId!: string;
+
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  assignedPlannerUserId!: string | null;
 
   @ApiProperty({ type: String, format: 'uuid', nullable: true })
   serviceId!: string | null;
@@ -267,6 +321,9 @@ export class EventActivationResponseDto {
 
 export type CreateEventInput = z.infer<typeof createEventSchema>;
 export type UpdateEventInput = z.infer<typeof updateEventSchema>;
+export type AdminEventIntakeInput = z.infer<typeof adminEventIntakeSchema>;
+export type AdminEventAssignmentInput = z.infer<typeof adminEventAssignmentSchema>;
+export type AdminEventIntakeQuoteInput = z.infer<typeof adminEventIntakeQuoteSchema>;
 
 export function parseCreateEventRequest(input: unknown): CreateEventInput {
   return parse(createEventSchema, input);
@@ -274,6 +331,18 @@ export function parseCreateEventRequest(input: unknown): CreateEventInput {
 
 export function parseUpdateEventRequest(input: unknown): UpdateEventInput {
   return parse(updateEventSchema, input);
+}
+
+export function parseAdminEventIntake(input: unknown): AdminEventIntakeInput {
+  return parse(adminEventIntakeSchema, input);
+}
+
+export function parseAdminEventAssignment(input: unknown): AdminEventAssignmentInput {
+  return parse(adminEventAssignmentSchema, input);
+}
+
+export function parseAdminEventIntakeQuote(input: unknown): AdminEventIntakeQuoteInput {
+  return parse(adminEventIntakeQuoteSchema, input);
 }
 
 export function parseEventId(value: string): string {

@@ -1,5 +1,5 @@
 import { ConflictException, Inject, Injectable } from '@nestjs/common';
-import { AuditActorType, UserRole } from '../generated/prisma/client';
+import { AuditActorType, ClientType, UserRole } from '../generated/prisma/client';
 import { AuditedMutationService, auditedResult } from '../audit/audited-mutation.service';
 import type { AuthPrincipal } from '../auth/auth.types';
 import { normalizeEmail } from '../auth/auth-token';
@@ -24,7 +24,20 @@ export class ClientUsersService {
   }
 
   async listAdmin(clientId: string): Promise<ClientUserResponseDto[]> {
-    return this.listOrganizationUsers(clientId);
+    const client = await this.prisma.client.findFirst({
+      where: { id: clientId, deletedAt: null },
+      select: { type: true }
+    });
+    if (!client) throw clientNotFound();
+    const roles =
+      client.type === ClientType.PLANNER
+        ? [UserRole.INDEPENDENT_PLANNER]
+        : [UserRole.ORGANIZATION_ADMIN, UserRole.ORGANIZATION_PLANNER];
+    const users = await this.prisma.user.findMany({
+      where: { clientId, deletedAt: null, role: { in: roles } },
+      orderBy: [{ role: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }]
+    });
+    return users.map(toClientUserResponse);
   }
 
   async createOwned(

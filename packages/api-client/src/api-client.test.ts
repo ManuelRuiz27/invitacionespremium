@@ -85,6 +85,7 @@ describe('generated API client runtime', () => {
   it('gets a single Event using an encoded path segment', async () => {
     const event = {
       id: 'event/id',
+      assignedPlannerUserId: null,
       status: 'DRAFT',
       serviceCode: 'FLYER',
       name: null,
@@ -99,6 +100,7 @@ describe('generated API client runtime', () => {
   it('validates the contracted service code in Event responses', async () => {
     const baseEvent = {
       id: 'event-1',
+      assignedPlannerUserId: null,
       status: 'ACTIVE',
       name: 'Evento',
       timeZone: 'UTC',
@@ -223,6 +225,7 @@ describe('generated API client runtime', () => {
   it('supports POST and PATCH JSON for Event creation and autosave', async () => {
     const event = {
       id: 'event-1',
+      assignedPlannerUserId: null,
       status: 'DRAFT',
       serviceCode: null,
       name: 'Boda',
@@ -279,7 +282,15 @@ describe('generated API client runtime', () => {
 
   it('sends stable idempotency headers for activation, CSV commit and pass generation', async () => {
     const activation = {
-      event: { id: 'event', status: 'ACTIVE', serviceCode: 'FLYER', name: null, timeZone: null, updatedAt: 'now' }
+      event: {
+        id: 'event',
+        assignedPlannerUserId: null,
+        status: 'ACTIVE',
+        serviceCode: 'FLYER',
+        name: null,
+        timeZone: null,
+        updatedAt: 'now'
+      }
     };
     const fetchImpl = vi
       .fn<typeof fetch>()

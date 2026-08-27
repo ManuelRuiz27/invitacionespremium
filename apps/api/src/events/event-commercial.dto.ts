@@ -136,6 +136,53 @@ export class EventCommercialResponseDto {
   customWorkExists!: boolean;
 }
 
+export class EventIntakeQuoteResponseDto {
+  @ApiProperty({ type: String, format: 'uuid' })
+  clientId!: string;
+
+  @ApiProperty({ type: String })
+  clientName!: string;
+
+  @ApiProperty({ enum: CommercialChannel })
+  commercialChannel!: CommercialChannel;
+
+  @ApiProperty({ type: String, format: 'uuid' })
+  serviceId!: string;
+
+  @ApiProperty({ enum: [ServiceCode.FLYER, ServiceCode.FLIPBOOK, ServiceCode.PHYSICAL_QR] })
+  serviceCode!: ServiceCode;
+
+  @ApiProperty({ type: Number, minimum: 1, maximum: 150 })
+  capacity!: number;
+
+  @ApiProperty({ type: String, format: 'uuid' })
+  servicePriceId!: string;
+
+  @ApiProperty({ type: Number, nullable: true })
+  capacityMin!: number | null;
+
+  @ApiProperty({ type: Number, nullable: true })
+  capacityMax!: number | null;
+
+  @ApiProperty({ enum: VenuePriceTier, nullable: true })
+  venueTier!: VenuePriceTier | null;
+
+  @ApiProperty({ type: Number, minimum: 0 })
+  baseCostCredits!: number;
+
+  @ApiProperty({ type: Number, minimum: 0 })
+  promotionDiscountCredits!: number;
+
+  @ApiProperty({ type: Number, minimum: 0 })
+  finalCostCredits!: number;
+
+  @ApiProperty({ type: Number, minimum: 0 })
+  amountMxnCents!: number;
+
+  @ApiProperty({ type: CommercialCoverageResponseDto })
+  coverage!: CommercialCoverageResponseDto;
+}
+
 export type CommercialRequoteInput = z.infer<typeof requoteSchema>;
 export type CommercialQuoteInput = z.infer<typeof quoteSchema>;
 

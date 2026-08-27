@@ -678,6 +678,7 @@ describe('PhysicalPasses', () => {
       data: {
         clientId: organization.id,
         createdByUserId: plannerOne.id,
+        assignedPlannerUserId: plannerOne.id,
         serviceId: physical.id,
         name: 'Evento organización',
         socialType: EventSocialType.OTHER,

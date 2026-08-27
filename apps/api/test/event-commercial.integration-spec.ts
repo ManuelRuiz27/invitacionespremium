@@ -456,6 +456,7 @@ describe('Event commercial authorization and price lock', () => {
       data: {
         clientId: client.id,
         createdByUserId: planner.id,
+        assignedPlannerUserId: planner.id,
         serviceId: service.id,
         name: 'Commercial Event',
         socialType: EventSocialType.WEDDING,

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { EventSocialType } from '../generated/prisma/client';
-import { parseCreateEventRequest, parseUpdateEventRequest } from './events.dto';
+import {
+  parseAdminEventAssignment,
+  parseAdminEventIntake,
+  parseAdminEventIntakeQuote,
+  parseCreateEventRequest,
+  parseUpdateEventRequest
+} from './events.dto';
 
 describe('Event DTO validation', () => {
   it('accepts an empty draft and valid IANA/configuration values', () => {
@@ -31,5 +37,35 @@ describe('Event DTO validation', () => {
     });
     expect(() => parseUpdateEventRequest({ resetInvitationDesign: false })).toThrow();
     expect(() => parseCreateEventRequest({ resetInvitationDesign: true })).toThrow();
+  });
+
+  it('strictly validates Admin intake, quote, and assignment payloads', () => {
+    const plannerId = crypto.randomUUID();
+    const priceId = crypto.randomUUID();
+    expect(
+      parseAdminEventIntake({
+        name: null,
+        serviceCode: 'FLYER',
+        capacity: 100,
+        acceptedServicePriceId: priceId,
+        assignedPlannerUserId: plannerId,
+        acceptanceConfirmed: true
+      })
+    ).toMatchObject({ acceptedServicePriceId: priceId, assignedPlannerUserId: plannerId });
+    expect(parseAdminEventAssignment({ assignedPlannerUserId: null })).toEqual({ assignedPlannerUserId: null });
+    expect(parseAdminEventIntakeQuote({ serviceCode: 'PHYSICAL_QR', capacity: '50' })).toEqual({
+      serviceCode: 'PHYSICAL_QR',
+      capacity: 50
+    });
+    expect(() =>
+      parseAdminEventIntake({
+        serviceCode: 'DEMO',
+        capacity: 10,
+        acceptedServicePriceId: priceId,
+        assignedPlannerUserId: null,
+        acceptanceConfirmed: true
+      })
+    ).toThrow();
+    expect(() => parseAdminEventAssignment({ assignedPlannerUserId: null, serviceId: priceId })).toThrow();
   });
 });

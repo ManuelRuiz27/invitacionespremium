@@ -17,7 +17,7 @@ export function eventOwnedWhere(principal: AuthPrincipal): Prisma.EventWhereInpu
 
   return {
     clientId: principal.clientId,
-    ...(principal.role === UserRole.ORGANIZATION_PLANNER ? { createdByUserId: principal.userId } : {})
+    ...(principal.role === UserRole.ORGANIZATION_PLANNER ? { assignedPlannerUserId: principal.userId } : {})
   };
 }
 

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { ApiClient } from '@invitaciones/api-client';
 import { PageHeader, StatusChip } from '@invitaciones/ui';
-import { ArrowBackOutlined, BuildOutlined, RestoreOutlined } from '@mui/icons-material';
+import { ArrowBackOutlined, BuildOutlined, PersonOutlined, RestoreOutlined } from '@mui/icons-material';
 import { Button, Card, CardContent, Divider, Grid, Stack, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
@@ -11,6 +11,7 @@ import { eventStatusLabel, formatDate } from '../shared/admin-labels';
 import { AdminErrorState, AdminLoadingState } from '../shared/AdminStates';
 import { ConfirmSensitiveActionDialog } from '../shared/ConfirmSensitiveActionDialog';
 import { isAbortError, type AdminScopedOperation, useAdminOperationScope } from '../shared/useAdminOperationScope';
+import { AdminPlannerAssignmentDialog } from './AdminPlannerAssignmentDialog';
 
 export function AdminEventDetailPage({ apiClient }: { apiClient: ApiClient }) {
   const { eventId = '' } = useParams();
@@ -20,6 +21,7 @@ export function AdminEventDetailPage({ apiClient }: { apiClient: ApiClient }) {
 function AdminEventDetail({ apiClient, eventId }: { apiClient: ApiClient; eventId: string }) {
   const queryClient = useQueryClient();
   const [restoring, setRestoring] = useState(false);
+  const [assigning, setAssigning] = useState(false);
   const [error, setError] = useState<string>();
   const operationScope = useAdminOperationScope('event', eventId);
   const event = useQuery({
@@ -66,9 +68,14 @@ function AdminEventDetail({ apiClient, eventId }: { apiClient: ApiClient; eventI
       </Button>
       <PageHeader
         title={data.name ?? 'Evento sin nombre'}
-        description="Detalle administrativo global de solo lectura."
+        description="Detalle administrativo con provenance y responsabilidad operativa separadas."
         action={
           <Stack direction="row" spacing={1}>
+            {!data.deletedAt ? (
+              <Button variant="outlined" startIcon={<PersonOutlined />} onClick={() => setAssigning(true)}>
+                Cambiar planner
+              </Button>
+            ) : null}
             {!data.deletedAt ? (
               <Button
                 component={Link}
@@ -101,6 +108,7 @@ function AdminEventDetail({ apiClient, eventId }: { apiClient: ApiClient; eventI
             <Field label="Capacidad" value={data.capacity?.toString() ?? 'Sin definir'} />
             <Field label="Servicio" value={data.serviceId ? 'Configurado' : 'Sin asignar'} />
             <Field label="Creador" value={data.createdByUserId} />
+            <Field label="Planner asignada" value={data.assignedPlannerUserId ?? 'Sin asignar'} />
             <Field label="Confirmaciones" value={data.confirmationEnabled ? 'Habilitadas' : 'Deshabilitadas'} />
             <Field label="Croquis" value={data.floorplanEnabled ? 'Habilitado' : 'Deshabilitado'} />
             <Grid size={12}>
@@ -125,6 +133,15 @@ function AdminEventDetail({ apiClient, eventId }: { apiClient: ApiClient; eventI
         }}
         onConfirm={submitRestore}
       />
+      {client.data ? (
+        <AdminPlannerAssignmentDialog
+          apiClient={apiClient}
+          client={client.data}
+          event={data}
+          open={assigning}
+          onClose={() => setAssigning(false)}
+        />
+      ) : null}
     </Stack>
   );
 }

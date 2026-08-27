@@ -56,6 +56,7 @@ export const adminEvent = {
   id: 'event-a',
   clientId: organization.id,
   createdByUserId: clientUser.id,
+  assignedPlannerUserId: null,
   serviceId: 'service-a',
   serviceCode: 'FLYER',
   name: 'Boda Aurora',
@@ -166,7 +167,31 @@ export function mockAdminApi(user: AuthUser = platformAdmin): AdminTestApiClient
     adminEvents: {
       list: vi.fn().mockResolvedValue([adminEvent, deletedEvent]),
       get: vi.fn().mockResolvedValue(adminEvent),
-      restore: vi.fn().mockResolvedValue(adminEvent)
+      restore: vi.fn().mockResolvedValue(adminEvent),
+      quoteIntake: vi.fn().mockResolvedValue({
+        clientId: organization.id,
+        clientName: organization.name,
+        commercialChannel: 'STANDARD',
+        serviceId: 'service-a',
+        serviceCode: 'FLYER',
+        capacity: 100,
+        servicePriceId: 'price-a',
+        capacityMin: 51,
+        capacityMax: 100,
+        venueTier: null,
+        baseCostCredits: 300,
+        promotionDiscountCredits: 0,
+        finalCostCredits: 300,
+        amountMxnCents: 600000,
+        coverage: {
+          purchasedCredits: 300,
+          creditLineAvailableCredits: 0,
+          totalAvailableCredits: 300,
+          sufficient: true
+        }
+      }),
+      createForClient: vi.fn().mockResolvedValue(adminEvent),
+      updateAssignment: vi.fn().mockResolvedValue(adminEvent)
     },
     adminEventPreparation: {
       getCommercialQuote: vi.fn().mockResolvedValue({

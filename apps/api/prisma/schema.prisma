@@ -346,6 +346,7 @@ model User {
   ledgerEntries              LedgerEntry[]
   payments                   Payment[]
   createdEvents              Event[]                @relation("EventCreator")
+  assignedEvents             Event[]                @relation("EventAssignedPlanner")
   activatedEvents            Event[]                @relation("EventActivator")
   commercialAuthorizedEvents Event[]                @relation("EventCommercialAuthorizer")
   designKickoffEvents        Event[]                @relation("EventDesignKickoff")
@@ -583,6 +584,7 @@ model Event {
   id                                 String                            @id @default(uuid()) @db.Uuid
   clientId                           String                            @map("client_id") @db.Uuid
   createdByUserId                    String                            @map("created_by_user_id") @db.Uuid
+  assignedPlannerUserId              String?                           @map("assigned_planner_user_id") @db.Uuid
   serviceId                          String?                           @map("service_id") @db.Uuid
   name                               String?                           @db.VarChar(160)
   socialType                         EventSocialType?                  @map("social_type")
@@ -627,6 +629,7 @@ model Event {
   deletedAt                          DateTime?                         @map("deleted_at") @db.Timestamptz(6)
   client                             Client                            @relation(fields: [clientId], references: [id], onDelete: Restrict)
   createdByUser                      User                              @relation("EventCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  assignedPlannerUser                User?                             @relation("EventAssignedPlanner", fields: [assignedPlannerUserId], references: [id], onDelete: Restrict)
   activatedByUser                    User?                             @relation("EventActivator", fields: [activatedByUserId], references: [id], onDelete: Restrict)
   commercialAuthorizedByUser         User?                             @relation("EventCommercialAuthorizer", fields: [commercialAuthorizedByUserId], references: [id], onDelete: Restrict)
   designKickoffByUser                User?                             @relation("EventDesignKickoff", fields: [designKickoffByUserId], references: [id], onDelete: Restrict)
@@ -658,6 +661,7 @@ model Event {
 
   @@index([clientId, status, deletedAt])
   @@index([createdByUserId, status, deletedAt])
+  @@index([clientId, assignedPlannerUserId, status, deletedAt])
   @@index([eventDateTime, status, deletedAt])
   @@index([activatedAt])
   @@index([commercialAuthorizedAt])

@@ -68,6 +68,7 @@ function isEvent(value: unknown): value is Event {
   return (
     isRecord(value) &&
     typeof value.id === 'string' &&
+    (value.assignedPlannerUserId === null || typeof value.assignedPlannerUserId === 'string') &&
     typeof value.status === 'string' &&
     (value.serviceCode === null || serviceCodes.has(value.serviceCode)) &&
     (value.name === null || typeof value.name === 'string') &&

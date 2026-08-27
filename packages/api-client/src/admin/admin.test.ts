@@ -23,6 +23,7 @@ const user = {
 const event = {
   id: 'event-1',
   clientId: client.id,
+  assignedPlannerUserId: null,
   status: 'DRAFT',
   name: 'Evento',
   createdAt: client.createdAt
@@ -318,6 +319,46 @@ describe('administrative API client', () => {
     expect(fetchImpl.mock.calls.some(([url]) => new URL(String(url)).pathname.startsWith('/api/v1/events'))).toBe(
       false
     );
+  });
+
+  it('quotes intake, creates for an encoded Client, and updates assignment through Admin routes', async () => {
+    const quote = {
+      clientId: client.id,
+      clientName: client.name,
+      commercialChannel: 'STANDARD',
+      serviceId: 'service-1',
+      serviceCode: 'FLYER',
+      capacity: 100,
+      servicePriceId: 'price-1',
+      capacityMin: 51,
+      capacityMax: 100,
+      venueTier: null,
+      baseCostCredits: 300,
+      promotionDiscountCredits: 0,
+      finalCostCredits: 300,
+      amountMxnCents: 600000,
+      coverage: { purchasedCredits: 300, creditLineAvailableCredits: 0, totalAvailableCredits: 300, sufficient: true }
+    } as const;
+    const fetchImpl = sequence([quote, event, { ...event, assignedPlannerUserId: 'planner-1' }]);
+    const api = createApiClient({ baseUrl: 'https://api.example.com/api/v1', fetchImpl });
+    await api.adminEvents.quoteIntake('client/value', { serviceCode: 'FLYER', capacity: 100 });
+    await api.adminEvents.createForClient('client/value', {
+      name: 'Evento',
+      serviceCode: 'FLYER',
+      capacity: 100,
+      acceptedServicePriceId: 'price-1',
+      assignedPlannerUserId: null,
+      acceptanceConfirmed: true
+    });
+    await api.adminEvents.updateAssignment('client/value', 'event/value', {
+      assignedPlannerUserId: 'planner-1'
+    });
+    expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
+      'https://api.example.com/api/v1/admin/clients/client%2Fvalue/events/intake-quote?serviceCode=FLYER&capacity=100',
+      'https://api.example.com/api/v1/admin/clients/client%2Fvalue/events',
+      'https://api.example.com/api/v1/admin/clients/client%2Fvalue/events/event%2Fvalue/assignment'
+    ]);
+    expect(fetchImpl.mock.calls.map(([, init]) => init?.method ?? 'GET')).toEqual(['GET', 'POST', 'PATCH']);
   });
 
   it('covers balance and all implemented financial mutations with stable idempotency headers', async () => {

@@ -1491,7 +1491,7 @@ describe('Floorplan and seating', () => {
       await tx.$executeRawUnsafe('SET LOCAL session_replication_role = replica');
       await tx.event.update({
         where: { id: organization.event.id },
-        data: { createdByUserId: planner.id }
+        data: { assignedPlannerUserId: planner.id }
       });
     });
     await expect(floorplan.get(organization.event.id, plannerPrincipal)).resolves.toMatchObject({

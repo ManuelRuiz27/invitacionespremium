@@ -9,6 +9,7 @@ import {
   AuditActorType,
   CommercialChannel,
   CreditLineStatus,
+  ClientStatus,
   EventStatus,
   FileAssetType,
   Prisma,
@@ -18,7 +19,11 @@ import {
 } from '../generated/prisma/client';
 import { ServicesPricingService } from '../services-pricing/services-pricing.service';
 import type { PriceResponseDto } from '../services-pricing/services-pricing.dto';
-import type { CommercialQuoteInput, EventCommercialResponseDto } from './event-commercial.dto';
+import type {
+  CommercialQuoteInput,
+  EventCommercialResponseDto,
+  EventIntakeQuoteResponseDto
+} from './event-commercial.dto';
 
 const PREPARATION_STATUSES: readonly EventStatus[] = [
   EventStatus.DRAFT,
@@ -72,6 +77,67 @@ export class EventCommercialService {
       const context = await this.resolveCurrentTerms(transaction, event);
       return this.response(transaction, event, context.price, context.channel, event.capacity!, 'CURRENT');
     });
+  }
+
+  async quoteIntake(
+    clientId: string,
+    serviceCode: ServiceCode,
+    capacity: number
+  ): Promise<EventIntakeQuoteResponseDto> {
+    return this.runTransaction(async (transaction) => {
+      const terms = await this.resolveIntakeTermsInTransaction(transaction, clientId, serviceCode, capacity);
+      return this.intakeResponse(terms, capacity);
+    });
+  }
+
+  async resolveIntakeTermsInTransaction(
+    transaction: Prisma.TransactionClient,
+    clientId: string,
+    serviceCode: ServiceCode,
+    capacity: number
+  ) {
+    const client = await transaction.client.findFirst({
+      where: { id: clientId, deletedAt: null },
+      select: { id: true, name: true, type: true, status: true, commercialChannel: true }
+    });
+    if (!client) throw new DomainError('CLIENT_NOT_FOUND', 'Client was not found.', HttpStatus.NOT_FOUND);
+    if (client.status !== ClientStatus.ACTIVE) {
+      throw new DomainError('CLIENT_NOT_ACTIVE', 'Client is not active.', HttpStatus.CONFLICT);
+    }
+    const service = await transaction.service.findFirst({
+      where: { code: serviceCode, isActive: true },
+      select: { id: true, code: true, isActive: true }
+    });
+    if (!service || service.code === ServiceCode.DEMO) {
+      throw new DomainError('EVENT_SERVICE_NOT_AVAILABLE', 'Paid service is not available.', HttpStatus.CONFLICT);
+    }
+    const at = new Date();
+    const price = await this.pricing.resolveCurrentPriceInTransaction(transaction, clientId, serviceCode, capacity, at);
+    await this.pricing.findEligiblePromotionsInTransaction(transaction, {
+      scope: PromotionScope.EVENT_ACTIVATION,
+      clientId,
+      clientType: client.type,
+      serviceId: service.id,
+      at
+    });
+    const coverage = await this.coverage(transaction, clientId, price.credits);
+    return {
+      client,
+      service,
+      price,
+      channel: client.commercialChannel ?? CommercialChannel.STANDARD,
+      coverage
+    };
+  }
+
+  commercialLockData(
+    price: PriceResponseDto,
+    channel: CommercialChannel,
+    capacity: number,
+    actorUserId: string,
+    at: Date
+  ) {
+    return commercialLockData(price, channel, capacity, actorUserId, at);
   }
 
   async authorize(
@@ -435,6 +501,29 @@ export class EventCommercialService {
     };
   }
 
+  private intakeResponse(
+    terms: Awaited<ReturnType<EventCommercialService['resolveIntakeTermsInTransaction']>>,
+    capacity: number
+  ): EventIntakeQuoteResponseDto {
+    return {
+      clientId: terms.client.id,
+      clientName: terms.client.name,
+      commercialChannel: terms.channel,
+      serviceId: terms.service.id,
+      serviceCode: terms.service.code,
+      capacity,
+      servicePriceId: terms.price.id,
+      capacityMin: terms.price.capacityMin,
+      capacityMax: terms.price.capacityMax,
+      venueTier: terms.price.venueTier,
+      baseCostCredits: terms.price.credits,
+      promotionDiscountCredits: 0,
+      finalCostCredits: terms.price.credits,
+      amountMxnCents: terms.price.credits * this.config.creditUnitValueMxnCents,
+      coverage: terms.coverage
+    };
+  }
+
   private async responseFromLock(
     database: PrismaService | Prisma.TransactionClient,
     event: CommercialEvent
@@ -543,7 +632,7 @@ function commercialLockData(
   capacity: number,
   actorUserId: string,
   at: Date
-): Prisma.EventUncheckedUpdateInput {
+) {
   return {
     commercialAuthorizedAt: at,
     commercialAuthorizedByUserId: actorUserId,

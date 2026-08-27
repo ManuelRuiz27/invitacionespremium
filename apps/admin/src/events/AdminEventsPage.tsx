@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import type { ApiClient } from '@invitaciones/api-client';
 import { PageHeader, StatusChip } from '@invitaciones/ui';
-import { ArrowForwardOutlined } from '@mui/icons-material';
+import { AddOutlined, ArrowForwardOutlined } from '@mui/icons-material';
 import {
   Box,
   Button,
@@ -18,8 +19,10 @@ import { Link } from 'react-router-dom';
 import { adminQueryKeys } from '../app/query-client';
 import { eventStatusLabel, formatDate } from '../shared/admin-labels';
 import { AdminEmptyState, AdminErrorState, AdminLoadingState } from '../shared/AdminStates';
+import { AdminEventIntakeDialog } from './AdminEventIntakeDialog';
 
 export function AdminEventsPage({ apiClient }: { apiClient: ApiClient }) {
+  const [creating, setCreating] = useState(false);
   const events = useQuery({
     queryKey: adminQueryKeys.events,
     queryFn: ({ signal }) => apiClient.adminEvents.list(signal)
@@ -43,7 +46,12 @@ export function AdminEventsPage({ apiClient }: { apiClient: ApiClient }) {
     <Stack spacing={3}>
       <PageHeader
         title="Eventos"
-        description="Vista global de solo lectura. La unica mutacion disponible es restaurar un Evento eliminado."
+        description="Vista operativa global de Eventos, provenance y responsabilidad Planner."
+        action={
+          <Button variant="contained" startIcon={<AddOutlined />} onClick={() => setCreating(true)}>
+            Nuevo evento
+          </Button>
+        }
       />
       {events.data.length === 0 ? (
         <AdminEmptyState title="Sin Eventos" />
@@ -58,6 +66,7 @@ export function AdminEventsPage({ apiClient }: { apiClient: ApiClient }) {
                 <TableCell>Fecha</TableCell>
                 <TableCell>Servicio</TableCell>
                 <TableCell>Creador</TableCell>
+                <TableCell>Planner</TableCell>
                 <TableCell align="right">Accion</TableCell>
               </TableRow>
             </TableHead>
@@ -88,6 +97,7 @@ export function AdminEventsPage({ apiClient }: { apiClient: ApiClient }) {
                   <TableCell>{formatDate(event.eventDateTime)}</TableCell>
                   <TableCell>{event.serviceId ? 'Configurado' : 'Sin asignar'}</TableCell>
                   <TableCell>{event.createdByUserId}</TableCell>
+                  <TableCell>{event.assignedPlannerUserId ?? 'Sin asignar'}</TableCell>
                   <TableCell align="right">
                     <Button component={Link} to={`/eventos/${event.id}`} endIcon={<ArrowForwardOutlined />}>
                       Ver detalle
@@ -105,6 +115,12 @@ export function AdminEventsPage({ apiClient }: { apiClient: ApiClient }) {
           parte de esta respuesta administrativa.
         </Typography>
       </Box>
+      <AdminEventIntakeDialog
+        apiClient={apiClient}
+        clients={clients.data}
+        open={creating}
+        onClose={() => setCreating(false)}
+      />
     </Stack>
   );
 }

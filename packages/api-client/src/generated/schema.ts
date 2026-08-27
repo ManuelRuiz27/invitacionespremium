@@ -48,6 +48,22 @@ export type paths = {
         patch: operations["AdminClientsController_update"];
         trace?: never;
     };
+    "/api/v1/admin/clients/{clientId}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminClientEventsController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/clients/{clientId}/events/{eventId}": {
         parameters: {
             query?: never;
@@ -62,6 +78,22 @@ export type paths = {
         options?: never;
         head?: never;
         patch: operations["AdminClientEventsController_update"];
+        trace?: never;
+    };
+    "/api/v1/admin/clients/{clientId}/events/{eventId}/assignment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["AdminClientEventsController_updateAssignment"];
         trace?: never;
     };
     "/api/v1/admin/clients/{clientId}/events/{eventId}/commercial-authorization": {
@@ -506,6 +538,22 @@ export type paths = {
         get: operations["AdminPilotObservationsController_get"];
         put?: never;
         post: operations["AdminPilotObservationsController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/clients/{clientId}/events/intake-quote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminClientEventsController_quoteIntake"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2203,6 +2251,22 @@ export type components = {
             /** Format: uuid */
             fileAssetId: string;
         };
+        AdminEventAssignmentRequestDto: {
+            /** Format: uuid */
+            assignedPlannerUserId: string | null;
+        };
+        AdminEventIntakeRequestDto: {
+            /** @enum {boolean} */
+            acceptanceConfirmed: true;
+            /** Format: uuid */
+            acceptedServicePriceId: string;
+            /** Format: uuid */
+            assignedPlannerUserId: string | null;
+            capacity: number;
+            name?: string | null;
+            /** @enum {string} */
+            serviceCode: "FLYER" | "FLIPBOOK" | "PHYSICAL_QR";
+        };
         AdministrativeInvitationFileAssetUploadRequestDto: {
             /** Format: binary */
             file: string;
@@ -2753,6 +2817,29 @@ export type components = {
             /** @enum {string|null} */
             venueTier: "ONE_TO_TWO" | "THREE_TO_FIVE" | "SIX_TO_TEN" | "ELEVEN_PLUS" | null;
         };
+        EventIntakeQuoteResponseDto: {
+            amountMxnCents: number;
+            baseCostCredits: number;
+            capacity: number;
+            capacityMax: number | null;
+            capacityMin: number | null;
+            /** Format: uuid */
+            clientId: string;
+            clientName: string;
+            /** @enum {string} */
+            commercialChannel: "STANDARD" | "PARTNER" | "VENUE";
+            coverage: components["schemas"]["CommercialCoverageResponseDto"];
+            finalCostCredits: number;
+            promotionDiscountCredits: number;
+            /** @enum {string} */
+            serviceCode: "FLYER" | "FLIPBOOK" | "PHYSICAL_QR";
+            /** Format: uuid */
+            serviceId: string;
+            /** Format: uuid */
+            servicePriceId: string;
+            /** @enum {string|null} */
+            venueTier: "ONE_TO_TWO" | "THREE_TO_FIVE" | "SIX_TO_TEN" | "ELEVEN_PLUS" | null;
+        };
         EventResponseDto: {
             /** Format: date-time */
             activatedAt: string | null;
@@ -2765,6 +2852,8 @@ export type components = {
             activationIdempotencyKey: string | null;
             /** Format: uuid */
             activationReceiptId: string | null;
+            /** Format: uuid */
+            assignedPlannerUserId: string | null;
             baseCostCredits: number | null;
             capacity: number | null;
             /** Format: uuid */
@@ -3929,6 +4018,29 @@ export interface operations {
             };
         };
     };
+    AdminClientEventsController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminEventIntakeRequestDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventResponseDto"];
+                };
+            };
+        };
+    };
     AdminClientEventsController_update: {
         parameters: {
             query?: never;
@@ -3939,6 +4051,29 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["UpdateEventRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventResponseDto"];
+                };
+            };
+        };
+    };
+    AdminClientEventsController_updateAssignment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminEventAssignmentRequestDto"];
             };
         };
         responses: {
@@ -4696,6 +4831,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PilotObservationResponseDto"];
+                };
+            };
+        };
+    };
+    AdminClientEventsController_quoteIntake: {
+        parameters: {
+            query: {
+                capacity: number;
+                serviceCode: "FLYER" | "FLIPBOOK" | "PHYSICAL_QR";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventIntakeQuoteResponseDto"];
                 };
             };
         };

@@ -8,6 +8,7 @@ import { DomainError } from '../common/errors/domain-error';
 import { activeWhere, assertPlatformAdminRestoration } from '../common/persistence/soft-delete.repository';
 import {
   AuditActorType,
+  ClientType,
   ClientStatus,
   CommercialChannel,
   EventStatus,
@@ -31,7 +32,14 @@ import type { CommercialRequoteInput, EventCommercialResponseDto } from './event
 import { EventCommercialService } from './event-commercial.service';
 import { recomputeDigitalEventPreparationStatus } from './digital-event-readiness.service';
 import { resolvePreparationStatus } from './event-status.resolver';
-import type { CreateEventInput, EventActivationResponseDto, EventResponseDto, UpdateEventInput } from './events.dto';
+import type {
+  AdminEventAssignmentInput,
+  AdminEventIntakeInput,
+  CreateEventInput,
+  EventActivationResponseDto,
+  EventResponseDto,
+  UpdateEventInput
+} from './events.dto';
 
 const PREPARATION_STATUSES: readonly EventStatus[] = [
   EventStatus.DRAFT,
@@ -106,6 +114,10 @@ export class EventsService {
         data: {
           clientId,
           createdByUserId: principal.userId,
+          assignedPlannerUserId:
+            principal.role === UserRole.INDEPENDENT_PLANNER || principal.role === UserRole.ORGANIZATION_PLANNER
+              ? principal.userId
+              : null,
           ...prepared,
           status: resolvePreparationStatus(prepared)
         }
@@ -131,6 +143,126 @@ export class EventsService {
       );
       return toEventResponse(event);
     }, CRITICAL_TRANSACTION_OPTIONS);
+  }
+
+  async createAdminIntake(
+    clientId: string,
+    input: AdminEventIntakeInput,
+    principal: AuthPrincipal,
+    operationId?: string
+  ): Promise<EventResponseDto> {
+    return this.runCriticalTransaction(async (transaction) => {
+      const terms = await this.commercial.resolveIntakeTermsInTransaction(
+        transaction,
+        clientId,
+        input.serviceCode,
+        input.capacity
+      );
+      await this.requireValidPlannerAssignment(transaction, clientId, terms.client.type, input.assignedPlannerUserId);
+      if (terms.price.id !== input.acceptedServicePriceId) {
+        throw new DomainError(
+          'EVENT_COMMERCIAL_QUOTE_STALE',
+          'The accepted commercial quote is no longer current.',
+          HttpStatus.CONFLICT
+        );
+      }
+      if (!terms.coverage.sufficient) {
+        throw new DomainError(
+          'EVENT_COMMERCIAL_FINANCIAL_COVERAGE_INSUFFICIENT',
+          'Current purchased credits and approved credit line do not cover the quoted Event.',
+          HttpStatus.CONFLICT,
+          terms.coverage
+        );
+      }
+      const at = new Date();
+      const created = await transaction.event.create({
+        data: {
+          clientId,
+          createdByUserId: principal.userId,
+          assignedPlannerUserId: input.assignedPlannerUserId,
+          serviceId: terms.service.id,
+          name: input.name ?? null,
+          capacity: input.capacity,
+          status: resolvePreparationStatus({
+            name: input.name ?? null,
+            serviceId: terms.service.id,
+            socialType: null,
+            eventDateTime: null,
+            timeZone: null,
+            capacity: input.capacity
+          }),
+          ...this.commercial.commercialLockData(terms.price, terms.channel, input.capacity, principal.userId, at)
+        }
+      });
+      await recomputeDigitalEventPreparationStatus(transaction, created.id);
+      await recomputePhysicalPassPreparationStatus(transaction, created.id);
+      const event = await transaction.event.findUniqueOrThrow({
+        where: { id: created.id },
+        include: EVENT_SERVICE_INCLUDE
+      });
+      const auditBase = {
+        actor: { type: AuditActorType.USER, id: principal.userId },
+        clientId,
+        eventId: event.id,
+        resourceType: 'EVENT',
+        resourceId: event.id,
+        ...(operationId === undefined ? {} : { operationId })
+      };
+      await this.audit.record(
+        { ...auditBase, action: 'EVENT_CREATE', afterData: eventAuditSnapshot(event) },
+        transaction
+      );
+      await this.audit.record(
+        {
+          ...auditBase,
+          action: 'EVENT_COMMERCIAL_AUTHORIZE',
+          afterData: eventAuditSnapshot(event),
+          metadata: { coverage: terms.coverage, acceptedServicePriceId: input.acceptedServicePriceId }
+        },
+        transaction
+      );
+      return toEventResponse(event);
+    });
+  }
+
+  async updateAdminAssignment(
+    clientId: string,
+    eventId: string,
+    input: AdminEventAssignmentInput,
+    principal: AuthPrincipal,
+    operationId?: string
+  ): Promise<EventResponseDto> {
+    return this.runCriticalTransaction(async (transaction) => {
+      await transaction.$queryRaw`SELECT "id" FROM "event" WHERE "id" = ${eventId}::uuid FOR UPDATE`;
+      const current = await this.findAdministrativeEventTarget(transaction, clientId, eventId);
+      const client = await transaction.client.findFirst({
+        where: { id: clientId, deletedAt: null },
+        select: { type: true }
+      });
+      if (!client) throw eventNotFound();
+      await this.requireValidPlannerAssignment(transaction, clientId, client.type, input.assignedPlannerUserId);
+      if (current.assignedPlannerUserId === input.assignedPlannerUserId) return toEventResponse(current);
+      const updated = await transaction.event.update({
+        where: { id: eventId },
+        data: { assignedPlannerUserId: input.assignedPlannerUserId },
+        include: EVENT_SERVICE_INCLUDE
+      });
+      await this.audit.record(
+        {
+          actor: { type: AuditActorType.USER, id: principal.userId },
+          clientId,
+          eventId,
+          resourceType: 'EVENT',
+          resourceId: eventId,
+          action: 'EVENT_PLANNER_ASSIGNMENT_UPDATE',
+          beforeData: { assignedPlannerUserId: current.assignedPlannerUserId },
+          afterData: { assignedPlannerUserId: updated.assignedPlannerUserId },
+          ...(operationId === undefined ? {} : { operationId })
+        },
+        transaction
+      );
+      return toEventResponse(updated);
+    });
   }
 
   async update(
@@ -694,6 +826,51 @@ export class EventsService {
     }
   }
 
+  private async requireValidPlannerAssignment(
+    database: Prisma.TransactionClient,
+    clientId: string,
+    clientType: ClientType,
+    assignedPlannerUserId: string | null
+  ): Promise<void> {
+    if (assignedPlannerUserId === null) {
+      if (clientType === ClientType.ORGANIZATION) return;
+      throw new DomainError(
+        'EVENT_PLANNER_ASSIGNMENT_REQUIRED',
+        'Planner clients require an assigned Independent Planner.',
+        HttpStatus.CONFLICT
+      );
+    }
+    const expectedRole =
+      clientType === ClientType.PLANNER ? UserRole.INDEPENDENT_PLANNER : UserRole.ORGANIZATION_PLANNER;
+    const planner = await database.user.findFirst({
+      where: { id: assignedPlannerUserId, clientId, role: expectedRole, deletedAt: null },
+      select: { id: true }
+    });
+    if (!planner) {
+      throw new DomainError(
+        'EVENT_PLANNER_ASSIGNMENT_INVALID',
+        'Assigned Planner is not valid for this Client.',
+        HttpStatus.CONFLICT
+      );
+    }
+  }
+
+  private async runCriticalTransaction<T>(work: (transaction: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      try {
+        return await this.prisma.$transaction(work, CRITICAL_TRANSACTION_OPTIONS);
+      } catch (error) {
+        if (!isRetryableTransactionError(error) || attempt === 19) throw error;
+        await waitForRetry(attempt);
+      }
+    }
+    throw new DomainError(
+      'EVENT_CONCURRENCY_CONFLICT',
+      'Event operation could not be serialized.',
+      HttpStatus.CONFLICT
+    );
+  }
+
   private async resetIncompatibleDigitalDesign(
     transaction: Prisma.TransactionClient,
     current: EventWithService,
@@ -898,6 +1075,7 @@ export function eventAuditSnapshot(event: Event): Record<string, unknown> {
     id: event.id,
     clientId: event.clientId,
     createdByUserId: event.createdByUserId,
+    assignedPlannerUserId: event.assignedPlannerUserId,
     serviceId: event.serviceId,
     name: event.name,
     socialType: event.socialType,
@@ -939,6 +1117,7 @@ export function toEventResponse(event: EventWithService): EventResponseDto {
     id: event.id,
     clientId: event.clientId,
     createdByUserId: event.createdByUserId,
+    assignedPlannerUserId: event.assignedPlannerUserId,
     serviceId: event.serviceId,
     serviceCode: event.service?.code ?? null,
     name: event.name,

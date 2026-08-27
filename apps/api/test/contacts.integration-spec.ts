@@ -582,10 +582,15 @@ describe('Contacts, groups, and CSV imports', () => {
     owner: { clientId: string; userId: string },
     eventDateTime = new Date('2030-01-01T18:00:00.000Z')
   ) {
+    const ownerUser = await prisma.user.findUniqueOrThrow({ where: { id: owner.userId }, select: { role: true } });
     return prisma.event.create({
       data: {
         clientId: owner.clientId,
         createdByUserId: owner.userId,
+        assignedPlannerUserId:
+          ownerUser.role === UserRole.INDEPENDENT_PLANNER || ownerUser.role === UserRole.ORGANIZATION_PLANNER
+            ? owner.userId
+            : null,
         status: EventStatus.DRAFT,
         eventDateTime
       }
