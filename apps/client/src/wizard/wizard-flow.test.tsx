@@ -11,7 +11,16 @@ const readyEvent = {
   status: 'READY_TO_ACTIVATE' as const,
   confirmationEnabled: true,
   locationUrl: 'https://example.com/mapa',
-  giftRegistryUrl: 'https://example.com/regalos'
+  giftRegistryUrl: 'https://example.com/regalos',
+  commercialAuthorizedAt: '2026-08-01T12:00:00.000Z',
+  commercialPriceLockedAt: '2026-08-01T12:00:00.000Z',
+  commercialServicePriceId: 'price-flyer',
+  commercialBaseCostCredits: 5,
+  commercialPromotionDiscountCredits: 0,
+  commercialFinalCostCredits: 5,
+  commercialChannelSnapshot: 'STANDARD' as const,
+  commercialCapacitySnapshot: configuredEvent.capacity,
+  commercialTermsValid: true
 };
 const physicalEvent = { ...configuredEvent, serviceId: 'service-physical', status: 'CONFIGURED' as const };
 const deferred = <T,>() => {

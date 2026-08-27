@@ -16,6 +16,7 @@ import { FileStorage } from '../src/file-assets/file-storage';
 import {
   ClientStatus,
   ClientType,
+  CommercialChannel,
   EventSocialType,
   EventStatus,
   FloorplanGeometry,
@@ -243,7 +244,10 @@ describe('Generated reports', () => {
     await prisma.servicePrice.create({
       data: {
         serviceId: service.id,
-        clientType: ClientType.PLANNER,
+        pricingVersion: 2,
+        commercialChannel: CommercialChannel.STANDARD,
+        capacityMin: 1,
+        capacityMax: 100,
         credits: 0,
         validFrom: new Date('2020-01-01T00:00:00.000Z')
       }
@@ -267,6 +271,7 @@ describe('Generated reports', () => {
       .expect(201);
     const eventId = created.body.id as string;
     const providerBase = `/api/v1/admin/clients/${owner.clientId}/events/${eventId}`;
+    await prepareCommercial(providerBase, providerCookie, true);
 
     for (const [name, phone] of [
       ['Ingreso activo', '+525511223341'],
@@ -439,11 +444,15 @@ describe('Generated reports', () => {
   it('runs the real Physical Passes HTTP flow through generation, QR use, close, report and retention', async () => {
     const owner = await createClientUser();
     const cookie = await login(owner.email);
+    const providerCookie = await createAdminAndLogin();
     const service = await prisma.service.create({ data: { code: ServiceCode.PHYSICAL_QR } });
     await prisma.servicePrice.create({
       data: {
         serviceId: service.id,
-        clientType: ClientType.PLANNER,
+        pricingVersion: 2,
+        commercialChannel: CommercialChannel.STANDARD,
+        capacityMin: 1,
+        capacityMax: 100,
         credits: 0,
         validFrom: new Date('2020-01-01T00:00:00.000Z')
       }
@@ -462,6 +471,7 @@ describe('Generated reports', () => {
       })
       .expect(201);
     const eventId = created.body.id as string;
+    await prepareCommercial(`/api/v1/admin/clients/${owner.clientId}/events/${eventId}`, providerCookie, false);
     const generated = await request(app.getHttpServer())
       .post(`/api/v1/events/${eventId}/physical-passes/generate`)
       .set('Origin', origin)
@@ -1129,6 +1139,23 @@ describe('Generated reports', () => {
       data: { email, passwordHash: await hashPassword(password), role: UserRole.PLATFORM_ADMIN }
     });
     return login(email);
+  }
+
+  async function prepareCommercial(providerBase: string, cookie: string[], kickoff: boolean): Promise<void> {
+    await request(app.getHttpServer())
+      .post(`${providerBase}/commercial-authorization`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .send({ acceptanceConfirmed: true })
+      .expect(200);
+    if (kickoff) {
+      await request(app.getHttpServer())
+        .post(`${providerBase}/design-kickoff`)
+        .set('Origin', origin)
+        .set('Cookie', cookie)
+        .send({})
+        .expect(200);
+    }
   }
 
   async function login(email: string): Promise<string[]> {

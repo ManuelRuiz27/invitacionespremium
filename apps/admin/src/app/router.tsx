@@ -72,6 +72,10 @@ function createRoutes({
                     { path: 'eventos/:eventId', element: <AdminEventDetailPage apiClient={apiClient} /> },
                     { path: 'eventos/:eventId/preparar', element: <Navigate replace to="datos" /> },
                     {
+                      path: 'eventos/:eventId/preparar/comercial',
+                      element: <AdminEventPreparationPage apiClient={apiClient} />
+                    },
+                    {
                       path: 'eventos/:eventId/preparar/datos',
                       element: <AdminEventPreparationPage apiClient={apiClient} />
                     },

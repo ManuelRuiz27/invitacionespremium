@@ -64,6 +64,54 @@ export type paths = {
         patch: operations["AdminClientEventsController_update"];
         trace?: never;
     };
+    "/api/v1/admin/clients/{clientId}/events/{eventId}/commercial-authorization": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminEventCommercialController_authorize"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/clients/{clientId}/events/{eventId}/commercial-quote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminEventCommercialController_quote"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/clients/{clientId}/events/{eventId}/commercial-requote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminEventCommercialController_requote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/clients/{clientId}/events/{eventId}/design": {
         parameters: {
             query?: never;
@@ -74,6 +122,22 @@ export type paths = {
         get: operations["AdminInvitationDesignController_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/clients/{clientId}/events/{eventId}/design-kickoff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminEventCommercialController_kickoff"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2411,6 +2475,23 @@ export type components = {
             /** Format: date-time */
             validUntil: string;
         };
+        CommercialAuthorizationRequestDto: {
+            /** @enum {boolean} */
+            acceptanceConfirmed: true;
+        };
+        CommercialCoverageResponseDto: {
+            creditLineAvailableCredits: number;
+            purchasedCredits: number;
+            sufficient: boolean;
+            totalAvailableCredits: number;
+        };
+        CommercialRequoteRequestDto: {
+            /** @enum {boolean} */
+            acceptanceConfirmed: true;
+            capacity?: number;
+            /** Format: uuid */
+            serviceId?: string;
+        };
         CommitImportRequestDto: {
             /** Format: uuid */
             previewId: string;
@@ -2631,6 +2712,45 @@ export type components = {
             purchasedCreditsUsed: number;
             receipt: components["schemas"]["ReceiptResponseDto"];
         };
+        EventCommercialResponseDto: {
+            amountMxnCents: number;
+            /** Format: date-time */
+            authorizedAt: string | null;
+            baseCostCredits: number;
+            capacity: number;
+            capacityMax: number | null;
+            capacityMin: number | null;
+            /** Format: uuid */
+            clientId: string;
+            clientName: string;
+            /** @enum {string} */
+            commercialChannel: "STANDARD" | "PARTNER" | "VENUE";
+            coverage: components["schemas"]["CommercialCoverageResponseDto"];
+            customWorkExists: boolean;
+            /** Format: date-time */
+            designKickoffAt: string | null;
+            /** Format: uuid */
+            eventId: string;
+            finalCostCredits: number;
+            lockedAmountMxnCents: number | null;
+            lockedBaseCostCredits: number | null;
+            lockedFinalCostCredits: number | null;
+            lockedPromotionDiscountCredits: number | null;
+            /** Format: uuid */
+            lockedServicePriceId: string | null;
+            lockMatchesCurrentContext: boolean;
+            /** Format: date-time */
+            priceLockedAt: string | null;
+            promotionDiscountCredits: number;
+            /** @enum {string} */
+            serviceCode: "FLIPBOOK" | "FLYER" | "PHYSICAL_QR" | "DEMO";
+            /** Format: uuid */
+            serviceId: string;
+            /** Format: uuid */
+            servicePriceId: string;
+            /** @enum {string|null} */
+            venueTier: "ONE_TO_TWO" | "THREE_TO_FIVE" | "SIX_TO_TEN" | "ELEVEN_PLUS" | null;
+        };
         EventResponseDto: {
             /** Format: date-time */
             activatedAt: string | null;
@@ -2648,6 +2768,19 @@ export type components = {
             /** Format: uuid */
             clientId: string;
             /** Format: date-time */
+            commercialAuthorizedAt: string | null;
+            commercialBaseCostCredits: number | null;
+            commercialCapacitySnapshot: number | null;
+            /** @enum {string|null} */
+            commercialChannelSnapshot: "STANDARD" | "PARTNER" | "VENUE" | null;
+            commercialFinalCostCredits: number | null;
+            /** Format: date-time */
+            commercialPriceLockedAt: string | null;
+            commercialPromotionDiscountCredits: number | null;
+            /** Format: uuid */
+            commercialServicePriceId: string | null;
+            commercialTermsValid: boolean;
+            /** Format: date-time */
             confirmationClosedAt: string | null;
             /** Format: uuid */
             confirmationClosedByUserId: string | null;
@@ -2660,6 +2793,8 @@ export type components = {
             creditUnitValueMxnCentsSnapshot: number | null;
             /** Format: date-time */
             deletedAt: string | null;
+            /** Format: date-time */
+            designKickoffAt: string | null;
             /** Format: date-time */
             eventDateTime: string | null;
             finalCostCredits: number | null;
@@ -3815,6 +3950,71 @@ export interface operations {
             };
         };
     };
+    AdminEventCommercialController_authorize: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommercialAuthorizationRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventCommercialResponseDto"];
+                };
+            };
+        };
+    };
+    AdminEventCommercialController_quote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventCommercialResponseDto"];
+                };
+            };
+        };
+    };
+    AdminEventCommercialController_requote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommercialRequoteRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventCommercialResponseDto"];
+                };
+            };
+        };
+    };
     AdminInvitationDesignController_get: {
         parameters: {
             query?: never;
@@ -3830,6 +4030,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InvitationDesignResponseDto"];
+                };
+            };
+        };
+    };
+    AdminEventCommercialController_kickoff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventCommercialResponseDto"];
                 };
             };
         };

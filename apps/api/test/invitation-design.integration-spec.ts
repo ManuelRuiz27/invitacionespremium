@@ -8,6 +8,7 @@ import { createApp } from '../src/bootstrap/create-app';
 import { PrismaService } from '../src/common/database/prisma.service';
 import {
   ClientType,
+  CommercialChannel,
   EventStatus,
   FileAssetOwnerType,
   FileAssetStatus,
@@ -27,6 +28,7 @@ describe('InvitationDesignModule', () => {
   let prisma: PrismaService;
   let audit: AuditService;
   let providerCookie: string;
+  let providerUserId: string;
   const eventClients = new Map<string, string>();
 
   beforeAll(async () => {
@@ -47,7 +49,9 @@ describe('InvitationDesignModule', () => {
   beforeEach(async () => {
     await resetDatabase();
     eventClients.clear();
-    providerCookie = await login((await createUser(null, UserRole.PLATFORM_ADMIN)).email);
+    const provider = await createUser(null, UserRole.PLATFORM_ADMIN);
+    providerUserId = provider.id;
+    providerCookie = await login(provider.email);
   }, 60_000);
   afterEach(() => vi.restoreAllMocks());
 
@@ -138,34 +142,51 @@ describe('InvitationDesignModule', () => {
     const flipbookService =
       (await prisma.service.findUnique({ where: { code: ServiceCode.FLIPBOOK } })) ??
       (await prisma.service.create({ data: { code: ServiceCode.FLIPBOOK } }));
+    await prisma.servicePrice.create({
+      data: {
+        serviceId: flipbookService.id,
+        pricingVersion: 2,
+        commercialChannel: CommercialChannel.STANDARD,
+        capacityMin: 1,
+        capacityMax: 150,
+        credits: 12,
+        validFrom: new Date(Date.now() - 60_000)
+      }
+    });
+    await prisma.creditLine.create({
+      data: { clientId: event.clientId, limitCredits: 100, status: 'ACTIVE' }
+    });
 
     await mutate('patch', `/events/${event.id}`, cookie)
       .send({ serviceId: flipbookService.id })
       .expect(409)
-      .expect(({ body }) => expect(body.code).toBe('EVENT_INVITATION_DESIGN_RESET_REQUIRED'));
+      .expect(({ body }) => expect(body.code).toBe('EVENT_COMMERCIAL_REQUOTE_REQUIRED'));
     expect((await prisma.event.findUniqueOrThrow({ where: { id: event.id } })).serviceId).not.toBe(flipbookService.id);
     expect(await prisma.invitationDesign.count({ where: { eventId: event.id, deletedAt: null } })).toBe(1);
 
     await mutate('patch', `/events/${event.id}`, cookie)
       .send({ serviceId: flipbookService.id, resetInvitationDesign: true })
-      .expect(200)
-      .expect(({ body }) =>
-        expect(body).toMatchObject({
-          serviceId: flipbookService.id,
-          serviceCode: 'FLIPBOOK',
-          confirmationEnabled: true
-        })
-      );
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('EVENT_COMMERCIAL_REQUOTE_REQUIRED'));
+    await request(app.getHttpServer())
+      .post(`/api/v1/admin/clients/${event.clientId}/events/${event.id}/commercial-requote`)
+      .set('Cookie', providerCookie)
+      .set('Origin', trustedOrigin)
+      .send({ serviceId: flipbookService.id, acceptanceConfirmed: true })
+      .expect(200);
+    expect((await prisma.event.findUniqueOrThrow({ where: { id: event.id } })).serviceId).toBe(flipbookService.id);
     expect(await prisma.invitationDesign.count({ where: { eventId: event.id, deletedAt: null } })).toBe(0);
     expect(await prisma.hotspot.count({ where: { designId: flyer.id, deletedAt: null } })).toBe(0);
     expect(await prisma.fileAsset.count({ where: { eventId: event.id, status: FileAssetStatus.HIDDEN } })).toBe(2);
 
     const next = await createFlipbookDesign(event, owner.userId, cookie, 1);
     const flyerService = await prisma.service.findUniqueOrThrow({ where: { code: ServiceCode.FLYER } });
-    await mutate('patch', `/events/${event.id}`, cookie)
-      .send({ serviceId: flyerService.id, resetInvitationDesign: true })
-      .expect(200)
-      .expect(({ body }) => expect(body.serviceCode).toBe('FLYER'));
+    await request(app.getHttpServer())
+      .post(`/api/v1/admin/clients/${event.clientId}/events/${event.id}/commercial-requote`)
+      .set('Cookie', providerCookie)
+      .set('Origin', trustedOrigin)
+      .send({ serviceId: flyerService.id, acceptanceConfirmed: true })
+      .expect(200);
     expect(await prisma.invitationDesign.count({ where: { eventId: event.id, deletedAt: null } })).toBe(0);
     expect((await prisma.invitationDesign.findUniqueOrThrow({ where: { id: next.id } })).deletedAt).not.toBeNull();
     expect(await prisma.fileAsset.count({ where: { eventId: event.id, status: FileAssetStatus.HIDDEN } })).toBe(3);
@@ -837,6 +858,20 @@ describe('InvitationDesignModule', () => {
     const service =
       (await prisma.service.findUnique({ where: { code: serviceCode } })) ??
       (await prisma.service.create({ data: { code: serviceCode } }));
+    const price =
+      (await prisma.servicePrice.findFirst({ where: { serviceId: service.id, pricingVersion: 2 } })) ??
+      (await prisma.servicePrice.create({
+        data: {
+          serviceId: service.id,
+          pricingVersion: 2,
+          commercialChannel: CommercialChannel.STANDARD,
+          capacityMin: 1,
+          capacityMax: 150,
+          credits: 10,
+          validFrom: new Date(Date.now() - 60_000)
+        }
+      }));
+    const commercialAt = new Date();
     const event = await prisma.event.create({
       data: {
         clientId: owner.clientId,
@@ -848,7 +883,21 @@ describe('InvitationDesignModule', () => {
         eventDateTime: new Date('2030-01-01T18:00:00.000Z'),
         timeZone: 'America/Mexico_City',
         capacity: 100,
-        confirmationEnabled: true
+        confirmationEnabled: true,
+        commercialAuthorizedAt: commercialAt,
+        commercialAuthorizedByUserId: providerUserId,
+        commercialPriceLockedAt: commercialAt,
+        commercialServicePriceId: price.id,
+        commercialBaseCostCredits: price.credits,
+        commercialPromotionDiscountCredits: 0,
+        commercialFinalCostCredits: price.credits,
+        commercialChannelSnapshot: CommercialChannel.STANDARD,
+        commercialCapacitySnapshot: 100,
+        commercialCapacityMinSnapshot: price.capacityMin,
+        commercialCapacityMaxSnapshot: price.capacityMax,
+        commercialVenueTierSnapshot: price.venueTier,
+        designKickoffAt: commercialAt,
+        designKickoffByUserId: providerUserId
       }
     });
     eventClients.set(event.id, event.clientId);

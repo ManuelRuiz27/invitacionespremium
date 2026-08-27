@@ -6,6 +6,7 @@ import { PrismaService } from '../common/database/prisma.service';
 import { CRITICAL_TRANSACTION_OPTIONS } from '../common/database/transaction-policy';
 import { DomainError } from '../common/errors/domain-error';
 import { EventAccessPolicy, eventNotFound } from '../events/event-access.policy';
+import { EventCommercialService } from '../events/event-commercial.service';
 import { recomputeDigitalEventPreparationStatus } from '../events/digital-event-readiness.service';
 import { FileAssetsService } from '../file-assets/file-assets.service';
 import {
@@ -69,7 +70,8 @@ export class InvitationDesignService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(AuditService) private readonly audit: AuditService,
     @Inject(EventAccessPolicy) private readonly eventAccess: EventAccessPolicy,
-    @Inject(FileAssetsService) private readonly fileAssets: FileAssetsService
+    @Inject(FileAssetsService) private readonly fileAssets: FileAssetsService,
+    @Inject(EventCommercialService) private readonly commercial: EventCommercialService
   ) {}
 
   async get(
@@ -757,6 +759,9 @@ export class InvitationDesignService {
       await transaction.$queryRaw`SELECT "id" FROM "event" WHERE "id" = ${eventId}::uuid FOR UPDATE`;
     }
     const event = await this.requireTargetEvent(transaction, eventId, principal, target, true);
+    if (target.kind === 'ADMIN') {
+      await this.commercial.assertDesignMutationAllowed(transaction, target.clientId, eventId);
+    }
     if (!MUTABLE_EVENT_STATUSES.has(event.status)) {
       throw new DomainError(
         'INVITATION_DESIGN_EVENT_STATE_LOCKED',

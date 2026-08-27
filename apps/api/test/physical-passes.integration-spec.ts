@@ -12,6 +12,7 @@ import { PrismaService } from '../src/common/database/prisma.service';
 import {
   ClientStatus,
   ClientType,
+  CommercialChannel,
   EventSocialType,
   EventStatus,
   FileAssetOwnerType,
@@ -719,6 +720,7 @@ describe('PhysicalPasses', () => {
       .set('Origin', origin)
       .send({ serviceId: service.id, capacity: 2 })
       .expect(201);
+    await ensureFreeActivationPrice(created.body.id as string);
     expect(created.body.status).toBe(EventStatus.DRAFT);
 
     const generated = await generate(created.body.id, cookie, 'physical-e2e-without-floorplan', 2).expect(200);
@@ -777,6 +779,7 @@ describe('PhysicalPasses', () => {
         floorplanEnabled: true
       })
       .expect(201);
+    await ensureFreeActivationPrice(created.body.id as string);
     const image = await sharp({
       create: { width: 64, height: 64, channels: 3, background: '#334155' }
     })
@@ -1266,20 +1269,45 @@ describe('PhysicalPasses', () => {
     const existing = await prisma.servicePrice.findFirst({
       where: {
         serviceId: event.serviceId,
-        clientType: event.client.type,
-        validFrom: new Date('2020-01-01T00:00:00.000Z')
+        pricingVersion: 2,
+        commercialChannel: CommercialChannel.STANDARD,
+        capacityMin: 1,
+        capacityMax: 150,
+        validUntil: null
       }
     });
-    if (!existing) {
-      await prisma.servicePrice.create({
+    const price =
+      existing ??
+      (await prisma.servicePrice.create({
         data: {
           serviceId: event.serviceId,
-          clientType: event.client.type,
+          pricingVersion: 2,
+          commercialChannel: CommercialChannel.STANDARD,
+          capacityMin: 1,
+          capacityMax: 150,
           credits: 0,
-          validFrom: new Date('2020-01-01T00:00:00.000Z')
+          validFrom: new Date('2021-01-01T00:00:00.000Z')
         }
-      });
-    }
+      }));
+    const admin = await createUser(UserRole.PLATFORM_ADMIN, null);
+    const lockedAt = new Date();
+    await prisma.event.update({
+      where: { id: eventId },
+      data: {
+        commercialAuthorizedAt: lockedAt,
+        commercialAuthorizedByUserId: admin.id,
+        commercialPriceLockedAt: lockedAt,
+        commercialServicePriceId: price.id,
+        commercialBaseCostCredits: price.credits,
+        commercialPromotionDiscountCredits: 0,
+        commercialFinalCostCredits: price.credits,
+        commercialChannelSnapshot: CommercialChannel.STANDARD,
+        commercialCapacitySnapshot: event.capacity,
+        commercialCapacityMinSnapshot: price.capacityMin,
+        commercialCapacityMaxSnapshot: price.capacityMax,
+        commercialVenueTierSnapshot: null
+      }
+    });
   }
 
   async function createUser(role: UserRole, clientId: string | null) {

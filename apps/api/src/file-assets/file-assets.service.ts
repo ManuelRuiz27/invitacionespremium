@@ -17,6 +17,7 @@ import { DomainError } from '../common/errors/domain-error';
 import { activeWhere } from '../common/persistence/soft-delete.repository';
 import { AppConfigService } from '../config/app-config.service';
 import { EventAccessPolicy, eventNotFound } from '../events/event-access.policy';
+import { EventCommercialService } from '../events/event-commercial.service';
 import {
   AuditActorType,
   EventStatus,
@@ -89,7 +90,8 @@ export class FileAssetsService {
     @Inject(FileStorage) private readonly storage: FileStorage,
     @Inject(FileImageValidator) private readonly imageValidator: FileImageValidator,
     @Inject(FileAssetOwnerRegistry) private readonly owners: FileAssetOwnerRegistry,
-    @Inject(AppConfigService) private readonly config: AppConfigService
+    @Inject(AppConfigService) private readonly config: AppConfigService,
+    @Inject(EventCommercialService) private readonly commercial: EventCommercialService
   ) {}
 
   async uploadImage(
@@ -142,6 +144,7 @@ export class FileAssetsService {
       throw fileError('FILE_UNSUPPORTED_TYPE', 'Only authorized Flyer and Flipbook JPEG/PNG uploads are accepted.');
     }
     const event = await this.requireAdministrativeEvent(clientId, eventId);
+    await this.commercial.assertDesignMutationAllowed(this.prisma, clientId, eventId);
     return this.uploadImageForEvent(
       event,
       { ownerType: administrativeInvitationOwnerType(input.fileType), fileType: input.fileType },
@@ -320,6 +323,7 @@ export class FileAssetsService {
     operationId?: string
   ): Promise<void> {
     await this.requireAdministrativeEvent(clientId, eventId);
+    await this.commercial.assertDesignMutationAllowed(this.prisma, clientId, eventId);
     await this.softDeleteAsset(eventId, fileAssetId, principal.userId, operationId, {
       clientId,
       OR: administrativeInvitationAssetPairs()

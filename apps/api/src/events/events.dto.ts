@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { ApiProperty } from '@nestjs/swagger';
 import { z } from 'zod';
-import { EventSocialType, EventStatus, ServiceCode } from '../generated/prisma/client';
+import { CommercialChannel, EventSocialType, EventStatus, ServiceCode } from '../generated/prisma/client';
 import { FinanceBalanceResponseDto, LedgerMovementResponseDto, ReceiptResponseDto } from '../finance/finance.dto';
 import { normalizeEventDestinationUrl } from './event-destination-url';
 
@@ -159,6 +159,36 @@ export class EventResponseDto {
 
   @ApiProperty({ type: Boolean })
   floorplanEnabled!: boolean;
+
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  commercialAuthorizedAt!: string | null;
+
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  commercialPriceLockedAt!: string | null;
+
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  commercialServicePriceId!: string | null;
+
+  @ApiProperty({ type: Number, nullable: true })
+  commercialBaseCostCredits!: number | null;
+
+  @ApiProperty({ type: Number, nullable: true })
+  commercialPromotionDiscountCredits!: number | null;
+
+  @ApiProperty({ type: Number, nullable: true })
+  commercialFinalCostCredits!: number | null;
+
+  @ApiProperty({ enum: CommercialChannel, nullable: true })
+  commercialChannelSnapshot!: CommercialChannel | null;
+
+  @ApiProperty({ type: Number, nullable: true })
+  commercialCapacitySnapshot!: number | null;
+
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  designKickoffAt!: string | null;
+
+  @ApiProperty({ type: Boolean })
+  commercialTermsValid!: boolean;
 
   @ApiProperty({ type: String, format: 'date-time', nullable: true })
   activatedAt!: string | null;

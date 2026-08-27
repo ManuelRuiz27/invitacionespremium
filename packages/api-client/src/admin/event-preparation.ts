@@ -4,6 +4,9 @@ import { isRecord, isRecordArray, type ApiRequester } from '../api-client';
 type S = components['schemas'];
 export type AdminEventUpdateInput = S['UpdateEventRequestDto'];
 export type AdminPreparationEvent = S['EventResponseDto'];
+export type AdminEventCommercial = S['EventCommercialResponseDto'];
+export type AdminCommercialAuthorizationInput = S['CommercialAuthorizationRequestDto'];
+export type AdminCommercialRequoteInput = S['CommercialRequoteRequestDto'];
 export type AdminInvitationDesign = S['InvitationDesignResponseDto'];
 export type AdminDesignReadiness = S['DesignReadinessResponseDto'];
 export type AdminFlyerInput = S['CreateFlyerRequestDto'];
@@ -33,6 +36,48 @@ const withSignal = (signal?: AbortSignal) => (signal ? { signal } : {});
 export function createAdminEventPreparationClient(request: ApiRequester) {
   const base = (clientId: string, eventId: string) => `/admin/clients/${id(clientId)}/events/${id(eventId)}`;
   return {
+    getCommercialQuote: (clientId: string, eventId: string, signal?: AbortSignal) =>
+      request<AdminEventCommercial>(
+        { path: `${base(clientId, eventId)}/commercial-quote`, response: 'json', ...withSignal(signal) },
+        record
+      ),
+    authorizeCommercial: (
+      clientId: string,
+      eventId: string,
+      body: AdminCommercialAuthorizationInput,
+      signal?: AbortSignal
+    ) =>
+      request<AdminEventCommercial>(
+        {
+          method: 'POST',
+          path: `${base(clientId, eventId)}/commercial-authorization`,
+          body,
+          response: 'json',
+          ...withSignal(signal)
+        },
+        record
+      ),
+    startDesignKickoff: (clientId: string, eventId: string, signal?: AbortSignal) =>
+      request<AdminEventCommercial>(
+        {
+          method: 'POST',
+          path: `${base(clientId, eventId)}/design-kickoff`,
+          response: 'json',
+          ...withSignal(signal)
+        },
+        record
+      ),
+    requoteCommercial: (clientId: string, eventId: string, body: AdminCommercialRequoteInput, signal?: AbortSignal) =>
+      request<AdminEventCommercial>(
+        {
+          method: 'POST',
+          path: `${base(clientId, eventId)}/commercial-requote`,
+          body,
+          response: 'json',
+          ...withSignal(signal)
+        },
+        record
+      ),
     updateEvent: (clientId: string, eventId: string, body: AdminEventUpdateInput, signal?: AbortSignal) =>
       request<AdminPreparationEvent>(
         { method: 'PATCH', path: base(clientId, eventId), body, response: 'json', ...withSignal(signal) },

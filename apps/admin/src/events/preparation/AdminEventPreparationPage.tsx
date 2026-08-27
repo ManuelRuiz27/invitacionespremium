@@ -1,6 +1,7 @@
 import {
   ApiError,
   type AdminEvent,
+  type AdminEventCommercial,
   type AdminHotspotInput,
   type AdminHotspotUpdate,
   type AdminInvitationDesign,
@@ -30,18 +31,20 @@ import { AdminErrorState, AdminLoadingState } from '../../shared/AdminStates';
 import { AdminFloorplanBuilderWorkspace } from './floorplan/AdminFloorplanBuilderWorkspace';
 import { AdminPilotOperationalLog } from './pilot/AdminPilotOperationalLog';
 
-type Section = 'datos' | 'invitacion' | 'croquis' | 'registro';
+type Section = 'comercial' | 'datos' | 'invitacion' | 'croquis' | 'registro';
 
 export function AdminEventPreparationPage({ apiClient }: { apiClient: ApiClient }) {
   const { eventId = '' } = useParams();
   const location = useLocation();
-  const section: Section = location.pathname.endsWith('/invitacion')
-    ? 'invitacion'
-    : location.pathname.endsWith('/croquis')
-      ? 'croquis'
-      : location.pathname.endsWith('/registro')
-        ? 'registro'
-        : 'datos';
+  const section: Section = location.pathname.endsWith('/comercial')
+    ? 'comercial'
+    : location.pathname.endsWith('/invitacion')
+      ? 'invitacion'
+      : location.pathname.endsWith('/croquis')
+        ? 'croquis'
+        : location.pathname.endsWith('/registro')
+          ? 'registro'
+          : 'datos';
   const event = useQuery({
     queryKey: adminQueryKeys.event(eventId),
     queryFn: ({ signal }) => apiClient.adminEvents.get(eventId, signal),
@@ -72,29 +75,185 @@ export function AdminEventPreparationPage({ apiClient }: { apiClient: ApiClient 
         action={<StatusChip label={eventStatusLabel[data.status]} tone="neutral" />}
       />
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} aria-label="Secciones de preparación">
-        {(['datos', 'invitacion', 'croquis', 'registro'] as const).map((item) => (
+        {(['comercial', 'datos', 'invitacion', 'croquis', 'registro'] as const).map((item) => (
           <Button
             key={item}
             component={Link}
             to={`${base}/${item}`}
             variant={section === item ? 'contained' : 'outlined'}
           >
-            {item === 'datos'
-              ? 'Datos'
-              : item === 'invitacion'
-                ? 'Invitación'
-                : item === 'croquis'
-                  ? 'Croquis'
-                  : 'Registro operativo'}
+            {item === 'comercial'
+              ? 'Comercial'
+              : item === 'datos'
+                ? 'Datos'
+                : item === 'invitacion'
+                  ? 'Invitación'
+                  : item === 'croquis'
+                    ? 'Croquis'
+                    : 'Registro operativo'}
           </Button>
         ))}
       </Stack>
+      {section === 'comercial' ? <CommercialSection apiClient={apiClient} event={data} /> : null}
       {section === 'datos' ? <EventDataSection apiClient={apiClient} event={data} /> : null}
       {section === 'invitacion' ? <InvitationSection apiClient={apiClient} event={data} /> : null}
       {section === 'croquis' ? <AdminFloorplanBuilderWorkspace apiClient={apiClient} event={data} /> : null}
       {section === 'registro' ? <AdminPilotOperationalLog apiClient={apiClient} event={data} /> : null}
     </Stack>
   );
+}
+
+function CommercialSection({ apiClient, event }: { apiClient: ApiClient; event: AdminEvent }) {
+  const queryClient = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string>();
+  const quote = useQuery({
+    queryKey: ['admin', 'event-commercial', event.id],
+    queryFn: ({ signal }) => apiClient.adminEventPreparation.getCommercialQuote(event.clientId, event.id, signal)
+  });
+  const run = async (operation: () => Promise<AdminEventCommercial>) => {
+    setBusy(true);
+    setMessage(undefined);
+    try {
+      const result = await operation();
+      queryClient.setQueryData(['admin', 'event-commercial', event.id], result);
+      await queryClient.invalidateQueries({ queryKey: adminQueryKeys.event(event.id) });
+    } catch (cause) {
+      setMessage(adminErrorMessage(cause).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  if (quote.isPending) return <AdminLoadingState label="Cargando cotización comercial..." />;
+  if (quote.isError) return <AdminErrorState onRetry={() => void quote.refetch()} />;
+  const data = quote.data;
+  const isDigital = data.serviceCode === 'FLYER' || data.serviceCode === 'FLIPBOOK';
+  const stale = data.authorizedAt !== null && !data.lockMatchesCurrentContext;
+  const displayedCredits = data.authorizedAt
+    ? (data.lockedFinalCostCredits ?? data.finalCostCredits)
+    : data.finalCostCredits;
+  const displayedMxn = data.authorizedAt ? (data.lockedAmountMxnCents ?? data.amountMxnCents) : data.amountMxnCents;
+  const state = stale
+    ? 'Requiere nueva cotización'
+    : data.designKickoffAt
+      ? 'Diseño iniciado'
+      : data.authorizedAt
+        ? 'Precio congelado'
+        : 'Pendiente de autorización';
+  return (
+    <Stack spacing={2}>
+      {message ? <Alert severity="error">{message}</Alert> : null}
+      <Alert severity={stale ? 'warning' : data.authorizedAt ? 'success' : 'info'}>{state}</Alert>
+      <Card>
+        <CardContent>
+          <Stack spacing={1.5}>
+            <Typography component="h2" variant="h4">
+              Comercial
+            </Typography>
+            <CommercialField label="Cliente" value={data.clientName} />
+            <CommercialField label="Canal comercial" value={channelLabel(data.commercialChannel)} />
+            <CommercialField label="SKU" value={serviceLabel(data.serviceCode)} />
+            <CommercialField label="Capacidad" value={`${data.capacity} personas`} />
+            <CommercialField label="Tarifa" value={commercialRule(data)} />
+            <CommercialField
+              label={data.authorizedAt ? 'Precio congelado' : 'Precio cotizado'}
+              value={`${displayedCredits} créditos`}
+            />
+            <CommercialField label="Equivalente" value={formatMxn(displayedMxn)} />
+            <CommercialField
+              label="Cobertura financiera actual"
+              value={`${data.coverage.totalAvailableCredits} créditos · ${data.coverage.sufficient ? 'suficiente' : 'insuficiente'}`}
+            />
+            <CommercialField label="Autorización" value={data.authorizedAt ? 'Autorizado' : 'Pendiente'} />
+            <CommercialField label="Price lock" value={data.priceLockedAt ? 'Precio congelado' : 'Pendiente'} />
+            {isDigital ? (
+              <CommercialField label="Design kickoff" value={data.designKickoffAt ? 'Diseño iniciado' : 'Pendiente'} />
+            ) : null}
+            <Alert severity="info">
+              La autorización no reserva créditos. El cargo se realiza al activar el evento.
+            </Alert>
+            {!data.authorizedAt ? (
+              <Button
+                variant="contained"
+                disabled={busy || !data.coverage.sufficient}
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      '¿Confirmas que Provider registra la aceptación comercial y valida la cobertura actual?'
+                    )
+                  ) {
+                    void run(() =>
+                      apiClient.adminEventPreparation.authorizeCommercial(event.clientId, event.id, {
+                        acceptanceConfirmed: true
+                      })
+                    );
+                  }
+                }}
+              >
+                Autorizar preparación
+              </Button>
+            ) : null}
+            {stale ? (
+              <Button
+                variant="contained"
+                disabled={busy || !data.coverage.sufficient}
+                onClick={() =>
+                  void run(() =>
+                    apiClient.adminEventPreparation.requoteCommercial(event.clientId, event.id, {
+                      acceptanceConfirmed: true
+                    })
+                  )
+                }
+              >
+                Re-cotizar
+              </Button>
+            ) : null}
+            {isDigital && data.authorizedAt && data.lockMatchesCurrentContext && !data.designKickoffAt ? (
+              <Button
+                variant="contained"
+                disabled={busy}
+                onClick={() =>
+                  void run(() => apiClient.adminEventPreparation.startDesignKickoff(event.clientId, event.id))
+                }
+              >
+                Iniciar diseño
+              </Button>
+            ) : null}
+          </Stack>
+        </CardContent>
+      </Card>
+    </Stack>
+  );
+}
+
+function CommercialField({ label, value }: { label: string; value: string }) {
+  return (
+    <Typography>
+      <strong>{label}:</strong> {value}
+    </Typography>
+  );
+}
+
+function channelLabel(channel: AdminEventCommercial['commercialChannel']) {
+  return channel === 'PARTNER'
+    ? 'Planner / agencia partner'
+    : channel === 'VENUE'
+      ? 'Venue recurrente'
+      : 'Estándar / PVP';
+}
+
+function serviceLabel(service: AdminEventCommercial['serviceCode']) {
+  return service === 'PHYSICAL_QR' ? 'QR / EventOps' : service === 'FLIPBOOK' ? 'Flipbook' : 'Flyer';
+}
+
+function commercialRule(data: AdminEventCommercial) {
+  return data.venueTier
+    ? `Volumen ${data.venueTier.replaceAll('_', ' ').toLowerCase()}`
+    : `${data.capacityMin ?? 1}–${data.capacityMax ?? data.capacity} personas`;
+}
+
+function formatMxn(cents: number) {
+  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(cents / 100);
 }
 
 function EventDataSection({ apiClient, event }: { apiClient: ApiClient; event: AdminEvent }) {
@@ -303,6 +462,20 @@ function InvitationSection({ apiClient, event }: { apiClient: ApiClient; event: 
 
   if (!supported)
     return <Alert severity="info">El servicio de este Evento no admite diseño de invitación digital.</Alert>;
+  if (!event.designKickoffAt) {
+    return (
+      <Alert
+        severity="warning"
+        action={
+          <Button component={Link} to={`/eventos/${event.id}/preparar/comercial`} color="inherit">
+            Ir a Comercial
+          </Button>
+        }
+      >
+        Autoriza los términos comerciales e inicia el diseño antes de cargar o editar la invitación.
+      </Alert>
+    );
+  }
   return (
     <Stack spacing={2}>
       {message ? <Alert severity="error">{message}</Alert> : null}

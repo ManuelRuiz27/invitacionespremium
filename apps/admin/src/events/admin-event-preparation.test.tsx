@@ -81,6 +81,108 @@ describe('Admin Event preparation surfaces', () => {
     expect(api.services.listAvailable).not.toHaveBeenCalled();
   });
 
+  it('renders the authoritative commercial quote and submits authorization only once on a double click', async () => {
+    const api = mockAdminApi();
+    const baseQuote = await api.adminEventPreparation.getCommercialQuote(adminEvent.clientId, adminEvent.id);
+    const pendingQuote = { ...baseQuote, authorizedAt: null, priceLockedAt: null, designKickoffAt: null };
+    vi.mocked(api.adminEventPreparation.getCommercialQuote).mockReset().mockResolvedValue(pendingQuote);
+    vi.mocked(api.adminEventPreparation.authorizeCommercial).mockResolvedValue({
+      ...pendingQuote,
+      authorizedAt: '2026-08-26T12:00:00.000Z',
+      priceLockedAt: '2026-08-26T12:00:00.000Z',
+      lockMatchesCurrentContext: true
+    });
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/comercial`);
+
+    expect(await screen.findByRole('heading', { name: 'Comercial' })).toBeInTheDocument();
+    expect(screen.getByText(/Estándar \/ PVP/u)).toBeInTheDocument();
+    expect(screen.getByText(/10 créditos/u)).toBeInTheDocument();
+    expect(screen.getByText(/34 créditos · suficiente/u)).toBeInTheDocument();
+    expect(
+      screen.getByText('La autorización no reserva créditos. El cargo se realiza al activar el evento.')
+    ).toBeInTheDocument();
+    const authorize = screen.getByRole('button', { name: 'Autorizar preparación' });
+    await userEvent.dblClick(authorize);
+    await waitFor(() => expect(api.adminEventPreparation.authorizeCommercial).toHaveBeenCalledTimes(1));
+    expect(api.adminEventPreparation.authorizeCommercial).toHaveBeenCalledWith(adminEvent.clientId, adminEvent.id, {
+      acceptanceConfirmed: true
+    });
+    confirm.mockRestore();
+  });
+
+  it('offers kickoff for authorized digital services', async () => {
+    const api = mockAdminApi();
+    const baseQuote = await api.adminEventPreparation.getCommercialQuote(adminEvent.clientId, adminEvent.id);
+    vi.mocked(api.adminEventPreparation.getCommercialQuote)
+      .mockReset()
+      .mockResolvedValue({
+        ...baseQuote,
+        serviceCode: 'FLYER',
+        authorizedAt: '2026-08-26T12:00:00.000Z',
+        priceLockedAt: '2026-08-26T12:00:00.000Z',
+        designKickoffAt: null,
+        lockMatchesCurrentContext: true
+      });
+    vi.mocked(api.adminEventPreparation.startDesignKickoff).mockResolvedValue({
+      ...baseQuote,
+      designKickoffAt: '2026-08-26T12:00:00.000Z'
+    });
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/comercial`);
+    await userEvent.click(await screen.findByRole('button', { name: 'Iniciar diseño' }));
+    await waitFor(() =>
+      expect(api.adminEventPreparation.startDesignKickoff).toHaveBeenCalledWith(adminEvent.clientId, adminEvent.id)
+    );
+  });
+
+  it('offers explicit re-quote for stale terms', async () => {
+    const api = mockAdminApi();
+    const baseQuote = await api.adminEventPreparation.getCommercialQuote(adminEvent.clientId, adminEvent.id);
+    vi.mocked(api.adminEventPreparation.getCommercialQuote)
+      .mockReset()
+      .mockResolvedValue({
+        ...baseQuote,
+        designKickoffAt: null,
+        lockMatchesCurrentContext: false
+      });
+    vi.mocked(api.adminEventPreparation.requoteCommercial).mockResolvedValue(baseQuote);
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/comercial`);
+    await userEvent.click(await screen.findByRole('button', { name: 'Re-cotizar' }));
+    await waitFor(() =>
+      expect(api.adminEventPreparation.requoteCommercial).toHaveBeenCalledWith(adminEvent.clientId, adminEvent.id, {
+        acceptanceConfirmed: true
+      })
+    );
+  });
+
+  it('shows no kickoff for QR and gates Invitation mutations before a digital kickoff', async () => {
+    const api = mockAdminApi();
+    const baseQuote = await api.adminEventPreparation.getCommercialQuote(adminEvent.clientId, adminEvent.id);
+    vi.mocked(api.adminEventPreparation.getCommercialQuote)
+      .mockReset()
+      .mockResolvedValue({
+        ...baseQuote,
+        serviceCode: 'PHYSICAL_QR',
+        designKickoffAt: null
+      });
+    vi.mocked(api.adminEvents.get).mockResolvedValue({ ...adminEvent, status: 'CONFIGURED', designKickoffAt: null });
+    const { router } = renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/comercial`);
+    expect(await screen.findByRole('heading', { name: 'Comercial' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Iniciar diseño' })).not.toBeInTheDocument();
+
+    await router.navigate(`/eventos/${adminEvent.id}/preparar/invitacion`);
+    expect(
+      await screen.findByText(
+        'Autoriza los términos comerciales e inicia el diseño antes de cargar o editar la invitación.'
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ir a Comercial' })).toHaveAttribute(
+      'href',
+      `/eventos/${adminEvent.id}/preparar/comercial`
+    );
+    expect(api.adminEventPreparation.uploadInvitationAsset).not.toHaveBeenCalled();
+  });
+
   it('creates a Flyer with Admin uploads and never uses Planner visual APIs', async () => {
     const api = mockAdminApi();
     const initial = asset('initial', 'FLYER_INITIAL_IMAGE');

@@ -94,6 +94,37 @@ describe('Event activation', () => {
     expect(await prisma.auditLog.count({ where: { eventId: event.id, action: 'EVENT_ACTIVATE' } })).toBe(1);
   });
 
+  it('charges the locked historical price after the Price Book closes it and publishes a new price', async () => {
+    const planner = await createClientUser(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
+    const { service, price: lockedPrice } = await createPricedService(ServiceCode.FLYER, ClientType.PLANNER, 12);
+    const event = await createReadyEvent(planner, service.id);
+    const changedAt = new Date();
+    await prisma.servicePrice.update({ where: { id: lockedPrice.id }, data: { validUntil: changedAt } });
+    const currentPrice = await prisma.servicePrice.create({
+      data: {
+        serviceId: service.id,
+        pricingVersion: 2,
+        commercialChannel: CommercialChannel.STANDARD,
+        capacityMin: 1,
+        capacityMax: 150,
+        credits: 21,
+        validFrom: changedAt
+      }
+    });
+    await grantCredits(planner.clientId, planner.userId, 12);
+
+    const response = await activate(event.id, await login(planner.email), 'activation-locked-price').expect(200);
+    expect(response.body).toMatchObject({
+      baseCostCredits: 12,
+      finalCostCredits: 12,
+      purchasedCreditsUsed: 12,
+      event: { activatedServicePriceId: lockedPrice.id }
+    });
+    expect(response.body.event.activatedServicePriceId).not.toBe(currentPrice.id);
+    expect(await prisma.ledgerEntry.count({ where: { eventId: event.id } })).toBe(1);
+    expect(await prisma.receipt.count({ where: { operationReference: event.id } })).toBe(1);
+  });
+
   it('rejects every direct snapshot mutation while allowing later lifecycle status changes', async () => {
     const planner = await createClientUser(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
     const { service } = await createPricedService(ServiceCode.FLYER, ClientType.PLANNER, 12);
@@ -412,8 +443,8 @@ describe('Event activation', () => {
         event: await createReadyEvent(missingPrice, noPriceService.id),
         cookie: await login(missingPrice.email),
         key: 'activation-price-missing',
-        status: 404,
-        code: 'CURRENT_PRICE_NOT_FOUND'
+        status: 409,
+        code: 'EVENT_COMMERCIAL_AUTHORIZATION_REQUIRED'
       },
       {
         event: await createReadyEvent(demoClient, demo.id),
@@ -752,7 +783,36 @@ describe('Event activation', () => {
     if (service.code === ServiceCode.FLYER || service.code === ServiceCode.FLIPBOOK) {
       await createCompleteDesign(event, owner.userId, service.code);
     }
-    return event;
+    const [client, price] = await Promise.all([
+      prisma.client.findUniqueOrThrow({ where: { id: owner.clientId } }),
+      prisma.servicePrice.findFirst({
+        where: { serviceId, pricingVersion: 2 },
+        orderBy: { validFrom: 'desc' }
+      })
+    ]);
+    if (!price) return event;
+    const admin = await createUser(null, UserRole.PLATFORM_ADMIN);
+    const at = new Date();
+    return prisma.event.update({
+      where: { id: event.id },
+      data: {
+        commercialAuthorizedAt: at,
+        commercialAuthorizedByUserId: admin.userId,
+        commercialPriceLockedAt: at,
+        commercialServicePriceId: price.id,
+        commercialBaseCostCredits: price.credits,
+        commercialPromotionDiscountCredits: 0,
+        commercialFinalCostCredits: price.credits,
+        commercialChannelSnapshot: client.commercialChannel ?? CommercialChannel.STANDARD,
+        commercialCapacitySnapshot: event.capacity,
+        commercialCapacityMinSnapshot: price.capacityMin,
+        commercialCapacityMaxSnapshot: price.capacityMax,
+        commercialVenueTierSnapshot: price.venueTier,
+        ...(service.code === ServiceCode.FLYER || service.code === ServiceCode.FLIPBOOK
+          ? { designKickoffAt: at, designKickoffByUserId: admin.userId }
+          : {})
+      }
+    });
   }
 
   async function createCompleteDesign(

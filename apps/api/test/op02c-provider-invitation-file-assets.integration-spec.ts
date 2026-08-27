@@ -10,6 +10,7 @@ import { createApp } from '../src/bootstrap/create-app';
 import { PrismaService } from '../src/common/database/prisma.service';
 import {
   ClientType,
+  CommercialChannel,
   EventStatus,
   FileAssetOwnerType,
   FileAssetStatus,
@@ -85,6 +86,15 @@ describe('OP-02C provider Invitation FileAssets', () => {
     const fixture = await createFixture();
     const adminCookie = await login(fixture.adminEmail);
     const plannerCookie = await login(fixture.plannerEmail);
+
+    await upload(fixture.clientId, fixture.eventId, adminCookie, FileAssetType.FLYER_INITIAL_IMAGE)
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('EVENT_DESIGN_KICKOFF_REQUIRED'));
+    await request(app.getHttpServer())
+      .post(`/api/v1/admin/clients/${fixture.clientId}/events/${fixture.eventId}/design-kickoff`)
+      .set('Cookie', adminCookie)
+      .set('Origin', trustedOrigin)
+      .expect(200);
 
     const initial = await upload(
       fixture.clientId,
@@ -202,10 +212,24 @@ describe('OP-02C provider Invitation FileAssets', () => {
         role: UserRole.INDEPENDENT_PLANNER
       }
     });
-    await prisma.user.create({ data: { email: adminEmail, passwordHash, role: UserRole.PLATFORM_ADMIN } });
+    const admin = await prisma.user.create({
+      data: { email: adminEmail, passwordHash, role: UserRole.PLATFORM_ADMIN }
+    });
     const service =
       (await prisma.service.findUnique({ where: { code: ServiceCode.FLYER } })) ??
       (await prisma.service.create({ data: { code: ServiceCode.FLYER } }));
+    const price = await prisma.servicePrice.create({
+      data: {
+        serviceId: service.id,
+        pricingVersion: 2,
+        commercialChannel: CommercialChannel.STANDARD,
+        capacityMin: 1,
+        capacityMax: 150,
+        credits: 10,
+        validFrom: new Date(Date.now() - 60_000)
+      }
+    });
+    const commercialAt = new Date();
     const event = await prisma.event.create({
       data: {
         clientId: client.id,
@@ -217,7 +241,19 @@ describe('OP-02C provider Invitation FileAssets', () => {
         eventDateTime: new Date('2030-01-01T18:00:00.000Z'),
         timeZone: 'America/Mexico_City',
         capacity: 100,
-        confirmationEnabled: true
+        confirmationEnabled: true,
+        commercialAuthorizedAt: commercialAt,
+        commercialAuthorizedByUserId: admin.id,
+        commercialPriceLockedAt: commercialAt,
+        commercialServicePriceId: price.id,
+        commercialBaseCostCredits: price.credits,
+        commercialPromotionDiscountCredits: 0,
+        commercialFinalCostCredits: price.credits,
+        commercialChannelSnapshot: CommercialChannel.STANDARD,
+        commercialCapacitySnapshot: 100,
+        commercialCapacityMinSnapshot: price.capacityMin,
+        commercialCapacityMaxSnapshot: price.capacityMax,
+        commercialVenueTierSnapshot: price.venueTier
       }
     });
     return {

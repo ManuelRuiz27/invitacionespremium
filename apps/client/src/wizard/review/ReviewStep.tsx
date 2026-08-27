@@ -174,16 +174,18 @@ export function ReviewStep({
     }
   };
   const available = (balance?.purchasedCredits ?? 0) + (balance?.creditLine.availableCredits ?? 0);
-  const insufficient = canSeeFinance && Boolean(price) && available < (price?.credits ?? 0);
-  const lineCreditsNeeded = Math.max(0, (price?.credits ?? 0) - (balance?.purchasedCredits ?? 0));
+  const activationCredits = current.commercialFinalCostCredits ?? price?.credits;
+  const commercialBlocked = !operational && !current.commercialTermsValid;
+  const insufficient = canSeeFinance && activationCredits !== undefined && available < activationCredits;
+  const lineCreditsNeeded = Math.max(0, (activationCredits ?? 0) - (balance?.purchasedCredits ?? 0));
   return (
     <Stack spacing={2}>
       <Typography component="h2" variant="h3">
         Revisión y activación
       </Typography>
       <Typography>
-        Servicio: {service ? serviceLabels[service.code] : 'Pendiente'} · Costo de activación: {price?.credits ?? '—'}{' '}
-        créditos
+        Servicio: {service ? serviceLabels[service.code] : 'Pendiente'} · Costo de activación:{' '}
+        {activationCredits ?? '—'} créditos
       </Typography>
       <List>
         {checks.map((check) => (
@@ -227,6 +229,7 @@ export function ReviewStep({
       ) : (
         <Alert severity="info">Tu Organización administra el pago. Tu rol no tiene acceso al detalle financiero.</Alert>
       )}
+      {commercialBlocked ? <Alert severity="warning">Pendiente de autorización comercial.</Alert> : null}
       {operational ? (
         <Button
           component={Link}
@@ -239,7 +242,13 @@ export function ReviewStep({
       ) : (
         <Button
           variant="contained"
-          disabled={current.status !== 'READY_TO_ACTIVATE' || busy || insufficient || !price}
+          disabled={
+            current.status !== 'READY_TO_ACTIVATE' ||
+            busy ||
+            insufficient ||
+            activationCredits === undefined ||
+            commercialBlocked
+          }
           onClick={() => setDialog(true)}
         >
           Activar Evento
@@ -259,7 +268,7 @@ export function ReviewStep({
         <DialogTitle id="activation-title">Confirmar activación</DialogTitle>
         <DialogContent>
           <Stack spacing={1}>
-            <Typography>Costo de activación: {price?.credits ?? '—'} créditos.</Typography>
+            <Typography>Costo de activación: {activationCredits ?? '—'} créditos.</Typography>
             {canSeeFinance ? (
               <>
                 <Typography>Saldo comprado: {balance?.purchasedCredits ?? '—'}.</Typography>
@@ -271,8 +280,8 @@ export function ReviewStep({
                   </Typography>
                 ) : (
                   <Typography>
-                    Al activar este evento se descontarán {price?.credits ?? '—'} créditos de tu saldo. Después podrás
-                    enviar invitaciones y generar accesos para staff.
+                    Al activar este evento se descontarán {activationCredits ?? '—'} créditos de tu saldo. Después
+                    podrás enviar invitaciones y generar accesos para staff.
                   </Typography>
                 )}
               </>

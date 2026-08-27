@@ -9,12 +9,12 @@ import { activeWhere, assertPlatformAdminRestoration } from '../common/persisten
 import {
   AuditActorType,
   ClientStatus,
+  CommercialChannel,
   EventStatus,
   FileAssetOwnerType,
   FileAssetStatus,
   InvitationDesignType,
   Prisma,
-  PromotionScope,
   ServiceCode,
   UserRole,
   type Event
@@ -26,8 +26,9 @@ import {
   recomputePhysicalPassPreparationStatus,
   resolvePhysicalPassReadiness
 } from '../physical-passes/physical-pass-readiness.service';
-import { ServicesPricingService } from '../services-pricing/services-pricing.service';
 import { EventAccessPolicy, eventNotFound } from './event-access.policy';
+import type { CommercialRequoteInput, EventCommercialResponseDto } from './event-commercial.dto';
+import { EventCommercialService } from './event-commercial.service';
 import { recomputeDigitalEventPreparationStatus } from './digital-event-readiness.service';
 import { resolvePreparationStatus } from './event-status.resolver';
 import type { CreateEventInput, EventActivationResponseDto, EventResponseDto, UpdateEventInput } from './events.dto';
@@ -46,7 +47,8 @@ const SOFT_DELETE_STATUSES: readonly EventStatus[] = [
   EventStatus.CANCELLED
 ];
 export const EVENT_SERVICE_INCLUDE = {
-  service: { select: { code: true } }
+  service: { select: { id: true, code: true, isActive: true } },
+  client: { select: { commercialChannel: true } }
 } satisfies Prisma.EventInclude;
 type EventWithService = Prisma.EventGetPayload<{ include: typeof EVENT_SERVICE_INCLUDE }>;
 
@@ -58,7 +60,7 @@ export class EventsService {
     @Inject(AuditService) private readonly audit: AuditService,
     @Inject(EventAccessPolicy) private readonly accessPolicy: EventAccessPolicy,
     @Inject(FinanceService) private readonly finance: FinanceService,
-    @Inject(ServicesPricingService) private readonly pricing: ServicesPricingService
+    @Inject(EventCommercialService) private readonly commercial: EventCommercialService
   ) {}
 
   async listOwned(principal: AuthPrincipal): Promise<EventResponseDto[]> {
@@ -154,6 +156,106 @@ export class EventsService {
     );
   }
 
+  async requoteAdmin(
+    clientId: string,
+    eventId: string,
+    input: CommercialRequoteInput,
+    principal: AuthPrincipal,
+    operationId?: string
+  ): Promise<EventCommercialResponseDto> {
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      try {
+        return await this.prisma.$transaction(async (transaction) => {
+          await transaction.$queryRaw`SELECT "id" FROM "event" WHERE "id" = ${eventId}::uuid FOR UPDATE`;
+          const current = await this.commercial.requireTarget(transaction, clientId, eventId);
+          if (!PREPARATION_STATUSES.includes(current.status)) {
+            throw invalidEventState('Commercial requote requires an Event in preparation.');
+          }
+          if (
+            current.commercialAuthorizedAt === null &&
+            current.designKickoffAt === null &&
+            !(await this.commercial.hasCustomWork(transaction, eventId))
+          ) {
+            throw new DomainError(
+              'EVENT_COMMERCIAL_REQUOTE_NOT_REQUIRED',
+              'Use normal commercial authorization before personalized work begins.',
+              HttpStatus.CONFLICT
+            );
+          }
+          const serviceId = input.serviceId ?? current.serviceId;
+          const capacity = input.capacity ?? current.capacity;
+          if (serviceId === null || capacity === null) {
+            throw new DomainError(
+              'EVENT_COMMERCIAL_CONFIGURATION_INCOMPLETE',
+              'A paid active service and capacity are required.',
+              HttpStatus.CONFLICT
+            );
+          }
+          await this.requireAvailableService(transaction, serviceId);
+          const service = await transaction.service.findUniqueOrThrow({
+            where: { id: serviceId },
+            select: { id: true, code: true, isActive: true }
+          });
+          if (service.code === ServiceCode.DEMO) {
+            throw new DomainError(
+              'EVENT_DEMO_NOT_ACTIVATABLE',
+              'Demo service cannot receive commercial authorization.',
+              HttpStatus.CONFLICT
+            );
+          }
+          const proposed = { ...current, serviceId, capacity, service };
+          const lockData = await this.commercial.lockCurrentTermsInTransaction(transaction, proposed, principal);
+          await this.resetIncompatibleDigitalDesign(
+            transaction,
+            current,
+            serviceId,
+            { serviceId, capacity, resetInvitationDesign: true },
+            principal,
+            operationId
+          );
+          const updated = await transaction.event.update({
+            where: { id: eventId },
+            include: EVENT_SERVICE_INCLUDE,
+            data: {
+              serviceId,
+              capacity,
+              ...lockData
+            }
+          });
+          await recomputeDigitalEventPreparationStatus(transaction, eventId);
+          await recomputePhysicalPassPreparationStatus(transaction, eventId);
+          const finalEvent = await transaction.event.findUniqueOrThrow({
+            where: { id: eventId },
+            include: EVENT_SERVICE_INCLUDE
+          });
+          await this.audit.record(
+            {
+              actor: { type: AuditActorType.USER, id: principal.userId },
+              clientId,
+              eventId,
+              resourceType: 'EVENT',
+              resourceId: eventId,
+              action: 'EVENT_COMMERCIAL_REQUOTE',
+              beforeData: eventAuditSnapshot(current),
+              afterData: eventAuditSnapshot(updated),
+              ...(operationId === undefined ? {} : { operationId })
+            },
+            transaction
+          );
+          return this.commercial.responseForLockedEvent(transaction, finalEvent);
+        }, CRITICAL_TRANSACTION_OPTIONS);
+      } catch (error) {
+        if (!isRetryableTransactionError(error) || attempt === 19) throw error;
+        await waitForRetry(attempt);
+      }
+    }
+    throw new DomainError(
+      'EVENT_COMMERCIAL_CONCURRENCY_CONFLICT',
+      'Commercial terms could not be serialized.',
+      HttpStatus.CONFLICT
+    );
+  }
+
   private async updatePreparation(
     eventId: string,
     input: UpdateEventInput,
@@ -183,6 +285,12 @@ export class EventsService {
         }
         const merged = mergePreparationData(locked, input);
         await this.requireAvailableService(transaction, merged.serviceId);
+        if (
+          (input.serviceId !== undefined && input.serviceId !== locked.serviceId) ||
+          (input.capacity !== undefined && input.capacity !== locked.capacity)
+        ) {
+          await this.commercial.invalidateForGenericChange(transaction, locked, principal, operationId);
+        }
         await this.resetIncompatibleDigitalDesign(transaction, locked, merged.serviceId, input, principal, operationId);
         await transaction.event.update({
           where: { id: eventId },
@@ -261,7 +369,7 @@ export class EventsService {
           }
           const client = await transaction.client.findFirst({
             where: { id: current.clientId, deletedAt: null },
-            select: { type: true, status: true }
+            select: { status: true }
           });
           if (!client || client.status !== ClientStatus.ACTIVE) {
             throw new DomainError(
@@ -362,29 +470,14 @@ export class EventsService {
           }
 
           const activatedAt = new Date();
-          const price = await this.pricing.resolveCurrentPriceInTransaction(
-            transaction,
-            current.clientId,
-            service.code,
-            current.capacity,
-            activatedAt
-          );
-          const baseCostCredits = price.credits;
-          await this.pricing.findEligiblePromotionsInTransaction(transaction, {
-            scope: PromotionScope.EVENT_ACTIVATION,
-            clientId: current.clientId,
-            clientType: client.type,
-            serviceId: service.id,
-            at: activatedAt
-          });
-          const promotionDiscountCredits = 0 as const;
-          const finalCostCredits = baseCostCredits;
+          const lockedTerms = await this.commercial.assertActivationLock(transaction, current);
+          const { servicePriceId, baseCostCredits, promotionDiscountCredits, finalCostCredits } = lockedTerms;
           const financial = await this.finance.consumeEventActivation(transaction, {
             clientId: current.clientId,
             eventId,
             actorUserId: principal.userId,
             serviceId: service.id,
-            servicePriceId: price.id,
+            servicePriceId,
             baseCostCredits,
             promotionDiscountCredits,
             finalCostCredits,
@@ -399,7 +492,7 @@ export class EventsService {
               activatedAt,
               activatedByUserId: principal.userId,
               activatedServiceId: service.id,
-              activatedServicePriceId: price.id,
+              activatedServicePriceId: servicePriceId,
               baseCostCredits,
               promotionDiscountCredits,
               finalCostCredits,
@@ -816,6 +909,15 @@ export function eventAuditSnapshot(event: Event): Record<string, unknown> {
     confirmationClosedAt: event.confirmationClosedAt,
     confirmationClosedByUserId: event.confirmationClosedByUserId,
     floorplanEnabled: event.floorplanEnabled,
+    commercialAuthorizedAt: event.commercialAuthorizedAt,
+    commercialPriceLockedAt: event.commercialPriceLockedAt,
+    commercialServicePriceId: event.commercialServicePriceId,
+    commercialBaseCostCredits: event.commercialBaseCostCredits,
+    commercialPromotionDiscountCredits: event.commercialPromotionDiscountCredits,
+    commercialFinalCostCredits: event.commercialFinalCostCredits,
+    commercialChannelSnapshot: event.commercialChannelSnapshot,
+    commercialCapacitySnapshot: event.commercialCapacitySnapshot,
+    designKickoffAt: event.designKickoffAt,
     activatedAt: event.activatedAt,
     activatedByUserId: event.activatedByUserId,
     activatedServiceId: event.activatedServiceId,
@@ -851,6 +953,20 @@ export function toEventResponse(event: EventWithService): EventResponseDto {
     confirmationClosedAt: event.confirmationClosedAt?.toISOString() ?? null,
     confirmationClosedByUserId: event.confirmationClosedByUserId,
     floorplanEnabled: event.floorplanEnabled,
+    commercialAuthorizedAt: event.commercialAuthorizedAt?.toISOString() ?? null,
+    commercialPriceLockedAt: event.commercialPriceLockedAt?.toISOString() ?? null,
+    commercialServicePriceId: event.commercialServicePriceId,
+    commercialBaseCostCredits: event.commercialBaseCostCredits,
+    commercialPromotionDiscountCredits: event.commercialPromotionDiscountCredits,
+    commercialFinalCostCredits: event.commercialFinalCostCredits,
+    commercialChannelSnapshot: event.commercialChannelSnapshot,
+    commercialCapacitySnapshot: event.commercialCapacitySnapshot,
+    designKickoffAt: event.designKickoffAt?.toISOString() ?? null,
+    commercialTermsValid:
+      event.commercialAuthorizedAt !== null &&
+      event.commercialServicePriceId !== null &&
+      event.commercialCapacitySnapshot === event.capacity &&
+      event.commercialChannelSnapshot === (event.client.commercialChannel ?? CommercialChannel.STANDARD),
     activatedAt: event.activatedAt?.toISOString() ?? null,
     activatedByUserId: event.activatedByUserId,
     activatedServiceId: event.activatedServiceId,

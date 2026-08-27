@@ -12,7 +12,16 @@ const digitalReady = {
   status: 'READY_TO_ACTIVATE',
   confirmationEnabled: true,
   locationUrl: 'https://example.com/mapa',
-  giftRegistryUrl: 'https://example.com/regalos'
+  giftRegistryUrl: 'https://example.com/regalos',
+  commercialAuthorizedAt: '2026-08-01T12:00:00.000Z',
+  commercialPriceLockedAt: '2026-08-01T12:00:00.000Z',
+  commercialServicePriceId: 'price-flyer',
+  commercialBaseCostCredits: 5,
+  commercialPromotionDiscountCredits: 0,
+  commercialFinalCostCredits: 5,
+  commercialChannelSnapshot: 'STANDARD',
+  commercialCapacitySnapshot: configuredEvent.capacity,
+  commercialTermsValid: true
 } satisfies Event;
 
 const digitalActive = {
@@ -25,7 +34,16 @@ const physicalReady = {
   serviceId: 'service-physical',
   serviceCode: 'PHYSICAL_QR',
   status: 'READY_TO_ACTIVATE',
-  confirmationEnabled: false
+  confirmationEnabled: false,
+  commercialAuthorizedAt: '2026-08-01T12:00:00.000Z',
+  commercialPriceLockedAt: '2026-08-01T12:00:00.000Z',
+  commercialServicePriceId: 'price-physical',
+  commercialBaseCostCredits: 3,
+  commercialPromotionDiscountCredits: 0,
+  commercialFinalCostCredits: 3,
+  commercialChannelSnapshot: 'STANDARD',
+  commercialCapacitySnapshot: configuredEvent.capacity,
+  commercialTermsValid: true
 } satisfies Event;
 
 const physicalActive = {
@@ -46,6 +64,29 @@ const activationResult = (event: Event, credits: number) => ({
 });
 
 describe('post-activation handoff', () => {
+  it('blocks Planner activation naturally when commercial authorization is absent or stale', async () => {
+    const api = mockApiClient();
+    vi.mocked(api.events.get).mockResolvedValue({
+      ...digitalReady,
+      commercialAuthorizedAt: null,
+      commercialPriceLockedAt: null,
+      commercialServicePriceId: null,
+      commercialBaseCostCredits: null,
+      commercialPromotionDiscountCredits: null,
+      commercialFinalCostCredits: null,
+      commercialChannelSnapshot: null,
+      commercialCapacitySnapshot: null,
+      commercialTermsValid: false
+    });
+    vi.mocked(api.design.readiness).mockResolvedValue({ complete: true, blockers: [], designType: 'FLYER' });
+
+    renderApp(api, `/eventos/${digitalReady.id}/configuracion/revision`);
+
+    expect(await screen.findByText('Pendiente de autorización comercial.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Activar Evento' })).toBeDisabled();
+    expect(api.events.activate).not.toHaveBeenCalled();
+  });
+
   it('hands an activated Flyer directly to invitation distribution', async () => {
     const api = mockApiClient();
     vi.mocked(api.events.get).mockResolvedValue(digitalReady);

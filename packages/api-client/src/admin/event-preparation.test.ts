@@ -31,6 +31,15 @@ describe('administrative Event preparation API client', () => {
       { confirmationEnabled: false, floorplanEnabled: false },
       signal
     );
+    await api.adminEventPreparation.getCommercialQuote(clientId, eventId, signal);
+    await api.adminEventPreparation.authorizeCommercial(clientId, eventId, { acceptanceConfirmed: true }, signal);
+    await api.adminEventPreparation.startDesignKickoff(clientId, eventId, signal);
+    await api.adminEventPreparation.requoteCommercial(
+      clientId,
+      eventId,
+      { capacity: 100, acceptanceConfirmed: true },
+      signal
+    );
     await api.adminEventPreparation.getDesign(clientId, eventId, signal);
     await api.adminEventPreparation.getReadiness(clientId, eventId, signal);
     await api.adminEventPreparation.createFlyer(
@@ -116,6 +125,10 @@ describe('administrative Event preparation API client', () => {
     const base = 'https://api.example.com/api/v1/admin/clients/client%2Fvalue/events/event%2Fvalue';
     expect(calls.map(([url]) => String(url))).toEqual([
       base,
+      `${base}/commercial-quote`,
+      `${base}/commercial-authorization`,
+      `${base}/design-kickoff`,
+      `${base}/commercial-requote`,
       `${base}/design`,
       `${base}/design/readiness`,
       `${base}/design/flyer`,
@@ -151,6 +164,10 @@ describe('administrative Event preparation API client', () => {
     ]);
     expect(calls.map(([, init]) => init?.method ?? 'GET')).toEqual([
       'PATCH',
+      'GET',
+      'POST',
+      'POST',
+      'POST',
       'GET',
       'GET',
       'POST',
@@ -202,6 +219,12 @@ describe('administrative Event preparation API client', () => {
     expect(floorplanForm.has('file')).toBe(true);
     expect(floorplanForm.has('fileType')).toBe(false);
     expect(floorplanForm.has('ownerType')).toBe(false);
+    expect(calls.find(([url]) => String(url).endsWith('/commercial-authorization'))?.[1]?.body).toBe(
+      '{"acceptanceConfirmed":true}'
+    );
+    expect(calls.find(([url]) => String(url).endsWith('/commercial-requote'))?.[1]?.body).toBe(
+      '{"capacity":100,"acceptanceConfirmed":true}'
+    );
   });
 });
 
