@@ -88,6 +88,7 @@ Leer primero `docs/04-tecnico/REPOSITORY_SOURCE_OF_TRUTH.md` cuando una tarea me
 - `18_MONOREPO_BOOTSTRAP.md`
 - `19_OPERATOR_LED_FLOORPLAN_ROADMAP.md` — roadmap técnico original hacia piloto; objetivo completado
 - `20_COMMERCIAL_PILOT_ROADMAP.md` — segunda etapa: Pricing V2, landing/funnel, autorización comercial, Operator intake, Staff UI, unit economics y UAT comercial
+- `OP04_OPERATOR_INTAKE_PLANNER_ASSIGNMENT.md` — contrato técnico para alta Provider, creator real, price lock atómico y ownership operativo por Planner asignada
 - `OP03A_PLANNER_PROVIDER_CAPABILITY_SEPARATION.md`
 - `OP03B_OPERATOR_PLANNER_SURFACES.md`
 - `FP01_PROVIDER_FLOORPLAN_SHELL.md`
