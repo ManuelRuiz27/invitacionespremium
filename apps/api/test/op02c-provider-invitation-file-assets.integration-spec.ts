@@ -8,6 +8,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { hashPassword } from '../src/auth/password-hasher';
 import { createApp } from '../src/bootstrap/create-app';
 import { PrismaService } from '../src/common/database/prisma.service';
+import { FileStorage } from '../src/file-assets/file-storage';
 import {
   ClientType,
   CommercialChannel,
@@ -41,6 +42,7 @@ const isolatedStorage = vi.hoisted(() => {
 describe('OP-02C provider Invitation FileAssets', () => {
   let app: INestApplication;
   let prisma: PrismaService;
+  let storage: FileStorage;
   let png: Buffer;
 
   beforeAll(async () => {
@@ -56,6 +58,7 @@ describe('OP-02C provider Invitation FileAssets', () => {
     app = await createApp();
     await app.init();
     prisma = app.get(PrismaService);
+    storage = app.get(FileStorage);
     png = await sharp({
       create: {
         width: 4,
@@ -197,6 +200,95 @@ describe('OP-02C provider Invitation FileAssets', () => {
       .get(`/api/v1/events/${fixture.eventId}/file-assets`)
       .set('Cookie', plannerCookie)
       .expect(200);
+  });
+
+  it('never exposes an upload as READY when commercial context changes after bytes are written', async () => {
+    const fixture = await createFixture();
+    const adminCookie = await login(fixture.adminEmail);
+    await request(app.getHttpServer())
+      .post(`/api/v1/admin/clients/${fixture.clientId}/events/${fixture.eventId}/design-kickoff`)
+      .set('Cookie', adminCookie)
+      .set('Origin', trustedOrigin)
+      .expect(200);
+
+    const originalWrite = storage.write.bind(storage);
+    let signalBytesWritten!: () => void;
+    let releaseWrite!: () => void;
+    const bytesWritten = new Promise<void>((resolve) => {
+      signalBytesWritten = resolve;
+    });
+    const writeReleased = new Promise<void>((resolve) => {
+      releaseWrite = resolve;
+    });
+    const writeSpy = vi.spyOn(storage, 'write').mockImplementationOnce(async (input) => {
+      await originalWrite(input);
+      signalBytesWritten();
+      await writeReleased;
+    });
+
+    try {
+      const pendingUpload = upload(
+        fixture.clientId,
+        fixture.eventId,
+        adminCookie,
+        FileAssetType.FLYER_INITIAL_IMAGE
+      ).then((response) => response);
+      await bytesWritten;
+      await prisma.client.update({
+        where: { id: fixture.clientId },
+        data: { commercialChannel: CommercialChannel.PARTNER }
+      });
+      releaseWrite();
+      const response = await pendingUpload;
+      expect(response.status).toBe(409);
+      expect(response.body.code).toBe('EVENT_COMMERCIAL_TERMS_STALE');
+
+      const asset = await prisma.fileAsset.findFirstOrThrow({
+        where: { clientId: fixture.clientId, eventId: fixture.eventId, fileType: FileAssetType.FLYER_INITIAL_IMAGE }
+      });
+      expect(asset.status).toBe(FileAssetStatus.FAILED);
+      expect(asset.deletedAt).toBeNull();
+      await expect(storage.read(asset.storageKey)).rejects.toThrow();
+      expect(await prisma.fileAsset.count({ where: { eventId: fixture.eventId, status: FileAssetStatus.READY } })).toBe(
+        0
+      );
+    } finally {
+      releaseWrite();
+      writeSpy.mockRestore();
+    }
+  });
+
+  it('blocks a stale administrative Invitation delete inside the Event-then-asset transaction', async () => {
+    const fixture = await createFixture();
+    const adminCookie = await login(fixture.adminEmail);
+    await request(app.getHttpServer())
+      .post(`/api/v1/admin/clients/${fixture.clientId}/events/${fixture.eventId}/design-kickoff`)
+      .set('Cookie', adminCookie)
+      .set('Origin', trustedOrigin)
+      .expect(200);
+    const uploaded = await upload(
+      fixture.clientId,
+      fixture.eventId,
+      adminCookie,
+      FileAssetType.FLYER_INITIAL_IMAGE
+    ).expect(201);
+    await prisma.client.update({
+      where: { id: fixture.clientId },
+      data: { commercialChannel: CommercialChannel.PARTNER }
+    });
+
+    await request(app.getHttpServer())
+      .delete(
+        `/api/v1/admin/clients/${fixture.clientId}/events/${fixture.eventId}/design/file-assets/${uploaded.body.id}`
+      )
+      .set('Cookie', adminCookie)
+      .set('Origin', trustedOrigin)
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('EVENT_COMMERCIAL_TERMS_STALE'));
+    expect(await prisma.fileAsset.findUniqueOrThrow({ where: { id: uploaded.body.id } })).toMatchObject({
+      status: FileAssetStatus.READY,
+      deletedAt: null
+    });
   });
 
   async function createFixture() {

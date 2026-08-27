@@ -2743,6 +2743,8 @@ export type components = {
             priceLockedAt: string | null;
             promotionDiscountCredits: number;
             /** @enum {string} */
+            quoteSource: "LOCKED" | "CURRENT";
+            /** @enum {string} */
             serviceCode: "FLIPBOOK" | "FLYER" | "PHYSICAL_QR" | "DEMO";
             /** Format: uuid */
             serviceId: string;
@@ -3975,7 +3977,10 @@ export interface operations {
     };
     AdminEventCommercialController_quote: {
         parameters: {
-            query?: never;
+            query?: {
+                capacity?: number;
+                serviceId?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;

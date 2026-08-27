@@ -1,5 +1,5 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Inject, Param, Post, Req } from '@nestjs/common';
-import { ApiBody, ApiCookieAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, HttpCode, HttpStatus, Inject, Param, Post, Query, Req } from '@nestjs/common';
+import { ApiBody, ApiCookieAuth, ApiOkResponse, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { AuthenticatedRequest, AuthPrincipal } from '../auth/auth.types';
 import { CurrentAuth } from '../auth/current-auth.decorator';
 import { Roles } from '../auth/roles.decorator';
@@ -10,6 +10,7 @@ import {
   CommercialRequoteRequestDto,
   EventCommercialResponseDto,
   parseCommercialAuthorization,
+  parseCommercialQuote,
   parseCommercialRequote
 } from './event-commercial.dto';
 import { EventCommercialService } from './event-commercial.service';
@@ -28,8 +29,14 @@ export class AdminEventCommercialController {
 
   @Get('commercial-quote')
   @ApiOkResponse({ type: EventCommercialResponseDto })
-  quote(@Param('clientId') clientId: string, @Param('eventId') eventId: string) {
-    return this.commercial.quote(parseUuidParameter(clientId, 'clientId'), parseEventId(eventId));
+  @ApiQuery({ name: 'serviceId', type: String, format: 'uuid', required: false })
+  @ApiQuery({ name: 'capacity', type: Number, minimum: 1, maximum: 150, required: false })
+  quote(@Param('clientId') clientId: string, @Param('eventId') eventId: string, @Query() query: unknown) {
+    return this.commercial.quote(
+      parseUuidParameter(clientId, 'clientId'),
+      parseEventId(eventId),
+      parseCommercialQuote(query)
+    );
   }
 
   @Post('commercial-authorization')

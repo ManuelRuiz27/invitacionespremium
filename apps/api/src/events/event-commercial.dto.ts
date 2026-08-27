@@ -11,6 +11,20 @@ const requoteSchema = z
     acceptanceConfirmed: z.literal(true)
   })
   .strict();
+const quoteSchema = z
+  .object({
+    serviceId: z.string().uuid().optional(),
+    capacity: z.coerce.number().int().min(1).max(150).optional()
+  })
+  .strict();
+
+export class CommercialQuoteRequestDto {
+  @ApiProperty({ type: String, format: 'uuid', required: false })
+  serviceId?: string;
+
+  @ApiProperty({ type: Number, minimum: 1, maximum: 150, required: false })
+  capacity?: number;
+}
 
 export class CommercialAuthorizationRequestDto {
   @ApiProperty({ type: Boolean, enum: [true] })
@@ -40,6 +54,9 @@ export class CommercialCoverageResponseDto {
 }
 
 export class EventCommercialResponseDto {
+  @ApiProperty({ enum: ['LOCKED', 'CURRENT'] })
+  quoteSource!: 'LOCKED' | 'CURRENT';
+
   @ApiProperty({ type: String, format: 'uuid' })
   eventId!: string;
 
@@ -120,6 +137,7 @@ export class EventCommercialResponseDto {
 }
 
 export type CommercialRequoteInput = z.infer<typeof requoteSchema>;
+export type CommercialQuoteInput = z.infer<typeof quoteSchema>;
 
 export function parseCommercialAuthorization(input: unknown): { acceptanceConfirmed: true } {
   return parse(authorizationSchema, input);
@@ -127,6 +145,10 @@ export function parseCommercialAuthorization(input: unknown): { acceptanceConfir
 
 export function parseCommercialRequote(input: unknown): CommercialRequoteInput {
   return parse(requoteSchema, input);
+}
+
+export function parseCommercialQuote(input: unknown): CommercialQuoteInput {
+  return parse(quoteSchema, input);
 }
 
 function parse<T>(schema: z.ZodType<T>, input: unknown): T {

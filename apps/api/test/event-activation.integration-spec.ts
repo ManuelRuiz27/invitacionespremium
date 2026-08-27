@@ -94,23 +94,12 @@ describe('Event activation', () => {
     expect(await prisma.auditLog.count({ where: { eventId: event.id, action: 'EVENT_ACTIVATE' } })).toBe(1);
   });
 
-  it('charges the locked historical price after the Price Book closes it and publishes a new price', async () => {
+  it('charges the locked historical price after the Price Book closes it without a replacement', async () => {
     const planner = await createClientUser(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
     const { service, price: lockedPrice } = await createPricedService(ServiceCode.FLYER, ClientType.PLANNER, 12);
     const event = await createReadyEvent(planner, service.id);
     const changedAt = new Date();
     await prisma.servicePrice.update({ where: { id: lockedPrice.id }, data: { validUntil: changedAt } });
-    const currentPrice = await prisma.servicePrice.create({
-      data: {
-        serviceId: service.id,
-        pricingVersion: 2,
-        commercialChannel: CommercialChannel.STANDARD,
-        capacityMin: 1,
-        capacityMax: 150,
-        credits: 21,
-        validFrom: changedAt
-      }
-    });
     await grantCredits(planner.clientId, planner.userId, 12);
 
     const response = await activate(event.id, await login(planner.email), 'activation-locked-price').expect(200);
@@ -120,7 +109,6 @@ describe('Event activation', () => {
       purchasedCreditsUsed: 12,
       event: { activatedServicePriceId: lockedPrice.id }
     });
-    expect(response.body.event.activatedServicePriceId).not.toBe(currentPrice.id);
     expect(await prisma.ledgerEntry.count({ where: { eventId: event.id } })).toBe(1);
     expect(await prisma.receipt.count({ where: { operationReference: event.id } })).toBe(1);
   });

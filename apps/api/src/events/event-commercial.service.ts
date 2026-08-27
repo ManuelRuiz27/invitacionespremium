@@ -18,7 +18,7 @@ import {
 } from '../generated/prisma/client';
 import { ServicesPricingService } from '../services-pricing/services-pricing.service';
 import type { PriceResponseDto } from '../services-pricing/services-pricing.dto';
-import type { EventCommercialResponseDto } from './event-commercial.dto';
+import type { CommercialQuoteInput, EventCommercialResponseDto } from './event-commercial.dto';
 
 const PREPARATION_STATUSES: readonly EventStatus[] = [
   EventStatus.DRAFT,
@@ -45,11 +45,32 @@ export class EventCommercialService {
     @Inject(AppConfigService) private readonly config: AppConfigService
   ) {}
 
-  async quote(clientId: string, eventId: string): Promise<EventCommercialResponseDto> {
+  async quote(
+    clientId: string,
+    eventId: string,
+    proposal: CommercialQuoteInput = {}
+  ): Promise<EventCommercialResponseDto> {
     return this.runTransaction(async (transaction) => {
       const event = await this.requireTarget(transaction, clientId, eventId);
+      if (proposal.serviceId !== undefined || proposal.capacity !== undefined) {
+        const proposed = await this.withProposedTerms(transaction, event, proposal);
+        const context = await this.resolveCurrentTerms(transaction, proposed);
+        return this.response(transaction, event, context.price, context.channel, proposed.capacity!, 'CURRENT');
+      }
+      if (await this.lockMatchesCurrentContext(transaction, event)) {
+        return this.responseFromLock(transaction, event);
+      }
+      if (event.commercialAuthorizedAt !== null) {
+        try {
+          const context = await this.resolveCurrentTerms(transaction, event);
+          return this.response(transaction, event, context.price, context.channel, event.capacity!, 'CURRENT');
+        } catch (error) {
+          if (!isCurrentPriceUnavailable(error)) throw error;
+          return this.responseFromLock(transaction, event);
+        }
+      }
       const context = await this.resolveCurrentTerms(transaction, event);
-      return this.response(transaction, event, context.price, context.channel);
+      return this.response(transaction, event, context.price, context.channel, event.capacity!, 'CURRENT');
     });
   }
 
@@ -166,6 +187,15 @@ export class EventCommercialService {
         'Authorize the commercial terms and start design before editing the invitation.'
       );
     }
+  }
+
+  async lockAndAssertDesignMutationAllowed(
+    transaction: Prisma.TransactionClient,
+    clientId: string,
+    eventId: string
+  ): Promise<void> {
+    await this.lockEvent(transaction, eventId);
+    await this.assertDesignMutationAllowed(transaction, clientId, eventId);
   }
 
   async assertActivationLock(
@@ -297,6 +327,21 @@ export class EventCommercialService {
     return { price, channel };
   }
 
+  private async withProposedTerms(
+    transaction: Prisma.TransactionClient,
+    event: CommercialEvent,
+    proposal: CommercialQuoteInput
+  ): Promise<CommercialEvent> {
+    const serviceId = proposal.serviceId ?? event.serviceId;
+    const service = serviceId
+      ? await transaction.service.findFirst({
+          where: { id: serviceId },
+          select: { id: true, code: true, isActive: true }
+        })
+      : null;
+    return { ...event, serviceId, service, capacity: proposal.capacity ?? event.capacity };
+  }
+
   private async requireCoverage(database: Prisma.TransactionClient, clientId: string, credits: number) {
     const [balance, line] = await Promise.all([
       database.financeBalance.findUnique({ where: { clientId } }),
@@ -347,17 +392,20 @@ export class EventCommercialService {
     database: PrismaService | Prisma.TransactionClient,
     event: CommercialEvent,
     price: PriceResponseDto,
-    channel: CommercialChannel
+    channel: CommercialChannel,
+    capacity: number,
+    quoteSource: 'LOCKED' | 'CURRENT'
   ): Promise<EventCommercialResponseDto> {
     const client = await database.client.findUniqueOrThrow({ where: { id: event.clientId }, select: { name: true } });
     return {
+      quoteSource,
       eventId: event.id,
       clientId: event.clientId,
       clientName: client.name,
       commercialChannel: channel,
-      serviceId: event.service!.id,
-      serviceCode: event.service!.code,
-      capacity: event.capacity!,
+      serviceId: price.serviceId,
+      serviceCode: price.serviceCode,
+      capacity,
       servicePriceId: price.id,
       capacityMin: price.capacityMin,
       capacityMax: price.capacityMax,
@@ -374,7 +422,11 @@ export class EventCommercialService {
         event.commercialFinalCostCredits === null
           ? null
           : event.commercialFinalCostCredits * this.config.creditUnitValueMxnCents,
-      coverage: await this.coverage(database, event.clientId, price.credits),
+      coverage: await this.coverage(
+        database,
+        event.clientId,
+        quoteSource === 'LOCKED' ? event.commercialFinalCostCredits! : price.credits
+      ),
       authorizedAt: event.commercialAuthorizedAt?.toISOString() ?? null,
       priceLockedAt: event.commercialPriceLockedAt?.toISOString() ?? null,
       designKickoffAt: event.designKickoffAt?.toISOString() ?? null,
@@ -412,7 +464,9 @@ export class EventCommercialService {
         validUntil: price.validUntil?.toISOString() ?? null,
         createdAt: price.createdAt.toISOString()
       },
-      event.commercialChannelSnapshot!
+      event.commercialChannelSnapshot!,
+      event.commercialCapacitySnapshot!,
+      'LOCKED'
     );
   }
 
@@ -545,6 +599,17 @@ function isDigital(code: ServiceCode | undefined): boolean {
 
 function commercialError(code: string, message: string): DomainError {
   return new DomainError(code, message, HttpStatus.CONFLICT);
+}
+
+function isCurrentPriceUnavailable(error: unknown): boolean {
+  if (!(error instanceof DomainError)) return false;
+  const response = error.getResponse();
+  return (
+    typeof response === 'object' &&
+    response !== null &&
+    'code' in response &&
+    response.code === 'CURRENT_PRICE_NOT_FOUND'
+  );
 }
 
 function isRetryableTransactionError(error: unknown): boolean {

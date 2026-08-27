@@ -31,7 +31,13 @@ describe('administrative Event preparation API client', () => {
       { confirmationEnabled: false, floorplanEnabled: false },
       signal
     );
-    await api.adminEventPreparation.getCommercialQuote(clientId, eventId, signal);
+    await api.adminEventPreparation.getCommercialQuote(clientId, eventId, undefined, signal);
+    await api.adminEventPreparation.getCommercialQuote(
+      clientId,
+      eventId,
+      { serviceId: 'service/value', capacity: 75 },
+      signal
+    );
     await api.adminEventPreparation.authorizeCommercial(clientId, eventId, { acceptanceConfirmed: true }, signal);
     await api.adminEventPreparation.startDesignKickoff(clientId, eventId, signal);
     await api.adminEventPreparation.requoteCommercial(
@@ -126,6 +132,7 @@ describe('administrative Event preparation API client', () => {
     expect(calls.map(([url]) => String(url))).toEqual([
       base,
       `${base}/commercial-quote`,
+      `${base}/commercial-quote?serviceId=service%2Fvalue&capacity=75`,
       `${base}/commercial-authorization`,
       `${base}/design-kickoff`,
       `${base}/commercial-requote`,
@@ -164,6 +171,7 @@ describe('administrative Event preparation API client', () => {
     ]);
     expect(calls.map(([, init]) => init?.method ?? 'GET')).toEqual([
       'PATCH',
+      'GET',
       'GET',
       'POST',
       'POST',

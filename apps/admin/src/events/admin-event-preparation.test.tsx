@@ -1,4 +1,4 @@
-import { ApiError, type AdminFloorplan, type AdminFloorplanShape } from '@invitaciones/api-client';
+import { ApiError, type AdminFloorplan, type AdminFloorplanShape, type AdminPrice } from '@invitaciones/api-client';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
@@ -84,7 +84,13 @@ describe('Admin Event preparation surfaces', () => {
   it('renders the authoritative commercial quote and submits authorization only once on a double click', async () => {
     const api = mockAdminApi();
     const baseQuote = await api.adminEventPreparation.getCommercialQuote(adminEvent.clientId, adminEvent.id);
-    const pendingQuote = { ...baseQuote, authorizedAt: null, priceLockedAt: null, designKickoffAt: null };
+    const pendingQuote = {
+      ...baseQuote,
+      authorizedAt: null,
+      priceLockedAt: null,
+      designKickoffAt: null,
+      customWorkExists: false
+    };
     vi.mocked(api.adminEventPreparation.getCommercialQuote).mockReset().mockResolvedValue(pendingQuote);
     vi.mocked(api.adminEventPreparation.authorizeCommercial).mockResolvedValue({
       ...pendingQuote,
@@ -146,13 +152,68 @@ describe('Admin Event preparation surfaces', () => {
         lockMatchesCurrentContext: false
       });
     vi.mocked(api.adminEventPreparation.requoteCommercial).mockResolvedValue(baseQuote);
+    vi.mocked(api.adminCatalog.listPrices).mockResolvedValue([catalogPrice(baseQuote.serviceId, 'FLYER')]);
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/comercial`);
     await userEvent.click(await screen.findByRole('button', { name: 'Re-cotizar' }));
+    expect(await screen.findByRole('heading', { name: 'Re-cotizar Evento' })).toBeInTheDocument();
+    expect(screen.getByText(/Precio vigente:/u)).toBeInTheDocument();
+    const submit = screen.getByRole('button', { name: 'Confirmar nueva cotización' });
+    await waitFor(() => expect(submit).toBeEnabled());
+    await userEvent.dblClick(submit);
     await waitFor(() =>
       expect(api.adminEventPreparation.requoteCommercial).toHaveBeenCalledWith(adminEvent.clientId, adminEvent.id, {
+        serviceId: baseQuote.serviceId,
+        capacity: baseQuote.capacity,
         acceptanceConfirmed: true
       })
     );
+    expect(api.adminEventPreparation.requoteCommercial).toHaveBeenCalledTimes(1);
+    confirm.mockRestore();
+  });
+
+  it('routes legacy custom work through exactly one explicit re-quote and never offers authorization', async () => {
+    const api = mockAdminApi();
+    const baseQuote = await api.adminEventPreparation.getCommercialQuote(adminEvent.clientId, adminEvent.id);
+    const legacy = {
+      ...baseQuote,
+      quoteSource: 'CURRENT' as const,
+      authorizedAt: null,
+      priceLockedAt: null,
+      designKickoffAt: null,
+      customWorkExists: true
+    };
+    vi.mocked(api.adminEventPreparation.getCommercialQuote).mockReset().mockResolvedValue(legacy);
+    vi.mocked(api.adminCatalog.listPrices).mockResolvedValue([catalogPrice(baseQuote.serviceId, 'FLYER')]);
+    vi.mocked(api.adminEventPreparation.requoteCommercial).mockResolvedValue(baseQuote);
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/comercial`);
+
+    expect(await screen.findByRole('button', { name: 'Re-cotizar' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Autorizar preparación' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Re-cotizar' }));
+    const submit = await screen.findByRole('button', { name: 'Confirmar nueva cotización' });
+    await waitFor(() => expect(submit).toBeEnabled());
+    await userEvent.dblClick(submit);
+    await waitFor(() => expect(api.adminEventPreparation.requoteCommercial).toHaveBeenCalledTimes(1));
+    confirm.mockRestore();
+  });
+
+  it('lets an authorized Event with design kickoff discover and change catalog-backed terms', async () => {
+    const api = mockAdminApi();
+    const baseQuote = await api.adminEventPreparation.getCommercialQuote(adminEvent.clientId, adminEvent.id);
+    const locked = {
+      ...baseQuote,
+      designKickoffAt: '2026-08-26T12:00:00.000Z',
+      lockMatchesCurrentContext: true
+    };
+    vi.mocked(api.adminEventPreparation.getCommercialQuote).mockReset().mockResolvedValue(locked);
+    vi.mocked(api.adminCatalog.listPrices).mockResolvedValue([catalogPrice(baseQuote.serviceId, 'FLYER')]);
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/comercial`);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Cambiar términos' }));
+    expect(await screen.findByLabelText('SKU propuesto')).toHaveTextContent('Flyer');
+    expect(screen.getByLabelText('Capacidad propuesta')).toHaveValue(baseQuote.capacity);
   });
 
   it('shows no kickoff for QR and gates Invitation mutations before a digital kickoff', async () => {
@@ -1010,4 +1071,22 @@ async function chooseStickerAndPlace(label: string, point = { x: 0.5, y: 0.5 }) 
   await userEvent.click((await screen.findAllByRole('button', { name: label }))[0]!);
   expect(canvasPlace()).toEqual(expect.any(Function));
   act(() => canvasPlace()(point));
+}
+
+function catalogPrice(serviceId: string, serviceCode: AdminPrice['serviceCode']): AdminPrice {
+  return {
+    id: 'catalog-price',
+    serviceId,
+    serviceCode,
+    pricingVersion: 2,
+    clientType: null,
+    commercialChannel: 'STANDARD',
+    capacityMin: 1,
+    capacityMax: 150,
+    venueTier: null,
+    credits: 10,
+    validFrom: '2026-01-01T00:00:00.000Z',
+    validUntil: null,
+    createdAt: '2026-01-01T00:00:00.000Z'
+  };
 }

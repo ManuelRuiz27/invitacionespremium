@@ -2,6 +2,7 @@ import {
   ApiError,
   type AdminEvent,
   type AdminEventCommercial,
+  type AdminPrice,
   type AdminHotspotInput,
   type AdminHotspotUpdate,
   type AdminInvitationDesign,
@@ -15,6 +16,10 @@ import {
   Card,
   CardContent,
   Checkbox,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   FormControlLabel,
   MenuItem,
   Stack,
@@ -22,7 +27,7 @@ import {
   Typography
 } from '@mui/material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState, type ChangeEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { adminQueryKeys } from '../../app/query-client';
 import { adminErrorMessage } from '../../shared/admin-error';
@@ -105,22 +110,54 @@ export function AdminEventPreparationPage({ apiClient }: { apiClient: ApiClient 
 
 function CommercialSection({ apiClient, event }: { apiClient: ApiClient; event: AdminEvent }) {
   const queryClient = useQueryClient();
+  const operationRunning = useRef(false);
+  const lastOperationAt = useRef(0);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string>();
+  const [requoteOpen, setRequoteOpen] = useState(false);
+  const [proposedServiceId, setProposedServiceId] = useState(event.serviceId ?? '');
+  const [proposedCapacity, setProposedCapacity] = useState(String(event.capacity ?? ''));
   const quote = useQuery({
     queryKey: ['admin', 'event-commercial', event.id],
-    queryFn: ({ signal }) => apiClient.adminEventPreparation.getCommercialQuote(event.clientId, event.id, signal)
+    queryFn: ({ signal }) =>
+      apiClient.adminEventPreparation.getCommercialQuote(event.clientId, event.id, undefined, signal)
+  });
+  const catalog = useQuery({
+    queryKey: ['admin', 'catalog', 'prices'],
+    queryFn: ({ signal }) => apiClient.adminCatalog.listPrices(signal),
+    enabled: requoteOpen
+  });
+  const capacity = Number(proposedCapacity);
+  const proposalValid = Boolean(proposedServiceId) && Number.isInteger(capacity) && capacity >= 1 && capacity <= 150;
+  const preview = useQuery({
+    queryKey: ['admin', 'event-commercial-preview', event.id, proposedServiceId, capacity],
+    queryFn: ({ signal }) =>
+      apiClient.adminEventPreparation.getCommercialQuote(
+        event.clientId,
+        event.id,
+        { serviceId: proposedServiceId, capacity },
+        signal
+      ),
+    enabled: requoteOpen && proposalValid,
+    retry: false
   });
   const run = async (operation: () => Promise<AdminEventCommercial>) => {
+    const now = Date.now();
+    if (operationRunning.current || now - lastOperationAt.current < 750) return false;
+    lastOperationAt.current = now;
+    operationRunning.current = true;
     setBusy(true);
     setMessage(undefined);
     try {
       const result = await operation();
       queryClient.setQueryData(['admin', 'event-commercial', event.id], result);
-      await queryClient.invalidateQueries({ queryKey: adminQueryKeys.event(event.id) });
+      await Promise.all([queryClient.invalidateQueries({ queryKey: adminQueryKeys.event(event.id) }), quote.refetch()]);
+      return true;
     } catch (cause) {
       setMessage(adminErrorMessage(cause).message);
+      return false;
     } finally {
+      operationRunning.current = false;
       setBusy(false);
     }
   };
@@ -129,6 +166,8 @@ function CommercialSection({ apiClient, event }: { apiClient: ApiClient; event: 
   const data = quote.data;
   const isDigital = data.serviceCode === 'FLYER' || data.serviceCode === 'FLIPBOOK';
   const stale = data.authorizedAt !== null && !data.lockMatchesCurrentContext;
+  const legacyNeedsRequote = data.customWorkExists && data.authorizedAt === null;
+  const canChangeTerms = data.authorizedAt !== null || legacyNeedsRequote;
   const displayedCredits = data.authorizedAt
     ? (data.lockedFinalCostCredits ?? data.finalCostCredits)
     : data.finalCostCredits;
@@ -172,7 +211,7 @@ function CommercialSection({ apiClient, event }: { apiClient: ApiClient; event: 
             <Alert severity="info">
               La autorización no reserva créditos. El cargo se realiza al activar el evento.
             </Alert>
-            {!data.authorizedAt ? (
+            {!data.authorizedAt && !data.customWorkExists ? (
               <Button
                 variant="contained"
                 disabled={busy || !data.coverage.sufficient}
@@ -193,19 +232,17 @@ function CommercialSection({ apiClient, event }: { apiClient: ApiClient; event: 
                 Autorizar preparación
               </Button>
             ) : null}
-            {stale ? (
+            {canChangeTerms ? (
               <Button
-                variant="contained"
-                disabled={busy || !data.coverage.sufficient}
-                onClick={() =>
-                  void run(() =>
-                    apiClient.adminEventPreparation.requoteCommercial(event.clientId, event.id, {
-                      acceptanceConfirmed: true
-                    })
-                  )
-                }
+                variant={stale || legacyNeedsRequote ? 'contained' : 'outlined'}
+                disabled={busy}
+                onClick={() => {
+                  setProposedServiceId(data.serviceId);
+                  setProposedCapacity(String(data.capacity));
+                  setRequoteOpen(true);
+                }}
               >
-                Re-cotizar
+                {data.designKickoffAt && !stale ? 'Cambiar términos' : 'Re-cotizar'}
               </Button>
             ) : null}
             {isDigital && data.authorizedAt && data.lockMatchesCurrentContext && !data.designKickoffAt ? (
@@ -222,7 +259,130 @@ function CommercialSection({ apiClient, event }: { apiClient: ApiClient; event: 
           </Stack>
         </CardContent>
       </Card>
+      <CommercialRequoteDialog
+        busy={busy}
+        catalog={catalog.data ?? []}
+        catalogPending={catalog.isPending}
+        capacity={proposedCapacity}
+        open={requoteOpen}
+        preview={preview.data}
+        previewError={preview.isError}
+        previewPending={preview.isPending && preview.isFetching}
+        serviceId={proposedServiceId}
+        onCapacityChange={setProposedCapacity}
+        onClose={() => setRequoteOpen(false)}
+        onConfirm={() => {
+          if (!preview.data || busy) return;
+          if (!window.confirm('¿Confirmas la nueva cotización y el reemplazo del price lock?')) return;
+          void run(() =>
+            apiClient.adminEventPreparation.requoteCommercial(event.clientId, event.id, {
+              serviceId: proposedServiceId,
+              capacity,
+              acceptanceConfirmed: true
+            })
+          ).then((succeeded) => {
+            if (succeeded) setRequoteOpen(false);
+          });
+        }}
+        onServiceChange={setProposedServiceId}
+      />
     </Stack>
+  );
+}
+
+function CommercialRequoteDialog({
+  busy,
+  catalog,
+  catalogPending,
+  capacity,
+  open,
+  preview,
+  previewError,
+  previewPending,
+  serviceId,
+  onCapacityChange,
+  onClose,
+  onConfirm,
+  onServiceChange
+}: {
+  busy: boolean;
+  catalog: AdminPrice[];
+  catalogPending: boolean;
+  capacity: string;
+  open: boolean;
+  preview: AdminEventCommercial | undefined;
+  previewError: boolean;
+  previewPending: boolean;
+  serviceId: string;
+  onCapacityChange: (value: string) => void;
+  onClose: () => void;
+  onConfirm: () => void;
+  onServiceChange: (value: string) => void;
+}) {
+  const services = [
+    ...new Map(
+      catalog
+        .filter((price) => price.pricingVersion === 2 && price.serviceCode !== 'DEMO')
+        .map((price) => [price.serviceId, price] as const)
+    ).values()
+  ];
+  return (
+    <Dialog open={open} onClose={busy ? undefined : onClose} fullWidth maxWidth="sm">
+      <DialogTitle>Re-cotizar Evento</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ pt: 1 }}>
+          <TextField
+            select
+            label="SKU propuesto"
+            value={services.some((service) => service.serviceId === serviceId) ? serviceId : ''}
+            disabled={catalogPending || busy}
+            onChange={(change) => onServiceChange(change.target.value)}
+          >
+            {services.map((service) => (
+              <MenuItem key={service.serviceId} value={service.serviceId}>
+                {serviceLabel(service.serviceCode)}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            label="Capacidad propuesta"
+            type="number"
+            slotProps={{ htmlInput: { min: 1, max: 150 } }}
+            value={capacity}
+            disabled={busy}
+            onChange={(change) => onCapacityChange(change.target.value)}
+          />
+          {previewPending ? <Typography>Calculando cotización vigente...</Typography> : null}
+          {previewError ? (
+            <Alert severity="warning">No hay tarifa vigente disponible para re-cotizar estos términos.</Alert>
+          ) : null}
+          {preview ? (
+            <Card variant="outlined">
+              <CardContent>
+                <Stack spacing={1}>
+                  <CommercialField label="SKU" value={serviceLabel(preview.serviceCode)} />
+                  <CommercialField label="Capacidad" value={`${preview.capacity} personas`} />
+                  <CommercialField label="Tarifa vigente" value={commercialRule(preview)} />
+                  <CommercialField label="Precio vigente" value={`${preview.finalCostCredits} créditos`} />
+                  <CommercialField
+                    label="Cobertura actual"
+                    value={`${preview.coverage.totalAvailableCredits} créditos · ${preview.coverage.sufficient ? 'suficiente' : 'insuficiente'}`}
+                  />
+                </Stack>
+              </CardContent>
+            </Card>
+          ) : null}
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={busy}>
+          Cancelar
+        </Button>
+        <Button variant="contained" onClick={onConfirm} disabled={busy || !preview?.coverage.sufficient}>
+          Confirmar nueva cotización
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 
@@ -248,9 +408,16 @@ function serviceLabel(service: AdminEventCommercial['serviceCode']) {
 
 function commercialRule(data: AdminEventCommercial) {
   return data.venueTier
-    ? `Volumen ${data.venueTier.replaceAll('_', ' ').toLowerCase()}`
+    ? `Volumen ${venueTierLabel[data.venueTier]}`
     : `${data.capacityMin ?? 1}–${data.capacityMax ?? data.capacity} personas`;
 }
+
+const venueTierLabel: Record<NonNullable<AdminEventCommercial['venueTier']>, string> = {
+  ONE_TO_TWO: '1–2 eventos/mes',
+  THREE_TO_FIVE: '3–5 eventos/mes',
+  SIX_TO_TEN: '6–10 eventos/mes',
+  ELEVEN_PLUS: '11+ eventos/mes'
+};
 
 function formatMxn(cents: number) {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(cents / 100);

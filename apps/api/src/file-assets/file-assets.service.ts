@@ -79,6 +79,11 @@ export interface CreateGeneratedAssetInput {
   operationId?: string;
 }
 
+interface AdministrativeInvitationGuard {
+  clientId: string;
+  eventId: string;
+}
+
 @Injectable()
 export class FileAssetsService {
   private readonly logger = new Logger(FileAssetsService.name);
@@ -150,7 +155,8 @@ export class FileAssetsService {
       { ownerType: administrativeInvitationOwnerType(input.fileType), fileType: input.fileType },
       file,
       principal.userId,
-      operationId
+      operationId,
+      { clientId, eventId }
     );
   }
 
@@ -159,7 +165,8 @@ export class FileAssetsService {
     input: UploadFileAssetInput,
     file: UploadedImageFile,
     actorUserId: string,
-    operationId?: string
+    operationId?: string,
+    administrativeInvitationGuard?: AdministrativeInvitationGuard
   ): Promise<FileAssetResponseDto> {
     const eventId = event.id;
     const operationalFloorplanUpload =
@@ -201,7 +208,33 @@ export class FileAssetsService {
       const validated = await this.imageValidator.validate(file.buffer);
       await this.storage.write({ storageKey, bytes: validated.bytes });
       wroteBytes = true;
-      const ready = await this.prisma.$transaction(async (transaction) => {
+      const ready = await this.serializable(async (transaction) => {
+        if (administrativeInvitationGuard) {
+          await this.commercial.lockAndAssertDesignMutationAllowed(
+            transaction,
+            administrativeInvitationGuard.clientId,
+            administrativeInvitationGuard.eventId
+          );
+        }
+        await transaction.$queryRaw`
+          SELECT "id"
+          FROM "file_asset"
+          WHERE "id" = ${staged.id}::uuid AND "event_id" = ${eventId}::uuid
+          FOR UPDATE
+        `;
+        const current = await transaction.fileAsset.findFirst({
+          where: {
+            id: staged.id,
+            clientId: event.clientId,
+            eventId,
+            ownerType: input.ownerType,
+            fileType: input.fileType,
+            ownerId: null,
+            status: FileAssetStatus.UPLOADING,
+            deletedAt: null
+          }
+        });
+        if (!current) throw fileAssetNotFound();
         const asset = await transaction.fileAsset.update({
           where: { id: staged.id },
           data: {
@@ -218,7 +251,7 @@ export class FileAssetsService {
           transaction
         );
         return asset;
-      }, CRITICAL_TRANSACTION_OPTIONS);
+      });
       return toFileAssetResponse(ready);
     } catch (error) {
       if (wroteBytes) {
@@ -323,11 +356,15 @@ export class FileAssetsService {
     operationId?: string
   ): Promise<void> {
     await this.requireAdministrativeEvent(clientId, eventId);
-    await this.commercial.assertDesignMutationAllowed(this.prisma, clientId, eventId);
-    await this.softDeleteAsset(eventId, fileAssetId, principal.userId, operationId, {
-      clientId,
-      OR: administrativeInvitationAssetPairs()
-    });
+    await this.softDeleteAsset(
+      eventId,
+      fileAssetId,
+      principal.userId,
+      operationId,
+      { clientId, OR: administrativeInvitationAssetPairs() },
+      false,
+      { clientId, eventId }
+    );
   }
 
   async list(eventId: string, principal: AuthPrincipal): Promise<FileAssetResponseDto[]> {
@@ -378,9 +415,17 @@ export class FileAssetsService {
     actorUserId: string,
     operationId?: string,
     administrativeWhere?: Prisma.FileAssetWhereInput,
-    rejectProviderManaged = false
+    rejectProviderManaged = false,
+    administrativeInvitationGuard?: AdministrativeInvitationGuard
   ): Promise<void> {
     await this.serializable(async (transaction) => {
+      if (administrativeInvitationGuard) {
+        await this.commercial.lockAndAssertDesignMutationAllowed(
+          transaction,
+          administrativeInvitationGuard.clientId,
+          administrativeInvitationGuard.eventId
+        );
+      }
       await transaction.$queryRaw`
         SELECT "id"
         FROM "file_asset"

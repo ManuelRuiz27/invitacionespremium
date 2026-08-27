@@ -202,6 +202,135 @@ describe('Event commercial authorization and price lock', () => {
     }
   });
 
+  it.each([
+    { lockedCredits: 12, currentCredits: 21, availableCredits: 12, sufficient: true },
+    { lockedCredits: 21, currentCredits: 12, availableCredits: 12, sufficient: false }
+  ])(
+    'keeps the locked $lockedCredits-credit quote authoritative when the current quote costs $currentCredits',
+    async ({ lockedCredits, currentCredits, availableCredits, sufficient }) => {
+      const fixture = await createFixture(CommercialChannel.STANDARD, ServiceCode.FLYER, 50);
+      const lockedPrice = await createCapacityPrice(
+        fixture.serviceId,
+        CommercialChannel.STANDARD,
+        1,
+        50,
+        lockedCredits
+      );
+      await prisma.creditLine.create({
+        data: { clientId: fixture.clientId, limitCredits: lockedCredits, status: CreditLineStatus.ACTIVE }
+      });
+      await adminPost(fixture, 'commercial-authorization', { acceptanceConfirmed: true }).expect(200);
+      await prisma.creditLine.update({
+        where: { clientId: fixture.clientId },
+        data: { limitCredits: availableCredits }
+      });
+      const replacementAt = new Date();
+      await prisma.servicePrice.update({ where: { id: lockedPrice.id }, data: { validUntil: replacementAt } });
+      const currentPrice = await prisma.servicePrice.create({
+        data: {
+          serviceId: fixture.serviceId,
+          pricingVersion: 2,
+          commercialChannel: CommercialChannel.STANDARD,
+          capacityMin: 1,
+          capacityMax: 50,
+          credits: currentCredits,
+          validFrom: replacementAt
+        }
+      });
+
+      const quote = await adminGet(fixture, 'commercial-quote').expect(200);
+      expect(quote.body).toMatchObject({
+        quoteSource: 'LOCKED',
+        servicePriceId: lockedPrice.id,
+        finalCostCredits: lockedCredits,
+        lockedServicePriceId: lockedPrice.id,
+        lockedFinalCostCredits: lockedCredits,
+        coverage: { totalAvailableCredits: availableCredits, sufficient },
+        lockMatchesCurrentContext: true
+      });
+      expect(quote.body.servicePriceId).not.toBe(currentPrice.id);
+    }
+  );
+
+  it('returns a valid historical lock after its price closes without a replacement', async () => {
+    const fixture = await createFixture(CommercialChannel.STANDARD, ServiceCode.FLYER, 50);
+    const lockedPrice = await createCapacityPrice(fixture.serviceId, CommercialChannel.STANDARD, 1, 50, 12);
+    await prisma.creditLine.create({
+      data: { clientId: fixture.clientId, limitCredits: 12, status: CreditLineStatus.ACTIVE }
+    });
+    await adminPost(fixture, 'commercial-authorization', { acceptanceConfirmed: true }).expect(200);
+    await prisma.servicePrice.update({ where: { id: lockedPrice.id }, data: { validUntil: new Date() } });
+
+    await adminGet(fixture, 'commercial-quote')
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body).toMatchObject({
+          quoteSource: 'LOCKED',
+          servicePriceId: lockedPrice.id,
+          finalCostCredits: 12,
+          lockMatchesCurrentContext: true
+        });
+      });
+  });
+
+  it('previews current stale-channel terms without overwriting the retained lock', async () => {
+    const fixture = await createFixture(CommercialChannel.STANDARD, ServiceCode.FLIPBOOK, 50);
+    const lockedPrice = await createCapacityPrice(fixture.serviceId, CommercialChannel.STANDARD, 1, 50, 10);
+    await prisma.creditLine.create({
+      data: { clientId: fixture.clientId, limitCredits: 100, status: CreditLineStatus.ACTIVE }
+    });
+    await adminPost(fixture, 'commercial-authorization', { acceptanceConfirmed: true }).expect(200);
+    await prisma.client.update({
+      where: { id: fixture.clientId },
+      data: { commercialChannel: CommercialChannel.PARTNER }
+    });
+    const currentPrice = await createCapacityPrice(fixture.serviceId, CommercialChannel.PARTNER, 1, 100, 16);
+
+    await adminGet(fixture, 'commercial-quote')
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body).toMatchObject({
+          quoteSource: 'CURRENT',
+          commercialChannel: CommercialChannel.PARTNER,
+          servicePriceId: currentPrice.id,
+          finalCostCredits: 16,
+          lockedServicePriceId: lockedPrice.id,
+          lockedFinalCostCredits: 10,
+          lockMatchesCurrentContext: false
+        });
+      });
+    expect(await prisma.event.findUniqueOrThrow({ where: { id: fixture.eventId } })).toMatchObject({
+      commercialServicePriceId: lockedPrice.id,
+      commercialFinalCostCredits: 10,
+      commercialChannelSnapshot: CommercialChannel.STANDARD
+    });
+  });
+
+  it('retains a stale lock when no current re-quote is available', async () => {
+    const fixture = await createFixture(CommercialChannel.STANDARD, ServiceCode.FLIPBOOK, 50);
+    const lockedPrice = await createCapacityPrice(fixture.serviceId, CommercialChannel.STANDARD, 1, 50, 10);
+    await prisma.creditLine.create({
+      data: { clientId: fixture.clientId, limitCredits: 10, status: CreditLineStatus.ACTIVE }
+    });
+    await adminPost(fixture, 'commercial-authorization', { acceptanceConfirmed: true }).expect(200);
+    await prisma.client.update({
+      where: { id: fixture.clientId },
+      data: { commercialChannel: CommercialChannel.PARTNER }
+    });
+
+    await adminGet(fixture, 'commercial-quote')
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body).toMatchObject({
+          quoteSource: 'LOCKED',
+          servicePriceId: lockedPrice.id,
+          finalCostCredits: 10,
+          lockedServicePriceId: lockedPrice.id,
+          lockMatchesCurrentContext: false
+        });
+      });
+  });
+
   it('invalidates before kickoff and requires explicit requote after personalized work or channel change', async () => {
     const fixture = await createFixture(CommercialChannel.STANDARD, ServiceCode.FLIPBOOK, 50);
     const firstPrice = await createCapacityPrice(fixture.serviceId, CommercialChannel.STANDARD, 1, 50, 10);

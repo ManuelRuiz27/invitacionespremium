@@ -7,6 +7,10 @@ export type AdminPreparationEvent = S['EventResponseDto'];
 export type AdminEventCommercial = S['EventCommercialResponseDto'];
 export type AdminCommercialAuthorizationInput = S['CommercialAuthorizationRequestDto'];
 export type AdminCommercialRequoteInput = S['CommercialRequoteRequestDto'];
+export interface AdminCommercialQuoteInput {
+  serviceId?: string;
+  capacity?: number;
+}
 export type AdminInvitationDesign = S['InvitationDesignResponseDto'];
 export type AdminDesignReadiness = S['DesignReadinessResponseDto'];
 export type AdminFlyerInput = S['CreateFlyerRequestDto'];
@@ -36,11 +40,21 @@ const withSignal = (signal?: AbortSignal) => (signal ? { signal } : {});
 export function createAdminEventPreparationClient(request: ApiRequester) {
   const base = (clientId: string, eventId: string) => `/admin/clients/${id(clientId)}/events/${id(eventId)}`;
   return {
-    getCommercialQuote: (clientId: string, eventId: string, signal?: AbortSignal) =>
-      request<AdminEventCommercial>(
-        { path: `${base(clientId, eventId)}/commercial-quote`, response: 'json', ...withSignal(signal) },
+    getCommercialQuote: (
+      clientId: string,
+      eventId: string,
+      input?: AdminCommercialQuoteInput,
+      signal?: AbortSignal
+    ) => {
+      const query = new URLSearchParams();
+      if (input?.serviceId) query.set('serviceId', input.serviceId);
+      if (input?.capacity !== undefined) query.set('capacity', String(input.capacity));
+      const suffix = query.size > 0 ? `?${query.toString()}` : '';
+      return request<AdminEventCommercial>(
+        { path: `${base(clientId, eventId)}/commercial-quote${suffix}`, response: 'json', ...withSignal(signal) },
         record
-      ),
+      );
+    },
     authorizeCommercial: (
       clientId: string,
       eventId: string,

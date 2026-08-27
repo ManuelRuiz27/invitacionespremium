@@ -170,6 +170,7 @@ export function mockAdminApi(user: AuthUser = platformAdmin): AdminTestApiClient
     },
     adminEventPreparation: {
       getCommercialQuote: vi.fn().mockResolvedValue({
+        quoteSource: 'LOCKED',
         eventId: adminEvent.id,
         clientId: adminEvent.clientId,
         clientName: organization.name,
