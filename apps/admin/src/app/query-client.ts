@@ -23,5 +23,8 @@ export const adminQueryKeys = {
   eventReports: (eventId: string) => ['admin-event-reports', eventId] as const,
   dailyCut: ['admin-finance-cut-daily'] as const,
   monthlyCut: ['admin-finance-cut-monthly'] as const,
-  audit: (filters: unknown, cursor?: string) => ['admin-audit', filters, cursor ?? null] as const
+  audit: (filters: unknown, cursor?: string) => ['admin-audit', filters, cursor ?? null] as const,
+  commercialLeads: (opportunityType?: string, cursor?: string) =>
+    ['admin-commercial-leads', opportunityType ?? null, cursor ?? null] as const,
+  commercialLead: (leadId: string) => ['admin-commercial-lead', leadId] as const
 };

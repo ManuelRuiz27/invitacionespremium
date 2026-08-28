@@ -9,6 +9,9 @@ export type PublicAlbum = components['schemas']['PublicAlbumResponseDto'];
 export type PublicAlbumPhoto = components['schemas']['PublicAlbumPhotoDto'];
 export type RegisterPlannerInput = components['schemas']['RegisterPlannerRequestDto'];
 export type PublicPricing = components['schemas']['PublicPricingResponseDto'];
+export type CommercialOpportunityType = components['schemas']['CommercialLeadResponseDto']['opportunityType'];
+export type CommercialLeadInput = components['schemas']['CommercialLeadSubmissionRequestDto'];
+export type CommercialLeadAccepted = components['schemas']['CommercialLeadAcceptedResponseDto'];
 export type RegisterPlannerResult =
   operations['ClientsController_registerPlanner']['responses'][201]['content']['application/json'];
 
@@ -143,6 +146,9 @@ const isPublicPricing = (value: unknown): value is PublicPricing =>
   isString(value.validFrom) &&
   (value.validUntil === null || isString(value.validUntil));
 
+const isCommercialLeadAccepted = (value: unknown): value is CommercialLeadAccepted =>
+  isRecord(value) && Object.keys(value).length === 1 && value.accepted === true;
+
 export function createPublicClientsClient(request: ApiRequester) {
   return {
     registerPlanner: (input: RegisterPlannerInput, signal?: AbortSignal) =>
@@ -167,6 +173,23 @@ export function createPublicPricingClient(request: ApiRequester) {
         request,
         { path: '/public/pricing', response: 'json', ...(signal ? { signal } : {}) },
         (value): value is PublicPricing[] => Array.isArray(value) && value.every(isPublicPricing)
+      )
+  };
+}
+
+export function createPublicCommercialLeadsClient(request: ApiRequester) {
+  return {
+    submit: (input: CommercialLeadInput, signal?: AbortSignal) =>
+      publicRequest(
+        request,
+        {
+          method: 'POST',
+          path: '/public/commercial-leads',
+          body: input,
+          response: 'json',
+          ...(signal ? { signal } : {})
+        },
+        isCommercialLeadAccepted
       )
   };
 }

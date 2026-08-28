@@ -152,7 +152,7 @@ const commercialContent = {
     commercialCta: 'Conocer condiciones para Planners',
     registerCta: 'Crear cuenta de Planner',
     notice:
-      'El registro de cuenta no garantiza una tarifa Partner. El formulario de solicitud comercial se habilitará próximamente.'
+      'El registro de cuenta no garantiza una tarifa Partner. Las condiciones comerciales requieren revisión explícita.'
   },
   venue: {
     title: 'Operación recurrente para salones, jardines y venues',
@@ -165,7 +165,8 @@ const commercialContent = {
       'Tarifas que pueden mejorar según volumen efectivo'
     ],
     cta: 'Solicitar propuesta para mi venue',
-    notice: 'El formulario comercial estará disponible en el siguiente paso.'
+    notice:
+      'La solicitud es el siguiente paso para seguimiento comercial; no crea una cuenta, venue ni tarifa automáticamente.'
   },
   faq: {
     title: 'Preguntas frecuentes',

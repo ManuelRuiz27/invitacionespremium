@@ -173,15 +173,42 @@ describe('navigation, channels and accessibility', () => {
 
   it('shows two distinct Planner actions while Venue never opens registration', () => {
     const register = vi.fn();
-    renderWithTheme(<LandingPlanners onOpenRegister={register} />);
+    const plannerCommercial = vi.fn();
+    renderWithTheme(<LandingPlanners onOpenRegister={register} onOpenCommercial={plannerCommercial} />);
     expect(screen.getByText(/registro de cuenta no garantiza/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: content.planners.registerCta }));
     expect(register).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole('button', { name: content.planners.commercialCta }));
+    expect(plannerCommercial).toHaveBeenCalledOnce();
 
-    renderWithTheme(<LandingVenue />);
+    const venueCommercial = vi.fn();
+    renderWithTheme(<LandingVenue onOpenCommercial={venueCommercial} />);
     expect(screen.getByText(content.venue.cta)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: content.venue.cta })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: content.venue.cta }));
+    expect(venueCommercial).toHaveBeenCalledOnce();
   });
+
+  it('routes each App CTA to its contracted, separate modal', async () => {
+    renderWithTheme(<App />);
+    fireEvent.click(screen.getByRole('button', { name: content.planners.commercialCta }));
+    expect(
+      await screen.findByRole('heading', { name: 'Condiciones para Planners y agencias' }, { timeout: 10_000 })
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar solicitud comercial' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('heading', { name: 'Condiciones para Planners y agencias' })).not.toBeInTheDocument()
+    );
+
+    fireEvent.click(screen.getAllByRole('button', { name: content.planners.registerCta }).at(-1)!);
+    expect(await screen.findByRole('heading', { name: content.registration.title })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar registro' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('heading', { name: content.registration.title })).not.toBeInTheDocument()
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: content.venue.cta }));
+    expect(await screen.findByRole('heading', { name: 'Propuesta para tu venue' })).toBeInTheDocument();
+  }, 30_000);
 
   it('preserves section heading relationships and the existing visual system', () => {
     renderWithTheme(<LandingServices />);

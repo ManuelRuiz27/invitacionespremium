@@ -1,5 +1,6 @@
 import type {
   AdminClient,
+  AdminCommercialLead,
   AdminClientUser,
   AdminEvent,
   AdminFinanceBalance,
@@ -129,6 +130,19 @@ export const adminBalance = {
     lastLedgerSequence: '9'
   }
 } satisfies AdminFinanceBalance;
+
+export const commercialLead = {
+  id: '31037f86-8dc4-4e4f-a066-c21428b82395',
+  opportunityType: 'PLANNER_AGENCY',
+  contactName: 'María López',
+  businessName: 'Eventos Aurora',
+  email: 'maria@aurora.mx',
+  phone: '+525512345678',
+  estimatedEventsPerMonth: 4,
+  notes: 'Opera bodas en Ciudad de México.',
+  privacyAcceptedAt: '2026-08-28T12:00:00.000Z',
+  createdAt: '2026-08-28T12:00:00.000Z'
+} satisfies AdminCommercialLead;
 
 const mutationResult = {
   balance: adminBalance,
@@ -333,6 +347,10 @@ export function mockAdminApi(user: AuthUser = platformAdmin): AdminTestApiClient
     },
     adminReports: { list: vi.fn().mockResolvedValue([]), listEvent: vi.fn().mockResolvedValue([]) },
     adminAudit: { listAuditLogs: vi.fn().mockResolvedValue({ items: [], nextCursor: null }) },
+    adminCommercialLeads: {
+      list: vi.fn().mockResolvedValue({ items: [commercialLead], nextCursor: null }),
+      get: vi.fn().mockResolvedValue(commercialLead)
+    },
     events: { list: vi.fn(), get: vi.fn(), create: vi.fn(), update: vi.fn(), activate: vi.fn() },
     finance: { balance: vi.fn(), movements: vi.fn(), receipts: vi.fn() },
     services: { listAvailable: vi.fn() },
@@ -407,6 +425,7 @@ export function mockAdminApi(user: AuthUser = platformAdmin): AdminTestApiClient
       qr: vi.fn()
     },
     publicAlbum: { resolve: vi.fn(), photo: vi.fn() },
-    publicPricing: { list: vi.fn().mockResolvedValue([]) }
+    publicPricing: { list: vi.fn().mockResolvedValue([]) },
+    publicCommercialLeads: { submit: vi.fn().mockResolvedValue({ accepted: true }) }
   };
 }

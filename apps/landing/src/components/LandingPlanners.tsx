@@ -1,6 +1,5 @@
 import plannerOperationImg from '../assets/landing/planner-operation.webp';
 import { getLandingConfig } from '../config/landing-config';
-import { scrollToLandingSection } from '../navigation';
 import { landingTokens } from '../theme/landing-theme';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import { Box, Button, Grid, Stack, Typography } from '@mui/material';
@@ -8,11 +7,12 @@ import { LandingContainer, LandingSectionIntro } from './primitives';
 
 export interface LandingPlannersProps {
   onOpenRegister: () => void;
+  onOpenCommercial: () => void;
 }
 
 const landingContent = getLandingConfig();
 
-export function LandingPlanners({ onOpenRegister }: LandingPlannersProps) {
+export function LandingPlanners({ onOpenRegister, onOpenCommercial }: LandingPlannersProps) {
   const headingId = 'landing-planners-heading';
 
   return (
@@ -49,7 +49,7 @@ export function LandingPlanners({ onOpenRegister }: LandingPlannersProps) {
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ alignItems: { sm: 'stretch' } }}>
               <Button
                 variant="contained"
-                onClick={() => scrollToLandingSection('#planner-commercial-notice')}
+                onClick={onOpenCommercial}
                 sx={{
                   ...landingTokens.typography.headline,
                   textTransform: 'none',

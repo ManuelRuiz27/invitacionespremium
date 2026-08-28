@@ -242,6 +242,7 @@ export function mockApiClient(user: AuthUser = independentUser): ApiClient {
     },
     adminReports: { list: vi.fn(), listEvent: vi.fn() },
     adminAudit: { listAuditLogs: vi.fn() },
+    adminCommercialLeads: { list: vi.fn(), get: vi.fn() },
     events: {
       list: vi.fn().mockResolvedValue([configuredEvent, activeEvent]),
       get: vi.fn().mockResolvedValue(configuredEvent),
@@ -365,6 +366,7 @@ export function mockApiClient(user: AuthUser = independentUser): ApiClient {
       qr: vi.fn()
     },
     publicPricing: { list: vi.fn().mockResolvedValue([]) },
+    publicCommercialLeads: { submit: vi.fn() },
     publicAlbum: { resolve: vi.fn(), photo: vi.fn() }
   };
 }

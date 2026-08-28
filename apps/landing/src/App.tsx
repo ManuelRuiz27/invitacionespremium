@@ -12,6 +12,7 @@ import { LandingVenue } from './components/LandingVenue';
 import { usePublicPricing } from './use-public-pricing';
 import { Box, CircularProgress } from '@mui/material';
 import { lazy, Suspense, useState } from 'react';
+import type { CommercialOpportunityType } from '@invitaciones/api-client';
 
 const LandingDemoMock = lazy(() =>
   import('./components/LandingDemoMock').then((module) => ({ default: module.LandingDemoMock }))
@@ -19,9 +20,13 @@ const LandingDemoMock = lazy(() =>
 const RegisterPlannerModal = lazy(() =>
   import('./components/RegisterPlannerModal').then((module) => ({ default: module.RegisterPlannerModal }))
 );
+const CommercialLeadModal = lazy(() =>
+  import('./components/CommercialLeadModal').then((module) => ({ default: module.CommercialLeadModal }))
+);
 
 export function App() {
   const [registerModalOpen, setRegisterModalOpen] = useState(false);
+  const [commercialOpportunity, setCommercialOpportunity] = useState<CommercialOpportunityType | null>(null);
   const { state: pricingState, retry: retryPricing } = usePublicPricing();
 
   const handleOpenRegister = () => {
@@ -41,8 +46,11 @@ export function App() {
         <LandingSolution />
         <LandingServices />
         <LandingPricing state={pricingState} onRetry={retryPricing} />
-        <LandingPlanners onOpenRegister={handleOpenRegister} />
-        <LandingVenue />
+        <LandingPlanners
+          onOpenRegister={handleOpenRegister}
+          onOpenCommercial={() => setCommercialOpportunity('PLANNER_AGENCY')}
+        />
+        <LandingVenue onOpenCommercial={() => setCommercialOpportunity('VENUE')} />
         <Suspense
           fallback={
             <Box component="section" id="demo" sx={{ minHeight: 700, display: 'grid', placeItems: 'center' }}>
@@ -60,6 +68,15 @@ export function App() {
       {registerModalOpen && (
         <Suspense fallback={null}>
           <RegisterPlannerModal open onClose={handleCloseRegister} />
+        </Suspense>
+      )}
+      {commercialOpportunity && (
+        <Suspense fallback={null}>
+          <CommercialLeadModal
+            open
+            opportunityType={commercialOpportunity}
+            onClose={() => setCommercialOpportunity(null)}
+          />
         </Suspense>
       )}
     </Box>

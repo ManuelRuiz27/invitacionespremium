@@ -6,7 +6,8 @@ import {
   createAdminEventsClient,
   createAdminEventPreparationClient,
   createAdminFinanceClient,
-  createAdminReportsClient
+  createAdminReportsClient,
+  createAdminCommercialLeadsClient
 } from './admin';
 import { createAuthClient } from './auth';
 import { createEventsClient } from './events';
@@ -15,7 +16,8 @@ import {
   createPublicAlbumClient,
   createPublicClientsClient,
   createPublicInvitationClient,
-  createPublicPricingClient
+  createPublicPricingClient,
+  createPublicCommercialLeadsClient
 } from './public';
 import { createScannerClient } from './scanner';
 import { createStaffTokensClient } from './staff';
@@ -69,7 +71,14 @@ export type {
   PublicRsvpAssistantInput,
   PublicRsvpMutation
 } from './public';
-export type { PublicPricing, RegisterPlannerInput, RegisterPlannerResult } from './public';
+export type {
+  CommercialLeadAccepted,
+  CommercialLeadInput,
+  CommercialOpportunityType,
+  PublicPricing,
+  RegisterPlannerInput,
+  RegisterPlannerResult
+} from './public';
 export type * from './wizard';
 export type * from './admin';
 
@@ -83,6 +92,10 @@ export function createPublicPricingApiClient(config: ApiClientRuntimeConfig) {
   return createPublicPricingClient(createRequester(config));
 }
 
+export function createPublicCommercialLeadsApiClient(config: ApiClientRuntimeConfig) {
+  return createPublicCommercialLeadsClient(createRequester(config));
+}
+
 export function createApiClient(config: ApiClientRuntimeConfig) {
   const request = createRequester(config);
   return {
@@ -94,6 +107,7 @@ export function createApiClient(config: ApiClientRuntimeConfig) {
     adminCatalog: createAdminCatalogClient(request),
     adminReports: createAdminReportsClient(request),
     adminAudit: createAdminAuditClient(request),
+    adminCommercialLeads: createAdminCommercialLeadsClient(request),
     events: createEventsClient(request),
     finance: createFinanceClient(request),
     services: createServicesClient(request),
@@ -107,6 +121,7 @@ export function createApiClient(config: ApiClientRuntimeConfig) {
     publicInvitation: createPublicInvitationClient(request),
     publicAlbum: createPublicAlbumClient(request),
     publicPricing: createPublicPricingClient(request),
+    publicCommercialLeads: createPublicCommercialLeadsClient(request),
     scanner: createScannerClient(request)
   };
 }

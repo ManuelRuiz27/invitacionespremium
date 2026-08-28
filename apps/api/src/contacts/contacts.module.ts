@@ -11,6 +11,6 @@ import { PhoneNormalizer } from './phone-normalizer';
   imports: [AuditModule, EventsModule, InvitationsModule],
   controllers: [ContactsController],
   providers: [ContactsService, ContactsScheduler, PhoneNormalizer],
-  exports: [ContactsService]
+  exports: [ContactsService, PhoneNormalizer]
 })
 export class ContactsModule {}

@@ -1,12 +1,12 @@
 import { getLandingConfig } from '../config/landing-config';
 import { landingTokens } from '../theme/landing-theme';
 import StorefrontIcon from '@mui/icons-material/Storefront';
-import { Box, Grid, Typography } from '@mui/material';
+import { Box, Button, Grid, Typography } from '@mui/material';
 import { LandingContainer, LandingSectionIntro } from './primitives';
 
 const landingContent = getLandingConfig();
 
-export function LandingVenue() {
+export function LandingVenue({ onOpenCommercial }: { onOpenCommercial: () => void }) {
   const headingId = 'landing-venue-heading';
 
   return (
@@ -29,9 +29,13 @@ export function LandingVenue() {
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', color: landingTokens.colors.dark.text }}>
               <StorefrontIcon aria-hidden sx={{ mt: 0.5 }} />
               <Box>
-                <Typography sx={{ ...landingTokens.typography.headline, fontSize: '1.15rem', mb: 1 }}>
+                <Button
+                  variant="contained"
+                  onClick={onOpenCommercial}
+                  sx={{ ...landingTokens.typography.headline, textTransform: 'none', borderRadius: 0, mb: 1 }}
+                >
                   {landingContent.venue.cta}
-                </Typography>
+                </Button>
                 <Typography sx={{ ...landingTokens.typography.body, color: landingTokens.colors.dark.textMuted }}>
                   {landingContent.venue.notice}
                 </Typography>

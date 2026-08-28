@@ -25,6 +25,7 @@ import { PhysicalPassesModule } from './physical-passes/physical-passes.module';
 import { AlbumsModule } from './albums/albums.module';
 import { ReportsModule } from './reports/reports.module';
 import { PilotObservationsModule } from './pilot-observations/pilot-observations.module';
+import { CommercialLeadsModule } from './commercial-leads/commercial-leads.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { PilotObservationsModule } from './pilot-observations/pilot-observations
     AlbumsModule,
     ReportsModule,
     PilotObservationsModule,
+    CommercialLeadsModule,
     ContactsModule,
     ScheduleModule.forRoot()
   ],

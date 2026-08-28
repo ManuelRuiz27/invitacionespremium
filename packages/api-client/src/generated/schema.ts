@@ -656,6 +656,40 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/commercial-leads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List B2B commercial opportunities */
+        get: operations["AdminCommercialLeadsController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/commercial-leads/{leadId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a B2B commercial opportunity */
+        get: operations["AdminCommercialLeadsController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/events": {
         parameters: {
             query?: never;
@@ -2000,6 +2034,23 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/commercial-leads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit a B2B commercial opportunity */
+        post: operations["CommercialLeadsController_submit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/invitations/{invitationToken}": {
         parameters: {
             query?: never;
@@ -2548,6 +2599,48 @@ export type components = {
             purchasedCredits: number;
             sufficient: boolean;
             totalAvailableCredits: number;
+        };
+        CommercialLeadAcceptedResponseDto: {
+            /** @enum {boolean} */
+            accepted: true;
+        };
+        CommercialLeadPageResponseDto: {
+            items: components["schemas"]["CommercialLeadResponseDto"][];
+            nextCursor: string | null;
+        };
+        CommercialLeadResponseDto: {
+            businessName: string;
+            contactName: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: email */
+            email: string;
+            estimatedEventsPerMonth: number | null;
+            /** Format: uuid */
+            id: string;
+            notes: string | null;
+            /** @enum {string} */
+            opportunityType: "PLANNER_AGENCY" | "VENUE";
+            phone: string | null;
+            /** Format: date-time */
+            privacyAcceptedAt: string;
+        };
+        CommercialLeadSubmissionRequestDto: {
+            businessName: string;
+            contactName: string;
+            /** Format: email */
+            email: string;
+            estimatedEventsPerMonth?: number | null;
+            notes?: string | null;
+            /** @enum {string} */
+            opportunityType: "PLANNER_AGENCY" | "VENUE";
+            phone?: string | null;
+            /** @enum {boolean} */
+            privacyAccepted: true;
+            /** Format: uuid */
+            submissionId: string;
+            /** @description Anti-spam honeypot; leave empty. */
+            website?: string;
         };
         CommercialRequoteRequestDto: {
             /** @enum {boolean} */
@@ -4987,6 +5080,50 @@ export interface operations {
             };
         };
     };
+    AdminCommercialLeadsController_list: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+                opportunityType?: "PLANNER_AGENCY" | "VENUE";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommercialLeadPageResponseDto"];
+                };
+            };
+        };
+    };
+    AdminCommercialLeadsController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                leadId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommercialLeadResponseDto"];
+                };
+            };
+        };
+    };
     AdminEventsController_list: {
         parameters: {
             query?: never;
@@ -7099,6 +7236,29 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    CommercialLeadsController_submit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommercialLeadSubmissionRequestDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommercialLeadAcceptedResponseDto"];
+                };
             };
         };
     };

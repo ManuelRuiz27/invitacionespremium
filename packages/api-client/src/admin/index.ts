@@ -12,3 +12,5 @@ export { createAdminReportsClient } from './reports';
 export type * from './reports';
 export { createAdminAuditClient } from './audit';
 export type * from './audit';
+export { createAdminCommercialLeadsClient } from './commercial-leads';
+export type * from './commercial-leads';
