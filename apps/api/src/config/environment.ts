@@ -52,6 +52,7 @@ export const environmentSchema = z
     DATABASE_CONNECTION_TIMEOUT_MS: z.coerce.number().int().min(100).default(5000),
     DATABASE_IDLE_TIMEOUT_MS: z.coerce.number().int().min(1000).default(30_000),
     CREDIT_UNIT_VALUE_MXN_CENTS: z.coerce.number().int().positive().default(2000),
+    UNIT_ECONOMICS_OPERATOR_HOURLY_RATE_MXN_CENTS: z.coerce.number().int().nonnegative().optional(),
     PHONE_DEFAULT_REGION: z
       .string()
       .regex(/^[A-Z]{2}$/)

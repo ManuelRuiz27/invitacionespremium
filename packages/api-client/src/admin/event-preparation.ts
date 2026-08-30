@@ -31,6 +31,8 @@ export type AdminFloorplanFileAsset = S['FileAssetResponseDto'];
 export type AdminPilotObservationInput = S['PilotObservationRequestDto'];
 export type AdminPilotObservation = S['PilotObservationResponseDto'];
 export type AdminPilotObservationJournal = S['PilotObservationJournalResponseDto'];
+export type AdminPilotObservationCorrectionInput = S['CorrectPilotObservationRequestDto'];
+export type AdminUnitEconomics = S['UnitEconomicsResponseDto'];
 
 const id = encodeURIComponent;
 const record = isRecord as (value: unknown) => value is never;
@@ -405,6 +407,28 @@ export function createAdminEventPreparationClient(request: ApiRequester) {
           response: 'json',
           ...withSignal(signal)
         },
+        record
+      ),
+    correctPilotObservation: (
+      clientId: string,
+      eventId: string,
+      observationId: string,
+      body: AdminPilotObservationCorrectionInput,
+      signal?: AbortSignal
+    ) =>
+      request<AdminPilotObservation>(
+        {
+          method: 'POST',
+          path: `${base(clientId, eventId)}/pilot-observations/${id(observationId)}/correction`,
+          body,
+          response: 'json',
+          ...withSignal(signal)
+        },
+        record
+      ),
+    getUnitEconomics: (clientId: string, eventId: string, signal?: AbortSignal) =>
+      request<AdminUnitEconomics>(
+        { path: `${base(clientId, eventId)}/unit-economics`, response: 'json', ...withSignal(signal) },
         record
       )
   };

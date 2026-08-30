@@ -20,6 +20,7 @@ describe('validateEnvironment', () => {
     expect(environment.AUTH_COOKIE_SECURE).toBe(false);
     expect(environment.AUTH_COOKIE_PATH).toBe('/');
     expect(environment.CREDIT_UNIT_VALUE_MXN_CENTS).toBe(2000);
+    expect(environment.UNIT_ECONOMICS_OPERATOR_HOURLY_RATE_MXN_CENTS).toBeUndefined();
     expect(environment.PHONE_DEFAULT_REGION).toBe('MX');
     expect(environment.CONTACT_IMPORT_PREVIEW_TTL_SECONDS).toBe(1800);
     expect(environment.FILE_STORAGE_LOCAL_ROOT).toBe('var/file-assets');
@@ -28,6 +29,27 @@ describe('validateEnvironment', () => {
     expect(environment.FILE_ORPHAN_RETENTION_SECONDS).toBe(86_400);
     expect(Buffer.byteLength(environment.INVITATION_TOKEN_SIGNING_SECRET)).toBeGreaterThanOrEqual(32);
     expect(environment.PUBLIC_INVITATION_BASE_URL).toBe('http://localhost:5173/invitacion');
+  });
+
+  it.each([
+    ['zero', '0', 0],
+    ['positive', '125050', 125_050]
+  ])('accepts an optional %s operator shadow-cost rate', (_case, value, expected) => {
+    const environment = validateEnvironment({
+      DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/app',
+      UNIT_ECONOMICS_OPERATOR_HOURLY_RATE_MXN_CENTS: value
+    });
+
+    expect(environment.UNIT_ECONOMICS_OPERATOR_HOURLY_RATE_MXN_CENTS).toBe(expected);
+  });
+
+  it.each(['-1', '1.5'])('rejects invalid operator shadow-cost rate %s', (value) => {
+    expect(() =>
+      validateEnvironment({
+        DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/app',
+        UNIT_ECONOMICS_OPERATOR_HOURLY_RATE_MXN_CENTS: value
+      })
+    ).toThrow(/UNIT_ECONOMICS_OPERATOR_HOURLY_RATE_MXN_CENTS/);
   });
 
   it('rejects non-PostgreSQL database URLs', () => {

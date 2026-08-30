@@ -7,7 +7,11 @@ export const PILOT_OBSERVATION_KINDS = [
   'INCIDENT',
   'PLANNER_SUPPORT',
   'LAST_MINUTE_CHANGE',
-  'MANUAL_WORK'
+  'MANUAL_WORK',
+  'DESIGNER_COST',
+  'EXTERNAL_COST',
+  'TECHNOLOGY_COST',
+  'DESIGN_ROUND'
 ] as const;
 
 export const PILOT_OBSERVATION_AREAS = [
@@ -23,6 +27,7 @@ export const PILOT_OBSERVATION_AREAS = [
 ] as const;
 
 const durationRequiredKinds = new Set(['PREPARATION_TIME', 'PLANNER_SUPPORT', 'MANUAL_WORK']);
+const costKinds = new Set(['DESIGNER_COST', 'EXTERNAL_COST', 'TECHNOLOGY_COST']);
 const noteSchema = z
   .string()
   .trim()
@@ -34,6 +39,7 @@ export const pilotObservationSchema = z
     kind: z.enum(PILOT_OBSERVATION_KINDS),
     area: z.enum(PILOT_OBSERVATION_AREAS),
     durationMinutes: z.number().int().positive().max(1440).optional(),
+    amountMxnCents: z.number().int().min(0).max(100_000_000).optional(),
     count: z.number().int().positive().max(10_000).default(1),
     note: noteSchema.optional()
   })
@@ -46,11 +52,36 @@ export const pilotObservationSchema = z
         message: 'durationMinutes is required for this observation kind.'
       });
     }
+    if (costKinds.has(value.kind)) {
+      if (value.amountMxnCents === undefined) {
+        context.addIssue({
+          code: 'custom',
+          path: ['amountMxnCents'],
+          message: 'amountMxnCents is required for cost observations.'
+        });
+      }
+      if (value.durationMinutes !== undefined) {
+        context.addIssue({
+          code: 'custom',
+          path: ['durationMinutes'],
+          message: 'durationMinutes is not allowed for cost observations.'
+        });
+      }
+    } else if (value.amountMxnCents !== undefined) {
+      context.addIssue({
+        code: 'custom',
+        path: ['amountMxnCents'],
+        message: 'amountMxnCents is only allowed for cost observations.'
+      });
+    }
   });
+
+const correctionSchema = z.object({ reason: z.string().trim().min(3).max(300) }).strict();
 
 export type PilotObservationInput = z.infer<typeof pilotObservationSchema>;
 export type PilotObservationKind = PilotObservationInput['kind'];
 export type PilotObservationArea = PilotObservationInput['area'];
+export type PilotObservationCorrectionInput = z.infer<typeof correctionSchema>;
 
 export function parsePilotObservation(input: unknown): PilotObservationInput {
   const result = pilotObservationSchema.safeParse(input);
@@ -58,6 +89,18 @@ export function parsePilotObservation(input: unknown): PilotObservationInput {
     throw new BadRequestException({
       code: 'VALIDATION_ERROR',
       message: 'Pilot observation is invalid.',
+      details: result.error.flatten()
+    });
+  }
+  return result.data;
+}
+
+export function parsePilotObservationCorrection(input: unknown): PilotObservationCorrectionInput {
+  const result = correctionSchema.safeParse(input);
+  if (!result.success) {
+    throw new BadRequestException({
+      code: 'VALIDATION_ERROR',
+      message: 'Pilot observation correction is invalid.',
       details: result.error.flatten()
     });
   }
@@ -73,6 +116,9 @@ export class PilotObservationRequestDto {
 
   @ApiPropertyOptional({ type: Number, minimum: 1, maximum: 1440 })
   durationMinutes?: number;
+
+  @ApiPropertyOptional({ type: Number, minimum: 0, maximum: 100_000_000 })
+  amountMxnCents?: number;
 
   @ApiPropertyOptional({ type: Number, minimum: 1, maximum: 10_000, default: 1 })
   count?: number;
@@ -97,11 +143,25 @@ export class PilotObservationResponseDto {
   @ApiPropertyOptional({ type: Number, minimum: 1, maximum: 1440 })
   durationMinutes?: number;
 
+  @ApiPropertyOptional({ type: Number, minimum: 0, maximum: 100_000_000 })
+  amountMxnCents?: number;
+
   @ApiProperty({ type: Number, minimum: 1 })
   count!: number;
 
   @ApiPropertyOptional({ type: String, maxLength: 500 })
   note?: string;
+
+  @ApiPropertyOptional({ type: String, format: 'date-time' })
+  correctedAt?: string;
+
+  @ApiPropertyOptional({ type: String, minLength: 3, maxLength: 300 })
+  correctionReason?: string;
+}
+
+export class CorrectPilotObservationRequestDto {
+  @ApiProperty({ type: String, minLength: 3, maxLength: 300 })
+  reason!: string;
 }
 
 export class PilotObservationSummaryDto {

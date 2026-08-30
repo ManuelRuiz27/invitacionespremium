@@ -126,6 +126,14 @@ describe('administrative Event preparation API client', () => {
       { kind: 'INCIDENT', area: 'CHECKIN', count: 2, note: 'Falla operativa' },
       signal
     );
+    await api.adminEventPreparation.correctPilotObservation(
+      clientId,
+      eventId,
+      'observation/value',
+      { reason: 'Captura duplicada' },
+      signal
+    );
+    await api.adminEventPreparation.getUnitEconomics(clientId, eventId, signal);
 
     const calls = fetchImpl.mock.calls;
     const base = 'https://api.example.com/api/v1/admin/clients/client%2Fvalue/events/event%2Fvalue';
@@ -167,7 +175,9 @@ describe('administrative Event preparation API client', () => {
       `${base}/floorplan/shapes/shape%2Fvalue`,
       `${base}/floorplan/unlock`,
       `${base}/pilot-observations`,
-      `${base}/pilot-observations`
+      `${base}/pilot-observations`,
+      `${base}/pilot-observations/observation%2Fvalue/correction`,
+      `${base}/unit-economics`
     ]);
     expect(calls.map(([, init]) => init?.method ?? 'GET')).toEqual([
       'PATCH',
@@ -207,7 +217,9 @@ describe('administrative Event preparation API client', () => {
       'DELETE',
       'POST',
       'GET',
-      'POST'
+      'POST',
+      'POST',
+      'GET'
     ]);
     expect(calls.every(([url]) => !new URL(String(url)).pathname.startsWith('/api/v1/events/'))).toBe(true);
     expect(calls.every(([url]) => !String(url).includes('/invitation-file-assets'))).toBe(true);
@@ -232,6 +244,9 @@ describe('administrative Event preparation API client', () => {
     );
     expect(calls.find(([url]) => String(url).endsWith('/commercial-requote'))?.[1]?.body).toBe(
       '{"capacity":100,"acceptanceConfirmed":true}'
+    );
+    expect(calls.find(([url]) => String(url).endsWith('/correction'))?.[1]?.body).toBe(
+      '{"reason":"Captura duplicada"}'
     );
   });
 });

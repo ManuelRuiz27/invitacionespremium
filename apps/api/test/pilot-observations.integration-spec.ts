@@ -129,6 +129,100 @@ describe('Admin pilot operational observations', () => {
     );
   });
 
+  it('persists cost and design-round observations without changing the legacy operational summary', async () => {
+    const fixture = await createFixture();
+    const designer = await post(fixture, {
+      kind: 'DESIGNER_COST',
+      area: 'INVITATION',
+      amountMxnCents: 150_000,
+      note: 'Diseño externo'
+    }).expect(201);
+    const round = await post(fixture, {
+      kind: 'DESIGN_ROUND',
+      area: 'INVITATION',
+      durationMinutes: 25,
+      count: 2
+    }).expect(201);
+
+    expect(designer.body).toMatchObject({
+      kind: 'DESIGNER_COST',
+      amountMxnCents: 150_000,
+      count: 1
+    });
+    expect(round.body).toMatchObject({ kind: 'DESIGN_ROUND', durationMinutes: 25, count: 2 });
+    expect((await prisma.auditLog.findUniqueOrThrow({ where: { id: designer.body.id } })).metadata).toEqual({
+      kind: 'DESIGNER_COST',
+      area: 'INVITATION',
+      amountMxnCents: 150_000,
+      count: 1,
+      note: 'Diseño externo'
+    });
+    expect((await get(fixture).expect(200)).body.summary).toEqual({
+      preparationMinutesTotal: 0,
+      invitationPreparationMinutes: 0,
+      floorplanPreparationMinutes: 0,
+      plannerSupportMinutes: 0,
+      plannerSupportEntries: 0,
+      incidents: 0,
+      checkinIncidents: 0,
+      lastMinuteChanges: 0,
+      manualWorkMinutes: 0,
+      manualWorkEntries: 0,
+      guestCount: 0,
+      tableCount: 0
+    });
+  });
+
+  it('corrects append-only, keeps the original visible and excludes it from the summary', async () => {
+    const fixture = await createFixture();
+    const other = await createFixture();
+    const created = await post(fixture, {
+      kind: 'PREPARATION_TIME',
+      area: 'INVITATION',
+      durationMinutes: 30
+    }).expect(201);
+    const originalBefore = await prisma.auditLog.findUniqueOrThrow({ where: { id: created.body.id } });
+
+    const corrected = await correct(fixture, created.body.id, { reason: 'Captura duplicada' }).expect(201);
+
+    expect(corrected.body).toMatchObject({
+      id: created.body.id,
+      correctedAt: expect.any(String),
+      correctionReason: 'Captura duplicada'
+    });
+    const originalAfter = await prisma.auditLog.findUniqueOrThrow({ where: { id: created.body.id } });
+    expect(originalAfter).toEqual(originalBefore);
+    const correction = await prisma.auditLog.findFirstOrThrow({
+      where: { action: 'PILOT_OBSERVATION_CORRECTED' }
+    });
+    expect(correction).toMatchObject({
+      actorType: AuditActorType.USER,
+      actorId: fixture.adminUserId,
+      clientId: fixture.clientId,
+      eventId: fixture.eventId,
+      resourceType: 'PILOT_OPERATION',
+      resourceId: fixture.eventId,
+      metadata: { correctedObservationId: created.body.id, reason: 'Captura duplicada' }
+    });
+    const journal = await get(fixture).expect(200);
+    expect(journal.body.observations).toEqual([
+      expect.objectContaining({ id: created.body.id, correctionReason: 'Captura duplicada' })
+    ]);
+    expect(journal.body.summary.preparationMinutesTotal).toBe(0);
+
+    await correct(fixture, created.body.id, { reason: 'Segundo intento' })
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('PILOT_OBSERVATION_ALREADY_CORRECTED'));
+    await request(app.getHttpServer())
+      .post(`${endpoint(other)}/${created.body.id}/correction`)
+      .set('Origin', origin)
+      .set('Cookie', other.adminCookie)
+      .send({ reason: 'Evento incorrecto' })
+      .expect(404)
+      .expect(({ body }) => expect(body.code).toBe('PILOT_OBSERVATION_NOT_FOUND'));
+    await correct(other, created.body.id, { reason: 'No autorizado' }, other.plannerCookie).expect(403);
+  });
+
   it('isolates events and clients without leaking target existence', async () => {
     const first = await createFixture();
     const second = await createFixture();
@@ -187,6 +281,11 @@ describe('Admin pilot operational observations', () => {
     ['zero count', { kind: 'INCIDENT', area: 'GENERAL', count: 0 }],
     ['excess count', { kind: 'INCIDENT', area: 'GENERAL', count: 10_001 }],
     ['long note', { kind: 'INCIDENT', area: 'GENERAL', note: 'x'.repeat(501) }],
+    ['missing cost amount', { kind: 'DESIGNER_COST', area: 'INVITATION' }],
+    ['negative cost amount', { kind: 'EXTERNAL_COST', area: 'GENERAL', amountMxnCents: -1 }],
+    ['cost duration', { kind: 'TECHNOLOGY_COST', area: 'GENERAL', amountMxnCents: 1, durationMinutes: 1 }],
+    ['amount on legacy kind', { kind: 'INCIDENT', area: 'GENERAL', amountMxnCents: 1 }],
+    ['amount on design round', { kind: 'DESIGN_ROUND', area: 'INVITATION', amountMxnCents: 1 }],
     ['unknown property', { kind: 'INCIDENT', area: 'GENERAL', contactName: 'private' }]
   ])('rejects %s without writing an audit row', async (_name, body) => {
     const fixture = await createFixture();
@@ -206,6 +305,19 @@ describe('Admin pilot operational observations', () => {
 
   function get(fixture: Fixture, cookie = fixture.adminCookie) {
     return request(app.getHttpServer()).get(endpoint(fixture)).set('Cookie', cookie);
+  }
+
+  function correct(
+    fixture: Fixture,
+    observationId: string,
+    body: Record<string, unknown>,
+    cookie = fixture.adminCookie
+  ) {
+    return request(app.getHttpServer())
+      .post(`${endpoint(fixture)}/${observationId}/correction`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .send(body);
   }
 
   async function createFixture(): Promise<Fixture> {

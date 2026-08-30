@@ -50,6 +50,10 @@ export class AppConfigService {
     return this.configService.get('CREDIT_UNIT_VALUE_MXN_CENTS', { infer: true });
   }
 
+  get unitEconomicsOperatorHourlyRateMxnCents(): number | undefined {
+    return this.configService.get('UNIT_ECONOMICS_OPERATOR_HOURLY_RATE_MXN_CENTS', { infer: true });
+  }
+
   get phoneDefaultRegion(): string {
     return this.configService.get('PHONE_DEFAULT_REGION', { infer: true });
   }

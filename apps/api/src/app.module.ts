@@ -26,6 +26,7 @@ import { AlbumsModule } from './albums/albums.module';
 import { ReportsModule } from './reports/reports.module';
 import { PilotObservationsModule } from './pilot-observations/pilot-observations.module';
 import { CommercialLeadsModule } from './commercial-leads/commercial-leads.module';
+import { UnitEconomicsModule } from './unit-economics/unit-economics.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { CommercialLeadsModule } from './commercial-leads/commercial-leads.modul
     ReportsModule,
     PilotObservationsModule,
     CommercialLeadsModule,
+    UnitEconomicsModule,
     ContactsModule,
     ScheduleModule.forRoot()
   ],

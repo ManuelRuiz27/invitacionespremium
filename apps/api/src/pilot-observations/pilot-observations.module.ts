@@ -6,6 +6,7 @@ import { PilotObservationsService } from './pilot-observations.service';
 @Module({
   imports: [AuditModule],
   controllers: [AdminPilotObservationsController],
-  providers: [PilotObservationsService]
+  providers: [PilotObservationsService],
+  exports: [PilotObservationsService]
 })
 export class PilotObservationsModule {}

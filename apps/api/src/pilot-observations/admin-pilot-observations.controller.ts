@@ -6,10 +6,12 @@ import { Roles } from '../auth/roles.decorator';
 import { parseUuidParameter } from '../clients/clients.dto';
 import { UserRole } from '../generated/prisma/client';
 import {
+  CorrectPilotObservationRequestDto,
   PilotObservationJournalResponseDto,
   PilotObservationRequestDto,
   PilotObservationResponseDto,
-  parsePilotObservation
+  parsePilotObservation,
+  parsePilotObservationCorrection
 } from './pilot-observations.dto';
 import { PilotObservationsService } from './pilot-observations.service';
 
@@ -46,5 +48,26 @@ export class AdminPilotObservationsController {
     @Param('eventId') eventId: string
   ): Promise<PilotObservationJournalResponseDto> {
     return this.observations.get(parseUuidParameter(clientId, 'clientId'), parseUuidParameter(eventId, 'eventId'));
+  }
+
+  @Post(':observationId/correction')
+  @ApiBody({ type: CorrectPilotObservationRequestDto })
+  @ApiCreatedResponse({ type: PilotObservationResponseDto })
+  correct(
+    @Param('clientId') clientId: string,
+    @Param('eventId') eventId: string,
+    @Param('observationId') observationId: string,
+    @Body() body: unknown,
+    @CurrentAuth() principal: AuthPrincipal,
+    @Req() request: AuthenticatedRequest
+  ): Promise<PilotObservationResponseDto> {
+    return this.observations.correct(
+      parseUuidParameter(clientId, 'clientId'),
+      parseUuidParameter(eventId, 'eventId'),
+      parseUuidParameter(observationId, 'observationId'),
+      parsePilotObservationCorrection(body),
+      principal,
+      request.operationId
+    );
   }
 }

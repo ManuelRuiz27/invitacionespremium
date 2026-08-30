@@ -288,7 +288,52 @@ export function mockAdminApi(user: AuthUser = platformAdmin): AdminTestApiClient
           tableCount: 0
         }
       }),
-      createPilotObservation: vi.fn()
+      createPilotObservation: vi.fn(),
+      correctPilotObservation: vi.fn(),
+      getUnitEconomics: vi.fn().mockResolvedValue({
+        eventId: adminEvent.id,
+        clientId: adminEvent.clientId,
+        eventName: adminEvent.name,
+        eventStatus: adminEvent.status,
+        serviceCode: 'FLYER',
+        commercialChannel: 'STANDARD',
+        commercialChannelSource: 'SNAPSHOT',
+        capacity: adminEvent.capacity,
+        capacityMin: 101,
+        capacityMax: 150,
+        venueTier: null,
+        activatedAt: adminEvent.activatedAt,
+        grossRevenueCredits: 10,
+        refundCredits: 0,
+        netRevenueCredits: 10,
+        creditUnitValueMxnCents: 2000,
+        grossRevenueMxnCents: 20000,
+        refundMxnCents: 0,
+        netRevenueMxnCents: 20000,
+        designerCostMxnCents: 0,
+        externalCostMxnCents: 0,
+        technologyCostMxnCents: 0,
+        directCostMxnCents: 0,
+        designRounds: 0,
+        operatorMinutesTotal: 0,
+        operatorMinutesByArea: {
+          GENERAL: 0,
+          INVITATION: 0,
+          FLOORPLAN: 0,
+          GUESTS: 0,
+          RSVP: 0,
+          SEATING: 0,
+          STAFF: 0,
+          CHECKIN: 0,
+          CLOSE_REPORT: 0
+        },
+        operatorHourlyRateMxnCents: null,
+        operatorShadowCostMxnCents: null,
+        contributionMarginMxnCents: 20000,
+        contributionMarginPct: 100,
+        contributionAfterOperatorShadowMxnCents: null,
+        contributionAfterOperatorShadowPct: null
+      })
     },
     adminFinance: {
       balance: vi.fn().mockResolvedValue(adminBalance),

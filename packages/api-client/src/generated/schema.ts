@@ -544,6 +544,38 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/clients/{clientId}/events/{eventId}/pilot-observations/{observationId}/correction": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminPilotObservationsController_correct"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/clients/{clientId}/events/{eventId}/unit-economics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminUnitEconomicsController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/clients/{clientId}/events/intake-quote": {
         parameters: {
             query?: never;
@@ -2703,6 +2735,9 @@ export type components = {
             /** @example +525512345678 */
             whatsappPhone: string | null;
         };
+        CorrectPilotObservationRequestDto: {
+            reason: string;
+        };
         CreateAlbumRequestDto: {
             externalButton?: components["schemas"]["AlbumExternalButtonDto"] | null;
             thankYouMessage?: string | null;
@@ -3344,6 +3379,17 @@ export type components = {
             notes?: string | null;
             operationReference?: string;
         };
+        OperatorMinutesByAreaDto: {
+            CHECKIN: number;
+            CLOSE_REPORT: number;
+            FLOORPLAN: number;
+            GENERAL: number;
+            GUESTS: number;
+            INVITATION: number;
+            RSVP: number;
+            SEATING: number;
+            STAFF: number;
+        };
         PaymentResponseDto: {
             amountMxnCents: number;
             /** Format: date-time */
@@ -3390,18 +3436,23 @@ export type components = {
             summary: components["schemas"]["PilotObservationSummaryDto"];
         };
         PilotObservationRequestDto: {
+            amountMxnCents?: number;
             /** @enum {string} */
             area: "GENERAL" | "INVITATION" | "FLOORPLAN" | "GUESTS" | "RSVP" | "SEATING" | "STAFF" | "CHECKIN" | "CLOSE_REPORT";
             /** @default 1 */
             count: number;
             durationMinutes?: number;
             /** @enum {string} */
-            kind: "PREPARATION_TIME" | "INCIDENT" | "PLANNER_SUPPORT" | "LAST_MINUTE_CHANGE" | "MANUAL_WORK";
+            kind: "PREPARATION_TIME" | "INCIDENT" | "PLANNER_SUPPORT" | "LAST_MINUTE_CHANGE" | "MANUAL_WORK" | "DESIGNER_COST" | "EXTERNAL_COST" | "TECHNOLOGY_COST" | "DESIGN_ROUND";
             note?: string;
         };
         PilotObservationResponseDto: {
+            amountMxnCents?: number;
             /** @enum {string} */
             area: "GENERAL" | "INVITATION" | "FLOORPLAN" | "GUESTS" | "RSVP" | "SEATING" | "STAFF" | "CHECKIN" | "CLOSE_REPORT";
+            /** Format: date-time */
+            correctedAt?: string;
+            correctionReason?: string;
             count: number;
             /** Format: date-time */
             createdAt: string;
@@ -3409,7 +3460,7 @@ export type components = {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            kind: "PREPARATION_TIME" | "INCIDENT" | "PLANNER_SUPPORT" | "LAST_MINUTE_CHANGE" | "MANUAL_WORK";
+            kind: "PREPARATION_TIME" | "INCIDENT" | "PLANNER_SUPPORT" | "LAST_MINUTE_CHANGE" | "MANUAL_WORK" | "DESIGNER_COST" | "EXTERNAL_COST" | "TECHNOLOGY_COST" | "DESIGN_ROUND";
             note?: string;
         };
         PilotObservationSummaryDto: {
@@ -3893,6 +3944,48 @@ export type components = {
         StorageProvider: "LOCAL";
         SuspendClientRequestDto: {
             reason?: string;
+        };
+        UnitEconomicsResponseDto: {
+            /** Format: date-time */
+            activatedAt: string | null;
+            capacity: number | null;
+            capacityMax: number | null;
+            capacityMin: number | null;
+            /** Format: uuid */
+            clientId: string;
+            /** @enum {string} */
+            commercialChannel: "STANDARD" | "PARTNER" | "VENUE";
+            /** @enum {string} */
+            commercialChannelSource: "SNAPSHOT" | "CURRENT_CLIENT" | "UNAVAILABLE";
+            contributionAfterOperatorShadowMxnCents: number | null;
+            contributionAfterOperatorShadowPct: number | null;
+            contributionMarginMxnCents: number;
+            contributionMarginPct: number | null;
+            creditUnitValueMxnCents: number;
+            designerCostMxnCents: number;
+            designRounds: number;
+            directCostMxnCents: number;
+            /** Format: uuid */
+            eventId: string;
+            eventName: string | null;
+            /** @enum {string} */
+            eventStatus: "DRAFT" | "CONFIGURED" | "READY_TO_ACTIVATE" | "ACTIVE" | "EVENT_DAY" | "CLOSED" | "ALBUM_PUBLISHED" | "ARCHIVED" | "CANCELLED";
+            externalCostMxnCents: number;
+            grossRevenueCredits: number;
+            grossRevenueMxnCents: number;
+            netRevenueCredits: number;
+            netRevenueMxnCents: number;
+            operatorHourlyRateMxnCents: number | null;
+            operatorMinutesByArea: components["schemas"]["OperatorMinutesByAreaDto"];
+            operatorMinutesTotal: number;
+            operatorShadowCostMxnCents: number | null;
+            refundCredits: number;
+            refundMxnCents: number;
+            /** @enum {string|null} */
+            serviceCode: "FLIPBOOK" | "FLYER" | "PHYSICAL_QR" | "DEMO" | null;
+            technologyCostMxnCents: number;
+            /** @enum {string|null} */
+            venueTier: "ONE_TO_TWO" | "THREE_TO_FIVE" | "SIX_TO_TEN" | "ELEVEN_PLUS" | null;
         };
         UpdateAdminClientRequestDto: {
             /** @enum {string|null} */
@@ -4924,6 +5017,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PilotObservationResponseDto"];
+                };
+            };
+        };
+    };
+    AdminPilotObservationsController_correct: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CorrectPilotObservationRequestDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PilotObservationResponseDto"];
+                };
+            };
+        };
+    };
+    AdminUnitEconomicsController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnitEconomicsResponseDto"];
                 };
             };
         };
