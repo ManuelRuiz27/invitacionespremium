@@ -828,6 +828,7 @@ describe('StaffAccess', () => {
         data: {
           clientId,
           createdByUserId,
+          assignedPlannerUserId: createdByUserId,
           serviceId: service.id,
           name: 'Evento Staff',
           status: EventStatus.ACTIVE,

@@ -14,6 +14,7 @@ import { PrismaService } from '../src/common/database/prisma.service';
 import {
   ClientStatus,
   ClientType,
+  CommercialChannel,
   EventSocialType,
   EventStatus,
   FileAssetOwnerType,
@@ -56,6 +57,7 @@ describe('Albums', () => {
   let image: Buffer;
   let jpegImage: Buffer;
   let providerCookie: string[];
+  let providerUserId: string;
   const eventClients = new Map<string, string>();
   let latestClientId = '';
 
@@ -89,6 +91,7 @@ describe('Albums', () => {
     eventClients.clear();
     latestClientId = '';
     const provider = await createUser(null, UserRole.PLATFORM_ADMIN);
+    providerUserId = provider.id;
     providerCookie = await login(provider.email);
   }, 60_000);
   afterEach(() => {
@@ -131,6 +134,7 @@ describe('Albums', () => {
       .expect(201);
     const eventId = created.body.id as string;
     eventClients.set(eventId, owner.clientId);
+    await authorizeCommercialFixture(eventId);
 
     const contacts = [];
     for (const [name, phone] of [
@@ -373,6 +377,7 @@ describe('Albums', () => {
     const physicalService = await createService(ServiceCode.PHYSICAL_QR);
     const demoService = await createService(ServiceCode.DEMO);
     await createFreePrice(flyerService.id);
+    await createFreePrice(flipbookService.id);
     const owner = await createClientUser(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
     const cookie = await login(owner.email);
 
@@ -400,6 +405,7 @@ describe('Albums', () => {
       .send({ name: 'Readiness', whatsappPhone: '+525511220001' })
       .expect(201);
     expect((await prisma.event.findUniqueOrThrow({ where: { id: eventId } })).status).toBe(EventStatus.CONFIGURED);
+    await authorizeCommercialFixture(eventId);
     const initial = await uploadImage(eventId, cookie, 'FLYER', 'FLYER_INITIAL_IMAGE').expect(201);
     const qr = await uploadImage(eventId, cookie, 'FLYER', 'FLYER_QR_IMAGE').expect(201);
     await request(app.getHttpServer())
@@ -467,6 +473,7 @@ describe('Albums', () => {
       .set('Cookie', cookie)
       .send({ name: 'Flipbook', whatsappPhone: '+525511220003' })
       .expect(201);
+    await authorizeCommercialFixture(flipbook.id);
     await request(app.getHttpServer())
       .post(providerPath(flipbook.id, 'design/flipbook'))
       .set('Origin', origin)
@@ -1128,6 +1135,7 @@ describe('Albums', () => {
         data: {
           clientId: owner.clientId,
           createdByUserId: owner.userId,
+          assignedPlannerUserId: owner.userId,
           serviceId: service.id,
           name: `Evento ${serviceCode}`,
           socialType: EventSocialType.OTHER,
@@ -1248,6 +1256,7 @@ describe('Albums', () => {
       .set('Cookie', cookie)
       .send({ name: 'Carrera readiness', whatsappPhone: phone })
       .expect(201);
+    await authorizeCommercialFixture(event.id);
     const initial = await uploadImage(event.id, cookie, 'FLYER', 'FLYER_INITIAL_IMAGE').expect(201);
     const qr = await uploadImage(event.id, cookie, 'FLYER', 'FLYER_QR_IMAGE').expect(201);
     await request(app.getHttpServer())
@@ -1307,9 +1316,45 @@ describe('Albums', () => {
     return prisma.servicePrice.create({
       data: {
         serviceId,
-        clientType: ClientType.PLANNER,
+        pricingVersion: 2,
+        commercialChannel: CommercialChannel.STANDARD,
+        capacityMin: 1,
+        capacityMax: 150,
         credits: 0,
         validFrom: new Date(Date.now() - 60_000)
+      }
+    });
+  }
+
+  async function authorizeCommercialFixture(eventId: string): Promise<void> {
+    const event = await prisma.event.findUniqueOrThrow({ where: { id: eventId } });
+    const price = await prisma.servicePrice.findFirstOrThrow({
+      where: {
+        serviceId: event.serviceId!,
+        pricingVersion: 2,
+        commercialChannel: CommercialChannel.STANDARD,
+        capacityMin: { lte: event.capacity! },
+        capacityMax: { gte: event.capacity! }
+      }
+    });
+    const commercialAt = new Date();
+    await prisma.event.update({
+      where: { id: eventId },
+      data: {
+        commercialAuthorizedAt: commercialAt,
+        commercialAuthorizedByUserId: providerUserId,
+        commercialPriceLockedAt: commercialAt,
+        commercialServicePriceId: price.id,
+        commercialBaseCostCredits: price.credits,
+        commercialPromotionDiscountCredits: 0,
+        commercialFinalCostCredits: price.credits,
+        commercialChannelSnapshot: CommercialChannel.STANDARD,
+        commercialCapacitySnapshot: event.capacity,
+        commercialCapacityMinSnapshot: price.capacityMin,
+        commercialCapacityMaxSnapshot: price.capacityMax,
+        commercialVenueTierSnapshot: price.venueTier,
+        designKickoffAt: commercialAt,
+        designKickoffByUserId: providerUserId
       }
     });
   }

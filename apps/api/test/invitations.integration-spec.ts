@@ -671,6 +671,7 @@ describe('Invitations and nominal assistants', () => {
       data: {
         clientId: owner.clientId,
         createdByUserId: owner.userId,
+        assignedPlannerUserId: owner.userId,
         name: 'Evento de prueba',
         status: EventStatus.DRAFT,
         eventDateTime,

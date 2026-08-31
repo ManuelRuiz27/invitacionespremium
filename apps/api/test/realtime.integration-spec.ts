@@ -14,6 +14,7 @@ import {
   AssistantResponseStatus,
   ClientStatus,
   ClientType,
+  CommercialChannel,
   EventStatus,
   FloorplanGeometry,
   FloorplanShapeKind,
@@ -530,12 +531,16 @@ describe('Realtime Socket.IO', () => {
   it('completes the HTTP and Socket.IO vertical slice from Event creation through close', async () => {
     const owner = await createClientUser(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
     const cookie = await login(owner.email);
-    const providerCookie = await login((await createUser(null, UserRole.PLATFORM_ADMIN)).email);
+    const provider = await createUser(null, UserRole.PLATFORM_ADMIN);
+    const providerCookie = await login(provider.email);
     const service = await prisma.service.create({ data: { code: ServiceCode.FLYER } });
-    await prisma.servicePrice.create({
+    const price = await prisma.servicePrice.create({
       data: {
         serviceId: service.id,
-        clientType: ClientType.PLANNER,
+        pricingVersion: 2,
+        commercialChannel: CommercialChannel.STANDARD,
+        capacityMin: 1,
+        capacityMax: 150,
         credits: 0,
         validFrom: new Date(Date.now() - 60_000)
       }
@@ -559,6 +564,26 @@ describe('Realtime Socket.IO', () => {
       })
       .expect(201);
     const eventId = createdEvent.body.id as string;
+    const commercialAt = new Date();
+    await prisma.event.update({
+      where: { id: eventId },
+      data: {
+        commercialAuthorizedAt: commercialAt,
+        commercialAuthorizedByUserId: provider.id,
+        commercialPriceLockedAt: commercialAt,
+        commercialServicePriceId: price.id,
+        commercialBaseCostCredits: price.credits,
+        commercialPromotionDiscountCredits: 0,
+        commercialFinalCostCredits: price.credits,
+        commercialChannelSnapshot: CommercialChannel.STANDARD,
+        commercialCapacitySnapshot: 20,
+        commercialCapacityMinSnapshot: price.capacityMin,
+        commercialCapacityMaxSnapshot: price.capacityMax,
+        commercialVenueTierSnapshot: null,
+        designKickoffAt: commercialAt,
+        designKickoffByUserId: provider.id
+      }
+    });
     const providerBase = `/api/v1/admin/clients/${owner.clientId}/events/${eventId}`;
     const contact = await request(app.getHttpServer())
       .post(`/api/v1/events/${eventId}/contacts`)
@@ -930,6 +955,7 @@ describe('Realtime Socket.IO', () => {
           id: eventId,
           clientId: owner.clientId,
           createdByUserId: owner.userId,
+          assignedPlannerUserId: owner.userId,
           serviceId: service.id,
           name: `Evento ${status}`,
           status,

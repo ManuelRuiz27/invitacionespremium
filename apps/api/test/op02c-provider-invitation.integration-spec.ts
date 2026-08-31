@@ -7,6 +7,7 @@ import { createApp } from '../src/bootstrap/create-app';
 import { PrismaService } from '../src/common/database/prisma.service';
 import {
   ClientType,
+  CommercialChannel,
   EventStatus,
   FileAssetOwnerType,
   FileAssetStatus,
@@ -244,7 +245,7 @@ describe('OP-02C provider Invitation Design', () => {
     const physical = await createFixture(ServiceCode.PHYSICAL_QR);
     await adminPost(physical.client.id, physical.event.id, 'design/flipbook', await login(physical.admin.email))
       .expect(409)
-      .expect(({ body }) => expect(body.code).toBe('INVITATION_DESIGN_SERVICE_MISMATCH'));
+      .expect(({ body }) => expect(body.code).toBe('EVENT_DESIGN_KICKOFF_NOT_APPLICABLE'));
 
     const paths = createOpenApiDocument(app).paths;
     for (const route of [
@@ -292,10 +293,33 @@ describe('OP-02C provider Invitation Design', () => {
     const service =
       (await prisma.service.findUnique({ where: { code: serviceCode } })) ??
       (await prisma.service.create({ data: { code: serviceCode } }));
+    const price =
+      (await prisma.servicePrice.findFirst({
+        where: {
+          serviceId: service.id,
+          pricingVersion: 2,
+          commercialChannel: CommercialChannel.STANDARD,
+          capacityMin: 1,
+          capacityMax: 150
+        }
+      })) ??
+      (await prisma.servicePrice.create({
+        data: {
+          serviceId: service.id,
+          pricingVersion: 2,
+          commercialChannel: CommercialChannel.STANDARD,
+          capacityMin: 1,
+          capacityMax: 150,
+          credits: 10,
+          validFrom: new Date('2029-01-01T00:00:00.000Z')
+        }
+      }));
+    const commercialAt = new Date('2029-06-01T00:00:00.000Z');
     const event = await prisma.event.create({
       data: {
         clientId: client.id,
         createdByUserId: planner.id,
+        assignedPlannerUserId: planner.id,
         serviceId: service.id,
         name: 'OP-02C Event',
         socialType: 'WEDDING',
@@ -303,7 +327,22 @@ describe('OP-02C provider Invitation Design', () => {
         eventDateTime: new Date('2030-01-01T18:00:00.000Z'),
         timeZone: 'America/Mexico_City',
         capacity: 100,
-        confirmationEnabled: true
+        confirmationEnabled: true,
+        commercialAuthorizedAt: commercialAt,
+        commercialAuthorizedByUserId: admin.id,
+        commercialPriceLockedAt: commercialAt,
+        commercialServicePriceId: price.id,
+        commercialBaseCostCredits: price.credits,
+        commercialPromotionDiscountCredits: 0,
+        commercialFinalCostCredits: price.credits,
+        commercialChannelSnapshot: CommercialChannel.STANDARD,
+        commercialCapacitySnapshot: 100,
+        commercialCapacityMinSnapshot: price.capacityMin,
+        commercialCapacityMaxSnapshot: price.capacityMax,
+        commercialVenueTierSnapshot: null,
+        ...(serviceCode === ServiceCode.FLYER || serviceCode === ServiceCode.FLIPBOOK
+          ? { designKickoffAt: commercialAt, designKickoffByUserId: admin.id }
+          : {})
       }
     });
     return { client, planner, admin, event };

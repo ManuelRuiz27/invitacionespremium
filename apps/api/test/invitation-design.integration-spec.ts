@@ -876,6 +876,7 @@ describe('InvitationDesignModule', () => {
       data: {
         clientId: owner.clientId,
         createdByUserId: owner.userId,
+        assignedPlannerUserId: owner.userId,
         serviceId: service.id,
         name: 'Invitation Design Event',
         socialType: 'WEDDING',

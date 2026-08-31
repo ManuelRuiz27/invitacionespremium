@@ -7,7 +7,7 @@ import { createApp } from '../src/bootstrap/create-app';
 import { PrismaService } from '../src/common/database/prisma.service';
 import { ClientType, CommercialOpportunityType, UserRole } from '../src/generated/prisma/client';
 
-const trustedOrigin = 'http://localhost:5176';
+const trustedOrigin = 'http://localhost:5173';
 const endpoint = '/api/v1/public/commercial-leads';
 
 describe('LAND-02 commercial lead intake', () => {
