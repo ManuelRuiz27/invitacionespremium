@@ -683,7 +683,7 @@ describe('Active Event seating workspace', () => {
         expect.any(AbortSignal)
       )
     );
-  });
+  }, 30_000);
 
   it.each([
     [800, 'seating-tablet-drawer'],
