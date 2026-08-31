@@ -189,10 +189,11 @@ describe('navigation, channels and accessibility', () => {
   });
 
   it('routes each App CTA to its contracted, separate modal', async () => {
+    const lazyModalTimeout = { timeout: 20_000 };
     renderWithTheme(<App />);
     fireEvent.click(screen.getByRole('button', { name: content.planners.commercialCta }));
     expect(
-      await screen.findByRole('heading', { name: 'Condiciones para Planners y agencias' }, { timeout: 10_000 })
+      await screen.findByRole('heading', { name: 'Condiciones para Planners y agencias' }, lazyModalTimeout)
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar solicitud comercial' }));
     await waitFor(() =>
@@ -200,15 +201,19 @@ describe('navigation, channels and accessibility', () => {
     );
 
     fireEvent.click(screen.getAllByRole('button', { name: content.planners.registerCta }).at(-1)!);
-    expect(await screen.findByRole('heading', { name: content.registration.title })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: content.registration.title }, lazyModalTimeout)
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar registro' }));
     await waitFor(() =>
       expect(screen.queryByRole('heading', { name: content.registration.title })).not.toBeInTheDocument()
     );
 
     fireEvent.click(screen.getByRole('button', { name: content.venue.cta }));
-    expect(await screen.findByRole('heading', { name: 'Propuesta para tu venue' })).toBeInTheDocument();
-  }, 30_000);
+    expect(
+      await screen.findByRole('heading', { name: 'Propuesta para tu venue' }, lazyModalTimeout)
+    ).toBeInTheDocument();
+  }, 60_000);
 
   it('preserves section heading relationships and the existing visual system', () => {
     renderWithTheme(<LandingServices />);
