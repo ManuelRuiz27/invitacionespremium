@@ -2,17 +2,20 @@ import { Box, Container, Typography } from '@mui/material';
 import { getLandingConfig } from '../config/landing-config';
 import { LandingSectionIntro } from './primitives';
 import { landingTokens } from '../theme/landing-theme';
-
-import serviceFlipbook from '../assets/landing/service-flipbook.svg';
-import serviceFlyer from '../assets/landing/service-flyer.svg';
-import servicePass from '../assets/landing/service-pass.svg';
+import flipbookAvif from '../assets/product-proof/flipbook-public-mobile.avif';
+import flipbookWebp from '../assets/product-proof/flipbook-public-mobile.webp';
+import rsvpAvif from '../assets/product-proof/rsvp-public-mobile.avif';
+import rsvpWebp from '../assets/product-proof/rsvp-public-mobile.webp';
+import scannerAvif from '../assets/product-proof/scanner-result-mobile.avif';
+import scannerWebp from '../assets/product-proof/scanner-result-mobile.webp';
+import { ProductProofPicture } from './ProductProofPicture';
 
 const landingContent = getLandingConfig();
 
-const assetMap: Record<string, string> = {
-  FLIPBOOK: serviceFlipbook,
-  FLYER: serviceFlyer,
-  PHYSICAL_QR: servicePass
+const assetMap = {
+  FLIPBOOK: { avif: flipbookAvif, webp: flipbookWebp, alt: 'Invitación Flipbook real' },
+  FLYER: { avif: rsvpAvif, webp: rsvpWebp, alt: 'Confirmación digital real' },
+  PHYSICAL_QR: { avif: scannerAvif, webp: scannerWebp, alt: 'Control de acceso real con Scanner' }
 };
 
 export function LandingServices() {
@@ -101,10 +104,18 @@ export function LandingServices() {
                   alignItems: 'center'
                 }}
               >
-                <img
-                  src={assetMap[service.code]}
-                  alt={service.name}
-                  style={{ maxWidth: '100%', maxHeight: '400px', objectFit: 'contain', display: 'block' }}
+                <ProductProofPicture
+                  avif={assetMap[service.code].avif}
+                  webp={assetMap[service.code].webp}
+                  alt={assetMap[service.code].alt}
+                  width={780}
+                  height={1688}
+                  sx={{
+                    width: { xs: '72%', sm: 320 },
+                    border: landingTokens.borders.hairlineLight,
+                    boxShadow: landingTokens.shadows.elevated
+                  }}
+                  imageStyle={{ maxHeight: 470, objectFit: 'cover', objectPosition: 'top' }}
                 />
               </Box>
             </Box>

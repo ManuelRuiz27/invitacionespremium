@@ -20,5 +20,7 @@ var/file-assets/
 apps/api/var/file-assets/
 var/staging-seed/
 apps/api/var/staging-seed/
+var/landing-product-proof/raw/
+var/landing-product-proof/qa/
 *.dump
 staging-backups/

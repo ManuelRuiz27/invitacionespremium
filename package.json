@@ -17,6 +17,8 @@
     "format:check": "prettier --check .",
     "ci": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "local:seed": "pnpm --filter @invitaciones/api local:seed",
+    "product-proof:capture": "node scripts/capture-landing-product-proof.mjs",
+    "landing:verify": "node scripts/verify-landing.mjs",
     "staging:deploy": "pnpm --filter @invitaciones/api staging:deploy",
     "staging:migrate": "pnpm --filter @invitaciones/api staging:migrate",
     "staging:seed": "pnpm --filter @invitaciones/api staging:seed",
@@ -27,9 +29,11 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "1.55.0",
     "eslint": "^10.7.0",
     "globals": "^16.4.0",
     "prettier": "^3.9.6",
+    "sharp": "0.35.0",
     "turbo": "^2.10.5",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.65.0"

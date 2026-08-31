@@ -3,6 +3,11 @@ import { landingTokens } from '../theme/landing-theme';
 import StorefrontIcon from '@mui/icons-material/Storefront';
 import { Box, Button, Grid, Typography } from '@mui/material';
 import { LandingContainer, LandingSectionIntro } from './primitives';
+import checkinAvif from '../assets/product-proof/checkin-success-mobile.avif';
+import checkinWebp from '../assets/product-proof/checkin-success-mobile.webp';
+import seatingAvif from '../assets/product-proof/seating-desktop.avif';
+import seatingWebp from '../assets/product-proof/seating-desktop.webp';
+import { ProductProofPicture } from './ProductProofPicture';
 
 const landingContent = getLandingConfig();
 
@@ -67,6 +72,31 @@ export function LandingVenue({ onOpenCommercial }: { onOpenCommercial: () => voi
                   </Typography>
                 </Box>
               ))}
+            </Box>
+            <Box sx={{ mt: 5, position: 'relative', minHeight: { xs: 300, sm: 390 } }}>
+              <ProductProofPicture
+                avif={seatingAvif}
+                webp={seatingWebp}
+                alt="Croquis y Mesas de un Evento demo"
+                width={2160}
+                height={1500}
+                sx={{ width: '90%', ml: 'auto', border: landingTokens.borders.hairlineDark, opacity: 0.78 }}
+              />
+              <ProductProofPicture
+                avif={checkinAvif}
+                webp={checkinWebp}
+                alt="Confirmación real de ingreso registrado"
+                width={780}
+                height={380}
+                sx={{
+                  position: 'absolute',
+                  width: { xs: '82%', sm: '62%' },
+                  left: 0,
+                  bottom: 0,
+                  border: landingTokens.borders.hairlineDark,
+                  boxShadow: landingTokens.shadows.productLayer
+                }}
+              />
             </Box>
           </Grid>
         </Grid>

@@ -3,20 +3,17 @@ import { LandingFaq } from './components/LandingFaq';
 import { LandingFooter } from './components/LandingFooter';
 import { LandingHeader } from './components/LandingHeader';
 import { LandingHero } from './components/LandingHero';
+import { LandingHowItWorks } from './components/LandingHowItWorks';
 import { LandingPlanners } from './components/LandingPlanners';
 import { LandingPricing } from './components/LandingPricing';
-import { LandingProblem } from './components/LandingProblem';
+import { LandingProductProof } from './components/LandingProductProof';
 import { LandingServices } from './components/LandingServices';
-import { LandingSolution } from './components/LandingSolution';
 import { LandingVenue } from './components/LandingVenue';
 import { usePublicPricing } from './use-public-pricing';
-import { Box, CircularProgress } from '@mui/material';
+import { Box } from '@mui/material';
 import { lazy, Suspense, useState } from 'react';
 import type { CommercialOpportunityType } from '@invitaciones/api-client';
 
-const LandingDemoMock = lazy(() =>
-  import('./components/LandingDemoMock').then((module) => ({ default: module.LandingDemoMock }))
-);
 const RegisterPlannerModal = lazy(() =>
   import('./components/RegisterPlannerModal').then((module) => ({ default: module.RegisterPlannerModal }))
 );
@@ -42,8 +39,8 @@ export function App() {
       <LandingHeader onOpenRegister={handleOpenRegister} />
       <Box component="main" id="main-content" tabIndex={-1} sx={{ flexGrow: 1, outline: 'none' }}>
         <LandingHero />
-        <LandingProblem />
-        <LandingSolution />
+        <LandingProductProof />
+        <LandingHowItWorks />
         <LandingServices />
         <LandingPricing state={pricingState} onRetry={retryPricing} />
         <LandingPlanners
@@ -51,17 +48,11 @@ export function App() {
           onOpenCommercial={() => setCommercialOpportunity('PLANNER_AGENCY')}
         />
         <LandingVenue onOpenCommercial={() => setCommercialOpportunity('VENUE')} />
-        <Suspense
-          fallback={
-            <Box component="section" id="demo" sx={{ minHeight: 700, display: 'grid', placeItems: 'center' }}>
-              <CircularProgress aria-label="Cargando demo visual" />
-            </Box>
-          }
-        >
-          <LandingDemoMock />
-        </Suspense>
         <LandingFaq />
-        <LandingCta />
+        <LandingCta
+          onOpenPlanner={() => setCommercialOpportunity('PLANNER_AGENCY')}
+          onOpenVenue={() => setCommercialOpportunity('VENUE')}
+        />
       </Box>
       <LandingFooter />
 

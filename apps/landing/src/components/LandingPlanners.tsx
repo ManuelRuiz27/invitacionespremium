@@ -1,9 +1,11 @@
-import plannerOperationImg from '../assets/landing/planner-operation.webp';
+import distributionAvif from '../assets/product-proof/invitation-distribution-desktop.avif';
+import distributionWebp from '../assets/product-proof/invitation-distribution-desktop.webp';
 import { getLandingConfig } from '../config/landing-config';
 import { landingTokens } from '../theme/landing-theme';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import { Box, Button, Grid, Stack, Typography } from '@mui/material';
 import { LandingContainer, LandingSectionIntro } from './primitives';
+import { ProductProofPicture } from './ProductProofPicture';
 
 export interface LandingPlannersProps {
   onOpenRegister: () => void;
@@ -91,13 +93,15 @@ export function LandingPlanners({ onOpenRegister, onOpenCommercial }: LandingPla
           </Grid>
 
           <Grid size={{ xs: 12, md: 6 }}>
-            <Box sx={{ width: '100%', height: { xs: 400, md: 600 }, overflow: 'hidden' }}>
-              <img
-                src={plannerOperationImg}
-                alt="Planner coordinando la operación de un Evento"
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-              />
-            </Box>
+            <ProductProofPicture
+              avif={distributionAvif}
+              webp={distributionWebp}
+              alt="Workspace real para operar Invitaciones e invitados"
+              width={2160}
+              height={1500}
+              sx={{ border: landingTokens.borders.hairlineLight, boxShadow: landingTokens.shadows.productLayer }}
+              imageStyle={{ minHeight: 430, objectFit: 'cover', objectPosition: 'center' }}
+            />
           </Grid>
         </Grid>
       </LandingContainer>

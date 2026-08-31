@@ -1,103 +1,76 @@
-import ctaFinaleBg from '../assets/landing/cta-finale.webp';
 import { getLandingConfig } from '../config/landing-config';
 import { scrollToLandingSection } from '../navigation';
 import { landingTokens } from '../theme/landing-theme';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import { Box, Button, Link, Stack, Typography } from '@mui/material';
+import { Box, Button, Stack, Typography } from '@mui/material';
 import { LandingActionGroup, LandingContainer } from './primitives';
 
-const landingContent = getLandingConfig();
+const content = getLandingConfig();
 
-export function LandingCta() {
+export function LandingCta({ onOpenPlanner, onOpenVenue }: { onOpenPlanner: () => void; onOpenVenue: () => void }) {
   return (
     <Box
       component="section"
       aria-labelledby="landing-final-cta-heading"
       sx={{
-        position: 'relative',
-        py: { xs: 12, md: 16 },
-        display: 'flex',
-        alignItems: 'center',
-        background: landingTokens.colors.dark.background,
-        overflow: 'hidden'
+        py: { xs: 12, md: 18 },
+        bgcolor: landingTokens.colors.dark.background,
+        borderTop: landingTokens.borders.hairlineDark
       }}
     >
-      <Box
-        aria-hidden
-        sx={{
-          position: 'absolute',
-          inset: 0,
-          backgroundImage: `url(${ctaFinaleBg})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          '&::after': { content: '""', position: 'absolute', inset: 0, background: landingTokens.overlays.ctaGradient }
-        }}
-      />
-
-      <LandingContainer sx={{ position: 'relative', zIndex: 1 }}>
-        <Stack spacing={4} sx={{ alignItems: 'center', textAlign: 'center', maxWidth: 800, mx: 'auto' }}>
+      <LandingContainer>
+        <Stack spacing={4} sx={{ alignItems: 'center', textAlign: 'center', maxWidth: 920, mx: 'auto' }}>
           <Typography
             id="landing-final-cta-heading"
             component="h2"
             sx={{
-              color: landingTokens.colors.dark.text,
               ...landingTokens.typography.display,
-              fontSize: { xs: '2rem', md: '3rem' },
+              color: landingTokens.colors.dark.text,
+              fontSize: { xs: '2.4rem', md: '4.2rem' },
               textWrap: 'balance'
             }}
           >
-            {landingContent.cta.title}
+            {content.cta.title}
           </Typography>
-          <Typography sx={{ color: landingTokens.colors.dark.textMuted, ...landingTokens.typography.body }}>
-            {landingContent.cta.description}
+          <Typography
+            sx={{ ...landingTokens.typography.body, color: landingTokens.colors.dark.textMuted, maxWidth: 650 }}
+          >
+            {content.cta.description}
           </Typography>
-
-          <LandingActionGroup sx={{ justifyContent: 'center' }}>
-            <Button
-              variant="contained"
-              size="large"
-              onClick={() => scrollToLandingSection('#precios')}
-              sx={{
-                minHeight: 56,
-                px: 4,
-                backgroundColor: landingTokens.colors.dark.text,
-                color: landingTokens.colors.dark.background,
-                borderRadius: 0,
-                textTransform: 'none'
-              }}
-            >
-              {landingContent.cta.primaryCta}
+          <LandingActionGroup>
+            <Button variant="contained" size="large" onClick={() => scrollToLandingSection('#precios')} sx={buttonSx}>
+              {content.cta.primaryCta}
+            </Button>
+            <Button variant="outlined" size="large" onClick={onOpenPlanner} sx={outlineSx}>
+              {content.cta.secondaryCta}
             </Button>
             <Button
-              variant="outlined"
+              variant="text"
               size="large"
-              endIcon={<ArrowForwardIcon />}
-              onClick={() => scrollToLandingSection('#planners')}
-              sx={{
-                minHeight: 56,
-                px: 4,
-                borderColor: landingTokens.colors.dark.border,
-                color: landingTokens.colors.dark.text,
-                borderRadius: 0,
-                textTransform: 'none'
-              }}
+              onClick={onOpenVenue}
+              sx={{ color: landingTokens.colors.dark.textMuted, textTransform: 'none' }}
             >
-              {landingContent.cta.secondaryCta}
+              {content.cta.venueLink}
             </Button>
           </LandingActionGroup>
-
-          <Link
-            href="#venues"
-            onClick={(event) => {
-              event.preventDefault();
-              scrollToLandingSection('#venues');
-            }}
-            sx={{ ...landingTokens.typography.body, color: landingTokens.colors.dark.textMuted }}
-          >
-            {landingContent.cta.venueLink}
-          </Link>
         </Stack>
       </LandingContainer>
     </Box>
   );
 }
+
+const buttonSx = {
+  minHeight: 56,
+  px: 4,
+  borderRadius: 0,
+  bgcolor: landingTokens.colors.dark.text,
+  color: landingTokens.colors.dark.background,
+  textTransform: 'none'
+};
+const outlineSx = {
+  minHeight: 56,
+  px: 4,
+  borderRadius: 0,
+  borderColor: landingTokens.colors.dark.border,
+  color: landingTokens.colors.dark.text,
+  textTransform: 'none'
+};

@@ -19,21 +19,21 @@ const commercialContent = {
     tagline: 'Servicio gestionado de operación digital para Eventos privados.'
   },
   nav: [
-    { label: 'Servicios', href: '#servicios' },
+    { label: 'Producto', href: '#producto' },
+    { label: 'Cómo funciona', href: '#como-funciona' },
+    { label: 'Opciones', href: '#servicios' },
     { label: 'Precios', href: '#precios' },
     { label: 'Planners', href: '#planners' },
     { label: 'Venues', href: '#venues' },
-    { label: 'Demo', href: '#demo' },
     { label: 'FAQ', href: '#faq' }
   ],
   hero: {
-    badge: 'Servicio gestionado de operación digital de Eventos',
-    title:
-      'InvitacionesPremium gestiona la infraestructura digital de tu Evento para que tú mantengas el control de tus invitados y operación.',
+    badge: 'La experiencia digital de tu Evento, conectada',
+    title: 'Invitaciones, invitados, Mesas y acceso. Todo conectado.',
     subtitle:
-      'Preparamos la infraestructura técnica, la Invitación y el Croquis cuando aplican; tú o tu Planner conservan la operación de invitados.',
-    primaryCta: 'Ver precios',
-    secondaryCta: 'Para Planners y agencias'
+      'Nuestro equipo prepara la experiencia digital de tu Evento; tú mantienes el control de tus invitados y de la operación.',
+    primaryCta: 'Ver cómo funciona',
+    secondaryCta: 'Ver opciones y precios'
   },
   problem: {
     title: 'Organizar un Evento no debería significar perseguir mensajes y listas',
