@@ -101,6 +101,7 @@ Leer primero `docs/04-tecnico/REPOSITORY_SOURCE_OF_TRUTH.md` cuando una tarea me
 - `PILOT01_END_TO_END_READINESS.md`
 - `PILOT02_MINIMUM_OPERATIONAL_INSTRUMENTATION.md`
 - `LOCAL_PILOT_OPERATION_RUNBOOK.md`
+- `PILOT03_COMMERCIAL_UAT_RUNBOOK.md` — contrato de ejecución final para UAT comercial: baseline CI verde, Partner/Flyer, Venue/QR, operación real y unit economics
 
 ## Precedencia para el modelo comercial/operator-led vigente
 
@@ -113,7 +114,8 @@ Cuando una tarea afecte SKU, pricing, canal, volumen, unit economics, adquisici�
 5. `02_PRD.md`, `04_APP_FLOW.md`, `05_REGLAS_NEGOCIO.md` y `06_FINANZAS_CREDITOS_CONTABILIDAD.md` para reglas no sustituidas.
 6. Contrato técnico especializado del dominio afectado.
 7. `20_COMMERCIAL_PILOT_ROADMAP.md` para orden de ejecución de la segunda etapa.
-8. Código sólo después de convertir cualquier gap restante en ticket/contrato explícito.
+8. `PILOT03_COMMERCIAL_UAT_RUNBOOK.md` para certificar el recorrido comercial final una vez cerradas sus dependencias.
+9. Código sólo después de convertir cualquier gap restante en ticket/contrato explícito.
 
 En particular:
 
