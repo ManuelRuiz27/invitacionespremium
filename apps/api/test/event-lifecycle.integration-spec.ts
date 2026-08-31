@@ -9,6 +9,7 @@ import { PrismaService } from '../src/common/database/prisma.service';
 import { EventLifecycleService } from '../src/events/event-lifecycle.service';
 import {
   AuditActorType,
+  CommercialChannel,
   ClientStatus,
   ClientType,
   EventSocialType,
@@ -27,6 +28,12 @@ import { createOpenApiDocument } from '../src/openapi/openapi';
 const trustedOrigin = 'http://localhost:5173';
 const password = 'correct horse battery staple';
 const futureEventDate = new Date('2030-05-15T20:00:00.000Z');
+
+type EventOwnerFixture = {
+  clientId: string;
+  userId: string;
+  role: UserRole;
+};
 
 describe('Event lifecycle', () => {
   let app: INestApplication;
@@ -104,6 +111,7 @@ describe('Event lifecycle', () => {
     const ready = await createReadyEvent(planner, catalog.service.id);
     await createCompleteFlyerDesign(ready, planner.userId);
     await grantCredits(planner.clientId, planner.userId, 5);
+    await authorizeCommercialFixture(ready.id, catalog.standardPrice);
     await transition(ready.id, 'activate', cookie, 'lifecycle-activation-paid').expect(200);
     const activated = await prisma.event.findUniqueOrThrow({ where: { id: ready.id } });
     const financialBefore = await financialState(planner.clientId);
@@ -165,8 +173,16 @@ describe('Event lifecycle', () => {
     const plannerTwo = await createUser(organization.clientId, UserRole.ORGANIZATION_PLANNER);
     const platform = await createUser(null, UserRole.PLATFORM_ADMIN);
     const independentEvent = await createDraft(independent);
-    const adminEvent = await createDraft({ clientId: organization.clientId, userId: plannerOne.userId });
-    const plannerEvent = await createDraft({ clientId: organization.clientId, userId: plannerTwo.userId });
+    const adminEvent = await createDraft({
+      clientId: organization.clientId,
+      userId: plannerOne.userId,
+      role: UserRole.ORGANIZATION_PLANNER
+    });
+    const plannerEvent = await createDraft({
+      clientId: organization.clientId,
+      userId: plannerTwo.userId,
+      role: UserRole.ORGANIZATION_PLANNER
+    });
 
     await transition(
       independentEvent.id,
@@ -177,7 +193,11 @@ describe('Event lifecycle', () => {
     await transition(adminEvent.id, 'cancel', await login(organization.email), 'lifecycle-owner-admin').expect(200);
     await transition(plannerEvent.id, 'cancel', await login(plannerTwo.email), 'lifecycle-owner-planner').expect(200);
 
-    const forbidden = await createDraft({ clientId: organization.clientId, userId: plannerTwo.userId });
+    const forbidden = await createDraft({
+      clientId: organization.clientId,
+      userId: plannerTwo.userId,
+      role: UserRole.ORGANIZATION_PLANNER
+    });
     await transition(forbidden.id, 'cancel', await login(plannerOne.email), 'lifecycle-owner-forbidden').expect(404);
     await transition(forbidden.id, 'cancel', await login(platform.email), 'lifecycle-platform-forbidden').expect(403);
 
@@ -335,7 +355,7 @@ describe('Event lifecycle', () => {
   async function createClientUser(type: ClientType, role: UserRole) {
     const client = await prisma.client.create({ data: { type, name: `Client ${randomUUID()}` } });
     const user = await createUser(client.id, role);
-    return { clientId: client.id, userId: user.userId, email: user.email };
+    return { clientId: client.id, userId: user.userId, email: user.email, role: user.role };
   }
 
   async function createUser(clientId: string | null, role: UserRole) {
@@ -343,7 +363,7 @@ describe('Event lifecycle', () => {
     const user = await prisma.user.create({
       data: { email, passwordHash: await hashPassword(password), role, clientId }
     });
-    return { userId: user.id, email };
+    return { userId: user.id, email, role };
   }
 
   async function createCatalog() {
@@ -364,11 +384,22 @@ describe('Event lifecycle', () => {
         validFrom: new Date('2020-01-01T00:00:00.000Z')
       }
     });
-    return { service, plannerPrice, organizationPrice };
+    const standardPrice = await prisma.servicePrice.create({
+      data: {
+        serviceId: service.id,
+        pricingVersion: 2,
+        commercialChannel: CommercialChannel.STANDARD,
+        capacityMin: 1,
+        capacityMax: 150,
+        credits: 5,
+        validFrom: new Date('2020-01-01T00:00:00.000Z')
+      }
+    });
+    return { service, plannerPrice, organizationPrice, standardPrice };
   }
 
   async function createActivatedEvent(
-    owner: { clientId: string; userId: string },
+    owner: EventOwnerFixture,
     serviceId: string,
     servicePriceId: string,
     status: EventStatus = EventStatus.ACTIVE,
@@ -389,6 +420,7 @@ describe('Event lifecycle', () => {
         id: eventId,
         clientId: owner.clientId,
         createdByUserId: owner.userId,
+        assignedPlannerUserId: assignedPlannerUserIdFor(owner),
         serviceId,
         name: `Event ${eventId}`,
         socialType: EventSocialType.OTHER,
@@ -464,11 +496,12 @@ describe('Event lifecycle', () => {
     });
   }
 
-  function createDraft(owner: { clientId: string; userId: string }) {
+  function createDraft(owner: EventOwnerFixture) {
     return prisma.event.create({
       data: {
         clientId: owner.clientId,
         createdByUserId: owner.userId,
+        assignedPlannerUserId: assignedPlannerUserIdFor(owner),
         status: EventStatus.DRAFT,
         eventDateTime: futureEventDate,
         timeZone: 'America/Mexico_City'
@@ -476,11 +509,12 @@ describe('Event lifecycle', () => {
     });
   }
 
-  function createReadyEvent(owner: { clientId: string; userId: string }, serviceId: string) {
+  function createReadyEvent(owner: EventOwnerFixture, serviceId: string) {
     return prisma.event.create({
       data: {
         clientId: owner.clientId,
         createdByUserId: owner.userId,
+        assignedPlannerUserId: assignedPlannerUserIdFor(owner),
         serviceId,
         name: `Event ${randomUUID()}`,
         socialType: EventSocialType.OTHER,
@@ -491,6 +525,38 @@ describe('Event lifecycle', () => {
         confirmationEnabled: true,
         locationUrl: 'https://maps.google.com/?q=19.4326,-99.1332',
         giftRegistryUrl: 'https://example.com/mesa-regalos'
+      }
+    });
+  }
+
+  function assignedPlannerUserIdFor(owner: Pick<EventOwnerFixture, 'userId' | 'role'>): string | null {
+    return owner.role === UserRole.INDEPENDENT_PLANNER || owner.role === UserRole.ORGANIZATION_PLANNER
+      ? owner.userId
+      : null;
+  }
+
+  async function authorizeCommercialFixture(
+    eventId: string,
+    price: { id: string; credits: number; capacityMin: number | null; capacityMax: number | null }
+  ): Promise<void> {
+    const event = await prisma.event.findUniqueOrThrow({ where: { id: eventId } });
+    const platformAdmin = await createUser(null, UserRole.PLATFORM_ADMIN);
+    const at = new Date('2029-01-01T00:00:00.000Z');
+    await prisma.event.update({
+      where: { id: eventId },
+      data: {
+        commercialAuthorizedAt: at,
+        commercialAuthorizedByUserId: platformAdmin.userId,
+        commercialPriceLockedAt: at,
+        commercialServicePriceId: price.id,
+        commercialBaseCostCredits: price.credits,
+        commercialPromotionDiscountCredits: 0,
+        commercialFinalCostCredits: price.credits,
+        commercialChannelSnapshot: CommercialChannel.STANDARD,
+        commercialCapacitySnapshot: event.capacity,
+        commercialCapacityMinSnapshot: price.capacityMin,
+        commercialCapacityMaxSnapshot: price.capacityMax,
+        commercialVenueTierSnapshot: null
       }
     });
   }

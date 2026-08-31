@@ -138,9 +138,7 @@ export async function rasterizePhysicalPassSvg(svg: string): Promise<Uint8Array>
   const png = await new Promise<Blob>((resolve, reject) =>
     canvas.toBlob(
       (value) =>
-        value
-          ? resolve(value)
-          : reject(new PhysicalPassesPdfError('No fue posible convertir un pase para el PDF.')),
+        value ? resolve(value) : reject(new PhysicalPassesPdfError('No fue posible convertir un pase para el PDF.')),
       'image/png'
     )
   );

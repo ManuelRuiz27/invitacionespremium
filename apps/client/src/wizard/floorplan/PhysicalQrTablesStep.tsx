@@ -17,8 +17,8 @@ export function PhysicalQrTablesStep({ apiClient, event }: { apiClient: ApiClien
         <SeatingWorkspace apiClient={apiClient} event={event} />
       ) : (
         <Alert severity="info">
-          Este Evento todavía no usa distribución de Mesas. El equipo de InvitacionesPremium puede preparar el
-          plano y sus capacidades antes de generar pases por Mesa.
+          Este Evento todavía no usa distribución de Mesas. El equipo de InvitacionesPremium puede preparar el plano y
+          sus capacidades antes de generar pases por Mesa.
         </Alert>
       )}
     </Stack>

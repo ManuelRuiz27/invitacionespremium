@@ -228,7 +228,13 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
         service?.code === 'PHYSICAL_QR' ? (
           <PhysicalQrTablesStep apiClient={apiClient} event={event} />
         ) : (
-          <FloorplanStep apiClient={apiClient} event={event} draft={draft} disabled={!editable} onChange={changeDraft} />
+          <FloorplanStep
+            apiClient={apiClient}
+            event={event}
+            draft={draft}
+            disabled={!editable}
+            onChange={changeDraft}
+          />
         )
       ) : null}
       {selectedStep === 'pases' && event ? (

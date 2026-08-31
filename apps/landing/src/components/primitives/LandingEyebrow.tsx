@@ -19,8 +19,7 @@ export interface LandingEyebrowProps {
  * Replaces raw MUI Chip with a landing-specific treatment.
  */
 export function LandingEyebrow({ label, icon, tone = 'accent', sx }: LandingEyebrowProps) {
-  const foreground =
-    tone === 'dark' ? landingTokens.colors.dark.text : designTokens.colors.accent;
+  const foreground = tone === 'dark' ? landingTokens.colors.dark.text : designTokens.colors.accent;
 
   return (
     <Box

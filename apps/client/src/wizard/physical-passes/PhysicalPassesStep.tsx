@@ -72,11 +72,8 @@ export function PhysicalPassesStep({
       });
     return () => controller.abort();
   }, [apiClient, event.floorplanEnabled, event.id, tablesRequest]);
-  const selectedTableAvailable = tables.some(
-    (table) => table.id === tableShapeId && table.availableCapacity > 0
-  );
-  const tableSelectionInvalid =
-    event.floorplanEnabled && (tablesState !== 'ready' || !selectedTableAvailable);
+  const selectedTableAvailable = tables.some((table) => table.id === tableShapeId && table.availableCapacity > 0);
+  const tableSelectionInvalid = event.floorplanEnabled && (tablesState !== 'ready' || !selectedTableAvailable);
   const run = async (retry = false) => {
     if (busy || exporting || (!retry && tableSelectionInvalid)) return;
     setBusy(true);
@@ -209,14 +206,7 @@ export function PhysicalPassesStep({
         )}
         <Button
           variant="contained"
-          disabled={
-            disabled ||
-            busy ||
-            exporting ||
-            Boolean(uncertain) ||
-            quantity < 1 ||
-            tableSelectionInvalid
-          }
+          disabled={disabled || busy || exporting || Boolean(uncertain) || quantity < 1 || tableSelectionInvalid}
           onClick={() => void run(false)}
         >
           Generar lote
