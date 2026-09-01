@@ -27,13 +27,15 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/invitacionespremium
       FILE_STORAGE_LOCAL_ROOT: /workspace/var/file-assets
-      VITE_API_BASE_URL: http://localhost:3000/api/v1
-      VITE_SOCKET_URL: http://localhost:3000
-      VITE_ADMIN_APP_URL: http://localhost:5174
-      VITE_CLIENT_APP_URL: http://localhost:5173
-      VITE_SCANNER_APP_URL: http://localhost:5175
-      VITE_LANDING_URL: http://localhost:5176
-      VITE_APP_URL: http://localhost:5176
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176}
+      PUBLIC_INVITATION_BASE_URL: ${PUBLIC_INVITATION_BASE_URL:-http://localhost:5173/invitacion}
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3000/api/v1}
+      VITE_SOCKET_URL: ${VITE_SOCKET_URL:-http://localhost:3000}
+      VITE_ADMIN_APP_URL: ${VITE_ADMIN_APP_URL:-http://localhost:5174}
+      VITE_CLIENT_APP_URL: ${VITE_CLIENT_APP_URL:-http://localhost:5173}
+      VITE_SCANNER_APP_URL: ${VITE_SCANNER_APP_URL:-http://localhost:5175}
+      VITE_LANDING_URL: ${VITE_LANDING_URL:-http://localhost:5176}
+      VITE_APP_URL: ${VITE_APP_URL:-http://localhost:5176}
     depends_on:
       postgres:
         condition: service_healthy
@@ -44,13 +46,7 @@ services:
       - '5175:5175'
       - '5176:5176'
     healthcheck:
-      test:
-        [
-          'CMD',
-          'node',
-          '-e',
-          "fetch('http://localhost:3000/api/v1/health').then((response) => { if (!response.ok) process.exit(1) }).catch(() => process.exit(1))"
-        ]
+      test: ['CMD', 'node', 'scripts/smoke-local.mjs']
       interval: 10s
       timeout: 5s
       retries: 12

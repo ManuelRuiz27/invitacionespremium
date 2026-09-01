@@ -17,6 +17,7 @@
     "format:check": "prettier --check .",
     "ci": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "local:seed": "pnpm --filter @invitaciones/api local:seed",
+    "local:smoke": "node scripts/smoke-local.mjs",
     "product-proof:capture": "node scripts/capture-landing-product-proof.mjs",
     "landing:verify": "node scripts/verify-landing.mjs",
     "staging:deploy": "pnpm --filter @invitaciones/api staging:deploy",
