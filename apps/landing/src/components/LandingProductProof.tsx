@@ -17,63 +17,61 @@ import { useEffect, useRef, useState } from 'react';
 const scenes = [
   {
     number: '01',
-    label: 'Invitación',
-    title: 'Una experiencia que empieza antes del Evento',
-    description:
-      'La Invitación Flipbook reúne diseño, información y la acción principal en una vista preparada para cada Invitado.',
+    label: 'Reciben su invitación',
+    title: 'Toda la información del evento en una experiencia clara',
+    description: 'Una Invitación Digital o Invitación Premium preparada para cada invitado.',
     avif: flipbookAvif,
     webp: flipbookWebp,
-    alt: 'Invitación Flipbook real de un Evento demo',
+    alt: 'Invitación Premium real de un evento de demostración',
     width: 780,
     height: 1688,
     mobile: true
   },
   {
     number: '02',
-    label: 'Confirmación',
-    title: 'RSVP directo y sin mensajes dispersos',
-    description: 'Cada Invitación permite confirmar asistencia y gestionar acompañantes dentro del mismo recorrido.',
+    label: 'Confirman su asistencia',
+    title: 'Respuestas y acompañantes sin perseguir mensajes',
+    description: 'Cada invitación concentra la confirmación dentro del mismo recorrido.',
     avif: rsvpAvif,
     webp: rsvpWebp,
-    alt: 'Formulario real de confirmación RSVP',
+    alt: 'Formulario real de confirmación de asistencia',
     width: 780,
     height: 1688,
     mobile: true
   },
   {
     number: '03',
-    label: 'Invitados',
-    title: 'La lista operativa siempre visible',
+    label: 'Organizas a tus invitados',
+    title: 'Una vista clara para consultar asistencia',
     description:
-      'El workspace concentra Invitaciones individuales, confirmaciones y el enlace que el equipo comparte con cada contacto.',
-    avif: distributionAvif,
-    webp: distributionWebp,
-    alt: 'Workspace real de distribución de Invitaciones',
+      'Consulta invitaciones individuales, confirmaciones y la información que necesitas para organizar las mesas.',
+    avif: seatingAvif,
+    webp: seatingWebp,
+    alt: 'Vista real para organizar invitados y mesas',
     width: 2160,
     height: 1500,
     mobile: false
   },
   {
     number: '04',
-    label: 'Mesas',
-    title: 'Distribución visual, lista para coordinar',
-    description:
-      'Cuando aplica, el Planner trabaja la asignación a Mesas sobre el Croquis técnico preparado para el Evento.',
-    avif: seatingAvif,
-    webp: seatingWebp,
-    alt: 'Workspace real de Mesas sobre Croquis',
+    label: 'Cada invitado recibe su acceso',
+    title: 'La información necesaria queda vinculada con su invitación',
+    description: 'Organiza las mesas y conserva cada acceso listo para compartir desde el evento activo.',
+    avif: distributionAvif,
+    webp: distributionWebp,
+    alt: 'Vista real de invitaciones y accesos individuales',
     width: 2160,
     height: 1500,
     mobile: false
   },
   {
     number: '05',
-    label: 'Acceso',
-    title: 'Recepción con contexto y control',
-    description: 'El Staff localiza la Invitación, valida asistentes y registra el ingreso desde el Scanner.',
+    label: 'Tu equipo recibe a cada persona',
+    title: 'Control de acceso con la información a la mano',
+    description: 'El equipo de recepción consulta la invitación y registra la entrada.',
     avif: scannerAvif,
     webp: scannerWebp,
-    alt: 'Scanner real mostrando asistentes pendientes',
+    alt: 'Control de acceso real mostrando asistentes pendientes',
     width: 780,
     height: 1688,
     mobile: true
@@ -108,8 +106,8 @@ export function LandingProductProof() {
       <LandingContainer>
         <LandingSectionIntro
           headingId="landing-product-proof-heading"
-          title="Así se vive un Evento conectado"
-          subtitle="Del primer vistazo al ingreso: un recorrido continuo sobre pantallas reales del producto."
+          title="Así acompañamos a tus invitados"
+          subtitle="De la invitación a la llegada, cada paso se conecta con el siguiente."
           align="left"
           dark={false}
         />

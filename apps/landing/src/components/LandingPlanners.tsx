@@ -37,13 +37,20 @@ export function LandingPlanners({ onOpenRegister, onOpenCommercial }: LandingPla
 
             <Box component="ul" sx={{ listStyle: 'none', p: 0, m: 0, mb: 5, display: 'grid', gap: 3 }}>
               {landingContent.planners.bulletPoints.map((point, index) => (
-                <Box component="li" key={point} sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                <Box component="li" key={point.title} sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
                   <Typography aria-hidden sx={{ ...landingTokens.typography.display, opacity: 0.3 }}>
                     {String(index + 1).padStart(2, '0')}
                   </Typography>
-                  <Typography sx={{ ...landingTokens.typography.body, color: landingTokens.colors.light.text }}>
-                    {point}
-                  </Typography>
+                  <Box>
+                    <Typography sx={{ ...landingTokens.typography.headline, color: landingTokens.colors.light.text }}>
+                      {point.title}
+                    </Typography>
+                    <Typography
+                      sx={{ ...landingTokens.typography.body, color: landingTokens.colors.light.textMuted, mt: 0.5 }}
+                    >
+                      {point.description}
+                    </Typography>
+                  </Box>
                 </Box>
               ))}
             </Box>
@@ -96,7 +103,7 @@ export function LandingPlanners({ onOpenRegister, onOpenCommercial }: LandingPla
             <ProductProofPicture
               avif={distributionAvif}
               webp={distributionWebp}
-              alt="Workspace real para operar Invitaciones e invitados"
+              alt="Vista real para organizar invitaciones y confirmaciones"
               width={2160}
               height={1500}
               sx={{ border: landingTokens.borders.hairlineLight, boxShadow: landingTokens.shadows.productLayer }}

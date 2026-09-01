@@ -71,7 +71,7 @@ export function LandingPricing({ state, onRetry }: LandingPricingProps) {
 
         {matrix && (
           <Box
-            aria-label="Precios estándar por SKU y capacidad"
+            aria-label="Precios por servicio y capacidad"
             sx={{
               borderTop: landingTokens.borders.hairlineDark,
               borderBottom: landingTokens.borders.hairlineDark,
@@ -157,12 +157,6 @@ export function LandingPricing({ state, onRetry }: LandingPricingProps) {
                       >
                         MXN
                       </Typography>
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      sx={{ ...landingTokens.typography.body, color: landingTokens.colors.dark.textMuted, mt: 0.5 }}
-                    >
-                      {bracket.credits} créditos
                     </Typography>
                   </Box>
                 ))}

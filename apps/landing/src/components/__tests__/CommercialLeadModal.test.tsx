@@ -83,7 +83,7 @@ describe('CommercialLeadModal', () => {
     const trigger = screen.getByRole('button', { name: 'Abrir venue' });
     trigger.focus();
     fireEvent.click(trigger);
-    expect(screen.getByRole('heading', { name: 'Propuesta para tu venue' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Propuesta para tu salón o jardín' })).toBeInTheDocument();
     fillValidForm();
     submit();
     expect(
@@ -122,7 +122,9 @@ function renderModal(client: LandingCommercialLeadsClient) {
 
 function fillValidForm() {
   fireEvent.change(screen.getByLabelText(/nombre de contacto/i), { target: { value: 'María López' } });
-  fireEvent.change(screen.getByLabelText(/empresa \/ venue \/ agencia/i), { target: { value: 'Eventos Aurora' } });
+  fireEvent.change(screen.getByLabelText(/empresa \/ salón \/ jardín \/ agencia/i), {
+    target: { value: 'Eventos Aurora' }
+  });
   fireEvent.change(screen.getByLabelText(/correo electrónico/i), { target: { value: 'maria@aurora.mx' } });
   fireEvent.click(screen.getByRole('checkbox'));
 }

@@ -30,7 +30,8 @@ export function LandingBrandLockup({ variant, name, tagline }: LandingBrandLocku
           sx={{
             ...landingTokens.typography.brand.name,
             fontSize: { xs: '1.1rem', md: '1.25rem' },
-            whiteSpace: 'nowrap'
+            whiteSpace: 'nowrap',
+            color: 'inherit'
           }}
         >
           {name}
@@ -43,7 +44,9 @@ export function LandingBrandLockup({ variant, name, tagline }: LandingBrandLocku
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
-            display: { xs: 'none', lg: 'inline' }
+            display: { xs: 'none', lg: 'inline' },
+            color: 'inherit',
+            opacity: 0.65
           }}
         >
           {tagline}

@@ -13,9 +13,9 @@ import { ProductProofPicture } from './ProductProofPicture';
 const landingContent = getLandingConfig();
 
 const assetMap = {
-  FLIPBOOK: { avif: flipbookAvif, webp: flipbookWebp, alt: 'Invitación Flipbook real' },
+  FLIPBOOK: { avif: flipbookAvif, webp: flipbookWebp, alt: 'Invitación Premium real' },
   FLYER: { avif: rsvpAvif, webp: rsvpWebp, alt: 'Confirmación digital real' },
-  PHYSICAL_QR: { avif: scannerAvif, webp: scannerWebp, alt: 'Control de acceso real con Scanner' }
+  PHYSICAL_QR: { avif: scannerAvif, webp: scannerWebp, alt: 'Control de acceso real para recibir invitados' }
 };
 
 export function LandingServices() {

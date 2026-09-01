@@ -3,9 +3,10 @@ import { LandingContainer, LandingSectionIntro } from './primitives';
 import { Box, Typography } from '@mui/material';
 
 const steps = [
-  ['01', 'Preparamos', 'Configuramos la infraestructura del Evento y la experiencia contratada.'],
-  ['02', 'Tú operas', 'Tu equipo mantiene invitados, confirmaciones, Mesas y accesos bajo control.'],
-  ['03', 'Recibimos', 'El Staff valida asistentes y registra ingresos desde el Scanner.']
+  ['01', 'Eliges el servicio', 'Gestión de Invitados, Invitación Digital o Invitación Premium.'],
+  ['02', 'Nosotros lo preparamos', 'Configuramos la experiencia de acuerdo con tu evento.'],
+  ['03', 'Tú organizas a tus invitados', 'Mantienes el control de confirmaciones, acompañantes y mesas.'],
+  ['04', 'Recibes a tus invitados', 'Tu equipo utiliza los accesos preparados para registrar su llegada.']
 ] as const;
 
 export function LandingHowItWorks() {
@@ -19,8 +20,8 @@ export function LandingHowItWorks() {
       <LandingContainer>
         <LandingSectionIntro
           headingId="landing-how-heading"
-          title="Preparado por nosotros. Operado por tu equipo."
-          subtitle="Responsabilidades claras para llegar al Evento con una sola operación conectada."
+          title="Cómo funciona"
+          subtitle="Cuatro pasos para llegar al evento con tus invitados organizados."
           align="left"
           dark
         />
@@ -28,7 +29,7 @@ export function LandingHowItWorks() {
           sx={{
             mt: 8,
             display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: 'repeat(3,1fr)' },
+            gridTemplateColumns: { xs: '1fr', md: 'repeat(4,1fr)' },
             borderTop: landingTokens.borders.hairlineDark
           }}
         >

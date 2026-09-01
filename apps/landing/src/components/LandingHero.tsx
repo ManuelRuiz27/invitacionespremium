@@ -2,6 +2,8 @@ import flipbookAvif from '../assets/product-proof/flipbook-public-mobile.avif';
 import flipbookWebp from '../assets/product-proof/flipbook-public-mobile.webp';
 import scannerAvif from '../assets/product-proof/scanner-result-mobile.avif';
 import scannerWebp from '../assets/product-proof/scanner-result-mobile.webp';
+import rsvpAvif from '../assets/product-proof/rsvp-public-mobile.avif';
+import rsvpWebp from '../assets/product-proof/rsvp-public-mobile.webp';
 import seatingAvif from '../assets/product-proof/seating-desktop.avif';
 import seatingWebp from '../assets/product-proof/seating-desktop.webp';
 import { getLandingConfig, type LandingConfig } from '../config/landing-config';
@@ -83,7 +85,7 @@ export function LandingHero({ config }: LandingHeroProps) {
               </Button>
             </LandingActionGroup>
             <Typography variant="body2" sx={{ color: landingTokens.colors.dark.textMuted }}>
-              Experiencia de producto real · Datos de demostración
+              Pantallas reales · Datos de demostración
             </Typography>
           </Stack>
           <Box
@@ -110,7 +112,7 @@ export function LandingHero({ config }: LandingHeroProps) {
             <ProductProofPicture
               avif={flipbookAvif}
               webp={flipbookWebp}
-              alt="Invitación Flipbook real abierta en móvil"
+              alt="Invitación Premium real abierta en móvil"
               width={780}
               height={1688}
               sx={{
@@ -127,9 +129,28 @@ export function LandingHero({ config }: LandingHeroProps) {
               imageStyle={{ maxHeight: 650, objectFit: 'cover', objectPosition: 'top' }}
             />
             <ProductProofPicture
+              avif={rsvpAvif}
+              webp={rsvpWebp}
+              alt="Confirmación de asistencia real abierta en móvil"
+              width={780}
+              height={1688}
+              sx={{
+                position: 'absolute',
+                width: { xs: 154, sm: 196, lg: 204 },
+                left: { xs: '34%', sm: '38%', lg: '37%' },
+                bottom: { xs: 18, lg: 8 },
+                zIndex: 3,
+                border: '6px solid #171b22',
+                borderRadius: '22px',
+                overflow: 'hidden',
+                boxShadow: '0 24px 70px rgba(0,0,0,.42)'
+              }}
+              imageStyle={{ aspectRatio: '.62', objectFit: 'cover', objectPosition: 'top' }}
+            />
+            <ProductProofPicture
               avif={scannerAvif}
               webp={scannerWebp}
-              alt="Resultado real del Scanner para registrar acceso"
+              alt="Resultado real del control de acceso"
               width={780}
               height={1688}
               sx={{
@@ -145,6 +166,36 @@ export function LandingHero({ config }: LandingHeroProps) {
               }}
               imageStyle={{ aspectRatio: '.62', objectFit: 'cover', objectPosition: 'top' }}
             />
+            <Box
+              sx={{
+                position: 'absolute',
+                left: { xs: 0, sm: '7%', lg: '2%' },
+                right: { xs: 0, lg: '-1%' },
+                bottom: { xs: -46, lg: -42 },
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: 1,
+                zIndex: 4
+              }}
+            >
+              {['Invitación', 'Confirmación', 'Mesa', 'Acceso'].map((label, index) => (
+                <Typography
+                  key={label}
+                  sx={{
+                    ...landingTokens.typography.eyebrow,
+                    color: landingTokens.colors.dark.textMuted,
+                    textAlign: 'center',
+                    '&::before': {
+                      content: index === 0 ? 'none' : '"\u2192"',
+                      mr: 1,
+                      opacity: 0.5
+                    }
+                  }}
+                >
+                  {label}
+                </Typography>
+              ))}
+            </Box>
           </Box>
         </Box>
       </LandingContainer>

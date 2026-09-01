@@ -64,6 +64,7 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
         backdropFilter: scrolled ? landingTokens.glass.headerScrolled.backdropFilter : 'none',
         borderBottom: scrolled ? landingTokens.borders.hairlineDark : '1px solid transparent',
         transition: `all ${landingTokens.transitions.duration} ${landingTokens.transitions.easing}`,
+        color: landingTokens.colors.dark.text,
         top: 0,
         zIndex: theme.zIndex.appBar
       }}

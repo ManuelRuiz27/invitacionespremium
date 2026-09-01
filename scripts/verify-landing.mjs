@@ -46,7 +46,7 @@ try {
     );
     await page.goto(url, { waitUntil: 'networkidle' });
     await page
-      .getByRole('heading', { level: 1, name: 'Invitaciones, invitados, Mesas y acceso. Todo conectado.' })
+      .getByRole('heading', { level: 1, name: 'Invitados organizados. Un evento más fácil de operar.' })
       .waitFor();
     for (const id of ['producto', 'servicios', 'planners', 'venues']) {
       await page.locator(`#${id}`).scrollIntoViewIfNeeded();
@@ -59,7 +59,11 @@ try {
       horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
       sections: ['producto', 'como-funciona', 'servicios', 'precios', 'planners', 'venues', 'faq'].every((id) =>
         Boolean(document.getElementById(id))
-      )
+      ),
+      commercialNames: ['Gestión de Invitados', 'Invitación Digital', 'Invitación Premium'].every((name) =>
+        document.body.innerText.includes(name)
+      ),
+      creditsInPricing: document.getElementById('precios')?.innerText.toLowerCase().includes('créditos') ?? false
     }));
     await page.screenshot({ path: join(output, `${viewport.name}.png`), fullPage: true, animations: 'disabled' });
     report.push({ viewport: `${viewport.width}x${viewport.height}`, ...result, consoleErrors });
@@ -73,7 +77,13 @@ process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
 if (
   report.some(
     (item) =>
-      !item.hasContent || item.hasOverlay || item.horizontalOverflow || !item.sections || item.consoleErrors.length > 0
+      !item.hasContent ||
+      item.hasOverlay ||
+      item.horizontalOverflow ||
+      !item.sections ||
+      !item.commercialNames ||
+      item.creditsInPricing ||
+      item.consoleErrors.length > 0
   )
 )
   process.exitCode = 1;

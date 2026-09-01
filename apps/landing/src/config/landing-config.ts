@@ -9,31 +9,31 @@ export interface LandingConfigOptions {
 }
 
 const productName = 'InvitacionesPremium';
-const seoTitle = `${productName} — Operación digital gestionada para Eventos`;
+const seoTitle = `${productName} — Gestión digital de invitados para tu evento`;
 const seoDescription =
-  'Servicio gestionado de operación digital para Eventos: invitados, RSVP, Mesas y acceso QR/check-in según el SKU contratado.';
+  'Organiza invitaciones, confirmaciones, mesas y accesos con un servicio que acompaña a tus invitados hasta su llegada al evento.';
 
 const commercialContent = {
   brand: {
     name: productName,
-    tagline: 'Servicio gestionado de operación digital para Eventos privados.'
+    tagline: 'Gestión digital de invitados para eventos.'
   },
   nav: [
     { label: 'Producto', href: '#producto' },
     { label: 'Cómo funciona', href: '#como-funciona' },
-    { label: 'Opciones', href: '#servicios' },
+    { label: 'Servicios', href: '#servicios' },
     { label: 'Precios', href: '#precios' },
     { label: 'Planners', href: '#planners' },
-    { label: 'Venues', href: '#venues' },
+    { label: 'Salones y jardines', href: '#venues' },
     { label: 'FAQ', href: '#faq' }
   ],
   hero: {
-    badge: 'La experiencia digital de tu Evento, conectada',
-    title: 'Invitaciones, invitados, Mesas y acceso. Todo conectado.',
+    badge: 'De la invitación a la llegada',
+    title: 'Invitados organizados. Un evento más fácil de operar.',
     subtitle:
-      'Nuestro equipo prepara la experiencia digital de tu Evento; tú mantienes el control de tus invitados y de la operación.',
+      'Nos encargamos de la gestión digital de tus invitados, desde la invitación y las confirmaciones hasta las mesas y el acceso al evento.',
     primaryCta: 'Ver cómo funciona',
-    secondaryCta: 'Ver opciones y precios'
+    secondaryCta: 'Ver servicios y precios'
   },
   problem: {
     title: 'Organizar un Evento no debería significar perseguir mensajes y listas',
@@ -57,116 +57,132 @@ const commercialContent = {
     ]
   },
   solution: {
-    title: 'Infraestructura preparada por nosotros. Operación bajo tu control',
-    subtitle: 'Cada parte del Evento tiene un responsable claro desde la preparación hasta el día de operación.',
-    ruleNotice: 'Cada Invitación utiliza un QR único y el ingreso se registra por Asistente.',
+    title: 'Todo lo que necesitas para organizar a tus invitados',
+    subtitle: 'Una experiencia continua desde que reciben la invitación hasta que llegan a tu evento.',
+    ruleNotice: 'Cada acceso conserva la información necesaria para recibir a tus invitados.',
     pillars: [
       {
-        title: 'Infraestructura técnica lista para operar',
-        description:
-          'InvitacionesPremium configura el Evento, su infraestructura digital y la Invitación personalizada cuando el SKU la incluye.'
+        title: 'Una invitación clara desde el primer momento',
+        description: 'Preparamos la experiencia de acuerdo con tu evento y el servicio que elijas.'
       },
       {
-        title: 'Confirmaciones bajo control del cliente',
-        description:
-          'El Planner o cliente mantiene invitados, distribución y seguimiento RSVP mientras el Provider sostiene la infraestructura.'
+        title: 'Confirmaciones en un solo lugar',
+        description: 'Consulta respuestas y acompañantes sin perseguir conversaciones dispersas.'
       },
       {
-        title: 'Croquis técnico y Seating separados',
-        description:
-          'InvitacionesPremium prepara el Croquis técnico cuando aplica; el Planner decide y opera la asignación de personas a Mesas.'
+        title: 'Mesas más fáciles de organizar',
+        description: 'Visualiza la distribución y decide dónde se sentará cada persona.'
       },
       {
-        title: 'Staff preparado para el día del Evento',
-        description:
-          'El Planner administra los accesos temporales de Staff y coordina la recepción con Scanner y check-in.'
+        title: 'Una recepción con información a la mano',
+        description: 'Tu equipo de recepción consulta cada acceso y registra la entrada.'
       },
       {
-        title: 'Cierre operativo con información útil',
-        description:
-          'El Evento concluye con reporte operativo y, para Flyer o Flipbook, una experiencia de Álbum postevento.'
+        title: 'Un cierre con resultados claros',
+        description: 'Al terminar, cuentas con un reporte y, cuando aplica, un álbum para compartir.'
       }
     ]
   },
   services: {
-    title: 'Tres formas de operar tu Evento',
-    subtitle: 'Elige el SKU por la experiencia y la operación que realmente necesitas.',
+    title: 'Elige el servicio para tu evento',
+    subtitle: 'Tres maneras de acompañar a tus invitados, con el mismo cuidado de principio a fin.',
     items: [
       {
         code: 'PHYSICAL_QR',
-        name: 'QR / EventOps',
-        description: 'Control de acceso y operación digital sin diseño personalizado de Invitación.',
+        name: 'Gestión de Invitados',
+        description:
+          'Todo lo necesario para organizar invitados y accesos, sin contratar una invitación personalizada.',
         features: [
-          'QR y control de acceso',
-          'Staff y Scanner',
-          'Croquis y Mesas cuando aplique',
-          'Reporte operativo',
-          'Sin diseño personalizado de Invitación',
-          'Sin Álbum',
-          'Sin RSVP público digital'
+          'Control de invitados y accesos',
+          'Confirmaciones coordinadas según la modalidad contratada',
+          'Organización de mesas cuando aplica',
+          'Accesos digitales',
+          'Equipo de recepción y control de entrada',
+          'Reporte del evento',
+          'No incluye formulario público de confirmación'
         ]
       },
       {
         code: 'FLYER',
-        name: 'Flyer',
-        description: 'Diseño personalizado de dos piezas principales para una experiencia digital directa.',
+        name: 'Invitación Digital',
+        description: 'Una invitación personalizada conectada con toda la gestión de tus invitados.',
         features: [
-          'Dos piezas principales de diseño personalizado',
-          'RSVP y gestión de invitados',
-          'Croquis y Mesas opcional',
-          'QR y check-in',
-          'Álbum',
+          'Diseño digital personalizado',
+          'Confirmaciones y acompañantes',
+          'Gestión de invitados',
+          'Organización de mesas',
+          'Accesos y control de entrada',
+          'Álbum del evento',
           'Hasta dos rondas consolidadas de cambios'
         ]
       },
       {
         code: 'FLIPBOOK',
-        name: 'Flipbook',
-        description: 'Diseño personalizado de hasta 10 páginas para una experiencia digital narrativa.',
+        name: 'Invitación Premium',
+        description: 'Una experiencia visual tipo revista conectada con toda la operación de tus invitados.',
         features: [
-          'Hasta 10 páginas de diseño personalizado',
-          'RSVP y gestión de invitados',
-          'Croquis y Mesas opcional',
-          'QR y check-in',
-          'Álbum',
+          'Hasta 10 páginas',
+          'Experiencia visual premium',
+          'Confirmaciones e invitados',
+          'Organización de mesas',
+          'Accesos y control de entrada',
+          'Álbum del evento',
           'Hasta dos rondas consolidadas de cambios'
         ]
       }
     ]
   },
   pricing: {
-    title: 'Precio estándar por SKU y capacidad',
-    subtitle: 'Consulta el PVP vigente para Eventos de hasta 50, 100 o 150 personas.',
-    note: 'Los precios en MXN provienen del Price Book público vigente; los créditos se muestran como referencia secundaria.'
+    title: 'Servicios y precios',
+    subtitle: 'Compara el precio por evento para hasta 50, 100 o 150 personas.',
+    note: 'Precio por evento · MXN'
   },
   planners: {
-    title: 'Una alianza para Planners y agencias',
+    title: 'Tú organizas el evento. Nosotros nos encargamos de la gestión digital de tus invitados.',
     subtitle:
-      'InvitacionesPremium prepara la infraestructura técnica mientras tú conservas la relación y operación con tu cliente.',
+      'Te entregamos el servicio preparado para trabajar: invitación cuando aplica, confirmaciones, organización de mesas y accesos. Tú mantienes el control con tu cliente y puedes generar un margen adicional por cada evento.',
     bulletPoints: [
-      'Conservas la relación comercial con tu cliente.',
-      'Operas invitados y seguimiento RSVP.',
-      'Decides Seating y administras accesos de Staff.',
-      'Pueden existir tarifas Partner explícitas según condiciones comerciales.'
+      {
+        title: 'Menos trabajo administrativo',
+        description: 'Centraliza invitados, confirmaciones, cambios y mesas.'
+      },
+      {
+        title: 'Mantienes el control',
+        description: 'Tu cliente sigue siendo tu cliente y tú conservas las decisiones del evento.'
+      },
+      {
+        title: 'Generas un ingreso adicional',
+        description: 'Puedes acceder a condiciones Partner y definir el precio que presentas a tu cliente.'
+      }
     ],
-    commercialCta: 'Conocer condiciones para Planners',
+    commercialCta: 'Quiero trabajar como Planner Partner',
     registerCta: 'Crear cuenta de Planner',
-    notice:
-      'El registro de cuenta no garantiza una tarifa Partner. Las condiciones comerciales requieren revisión explícita.'
+    notice: 'Crear una cuenta Planner no asigna automáticamente condiciones Partner.'
   },
   venue: {
-    title: 'Operación recurrente para salones, jardines y venues',
-    subtitle: 'Estandariza el acceso y la operación digital de cada Evento con una infraestructura repetible.',
+    title: 'Agrega gestión digital de invitados a tus paquetes sin aumentar tu carga de trabajo.',
+    subtitle:
+      'Tus clientes pueden organizar invitados y mesas, mientras tu equipo recibe el evento preparado para controlar accesos el día de la celebración.',
     bulletPoints: [
-      'QR / EventOps para control de acceso',
-      'Staff y Scanner para la recepción',
-      'Croquis y Mesas cuando aplique',
-      'Reportes operativos por Evento',
-      'Tarifas que pueden mejorar según volumen efectivo'
+      {
+        title: 'Un servicio más para tus paquetes',
+        description: 'Integra la operación digital sin desarrollar tu propia tecnología.'
+      },
+      {
+        title: 'Una recepción más organizada',
+        description: 'Tu equipo recibe información y accesos preparados para operar.'
+      },
+      {
+        title: 'Una solución que puedes repetir',
+        description: 'Utiliza el servicio evento tras evento.'
+      },
+      {
+        title: 'Mejor tarifa con mayor volumen',
+        description: 'Las condiciones mejoran conforme aumenta el número real de eventos operados.'
+      }
     ],
-    cta: 'Solicitar propuesta para mi venue',
-    notice:
-      'La solicitud es el siguiente paso para seguimiento comercial; no crea una cuenta, venue ni tarifa automáticamente.'
+    cta: 'Quiero ofrecerlo en mi salón',
+    notice: 'La solicitud inicia una conversación comercial; no crea una cuenta ni asigna una tarifa automáticamente.'
   },
   faq: {
     title: 'Preguntas frecuentes',
@@ -174,7 +190,7 @@ const commercialContent = {
     items: [
       {
         question: '¿Cómo se define el precio estándar?',
-        answer: 'Por el SKU contratado y la capacidad del Evento: hasta 50, 100 o 150 personas.'
+        answer: 'Por el servicio elegido y la capacidad del evento: hasta 50, 100 o 150 personas.'
       },
       {
         question: '¿Qué es un crédito?',
@@ -187,18 +203,18 @@ const commercialContent = {
           'No. El registro de cuenta y la clasificación Partner son procesos distintos y requieren condiciones comerciales explícitas.'
       },
       {
-        question: '¿Cómo funciona Venue?',
+        question: '¿Cómo funciona para salones y jardines?',
         answer:
-          'Puede acceder a un esquema comercial recurrente según volumen efectivo. No existe registro público de Organization.'
+          'Revisamos el volumen real de eventos para ofrecer condiciones comerciales. La solicitud no crea una cuenta automáticamente.'
       },
       {
-        question: '¿Qué incluye QR / EventOps?',
+        question: '¿Qué incluye Gestión de Invitados?',
         answer:
-          'Incluye control de acceso, Staff/Scanner, Croquis y Mesas cuando aplican, y reporte operativo. No incluye RSVP público digital ni Álbum.'
+          'Incluye organización de accesos, mesas cuando aplican, equipo de recepción, control de entrada y reporte. No incluye formulario público de confirmación ni álbum.'
       },
       {
         question: '¿Cuáles son los límites por Evento?',
-        answer: 'Cada Evento admite como máximo 150 invitados y tres accesos Staff activos.'
+        answer: 'Cada evento admite como máximo 150 invitados y tres accesos activos para el equipo de recepción.'
       }
     ]
   },
@@ -206,28 +222,28 @@ const commercialContent = {
     label: 'Recorrido visual',
     title: 'Mira cómo se vive un flujo digital',
     subtitle:
-      'Explora una simulación de Flyer o Flipbook desde la Invitación hasta la recepción; las capacidades varían según el SKU.',
-    disclaimer:
-      'Esta demostración es un recorrido visual: no es un servicio, no usa backend, no crea Eventos, no consume créditos y no genera accesos reales.',
+      'Explora una simulación de Invitación Digital o Invitación Premium desde la invitación hasta la recepción; las funciones varían según el servicio.',
+    disclaimer: 'Esta demostración es un recorrido visual: no crea un evento ni genera accesos reales.',
     scenes: [
       {
         code: 'INVITATION',
         label: 'Invitación',
         title: 'Una primera impresión a la altura del Evento',
         description:
-          'Flyer y Flipbook pueden presentar la información y acciones principales dentro de una experiencia personalizada.'
+          'La Invitación Digital y la Invitación Premium presentan la información y acciones principales en una experiencia personalizada.'
       },
       {
         code: 'CONFIRMATION',
         label: 'Confirmación',
         title: 'Respuestas claras, sin perseguir mensajes',
-        description: 'En Flyer y Flipbook, cada Invitación concentra la asistencia y los acompañantes permitidos.'
+        description:
+          'En Invitación Digital e Invitación Premium, cada invitación concentra la asistencia y los acompañantes permitidos.'
       },
       {
         code: 'ACCESS',
         label: 'Acceso',
         title: 'Una recepción más ágil',
-        description: 'El equipo usa QR y Scanner para registrar el ingreso de cada Asistente.'
+        description: 'El equipo usa los accesos preparados para registrar el ingreso de cada persona.'
       },
       {
         code: 'TABLES',
@@ -239,20 +255,22 @@ const commercialContent = {
   },
   registration: {
     title: 'Crear cuenta de Planner',
-    intro:
-      'Crea una cuenta Standard de Planner independiente. El registro no asigna automáticamente condiciones Partner.',
+    intro: 'Crea tu cuenta de Planner. El registro no asigna automáticamente condiciones Partner.',
     success: 'Tu cuenta fue creada. Inicia sesión para continuar con la configuración de tu perfil.'
   },
   cta: {
-    title: 'Elige la operación correcta para tu Evento',
-    description: 'Compara el precio estándar o revisa las opciones comerciales para Planners y venues.',
-    primaryCta: 'Ver precios',
-    secondaryCta: 'Opciones para Planners',
-    venueLink: 'Opciones para venues'
+    title: 'Tu evento puede ser mucho más fácil de organizar.',
+    description: 'Elige el camino que mejor describe lo que necesitas.',
+    eventLabel: 'Estoy organizando un evento',
+    primaryCta: 'Ver servicios y precios',
+    plannerLabel: 'Soy Planner o agencia',
+    secondaryCta: 'Quiero trabajar como Partner',
+    venueLabel: 'Tengo un salón o jardín',
+    venueLink: 'Quiero ofrecerlo en mis eventos'
   },
   footer: {
     copyright: `© 2026 ${productName}. Todos los derechos reservados.`,
-    legalNotice: 'Servicio gestionado de administración y operación digital de Eventos.'
+    legalNotice: 'Gestión digital de invitados, desde la invitación hasta su llegada al evento.'
   },
   limits: {
     contactsPerEvent: 150,

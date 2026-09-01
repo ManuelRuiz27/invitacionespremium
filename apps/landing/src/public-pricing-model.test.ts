@@ -7,6 +7,11 @@ describe('public pricing matrix', () => {
   it('builds the exact 3 by 3 matrix and ignores API order', () => {
     const matrix = buildPublicPricingMatrix([...publicPricingFixture].reverse());
     expect(matrix?.rows.map((row) => row.serviceCode)).toEqual(['PHYSICAL_QR', 'FLYER', 'FLIPBOOK']);
+    expect(matrix?.rows.map((row) => row.displayName)).toEqual([
+      'Gestión de Invitados',
+      'Invitación Digital',
+      'Invitación Premium'
+    ]);
     expect(matrix?.rows.map((row) => row.brackets.map((bracket) => bracket.amountMxnCents))).toEqual([
       [250000, 300000, 350000],
       [450000, 550000, 650000],

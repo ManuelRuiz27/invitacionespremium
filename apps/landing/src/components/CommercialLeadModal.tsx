@@ -135,7 +135,8 @@ export function CommercialLeadModal({ open, opportunityType, onClose, client: cl
 
   const update = <K extends keyof FormValues>(key: K, value: FormValues[K]) =>
     setValues((current) => ({ ...current, [key]: value }));
-  const title = opportunityType === 'VENUE' ? 'Propuesta para tu venue' : 'Condiciones para Planners y agencias';
+  const title =
+    opportunityType === 'VENUE' ? 'Propuesta para tu salón o jardín' : 'Condiciones para Planners y agencias';
 
   return (
     <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm" aria-labelledby="commercial-lead-title">
@@ -180,7 +181,7 @@ export function CommercialLeadModal({ open, opportunityType, onClose, client: cl
               <TextField
                 required
                 autoComplete="organization"
-                label="Empresa / venue / agencia"
+                label="Empresa / salón / jardín / agencia"
                 value={values.businessName}
                 onChange={(event) => update('businessName', event.target.value)}
                 disabled={status === 'submitting'}

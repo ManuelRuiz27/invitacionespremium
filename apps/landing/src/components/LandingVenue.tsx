@@ -52,7 +52,7 @@ export function LandingVenue({ onOpenCommercial }: { onOpenCommercial: () => voi
               {landingContent.venue.bulletPoints.map((point, index) => (
                 <Box
                   component="li"
-                  key={point}
+                  key={point.title}
                   sx={{
                     display: 'grid',
                     gridTemplateColumns: '48px 1fr',
@@ -67,9 +67,16 @@ export function LandingVenue({ onOpenCommercial }: { onOpenCommercial: () => voi
                   >
                     {String(index + 1).padStart(2, '0')}
                   </Typography>
-                  <Typography sx={{ ...landingTokens.typography.body, color: landingTokens.colors.dark.text }}>
-                    {point}
-                  </Typography>
+                  <Box>
+                    <Typography sx={{ ...landingTokens.typography.headline, color: landingTokens.colors.dark.text }}>
+                      {point.title}
+                    </Typography>
+                    <Typography
+                      sx={{ ...landingTokens.typography.body, color: landingTokens.colors.dark.textMuted, mt: 0.75 }}
+                    >
+                      {point.description}
+                    </Typography>
+                  </Box>
                 </Box>
               ))}
             </Box>
@@ -77,7 +84,7 @@ export function LandingVenue({ onOpenCommercial }: { onOpenCommercial: () => voi
               <ProductProofPicture
                 avif={seatingAvif}
                 webp={seatingWebp}
-                alt="Croquis y Mesas de un Evento demo"
+                alt="Organización de mesas de un evento de demostración"
                 width={2160}
                 height={1500}
                 sx={{ width: '90%', ml: 'auto', border: landingTokens.borders.hairlineDark, opacity: 0.78 }}

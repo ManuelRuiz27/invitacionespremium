@@ -2,7 +2,7 @@ import { getLandingConfig } from '../config/landing-config';
 import { scrollToLandingSection } from '../navigation';
 import { landingTokens } from '../theme/landing-theme';
 import { Box, Button, Stack, Typography } from '@mui/material';
-import { LandingActionGroup, LandingContainer } from './primitives';
+import { LandingContainer } from './primitives';
 
 const content = getLandingConfig();
 
@@ -36,25 +36,58 @@ export function LandingCta({ onOpenPlanner, onOpenVenue }: { onOpenPlanner: () =
           >
             {content.cta.description}
           </Typography>
-          <LandingActionGroup>
-            <Button variant="contained" size="large" onClick={() => scrollToLandingSection('#precios')} sx={buttonSx}>
-              {content.cta.primaryCta}
-            </Button>
-            <Button variant="outlined" size="large" onClick={onOpenPlanner} sx={outlineSx}>
-              {content.cta.secondaryCta}
-            </Button>
-            <Button
-              variant="text"
-              size="large"
-              onClick={onOpenVenue}
-              sx={{ color: landingTokens.colors.dark.textMuted, textTransform: 'none' }}
-            >
-              {content.cta.venueLink}
-            </Button>
-          </LandingActionGroup>
+          <Box
+            sx={{
+              width: '100%',
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
+              borderTop: landingTokens.borders.hairlineDark,
+              borderBottom: landingTokens.borders.hairlineDark
+            }}
+          >
+            <CtaPath
+              label={content.cta.eventLabel}
+              action={content.cta.primaryCta}
+              onClick={() => scrollToLandingSection('#precios')}
+              primary
+            />
+            <CtaPath label={content.cta.plannerLabel} action={content.cta.secondaryCta} onClick={onOpenPlanner} />
+            <CtaPath label={content.cta.venueLabel} action={content.cta.venueLink} onClick={onOpenVenue} />
+          </Box>
         </Stack>
       </LandingContainer>
     </Box>
+  );
+}
+
+function CtaPath({
+  label,
+  action,
+  onClick,
+  primary = false
+}: {
+  label: string;
+  action: string;
+  onClick: () => void;
+  primary?: boolean;
+}) {
+  return (
+    <Stack
+      spacing={2.5}
+      sx={{ p: { xs: 3, md: 4 }, borderBottom: { xs: landingTokens.borders.hairlineDark, md: 'none' } }}
+    >
+      <Typography sx={{ ...landingTokens.typography.eyebrow, color: landingTokens.colors.dark.textMuted }}>
+        {label}
+      </Typography>
+      <Button
+        variant={primary ? 'contained' : 'outlined'}
+        size="large"
+        onClick={onClick}
+        sx={primary ? buttonSx : outlineSx}
+      >
+        {action}
+      </Button>
+    </Stack>
   );
 }
 

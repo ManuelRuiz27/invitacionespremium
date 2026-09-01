@@ -44,32 +44,47 @@ describe('LAND-03B commercial presentation', () => {
     pricing.scrollIntoView = vi.fn();
     renderWithTheme(<LandingHero />);
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Invitaciones, invitados, Mesas y acceso. Todo conectado.' })
+      screen.getByRole('heading', {
+        level: 1,
+        name: 'Invitados organizados. Un evento más fácil de operar.'
+      })
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Ver cómo funciona' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Ver opciones y precios' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ver servicios y precios' }));
     expect(product.scrollIntoView).toHaveBeenCalledOnce();
     expect(pricing.scrollIntoView).toHaveBeenCalledOnce();
   });
 
   it('shows the five product-proof moments with real-image alternatives', () => {
     renderWithTheme(<LandingProductProof />);
-    expect(screen.getByRole('heading', { name: 'Así se vive un Evento conectado' })).toBeInTheDocument();
-    for (const label of ['Invitación', 'Confirmación', 'Invitados', 'Mesas', 'Acceso'])
+    expect(screen.getByRole('heading', { name: 'Así acompañamos a tus invitados' })).toBeInTheDocument();
+    for (const label of [
+      'Reciben su invitación',
+      'Confirman su asistencia',
+      'Organizas a tus invitados',
+      'Cada invitado recibe su acceso',
+      'Tu equipo recibe a cada persona'
+    ])
       expect(screen.getByRole('heading', { name: label })).toBeInTheDocument();
     expect(screen.getAllByRole('img')).toHaveLength(6);
   });
 
   it('keeps exactly three contractual paid SKUs', () => {
     expect(content.services.items.map((service) => service.code)).toEqual(['PHYSICAL_QR', 'FLYER', 'FLIPBOOK']);
+    expect(content.services.items.map((service) => service.name)).toEqual([
+      'Gestión de Invitados',
+      'Invitación Digital',
+      'Invitación Premium'
+    ]);
     renderWithTheme(<LandingServices />);
     expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(3);
   });
 
-  it('renders the authoritative 3 by 3 MXN matrix with credits secondary', () => {
+  it('renders the authoritative 3 by 3 MXN matrix without making credits part of the public decision', () => {
     renderWithTheme(<LandingPricing state={{ status: 'ready', prices: publicPricingFixture }} onRetry={vi.fn()} />);
     for (const price of ['$2,500', '$3,000', '$3,500', '$4,500', '$5,500', '$6,500', '$6,000', '$7,000', '$8,000'])
       expect(screen.getByText(price, { exact: false })).toBeInTheDocument();
+    expect(screen.queryByText(/créditos/i)).not.toBeInTheDocument();
     expect(screen.queryByText('$1,800 MXN')).not.toBeInTheDocument();
   });
 

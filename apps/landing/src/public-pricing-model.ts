@@ -12,7 +12,7 @@ export interface PublicPricingBracket {
 
 export interface PublicPricingRow {
   readonly serviceCode: PublicSku;
-  readonly displayName: 'QR / EventOps' | 'Flyer' | 'Flipbook';
+  readonly displayName: 'Gestión de Invitados' | 'Invitación Digital' | 'Invitación Premium';
   readonly brackets: readonly PublicPricingBracket[];
 }
 
@@ -23,9 +23,9 @@ export interface PublicPricingMatrix {
 
 const skuOrder: readonly PublicSku[] = ['PHYSICAL_QR', 'FLYER', 'FLIPBOOK'];
 const displayNames: Record<PublicSku, PublicPricingRow['displayName']> = {
-  PHYSICAL_QR: 'QR / EventOps',
-  FLYER: 'Flyer',
-  FLIPBOOK: 'Flipbook'
+  PHYSICAL_QR: 'Gestión de Invitados',
+  FLYER: 'Invitación Digital',
+  FLIPBOOK: 'Invitación Premium'
 };
 const expectedBrackets = [
   { capacityMin: 1, capacityMax: 50, label: 'Hasta 50' },
