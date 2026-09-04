@@ -63,7 +63,6 @@ export function DesignStep({
   const [mutation, setMutation] = useState<{ kind: MutationKind; label: string }>();
   const [flyerAssets, setFlyerAssets] = useState<{ initial?: string; qr?: string }>({});
   const [activePageId, setActivePageId] = useState<string>();
-  const [pendingOrder, setPendingOrder] = useState<string[]>();
   const [pendingDeleteId, setPendingDeleteId] = useState<string>();
   const mutationLockRef = useRef(false);
   const flipbookCreateUncertainRef = useRef(false);
@@ -326,8 +325,7 @@ export function DesignStep({
 
   const requestExactReorder = (ids: string[]) => {
     if (!design || ids.join('|') === design.pages.map((page) => page.id).join('|')) return;
-    if (reorderAffectsActions(design, ids)) setPendingOrder(ids);
-    else void reorder(ids);
+    void reorder(ids);
   };
 
   const removePage = async (pageId: string) => {
@@ -440,6 +438,7 @@ export function DesignStep({
                 pageId={activePage.id}
                 pagePosition={activePage.position}
                 hotspots={design.hotspots}
+                pages={design.pages}
                 disabled={interactionDisabled}
                 previewUrl={activeUrl}
                 contextLabel={
@@ -487,23 +486,6 @@ export function DesignStep({
         </Alert>
       ) : null}
 
-      <Dialog
-        open={Boolean(pendingOrder)}
-        onClose={() => setPendingOrder(undefined)}
-        aria-labelledby="reorder-warning-title"
-      >
-        <DialogTitle id="reorder-warning-title">Revisar acciones antes de ordenar</DialogTitle>
-        <DialogContent>
-          Esta página tiene acciones que dependen de ser Portada o página QR. Ajusta esas acciones antes de cambiar su
-          posición.
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setPendingOrder(undefined)}>Cancelar</Button>
-          <Button variant="contained" onClick={() => setPendingOrder(undefined)}>
-            Entendido
-          </Button>
-        </DialogActions>
-      </Dialog>
       <Dialog
         open={Boolean(pendingDeleteId)}
         onClose={() => setPendingDeleteId(undefined)}
@@ -778,12 +760,6 @@ function pageMutationMessage(reason: unknown, kind: MutationKind): string {
   return kind === 'delete'
     ? 'No pudimos eliminar la página. Conservamos el orden para que puedas reintentar.'
     : kind === 'reorder'
-      ? 'No pudimos cambiar el orden. Revisa las acciones de la portada e inténtalo nuevamente.'
+      ? 'No pudimos cambiar el orden. Inténtalo nuevamente.'
       : 'No pudimos guardar este cambio. Tu selección se conserva para reintentar.';
-}
-function reorderAffectsActions(design: InvitationDesign, nextIds: string[]): boolean {
-  const nextCover = nextIds[0];
-  return design.hotspots.some(
-    (hotspot) => hotspot.flipbookPageId && hotspot.flipbookPageId !== nextCover && hotspot.action !== 'QR_AREA'
-  );
 }

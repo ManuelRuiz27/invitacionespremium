@@ -90,7 +90,7 @@ A nivel del diseño activo se aplican estas cardinalidades:
 - máximo un Hotspot activo `LOCATION`;
 - máximo un Hotspot activo `GIFT_REGISTRY`;
 - exactamente un `QR_AREA` para readiness y nunca más de uno activo;
-- máximo tres Hotspots `EXTERNAL_LINK`, cada uno como acción independiente con su propia URL y owner visual.
+- máximo un Hotspot `EXTERNAL_LINK` con su propia URL y owner visual.
 
 Las cardinalidades se validan con el diseño bloqueado y deben quedar protegidas también ante concurrencia o
 escritura directa. Mover una acción entre páginas actualiza su `pageId` y geometría únicamente después de
@@ -214,9 +214,9 @@ datos personales. Una falla de auditoría revierte la operación completa.
   espacios y controles;
 - owner visual compatible con tipo de diseño y página activa;
 - Hotspots de Flipbook no dependen de la posición de la página;
-- máximo uno activo por diseño para `RSVP`, `LOCATION`, `GIFT_REGISTRY` y `QR_AREA`;
+- máximo uno activo por diseño para cada acción;
 - exactamente un `QR_AREA` para readiness de Flipbook;
-- máximo tres enlaces externos;
+- máximo un enlace externo;
 - FileAsset `READY`, owner y pertenencia Cliente/Evento compatibles al commit;
 - servicio configurado compatible al commit, incluso si se modifica directamente;
 - identidad y ownership inmutables; sin restauración operativa de filas eliminadas;

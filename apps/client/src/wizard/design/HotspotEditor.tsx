@@ -1,5 +1,5 @@
 import type { ApiClient, Hotspot } from '@invitaciones/api-client';
-import { Alert, Box, Button, Collapse, FormHelperText, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Collapse, FormHelperText, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
 import { isValidInvitationExternalUrl } from '../../shared/invitation-external-url';
 import { relativeRectStyles } from '../../shared/relative-rect';
@@ -54,31 +54,9 @@ const actions: ReadonlyArray<{
 const actionDetails = (action: Action) => actions.find((item) => item.value === action)!;
 const newDraft = (action: Action): Draft => ({ ...initialRect, action, priority: 0, url: '' });
 
-function availableActionsForPage({
-  ownerType,
-  pageId,
-  pagePosition,
-  hotspots
-}: {
-  ownerType: 'FLYER' | 'FLIPBOOK_PAGE';
-  pageId?: string | undefined;
-  pagePosition?: number | undefined;
-  hotspots: Hotspot[];
-}): Action[] {
-  if (ownerType === 'FLYER') return actions.map((action) => action.value);
-
-  const flipbookQrAreas = hotspots.filter(
-    (hotspot) => hotspot.visualOwnerType === 'FLIPBOOK_PAGE' && hotspot.action === 'QR_AREA'
-  );
-  const isCover = pagePosition === 1;
-  const isQrPage = flipbookQrAreas.some((hotspot) => hotspot.flipbookPageId === pageId);
-  const hasDifferentQrPage = flipbookQrAreas.some((hotspot) => hotspot.flipbookPageId !== pageId);
-
-  if (isCover) {
-    return actions.map((action) => action.value).filter((action) => action !== 'QR_AREA' || !hasDifferentQrPage);
-  }
-  if (isQrPage) return ['QR_AREA', 'EXTERNAL_LINK'];
-  return hasDifferentQrPage ? [] : ['QR_AREA'];
+function availableActionsForPage({ hotspots }: { hotspots: Hotspot[] }): Action[] {
+  const usedActions = new Set(hotspots.map((hotspot) => hotspot.action));
+  return actions.map((action) => action.value).filter((action) => !usedActions.has(action));
 }
 
 function mutationError(reason: unknown, operation: Mutation): string {
@@ -99,6 +77,7 @@ export function HotspotEditor({
   disabled,
   previewUrl,
   contextLabel,
+  pages,
   onChanged
 }: {
   apiClient: ApiClient;
@@ -110,6 +89,7 @@ export function HotspotEditor({
   disabled: boolean;
   previewUrl?: string | undefined;
   contextLabel?: string | undefined;
+  pages?: ReadonlyArray<{ id: string; position: number }> | undefined;
   onChanged: () => Promise<void>;
 }) {
   const visible = hotspots.filter((item) =>
@@ -134,15 +114,12 @@ export function HotspotEditor({
   const [preciseControlsOpen, setPreciseControlsOpen] = useState(false);
   const [confirmedMessage, setConfirmedMessage] = useState<string>();
   const [viewport, setViewport] = useState({ zoom: 1, x: 0, y: 0 });
+  const [targetPageId, setTargetPageId] = useState(pageId);
   const selected = visible.find((item) => item.id === selectedId);
   const editing = mode === 'creating' || mode === 'editing';
-  const externalLinkCount = hotspots.filter((hotspot) => hotspot.action === 'EXTERNAL_LINK').length;
   const externalUrlValid = draft.action !== 'EXTERNAL_LINK' || isValidInvitationExternalUrl(draft.url);
-  const availableActionValues = availableActionsForPage({ ownerType, pageId, pagePosition, hotspots });
-  const availableActions = actions.filter(
-    (action) =>
-      availableActionValues.includes(action.value) && (action.value !== 'EXTERNAL_LINK' || externalLinkCount < 3)
-  );
+  const availableActionValues = availableActionsForPage({ hotspots });
+  const availableActions = actions.filter((action) => availableActionValues.includes(action.value));
   const interactionDisabled = disabled || mutation !== undefined;
 
   const updateZoom = (nextZoom: number, clientX?: number, clientY?: number) => {
@@ -228,6 +205,7 @@ export function HotspotEditor({
     setUrlTouched(false);
     setMutationMessage(undefined);
     setConfirmedMessage(undefined);
+    setTargetPageId(pageId);
   }, [ownerType, pageId, pagePosition]);
 
   const cancel = () => {
@@ -280,6 +258,7 @@ export function HotspotEditor({
           ...rect,
           action: draft.action,
           priority: draft.priority,
+          ...(ownerType === 'FLIPBOOK_PAGE' && targetPageId ? { flipbookPageId: targetPageId } : {}),
           ...(url ? { url } : {})
         });
       } else {
@@ -759,6 +738,21 @@ export function HotspotEditor({
               onBlur={() => setUrlTouched(true)}
               onChange={(event) => setDraft((current) => ({ ...current, url: event.target.value }))}
             />
+          ) : null}
+          {selected && ownerType === 'FLIPBOOK_PAGE' && pages ? (
+            <TextField
+              select
+              disabled={interactionDisabled}
+              label="Mover a página"
+              value={targetPageId ?? pageId ?? ''}
+              onChange={(event) => setTargetPageId(event.target.value)}
+            >
+              {pages.map((page) => (
+                <MenuItem key={page.id} value={page.id}>
+                  Página ${page.position}
+                </MenuItem>
+              ))}
+            </TextField>
           ) : null}
 
           <FormHelperText>

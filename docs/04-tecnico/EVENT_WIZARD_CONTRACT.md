@@ -142,12 +142,12 @@ Las reglas son:
 
 - `RSVP`, `LOCATION`, `GIFT_REGISTRY` y `QR_AREA`: máximo una instancia activa de cada tipo en todo el Flipbook;
 - `QR_AREA`: nunca puede existir en más de una página;
-- `EXTERNAL_LINK`: máximo tres instancias activas, cada una con su propio enlace;
+- `EXTERNAL_LINK`: máximo una instancia activa con su propio enlace;
 - una misma instancia de acción pertenece a una sola página; moverla no crea duplicados;
 - si una acción única ya existe, `Agregar acción` no ofrece crear otra. La UI muestra **Ir a la acción** y
   **Mover aquí** como alternativas;
-- `EXTERNAL_LINK` deja de ofrecerse al existir tres enlaces activos y vuelve a estar disponible después de
-  eliminar uno y refrescar la fuente autoritativa.
+- cualquier acción deja de ofrecerse al existir una instancia activa y vuelve a estar disponible después de
+  eliminarla y refrescar la fuente autoritativa.
 
 No existe el concepto funcional de "página QR" para restringir otras acciones. La página que contiene
 `QR_AREA` es una página normal del Flipbook con esa acción colocada encima.
@@ -200,9 +200,9 @@ traducen a instrucciones naturales y nunca se muestran como códigos.
 
 Para `Enlace adicional`, la UI usa el label `Enlace`, la ayuda `Pega el enlace que quieres abrir desde la
 invitación.` y el error `Ingresa un enlace web válido.`. La validación HTTPS contractual permanece interna.
-La disponibilidad se deriva de todos los Hotspots autoritativos del diseño: al existir tres enlaces adicionales,
-la UI deja de ofrecer crear un cuarto tanto en Flyer como en Flipbook, sin impedir editar, mover o eliminar los
-existentes. Después de eliminar y refrescar la fuente autoritativa, la opción vuelve a estar disponible.
+La disponibilidad se deriva de todos los Hotspots autoritativos del diseño: cada acción deja de ofrecerse al existir
+una instancia activa tanto en Flyer como en Flipbook, sin impedir editar, mover o eliminar la existente. Después de
+eliminar y refrescar la fuente autoritativa, la opción vuelve a estar disponible.
 
 Antes de guardar, el cliente aplica las restricciones deterministas de `EXTERNAL_LINK`: URL HTTPS absoluta con host
 válido, sin credenciales, query, fragment, espacios, controles ni protocolo alternativo. El copy no expone esas

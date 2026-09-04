@@ -259,7 +259,7 @@ describe('DesignStep authoritative Flipbook flow', () => {
     expect(api.design.createFlipbook).not.toHaveBeenCalled();
   });
 
-  it('warns before a reorder that would invalidate cover actions and translates the backend rejection', async () => {
+  it('reorders pages with actions without a placement warning', async () => {
     const hotspot: InvitationDesign['hotspots'][number] = {
       id: 'hotspot-1',
       eventId: event.id,
@@ -277,18 +277,8 @@ describe('DesignStep authoritative Flipbook flow', () => {
     };
     const current = flipbook([page('page-1', 1), page('page-2', 2)], [hotspot]);
     const { api } = setup(current);
-    vi.mocked(api.design.reorderPages).mockRejectedValue(
-      new ApiError(409, 'HOTSPOT_VISUAL_OWNER_NOT_OPERATIONAL', 'technical')
-    );
     await userEvent.click(await screen.findByRole('button', { name: 'Mover Página 1 después' }));
-    expect(screen.getByRole('dialog', { name: 'Revisar acciones antes de ordenar' })).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        'Esta página tiene acciones que dependen de ser Portada o página QR. Ajusta esas acciones antes de cambiar su posición.'
-      )
-    ).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Entendido' }));
-    expect(api.design.reorderPages).not.toHaveBeenCalled();
+    expect(api.design.reorderPages).toHaveBeenCalledWith(event.id, { pageIds: ['page-2', 'page-1'] });
   });
 
   it.each([

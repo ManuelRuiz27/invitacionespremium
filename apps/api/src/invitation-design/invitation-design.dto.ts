@@ -44,6 +44,7 @@ const createHotspotSchema = hotspotBaseSchema
 
 const updateHotspotSchema = hotspotBaseSchema
   .partial()
+  .extend({ flipbookPageId: uuid.optional() })
   .strict()
   .refine((value) => Object.keys(value).length > 0)
   .superRefine((value, context) => {
@@ -116,6 +117,9 @@ export class CreateHotspotRequestDto {
 }
 
 export class UpdateHotspotRequestDto {
+  @ApiPropertyOptional({ type: String, format: 'uuid' })
+  flipbookPageId?: string;
+
   @ApiPropertyOptional({ enum: HotspotAction })
   action?: HotspotAction;
 

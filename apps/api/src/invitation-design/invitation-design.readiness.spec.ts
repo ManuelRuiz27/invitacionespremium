@@ -50,7 +50,7 @@ describe('Invitation design readiness', () => {
     });
   });
 
-  it('requires cover actions and a QR page for Flipbook', async () => {
+  it('requires RSVP and QR on any active Flipbook pages', async () => {
     const designId = crypto.randomUUID();
     const eventId = crypto.randomUUID();
     const cover = page(designId, eventId, 1);
@@ -59,13 +59,11 @@ describe('Invitation design readiness', () => {
       designId,
       [cover, qr],
       [
-        pageHotspot(designId, eventId, cover, HotspotAction.RSVP),
-        pageHotspot(designId, eventId, cover, HotspotAction.LOCATION),
-        pageHotspot(designId, eventId, cover, HotspotAction.GIFT_REGISTRY)
+        pageHotspot(designId, eventId, qr, HotspotAction.RSVP)
       ]
     );
     expect((await resolveDesignReadiness(dbWith(design), eventId, ServiceCode.FLIPBOOK)).blockers).toEqual([
-      DESIGN_READINESS_BLOCKERS.FLIPBOOK_QR_PAGE
+      DESIGN_READINESS_BLOCKERS.FLIPBOOK_QR_AREA
     ]);
 
     design.hotspots.push(pageHotspot(designId, eventId, qr, HotspotAction.QR_AREA));
@@ -76,7 +74,7 @@ describe('Invitation design readiness', () => {
     });
   });
 
-  it('ignores deleted page owners and reports invalid placement after reorder', async () => {
+  it('ignores deleted page owners without treating an active page position as special', async () => {
     const designId = crypto.randomUUID();
     const eventId = crypto.randomUUID();
     const formerCover = page(designId, eventId, 2);
@@ -87,8 +85,6 @@ describe('Invitation design readiness', () => {
       [newCover, formerCover],
       [
         pageHotspot(designId, eventId, formerCover, HotspotAction.RSVP),
-        pageHotspot(designId, eventId, formerCover, HotspotAction.LOCATION),
-        pageHotspot(designId, eventId, formerCover, HotspotAction.GIFT_REGISTRY),
         pageHotspot(designId, eventId, deletedQr, HotspotAction.QR_AREA)
       ]
     );
@@ -96,11 +92,7 @@ describe('Invitation design readiness', () => {
     expect(result.complete).toBe(false);
     expect(result.blockers).toEqual([
       DESIGN_READINESS_BLOCKERS.FLIPBOOK_HOTSPOT_OWNER,
-      DESIGN_READINESS_BLOCKERS.FLIPBOOK_COVER_RSVP,
-      DESIGN_READINESS_BLOCKERS.FLIPBOOK_COVER_LOCATION,
-      DESIGN_READINESS_BLOCKERS.FLIPBOOK_COVER_GIFT_REGISTRY,
-      DESIGN_READINESS_BLOCKERS.FLIPBOOK_QR_PAGE,
-      DESIGN_READINESS_BLOCKERS.FLIPBOOK_HOTSPOT_PLACEMENT
+      DESIGN_READINESS_BLOCKERS.FLIPBOOK_QR_AREA
     ]);
   });
 });

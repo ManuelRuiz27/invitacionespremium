@@ -91,10 +91,11 @@ describe('Invitation design DTO validation', () => {
     ).toThrow();
   });
 
-  it('requires unique pages in a deterministic reorder and validates partial coordinate pairs', () => {
+  it('requires unique pages in a deterministic reorder, validates partial coordinate pairs and accepts a Flipbook move', () => {
     const id = crypto.randomUUID();
     expect(() => parseReorderPages({ pageIds: [id, id] })).toThrow();
     expect(() => parseUpdateHotspot({ x: 0.9, width: 0.2 })).toThrow();
     expect(parseUpdateHotspot({ priority: 2 })).toEqual({ priority: 2 });
+    expect(parseUpdateHotspot({ flipbookPageId: id })).toMatchObject({ flipbookPageId: id });
   });
 });

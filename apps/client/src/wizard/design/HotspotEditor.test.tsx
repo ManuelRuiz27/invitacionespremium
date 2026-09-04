@@ -379,17 +379,16 @@ describe('HotspotEditor as invitation actions', () => {
     }
   });
 
-  it('offers only QR on an intermediate page until it becomes the QR page', async () => {
+  it('offers every unused action on an intermediate page', async () => {
     renderEditor({ ownerType: 'FLIPBOOK_PAGE', pageId: 'page-2', pagePosition: 2 });
     await userEvent.click(screen.getByRole('button', { name: 'Agregar acción' }));
 
-    expect(screen.getByRole('button', { name: /^Mostrar QR/ })).toBeInTheDocument();
-    for (const name of ['Confirmar asistencia', 'Ver ubicación', 'Mesa de regalos', 'Enlace adicional']) {
-      expect(screen.queryByRole('button', { name: new RegExp(`^${name}`) })).not.toBeInTheDocument();
+    for (const name of ['Confirmar asistencia', 'Ver ubicación', 'Mesa de regalos', 'Mostrar QR', 'Enlace adicional']) {
+      expect(screen.getByRole('button', { name: new RegExp(`^${name}`) })).toBeInTheDocument();
     }
   });
 
-  it('allows an external link only on the existing QR page', async () => {
+  it('allows every unused action on a page that already contains QR', async () => {
     renderEditor({
       ownerType: 'FLIPBOOK_PAGE',
       pageId: 'page-2',
@@ -398,12 +397,12 @@ describe('HotspotEditor as invitation actions', () => {
     });
     await userEvent.click(screen.getByRole('button', { name: 'Agregar acción' }));
 
-    expect(screen.getByRole('button', { name: /^Mostrar QR/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Enlace adicional/ })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^Confirmar asistencia/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Confirmar asistencia/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Mostrar QR/ })).not.toBeInTheDocument();
   });
 
-  it('applies the three-link limit globally across the Flipbook cover and QR page', async () => {
+  it('does not offer actions that are already configured on another page', async () => {
     renderEditor({
       ownerType: 'FLIPBOOK_PAGE',
       pageId: 'page-2',
@@ -417,8 +416,9 @@ describe('HotspotEditor as invitation actions', () => {
     });
     await userEvent.click(screen.getByRole('button', { name: 'Agregar acción' }));
 
-    expect(screen.getByRole('button', { name: /^Mostrar QR/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Confirmar asistencia/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Enlace adicional/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Mostrar QR/ })).not.toBeInTheDocument();
   });
 
   it('does not offer a second QR page and updates options immediately after changing pages', async () => {
@@ -451,8 +451,7 @@ describe('HotspotEditor as invitation actions', () => {
     );
 
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Cancelar' })).not.toBeInTheDocument());
-    expect(screen.queryByRole('button', { name: 'Agregar acción' })).not.toBeInTheDocument();
-    expect(screen.getByText('Esta página no admite acciones adicionales.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Agregar acción' })).toBeInTheDocument();
   });
 
   it('keeps page ownership internal and resets the editor when changing Flipbook pages', async () => {
@@ -524,17 +523,17 @@ describe('HotspotEditor as invitation actions', () => {
     expect(onChanged).toHaveBeenCalledTimes(1);
   });
 
-  it('preserves an update draft and translates a known placement error before retry', async () => {
+  it('preserves an update draft and translates a known action-cardinality error before retry', async () => {
     const { api, onChanged } = renderEditor({ hotspots: [existingAction] });
     vi.mocked(api.design.updateHotspot).mockRejectedValueOnce(
-      new ApiError(409, 'FLIPBOOK_HOTSPOT_PLACEMENT_INVALID', 'technical detail', 'operation-id')
+      new ApiError(409, 'HOTSPOT_ACTION_ALREADY_DEFINED', 'technical detail', 'operation-id')
     );
     await userEvent.click(screen.getByRole('button', { name: 'Editar acción Confirmar asistencia' }));
     await userEvent.click(screen.getByRole('button', { name: 'Ajustes precisos' }));
     await userEvent.click(screen.getByRole('button', { name: 'Mover a la derecha' }));
     await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
 
-    expect(await screen.findByText('Mueve la acción a una página permitida.')).toBeInTheDocument();
+    expect(await screen.findByText('Esta acción ya está configurada en otra imagen de la invitación.')).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Mover acción Confirmar asistencia' })).toHaveStyle({ left: '11%' });
     expect(onChanged).not.toHaveBeenCalled();
 
