@@ -241,7 +241,7 @@ describe('FileAssets and local storage', () => {
     }
   });
 
-  it('preserves Planner reads and rejects all provider-managed generic mutations without staging bytes', async () => {
+  it('allows Planner preparation image uploads while retaining controlled mutations for claimed assets', async () => {
     const independent = await createClientUser(UserRole.INDEPENDENT_PLANNER);
     const independentEvent = await createEvent(independent);
     const independentCookie = await login(independent.email);
@@ -254,15 +254,14 @@ describe('FileAssets and local storage', () => {
     ] as const) {
       await upload(independentEvent.id, independentCookie, {
         file: jpeg,
-        filename: 'provider-managed.jpg',
+        filename: 'planner-preparation.jpg',
         contentType: 'image/jpeg',
         ownerType,
         fileType
       })
-        .expect(403)
-        .expect(({ body }) => expect(body.code).toBe('FILE_ASSET_PROVIDER_MANAGED'));
+        .expect(201);
     }
-    expect(await prisma.fileAsset.count({ where: { eventId: independentEvent.id } })).toBe(initialRows);
+    expect(await prisma.fileAsset.count({ where: { eventId: independentEvent.id } })).toBe(initialRows + 4);
 
     const managed = await createReadyImageAsset(independentEvent, independent.userId);
     await mutate('delete', `/events/${independentEvent.id}/file-assets/${managed.id}`, independentCookie)
