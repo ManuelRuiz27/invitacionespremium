@@ -233,17 +233,27 @@ Reglas:
 - archivos se validan/vinculan conforme a `FILE_ASSET_POLICY.md`;
 - Hotspot es entidad separada;
 - Flyer requiere ambas variantes READY y Flipbook usa páginas relacionales con orden continuo y máximo 10;
-- Flyer requiere `RSVP`, `LOCATION`, `GIFT_REGISTRY` y `QR_AREA`;
-- Flipbook requiere `RSVP`, `LOCATION` y `GIFT_REGISTRY` en la portada activa (posición `1`) y una página
-  activa derivada por `QR_AREA`;
-- `EXTERNAL_LINK` es opcional, máximo tres, y solo admite HTTPS sin credenciales, query, fragment,
+- Flyer conserva sus requisitos actuales de `RSVP`, `LOCATION`, `GIFT_REGISTRY` y `QR_AREA`;
+- en Flipbook, cualquier página activa puede contener `RSVP`, `LOCATION`, `GIFT_REGISTRY`, `QR_AREA` o
+  `EXTERNAL_LINK`; la posición `1` no concede permisos especiales;
+- en Flipbook, `RSVP`, `LOCATION`, `GIFT_REGISTRY` y `QR_AREA` admiten máximo una instancia activa de cada
+  tipo a nivel diseño; `QR_AREA` nunca puede existir en más de una página;
+- `EXTERNAL_LINK` es opcional, máximo tres por diseño, y solo admite HTTPS sin credenciales, query, fragment,
   espacios ni controles;
 - `PATCH` con `url` exige acción actual o resultante `EXTERNAL_LINK`; no acepta `null` ni descarta el campo;
-- Hotspots de Flipbook solo operan sobre portada o página QR y nunca sobre páginas eliminadas;
+- `PATCH /hotspots/:hotspotId` puede mover un Hotspot Flipbook a otra `pageId` activa del mismo diseño junto
+  con nueva geometría validada, sin crear una copia persistida;
+- los Hotspots Flipbook se asocian por `pageId` estable y nunca por posición; un reorder conserva acciones,
+  coordenadas y readiness;
+- eliminar una página elimina lógicamente sus Hotspots en la misma transacción y recalcula readiness;
+- sustituir la imagen de una página conserva Hotspots y coordenadas relativas;
+- readiness de Flipbook exige 1..10 páginas activas válidas, exactamente un `RSVP` y exactamente un
+  `QR_AREA` en cualquier página; `LOCATION`, `GIFT_REGISTRY` y `EXTERNAL_LINK` son opcionales para readiness;
+- quedan obsoletos los blockers y validaciones ligados a portada, "página QR" o placement por posición;
 - la activación recalcula readiness antes de cualquier efecto financiero;
 - todas las mutaciones de Flyer, Flipbook, páginas y Hotspots recomputan la proyección digital completa,
-  por lo que pueden promover o degradar el Evento;
-- detalle completo en `INVITATION_DESIGN_CONTRACT.md`.
+  por lo que pueden promover o degradar el Evento salvo reorder válido, que por sí mismo no cambia readiness;
+- detalle completo en `INVITATION_DESIGN_CONTRACT.md` y UX en `EVENT_WIZARD_CONTRACT.md`.
 
 ## PublicRsvpModule
 
