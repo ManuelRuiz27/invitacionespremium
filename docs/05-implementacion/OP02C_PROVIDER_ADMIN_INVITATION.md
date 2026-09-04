@@ -41,6 +41,10 @@ Antes de código leer, en este orden:
 13. `docs/05-implementacion/14A_OPERATOR_LED_CODEX_RULES.md`
 14. GitHub Issue #24.
 
+En caso de contradicción histórica sobre placement de Hotspots en Flipbook, prevalecen
+`EVENT_WIZARD_CONTRACT.md` e `INVITATION_DESIGN_CONTRACT.md` vigentes: las acciones pueden vivir en cualquier
+página y la portada no es un owner especial.
+
 ## 3. Runtime a reutilizar
 
 Reutilizar y adaptar mínimamente:
@@ -70,18 +74,21 @@ Preservar exactamente las reglas existentes de:
 - `AddFlipbookPageRequestDto`;
 - `ReorderFlipbookPagesRequestDto`;
 - límites de 1..10 páginas y orden continuo;
-- validación de Hotspots;
-- placement de Hotspots en portada/página QR;
-- máximo/semántica de QR Area actual;
+- validación geométrica de Hotspots;
+- máximo/semántica de QR Area conforme al contrato vigente;
 - URLs externas normalizadas;
 - staged asset ownership;
 - `claimReadyAssetInTransaction()`;
 - `hideOwnedAssetInTransaction()`;
-- `resolveDesignReadiness()`;
+- `resolveDesignReadiness()` como resolver único, adaptando sus reglas al contrato vigente;
 - `recomputeDigitalEventPreparationStatus()`;
 - `CRITICAL_TRANSACTION_OPTIONS` y retry serializable;
 - locks actuales de Event/Design/Page/Hotspot;
 - auditoría before/after y acciones actuales.
+
+**No preservar** la restricción histórica de Hotspots en portada/página QR. OP-02C debe adaptar el runtime
+compartido para que Flipbook permita acciones en cualquier página, con cardinalidad a nivel diseño y owner por
+`pageId` estable.
 
 ## 4. Superficie HTTP administrativa de Design
 
@@ -107,7 +114,9 @@ PATCH  /api/v1/admin/clients/:clientId/events/:eventId/hotspots/:hotspotId
 DELETE /api/v1/admin/clients/:clientId/events/:eventId/hotspots/:hotspotId
 ```
 
-Reutilizar los DTOs/parsers actuales. No crear DTOs V2 ni cambiar payloads de Planner.
+Reutilizar los DTOs/parsers actuales. No crear DTOs V2 ni cambiar payloads de Planner salvo la adaptación
+mínima necesaria para que el `PATCH` de Hotspot pueda cambiar de `pageId` dentro del mismo Flipbook si el DTO
+actual todavía lo impide.
 
 Se permite un único controlador administrativo estrecho para Design/Hotspots registrado en `InvitationDesignModule`.
 
@@ -272,22 +281,31 @@ No debe quedar mutación parcial si falla claim/hide:
 - add page fallido => no página parcial;
 - page replace fallido => asset anterior sigue vigente;
 - delete page conserva hide + soft-delete + reorder/renumber actual de páginas;
+- delete page elimina lógicamente los Hotspots de esa página en la misma transacción;
 - readiness se recalcula dentro de la misma semántica existente.
 
 ## 9. Hotspots
 
-La capability Admin reutiliza sin cambios:
+La capability Admin reutiliza el mismo dominio que Planner y debe aplicar el contrato vigente:
 
 - `HotspotAction` vigente;
 - `HotspotVisualOwnerType` vigente;
-- coordenadas normalizadas;
-- bounds;
+- coordenadas normalizadas y bounds;
 - URL rules;
 - owner compatibility Flyer/Flipbook;
-- portada obligatoria para RSVP/LOCATION/GIFT_REGISTRY;
-- QR page rules;
-- external links permitidos únicamente donde el contrato vigente lo permite;
-- constraints de reorder relacionadas con placement.
+- cualquier página activa de Flipbook puede contener cualquier acción;
+- `RSVP`, `LOCATION`, `GIFT_REGISTRY` y `QR_AREA` tienen máximo una instancia activa por diseño Flipbook;
+- `QR_AREA` nunca puede existir en más de una página;
+- `EXTERNAL_LINK` permite máximo tres instancias activas, cada una con URL propia;
+- una acción de Flipbook se asocia por `pageId` estable, nunca por posición;
+- reorder conserva Hotspots, geometría y readiness;
+- mover una acción entre páginas actualiza owner `pageId` + geometría sin crear un duplicado persistido;
+- eliminar una página elimina sus Hotspots y puede degradar readiness si contenía una acción requerida;
+- sustituir la imagen conserva Hotspots y coordenadas relativas.
+
+Quedan expresamente obsoletas las reglas de portada obligatoria para `RSVP/LOCATION/GIFT_REGISTRY`, la
+restricción de external links a portada/página QR y cualquier constraint de reorder basado en placement por
+posición.
 
 No agregar nuevos tipos de hotspot.
 
@@ -296,6 +314,16 @@ No agregar nuevos tipos de hotspot.
 `GET .../design/readiness` Admin debe ejecutar el mismo `resolveDesignReadiness()` que Planner.
 
 No copiar blockers ni reglas a otro resolver.
+
+Para Flipbook, el resolver vigente debe considerar completo el diseño cuando:
+
+- existe diseño compatible;
+- hay 1..10 páginas activas con orden continuo y assets `READY`;
+- existe exactamente un `RSVP` activo válido en cualquier página;
+- existe exactamente un `QR_AREA` activo válido en cualquier página.
+
+`LOCATION`, `GIFT_REGISTRY` y `EXTERNAL_LINK` son opcionales para readiness de Flipbook. Reordenar páginas no
+altera el resultado. Eliminar una página o Hotspot requerido sí lo recalcula inmediatamente.
 
 Toda mutación actual que llama `recordReadinessChange()` debe seguir haciéndolo y conservar:
 
@@ -329,6 +357,9 @@ Preservar las acciones actuales, incluyendo según operación:
 - `HOTSPOT_*` actuales;
 - `INVITATION_DESIGN_READINESS_CHANGED`;
 - `FILE_ASSET_UPLOAD_READY` / FAILED / HIDE / CLAIM / SOFT_DELETE.
+
+Mover un Hotspot entre páginas usa la auditoría `HOTSPOT_*` existente con before/after que refleje `pageId` y
+geometría; no crear una entidad o actor nuevos.
 
 No crear actor `PROVIDER` u `OPERATOR`.
 
@@ -383,18 +414,18 @@ Como mínimo cubrir:
 22. Flyer replace QR conserva hide/claim.
 23. Flipbook create Admin happy path.
 24. Add page conserva límite 10 y claim.
-25. Reorder conserva conjunto exacto/orden/Hotspot placement.
-26. Replace page asset conserva hide/claim.
-27. Delete page conserva invariantes actuales.
-28. Hotspot create Admin conserva validación owner/placement.
-29. Hotspot update Admin conserva bounds/action/url rules.
-30. Hotspot delete Admin conserva QR/external-link constraints actuales.
+25. Reorder conserva conjunto exacto, `pageId`, Hotspots, geometría y readiness aunque cambie la portada.
+26. Replace page asset conserva hide/claim y Hotspots existentes.
+27. Delete page elimina sus Hotspots, compacta posiciones y degrada readiness solo si elimina una acción requerida.
+28. Hotspot create Admin permite `RSVP`, `LOCATION`, `GIFT_REGISTRY`, `QR_AREA` y `EXTERNAL_LINK` en cualquier página activa.
+29. Hotspot update Admin puede mover una acción a otra `pageId` activa y conserva bounds/action/url rules.
+30. Hotspot create/update rechaza segunda instancia activa de `RSVP`, `LOCATION`, `GIFT_REGISTRY` o `QR_AREA`; external links siguen limitados a tres.
 31. Estado Event incompatible => `INVITATION_DESIGN_EVENT_STATE_LOCKED`.
 32. Servicio incompatible => `INVITATION_DESIGN_SERVICE_MISMATCH`.
 33. Audit actor es Platform Admin real.
 34. Audit usa clientId/eventId/resource/action correctos.
 35. `operationId` se conserva.
-36. readiness completa/incompleta coincide con flujo Planner equivalente.
+36. readiness completa/incompleta coincide con flujo Planner equivalente y no depende de portada.
 37. OpenAPI contiene todas las rutas Admin autorizadas.
 38. OpenAPI no contiene Admin Contacts/Invitations/RSVP/Seating/Scanner.
 
@@ -443,7 +474,8 @@ La deuda heredada HTTP `201 runtime ↔ 200 OpenAPI` no debe ampliarse. Para los
 
 ### ADAPT
 
-- `InvitationDesignService` para target explícito Admin;
+- `InvitationDesignService` para target explícito Admin y placement libre de Hotspots en Flipbook;
+- `resolveDesignReadiness()` y constraints relacionados con cardinalidad/placement de Flipbook;
 - `FileAssetsService` para capability restringida de tres tipos;
 - módulos existentes para registrar controllers;
 - integración y OpenAPI.
@@ -465,8 +497,10 @@ La deuda heredada HTTP `201 runtime ↔ 200 OpenAPI` no debe ampliarse. Para los
 - Staff/Scanner;
 - Álbum;
 - activación Admin;
-- Prisma/migrations;
 - nuevos roles/entidades.
+
+Las migraciones/constraints existentes de Invitation Design **sí pueden adaptarse** cuando sea necesario para
+retirar placement por portada y materializar las nuevas cardinalidades; no crear un modelo de datos paralelo.
 
 ## 17. Definition of Done
 
@@ -477,7 +511,9 @@ PLATFORM_ADMIN real
 + Client/Event explícitos
 + Flyer y Flipbook realmente configurables
 + assets limitados a tres tipos
-+ Hotspots
++ Hotspots en cualquier página de Flipbook
++ acciones únicas/cardinalidad vigente a nivel design
++ reorder sin pérdida de readiness
 + readiness compartida
 + audit real
 + cross-tenant denial
