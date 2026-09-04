@@ -107,9 +107,6 @@ export class FileAssetsService {
     operationId?: string
   ): Promise<FileAssetResponseDto> {
     assertCompatibleFileAssetType(input.ownerType, input.fileType);
-    if (PROVIDER_MANAGED_IMAGE_FILE_TYPES.has(input.fileType)) {
-      throw providerManagedFileAsset();
-    }
     if (!USER_IMAGE_FILE_TYPES.has(input.fileType) || !file) {
       throw fileError('FILE_UNSUPPORTED_TYPE', 'Only JPEG and PNG image uploads are accepted.');
     }
