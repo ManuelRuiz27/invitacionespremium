@@ -79,8 +79,8 @@ describe('integrated Event wizard flows', () => {
     expect(router.state.location.pathname).toBe(`/eventos/${physicalEvent.id}/configuracion/pases`);
   });
 
-  it.each(['invitacion', 'croquis'])(
-    'normalizes the retired %s deep link without mounting provider editors',
+  it.each(['pases'])(
+    'normalizes the incompatible %s deep link without mounting provider editors',
     async (step) => {
       const api = mockApiClient();
       vi.mocked(api.events.get).mockResolvedValue({
@@ -99,6 +99,21 @@ describe('integrated Event wizard flows', () => {
       expect(api.floorplan.get).not.toHaveBeenCalled();
     }
   );
+
+  it('persists confirmation before continuing to the next digital step', async () => {
+    const api = mockApiClient();
+    const event = { ...configuredEvent, serviceId: 'service-flipbook', confirmationEnabled: false };
+    vi.mocked(api.events.get).mockResolvedValue(event);
+    vi.mocked(api.events.update).mockResolvedValue({ ...event, confirmationEnabled: true });
+    renderApp(api, `/eventos/${event.id}/configuracion/confirmacion`);
+
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'Permitir confirmación de asistencia' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
+
+    await waitFor(() =>
+      expect(api.events.update).toHaveBeenCalledWith(event.id, expect.objectContaining({ confirmationEnabled: true }))
+    );
+  });
 
   it('keeps provider readiness visible without offering Planner correction links', async () => {
     const api = mockApiClient();

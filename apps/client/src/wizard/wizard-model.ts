@@ -12,7 +12,7 @@ export const wizardSteps = [
 export type WizardStep = (typeof wizardSteps)[number];
 export type SaveState = 'idle' | 'pending' | 'saving' | 'saved' | 'error';
 
-const digitalSteps: WizardStep[] = ['datos', 'contactos', 'confirmacion', 'revision'];
+const digitalSteps: WizardStep[] = ['datos', 'contactos', 'invitacion', 'confirmacion', 'croquis', 'revision'];
 const physicalSteps: WizardStep[] = ['datos', 'croquis', 'pases', 'revision'];
 
 export function stepsForService(code: AvailableService['code'] | undefined): WizardStep[] {

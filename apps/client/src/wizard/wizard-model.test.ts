@@ -5,10 +5,10 @@ import { AttemptManager, isEditableEvent, isMeaningfulDraft, stepsForService } f
 
 describe('Event wizard model scenarios', () => {
   it.each([
-    ['FLYER', ['datos', 'contactos', 'confirmacion', 'revision']],
-    ['FLIPBOOK', ['datos', 'contactos', 'confirmacion', 'revision']],
+    ['FLYER', ['datos', 'contactos', 'invitacion', 'confirmacion', 'croquis', 'revision']],
+    ['FLIPBOOK', ['datos', 'contactos', 'invitacion', 'confirmacion', 'croquis', 'revision']],
     ['PHYSICAL_QR', ['datos', 'croquis', 'pases', 'revision']],
-    [undefined, ['datos', 'contactos', 'confirmacion', 'revision']]
+    [undefined, ['datos', 'contactos', 'invitacion', 'confirmacion', 'croquis', 'revision']]
   ] as const)('derives the authoritative navigation for %s', (service, expected) => {
     expect(stepsForService(service)).toEqual(expected);
   });
@@ -42,15 +42,15 @@ describe('Event wizard model scenarios', () => {
   it.each([
     ['FLYER', 'datos', true],
     ['FLYER', 'contactos', true],
-    ['FLYER', 'invitacion', false],
+    ['FLYER', 'invitacion', true],
     ['FLYER', 'confirmacion', true],
-    ['FLYER', 'croquis', false],
+    ['FLYER', 'croquis', true],
     ['FLYER', 'pases', false],
     ['FLIPBOOK', 'datos', true],
     ['FLIPBOOK', 'contactos', true],
-    ['FLIPBOOK', 'invitacion', false],
+    ['FLIPBOOK', 'invitacion', true],
     ['FLIPBOOK', 'confirmacion', true],
-    ['FLIPBOOK', 'croquis', false],
+    ['FLIPBOOK', 'croquis', true],
     ['FLIPBOOK', 'pases', false],
     ['PHYSICAL_QR', 'datos', true],
     ['PHYSICAL_QR', 'contactos', false],
@@ -59,7 +59,7 @@ describe('Event wizard model scenarios', () => {
     ['PHYSICAL_QR', 'croquis', true],
     ['PHYSICAL_QR', 'pases', true],
     [undefined, 'datos', true],
-    [undefined, 'invitacion', false],
+    [undefined, 'invitacion', true],
     [undefined, 'pases', false],
     [undefined, 'revision', true]
   ] as const)('controls step availability for %s/%s', (service, step, expected) => {

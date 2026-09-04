@@ -67,6 +67,7 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
     async (value: UpdateEventInput) => {
       if (!eventRef.current) return;
       const updated = await apiClient.events.update(eventRef.current.id, value);
+      eventRef.current = updated;
       setEvent(updated);
     },
     [apiClient]
