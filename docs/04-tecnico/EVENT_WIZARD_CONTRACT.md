@@ -102,6 +102,8 @@ sustitución, eliminación y orden persistido.
 Backend, API y código interno conservan la entidad `Hotspot`, las propiedades `x`, `y`, `width`, `height` y
 `priority`, y las acciones cerradas `RSVP`, `LOCATION`, `GIFT_REGISTRY`, `QR_AREA` y `EXTERNAL_LINK`. Las
 coordenadas relativas, la prioridad, la pertenencia a Flyer o página y el payload enviado a la API no cambian.
+En Flipbook la relación es siempre por `pageId` estable; `pageIndex` o posición visual nunca es identidad del
+Hotspot.
 
 ### Modelo visible para el Planner
 
@@ -130,10 +132,62 @@ el Object URL privado existente. No usa una proporción fija, `letterboxing`, pa
 parte de `0..1`. Editor y renderer público comparten la misma proyección porcentual de `x`, `y`, `width` y `height`,
 sin modificar el payload.
 
-En Flipbook, `Agregar acción` deriva sus opciones de la posición actual y de los Hotspots autoritativos: la portada
-admite las acciones de portada y el enlace opcional; una página intermedia solo puede convertirse en página QR si
-no existe otra; y el enlace opcional se ofrece fuera de portada únicamente en la página QR ya derivada. La UI no
-ofrece crear una segunda página QR. Cambiar de página recalcula inmediatamente estas opciones.
+### Acciones libres por página en Flipbook
+
+En Flipbook, **cualquier página activa puede contener cualquier acción**. La portada no concentra acciones ni
+recibe permisos especiales. Cambiar de página recalcula las opciones disponibles únicamente contra las
+cardinalidades autoritativas del diseño, no contra la posición de la página.
+
+Las reglas son:
+
+- `RSVP`, `LOCATION`, `GIFT_REGISTRY` y `QR_AREA`: máximo una instancia activa de cada tipo en todo el Flipbook;
+- `QR_AREA`: nunca puede existir en más de una página;
+- `EXTERNAL_LINK`: máximo tres instancias activas, cada una con su propio enlace;
+- una misma instancia de acción pertenece a una sola página; moverla no crea duplicados;
+- si una acción única ya existe, `Agregar acción` no ofrece crear otra. La UI muestra **Ir a la acción** y
+  **Mover aquí** como alternativas;
+- `EXTERNAL_LINK` deja de ofrecerse al existir tres enlaces activos y vuelve a estar disponible después de
+  eliminar uno y refrescar la fuente autoritativa.
+
+No existe el concepto funcional de "página QR" para restringir otras acciones. La página que contiene
+`QR_AREA` es una página normal del Flipbook con esa acción colocada encima.
+
+### Mover una acción entre páginas
+
+Desde una acción existente, **Mover a otra página** permite seleccionar destino y entrar en modo de
+posicionamiento sobre la nueva imagen. La acción persistida anterior se conserva hasta confirmar la nueva
+geometría. Al confirmar, una única mutación actualiza `pageId` y coordenadas; cancelar deja intacta la acción
+original. La UI nunca elimina primero para después recrear.
+
+### Reordenar páginas
+
+Reordenar una página conserva todas sus acciones y coordenadas porque están ligadas al UUID de la página, no
+a su posición. El readiness no cambia por un reorder válido. La UI actualiza únicamente el número visible y
+la indicación de portada.
+
+### Eliminar páginas
+
+Si una página no contiene acciones, la eliminación usa la confirmación normal de página. Si contiene acciones,
+el diálogo enumera las acciones afectadas y usa copy explícito:
+
+**Esta página contiene acciones de la invitación. Si eliminas la página también se eliminarán estas acciones.**
+
+Acciones: **Cancelar** y **Eliminar página y acciones**.
+
+No se reubican Hotspots automáticamente porque sus coordenadas no tienen significado sobre otra imagen. Tras el
+éxito autoritativo se refrescan páginas/Hotspots y se recalcula readiness. Si la página eliminada contenía
+**Confirmar asistencia** o **Mostrar QR**, la UI muestra el diseño como incompleto y señala exactamente la acción
+que falta volver a colocar.
+
+### Sustituir imagen de una página
+
+Sustituir la imagen conserva Hotspots y coordenadas relativas de esa misma página. Si la nueva imagen cambia de
+forma apreciable su relación de aspecto, la UI advierte:
+
+**La nueva imagen tiene proporciones diferentes. Revisa la posición de las acciones de esta página.**
+
+El aviso no crea un estado de backend ni bloquea readiness por sí mismo; el editor resalta las acciones existentes
+para revisión visual. La sustitución nunca mueve acciones a otra página ni las elimina implícitamente.
 
 Crear, editar y eliminar una acción bloquea envíos repetidos mientras la mutación está pendiente. Un fallo se
 traduce a lenguaje natural dentro del editor y conserva selección, geometría y enlace para reintentar; el editor
@@ -147,13 +201,25 @@ traducen a instrucciones naturales y nunca se muestran como códigos.
 Para `Enlace adicional`, la UI usa el label `Enlace`, la ayuda `Pega el enlace que quieres abrir desde la
 invitación.` y el error `Ingresa un enlace web válido.`. La validación HTTPS contractual permanece interna.
 La disponibilidad se deriva de todos los Hotspots autoritativos del diseño: al existir tres enlaces adicionales,
-la UI deja de ofrecer crear un cuarto tanto en Flyer como en las páginas permitidas de Flipbook, sin impedir editar
-o eliminar los existentes. Después de eliminar y refrescar la fuente autoritativa, la opción vuelve a estar
-disponible.
+la UI deja de ofrecer crear un cuarto tanto en Flyer como en Flipbook, sin impedir editar, mover o eliminar los
+existentes. Después de eliminar y refrescar la fuente autoritativa, la opción vuelve a estar disponible.
 
 Antes de guardar, el cliente aplica las restricciones deterministas de `EXTERNAL_LINK`: URL HTTPS absoluta con host
 válido, sin credenciales, query, fragment, espacios, controles ni protocolo alternativo. El copy no expone esas
 reglas técnicas y el backend conserva la autoridad final ante concurrencia o estado desactualizado.
+
+### Readiness visible del diseño Flipbook
+
+La UI no deriva readiness desde número de página, portada o una supuesta página QR. Consume la fuente
+backend autoritativa. Para el MVP vigente de Flipbook, el diseño requiere:
+
+- entre 1 y 10 páginas válidas con assets listos;
+- **Confirmar asistencia** exactamente una vez;
+- **Mostrar QR** exactamente una vez.
+
+**Ver ubicación**, **Mesa de regalos** y **Enlace adicional** son opcionales para readiness de Flipbook. Si una
+mutación elimina una acción requerida, la UI actualiza inmediatamente el estado tras refrescar la respuesta
+autoritativa. Un reorder no debe degradar readiness.
 
 ## Croquis y pases
 
@@ -233,6 +299,8 @@ como referencia secundaria. `401` conserva `returnTo`; red o `500` no expiran la
 
 Las pruebas de componentes cubren creación concurrente, pasos incompatibles, CSV sucesivos, lotes iguales,
 retry incierto frente a concurrencia ajena, zona distinta al navegador, DST, patches atómicos,
-Flyer/Flipbook, CRUD de Hotspots y páginas, Object URLs, geometrías de Mesa/Zona, SVG, plantilla PDF de
-pases, Revisión digital/física, permisos financieros, diálogo y activación. Los tipos proceden exclusivamente de
-OpenAPI mediante `@invitaciones/api-client`.
+Flyer/Flipbook, CRUD de Hotspots y páginas, acciones en cualquier página, unicidad de acciones requeridas,
+movimiento entre páginas, reorder sin pérdida de readiness, eliminación con acciones, sustitución con cambio de
+proporción, Object URLs, geometrías de Mesa/Zona, SVG, plantilla PDF de pases, Revisión digital/física,
+permisos financieros, diálogo y activación. Los tipos proceden exclusivamente de OpenAPI mediante
+`@invitaciones/api-client`.
