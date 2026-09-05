@@ -9,7 +9,7 @@ import { contrastingText, stickerColor } from './floorplan-sticker-style';
 import { visualSeats } from './floorplan-visual-seats';
 
 export interface FloorplanRendererProps {
-  floorplan: Floorplan;
+  floorplan: Omit<Floorplan, 'seatingMode' | 'seats'> & Pick<Partial<Floorplan>, 'seatingMode' | 'seats'>;
   imageUrl: string;
   selectedId?: string | undefined;
   draft?: FloorplanShapeInput | undefined;
@@ -21,6 +21,8 @@ export interface FloorplanRendererProps {
   onSelect: (shape: FloorplanShape) => void;
   onDraftChange: (shape: FloorplanShapeInput) => void;
   onCanvasPlace?: ((point: { x: number; y: number }, pendingId?: string) => void) | undefined;
+  selectedSeatId?: string | undefined;
+  onSeatSelect?: ((seatId: string) => void) | undefined;
 }
 
 export function FloorplanDomRenderer(props: FloorplanRendererProps) {
@@ -91,6 +93,21 @@ export function FloorplanDomRenderer(props: FloorplanRendererProps) {
           />
         );
       })}
+      {props.floorplan.seatingMode === 'SEAT'
+        ? (props.floorplan.seats ?? []).map((seat) => (
+            <Box
+              component="button"
+              type="button"
+              key={seat.id}
+              aria-label={`Lugar ${seat.label}${seat.isBlocked ? ', bloqueado' : seat.occupied ? ', ocupado' : ', disponible'}`}
+              onClick={() => props.onSeatSelect?.(seat.id)}
+              disabled={props.disabled}
+              sx={{ position: 'absolute', left: `${seat.x * 100}%`, top: `${seat.y * 100}%`, transform: 'translate(-50%, -50%)', width: 28, height: 28, borderRadius: '50%', border: 2, borderColor: props.selectedSeatId === seat.id ? 'warning.main' : seat.isBlocked ? 'grey.600' : seat.occupied ? 'primary.main' : 'success.main', bgcolor: seat.isBlocked ? 'grey.300' : seat.occupied ? 'primary.light' : 'background.paper', color: 'text.primary', fontSize: 11, fontWeight: 700, zIndex: 3, cursor: props.disabled ? 'default' : 'pointer' }}
+            >
+              {seat.label}
+            </Box>
+          ))
+        : null}
       {props.draft ? (
         <EditableShape
           shape={props.draft}

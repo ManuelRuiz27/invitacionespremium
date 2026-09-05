@@ -235,9 +235,11 @@ export class FloorplanService {
             a."name" AS assistant_name,
             a."invitation_id" AS invitation_id,
             a."floorplan_shape_id" AS floorplan_shape_id,
+            a."floorplan_seat_id" AS floorplan_seat_id,
             c."group_id" AS group_id,
             g."name" AS group_name,
             t."name" AS table_name,
+            s."label" AS seat_label,
             ${normalizedName} AS normalized_name
           FROM "assistant" a
           JOIN "invitation" i
@@ -248,6 +250,8 @@ export class FloorplanService {
             ON g."id" = c."group_id" AND g."event_id" = c."event_id"
           LEFT JOIN "floorplan_shape" t
             ON t."id" = a."floorplan_shape_id" AND t."event_id" = a."event_id" AND t."deleted_at" IS NULL
+          LEFT JOIN "floorplan_seat" s
+            ON s."id" = a."floorplan_seat_id" AND s."event_id" = a."event_id" AND s."deleted_at" IS NULL
           WHERE a."event_id" = ${eventId}::uuid
             AND a."deleted_at" IS NULL
             AND a."anonymized_at" IS NULL
@@ -1253,9 +1257,11 @@ interface SeatingWorkspaceRow {
   assistant_name: string | null;
   invitation_id: string;
   floorplan_shape_id: string | null;
+  floorplan_seat_id: string | null;
   group_id: string | null;
   group_name: string | null;
   table_name: string | null;
+  seat_label: string | null;
   normalized_name: string;
   invitation_eligible_count: number;
   invitation_assigned_count: number;
@@ -1289,6 +1295,7 @@ function toSeatingWorkspaceItem(row: SeatingWorkspaceRow): SeatingWorkspacePageD
           }
         : null,
     table: row.floorplan_shape_id && row.table_name ? { id: row.floorplan_shape_id, name: row.table_name } : null,
+    seat: row.floorplan_seat_id && row.seat_label ? { id: row.floorplan_seat_id, label: row.seat_label } : null,
     checkedIn: row.checked_in
   };
 }

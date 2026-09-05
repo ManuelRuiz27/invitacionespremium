@@ -57,7 +57,8 @@ const scannerInvitationInclude = {
     },
     include: {
       checkIns: { where: { revertedAt: null }, select: { id: true } },
-      floorplanShape: { select: { id: true, name: true } }
+      floorplanShape: { select: { id: true, name: true } },
+      floorplanSeat: { select: { id: true, label: true, x: true, y: true } }
     },
     orderBy: [{ isPrimary: 'desc' as const }, { createdAt: 'asc' as const }, { id: 'asc' as const }]
   }
@@ -78,7 +79,8 @@ const checkInResultSnapshotSchema = z
           table: z
             .object({ id: z.string().uuid(), name: z.string().min(1).max(120) })
             .strict()
-            .nullable()
+            .nullable(),
+          seat: z.object({ id: z.string().uuid(), label: z.string().min(1).max(120), x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).strict().nullable().optional().default(null)
         })
         .strict()
     ),
@@ -91,7 +93,8 @@ const checkInResultSnapshotSchema = z
           table: z
             .object({ id: z.string().uuid(), name: z.string().min(1).max(120) })
             .strict()
-            .nullable()
+            .nullable(),
+          seat: z.object({ id: z.string().uuid(), label: z.string().min(1).max(120), x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).strict().nullable().optional().default(null)
         })
         .strict()
     ),
@@ -297,7 +300,7 @@ export class ScannerService {
               responseStatus: AssistantResponseStatus.CONFIRMED,
               checkIns: { none: { revertedAt: null } }
             },
-            select: { id: true, name: true, isPrimary: true, floorplanShape: { select: { id: true, name: true } } },
+            select: { id: true, name: true, isPrimary: true, floorplanShape: { select: { id: true, name: true } }, floorplanSeat: { select: { id: true, label: true, x: true, y: true } } },
             orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }, { id: 'asc' }]
           });
           const checkedIn = assistants.map((assistant) => ({
@@ -305,17 +308,19 @@ export class ScannerService {
             assistantId: assistant.id,
             name: requireAssistantName(assistant.name),
             checkedInAt: checkedInAt.toISOString(),
-            table: assistant.floorplanShape
+            table: assistant.floorplanShape,
+            seat: assistant.floorplanSeat ? seatProjection(assistant.floorplanSeat) : null
           }));
           const snapshot: ScannerCheckInResponseDto = {
             status: 'CHECKED_IN',
             invitationId: invitation.id,
             checkedIn,
-            remainingPendingAssistants: remaining.map(({ id, name, isPrimary, floorplanShape }) => ({
+            remainingPendingAssistants: remaining.map(({ id, name, isPrimary, floorplanShape, floorplanSeat }) => ({
               id,
               name: requireAssistantName(name),
               isPrimary,
-              table: floorplanShape
+              table: floorplanShape,
+              seat: floorplanSeat ? seatProjection(floorplanSeat) : null
             })),
             remainingPendingCount: remaining.length
           };
@@ -548,11 +553,12 @@ export class ScannerService {
 function projectInvitation(invitation: ScannerInvitation): ScannerInvitationResultDto {
   const pendingAssistants: PendingAssistantDto[] = invitation.assistants
     .filter(({ checkIns }) => checkIns.length === 0)
-    .map(({ id, name, isPrimary, floorplanShape }) => ({
+    .map(({ id, name, isPrimary, floorplanShape, floorplanSeat }) => ({
       id,
       name: name as string,
       isPrimary,
-      table: floorplanShape
+      table: floorplanShape,
+      seat: floorplanSeat ? seatProjection(floorplanSeat) : null
     }));
   return {
     invitation: { id: invitation.id, mode: invitation.mode },
@@ -596,6 +602,10 @@ function scannerTableAssignmentRequired(): DomainError {
     'All selected Assistants require an active table assignment.',
     HttpStatus.CONFLICT
   );
+}
+
+function seatProjection(seat: { id: string; label: string; x: Prisma.Decimal; y: Prisma.Decimal }) {
+  return { id: seat.id, label: seat.label, x: Number(seat.x), y: Number(seat.y) };
 }
 
 function scannerSeatAssignmentRequired(): DomainError {

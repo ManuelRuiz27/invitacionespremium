@@ -27,6 +27,10 @@ export type AdminFloorplanImageInput = S['FloorplanImageRequestDto'];
 export type AdminFloorplanShape = S['FloorplanShapeResponseDto'];
 export type AdminFloorplanShapeInput = S['FloorplanShapeRequestDto'];
 export type AdminFloorplanShapeUpdate = S['UpdateFloorplanShapeRequestDto'];
+export type AdminFloorplanSeat = S['FloorplanSeatResponseDto'];
+export type AdminFloorplanSeatInput = S['FloorplanSeatRequestDto'];
+export type AdminFloorplanSeatUpdate = S['UpdateFloorplanSeatRequestDto'];
+export type AdminFloorplanSeatingMode = S['UpdateFloorplanSeatingModeRequestDto']['seatingMode'];
 export type AdminFloorplanFileAsset = S['FileAssetResponseDto'];
 export type AdminPilotObservationInput = S['PilotObservationRequestDto'];
 export type AdminPilotObservation = S['PilotObservationResponseDto'];
@@ -343,6 +347,63 @@ export function createAdminEventPreparationClient(request: ApiRequester) {
         },
         record
       ),
+    setFloorplanSeatingMode: (
+      clientId: string,
+      eventId: string,
+      seatingMode: AdminFloorplanSeatingMode,
+      signal?: AbortSignal
+    ) =>
+      request<AdminFloorplan>(
+        {
+          method: 'PATCH',
+          path: `${base(clientId, eventId)}/floorplan/seating-mode`,
+          body: { seatingMode },
+          response: 'json',
+          ...withSignal(signal)
+        },
+        record
+      ),
+    createFloorplanSeat: (
+      clientId: string,
+      eventId: string,
+      shapeId: string,
+      body: AdminFloorplanSeatInput,
+      signal?: AbortSignal
+    ) =>
+      request<AdminFloorplanSeat>(
+        {
+          method: 'POST',
+          path: `${base(clientId, eventId)}/floorplan/shapes/${id(shapeId)}/seats`,
+          body,
+          response: 'json',
+          ...withSignal(signal)
+        },
+        record
+      ),
+    updateFloorplanSeat: (
+      clientId: string,
+      eventId: string,
+      seatId: string,
+      body: AdminFloorplanSeatUpdate,
+      signal?: AbortSignal
+    ) =>
+      request<AdminFloorplanSeat>(
+        {
+          method: 'PATCH',
+          path: `${base(clientId, eventId)}/floorplan/seats/${id(seatId)}`,
+          body,
+          response: 'json',
+          ...withSignal(signal)
+        },
+        record
+      ),
+    removeFloorplanSeat: (clientId: string, eventId: string, seatId: string, signal?: AbortSignal) =>
+      request<void>({
+        method: 'DELETE',
+        path: `${base(clientId, eventId)}/floorplan/seats/${id(seatId)}`,
+        response: 'empty',
+        ...withSignal(signal)
+      }),
     createFloorplanShape: (clientId: string, eventId: string, body: AdminFloorplanShapeInput, signal?: AbortSignal) =>
       request<AdminFloorplanShape>(
         {

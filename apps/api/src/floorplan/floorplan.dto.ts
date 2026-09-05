@@ -240,7 +240,11 @@ export class FloorplanSeatResponseDto extends FloorplanSeatRequestDto {
   @ApiProperty({ type: Boolean }) occupied!: boolean;
 }
 export class UpdateFloorplanSeatingModeRequestDto { @ApiProperty({ enum: FloorplanSeatingMode }) seatingMode!: FloorplanSeatingMode; }
-export class AssignSeatsRequestDto { @ApiProperty({ type: Object, isArray: true }) assignments!: Array<{ assistantId: string; seatId: string }>; }
+export class SeatAssignmentDto {
+  @ApiProperty({ type: String, format: 'uuid' }) assistantId!: string;
+  @ApiProperty({ type: String, format: 'uuid' }) seatId!: string;
+}
+export class AssignSeatsRequestDto { @ApiProperty({ type: () => SeatAssignmentDto, isArray: true }) assignments!: SeatAssignmentDto[]; }
 
 export class SeatingChangeDto {
   @ApiProperty({ type: String, format: 'uuid' })
@@ -294,6 +298,11 @@ export class SeatingWorkspaceTableDto {
   name!: string;
 }
 
+export class SeatingWorkspaceSeatDto {
+  @ApiProperty({ type: String, format: 'uuid' }) id!: string;
+  @ApiProperty({ type: String }) label!: string;
+}
+
 export class SeatingWorkspaceItemDto {
   @ApiProperty({ type: String, format: 'uuid' })
   assistantId!: string;
@@ -305,6 +314,8 @@ export class SeatingWorkspaceItemDto {
   group!: SeatingWorkspaceGroupDto | null;
   @ApiProperty({ type: SeatingWorkspaceTableDto, nullable: true })
   table!: SeatingWorkspaceTableDto | null;
+  @ApiProperty({ type: SeatingWorkspaceSeatDto, nullable: true })
+  seat!: SeatingWorkspaceSeatDto | null;
   @ApiProperty({ type: Boolean })
   checkedIn!: boolean;
 }

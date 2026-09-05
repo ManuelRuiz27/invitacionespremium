@@ -50,7 +50,7 @@ import { adminErrorMessage } from '../../../shared/admin-error';
 import { AdminErrorState, AdminLoadingState } from '../../../shared/AdminStates';
 
 type EditorMode = 'idle' | 'placing-preset' | 'creating-draft' | 'editing-existing';
-type Mutation = 'uploading' | 'saving' | 'duplicating' | 'deleting' | 'locking' | 'unlocking' | 'placing';
+type Mutation = 'uploading' | 'saving' | 'duplicating' | 'deleting' | 'locking' | 'unlocking' | 'placing' | 'seating';
 type Geometry = AdminFloorplanShapeInput['geometry'];
 
 const initialPolygon = [
@@ -89,6 +89,14 @@ const editable = (shape: AdminFloorplanShape): AdminFloorplanShapeInput => ({
   rotation: shape.rotation,
   polygonPoints: shape.polygonPoints ?? null
 });
+const nextSeatPoint = (table: AdminFloorplanShape, index: number, total: number) => {
+  const angle = -Math.PI / 2 + (Math.PI * 2 * index) / Math.max(total, 1);
+  const radius = 0.32;
+  return {
+    x: Math.min(0.99, Math.max(0.01, table.x + table.width * (0.5 + Math.cos(angle) * radius))),
+    y: Math.min(0.99, Math.max(0.01, table.y + table.height * (0.5 + Math.sin(angle) * radius)))
+  };
+};
 
 export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient: ApiClient; event: AdminEvent }) {
   const mutationLock = useRef(false);
@@ -99,6 +107,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   const [loadError, setLoadError] = useState(false);
   const [mode, setMode] = useState<EditorMode>('idle');
   const [selectedId, setSelectedId] = useState<string>();
+  const [selectedSeatId, setSelectedSeatId] = useState<string>();
   const [draft, setDraft] = useState<AdminFloorplanShapeInput>(emptyDraft);
   const [selectedPresetId, setSelectedPresetId] = useState<FloorplanStickerPresetId>();
   const [mutation, setMutation] = useState<Mutation>();
@@ -144,6 +153,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   }, [event.floorplanEnabled, load]);
 
   const selected = floorplan?.shapes.find((shape) => shape.id === selectedId);
+  const selectedSeat = floorplan?.seats.find((seat) => seat.id === selectedSeatId);
   const pending = Boolean(mutation);
   const editing = mode !== 'idle';
   const readOnly = pending || floorplan?.locked === true;
@@ -158,6 +168,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   const cancel = () => {
     setMode('idle');
     setSelectedId(undefined);
+    setSelectedSeatId(undefined);
     setSelectedPresetId(undefined);
     setDraft(emptyDraft());
     setInspectorOpen(false);
@@ -271,10 +282,48 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     if (editing || floorplan?.locked || pending) return;
     setSelectedPresetId(undefined);
     setSelectedId(shape.id);
+    setSelectedSeatId(undefined);
     setDraft(editable(shape));
     setMode('editing-existing');
     setInspectorOpen(true);
     setMessage(undefined);
+  };
+  const addSeat = async () => {
+    if (!floorplan || !selected || selected.kind !== 'TABLE' || readOnly) return;
+    const tableSeats = floorplan.seats.filter((seat) => seat.floorplanShapeId === selected.id);
+    const point = nextSeatPoint(selected, tableSeats.length, Math.max(selected.capacity, tableSeats.length + 1));
+    const saved = await runMutation('seating', () =>
+      apiClient.adminEventPreparation.createFloorplanSeat(event.clientId, event.id, selected.id, {
+        label: `Lugar ${tableSeats.length + 1}`,
+        ...point
+      })
+    );
+    if (!saved) return;
+    setFloorplan((current) => (current ? { ...current, seats: [...current.seats, saved] } : current));
+    setSelectedSeatId(saved.id);
+    await refreshAfterConfirmedMutation();
+  };
+  const removeSeat = async () => {
+    if (!selectedSeat || readOnly) return;
+    const removedId = selectedSeat.id;
+    const succeeded = await runMutation('seating', async () => {
+      await apiClient.adminEventPreparation.removeFloorplanSeat(event.clientId, event.id, removedId);
+      return true;
+    });
+    if (!succeeded) return;
+    setFloorplan((current) => current ? { ...current, seats: current.seats.filter((seat) => seat.id !== removedId) } : current);
+    setSelectedSeatId(undefined);
+    await refreshAfterConfirmedMutation();
+  };
+  const setSeatingMode = async (seatingMode: 'TABLE' | 'SEAT') => {
+    if (!floorplan || floorplan.seatingMode === seatingMode || readOnly) return;
+    const updated = await runMutation('seating', () =>
+      apiClient.adminEventPreparation.setFloorplanSeatingMode(event.clientId, event.id, seatingMode)
+    );
+    if (!updated) return;
+    setFloorplan(updated);
+    setSelectedSeatId(undefined);
+    await refreshAfterConfirmedMutation();
   };
   const upload = async (file: File) => {
     if (!['image/jpeg', 'image/png'].includes(file.type)) {
@@ -566,6 +615,18 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
             aria-live="polite"
           />
           <Chip label={`${floorplan.shapes.length} elementos · ${places} lugares`} variant="outlined" />
+          <TextField
+            select
+            size="small"
+            label="Asignación"
+            value={floorplan.seatingMode}
+            disabled={readOnly || editing}
+            onChange={(event) => void setSeatingMode(event.target.value as 'TABLE' | 'SEAT')}
+            sx={{ minWidth: 148 }}
+          >
+            <MenuItem value="TABLE">Por mesa</MenuItem>
+            <MenuItem value="SEAT">Por lugar</MenuItem>
+          </TextField>
           <UploadButton label="Cambiar plano" disabled={readOnly || editing} onFile={upload} />
           <Button
             variant={floorplan.locked ? 'contained' : 'outlined'}
@@ -644,14 +705,34 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
               Haz click o toca el punto del plano donde quieres colocar el elemento.
             </Alert>
           ) : null}
+          {floorplan.seatingMode === 'SEAT' && selected?.kind === 'TABLE' ? (
+            <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
+              <Button size="small" variant="outlined" disabled={readOnly} onClick={() => void addSeat()}>
+                Agregar lugar a {selected.name}
+              </Button>
+              {selectedSeat ? (
+                <Button size="small" color="error" disabled={readOnly || selectedSeat.occupied} onClick={() => void removeSeat()}>
+                  Eliminar {selectedSeat.label}
+                </Button>
+              ) : null}
+            </Stack>
+          ) : null}
           {imageUrl ? (
             <FloorplanSurface
               floorplan={floorplan}
               imageUrl={imageUrl}
               selectedId={selectedId}
+              selectedSeatId={selectedSeatId}
               draft={mode === 'creating-draft' || mode === 'editing-existing' ? draft : undefined}
               disabled={readOnly}
               onSelect={selectShape}
+              onSeatSelect={(seatId) => {
+                if (editing || readOnly) return;
+                const seat = floorplan.seats.find((candidate) => candidate.id === seatId);
+                if (!seat) return;
+                setSelectedSeatId(seat.id);
+                setSelectedId(seat.floorplanShapeId);
+              }}
               onDraftChange={setDraft}
               onCanvasPlace={mode === 'placing-preset' || pendingTables.length ? placePending : undefined}
               dock={

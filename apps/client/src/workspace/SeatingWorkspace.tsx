@@ -44,6 +44,7 @@ type MutationIntent =
   | { kind: 'ASSIGN'; assistantIds: string[]; tableShapeId: string; key: string }
   | { kind: 'FAMILY'; invitationId: string; tableShapeId: string; key: string }
   | { kind: 'GROUP'; groupId: string; tableShapeId: string; key: string }
+  | { kind: 'SEAT'; assistantId: string; seatId: string; key: string }
   | { kind: 'UPDATE'; assistantId: string; tableShapeId: string | null; key: string };
 
 const mutableStatuses = new Set(['ACTIVE', 'EVENT_DAY']);
@@ -57,6 +58,7 @@ export function SeatingWorkspace({ apiClient, event }: { apiClient: ApiClient; e
   const [realtimeTerminal, setRealtimeTerminal] = useState(false);
   const mutable = digital && mutableStatuses.has(event.status) && !realtimeTerminal;
   const [selectedTableId, setSelectedTableId] = useState<string>();
+  const [selectedSeatId, setSelectedSeatId] = useState<string>();
   const [scope, setScope] = useState<Scope>('UNASSIGNED');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -206,7 +208,14 @@ export function SeatingWorkspace({ apiClient, event }: { apiClient: ApiClient; e
                   intent.key,
                   controller.signal
                 )
-              : await apiClient.floorplan.updateSeating(
+              : intent.kind === 'SEAT'
+                ? await apiClient.floorplan.assignSeats(
+                    event.id,
+                    { assignments: [{ assistantId: intent.assistantId, seatId: intent.seatId }] },
+                    intent.key,
+                    controller.signal
+                  )
+                : await apiClient.floorplan.updateSeating(
                   event.id,
                   intent.assistantId,
                   { tableShapeId: intent.tableShapeId },
@@ -288,14 +297,17 @@ export function SeatingWorkspace({ apiClient, event }: { apiClient: ApiClient; e
           })
         }
         onNextPage={() => setCursor(seatingQuery.data?.nextCursor ?? undefined)}
-        onAssign={() =>
-          void executeIntent({
-            kind: 'ASSIGN',
-            assistantIds: [...selectedIds],
-            tableShapeId: selectedTable.id,
-            key: newKey()
-          })
-        }
+        onAssign={() => {
+          if (floorplan.seatingMode === 'SEAT') {
+            if (!selectedSeatId || selectedIds.size !== 1) {
+              setFeedback('En modo Lugar selecciona un lugar libre y una sola persona antes de asignar.');
+              return;
+            }
+            void executeIntent({ kind: 'SEAT', assistantId: [...selectedIds][0]!, seatId: selectedSeatId, key: newKey() });
+            return;
+          }
+          void executeIntent({ kind: 'ASSIGN', assistantIds: [...selectedIds], tableShapeId: selectedTable.id, key: newKey() });
+        }}
         onMove={() => setDestinationOpen(true)}
         onUnassign={(assistantId) =>
           void executeIntent({ kind: 'UPDATE', assistantId, tableShapeId: null, key: newKey() })
@@ -331,9 +343,17 @@ export function SeatingWorkspace({ apiClient, event }: { apiClient: ApiClient; e
             floorplan={floorplan}
             imageUrl={imageUrl}
             selectedId={selectedTableId}
+            selectedSeatId={selectedSeatId}
             disabled={false}
             readOnly
             onSelect={selectTable}
+            onSeatSelect={(seatId) => {
+              const seat = (floorplan.seats ?? []).find((candidate) => candidate.id === seatId);
+              if (!seat || seat.isBlocked || seat.occupied) return;
+              setSelectedSeatId(seatId);
+              setSelectedTableId(seat.floorplanShapeId);
+              setScope('UNASSIGNED');
+            }}
             onDraftChange={() => undefined}
           />
           <SeatingSummary
@@ -629,7 +649,11 @@ function AssignmentPanel(props: {
                     {item.name ?? 'Nombre protegido'}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {item.checkedIn ? 'Ingreso registrado' : (item.group?.name ?? 'Sin grupo')}
+                    {item.checkedIn
+                      ? 'Ingreso registrado'
+                      : item.seat && item.table
+                        ? `Mesa ${item.table.name} · Lugar ${item.seat.label}`
+                        : (item.group?.name ?? 'Sin grupo')}
                   </Typography>
                   {props.mutable && props.scope === 'UNASSIGNED' ? (
                     <Stack direction="row" useFlexGap sx={{ flexWrap: 'wrap', mt: 0.25, ml: -1 }}>
@@ -874,6 +898,7 @@ function intentIsReflected(
     if (scope === 'TABLE' && selectedTableId === intent.tableShapeId) return visibleIds.has(intent.assistantId);
     return intent.tableShapeId === null ? visibleIds.has(intent.assistantId) : !visibleIds.has(intent.assistantId);
   }
+  if (intent.kind === 'SEAT') return !visibleIds.has(intent.assistantId);
   const matching = page.items.find((item) =>
     intent.kind === 'FAMILY' ? item.invitation.id === intent.invitationId : item.group?.id === intent.groupId
   );

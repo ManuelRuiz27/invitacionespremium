@@ -2737,7 +2737,7 @@ export type components = {
             tableShapeId: string;
         };
         AssignSeatsRequestDto: {
-            assignments: Record<string, never>[];
+            assignments: components["schemas"]["SeatAssignmentDto"][];
         };
         AssistantRequestDto: {
             /** @example María Ejemplo */
@@ -2845,6 +2845,7 @@ export type components = {
             /** Format: uuid */
             checkInId: string;
             name: string;
+            seat: components["schemas"]["ScannerSeatDto"] | null;
             table: components["schemas"]["ScannerTableDto"] | null;
         };
         CheckInRevertResponseDto: {
@@ -3707,6 +3708,7 @@ export type components = {
             id: string;
             isPrimary: boolean;
             name: string;
+            seat: components["schemas"]["ScannerSeatDto"] | null;
             table: components["schemas"]["ScannerTableDto"] | null;
         };
         PhysicalPassResponseDto: {
@@ -4111,6 +4113,13 @@ export type components = {
             /** @enum {string} */
             status: "MATCHES" | "NO_MATCHES";
         };
+        ScannerSeatDto: {
+            /** Format: uuid */
+            id: string;
+            label: string;
+            x: number;
+            y: number;
+        };
         ScannerSessionEventDto: {
             /** Format: date-time */
             eventDateTime: string;
@@ -4150,6 +4159,12 @@ export type components = {
             table: components["schemas"]["PhysicalPassTableDto"] | null;
             usedAt: string;
         };
+        SeatAssignmentDto: {
+            /** Format: uuid */
+            assistantId: string;
+            /** Format: uuid */
+            seatId: string;
+        };
         SeatingChangeDto: {
             /** Format: uuid */
             assistantId: string;
@@ -4188,12 +4203,18 @@ export type components = {
             group: components["schemas"]["SeatingWorkspaceGroupDto"] | null;
             invitation: components["schemas"]["SeatingWorkspaceInvitationDto"];
             name: string | null;
+            seat: components["schemas"]["SeatingWorkspaceSeatDto"] | null;
             table: components["schemas"]["SeatingWorkspaceTableDto"] | null;
         };
         SeatingWorkspacePageDto: {
             items: components["schemas"]["SeatingWorkspaceItemDto"][];
             nextCursor: string | null;
             summary: components["schemas"]["SeatingWorkspaceSummaryDto"];
+        };
+        SeatingWorkspaceSeatDto: {
+            /** Format: uuid */
+            id: string;
+            label: string;
         };
         SeatingWorkspaceSelectedTableDto: {
             capacity: number;

@@ -15,6 +15,7 @@ export type ScannerInvitation = components['schemas']['ScannerInvitationDto'];
 export type ScannerInvitationResult = components['schemas']['ScannerInvitationResultDto'];
 export type FloorplanShape = components['schemas']['FloorplanShapeResponseDto'];
 export type ScannerTable = components['schemas']['ScannerTableDto'];
+export type ScannerSeat = components['schemas']['ScannerSeatDto'];
 
 export interface ScannerClient {
   getSession(staffToken: string, signal?: AbortSignal): Promise<ScannerSessionResponse>;
@@ -145,13 +146,29 @@ function isTable(value: unknown): value is ScannerTable {
   return isRecord(value) && isNonEmptyString(value.id) && isNonEmptyString(value.name);
 }
 
+function isSeat(value: unknown): value is ScannerSeat {
+  return (
+    isRecord(value) &&
+    isNonEmptyString(value.id) &&
+    isNonEmptyString(value.label) &&
+    isFiniteInRange(value.x, 0, 1) &&
+    isFiniteInRange(value.y, 0, 1)
+  );
+}
+
+function hasCompatibleSeat(value: unknown): boolean {
+  // Historical scanner payloads predate seat assignments; current responses use null or a seat.
+  return value === undefined || value === null || isSeat(value);
+}
+
 function isPendingAssistant(value: unknown): value is PendingAssistant {
   return (
     isRecord(value) &&
     isNonEmptyString(value.id) &&
     isNonEmptyString(value.name) &&
     typeof value.isPrimary === 'boolean' &&
-    (value.table === null || isTable(value.table))
+    (value.table === null || isTable(value.table)) &&
+    hasCompatibleSeat(value.seat)
   );
 }
 
@@ -194,7 +211,8 @@ function isCheckedInAssistant(value: unknown): value is CheckedInAssistant {
     isNonEmptyString(value.checkInId) &&
     isNonEmptyString(value.name) &&
     isDateTime(value.checkedInAt) &&
-    (value.table === null || isTable(value.table))
+    (value.table === null || isTable(value.table)) &&
+    hasCompatibleSeat(value.seat)
   );
 }
 

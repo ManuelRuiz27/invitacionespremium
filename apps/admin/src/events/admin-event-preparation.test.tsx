@@ -979,6 +979,8 @@ function floorplan(overrides: Partial<AdminFloorplan> = {}): AdminFloorplan {
     image: { fileAssetId: 'asset-floorplan', contentPath: '/private' },
     locked: false,
     lockedAt: null,
+    seatingMode: 'TABLE',
+    seats: [],
     shapes: [],
     createdAt: adminEvent.createdAt,
     updatedAt: adminEvent.updatedAt,

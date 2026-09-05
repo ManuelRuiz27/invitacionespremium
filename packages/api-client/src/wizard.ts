@@ -26,7 +26,10 @@ export type ReplaceDesignAssetInput = S['ReplaceDesignAssetRequestDto'];
 export type Hotspot = S['HotspotResponseDto'];
 export type HotspotInput = S['CreateHotspotRequestDto'];
 export type HotspotUpdate = S['UpdateHotspotRequestDto'];
-export type Floorplan = S['FloorplanResponseDto'];
+export type Floorplan = Omit<S['FloorplanResponseDto'], 'seatingMode' | 'seats'> & {
+  seatingMode?: S['FloorplanResponseDto']['seatingMode'];
+  seats?: S['FloorplanResponseDto']['seats'];
+};
 export type FloorplanShape = S['FloorplanShapeResponseDto'];
 export type FloorplanShapeInput = S['FloorplanShapeRequestDto'];
 export type FloorplanShapeUpdate = S['UpdateFloorplanShapeRequestDto'];

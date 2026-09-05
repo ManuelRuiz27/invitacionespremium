@@ -179,6 +179,14 @@ export function FloorplanKonvaRenderer(
             />
           );
         })}
+        {props.floorplan.seatingMode === 'SEAT'
+          ? (props.floorplan.seats ?? []).map((seat) => (
+              <Group key={seat.id} x={seat.x * props.width} y={seat.y * props.height} onClick={() => props.onSeatSelect?.(seat.id)} onTap={() => props.onSeatSelect?.(seat.id)}>
+                <Circle radius={7} hitStrokeWidth={30} fill={seat.isBlocked ? '#b0b6bf' : seat.occupied ? floorplanColors.accent : floorplanColors.paper} stroke={props.selectedSeatId === seat.id ? floorplanColors.warning : floorplanColors.line} strokeWidth={props.selectedSeatId === seat.id ? 3 : 1.5} />
+                <Text text={seat.label} x={-12} y={-5} width={24} align="center" fontSize={8} fill={floorplanColors.ink} listening={false} />
+              </Group>
+            ))
+          : null}
         {selected && selectedRect ? (
           <EditableKonvaShape
             shape={selected}

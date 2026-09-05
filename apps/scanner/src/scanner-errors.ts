@@ -11,6 +11,8 @@ export function scannerErrorMessage(error: unknown, fallback: string): string {
       return 'El código QR no es válido para este Evento.';
     case 'SCANNER_TABLE_ASSIGNMENT_REQUIRED':
       return 'Falta una Mesa operativa para uno o más Asistentes.';
+    case 'SCANNER_SEAT_ASSIGNMENT_REQUIRED':
+      return 'Falta un Lugar operativo para uno o más Asistentes.';
     case 'SCANNER_FLOORPLAN_NOT_AVAILABLE':
       return 'El Croquis no está disponible.';
     case 'PHYSICAL_PASS_ALREADY_USED':
