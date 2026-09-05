@@ -9,12 +9,17 @@ import {
   FloorplanResponseDto,
   FloorplanShapeRequestDto,
   FloorplanShapeResponseDto,
+  FloorplanSeatRequestDto,
+  FloorplanSeatResponseDto,
+  UpdateFloorplanSeatRequestDto,
+  UpdateFloorplanSeatingModeRequestDto,
   UpdateFloorplanShapeRequestDto,
   parseCreateFloorplan,
   parseCreateShape,
   parseFloorplanId,
   parseUpdateFloorplan,
   parseUpdateShape
+  ,parseCreateSeat, parseUpdateSeat, parseSeatingMode
 } from './floorplan.dto';
 import { FloorplanService } from './floorplan.service';
 
@@ -33,6 +38,31 @@ export class AdminFloorplanController {
     @CurrentAuth() principal: AuthPrincipal
   ): Promise<FloorplanResponseDto> {
     return this.floorplan.getAdministrative(parseFloorplanId(clientId), parseFloorplanId(eventId), principal);
+  }
+
+  @Patch('seating-mode')
+  @ApiBody({ type: UpdateFloorplanSeatingModeRequestDto })
+  setSeatingMode(@Param('clientId') clientId: string, @Param('eventId') eventId: string, @Body() body: unknown, @CurrentAuth() principal: AuthPrincipal, @Req() request: AuthenticatedRequest): Promise<FloorplanResponseDto> {
+    return this.floorplan.setSeatingModeAdministrative(parseFloorplanId(clientId), parseFloorplanId(eventId), parseSeatingMode(body).seatingMode, principal, request.operationId);
+  }
+
+  @Post('shapes/:shapeId/seats')
+  @ApiBody({ type: FloorplanSeatRequestDto })
+  @ApiOkResponse({ type: FloorplanSeatResponseDto })
+  createSeat(@Param('clientId') clientId: string, @Param('eventId') eventId: string, @Param('shapeId') shapeId: string, @Body() body: unknown, @CurrentAuth() principal: AuthPrincipal, @Req() request: AuthenticatedRequest): Promise<FloorplanSeatResponseDto> {
+    return this.floorplan.createSeatAdministrative(parseFloorplanId(clientId), parseFloorplanId(eventId), parseFloorplanId(shapeId), parseCreateSeat(body), principal, request.operationId);
+  }
+
+  @Patch('seats/:seatId')
+  @ApiBody({ type: UpdateFloorplanSeatRequestDto })
+  updateSeat(@Param('clientId') clientId: string, @Param('eventId') eventId: string, @Param('seatId') seatId: string, @Body() body: unknown, @CurrentAuth() principal: AuthPrincipal, @Req() request: AuthenticatedRequest): Promise<FloorplanSeatResponseDto> {
+    return this.floorplan.updateSeatAdministrative(parseFloorplanId(clientId), parseFloorplanId(eventId), parseFloorplanId(seatId), parseUpdateSeat(body), principal, request.operationId);
+  }
+
+  @Delete('seats/:seatId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteSeat(@Param('clientId') clientId: string, @Param('eventId') eventId: string, @Param('seatId') seatId: string, @CurrentAuth() principal: AuthPrincipal, @Req() request: AuthenticatedRequest): Promise<void> {
+    await this.floorplan.deleteSeatAdministrative(parseFloorplanId(clientId), parseFloorplanId(eventId), parseFloorplanId(seatId), principal, request.operationId);
   }
 
   @Post()

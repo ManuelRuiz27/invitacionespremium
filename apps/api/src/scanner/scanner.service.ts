@@ -17,6 +17,7 @@ import {
   AssistantResponseStatus,
   AuditActorType,
   EventStatus,
+  FloorplanSeatingMode,
   FloorplanShapeKind,
   InvitationResponseStatus,
   Prisma,
@@ -230,12 +231,13 @@ export class ScannerService {
               name: { not: null },
               responseStatus: AssistantResponseStatus.CONFIRMED
             },
-            include: { floorplanShape: { select: { id: true, name: true } } },
+            include: { floorplanShape: { select: { id: true, name: true } }, floorplanSeat: { select: { id: true, label: true, x: true, y: true } } },
             orderBy: { id: 'asc' }
           });
           if (assistants.length !== sortedIds.length) throw scannerSelectionNotFound();
 
           if (resolution.event.floorplanEnabled) {
+            const floorplan = await tx.floorplan.findFirst({ where: { eventId: invitation.eventId, deletedAt: null }, select: { seatingMode: true } });
             const tableIds = [
               ...new Set(
                 assistants.map(({ floorplanShapeId }) => floorplanShapeId).filter((id): id is string => id !== null)
@@ -260,6 +262,12 @@ export class ScannerService {
               }
             });
             if (validTables !== tableIds.length) throw scannerTableAssignmentRequired();
+            if (floorplan?.seatingMode === FloorplanSeatingMode.SEAT) {
+              const assignedSeats = await tx.floorplanSeat.count({
+                where: { id: { in: assistants.map(({ floorplanSeatId }) => floorplanSeatId).filter((id): id is string => id !== null) }, eventId: invitation.eventId, deletedAt: null, isBlocked: false }
+              });
+              if (assignedSeats !== assistants.length || assistants.some(({ floorplanSeatId }) => floorplanSeatId === null)) throw scannerSeatAssignmentRequired();
+            }
           }
 
           await tx.$queryRaw`
@@ -588,6 +596,10 @@ function scannerTableAssignmentRequired(): DomainError {
     'All selected Assistants require an active table assignment.',
     HttpStatus.CONFLICT
   );
+}
+
+function scannerSeatAssignmentRequired(): DomainError {
+  return new DomainError('SCANNER_SEAT_ASSIGNMENT_REQUIRED', 'All selected Assistants require an active detailed seat assignment.', HttpStatus.CONFLICT);
 }
 
 function idempotencyConflict(): DomainError {

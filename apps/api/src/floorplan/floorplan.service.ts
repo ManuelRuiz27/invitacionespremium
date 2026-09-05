@@ -22,6 +22,7 @@ import {
   FileAssetOwnerType,
   FileAssetStatus,
   FloorplanShapeKind,
+  FloorplanSeatingMode,
   Prisma,
   SeatingAction,
   type Event,
@@ -34,15 +35,20 @@ import type {
   AssignFamilyInput,
   AssignGroupInput,
   AssignSeatingInput,
+  AssignSeatsInput,
+  BatchFloorplanSeatsInput,
   CreateFloorplanInput,
   FloorplanResponseDto,
   FloorplanShapeInput,
   FloorplanShapeResponseDto,
+  FloorplanSeatInput,
+  FloorplanSeatResponseDto,
   SeatingMutationResponseDto,
   SeatingWorkspacePageDto,
   SeatingWorkspaceQueryInput,
   ScannerFloorplanResponseDto,
   UpdateFloorplanShapeInput,
+  UpdateFloorplanSeatInput,
   UpdateSeatingInput
 } from './floorplan.dto';
 import { floorplanShapeSchema, normalizeFloorplanName } from './floorplan.dto';
@@ -78,7 +84,8 @@ const floorplanInclude = {
       }
     },
     orderBy: [{ createdAt: 'asc' as const }, { id: 'asc' as const }]
-  }
+  },
+  seats: { where: { deletedAt: null }, include: { _count: { select: { assistants: { where: { deletedAt: null } } } } }, orderBy: [{ createdAt: 'asc' as const }, { id: 'asc' as const }] }
 } satisfies Prisma.FloorplanInclude;
 
 type FloorplanView = Prisma.FloorplanGetPayload<{ include: typeof floorplanInclude }>;
@@ -612,6 +619,109 @@ export class FloorplanService {
     );
   }
 
+  async assignSeats(eventId: string, key: string, input: AssignSeatsInput, principal: AuthPrincipal, operationId?: string): Promise<SeatingMutationResponseDto> {
+    const effectiveOperationId = operationId ?? randomUUID();
+    const signature = requestSignature(eventId, SeatingAction.ASSIGN_SEATS, input);
+    const outcome = await this.serializable(async (tx): Promise<SeatingOutcome> => {
+      const event = await this.access.requireOwnedEvent(tx, eventId, principal, true);
+      const prior = await tx.seatingOperation.findUnique({ where: { idempotencyKey: key } });
+      if (prior) {
+        if (prior.eventId !== eventId || prior.action !== SeatingAction.ASSIGN_SEATS || prior.requestSignature !== signature) throw idempotencyConflict();
+        return { response: prior.resultSnapshot as unknown as SeatingMutationResponseDto, replay: true, eventId, operationId: effectiveOperationId };
+      }
+      this.assertSeatingMutable(event);
+      const floorplan = await this.lockFloorplan(tx, eventId);
+      if (floorplan.seatingMode !== FloorplanSeatingMode.SEAT) throw floorplanError('SEATING_MODE_TABLE', 'Exact seating requires detailed seating mode.');
+      const assistantIds = input.assignments.map(({ assistantId }) => assistantId).sort();
+      const seatIds = input.assignments.map(({ seatId }) => seatId).sort();
+      await tx.$queryRaw`SELECT "id" FROM "assistant" WHERE "id" = ANY(ARRAY[${Prisma.join(assistantIds)}]::uuid[]) ORDER BY "id" FOR UPDATE`;
+      await tx.$queryRaw`SELECT "id" FROM "floorplan_seat" WHERE "id" = ANY(ARRAY[${Prisma.join(seatIds)}]::uuid[]) ORDER BY "id" FOR UPDATE`;
+      const [assistants, seats] = await Promise.all([
+        tx.assistant.findMany({ where: { id: { in: assistantIds }, eventId, deletedAt: null, anonymizedAt: null, name: { not: null }, responseStatus: AssistantResponseStatus.CONFIRMED, invitation: { deletedAt: null, cancelledAt: null } }, select: { id: true, floorplanShapeId: true, floorplanSeatId: true } }),
+        tx.floorplanSeat.findMany({ where: { id: { in: seatIds }, eventId, floorplanId: floorplan.id, deletedAt: null, isBlocked: false }, select: { id: true, floorplanShapeId: true } })
+      ]);
+      if (assistants.length !== input.assignments.length || seats.length !== input.assignments.length) throw seatingNotFound();
+      const seatById = new Map(seats.map((seat) => [seat.id, seat]));
+      const changes = input.assignments.map(({ assistantId, seatId }) => {
+        const assistant = assistants.find((item) => item.id === assistantId)!;
+        const seat = seatById.get(seatId)!;
+        return { assistantId, fromTableId: assistant.floorplanShapeId, toTableId: seat.floorplanShapeId };
+      });
+      for (const { assistantId, seatId } of input.assignments) {
+        const seat = seatById.get(seatId)!;
+        await tx.assistant.update({ where: { id: assistantId }, data: { floorplanSeatId: seatId, floorplanShapeId: seat.floorplanShapeId } });
+      }
+      const affectedTables = await this.tableOccupancy(tx, [...new Set(changes.flatMap(({ fromTableId, toTableId }) => [fromTableId, toTableId]).filter((id): id is string => !!id))].sort());
+      const response = { changes, affectedTables };
+      await tx.seatingOperation.create({ data: { eventId, action: SeatingAction.ASSIGN_SEATS, idempotencyKey: key, requestSignature: signature, resultSnapshot: response as unknown as Prisma.InputJsonObject } });
+      await this.recordAudit(tx, event, principal, effectiveOperationId, 'SEATING_ASSIGN_SEATS', floorplan.id, { assistantIds, seatIds, changes, affectedTables });
+      return { response, replay: false, eventId, operationId: effectiveOperationId };
+    });
+    if (!outcome.replay && outcome.response.changes.length) await this.realtime.publishSeatingUpdated({ eventName: 'seating.updated', version: 1, eventId, occurredAt: new Date().toISOString(), operationId: outcome.operationId, actorType: 'USER', data: outcome.response });
+    return outcome.response;
+  }
+
+  async setSeatingModeAdministrative(clientId: string, eventId: string, seatingMode: FloorplanSeatingMode, principal: AuthPrincipal, operationId?: string): Promise<FloorplanResponseDto> {
+    return this.serializable(async (tx) => {
+      const event = await this.requireTargetEvent(tx, eventId, principal, { kind: 'ADMIN', clientId }, true);
+      this.assertLayoutMutable(event);
+      const floorplan = await this.lockFloorplan(tx, eventId);
+      this.assertUnlocked(floorplan);
+      if (floorplan.seatingMode === seatingMode) return this.toTargetResponse(await this.requireView(tx, eventId), { kind: 'ADMIN', clientId });
+      if (seatingMode === FloorplanSeatingMode.SEAT) {
+        const tables = await tx.floorplanShape.findMany({ where: { floorplanId: floorplan.id, kind: FloorplanShapeKind.TABLE, deletedAt: null }, select: { id: true } });
+        if (tables.length === 0) throw floorplanError('FLOORPLAN_SEAT_TABLE_REQUIRED', 'Detailed seating requires a table.');
+      }
+      await tx.floorplan.update({ where: { id: floorplan.id }, data: { seatingMode } });
+      await this.recordAudit(tx, event, principal, operationId, 'FLOORPLAN_SEATING_MODE_UPDATE', floorplan.id, { seatingMode });
+      await recomputeDigitalEventPreparationStatus(tx, eventId);
+      return this.toTargetResponse(await this.requireView(tx, eventId), { kind: 'ADMIN', clientId });
+    });
+  }
+
+  createSeatAdministrative(clientId: string, eventId: string, shapeId: string, input: FloorplanSeatInput, principal: AuthPrincipal, operationId?: string): Promise<FloorplanSeatResponseDto> {
+    return this.mutateSeat(clientId, eventId, shapeId, input, principal, operationId, 'CREATE');
+  }
+  updateSeatAdministrative(clientId: string, eventId: string, seatId: string, input: UpdateFloorplanSeatInput, principal: AuthPrincipal, operationId?: string): Promise<FloorplanSeatResponseDto> {
+    return this.serializable(async (tx) => {
+      const event = await this.requireTargetEvent(tx, eventId, principal, { kind: 'ADMIN', clientId }, true);
+      this.assertLayoutMutable(event); const floorplan = await this.lockFloorplan(tx, eventId); this.assertUnlocked(floorplan);
+      const seat = await tx.floorplanSeat.findFirst({ where: { id: seatId, eventId, floorplanId: floorplan.id, deletedAt: null } });
+      if (!seat) throw floorplanError('FLOORPLAN_SEAT_NOT_FOUND', 'Seat was not found.');
+      const updated = await tx.floorplanSeat.update({ where: { id: seatId }, data: { ...(input.label === undefined ? {} : { label: input.label, normalizedLabel: normalizeFloorplanName(input.label).toLocaleLowerCase('es-MX') }), ...(input.x === undefined ? {} : { x: input.x }), ...(input.y === undefined ? {} : { y: input.y }), ...(input.isBlocked === undefined ? {} : { isBlocked: input.isBlocked }) } });
+      await this.recordAudit(tx, event, principal, operationId, 'FLOORPLAN_SEAT_UPDATE', seatId, { before: seatAudit(seat), after: seatAudit(updated) });
+      return toSeatResponse(updated, await tx.assistant.count({ where: { floorplanSeatId: seatId, deletedAt: null } }));
+    });
+  }
+  async deleteSeatAdministrative(clientId: string, eventId: string, seatId: string, principal: AuthPrincipal, operationId?: string): Promise<void> {
+    await this.serializable(async (tx) => {
+      const event = await this.requireTargetEvent(tx, eventId, principal, { kind: 'ADMIN', clientId }, true); this.assertLayoutMutable(event);
+      const floorplan = await this.lockFloorplan(tx, eventId); this.assertUnlocked(floorplan);
+      const seat = await tx.floorplanSeat.findFirst({ where: { id: seatId, eventId, floorplanId: floorplan.id, deletedAt: null } });
+      if (!seat) throw floorplanError('FLOORPLAN_SEAT_NOT_FOUND', 'Seat was not found.');
+      if (await tx.assistant.count({ where: { floorplanSeatId: seatId, deletedAt: null } })) throw floorplanError('FLOORPLAN_SEAT_OCCUPIED', 'Occupied seat cannot be deleted.');
+      await tx.floorplanSeat.update({ where: { id: seatId }, data: { deletedAt: new Date() } });
+      await this.recordAudit(tx, event, principal, operationId, 'FLOORPLAN_SEAT_DELETE', seatId, seatAudit(seat));
+    });
+  }
+  async batchSeatsAdministrative(clientId: string, eventId: string, input: BatchFloorplanSeatsInput, principal: AuthPrincipal, operationId?: string): Promise<FloorplanSeatResponseDto[]> {
+    const results: FloorplanSeatResponseDto[] = [];
+    for (const item of input.seats) results.push(await this.updateSeatAdministrative(clientId, eventId, item.seatId, item, principal, operationId));
+    return results;
+  }
+  private async mutateSeat(clientId: string, eventId: string, shapeId: string, input: FloorplanSeatInput, principal: AuthPrincipal, operationId: string | undefined, action: 'CREATE'): Promise<FloorplanSeatResponseDto> {
+    return this.serializable(async (tx) => {
+      const event = await this.requireTargetEvent(tx, eventId, principal, { kind: 'ADMIN', clientId }, true); this.assertLayoutMutable(event);
+      const floorplan = await this.lockFloorplan(tx, eventId); this.assertUnlocked(floorplan);
+      if (floorplan.seatingMode !== FloorplanSeatingMode.SEAT) throw floorplanError('FLOORPLAN_SEAT_MODE_REQUIRED', 'Seats require detailed seating mode.');
+      const shape = await this.lockShape(tx, eventId, floorplan.id, shapeId);
+      if (shape.kind !== FloorplanShapeKind.TABLE) throw floorplanError('FLOORPLAN_SEAT_PARENT_INVALID', 'Seat requires a table parent.');
+      const seat = await tx.floorplanSeat.create({ data: { eventId, floorplanId: floorplan.id, floorplanShapeId: shapeId, label: input.label, normalizedLabel: normalizeFloorplanName(input.label).toLocaleLowerCase('es-MX'), x: input.x, y: input.y, isBlocked: input.isBlocked ?? false } });
+      await this.recordAudit(tx, event, principal, operationId, `FLOORPLAN_SEAT_${action}`, seat.id, seatAudit(seat));
+      return toSeatResponse(seat, 0);
+    });
+  }
+
   assignFamily(
     eventId: string,
     key: string,
@@ -1101,9 +1211,11 @@ export function toFloorplanResponse(floorplan: FloorplanView, contentPath?: stri
     },
     locked: floorplan.lockedAt !== null,
     lockedAt: floorplan.lockedAt?.toISOString() ?? null,
+    seatingMode: floorplan.seatingMode,
     shapes: floorplan.shapes.map((shape) =>
       toShapeResponse(shape, shape._count.assistants + shape._count.physicalPasses)
     ),
+    seats: floorplan.seats.map((seat) => ({ id: seat.id, floorplanShapeId: seat.floorplanShapeId, label: seat.label, x: Number(seat.x), y: Number(seat.y), isBlocked: seat.isBlocked, occupied: seat._count.assistants > 0 })),
     createdAt: floorplan.createdAt.toISOString(),
     updatedAt: floorplan.updatedAt.toISOString()
   };
@@ -1125,6 +1237,13 @@ function toShapeResponse(shape: FloorplanShape, occupancy: number): FloorplanSha
     rotation: Number(shape.rotation),
     polygonPoints: (shape.polygonPoints as PolygonPoint[] | null) ?? null
   };
+}
+
+function toSeatResponse(seat: { id: string; floorplanShapeId: string; label: string; x: Prisma.Decimal; y: Prisma.Decimal; isBlocked: boolean }, occupied: number): FloorplanSeatResponseDto {
+  return { id: seat.id, floorplanShapeId: seat.floorplanShapeId, label: seat.label, x: Number(seat.x), y: Number(seat.y), isBlocked: seat.isBlocked, occupied: occupied > 0 };
+}
+function seatAudit(seat: { id: string; floorplanShapeId: string; label: string; x: Prisma.Decimal; y: Prisma.Decimal; isBlocked: boolean }): Record<string, unknown> {
+  return { seatId: seat.id, floorplanShapeId: seat.floorplanShapeId, label: seat.label, x: Number(seat.x), y: Number(seat.y), isBlocked: seat.isBlocked };
 }
 
 type PolygonPoint = { x: number; y: number };

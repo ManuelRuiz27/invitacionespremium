@@ -30,6 +30,8 @@ export type Floorplan = S['FloorplanResponseDto'];
 export type FloorplanShape = S['FloorplanShapeResponseDto'];
 export type FloorplanShapeInput = S['FloorplanShapeRequestDto'];
 export type FloorplanShapeUpdate = S['UpdateFloorplanShapeRequestDto'];
+export type FloorplanSeat = S['FloorplanSeatResponseDto'];
+export type AssignSeatsInput = S['AssignSeatsRequestDto'];
 export type SeatingWorkspacePage = S['SeatingWorkspacePageDto'];
 export type SeatingWorkspaceItem = S['SeatingWorkspaceItemDto'];
 export type SeatingWorkspaceQuery = operations['FloorplanController_seatingWorkspace']['parameters']['query'];
@@ -317,6 +319,8 @@ export function createFloorplanClient(request: ApiRequester) {
         },
         record
       ),
+    assignSeats: (eventId: string, body: AssignSeatsInput, idempotencyKey: string, signal?: AbortSignal) =>
+      request<SeatingMutationResult>({ method: 'POST', path: `${eventBase(eventId)}/seating/assign-seats`, body, headers: { 'Idempotency-Key': idempotencyKey }, response: 'json', ...(signal ? { signal } : {}) }, record),
     assignFamily: (eventId: string, body: AssignFamilyInput, idempotencyKey: string, signal?: AbortSignal) =>
       request<SeatingMutationResult>(
         {

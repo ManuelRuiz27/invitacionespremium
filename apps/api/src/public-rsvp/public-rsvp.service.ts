@@ -437,7 +437,7 @@ export class PublicRsvpService {
       });
       await tx.assistant.updateMany({
         where: { invitationId: invitation.id, deletedAt: null, floorplanShapeId: { not: null } },
-        data: { floorplanShapeId: null }
+        data: { floorplanShapeId: null, floorplanSeatId: null }
       });
       changed ||= update.count > 0;
       affectedIds.push(...invitation.assistants.map(({ id }) => id));
@@ -445,7 +445,7 @@ export class PublicRsvpService {
       if (omitted.length > 0) {
         await tx.assistant.updateMany({
           where: { id: { in: omitted.map(({ id }) => id) } },
-          data: { deletedAt: new Date(), floorplanShapeId: null }
+          data: { deletedAt: new Date(), floorplanShapeId: null, floorplanSeatId: null }
         });
         affectedIds.push(...omitted.map(({ id }) => id));
         changed = true;
@@ -525,13 +525,14 @@ export class PublicRsvpService {
         return confirmationState(event);
       }
       if (close && event.floorplanEnabled) {
+        const floorplan = await tx.floorplan.findFirst({ where: { eventId, deletedAt: null }, select: { seatingMode: true } });
         const pendingSeating = await tx.assistant.count({
           where: {
             eventId,
             deletedAt: null,
             anonymizedAt: null,
             responseStatus: AssistantResponseStatus.CONFIRMED,
-            floorplanShapeId: null,
+            ...(floorplan?.seatingMode === 'SEAT' ? { floorplanSeatId: null } : { floorplanShapeId: null }),
             invitation: { deletedAt: null, cancelledAt: null }
           }
         });

@@ -190,7 +190,7 @@ export class InvitationsService {
       const deletedAt = new Date();
       await tx.assistant.update({
         where: { id: assistantId },
-        data: { deletedAt, floorplanShapeId: null }
+        data: { deletedAt, floorplanShapeId: null, floorplanSeatId: null }
       });
       await this.recordAudit(tx, principal, event, effectiveOperationId, 'ASSISTANT_DELETE', assistantId, {
         id: assistantId,
@@ -270,7 +270,7 @@ export class InvitationsService {
       await this.lockFloorplanShapes(tx, tableIds);
       await tx.assistant.updateMany({
         where: { invitationId, floorplanShapeId: { not: null } },
-        data: { floorplanShapeId: null }
+        data: { floorplanShapeId: null, floorplanSeatId: null }
       });
       const cancelledAt = new Date();
       const cancelled = await tx.invitation.update({

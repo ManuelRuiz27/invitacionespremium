@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { z } from 'zod';
-import { FloorplanGeometry, FloorplanShapeKind } from '../generated/prisma/client';
+import { FloorplanGeometry, FloorplanSeatingMode, FloorplanShapeKind } from '../generated/prisma/client';
 
 const uuid = z.string().uuid();
 const relative = z.number().finite().min(0).max(1);
@@ -57,6 +57,11 @@ const assignSchema = z
 const assignFamilySchema = z.object({ invitationId: uuid, tableShapeId: uuid }).strict();
 const assignGroupSchema = z.object({ groupId: uuid, tableShapeId: uuid }).strict();
 const updateSeatingSchema = z.object({ tableShapeId: uuid.nullable() }).strict();
+const seatSchema = z.object({ label: name, x: relative, y: relative, isBlocked: z.boolean().optional() }).strict();
+const updateSeatSchema = seatSchema.partial().strict();
+const batchSeatsSchema = z.object({ seats: z.array(z.object({ seatId: uuid, label: name.optional(), x: relative.optional(), y: relative.optional(), isBlocked: z.boolean().optional() }).strict()).min(1).max(500) }).strict();
+const seatingModeSchema = z.object({ seatingMode: z.enum(FloorplanSeatingMode) }).strict();
+const assignSeatsSchema = z.object({ assignments: z.array(z.object({ assistantId: uuid, seatId: uuid }).strict()).min(1).max(500) }).strict().refine(({ assignments }) => new Set(assignments.map(({ assistantId }) => assistantId)).size === assignments.length && new Set(assignments.map(({ seatId }) => seatId)).size === assignments.length, { message: 'Seat assignments must be one-to-one.' });
 const seatingWorkspaceQuerySchema = z
   .object({
     scope: z.enum(['UNASSIGNED', 'TABLE']),
@@ -83,6 +88,10 @@ export type AssignSeatingInput = z.infer<typeof assignSchema>;
 export type AssignFamilyInput = z.infer<typeof assignFamilySchema>;
 export type AssignGroupInput = z.infer<typeof assignGroupSchema>;
 export type UpdateSeatingInput = z.infer<typeof updateSeatingSchema>;
+export type FloorplanSeatInput = z.infer<typeof seatSchema>;
+export type UpdateFloorplanSeatInput = z.infer<typeof updateSeatSchema>;
+export type BatchFloorplanSeatsInput = z.infer<typeof batchSeatsSchema>;
+export type AssignSeatsInput = z.infer<typeof assignSeatsSchema>;
 export type SeatingWorkspaceQueryInput = z.infer<typeof seatingWorkspaceQuerySchema>;
 
 export class FloorplanImageRequestDto {
@@ -206,13 +215,32 @@ export class FloorplanResponseDto {
   locked!: boolean;
   @ApiProperty({ type: String, format: 'date-time', nullable: true })
   lockedAt!: string | null;
+  @ApiProperty({ enum: FloorplanSeatingMode })
+  seatingMode!: FloorplanSeatingMode;
   @ApiProperty({ type: FloorplanShapeResponseDto, isArray: true })
   shapes!: FloorplanShapeResponseDto[];
+  @ApiProperty({ type: () => FloorplanSeatResponseDto, isArray: true })
+  seats!: FloorplanSeatResponseDto[];
   @ApiProperty({ type: String, format: 'date-time' })
   createdAt!: string;
   @ApiProperty({ type: String, format: 'date-time' })
   updatedAt!: string;
 }
+
+export class FloorplanSeatRequestDto {
+  @ApiProperty({ type: String, maxLength: 120 }) label!: string;
+  @ApiProperty({ type: Number, minimum: 0, maximum: 1 }) x!: number;
+  @ApiProperty({ type: Number, minimum: 0, maximum: 1 }) y!: number;
+  @ApiPropertyOptional({ type: Boolean }) isBlocked?: boolean;
+}
+export class UpdateFloorplanSeatRequestDto extends FloorplanSeatRequestDto {}
+export class FloorplanSeatResponseDto extends FloorplanSeatRequestDto {
+  @ApiProperty({ type: String, format: 'uuid' }) id!: string;
+  @ApiProperty({ type: String, format: 'uuid' }) floorplanShapeId!: string;
+  @ApiProperty({ type: Boolean }) occupied!: boolean;
+}
+export class UpdateFloorplanSeatingModeRequestDto { @ApiProperty({ enum: FloorplanSeatingMode }) seatingMode!: FloorplanSeatingMode; }
+export class AssignSeatsRequestDto { @ApiProperty({ type: Object, isArray: true }) assignments!: Array<{ assistantId: string; seatId: string }>; }
 
 export class SeatingChangeDto {
   @ApiProperty({ type: String, format: 'uuid' })
@@ -340,6 +368,11 @@ export function parseAssignGroup(input: unknown): AssignGroupInput {
 export function parseUpdateSeating(input: unknown): UpdateSeatingInput {
   return parse(updateSeatingSchema, input);
 }
+export function parseCreateSeat(input: unknown): FloorplanSeatInput { return parse(seatSchema, input); }
+export function parseUpdateSeat(input: unknown): UpdateFloorplanSeatInput { return parse(updateSeatSchema, input); }
+export function parseBatchSeats(input: unknown): BatchFloorplanSeatsInput { return parse(batchSeatsSchema, input); }
+export function parseSeatingMode(input: unknown): { seatingMode: FloorplanSeatingMode } { return parse(seatingModeSchema, input); }
+export function parseAssignSeats(input: unknown): AssignSeatsInput { return parse(assignSeatsSchema, input); }
 export function parseSeatingWorkspaceQuery(input: unknown): SeatingWorkspaceQueryInput {
   return parse(seatingWorkspaceQuerySchema, input);
 }

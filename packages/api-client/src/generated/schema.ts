@@ -448,6 +448,38 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/clients/{clientId}/events/{eventId}/floorplan/seating-mode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["AdminFloorplanController_setSeatingMode"];
+        trace?: never;
+    };
+    "/api/v1/admin/clients/{clientId}/events/{eventId}/floorplan/seats/{seatId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["AdminFloorplanController_deleteSeat"];
+        options?: never;
+        head?: never;
+        patch: operations["AdminFloorplanController_updateSeat"];
+        trace?: never;
+    };
     "/api/v1/admin/clients/{clientId}/events/{eventId}/floorplan/shapes": {
         parameters: {
             query?: never;
@@ -478,6 +510,22 @@ export type paths = {
         options?: never;
         head?: never;
         patch: operations["AdminFloorplanController_updateShape"];
+        trace?: never;
+    };
+    "/api/v1/admin/clients/{clientId}/events/{eventId}/floorplan/shapes/{shapeId}/seats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminFloorplanController_createSeat"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/admin/clients/{clientId}/events/{eventId}/floorplan/unlock": {
@@ -2162,6 +2210,22 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/events/{eventId}/seating/assign-seats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["FloorplanController_assignSeats"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events/{eventId}/staff-tokens": {
         parameters: {
             query?: never;
@@ -2671,6 +2735,9 @@ export type components = {
             assistantIds: string[];
             /** Format: uuid */
             tableShapeId: string;
+        };
+        AssignSeatsRequestDto: {
+            assignments: Record<string, never>[];
         };
         AssistantRequestDto: {
             /** @example María Ejemplo */
@@ -3350,9 +3417,29 @@ export type components = {
             locked: boolean;
             /** Format: date-time */
             lockedAt: string | null;
+            /** @enum {string} */
+            seatingMode: "TABLE" | "SEAT";
+            seats: components["schemas"]["FloorplanSeatResponseDto"][];
             shapes: components["schemas"]["FloorplanShapeResponseDto"][];
             /** Format: date-time */
             updatedAt: string;
+        };
+        FloorplanSeatRequestDto: {
+            isBlocked?: boolean;
+            label: string;
+            x: number;
+            y: number;
+        };
+        FloorplanSeatResponseDto: {
+            /** Format: uuid */
+            floorplanShapeId: string;
+            /** Format: uuid */
+            id: string;
+            isBlocked?: boolean;
+            label: string;
+            occupied: boolean;
+            x: number;
+            y: number;
         };
         FloorplanShapeRequestDto: {
             capacity: number;
@@ -4251,6 +4338,16 @@ export type components = {
             /** @example America/Mexico_City */
             timeZone?: string | null;
         };
+        UpdateFloorplanSeatingModeRequestDto: {
+            /** @enum {string} */
+            seatingMode: "TABLE" | "SEAT";
+        };
+        UpdateFloorplanSeatRequestDto: {
+            isBlocked?: boolean;
+            label: string;
+            x: number;
+            y: number;
+        };
         UpdateFloorplanShapeRequestDto: {
             capacity?: number;
             /** @enum {string} */
@@ -5025,6 +5122,65 @@ export interface operations {
             };
         };
     };
+    AdminFloorplanController_setSeatingMode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateFloorplanSeatingModeRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminFloorplanController_deleteSeat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminFloorplanController_updateSeat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateFloorplanSeatRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     AdminFloorplanController_createShape: {
         parameters: {
             query?: never;
@@ -5084,6 +5240,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FloorplanShapeResponseDto"];
+                };
+            };
+        };
+    };
+    AdminFloorplanController_createSeat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FloorplanSeatRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FloorplanSeatResponseDto"];
                 };
             };
         };
@@ -7775,6 +7954,31 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["AssignGroupRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeatingMutationResponseDto"];
+                };
+            };
+        };
+    };
+    FloorplanController_assignSeats: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignSeatsRequestDto"];
             };
         };
         responses: {

@@ -12,6 +12,7 @@ import {
   AssignFamilyRequestDto,
   AssignGroupRequestDto,
   AssignSeatingRequestDto,
+  AssignSeatsRequestDto,
   FloorplanImageRequestDto,
   FloorplanResponseDto,
   FloorplanShapeRequestDto,
@@ -24,6 +25,7 @@ import {
   parseAssignFamily,
   parseAssignGroup,
   parseAssignSeating,
+  parseAssignSeats,
   parseCreateFloorplan,
   parseCreateShape,
   parseFloorplanId,
@@ -47,6 +49,14 @@ export class FloorplanController {
   @ApiOkResponse({ type: FloorplanResponseDto })
   get(@Param('eventId') eventId: string, @CurrentAuth() principal: AuthPrincipal): Promise<FloorplanResponseDto> {
     return this.floorplan.get(parseEventId(eventId), principal);
+  }
+
+  @Post('seating/assign-seats')
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @ApiBody({ type: AssignSeatsRequestDto })
+  @ApiOkResponse({ type: SeatingMutationResponseDto })
+  assignSeats(@Param('eventId') eventId: string, @Headers('idempotency-key') key: unknown, @Body() body: unknown, @CurrentAuth() principal: AuthPrincipal, @Req() request: AuthenticatedRequest): Promise<SeatingMutationResponseDto> {
+    return this.floorplan.assignSeats(parseEventId(eventId), parseIdempotencyKey(key), parseAssignSeats(body), principal, request.operationId);
   }
 
   @Post('floorplan')

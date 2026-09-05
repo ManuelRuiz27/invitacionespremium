@@ -58,6 +58,9 @@ export class PendingAssistantDto {
 
   @ApiProperty({ type: () => ScannerTableDto, nullable: true })
   table!: ScannerTableDto | null;
+
+  @ApiProperty({ type: () => ScannerSeatDto, nullable: true })
+  seat!: ScannerSeatDto | null;
 }
 
 export class ScannerTableDto {
@@ -66,6 +69,13 @@ export class ScannerTableDto {
 
   @ApiProperty({ type: String })
   name!: string;
+}
+
+export class ScannerSeatDto {
+  @ApiProperty({ type: String, format: 'uuid' }) id!: string;
+  @ApiProperty({ type: String }) label!: string;
+  @ApiProperty({ type: Number }) x!: number;
+  @ApiProperty({ type: Number }) y!: number;
 }
 
 export class ScannerInvitationResultDto {
@@ -113,6 +123,9 @@ export class CheckedInAssistantDto {
 
   @ApiProperty({ type: ScannerTableDto, nullable: true })
   table!: ScannerTableDto | null;
+
+  @ApiProperty({ type: () => ScannerSeatDto, nullable: true })
+  seat!: ScannerSeatDto | null;
 }
 
 export class ScannerCheckInResponseDto {
