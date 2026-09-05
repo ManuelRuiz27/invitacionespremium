@@ -19,10 +19,36 @@ El módulo Croquis/Mesas se activa por Evento.
 
 Si está activo:
 
-- los confirmados deben tener Mesa antes del día del Evento;
+- el Croquis usa exactamente un modo de acomodo: **por mesa** o **por lugar exacto**;
+- los confirmados deben quedar acomodados antes del cierre operativo de la Confirmación;
 - no se permite exceder capacidad de Mesa;
-- las Mesas se bloquean al activar el Evento;
+- las Mesas se bloquean al activar el Evento conforme al contrato vigente;
 - Owner/Admin correspondiente puede desbloquear con auditoría según permisos definidos.
+
+### Acomodo por mesa
+
+- la unidad asignable es la Mesa;
+- cada Mesa mantiene capacidad positiva configurada;
+- una persona confirmada pendiente de Mesa bloquea el cierre de Confirmación cuando Croquis es obligatorio.
+
+### Acomodo por lugar exacto
+
+Contrato normativo: `../04-tecnico/FLOORPLAN_DETAILED_SEATING_CONTRACT.md`.
+
+- cada lugar persistente pertenece exactamente a una Mesa activa;
+- la posición del lugar es libre sobre el plano y no depende de que la Mesa sea simétrica ni de que el punto quede dentro de su geometría aproximada;
+- un lugar asignable solo puede tener un Asistente activo;
+- un Asistente solo puede ocupar un lugar;
+- un lugar bloqueado permanece visible pero no cuenta como capacidad ni acepta Asistente;
+- la capacidad asignable de la Mesa se deriva de sus lugares activos no bloqueados;
+- una persona con Mesa pero sin lugar exacto sigue pendiente en este modo;
+- no se puede bloquear o eliminar un lugar ocupado;
+- mover de lugar actualiza de forma atómica lugar y Mesa cuando cambia la Mesa padre;
+- desasignar limpia lugar y Mesa;
+- el modo detallado no habilita edición de geometría a Planner durante el perfil operator-led;
+- el modo detallado aplica en esta iteración a `FLYER`, `FLIPBOOK` y `DEMO`; `PHYSICAL_QR` conserva acomodo por Mesa.
+
+El modo no cambia después de activar el Evento.
 
 ## Cambio de servicio contratado
 
@@ -68,6 +94,8 @@ El contrato completo está en `SERVICE_UPGRADE_FLOW.md` y prevalece para este wo
   - su Invitación lo permite;
   - hay cupo.
 - Si está cerrada, solo Planner/Admin autorizado puede modificar.
+- Con Croquis por Mesa, cerrar requiere que cada confirmado tenga Mesa.
+- Con Croquis por lugar exacto, cerrar requiere que cada confirmado tenga lugar exacto válido; conservar solo Mesa no resuelve el pendiente.
 
 ## QR e Invitación cancelada
 
@@ -148,11 +176,14 @@ Staff:
 - StaffToken crea; únicamente un usuario operativo autorizado puede revertir.
 - Una reversión no elimina la fila ni modifica al Asistente.
 - Scan y búsqueda devuelven solo confirmados pendientes, nunca teléfono.
+- Con Croquis por Mesa, el Asistente requiere una Mesa válida conforme al contrato vigente.
+- Con Croquis por lugar exacto, requiere además un lugar activo/no bloqueado coherente con esa Mesa; Scanner puede mostrar y resaltar Mesa + lugar exacto.
 
 - Un Asistente solo puede tener un check-in válido.
 - Reversión no elimina el registro; lo marca como revertido y audita.
 - No requiere motivo obligatorio.
 - Cambio de Mesa posterior al ingreso queda auditado; no requiere motivo obligatorio.
+- En modo detallado, cambio de lugar posterior al ingreso también queda auditado y debe mantener coherencia con la Mesa padre.
 
 ## Evento cerrado
 
@@ -218,6 +249,8 @@ Después de 30 días post-Evento:
 - anonimizar teléfonos;
 - conservar métricas.
 
+Las posiciones/etiquetas de lugares pueden conservarse como geometría operativa; no deben conservar una relación nominal identificable después de aplicar la anonimización del Asistente.
+
 ## Regla de contradicción
 
 Si aparece una contradicción:
@@ -225,6 +258,8 @@ Si aparece una contradicción:
 1. prevalece la corrección explícita más reciente del usuario;
 2. después el contrato especializado aplicable;
 3. la implementación se detiene si no puede resolverse con esa jerarquía.
+
+Para asignación persistente por lugar exacto, `../04-tecnico/FLOORPLAN_DETAILED_SEATING_CONTRACT.md` es el contrato especializado aplicable y sustituye los `Not now` anteriores sobre asientos individuales.
 
 No usar esta regla para inventar una decisión faltante.
 
