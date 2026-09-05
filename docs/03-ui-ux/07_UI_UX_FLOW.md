@@ -1,488 +1,448 @@
 # 07 — UI/UX Flow
 
+## Autoridad visual
+
+La experiencia de `apps/client` y `apps/scanner` se rige visualmente por:
+
+`docs/03-diseno/CLIENT_UI_VISUAL_SYSTEM.md`
+
+Ese documento prevalece para composición, jerarquía, densidad, cards, wrappers, copy y progressive disclosure.
+
+Este archivo conserva la secuencia funcional de las superficies. No redefine dominio, permisos, estados, API, readiness, pricing ni Croquis.
+
 ## Estilo general
 
-Premium, elegante y sobrio.
+Premium, elegante, sobrio y operacional.
 
 Principios:
 
+- task-first: priorizar la siguiente acción útil;
+- content-first: el Evento y la tarea dominan sobre la navegación;
 - claridad antes que densidad;
 - pocos datos prioritarios por vista;
-- estados y acciones en lenguaje natural;
+- lenguaje natural para planners;
+- progressive disclosure para opciones secundarias;
+- una acción primaria dominante por contexto;
+- cards, Paper, Chip y Alert sólo cuando cumplen una función real;
+- responsive por recomposición, no por compresión de desktop;
 - confirmación explícita en acciones irreversibles o sensibles;
-- responsive desde tablet y desktop, con soporte móvil;
-- accesibilidad básica: foco visible, labels, contraste y navegación por teclado cuando aplique.
+- foco visible, labels, contraste, teclado y targets táctiles adecuados.
 
-## Paneles
+## Regla de superficies
 
-Client/Admin:
+La UI no adopta por defecto:
 
-- dashboard visual con pocos datos;
-- scorecards;
-- cards;
-- tablas limpias cuando aplique;
-- skeleton/loading;
-- empty states;
-- errores accionables;
-- no mostrar datos fuera del permiso del rol.
+- dashboards de scorecards;
+- grids de cards;
+- cards anidadas;
+- wrappers `Paper` alrededor de cada sección;
+- descripciones que repiten el título;
+- columnas administrativas de baja prioridad;
+- chips decorativos;
+- paneles de propiedades permanentes sin selección.
+
+La separación visual se resuelve primero con espacio, tipografía, jerarquía y divisores.
 
 ## Landing
 
-Repo: `invitacionespremium-landing`.
-
-La landing debe vender:
-
-- SaaS para Planners y Organizaciones;
-- experiencia premium;
-- control de acceso;
-- operación del Evento, no solo diseño de Invitación.
-
-Secciones:
-
-- Hero
-- Problema
-- Solución
-- Servicios: Flipbook / Flyer / QR pase físico
-- Demo visual mock
-- Precios
-- Para Planners
-- Para Organizaciones
-- Preguntas frecuentes
-- CTA registro/login
+La landing conserva su contrato comercial y visual especializado. Este refactor no la convierte en una extensión del shell Cliente.
 
 Registro público únicamente para Planner independiente.
 
-## Dashboard Cliente
+## Shell Cliente
 
-Primer vistazo:
+Desktop/tablet usan navegación persistente compacta; mobile puede usar AppBar/Drawer temporal.
 
-- Eventos próximos;
-- Eventos activos;
-- créditos disponibles si el rol puede verlos;
-- deuda/línea si el rol puede verla;
-- alertas visuales;
-- botón crear Evento;
-- demo.
+La navegación debe sentirse secundaria frente al contenido.
 
-### Visibilidad por rol
+Reglas:
 
-- Planner independiente: saldo, movimientos propios y deuda si existe.
-- Admin de Organización: saldo, línea/deuda y todos los Eventos de la Organización.
-- Planner de Organización: solo Eventos creados por él; no saldo, deuda ni reportes financieros.
+- marca discreta;
+- selección de sección mediante tratamiento sutil;
+- perfil/sesión no compite con la tarea;
+- no crear navegación global duplicada;
+- conservar rutas y permisos existentes;
+- ocultar Finanzas a Planner de Organización sin iniciar requests financieros.
 
-Ocultar navegación no sustituye autorización backend.
+## Dashboard Cliente / Eventos
 
-## Lista de Eventos
+El primer vistazo responde:
 
-Debe permitir alternar:
+- qué Eventos vienen próximamente;
+- cuál requiere atención;
+- qué acción corresponde a cada Evento.
 
-- cards;
-- tabla.
+No existe obligación de mostrar scorecards de Total/En preparación/Activos/Finalizados.
 
-Cada elemento muestra como mínimo:
+### Datos prioritarios por Evento
 
 - nombre;
 - fecha;
-- servicio contratado;
-- estado visible;
+- tipo cuando ayude;
+- estado natural;
 - acción principal permitida;
-- alerta operativa si aplica.
+- alerta concreta cuando exista una condición resoluble.
 
-No mostrar estados técnicos.
+Capacidad, última actualización y otros metadatos no son columnas principales por defecto.
+
+Búsqueda y filtros permanecen, pero pueden compactarse. Desktop puede usar filas/tablas ligeras; mobile usa lista adaptada. No existe requisito de alternar cards/tabla.
+
+### Visibilidad por rol
+
+- Planner independiente: Eventos propios y navegación financiera autorizada.
+- Admin de Organización: Eventos de la Organización y navegación financiera autorizada.
+- Planner de Organización: sólo Eventos creados por él y sin Finanzas.
+
+Ocultar navegación no sustituye autorización backend.
 
 ## Wizard de Evento
 
-- Stepper horizontal en desktop/tablet.
-- Stepper vertical en mobile.
-- Autosave + guardado manual.
-- Si sale incompleto, guarda borrador automáticamente.
-- Backend recalcula `configured` y `ready_to_activate`.
-- Revisión final muestra costo, descuento, fuente de cobro y bloqueos antes de activar.
+El comportamiento funcional se rige por `../04-tecnico/EVENT_WIZARD_CONTRACT.md`.
+
+Visualmente:
+
+- progreso ligero y legible;
+- no requiere `Paper` alrededor del progreso;
+- no requiere `Paper` alrededor de cada paso;
+- autosave es automático y discreto;
+- `Guardando…` aparece mientras ocurre;
+- `Guardado` puede permanecer como feedback secundario;
+- `Sin cambios pendientes` no requiere presencia persistente;
+- error de guardado sí es visible y accionable;
+- navegación inferior conserva `Salir`, `Anterior` y `Continuar` según contrato;
+- un footer sticky es válido cuando mejora continuidad sin ocultar contenido.
 
 ### Flipbook/Flyer
 
 1. Datos del Evento
-2. Contactos
+2. Invitados
 3. Invitación
-4. Confirmación de asistencia
-5. Croquis/Mesas opcional
+4. Confirmación
+5. Mesas/Croquis cuando aplique
 6. Revisión
-7. Activar
+7. Activación
 
 ### QR pase físico
 
 1. Datos del Evento
-2. Croquis/Mesas opcional
-3. Generar pases QR
+2. Mesas/Croquis cuando aplique
+3. Pases
 4. Revisión
-5. Activar
+5. Activación
 
-## Carga de Contactos
+La secuencia técnica exacta permanece en el contrato del Wizard.
+
+## Invitados / Contactos
+
+Modelo mental visible: personas invitadas, no CRUD de registros.
 
 Debe permitir:
 
 - alta manual;
-- CSV;
-- descarga de formato CSV;
-- edición inline;
-- validación máximo 150;
-- preview antes de importar;
-- errores por fila antes de confirmar;
-- bloqueo completo si el archivo excede 150.
+- edición;
+- eliminación confirmada;
+- búsqueda;
+- Grupo cuando aplique;
+- importación CSV;
+- descarga de plantilla;
+- preview antes de commit;
+- errores por fila;
+- límite contractual completo.
 
-No mostrar teléfono en vistas Staff.
+La importación se presenta mediante progressive disclosure:
+
+```text
+Importar invitados
+1. Descargar plantilla
+2. Seleccionar archivo
+3. Revisar datos
+4. Importar
+```
+
+Desktop puede usar una lista tabular limpia. Mobile usa filas/lista. No mostrar teléfono en vistas Staff.
+
+## Confirmación de asistencia
+
+La vista prioriza:
+
+- confirmados;
+- pendientes;
+- no asistirán;
+- acciones necesarias.
+
+Los conteos pueden mostrarse inline y no requieren cards independientes.
+
+`RSVP` permanece como término interno. La UI usa **Confirmación de asistencia** o **Confirmaciones** según contexto.
+
+Abrir/cerrar Confirmación y ajustes nominales conservan reglas, permisos y contratos existentes.
 
 ## Editor Flyer/Flipbook
 
-- canvas visual;
-- panel lateral de propiedades;
-- dibujar Hotspots sobre imagen;
-- elegir acción del Hotspot;
-- preview mobile/tablet/desktop;
-- indicador de diseño completo/incompleto;
-- orden de páginas para Flipbook.
+La pieza gráfica es la superficie principal.
 
-### Congelamiento
+Debe permitir:
 
-- editable solo en `draft`, `configured` o `ready_to_activate`;
-- al activar, Flyer/Flipbook quedan congelados;
-- en `active`, `event_day`, `closed`, `album_published`, `archived` o `cancelled` no mostrar acciones ordinarias de reemplazo/edición;
-- el frontend debe explicar que la Invitación quedó fijada al activar;
-- cualquier cambio de servicio posterior a activación queda sujeto a la decisión abierta documentada en `17_QA_OPEN_DECISIONS.md` y no debe implementarse todavía.
+- preview visual dominante;
+- páginas compactas para Flipbook;
+- alta/reemplazo/eliminación/reordenamiento según contrato;
+- acciones sobre la imagen;
+- selección, drag y resize directos;
+- inspector contextual sólo durante creación/selección;
+- acciones en lenguaje natural;
+- indicador natural de qué falta para completar el diseño.
+
+No mostrar como experiencia principal:
+
+- `Hotspot`;
+- coordenadas;
+- dimensiones normalizadas;
+- `priority`;
+- IDs de página;
+- enums técnicos.
+
+Las reglas exactas de acciones, cardinalidad, pageId estable, move, reorder, delete y readiness se rigen por `EVENT_WIZARD_CONTRACT.md` e `INVITATION_DESIGN_CONTRACT.md`.
+
+Flyer/Flipbook quedan congelados al activar salvo la excepción formal del workflow Flyer → Flipbook definido en `SERVICE_UPGRADE_FLOW.md`.
 
 ## Croquis
 
-Debe tener:
+**Fuera del alcance de este refactor visual global.**
 
-- canvas central;
-- herramientas de forma;
-- panel lateral Mesa/Zona;
-- lista de Mesas;
-- validación visual de capacidad;
-- botón bloquear/desbloquear;
-- botón pantalla completa.
+No usar este archivo para rediseñar Builder, Seating Workspace, Floorplan renderer, stickers o asignación por lugar exacto.
 
-## Asignación de Mesas
+Fuentes especializadas:
 
-Vistas:
+- `../03-diseno/FLOORPLAN_UX_TARGET.md`;
+- `../04-tecnico/FLOORPLAN_STICKER_SEATING_CONTRACT.md`;
+- `../04-tecnico/FLOORPLAN_DETAILED_SEATING_CONTRACT.md`;
+- `../05-implementacion/FP06_DETAILED_SEATING.md`.
 
-- lista de Asistentes + Croquis;
-- Grupos + Croquis.
-
-Reglas visuales:
-
-- capacidad usada/disponible;
-- error antes de exceder capacidad;
-- confirmado pendiente de Mesa visible;
-- cambio posterior a check-in marcado como acción auditada;
-- zona decorativa no acepta Asistentes.
+Si existe contradicción visual sobre Croquis, prevalecen esos documentos.
 
 ## StaffTokens
 
-Mostrar:
+Mostrar sólo información y acciones autorizadas por el contrato Staff.
 
-- tokens activos y expirados;
-- copiar link solo para activos;
-- estado;
-- alias Staff;
-- fecha de creación;
-- expiración al cierre/cancelación;
-- máximo tres activos.
+La composición debe priorizar:
 
-Reglas:
+- alias;
+- estado natural;
+- expiración cuando sea relevante;
+- copiar link cuando esté permitido;
+- crear acceso cuando esté permitido.
 
-- tokens expirados no cuentan como activos;
-- reabrir Evento no reactiva tokens expirados;
-- no mostrar acción de revocación manual en MVP;
-- crear tokens solo en `active` o `event_day`.
+No usar una card separada por token si una lista limpia resuelve mejor el trabajo.
 
-## Navegación por estado del Evento
+## Workspace operativo del Evento
+
+Ruta canónica:
+
+`/eventos/:eventId`
+
+Debe sentirse como **centro de trabajo del Evento**.
+
+### Header
+
+Priorizar:
+
+- nombre del Evento;
+- fecha/lugar cuando estén disponibles;
+- estado natural cuando aporta contexto;
+- acción principal permitida.
+
+No repetir el mismo estado en header, chip, card y Alert.
+
+### Navegación local
+
+Las áreas funcionales se mantienen conforme a `ACTIVE_EVENT_WORKSPACE_CONTRACT.md` y permisos vigentes.
+
+La navegación local es discreta y nunca funciona como grid de launcher cards.
+
+### Resumen
+
+Mostrar hechos principales con jerarquía tipográfica y filas compactas.
+
+Puede existir una sección **Por hacer** sólo cuando la condición es:
+
+- autoritativa;
+- accionable;
+- comprensible para el rol;
+- obtenible sin crear requests o backend únicamente decorativos.
+
+No inventar engagement, progreso porcentual o métricas para llenar espacio.
 
 ### `active` / `event_day`
 
-Pestañas visibles:
+Conserva acciones operativas autorizadas.
 
-- Resumen
-- Croquis/Mesas en modo lectura + botón editar autorizado
-- Staff
-
-No mostrar pestañas operativas separadas:
-
-- Contactos/Invitados
-- Invitación
-- Confirmación de asistencia
-- Scanner embebido
-- Álbum
-- Reportes
-- Auditoría
-
-La ausencia de pestañas separadas no elimina las acciones operativas confirmadas. El Resumen concentra cards y acciones contextuales.
-
-#### Card Confirmación de asistencia
-
-Mostrar:
-
-- estado abierta/cerrada;
-- confirmados, rechazados y pendientes;
-- Asistentes nominales confirmados;
-- capacidad disponible;
-- alertas por límite/cupo;
-- acción abrir/cerrar Confirmación según permiso;
-- acción `Gestionar confirmaciones` para ajustes nominales que solo Planner/Admin puede realizar.
-
-`Gestionar confirmaciones` abre drawer, modal o vista secundaria contextual; no crea una pestaña permanente ni reabre el editor de Invitación.
-
-Permite:
-
-- consultar Contacto/Invitación dentro del ownership;
-- ajustar estado/número/nombres conforme a reglas;
-- identificar confirmados pendientes de Mesa;
-- auditar cambios.
-
-No permite:
-
-- reemplazar Flyer/Flipbook;
-- modificar identidad del Contacto sin flujo autorizado;
-- exceder límites/capacidad;
-- exponer teléfonos a Staff.
-
-#### Card Álbum
-
-Solo para Flyer/Flipbook.
-
-Durante `active` o `event_day` permite:
-
-- acción `Preparar Álbum`;
-- crear/configurar título, mensaje, colores y link externo;
-- cargar/ordenar hasta 35 fotos;
-- mantenerlo privado/no publicado.
-
-No permite:
-
-- publicar antes de `closed`;
-- generar tokens públicos de Álbum;
-- mostrar el Álbum a Invitaciones.
-
-Esta card resuelve la creación previa al cierre sin agregar una pestaña Álbum durante el Evento activo.
-
-#### Otras acciones del Resumen
-
-- acceso a reportes bajo demanda;
-- cerrar/cancelar Evento según permiso;
-- estado financiero resumido solo para roles autorizados;
-- alertas operativas;
-- no mostrar auditoría global.
+Las capacidades de Confirmación, Álbum, Reportes, Staff, compartir Invitaciones y Mesas se presentan donde sus contratos las permiten, sin obligarlas a existir como cards permanentes.
 
 ### `closed`
 
-Mostrar:
-
-- Resumen;
-- Croquis/Mesas en lectura;
-- Staff expirado en lectura;
-- acción reabrir;
-- gestión completa de Álbum si el servicio lo permite;
-- acción publicar Álbum cuando esté válido;
-- acceso a reportes desde Resumen;
-- acción archivar.
-
-No permitir check-in ni reactivar tokens automáticamente.
-
-Si el Álbum ya fue preparado durante `active`/`event_day`, conservar configuración/fotos y habilitar publicación sin recarga.
+Consulta operativa y acciones de lifecycle/Álbum/reportes autorizadas. No permitir check-in ni reactivar Staff automáticamente.
 
 ### `album_published`
 
-Mostrar:
-
-- Resumen;
-- Álbum: preview, estado, fecha de publicación/expiración y acción despublicar;
-- reportes desde Resumen;
-- acción archivar anticipadamente.
+Priorizar estado/publicación/expiración y acciones autorizadas del Álbum.
 
 ### `archived`
 
-Vista solo lectura:
-
-- Resumen;
-- metadata de cierre/archivo;
-- reportes agregados/autorizados;
-- sin links públicos ni reapertura.
+Vista de consulta, sin links públicos ni reapertura.
 
 ### `cancelled`
 
-Vista Cliente:
+Vista de consulta y contexto de cancelación. Sin Confirmación, QR operativo, scanner ni Álbum público.
 
-- Resumen conservado;
-- mensaje de cancelación configurado;
-- finanzas/cargo histórico para roles autorizados;
-- reportes o auditoría según permiso;
-- sin Confirmación, QR, scanner ni Álbum público.
+## Compartir Invitaciones
 
-Un Álbum privado preparado se conserva como datos/archivos, pero no puede publicarse.
+Nombre visible preferente: **Compartir invitaciones**.
+
+`FLYER` y `FLIPBOOK` pueden mostrar:
+
+- nombre del Contacto;
+- Grupo cuando ayude;
+- estado natural de respuesta;
+- **WhatsApp** como acción primaria cuando esté permitido;
+- **Copiar enlace**;
+- **Abrir invitación** cuando corresponda.
+
+Reglas:
+
+- abrir WhatsApp no significa que la Invitación fue enviada;
+- no mostrar ni persistir `sent`, `delivered` o `read`;
+- no usar “delivery” o jerga de mensajería como copy principal;
+- búsqueda y filtros son secundarios respecto de la lista;
+- Invitación cancelada no ofrece acciones de compartir;
+- estados terminales conservan consulta conforme al contrato pero retiran nuevos envíos.
+
+## Finanzas
+
+Finanzas conserva precisión y estructura.
+
+Priorizar:
+
+- créditos disponibles;
+- deuda si existe;
+- línea disponible/utilizada cuando aplique;
+- movimientos;
+- comprobantes.
+
+No es obligatorio usar una card por cada cifra. Las listas/tablas financieras son válidas cuando mejoran trazabilidad.
+
+Alertas financieras se reservan para deuda, línea suspendida/expirada o condición que requiere atención.
+
+No se inventan umbrales de saldo bajo.
 
 ## Scanner
 
-Microapp en pantalla única:
-
-- escanear;
-- resultado;
-- registrar entrada.
+Microapp de una sola tarea.
 
 Ruta:
 
-- `/scanner/:staffToken`
+`/scanner/:staffToken`
 
-Al abrir:
+Jerarquía visual:
 
-1. valida token;
-2. valida Evento `active` o `event_day`;
-3. abre cámara o búsqueda exacta;
-4. conecta rooms Socket.IO permitidos.
+1. Evento/contexto mínimo;
+2. escanear;
+3. resultado;
+4. selección permitida de Asistentes pendientes;
+5. Mesa/lugar conforme al contrato especializado;
+6. **Registrar entrada**;
+7. éxito + **Escanear siguiente**.
 
-Resultado muestra:
+Búsqueda exacta funciona como alternativa operativa.
 
-- nombre de Invitación/Contacto;
-- Asistentes pendientes seleccionables;
-- Mesa;
-- plano si existe;
-- botón registrar entrada;
-- error claro.
-
-No muestra:
+No mostrar:
 
 - teléfono;
 - deuda;
 - reportes;
-- Asistentes ya ingresados como pendientes;
-- datos de otro Evento;
-- botón revertir.
+- información de otro Evento;
+- botón revertir;
+- navegación global innecesaria.
 
-Estados de error mínimos:
+Los estados de error siguen siendo semánticamente distintos: token inválido/expirado, Evento cerrado/cancelado/no operativo, QR inválido/de otro Evento, sin pendientes, pase usado y sin conexión.
 
-- token inválido/expirado;
-- Evento cerrado;
-- Evento cancelado;
-- Evento no operativo;
-- QR de otro Evento;
-- QR inválido;
-- Invitación sin pendientes;
-- PaseFisicoQR ya usado;
-- sin conexión: informar que internet es obligatorio.
+Este refactor no redefine el contenido ni UX de Croquis dentro de Scanner.
 
 ## Invitación pública
 
 Ruta:
 
-- `/invitacion/:invitationToken`
+`/invitacion/:invitationToken`
 
 Equilibrio:
 
 - visual primero;
 - acción clara;
-- animación/experiencia visual;
-- carga rápida y responsive.
-- reintentos locales sin perder el contexto visual;
-- respuestas tardías de otro token nunca sustituyen la vista vigente;
-- al cambiar el token, el primer render es loading neutro y no conserva diseño, nombres, Hotspots, QR,
-  notices, errores o diálogos del recurso anterior;
-- `prefers-reduced-motion` elimina transiciones sin quitar teclado o swipe.
+- carga rápida y responsive;
+- diseño de Invitación dominante;
+- Hotspots accesibles sin tecnicismos;
+- reintentos locales sin perder contexto;
+- latest-wins al cambiar token;
+- loading neutro sin conservar metadata del recurso anterior;
+- `prefers-reduced-motion` sin quitar teclado o swipe.
 
 ### Comportamiento por estado
 
-- `active` / `event_day`: muestra diseño y acciones permitidas.
-- `closed`: muestra Evento finalizado; Confirmación y QR operativo quedan bloqueados.
-- `album_published`: puede mostrar CTA al Álbum solo si existe token de Álbum elegible.
-- `cancelled`: muestra únicamente `Invitación cancelada por el organizador` o mensaje público del Evento.
-- `archived`: muestra acceso no disponible, sin diseño ni datos personales.
-- Invitación cancelada específica: misma vista de cancelación, sin Confirmación ni QR.
+- `active` / `event_day`: diseño y acciones permitidas;
+- `closed`: Evento finalizado, sin Confirmación ni QR operativo;
+- `album_published`: CTA de Álbum sólo para token elegible;
+- `cancelled`: vista de cancelación;
+- `archived`: acceso no disponible;
+- Invitación cancelada específica: cancelación sin Confirmación/QR.
 
-El token de Invitación no sirve como token de Álbum.
+El token de Invitación no funciona como token de Álbum.
 
 ## QR público
 
-Debe tener:
+Debe priorizar el QR y la instrucción natural para mostrarlo en la entrada.
 
-- recuadro visual grande;
-- leyenda: `El día del evento, muestra este QR en la entrada del salón.`;
-- botón abrir QR en pantalla completa.
+Sólo es visible cuando el contrato autoritativo lo permite.
 
-Solo visible cuando:
-
-- Invitación confirmada;
-- Evento `active` o `event_day`;
-- Invitación y Evento no cancelados;
-- acceso no archivado.
-
-Un fallo de generación mantiene abierto el diálogo y ofrece `Reintentar` y `Cerrar`; el reintento
-solicita exclusivamente el SVG vigente.
+Un fallo de carga/generación conserva contexto y ofrece `Reintentar` y `Cerrar` según la superficie vigente.
 
 ## Álbum público
 
 Ruta:
 
-- `/album/:albumToken`
+`/album/:albumToken`
 
-Plantilla visual con:
+La experiencia es visual y mobile-first:
 
 - título;
 - mensaje;
 - grid/carrusel;
-- botón externo.
+- preview;
+- botón externo cuando exista.
 
-Reglas de UX:
-
-- token distinto al de Invitación;
-- acceso solo para Invitación con al menos un Asistente ingresado;
-- no mostrar nombres/teléfonos de otros Asistentes;
-- token inválido o expirado: mensaje claro sin revelar existencia de otros recursos;
-- Invitación sin asistencia: `Álbum disponible solo para asistentes`;
-- Evento archivado/despublicado: acceso no disponible;
-- mostrar fecha de disponibilidad cuando sea útil;
-- responsive y optimización de imágenes.
-- carga progresiva con pool LRU de hasta ocho Object URLs;
-- máximo de cuatro descargas simultáneas, priorizando preview seleccionada, fotos visibles y cercanas;
-- `evicted` vuelve a placeholder neutro y puede recargarse al regresar al viewport; solo un fallo real
-  muestra el error de contenido;
-- reintento individual de foto y revocación total al abandonar la ruta.
+Conserva elegibilidad, expiración, aislamiento de token, optimización de imágenes y privacidad definidos en el contrato especializado.
 
 ## Reportes PDF
 
-Acceso Cliente:
+Acceso Cliente desde el contexto del Evento, no como dashboard global adicional.
 
-- desde Resumen del Evento;
-- no como módulo global separado.
+El flujo de generación/descarga, privacidad y vigencia nominal se mantiene conforme al contrato de Reportes.
 
-Flujo visual:
+## Alertas visuales
 
-1. elegir tipo de reporte permitido;
-2. mostrar periodo/alcance;
-3. solicitar snapshot al API;
-4. generar PDF desde plantilla HTML;
-5. subir mediante API;
-6. mostrar estado: generando, listo o fallido;
-7. descargar si sigue autorizado.
+Mostrar únicamente condiciones que el rol puede comprender y atender.
 
-Privacidad:
-
-- no incluir teléfonos;
-- reportes detallados con nombres solo durante 30 días post-Evento;
-- después mostrar versión agregada/anónima;
-- historial de seis meses no conserva nombres en PDF descargable.
-
-## Alertas visuales MVP
+Ejemplos válidos:
 
 - saldo insuficiente;
 - deuda activa;
 - Evento listo para activar;
-- Confirmación cerrada;
-- Evento próximo;
+- Confirmación cerrada cuando afecta una tarea;
+- Evento próximo con una acción pendiente;
 - borrador vencido;
-- StaffToken expirado;
-- Asistentes confirmados sin Mesa;
+- StaffToken expirado cuando se necesita Staff;
+- pendientes de acomodo conforme al contrato especializado;
 - Álbum próximo a expirar;
-- reporte detallado próximo a anonimizarse.
+- reporte nominal próximo a anonimizarse.
 
-Mostrar únicamente alertas que el rol puede entender y atender.
+No convertir cada estado normal en Alert.
 
 ## Glosario UI de estados
 
@@ -497,88 +457,12 @@ Estados visibles:
 - Archivado
 - Cancelado
 
-No mostrar términos técnicos como `draft`, `active`, `archived`.
+No mostrar directamente `draft`, `configured`, `active`, `archived` ni otros enums.
 
-`configured` permanece dentro de “En preparación” y no necesita etiqueta visible separada.
-# Implementación CODEX-121
+`configured` permanece dentro de **En preparación**.
 
-El wizard operativo usa un stepper horizontal en escritorio y tabs desplazables en móvil. La URL
-conserva el paso actual, el estado de guardado se anuncia sin depender del color y cada editor visual
-ofrece una alternativa de campos. Las secuencias por servicio, creación diferida y estados de solo
-lectura están normados en `../04-tecnico/EVENT_WIZARD_CONTRACT.md`.
+## Implementaciones históricas
 
-`PHYSICAL_QR` muestra únicamente Datos, Croquis, Pases y Revisión. Flyer y Flipbook disponen de previews
-privados, canvas de Hotspots y panel numérico; Croquis ofrece canvas más inspector de Mesa/Zona. Los cambios
-de zona horaria, eliminación de Contactos y activación usan confirmaciones accesibles. Revisión recarga el
-estado autoritativo y solo habilita Activar cuando la API devuelve `READY_TO_ACTIVATE`.
+Los bloques históricos CODEX-120/121/122/124/130/132 documentan comportamiento ya implementado, pero cualquier requisito antiguo de **cards, scorecards, wrappers o composición** queda subordinado a `CLIENT_UI_VISUAL_SYSTEM.md`.
 
-# Implementación CODEX-122
-
-`/invitacion/:invitationToken` y `/album/:albumToken` son experiencias públicas visuales, mobile-first y
-sin shell operativo. La Invitación usa el diseño publicado como plano dominante; los Hotspots conservan
-coordenadas relativas, foco visible y acciones HTTPS seguras. Flipbook admite botones, flechas y swipe.
-
-Confirmación presenta el principal inmutable y acompañantes nominales editables en diálogo con foco
-contenido. QR aparece solo después de confirmar, se solicita bajo demanda y ofrece pantalla completa. El
-Álbum usa tema validado, grid progresivo y preview con teclado/swipe. Cancelación, cierre, restricción y
-no disponibilidad usan mensajes públicos no enumerantes. Detalle normativo en
-`../04-tecnico/PUBLIC_CLIENT_CONTRACT.md`.
-
-# Implementacion CODEX-130A
-
-La app Admin usa una composicion desktop/tablet de alta densidad controlada: navegacion azul petroleo,
-superficies claras y acento dorado reservado. En movil el drawer es temporal. El header comunica la
-identidad Platform Admin, sesion verificada y logout; no muestra `clientId` ni enlaces de Cliente.
-
-El flujo actual contiene Resumen, Clientes y Eventos. Clientes concentra cuenta, usuarios y finanzas;
-las mutaciones sensibles usan dialogos accesibles sin `window.confirm`. Eventos es una proyeccion global
-de solo lectura con restauracion explicita. Loading, vacio, error/retry, acceso denegado e
-indisponibilidad de sesion son estados distintos. El contrato completo vive en
-`../04-tecnico/ADMIN_APP_CONTRACT.md`.
-
-# Implementacion CODEX-130B
-
-La navegacion protegida agrega Catalogo y Reportes. Catalogo separa Servicios referenciados, historia
-completa de precios y promociones de elegibilidad. Como no existe `GET /admin/services`, nunca presenta
-la proyeccion derivada como coleccion completa. Los precios muestran intervalos `[inicio, fin)` y solo
-admiten crear una fila o cerrar su vigencia; las promociones explican permanentemente que no calculan
-descuentos ni bonos.
-
-Los Servicios conocidos combinan referencias de precios y respuestas de creacion/actualizacion mientras
-la pagina permanece montada. Cambiar entre pestanas conserva la coleccion y habilita el primer Precio o
-Promocion de un Servicio nuevo; un reload pierde los que todavia no tienen Precio. Un estado no expuesto
-por una referencia exige seleccion explicita. Los campos `datetime-local` muestran componentes locales,
-incluidos segundos, y envian de vuelta el mismo instante UTC. Promociones proyecta nombres de Cliente y
-Servicio cuando existen y deja UUID solo como referencia secundaria.
-
-Reportes separa metadata global de cortes diarios y mensuales autoritativos. La vista por Evento tiene
-un boundary ligado a `eventId`; no conserva contenido anterior al navegar. Platform Admin no genera,
-carga ni descarga PDF y no recibe datasets o datos nominales.
-
-Las mutaciones no idempotentes de Servicios, precios y promociones comparten una maquina de estados.
-Durante `submitting` y tras un resultado `uncertain`, Confirmar permanece deshabilitado. Red, `429` y
-`5xx` muestran `Actualizar informacion`; esa accion consulta la coleccion autoritativa y no repite el
-POST/PATCH. Una coincidencia unica confirma el cambio, la ausencia verificable habilita un nuevo intento
-explicito y una respuesta ambigua o no disponible conserva el bloqueo. La resolucion de Clientes en
-promociones muestra por separado carga, nombre resuelto, referencia no resuelta y error con retry, sin
-retirar las filas ya obtenidas del Catalogo.
-
-# Implementación CODEX-132
-
-La Landing pública conserva una composición premium, elegante y sobria con un solo `h1`, secciones
-semánticas y contenido principal disponible en el primer render. Identidad, navegación, servicios,
-precios, límites, FAQ, URLs y SEO derivan de `apps/landing/src/config/landing-config.ts`.
-
-Solo el Planner independiente abre el registro público. El formulario contiene exclusivamente nombre,
-correo y contraseña del DTO generado; bloquea doble envío de forma síncrona, aborta al cerrar o
-desmontar y descarta resultados de otra generación. No persiste datos en navegador. Tras el alta,
-indica que el usuario debe iniciar sesión para continuar la configuración de su perfil.
-
-El menú móvil cierra con Escape y restaura foco. El modal conserva focus trap y regiones vivas. La
-navegación a secciones usa desplazamiento inmediato con `prefers-reduced-motion`; los tabs del demo
-exponen nombre, selección y panel asociado. Demo y modal se cargan dinámicamente. El demo se identifica
-permanentemente como simulación visual sin backend, Eventos, créditos o accesos reales.
-
-En producción, canonical y Open Graph URL solo existen con `VITE_APP_URL` HTTP/HTTPS explícita y no
-local. Los enlaces de login aplican la misma validación. El preview Open Graph es un PNG real sin texto
-provisional ni marca secundaria.
+No usar esta subordinación para cambiar reglas de dominio, permisos, contratos API, seguridad o Croquis.
