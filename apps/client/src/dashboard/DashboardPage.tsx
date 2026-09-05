@@ -3,7 +3,6 @@ import { ErrorState, LoadingState, PageHeader } from '@invitaciones/ui';
 import { useQuery } from '@tanstack/react-query';
 import { toDisplayError } from '../shared/error-message';
 import { useSessionExpiry } from '../shared/use-session-expiry';
-import { EventSummaryCards } from './EventSummaryCards';
 import { EventsList } from './EventsList';
 import { Button } from '@mui/material';
 import { Link } from 'react-router-dom';
@@ -19,10 +18,9 @@ export function DashboardPage({ apiClient }: { apiClient: ApiClient }) {
     <>
       <PageHeader
         title="Eventos"
-        description="Consulta el estado y los datos principales de tus Eventos autorizados."
         action={
           <Button component={Link} to="/eventos/nuevo" variant="contained">
-            Crear Evento
+            Nuevo evento
           </Button>
         }
       />
@@ -30,12 +28,7 @@ export function DashboardPage({ apiClient }: { apiClient: ApiClient }) {
       {eventsQuery.isError ? (
         <ErrorState {...toDisplayError(eventsQuery.error)} onRetry={() => void eventsQuery.refetch()} />
       ) : null}
-      {eventsQuery.data ? (
-        <>
-          <EventSummaryCards events={eventsQuery.data} />
-          <EventsList events={eventsQuery.data} />
-        </>
-      ) : null}
+      {eventsQuery.data ? <EventsList events={eventsQuery.data} /> : null}
     </>
   );
 }

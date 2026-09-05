@@ -1,5 +1,5 @@
 import { ApiError, type Event } from '@invitaciones/api-client';
-import { screen, within } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -48,20 +48,22 @@ describe('Client dashboard and financial visibility', () => {
     expect(api.finance.balance).not.toHaveBeenCalled();
   });
 
-  it('shows dashboard loading and empty states', async () => {
+  it('loads Events once and keeps loading, error, and empty states distinct', async () => {
     const pendingApi = mockApiClient();
     vi.mocked(pendingApi.events.list).mockReturnValue(new Promise(() => undefined));
     const pendingView = renderApp(pendingApi, '/eventos');
     expect(await screen.findByText('Cargando Eventos…')).toBeInTheDocument();
+    expect(pendingApi.events.list).toHaveBeenCalledTimes(1);
     pendingView.unmount();
 
     const emptyApi = mockApiClient();
     vi.mocked(emptyApi.events.list).mockResolvedValue([]);
     renderApp(emptyApi, '/eventos');
     expect(await screen.findByText('Aún no tienes eventos para mostrar.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Nuevo evento' })).toHaveAttribute('href', '/eventos/nuevo');
   });
 
-  it('shows a legible error and retries the events request', async () => {
+  it('shows a legible error and retries the Events request', async () => {
     const api = mockApiClient();
     vi.mocked(api.events.list)
       .mockRejectedValueOnce(new TypeError('network down'))
@@ -73,11 +75,11 @@ describe('Client dashboard and financial visibility', () => {
       await screen.findByText('No pudimos conectarnos. Revisa tu conexión e inténtalo nuevamente.')
     ).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Reintentar' }));
-    expect(await screen.findAllByText('Boda de Ana y Luis')).not.toHaveLength(0);
+    expect(await screen.findByText('Boda de Ana y Luis')).toBeInTheDocument();
     expect(api.events.list).toHaveBeenCalledTimes(2);
   });
 
-  it('filters and searches locally without exposing technical status values', async () => {
+  it('keeps search and filters local without exposing technical statuses', async () => {
     const api = mockApiClient();
     const user = userEvent.setup();
     renderApp(api, '/eventos');
@@ -86,47 +88,59 @@ describe('Client dashboard and financial visibility', () => {
     expect(screen.queryByText('CONFIGURED')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Activos' }));
     expect(screen.queryByText('Boda de Ana y Luis')).not.toBeInTheDocument();
-    expect(screen.getAllByText('Cumpleaños de Sofía').length).toBeGreaterThan(0);
+    expect(screen.getByText('Cumpleaños de Sofía')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Todos' }));
     await user.type(screen.getByLabelText('Buscar por nombre'), 'Ana');
-    expect(screen.getAllByText('Boda de Ana y Luis').length).toBeGreaterThan(0);
+    expect(screen.getByText('Boda de Ana y Luis')).toBeInTheDocument();
     expect(screen.queryByText('Cumpleaños de Sofía')).not.toBeInTheDocument();
+    expect(api.events.list).toHaveBeenCalledTimes(1);
   });
 
-  it('formats dates in the Event time zone and renders table plus mobile cards', async () => {
+  it('uses one responsive operational list without a horizontal table', async () => {
     const api = mockApiClient();
     renderApp(api, '/eventos');
 
-    const table = await screen.findByRole('table', { name: 'Eventos' });
-    expect(within(table).getAllByText(/31 dic 2025/i).length).toBeGreaterThan(0);
-    expect(screen.getByLabelText('Eventos en tarjetas')).toBeInTheDocument();
-    expect(screen.getAllByRole('article').length).toBeGreaterThan(0);
-    expect(screen.getAllByRole('link', { name: 'Continuar configuración' })).toHaveLength(2);
+    expect(await screen.findByLabelText('Lista de Eventos')).toBeInTheDocument();
+    expect(screen.getAllByText(/31 dic 2025/i).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.queryByText('Capacidad')).not.toBeInTheDocument();
+    expect(screen.queryByText('Última actualización')).not.toBeInTheDocument();
   });
 
-  it('routes READY_TO_ACTIVATE to Review from table and cards', async () => {
+  it('keeps Event destinations and removes the KPI summary', async () => {
     const api = mockApiClient();
-    vi.mocked(api.events.list).mockResolvedValue([{ ...configuredEvent, status: 'READY_TO_ACTIVATE' }]);
-    renderApp(api, '/eventos');
-    const actions = await screen.findAllByRole('link', { name: 'Activar evento' });
-    expect(actions).toHaveLength(2);
-    expect(actions.every((link) => link.getAttribute('href')?.endsWith('/configuracion/revision'))).toBe(true);
-  });
-
-  it('calculates summary groups from authorized events and excludes cancelled from finished', async () => {
-    const api = mockApiClient();
-    const cancelled = {
+    const ready = {
       ...configuredEvent,
-      id: 'b2997e29-82c4-42be-83b5-cee13a11471c',
-      status: 'CANCELLED'
+      id: '5b54fe46-848e-42e1-97d8-3061b15d4b5d',
+      status: 'READY_TO_ACTIVATE'
     } satisfies Event;
-    vi.mocked(api.events.list).mockResolvedValue([configuredEvent, activeEvent, cancelled]);
+    vi.mocked(api.events.list).mockResolvedValue([configuredEvent, ready, activeEvent]);
     renderApp(api, '/eventos');
 
-    const summary = await screen.findByLabelText('Resumen de Eventos');
-    expect(within(summary).getByText('3')).toBeInTheDocument();
-    expect(within(summary).getByText('Finalizados').nextElementSibling).toHaveTextContent('0');
+    expect(await screen.findByRole('link', { name: 'Continuar configuración' })).toHaveAttribute(
+      'href',
+      expect.stringMatching(/\/configuracion\/datos$/)
+    );
+    expect(screen.getByRole('link', { name: 'Activar evento' })).toHaveAttribute(
+      'href',
+      expect.stringMatching(/\/configuracion\/revision$/)
+    );
+    expect(screen.getByRole('link', { name: 'Ver evento' })).toHaveAttribute('href', `/eventos/${activeEvent.id}`);
+    expect(screen.queryByLabelText('Resumen de Eventos')).not.toBeInTheDocument();
+    expect(screen.queryByText('Total de eventos')).not.toBeInTheDocument();
+  });
+
+  it('preserves the primary new Event route and keyboard-accessible navigation', async () => {
+    const api = mockApiClient();
+    const user = userEvent.setup();
+    renderApp(api, '/eventos');
+
+    const newEvent = await screen.findByRole('link', { name: 'Nuevo evento' });
+    expect(newEvent).toHaveAttribute('href', '/eventos/nuevo');
+    expect(screen.getByRole('link', { name: 'Eventos' })).toHaveAttribute('aria-current', 'page');
+    await user.tab();
+    expect(document.activeElement).not.toBe(document.body);
   });
 
   it('expires a session during a query and preserves a safe return route', async () => {

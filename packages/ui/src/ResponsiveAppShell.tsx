@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import MenuRounded from '@mui/icons-material/MenuRounded';
 import { AppBar, Box, Drawer, IconButton, Stack, Toolbar, Typography } from '@mui/material';
 
-const drawerWidth = 272;
+const drawerWidth = 232;
 
 export interface ResponsiveAppShellProps {
   brand: string;
@@ -16,8 +16,8 @@ export function ResponsiveAppShell({ brand, navigation, userMenu, children }: Re
   const closeMobile = () => setMobileOpen(false);
 
   const sidebar = (
-    <Stack sx={{ height: '100%', px: 2.5, py: 3 }} spacing={4}>
-      <Typography variant="h4" sx={{ px: 1, letterSpacing: '-0.04em' }}>
+    <Stack sx={{ height: '100%', px: 1.5, py: 2 }} spacing={3}>
+      <Typography variant="body2" sx={{ px: 1, fontWeight: 700, letterSpacing: '-0.025em' }}>
         {brand}
       </Typography>
       <Box component="nav" aria-label="Navegación principal" onClick={closeMobile} sx={{ flex: 1 }}>
@@ -86,11 +86,11 @@ export function ResponsiveAppShell({ brand, navigation, userMenu, children }: Re
           minWidth: 0,
           flex: 1,
           pt: { xs: 10, md: 0 },
-          px: { xs: 2, sm: 4, lg: 6 },
+          px: { xs: 2, sm: 4, lg: 5 },
           pb: 6
         }}
       >
-        <Box sx={{ width: '100%', maxWidth: 1280, mx: 'auto', py: { xs: 2, md: 5 } }}>{children}</Box>
+        <Box sx={{ width: '100%', maxWidth: 1440, mx: 'auto', py: { xs: 2, md: 4 } }}>{children}</Box>
       </Box>
     </Box>
   );

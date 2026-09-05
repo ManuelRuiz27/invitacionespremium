@@ -5,23 +5,17 @@ import SearchRounded from '@mui/icons-material/SearchRounded';
 import {
   Box,
   Button,
+  Divider,
   InputAdornment,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   ToggleButton,
   ToggleButtonGroup,
   Typography
 } from '@mui/material';
+import { Link } from 'react-router-dom';
 import { getEventStatusPresentation, type EventGroup } from '../shared/event-status';
 import { formatEventDate, socialTypeLabels } from '../shared/formatters';
-import { EventCard } from './EventCard';
-import { Link } from 'react-router-dom';
 
 type Filter = 'all' | EventGroup;
 
@@ -46,14 +40,19 @@ export function EventsList({ events }: { events: Event[] }) {
     });
   }, [events, filter, search]);
 
+  const clearFilters = () => {
+    setFilter('all');
+    setSearch('');
+  };
+
   return (
-    <section aria-labelledby="events-list-title">
+    <section aria-label="Lista de Eventos">
       <Stack
         direction={{ xs: 'column', lg: 'row' }}
         sx={{ gap: 2, justifyContent: 'space-between', alignItems: { xs: 'stretch', lg: 'center' }, mb: 2 }}
       >
-        <Typography id="events-list-title" component="h2" variant="h3">
-          Tus Eventos
+        <Typography component="p" color="text.secondary" variant="body2">
+          {events.length === 1 ? '1 evento' : `${events.length} eventos`}
         </Typography>
         <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ gap: 1.5, alignItems: { sm: 'center' } }}>
           <TextField
@@ -96,62 +95,55 @@ export function EventsList({ events }: { events: Event[] }) {
           title={
             events.length ? 'No hay Eventos que coincidan con tu búsqueda.' : 'Aún no tienes eventos para mostrar.'
           }
+          description={
+            events.length ? 'Prueba con otra búsqueda o filtro.' : 'Crea un Evento para comenzar a prepararlo.'
+          }
+          action={events.length ? <Button onClick={clearFilters}>Limpiar búsqueda y filtros</Button> : undefined}
         />
       ) : (
-        <>
-          <TableContainer sx={{ display: { xs: 'none', md: 'block' }, borderTop: 1, borderColor: 'divider' }}>
-            <Table aria-label="Eventos">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Nombre</TableCell>
-                  <TableCell>Tipo de evento</TableCell>
-                  <TableCell>Fecha</TableCell>
-                  <TableCell>Estado</TableCell>
-                  <TableCell align="right">Capacidad</TableCell>
-                  <TableCell>Última actualización</TableCell>
-                  <TableCell align="right">Acción</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {visible.map((event) => {
-                  const presentation = getEventStatusPresentation(event.status);
-                  return (
-                    <TableRow key={event.id} hover>
-                      <TableCell sx={{ fontWeight: 650 }}>{event.name ?? 'Evento sin nombre'}</TableCell>
-                      <TableCell>{event.socialType ? socialTypeLabels[event.socialType] : 'Pendiente'}</TableCell>
-                      <TableCell>{formatEventDate(event.eventDateTime, event.timeZone)}</TableCell>
-                      <TableCell>
-                        <StatusChip label={presentation.label} tone={presentation.tone} />
-                      </TableCell>
-                      <TableCell align="right">{event.capacity ?? 'Pendiente'}</TableCell>
-                      <TableCell>{formatEventDate(event.updatedAt, event.timeZone, true)}</TableCell>
-                      <TableCell align="right">
-                        {['DRAFT', 'CONFIGURED'].includes(event.status) ? (
-                          <Button component={Link} to={`/eventos/${event.id}/configuracion/datos`}>
-                            Continuar configuración
-                          </Button>
-                        ) : event.status === 'READY_TO_ACTIVATE' ? (
-                          <Button component={Link} to={`/eventos/${event.id}/configuracion/revision`}>
-                            Activar evento
-                          </Button>
-                        ) : (
-                          <Button component={Link} to={`/eventos/${event.id}`}>
-                            Ver evento
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </TableContainer>
-          <Box aria-label="Eventos en tarjetas" sx={{ display: { xs: 'block', md: 'none' } }}>
-            {visible.map((event) => (
-              <EventCard key={event.id} event={event} />
-            ))}
-          </Box>
-        </>
+        <Box component="ul" sx={{ m: 0, p: 0, borderTop: 1, borderColor: 'divider', listStyle: 'none' }}>
+          {visible.map((event) => {
+            const presentation = getEventStatusPresentation(event.status);
+            const action = ['DRAFT', 'CONFIGURED'].includes(event.status)
+              ? { label: 'Continuar configuración', to: `/eventos/${event.id}/configuracion/datos` }
+              : event.status === 'READY_TO_ACTIVATE'
+                ? { label: 'Activar evento', to: `/eventos/${event.id}/configuracion/revision` }
+                : { label: 'Ver evento', to: `/eventos/${event.id}` };
+
+            return (
+              <Box component="li" key={event.id}>
+                <Stack
+                  direction={{ xs: 'column', sm: 'row' }}
+                  sx={{ py: 2.25, gap: 1.5, justifyContent: 'space-between', alignItems: { sm: 'center' } }}
+                >
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography component="h2" variant="h4" sx={{ overflowWrap: 'anywhere' }}>
+                      {event.name ?? 'Evento sin nombre'}
+                    </Typography>
+                    <Typography color="text.secondary" variant="body2" sx={{ mt: 0.5 }}>
+                      {[
+                        formatEventDate(event.eventDateTime, event.timeZone),
+                        event.socialType ? socialTypeLabels[event.socialType] : null
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </Typography>
+                  </Box>
+                  <Stack
+                    direction="row"
+                    sx={{ gap: 1, alignItems: 'center', flexWrap: 'wrap', justifyContent: { sm: 'flex-end' } }}
+                  >
+                    <StatusChip label={presentation.label} tone={presentation.tone} />
+                    <Button component={Link} to={action.to} variant="text">
+                      {action.label}
+                    </Button>
+                  </Stack>
+                </Stack>
+                <Divider />
+              </Box>
+            );
+          })}
+        </Box>
       )}
     </section>
   );

@@ -14,9 +14,9 @@ export function UserMenu() {
 
   if (!mobile) {
     return (
-      <Stack spacing={1.5} sx={{ px: 1 }}>
+      <Stack spacing={0.5} sx={{ px: 1 }}>
         <Box>
-          <Typography variant="body2" noWrap sx={{ fontWeight: 650 }}>
+          <Typography variant="caption" noWrap sx={{ fontWeight: 650 }}>
             {user.email}
           </Typography>
           <Typography variant="caption" color="text.secondary">
@@ -26,8 +26,9 @@ export function UserMenu() {
         <Button
           startIcon={<LogoutRounded />}
           color="inherit"
+          size="small"
           onClick={() => void logout()}
-          sx={{ justifyContent: 'flex-start' }}
+          sx={{ justifyContent: 'flex-start', px: 0, minHeight: 36, color: 'text.secondary' }}
         >
           Cerrar sesión
         </Button>
