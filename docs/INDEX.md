@@ -36,7 +36,7 @@ Leer primero `docs/04-tecnico/REPOSITORY_SOURCE_OF_TRUTH.md` cuando una tarea me
 ## 03-diseno
 
 - `LEGACY_UI_VISUAL_PORT_GUIDE.md` — dirección visual selectiva desde legacy sin migrar stack
-- `FLOORPLAN_UX_TARGET.md` — objetivo visual/interacción Croquis V2
+- `FLOORPLAN_UX_TARGET.md` — objetivo visual/interacción Croquis V2; el modo de lugar exacto se rige por el contrato especializado vigente
 - `assets/floorplan-sticker-flow-target.svg` — render de referencia subordinado a contratos vigentes
 
 ## 04-tecnico
@@ -73,7 +73,8 @@ Leer primero `docs/04-tecnico/REPOSITORY_SOURCE_OF_TRUTH.md` cuando una tarea me
 - `CLIENT_APP_CONTRACT.md`
 - `ADMIN_APP_CONTRACT.md`
 - `EVENT_WIZARD_CONTRACT.md`
-- `FLOORPLAN_STICKER_SEATING_CONTRACT.md`
+- `FLOORPLAN_DETAILED_SEATING_CONTRACT.md` — decisión posterior y fuente de verdad para acomodo opcional por lugar exacto; sustituye cualquier `Not now` previo de asientos individuales
+- `FLOORPLAN_STICKER_SEATING_CONTRACT.md` — contrato base de Croquis V2; subordinado a `FLOORPLAN_DETAILED_SEATING_CONTRACT.md` cuando el alcance sea asignación persistente por lugar
 - `FILE_ASSET_POLICY.md`
 - `REALTIME_PAYLOADS.md`
 
@@ -98,6 +99,7 @@ Leer primero `docs/04-tecnico/REPOSITORY_SOURCE_OF_TRUTH.md` cuando una tarea me
 - `FP03_FLOORPLAN_INTERACTION_ROBUSTNESS.md`
 - `FP04_PLANNER_SEATING_WORKSPACE_ALIGNMENT.md`
 - `FP05_SCALE_OPERATION_QA.md`
+- `FP06_DETAILED_SEATING.md` — ticket de implementación para `Acomodo por lugar exacto`
 - `PILOT01_END_TO_END_READINESS.md`
 - `PILOT02_MINIMUM_OPERATIONAL_INSTRUMENTATION.md`
 - `LOCAL_PILOT_OPERATION_RUNBOOK.md`
@@ -128,13 +130,17 @@ En particular:
 
 1. `REPOSITORY_SOURCE_OF_TRUTH.md`.
 2. producto (`02_PRD.md`, `03_ROLES_PERMISOS_ACCESO.md`, `04_OPERATOR_LED_MVP.md` y decisiones comerciales vigentes cuando apliquen).
-3. ADR/contrato especializado.
-4. `FLOORPLAN_UX_TARGET.md` y `LEGACY_UI_VISUAL_PORT_GUIDE.md`.
-5. `14_CODEX_RULES.md` + `14A_OPERATOR_LED_CODEX_RULES.md`.
-6. `19_OPERATOR_LED_FLOORPLAN_ROADMAP.md` como historial técnico completado.
-7. `20_COMMERCIAL_PILOT_ROADMAP.md` para cambios posteriores.
+3. `FLOORPLAN_DETAILED_SEATING_CONTRACT.md` cuando la tarea afecte lugares/asientos persistentes, capacidad derivada por lugar, asignación exacta o scanner por lugar.
+4. resto de ADR/contratos especializados, incluido `FLOORPLAN_STICKER_SEATING_CONTRACT.md`.
+5. `FLOORPLAN_UX_TARGET.md` y `LEGACY_UI_VISUAL_PORT_GUIDE.md`.
+6. `14_CODEX_RULES.md` + `14A_OPERATOR_LED_CODEX_RULES.md`.
+7. `19_OPERATOR_LED_FLOORPLAN_ROADMAP.md` como historial técnico completado.
+8. `FP06_DETAILED_SEATING.md` como orden de implementación del modo detallado, sin autoridad para cambiar el contrato.
+9. `20_COMMERCIAL_PILOT_ROADMAP.md` para cambios posteriores no cubiertos por FP06.
 
 Una referencia visual nunca puede cambiar dominio, permisos, estados, contratos API o reglas financieras.
+
+Para el modo detallado, la autorización de `FloorplanSeat` y `Assistant.floorplanSeatId` proviene de `FLOORPLAN_DETAILED_SEATING_CONTRACT.md`; Codex no debe detenerse por prohibiciones anteriores de crear asignación persistente por asiento que ese contrato sustituye expresamente.
 
 ## Regla monorepo
 
