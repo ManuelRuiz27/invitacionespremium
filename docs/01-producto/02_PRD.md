@@ -12,13 +12,17 @@ No es solo una herramienta para crear invitaciones digitales. Es una plataforma 
 
 El lanzamiento inicial se realizará como **producto operado con servicio asistido**.
 
-InvitacionesPremium prepara la infraestructura del Evento —incluyendo configuración de Invitación, RSVP y construcción del Croquis cuando aplique— mientras la Planner conserva el control cotidiano sobre invitados, distribución de enlaces, confirmaciones, asignación de personas a Mesas y operación autorizada del Evento.
+InvitacionesPremium prepara la infraestructura del Evento —incluyendo configuración de Invitación, RSVP y construcción del Croquis cuando aplique— mientras la Planner conserva el control cotidiano sobre invitados, distribución de enlaces, confirmaciones y acomodo de personas sobre la infraestructura preparada.
+
+Cuando el Croquis utilice **Acomodo por mesa**, la Planner asigna personas a Mesas. Cuando utilice **Acomodo por lugar exacto**, la Planner asigna cada persona a un lugar individual previamente preparado por InvitacionesPremium.
 
 Este perfil reduce el alcance de self-service necesario para los primeros pilotos y permite instrumentar qué trabajo manual merece automatización. No modifica por sí mismo los tipos de Cliente, créditos, precios, estados de Evento ni roles persistidos.
 
 Fuente de verdad del perfil: `docs/01-producto/04_OPERATOR_LED_MVP.md`.
 
 La capacidad técnica del proveedor para operar un Evento requiere el acceso explícito y auditado definido en `docs/04-tecnico/ADR_OPERATOR_LED_ACCESS.md`; no se permite impersonación.
+
+El contrato especializado del acomodo por lugar exacto es `docs/04-tecnico/FLOORPLAN_DETAILED_SEATING_CONTRACT.md` y prevalece para esa capability.
 
 ## Usuarios objetivo
 
@@ -82,6 +86,9 @@ Incluye:
 - Confirmación de asistencia;
 - Croquis opcional;
 - Mesas y zonas;
+- Croquis con dos modos de acomodo: **por mesa** y **por lugar exacto**;
+- lugares individuales persistentes y posicionables libremente para `FLYER`, `FLIPBOOK` y `DEMO` cuando el Croquis use modo detallado;
+- asignación de Asistente a lugar exacto manteniendo su Mesa padre;
 - Staff por token;
 - scanner;
 - check-in individual;
@@ -111,7 +118,9 @@ Incluye:
 - edición de Flyer/Flipbook después de activar;
 - reembolso monetario al Cliente;
 - constructor self-service de Croquis para Planner durante el perfil operator-led;
-- asignación persistente por silla/asiento en Croquis V2 inicial.
+- OCR/detección automática de sillas o vectorización del Croquis;
+- CAD/3D para Croquis;
+- asignación por lugar exacto para `PHYSICAL_QR` en esta iteración.
 
 ## Límites MVP
 
@@ -124,6 +133,7 @@ Incluye:
 - Internet obligatorio.
 - Créditos enteros; no existen fracciones de crédito.
 - Reportes detallados con nombres disponibles máximo 30 días post-Evento.
+- El modo de acomodo se define por Croquis: **por mesa** o **por lugar exacto**; no se mezclan ambos como modos independientes dentro del mismo Croquis en esta iteración.
 
 ## Reglas de experiencia principales
 
@@ -139,7 +149,11 @@ Incluye:
 - Álbum solo es accesible para Invitaciones con al menos un Asistente ingresado.
 - Álbum público expira a los 30 días y el Evento se archiva.
 - Archivado oculta links públicos y no permite reapertura.
-- En el perfil operator-led, el proveedor construye la geometría del Croquis V2 y la Planner gestiona la asignación de personas sobre Mesas existentes.
+- En el perfil operator-led, el proveedor construye la geometría del Croquis V2 y la Planner gestiona la asignación de personas sobre la infraestructura existente.
+- En **Acomodo por mesa**, la unidad de asignación es la Mesa.
+- En **Acomodo por lugar exacto**, cada lugar tiene identidad persistente, posición libre y una Mesa padre; la Planner asigna personas a lugares exactos sin editar su geometría.
+- La forma visual de una Mesa no tiene que ser simétrica ni contener geométricamente sus lugares; esto permite mesas curvas, en U, serpentinas o mobiliario ya dibujado en la imagen base.
+- El modo detallado es opcional y no se activa automáticamente por tamaño de Evento.
 
 ## Servicios y precios iniciales
 
@@ -158,6 +172,8 @@ Incluye:
 Platform Admin puede editar precios desde panel de precios/promociones.
 
 La activación conserva snapshot del precio y promoción aplicados.
+
+El modo **Acomodo por lugar exacto** no define por sí mismo un add-on, precio ni cargo adicional. Cualquier monetización específica requiere una decisión comercial separada.
 
 ## Demo
 
@@ -180,6 +196,8 @@ Después de 30 días post-Evento:
 - ocultar o reemplazar reportes detallados con versión anónima;
 - no conservar teléfonos dentro de PDFs operativos.
 
+Las posiciones y etiquetas de lugares no son PII por sí mismas; la relación histórica con una persona debe respetar la misma anonimización aplicable al Asistente.
+
 ## Criterios de aceptación principales
 
 - Un Planner puede registrarse, crear Evento, comprar créditos o recibir una asignación manual de Platform Admin y activar Evento.
@@ -199,5 +217,10 @@ Después de 30 días post-Evento:
 - Cancelación pública muestra mensaje correcto sin habilitar acciones.
 - Álbum público requiere token separado, elegibilidad y vigencia.
 - Platform Admin consulta Eventos mediante contexto administrativo sin impersonación.
-- La operación provider-led, cuando se implemente, usa una superficie administrativa explícita y auditada; no reutiliza endpoints Planner como impersonación.
+- La operación provider-led usa una superficie administrativa explícita y auditada; no reutiliza endpoints Planner como impersonación.
+- En un Croquis detallado, el proveedor puede colocar lugares libremente alrededor de Mesas regulares o irregulares sin convertir el editor en CAD.
+- Cada lugar detallado pertenece a una Mesa y solo puede tener un Asistente activo asignado.
+- La Planner puede asignar, mover y desasignar personas por lugar exacto sin obtener edición de geometría.
+- Scanner puede mostrar Mesa + lugar exacto y resaltar el lugar sin ampliar PII.
+- Croquis existentes continúan operando como **Acomodo por mesa** después de la migración.
 - La anonimización impide conservar nombres/teléfonos en reportes descargables después de la ventana permitida.
