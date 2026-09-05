@@ -92,6 +92,7 @@ Leer primero `docs/04-tecnico/REPOSITORY_SOURCE_OF_TRUTH.md` cuando una tarea me
 - `19_OPERATOR_LED_FLOORPLAN_ROADMAP.md` — roadmap técnico original hacia piloto; objetivo completado
 - `20_COMMERCIAL_PILOT_ROADMAP.md` — segunda etapa: Pricing V2, landing/funnel, autorización comercial, Operator intake, Staff UI, unit economics y UAT comercial
 - `21_CLIENT_UI_REFACTOR_ROADMAP.md` — roadmap del refactor visual Client/Scanner task-first, excluyendo Croquis
+- `22_FLOORPLAN_FUNCTIONAL_COMPLETION_ROADMAP.md` — **roadmap activo de Croquis**: cerrar funcionalidad end-to-end antes del pulido UI; lugar exacto, productividad Builder, plantillas Venue, Seating Planner, Scanner e integridad/QA
 - `UI01_CLIENT_FOUNDATION_EVENTS.md` — shell, visual foundation y Eventos
 - `UI02_WIZARD_GUESTS_CONFIRMATION.md` — Wizard, Invitados y Confirmación sin tocar Croquis
 - `UI03_INVITATION_EXPERIENCE.md` — Flyer/Flipbook con pieza gráfica dominante y acciones contextuales
@@ -165,12 +166,15 @@ Orden de ejecución:
 5. `FLOORPLAN_UX_TARGET.md` y `LEGACY_UI_VISUAL_PORT_GUIDE.md`.
 6. `14_CODEX_RULES.md` + `14A_OPERATOR_LED_CODEX_RULES.md`.
 7. `19_OPERATOR_LED_FLOORPLAN_ROADMAP.md` como historial técnico completado.
-8. `FP06_DETAILED_SEATING.md` como orden de implementación del modo detallado, sin autoridad para cambiar el contrato.
-9. `20_COMMERCIAL_PILOT_ROADMAP.md` para cambios posteriores no cubiertos por FP06.
+8. `FP06_DETAILED_SEATING.md` como ticket especializado del modo detallado, sin autoridad para cambiar el contrato.
+9. `22_FLOORPLAN_FUNCTIONAL_COMPLETION_ROADMAP.md` como **orden activo de ejecución para cerrar la funcionalidad de Croquis antes del pulido UI**; coordina gaps existentes sin sustituir contratos superiores.
+10. `20_COMMERCIAL_PILOT_ROADMAP.md` para cambios posteriores no cubiertos por el roadmap funcional de Croquis.
 
 Una referencia visual nunca puede cambiar dominio, permisos, estados, contratos API o reglas financieras.
 
 Para el modo detallado, la autorización de `FloorplanSeat` y `Assistant.floorplanSeatId` proviene de `FLOORPLAN_DETAILED_SEATING_CONTRACT.md`; Codex no debe detenerse por prohibiciones anteriores de crear asignación persistente por asiento que ese contrato sustituye expresamente.
+
+Mientras `22_FLOORPLAN_FUNCTIONAL_COMPLETION_ROADMAP.md` esté activo, no iniciar un refactor visual general de Croquis. Sólo se permiten cambios de presentación mínimos necesarios para implementar, probar o certificar una capability funcional del roadmap.
 
 ## Regla monorepo
 
