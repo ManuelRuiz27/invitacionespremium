@@ -31,10 +31,11 @@ Leer primero `docs/04-tecnico/REPOSITORY_SOURCE_OF_TRUTH.md` cuando una tarea me
 
 ## 03-ui-ux
 
-- `07_UI_UX_FLOW.md`
+- `07_UI_UX_FLOW.md` — flujo UX general; para `apps/client` y `apps/scanner` queda subordinado a `CLIENT_UI_VISUAL_SYSTEM.md` en composición visual
 
 ## 03-diseno
 
+- `CLIENT_UI_VISUAL_SYSTEM.md` — **fuente de verdad visual para Client/Scanner**: task-first, content-first, progressive disclosure y fin del card-first UI; Croquis queda fuera
 - `LEGACY_UI_VISUAL_PORT_GUIDE.md` — dirección visual selectiva desde legacy sin migrar stack
 - `FLOORPLAN_UX_TARGET.md` — objetivo visual/interacción Croquis V2; el modo de lugar exacto se rige por el contrato especializado vigente
 - `assets/floorplan-sticker-flow-target.svg` — render de referencia subordinado a contratos vigentes
@@ -73,6 +74,7 @@ Leer primero `docs/04-tecnico/REPOSITORY_SOURCE_OF_TRUTH.md` cuando una tarea me
 - `CLIENT_APP_CONTRACT.md`
 - `ADMIN_APP_CONTRACT.md`
 - `EVENT_WIZARD_CONTRACT.md`
+- `ACTIVE_EVENT_WORKSPACE_CONTRACT.md`
 - `FLOORPLAN_DETAILED_SEATING_CONTRACT.md` — decisión posterior y fuente de verdad para acomodo opcional por lugar exacto; sustituye cualquier `Not now` previo de asientos individuales
 - `FLOORPLAN_STICKER_SEATING_CONTRACT.md` — contrato base de Croquis V2; subordinado a `FLOORPLAN_DETAILED_SEATING_CONTRACT.md` cuando el alcance sea asignación persistente por lugar
 - `FILE_ASSET_POLICY.md`
@@ -89,6 +91,11 @@ Leer primero `docs/04-tecnico/REPOSITORY_SOURCE_OF_TRUTH.md` cuando una tarea me
 - `18_MONOREPO_BOOTSTRAP.md`
 - `19_OPERATOR_LED_FLOORPLAN_ROADMAP.md` — roadmap técnico original hacia piloto; objetivo completado
 - `20_COMMERCIAL_PILOT_ROADMAP.md` — segunda etapa: Pricing V2, landing/funnel, autorización comercial, Operator intake, Staff UI, unit economics y UAT comercial
+- `21_CLIENT_UI_REFACTOR_ROADMAP.md` — roadmap del refactor visual Client/Scanner task-first, excluyendo Croquis
+- `UI01_CLIENT_FOUNDATION_EVENTS.md` — shell, visual foundation y Eventos
+- `UI02_WIZARD_GUESTS_CONFIRMATION.md` — Wizard, Invitados y Confirmación sin tocar Croquis
+- `UI03_INVITATION_EXPERIENCE.md` — Flyer/Flipbook con pieza gráfica dominante y acciones contextuales
+- `UI04_OPERATIONAL_SURFACES.md` — Evento activo, compartir Invitaciones, Finanzas y Scanner; Croquis/Seating internos fuera de alcance
 - `OP04_OPERATOR_INTAKE_PLANNER_ASSIGNMENT.md` — contrato técnico para alta Provider, creator real, price lock atómico y ownership operativo por Planner asignada
 - `LAND01_LANDING_COMMERCIAL_V2.md` — contrato técnico para landing comercial por SKU/canal y pricing público autoritativo sin price book duplicado
 - `LAND02_B2B_COMMERCIAL_INTAKE.md` — contrato técnico para captura B2B pública, deduplicación/rate limit y consulta Admin read-only sin auto-provisioning
@@ -125,6 +132,29 @@ En particular:
 - las tablas históricas Planner/Organization no son pricing definitivo;
 - la landing no debe publicar precios históricos ni prometer self-service técnico contrario al perfil operator-led;
 - Venue/Organization no obtiene registro público por el simple hecho de aparecer como canal comercial.
+
+## Precedencia para Client UI V2 / Planner task-first
+
+Cuando una tarea afecte **composición visual, jerarquía, densidad, copy, cards, wrappers, navegación visual, progressive disclosure o responsive** de `apps/client` o `apps/scanner`:
+
+1. contrato de dominio/seguridad especializado aplicable;
+2. `CLIENT_UI_VISUAL_SYSTEM.md` para presentación;
+3. `07_UI_UX_FLOW.md`;
+4. contrato técnico base de la superficie (`CLIENT_APP_CONTRACT.md`, `EVENT_WIZARD_CONTRACT.md`, `ACTIVE_EVENT_WORKSPACE_CONTRACT.md`, Scanner, Finance, etc.);
+5. ticket `UI01`..`UI04` para orden de implementación;
+6. implementación actual cuando no contradiga una regla documental superior.
+
+Reglas:
+
+- `CLIENT_UI_VISUAL_SYSTEM.md` puede sustituir requisitos antiguos de **scorecards, cards, tabla/card dual, wrappers `Paper`, sidebar visualmente pesado o copy repetitivo**;
+- esa precedencia es **sólo visual**: nunca autoriza cambios de API, permisos, estados, readiness, pricing, idempotencia, seguridad o dominio;
+- UI-01..UI-04 no pueden tocar internals de Croquis/Seating ni `packages/floorplan`;
+- Admin y Landing no forman parte de este roadmap salvo regresión compartida demostrada;
+- no migrar MUI ni crear un design system paralelo.
+
+Orden de ejecución:
+
+`UI-01 → UI-02 → UI-03 → UI-04`.
 
 ## Precedencia para Croquis V2 / baseline operator-led
 
