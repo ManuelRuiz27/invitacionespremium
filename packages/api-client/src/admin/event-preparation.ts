@@ -422,7 +422,13 @@ export function createAdminEventPreparationClient(request: ApiRequester) {
       signal?: AbortSignal
     ) =>
       request<AdminFloorplanSeat[]>(
-        { method: 'PATCH', path: `${base(clientId, eventId)}/floorplan/seats/renumber`, body, response: 'json', ...withSignal(signal) },
+        {
+          method: 'PATCH',
+          path: `${base(clientId, eventId)}/floorplan/seats/renumber`,
+          body,
+          response: 'json',
+          ...withSignal(signal)
+        },
         records
       ),
     removeFloorplanSeat: (clientId: string, eventId: string, seatId: string, signal?: AbortSignal) =>

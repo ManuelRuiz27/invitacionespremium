@@ -855,7 +855,9 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
                 setSelectedId(seat.floorplanShapeId);
                 setSelectedSeatIds((current) => {
                   const next = options.additive
-                    ? current.includes(seat.id) ? current.filter((id) => id !== seat.id) : [...current, seat.id]
+                    ? current.includes(seat.id)
+                      ? current.filter((id) => id !== seat.id)
+                      : [...current, seat.id]
                     : [seat.id];
                   setSelectedSeatId(next.includes(seat.id) ? seat.id : next[0]);
                   return next;

@@ -78,10 +78,12 @@ const batchSeatsSchema = z
   })
   .strict();
 const seatingModeSchema = z.object({ seatingMode: z.enum(FloorplanSeatingMode) }).strict();
-const renumberSeatsSchema = z.object({ seatIds: z.array(uuid).min(1).max(500) }).strict().refine(
-  ({ seatIds }) => new Set(seatIds).size === seatIds.length,
-  { message: 'seatIds must not contain duplicates.' }
-);
+const renumberSeatsSchema = z
+  .object({ seatIds: z.array(uuid).min(1).max(500) })
+  .strict()
+  .refine(({ seatIds }) => new Set(seatIds).size === seatIds.length, {
+    message: 'seatIds must not contain duplicates.'
+  });
 const assignSeatsSchema = z
   .object({
     assignments: z
