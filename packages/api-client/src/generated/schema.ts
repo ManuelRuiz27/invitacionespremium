@@ -4365,9 +4365,9 @@ export type components = {
         };
         UpdateFloorplanSeatRequestDto: {
             isBlocked?: boolean;
-            label: string;
-            x: number;
-            y: number;
+            label?: string;
+            x?: number;
+            y?: number;
         };
         UpdateFloorplanShapeRequestDto: {
             capacity?: number;

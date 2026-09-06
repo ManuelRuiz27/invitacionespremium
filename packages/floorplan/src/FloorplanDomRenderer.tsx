@@ -23,6 +23,7 @@ export interface FloorplanRendererProps {
   onCanvasPlace?: ((point: { x: number; y: number }, pendingId?: string) => void) | undefined;
   selectedSeatId?: string | undefined;
   onSeatSelect?: ((seatId: string) => void) | undefined;
+  onSeatMove?: ((seatId: string, point: { x: number; y: number }) => void) | undefined;
 }
 
 export function FloorplanDomRenderer(props: FloorplanRendererProps) {
@@ -95,17 +96,15 @@ export function FloorplanDomRenderer(props: FloorplanRendererProps) {
       })}
       {props.floorplan.seatingMode === 'SEAT'
         ? (props.floorplan.seats ?? []).map((seat) => (
-            <Box
-              component="button"
-              type="button"
+            <SeatButton
               key={seat.id}
-              aria-label={`Lugar ${seat.label}${seat.isBlocked ? ', bloqueado' : seat.occupied ? ', ocupado' : ', disponible'}`}
-              onClick={() => props.onSeatSelect?.(seat.id)}
+              seat={seat}
+              selected={props.selectedSeatId === seat.id}
               disabled={props.disabled}
-              sx={{ position: 'absolute', left: `${seat.x * 100}%`, top: `${seat.y * 100}%`, transform: 'translate(-50%, -50%)', width: 28, height: 28, borderRadius: '50%', border: 2, borderColor: props.selectedSeatId === seat.id ? 'warning.main' : seat.isBlocked ? 'grey.600' : seat.occupied ? 'primary.main' : 'success.main', bgcolor: seat.isBlocked ? 'grey.300' : seat.occupied ? 'primary.light' : 'background.paper', color: 'text.primary', fontSize: 11, fontWeight: 700, zIndex: 3, cursor: props.disabled ? 'default' : 'pointer' }}
-            >
-              {seat.label}
-            </Box>
+              ownerRef={ownerRef}
+              onSelect={() => props.onSeatSelect?.(seat.id)}
+              onMove={props.onSeatMove}
+            />
           ))
         : null}
       {props.draft ? (
@@ -119,6 +118,107 @@ export function FloorplanDomRenderer(props: FloorplanRendererProps) {
           onChange={props.onDraftChange}
         />
       ) : null}
+    </Box>
+  );
+}
+
+function SeatButton({
+  seat,
+  selected,
+  disabled,
+  ownerRef,
+  onSelect,
+  onMove
+}: {
+  seat: NonNullable<FloorplanRendererProps['floorplan']['seats']>[number];
+  selected: boolean;
+  disabled: boolean;
+  ownerRef: React.RefObject<HTMLDivElement | null>;
+  onSelect: () => void;
+  onMove?: FloorplanRendererProps['onSeatMove'];
+}) {
+  const [preview, setPreview] = useState({ x: seat.x, y: seat.y });
+  const dragging = useRef(false);
+  useEffect(() => {
+    if (!dragging.current) setPreview({ x: seat.x, y: seat.y });
+  }, [seat.x, seat.y]);
+  return (
+    <Box
+      component="button"
+      type="button"
+      aria-label={`Lugar ${seat.label}${seat.isBlocked ? ', bloqueado' : seat.occupied ? ', ocupado' : ', disponible'}`}
+      onClick={(event) => {
+        event.stopPropagation();
+        onSelect();
+      }}
+      onPointerDown={(event) => {
+        if (disabled || !onMove) return;
+        event.stopPropagation();
+        event.preventDefault();
+        const bounds = ownerRef.current?.getBoundingClientRect();
+        if (!bounds?.width || !bounds.height) return;
+        dragging.current = true;
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+        const move = (next: PointerEvent) => {
+          const point = stagePointToNormalized(next.clientX, next.clientY, bounds);
+          setPreview(point);
+        };
+        const finish = (next: PointerEvent) => {
+          event.currentTarget.removeEventListener('pointermove', move);
+          event.currentTarget.removeEventListener('pointerup', finish);
+          event.currentTarget.removeEventListener('pointercancel', cancel);
+          dragging.current = false;
+          const point = stagePointToNormalized(next.clientX, next.clientY, bounds);
+          setPreview(point);
+          onMove(seat.id, point);
+        };
+        const cancel = () => {
+          event.currentTarget.removeEventListener('pointermove', move);
+          event.currentTarget.removeEventListener('pointerup', finish);
+          event.currentTarget.removeEventListener('pointercancel', cancel);
+          dragging.current = false;
+          setPreview({ x: seat.x, y: seat.y });
+        };
+        event.currentTarget.addEventListener('pointermove', move);
+        event.currentTarget.addEventListener('pointerup', finish);
+        event.currentTarget.addEventListener('pointercancel', cancel);
+      }}
+      disabled={disabled}
+      sx={{
+        position: 'absolute',
+        left: `${preview.x * 100}%`,
+        top: `${preview.y * 100}%`,
+        transform: 'translate(-50%, -50%)',
+        width: 44,
+        height: 44,
+        borderRadius: '50%',
+        border: 0,
+        bgcolor: 'transparent',
+        color: 'text.primary',
+        zIndex: 3,
+        cursor: disabled ? 'default' : onMove ? 'grab' : 'pointer',
+        touchAction: 'none',
+        '&::after': {
+          content: '""',
+          position: 'absolute',
+          inset: 8,
+          borderRadius: '50%',
+          border: 2,
+          borderColor: selected
+            ? 'warning.main'
+            : seat.isBlocked
+              ? 'grey.600'
+              : seat.occupied
+                ? 'primary.main'
+                : 'success.main',
+          bgcolor: seat.isBlocked ? 'grey.300' : seat.occupied ? 'primary.light' : 'background.paper'
+        },
+        '&:focus-visible': { outline: '3px solid', outlineColor: 'warning.main' }
+      }}
+    >
+      <Box component="span" sx={{ position: 'relative', zIndex: 1, fontSize: 11, fontWeight: 700 }}>
+        {seat.label}
+      </Box>
     </Box>
   );
 }

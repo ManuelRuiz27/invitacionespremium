@@ -181,9 +181,45 @@ export function FloorplanKonvaRenderer(
         })}
         {props.floorplan.seatingMode === 'SEAT'
           ? (props.floorplan.seats ?? []).map((seat) => (
-              <Group key={seat.id} x={seat.x * props.width} y={seat.y * props.height} onClick={() => props.onSeatSelect?.(seat.id)} onTap={() => props.onSeatSelect?.(seat.id)}>
-                <Circle radius={7} hitStrokeWidth={30} fill={seat.isBlocked ? '#b0b6bf' : seat.occupied ? floorplanColors.accent : floorplanColors.paper} stroke={props.selectedSeatId === seat.id ? floorplanColors.warning : floorplanColors.line} strokeWidth={props.selectedSeatId === seat.id ? 3 : 1.5} />
-                <Text text={seat.label} x={-12} y={-5} width={24} align="center" fontSize={8} fill={floorplanColors.ink} listening={false} />
+              <Group
+                key={seat.id}
+                x={seat.x * props.width}
+                y={seat.y * props.height}
+                draggable={!props.disabled && Boolean(props.onSeatMove)}
+                onClick={(event) => {
+                  event.cancelBubble = true;
+                  props.onSeatSelect?.(seat.id);
+                }}
+                onTap={(event) => {
+                  event.cancelBubble = true;
+                  props.onSeatSelect?.(seat.id);
+                }}
+                onDragEnd={(event) => {
+                  if (!props.onSeatMove) return;
+                  event.cancelBubble = true;
+                  props.onSeatMove(seat.id, {
+                    x: Math.min(1, Math.max(0, event.target.x() / props.width)),
+                    y: Math.min(1, Math.max(0, event.target.y() / props.height))
+                  });
+                }}
+              >
+                <Circle
+                  radius={7}
+                  hitStrokeWidth={30}
+                  fill={seat.isBlocked ? '#b0b6bf' : seat.occupied ? floorplanColors.accent : floorplanColors.paper}
+                  stroke={props.selectedSeatId === seat.id ? floorplanColors.warning : floorplanColors.line}
+                  strokeWidth={props.selectedSeatId === seat.id ? 3 : 1.5}
+                />
+                <Text
+                  text={seat.label}
+                  x={-12}
+                  y={-5}
+                  width={24}
+                  align="center"
+                  fontSize={8}
+                  fill={floorplanColors.ink}
+                  listening={false}
+                />
               </Group>
             ))
           : null}

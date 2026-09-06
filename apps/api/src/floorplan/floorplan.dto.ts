@@ -59,9 +59,39 @@ const assignGroupSchema = z.object({ groupId: uuid, tableShapeId: uuid }).strict
 const updateSeatingSchema = z.object({ tableShapeId: uuid.nullable() }).strict();
 const seatSchema = z.object({ label: name, x: relative, y: relative, isBlocked: z.boolean().optional() }).strict();
 const updateSeatSchema = seatSchema.partial().strict();
-const batchSeatsSchema = z.object({ seats: z.array(z.object({ seatId: uuid, label: name.optional(), x: relative.optional(), y: relative.optional(), isBlocked: z.boolean().optional() }).strict()).min(1).max(500) }).strict();
+const batchSeatsSchema = z
+  .object({
+    seats: z
+      .array(
+        z
+          .object({
+            seatId: uuid,
+            label: name.optional(),
+            x: relative.optional(),
+            y: relative.optional(),
+            isBlocked: z.boolean().optional()
+          })
+          .strict()
+      )
+      .min(1)
+      .max(500)
+  })
+  .strict();
 const seatingModeSchema = z.object({ seatingMode: z.enum(FloorplanSeatingMode) }).strict();
-const assignSeatsSchema = z.object({ assignments: z.array(z.object({ assistantId: uuid, seatId: uuid }).strict()).min(1).max(500) }).strict().refine(({ assignments }) => new Set(assignments.map(({ assistantId }) => assistantId)).size === assignments.length && new Set(assignments.map(({ seatId }) => seatId)).size === assignments.length, { message: 'Seat assignments must be one-to-one.' });
+const assignSeatsSchema = z
+  .object({
+    assignments: z
+      .array(z.object({ assistantId: uuid, seatId: uuid }).strict())
+      .min(1)
+      .max(500)
+  })
+  .strict()
+  .refine(
+    ({ assignments }) =>
+      new Set(assignments.map(({ assistantId }) => assistantId)).size === assignments.length &&
+      new Set(assignments.map(({ seatId }) => seatId)).size === assignments.length,
+    { message: 'Seat assignments must be one-to-one.' }
+  );
 const seatingWorkspaceQuerySchema = z
   .object({
     scope: z.enum(['UNASSIGNED', 'TABLE']),
@@ -233,18 +263,27 @@ export class FloorplanSeatRequestDto {
   @ApiProperty({ type: Number, minimum: 0, maximum: 1 }) y!: number;
   @ApiPropertyOptional({ type: Boolean }) isBlocked?: boolean;
 }
-export class UpdateFloorplanSeatRequestDto extends FloorplanSeatRequestDto {}
+export class UpdateFloorplanSeatRequestDto {
+  @ApiPropertyOptional({ type: String, maxLength: 120 }) label?: string;
+  @ApiPropertyOptional({ type: Number, minimum: 0, maximum: 1 }) x?: number;
+  @ApiPropertyOptional({ type: Number, minimum: 0, maximum: 1 }) y?: number;
+  @ApiPropertyOptional({ type: Boolean }) isBlocked?: boolean;
+}
 export class FloorplanSeatResponseDto extends FloorplanSeatRequestDto {
   @ApiProperty({ type: String, format: 'uuid' }) id!: string;
   @ApiProperty({ type: String, format: 'uuid' }) floorplanShapeId!: string;
   @ApiProperty({ type: Boolean }) occupied!: boolean;
 }
-export class UpdateFloorplanSeatingModeRequestDto { @ApiProperty({ enum: FloorplanSeatingMode }) seatingMode!: FloorplanSeatingMode; }
+export class UpdateFloorplanSeatingModeRequestDto {
+  @ApiProperty({ enum: FloorplanSeatingMode }) seatingMode!: FloorplanSeatingMode;
+}
 export class SeatAssignmentDto {
   @ApiProperty({ type: String, format: 'uuid' }) assistantId!: string;
   @ApiProperty({ type: String, format: 'uuid' }) seatId!: string;
 }
-export class AssignSeatsRequestDto { @ApiProperty({ type: () => SeatAssignmentDto, isArray: true }) assignments!: SeatAssignmentDto[]; }
+export class AssignSeatsRequestDto {
+  @ApiProperty({ type: () => SeatAssignmentDto, isArray: true }) assignments!: SeatAssignmentDto[];
+}
 
 export class SeatingChangeDto {
   @ApiProperty({ type: String, format: 'uuid' })
@@ -379,11 +418,21 @@ export function parseAssignGroup(input: unknown): AssignGroupInput {
 export function parseUpdateSeating(input: unknown): UpdateSeatingInput {
   return parse(updateSeatingSchema, input);
 }
-export function parseCreateSeat(input: unknown): FloorplanSeatInput { return parse(seatSchema, input); }
-export function parseUpdateSeat(input: unknown): UpdateFloorplanSeatInput { return parse(updateSeatSchema, input); }
-export function parseBatchSeats(input: unknown): BatchFloorplanSeatsInput { return parse(batchSeatsSchema, input); }
-export function parseSeatingMode(input: unknown): { seatingMode: FloorplanSeatingMode } { return parse(seatingModeSchema, input); }
-export function parseAssignSeats(input: unknown): AssignSeatsInput { return parse(assignSeatsSchema, input); }
+export function parseCreateSeat(input: unknown): FloorplanSeatInput {
+  return parse(seatSchema, input);
+}
+export function parseUpdateSeat(input: unknown): UpdateFloorplanSeatInput {
+  return parse(updateSeatSchema, input);
+}
+export function parseBatchSeats(input: unknown): BatchFloorplanSeatsInput {
+  return parse(batchSeatsSchema, input);
+}
+export function parseSeatingMode(input: unknown): { seatingMode: FloorplanSeatingMode } {
+  return parse(seatingModeSchema, input);
+}
+export function parseAssignSeats(input: unknown): AssignSeatsInput {
+  return parse(assignSeatsSchema, input);
+}
 export function parseSeatingWorkspaceQuery(input: unknown): SeatingWorkspaceQueryInput {
   return parse(seatingWorkspaceQuerySchema, input);
 }
