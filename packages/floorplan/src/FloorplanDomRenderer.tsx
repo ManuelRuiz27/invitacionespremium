@@ -102,6 +102,7 @@ export function FloorplanDomRenderer(props: FloorplanRendererProps) {
               seat={seat}
               selected={props.selectedSeatId === seat.id}
               disabled={props.disabled}
+              placementActive={props.captureCanvasClicks === true}
               ownerRef={ownerRef}
               onSelect={() => props.onSeatSelect?.(seat.id)}
               onMove={props.onSeatMove}
@@ -127,6 +128,7 @@ function SeatButton({
   seat,
   selected,
   disabled,
+  placementActive,
   ownerRef,
   onSelect,
   onMove
@@ -134,6 +136,7 @@ function SeatButton({
   seat: NonNullable<FloorplanRendererProps['floorplan']['seats']>[number];
   selected: boolean;
   disabled: boolean;
+  placementActive: boolean;
   ownerRef: React.RefObject<HTMLDivElement | null>;
   onSelect: () => void;
   onMove?: FloorplanRendererProps['onSeatMove'];
@@ -178,11 +181,13 @@ function SeatButton({
           target.removeEventListener('pointerup', finish);
           target.removeEventListener('pointercancel', cancel);
           dragging.current = false;
-          const point = stagePointToNormalized(next.clientX, next.clientY, bounds);
-          setPreview(point);
           if (moved) {
+            const point = stagePointToNormalized(next.clientX, next.clientY, bounds);
+            setPreview(point);
             suppressClick.current = true;
             onMove(seat.id, point);
+          } else {
+            setPreview({ x: seat.x, y: seat.y });
           }
         };
         const cancel = () => {
@@ -210,6 +215,7 @@ function SeatButton({
         color: 'text.primary',
         zIndex: 3,
         cursor: disabled ? 'default' : onMove ? 'grab' : 'pointer',
+        pointerEvents: placementActive ? 'none' : 'auto',
         touchAction: 'none',
         '&::after': {
           content: '""',

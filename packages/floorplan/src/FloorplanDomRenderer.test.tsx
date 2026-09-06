@@ -157,6 +157,44 @@ describe('FloorplanDomRenderer', () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
+  it('makes existing seats non-interactive while exact-seat placement is active', () => {
+    const onCanvasPlace = vi.fn();
+    const onSeatSelect = vi.fn();
+    const onSeatMove = vi.fn();
+    render(
+      <FloorplanDomRenderer
+        floorplan={detailedFloorplan}
+        imageUrl="blob:plan"
+        disabled={false}
+        showSeats={false}
+        snap={false}
+        captureCanvasClicks
+        onSelect={vi.fn()}
+        onDraftChange={vi.fn()}
+        onCanvasPlace={onCanvasPlace}
+        onSeatSelect={onSeatSelect}
+        onSeatMove={onSeatMove}
+      />
+    );
+    const owner = screen.getByLabelText('Plano interactivo de mesas y zonas');
+    vi.spyOn(owner, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      width: 1000,
+      height: 500,
+      right: 1000,
+      bottom: 500,
+      x: 0,
+      y: 0,
+      toJSON: () => ({})
+    });
+    expect(getComputedStyle(screen.getByRole('button', { name: /Lugar 1, disponible/ })).pointerEvents).toBe('none');
+    fireEvent.click(owner, { clientX: 200, clientY: 100 });
+    expect(onCanvasPlace).toHaveBeenCalledWith({ x: 0.2, y: 0.2 }, undefined);
+    expect(onSeatSelect).not.toHaveBeenCalled();
+    expect(onSeatMove).not.toHaveBeenCalled();
+  });
+
   it('selects a seat without persisting until its pointer crosses the drag threshold', () => {
     const onSeatSelect = vi.fn();
     const onSeatMove = vi.fn();
@@ -187,6 +225,7 @@ describe('FloorplanDomRenderer', () => {
     });
     const seat = screen.getByRole('button', { name: /Lugar 1, disponible/ });
     fireEvent.pointerDown(seat, { pointerId: 1, clientX: 200, clientY: 100 });
+    fireEvent.pointerMove(seat, { pointerId: 1, clientX: 202, clientY: 101 });
     fireEvent.pointerUp(seat, { pointerId: 1, clientX: 200, clientY: 100 });
     fireEvent.click(seat);
     expect(onSeatSelect).toHaveBeenCalledOnce();
