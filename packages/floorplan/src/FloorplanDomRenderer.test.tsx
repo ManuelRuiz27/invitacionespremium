@@ -29,6 +29,21 @@ const floorplan: Floorplan = {
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z'
 };
+const detailedFloorplan: Floorplan = {
+  ...floorplan,
+  seatingMode: 'SEAT',
+  seats: [
+    {
+      id: 'seat-1',
+      floorplanShapeId: table.id,
+      label: '1',
+      x: 0.2,
+      y: 0.2,
+      isBlocked: false,
+      occupied: false
+    }
+  ]
+};
 
 describe('FloorplanDomRenderer', () => {
   beforeEach(() => {
@@ -107,5 +122,79 @@ describe('FloorplanDomRenderer', () => {
     expect(screen.getByRole('button', { name: /Cambiar tamaño/ })).toBeDisabled();
     expect(onCanvasPlace).not.toHaveBeenCalled();
     expect(onDraftChange).not.toHaveBeenCalled();
+  });
+
+  it('gives detailed-seat placement priority over a table and preserves normalized coordinates', () => {
+    const onCanvasPlace = vi.fn();
+    const onSelect = vi.fn();
+    render(
+      <FloorplanDomRenderer
+        floorplan={detailedFloorplan}
+        imageUrl="blob:plan"
+        disabled={false}
+        showSeats={false}
+        snap={false}
+        captureCanvasClicks
+        onSelect={onSelect}
+        onDraftChange={vi.fn()}
+        onCanvasPlace={onCanvasPlace}
+      />
+    );
+    const owner = screen.getByLabelText('Plano interactivo de mesas y zonas');
+    vi.spyOn(owner, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      width: 1000,
+      height: 500,
+      right: 1000,
+      bottom: 500,
+      x: 0,
+      y: 0,
+      toJSON: () => ({})
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Editar mesa Mesa 1' }), { clientX: 250, clientY: 150 });
+    expect(onCanvasPlace).toHaveBeenCalledWith({ x: 0.25, y: 0.3 }, undefined);
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it('selects a seat without persisting until its pointer crosses the drag threshold', () => {
+    const onSeatSelect = vi.fn();
+    const onSeatMove = vi.fn();
+    render(
+      <FloorplanDomRenderer
+        floorplan={detailedFloorplan}
+        imageUrl="blob:plan"
+        disabled={false}
+        showSeats={false}
+        snap={false}
+        onSelect={vi.fn()}
+        onDraftChange={vi.fn()}
+        onSeatSelect={onSeatSelect}
+        onSeatMove={onSeatMove}
+      />
+    );
+    const owner = screen.getByLabelText('Plano interactivo de mesas y zonas');
+    vi.spyOn(owner, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      width: 1000,
+      height: 500,
+      right: 1000,
+      bottom: 500,
+      x: 0,
+      y: 0,
+      toJSON: () => ({})
+    });
+    const seat = screen.getByRole('button', { name: /Lugar 1, disponible/ });
+    fireEvent.pointerDown(seat, { pointerId: 1, clientX: 200, clientY: 100 });
+    fireEvent.pointerUp(seat, { pointerId: 1, clientX: 200, clientY: 100 });
+    fireEvent.click(seat);
+    expect(onSeatSelect).toHaveBeenCalledOnce();
+    expect(onSeatMove).not.toHaveBeenCalled();
+    fireEvent.pointerDown(seat, { pointerId: 2, clientX: 200, clientY: 100 });
+    fireEvent.pointerMove(seat, { pointerId: 2, clientX: 400, clientY: 300 });
+    fireEvent.pointerUp(seat, { pointerId: 2, clientX: 400, clientY: 300 });
+    expect(onSeatMove).toHaveBeenCalledOnce();
+    expect(onSeatMove).toHaveBeenCalledWith('seat-1', { x: 0.4, y: 0.6 });
   });
 });

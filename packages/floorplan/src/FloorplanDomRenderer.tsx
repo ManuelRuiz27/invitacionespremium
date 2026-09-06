@@ -21,6 +21,7 @@ export interface FloorplanRendererProps {
   onSelect: (shape: FloorplanShape) => void;
   onDraftChange: (shape: FloorplanShapeInput) => void;
   onCanvasPlace?: ((point: { x: number; y: number }, pendingId?: string) => void) | undefined;
+  captureCanvasClicks?: boolean | undefined;
   selectedSeatId?: string | undefined;
   onSeatSelect?: ((seatId: string) => void) | undefined;
   onSeatMove?: ((seatId: string, point: { x: number; y: number }) => void) | undefined;
@@ -49,7 +50,7 @@ export function FloorplanDomRenderer(props: FloorplanRendererProps) {
       ref={setOwnerRef}
       aria-label="Plano interactivo de mesas y zonas"
       onClick={(event) => {
-        if ((event.target as HTMLElement).closest('button')) return;
+        if (!props.captureCanvasClicks && (event.target as HTMLElement).closest('button')) return;
         placeFromEvent(event.clientX, event.clientY);
       }}
       onDragOver={(event) => {
@@ -87,7 +88,7 @@ export function FloorplanDomRenderer(props: FloorplanRendererProps) {
             key={shape.id}
             shape={shape}
             renderedSize={ownerSize}
-            disabled={props.disabled || Boolean(props.draft)}
+            disabled={props.disabled || Boolean(props.draft) || Boolean(props.captureCanvasClicks)}
             readOnly={props.readOnly}
             showSeats={props.showSeats}
             onClick={() => props.onSelect(shape)}
@@ -139,6 +140,7 @@ function SeatButton({
 }) {
   const [preview, setPreview] = useState({ x: seat.x, y: seat.y });
   const dragging = useRef(false);
+  const suppressClick = useRef(false);
   useEffect(() => {
     if (!dragging.current) setPreview({ x: seat.x, y: seat.y });
   }, [seat.x, seat.y]);
@@ -149,6 +151,10 @@ function SeatButton({
       aria-label={`Lugar ${seat.label}${seat.isBlocked ? ', bloqueado' : seat.occupied ? ', ocupado' : ', disponible'}`}
       onClick={(event) => {
         event.stopPropagation();
+        if (suppressClick.current) {
+          suppressClick.current = false;
+          return;
+        }
         onSelect();
       }}
       onPointerDown={(event) => {
@@ -157,31 +163,38 @@ function SeatButton({
         event.preventDefault();
         const bounds = ownerRef.current?.getBoundingClientRect();
         if (!bounds?.width || !bounds.height) return;
+        const target = event.currentTarget;
         dragging.current = true;
+        const start = { x: event.clientX, y: event.clientY };
+        let moved = false;
         event.currentTarget.setPointerCapture?.(event.pointerId);
         const move = (next: PointerEvent) => {
+          moved ||= Math.hypot(next.clientX - start.x, next.clientY - start.y) >= 3;
           const point = stagePointToNormalized(next.clientX, next.clientY, bounds);
           setPreview(point);
         };
         const finish = (next: PointerEvent) => {
-          event.currentTarget.removeEventListener('pointermove', move);
-          event.currentTarget.removeEventListener('pointerup', finish);
-          event.currentTarget.removeEventListener('pointercancel', cancel);
+          target.removeEventListener('pointermove', move);
+          target.removeEventListener('pointerup', finish);
+          target.removeEventListener('pointercancel', cancel);
           dragging.current = false;
           const point = stagePointToNormalized(next.clientX, next.clientY, bounds);
           setPreview(point);
-          onMove(seat.id, point);
+          if (moved) {
+            suppressClick.current = true;
+            onMove(seat.id, point);
+          }
         };
         const cancel = () => {
-          event.currentTarget.removeEventListener('pointermove', move);
-          event.currentTarget.removeEventListener('pointerup', finish);
-          event.currentTarget.removeEventListener('pointercancel', cancel);
+          target.removeEventListener('pointermove', move);
+          target.removeEventListener('pointerup', finish);
+          target.removeEventListener('pointercancel', cancel);
           dragging.current = false;
           setPreview({ x: seat.x, y: seat.y });
         };
-        event.currentTarget.addEventListener('pointermove', move);
-        event.currentTarget.addEventListener('pointerup', finish);
-        event.currentTarget.addEventListener('pointercancel', cancel);
+        target.addEventListener('pointermove', move);
+        target.addEventListener('pointerup', finish);
+        target.addEventListener('pointercancel', cancel);
       }}
       disabled={disabled}
       sx={{

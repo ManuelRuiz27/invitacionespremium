@@ -43,7 +43,8 @@ export function FloorplanKonvaRenderer(
   const place = (event: KonvaEventObject<MouseEvent | TouchEvent>) => {
     if (!props.onCanvasPlace || props.disabled) return;
     const stage = event.target.getStage();
-    if (!stage || (event.target !== stage && event.target.name() !== 'floorplan-image')) return;
+    if (!stage || (!props.captureCanvasClicks && event.target !== stage && event.target.name() !== 'floorplan-image'))
+      return;
     const pointer = stage.getPointerPosition();
     if (!pointer) return;
     props.onCanvasPlace({
@@ -173,7 +174,7 @@ export function FloorplanKonvaRenderer(
               shape={shape}
               stageSize={stageSize}
               selected={props.selectedId === shape.id}
-              disabled={props.disabled || Boolean(selected)}
+              disabled={props.disabled || Boolean(selected) || Boolean(props.captureCanvasClicks)}
               showSeats={props.showSeats}
               onSelect={() => props.onSelect(shape)}
             />
@@ -185,7 +186,8 @@ export function FloorplanKonvaRenderer(
                 key={seat.id}
                 x={seat.x * props.width}
                 y={seat.y * props.height}
-                draggable={!props.disabled && Boolean(props.onSeatMove)}
+                listening={!props.captureCanvasClicks}
+                draggable={!props.disabled && !props.captureCanvasClicks && Boolean(props.onSeatMove)}
                 onClick={(event) => {
                   event.cancelBubble = true;
                   props.onSeatSelect?.(seat.id);

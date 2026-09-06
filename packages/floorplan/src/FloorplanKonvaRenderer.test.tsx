@@ -88,6 +88,11 @@ const floorplan: Floorplan = {
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z'
 };
+const detailedFloorplan: Floorplan = {
+  ...floorplan,
+  seatingMode: 'SEAT',
+  seats: [{ id: 'seat-1', floorplanShapeId: table.id, label: '1', x: 0.2, y: 0.2, isBlocked: false, occupied: false }]
+};
 const image = {} as HTMLImageElement;
 
 function props(overrides: Record<string, unknown> = {}) {
@@ -130,6 +135,31 @@ describe('FloorplanKonvaRenderer de producción', () => {
     act(() => (latest('Group', 'floorplan-shape').props.onClick as () => void)());
     expect(onSelect).toHaveBeenCalledWith(table);
     view.rerender(<FloorplanKonvaRenderer {...props({ disabled: true })} />);
+    expect(latest('Group', 'floorplan-shape').props.listening).toBe(false);
+  });
+
+  it('gives placement priority to a click over a shape and normalizes against the viewport', () => {
+    const onCanvasPlace = vi.fn();
+    render(
+      <FloorplanKonvaRenderer
+        {...props({
+          floorplan: detailedFloorplan,
+          captureCanvasClicks: true,
+          viewport: { scale: 2, x: 100, y: 50 },
+          onCanvasPlace
+        })}
+      />
+    );
+    const stage = latest('Stage').props;
+    act(() =>
+      (stage.onClick as (event: unknown) => void)({
+        target: {
+          name: () => 'floorplan-shape',
+          getStage: () => ({ getPointerPosition: () => ({ x: 500, y: 250 }) })
+        }
+      })
+    );
+    expect(onCanvasPlace).toHaveBeenCalledWith({ x: 0.2, y: 0.2 });
     expect(latest('Group', 'floorplan-shape').props.listening).toBe(false);
   });
 

@@ -760,6 +760,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
               onCanvasPlace={
                 mode === 'placing-preset' || mode === 'placing-seat' || pendingTables.length ? placeOnCanvas : undefined
               }
+              captureCanvasClicks={mode === 'placing-seat'}
               onSeatMove={(seatId, point) => void moveSeat(seatId, point)}
               dock={
                 !floorplan.locked && mode === 'idle' ? (
