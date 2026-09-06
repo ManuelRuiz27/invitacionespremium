@@ -1675,6 +1675,125 @@ describe('Floorplan and seating', () => {
     });
   });
 
+  it('routes atomic seat batches through HTTP and preserves detailed seating guards', async () => {
+    const fixture = await createFixture();
+    const admin = await prisma.user.create({
+      data: {
+        email: `${randomUUID()}@example.test`,
+        passwordHash: await hashPassword('correct horse battery staple'),
+        role: UserRole.PLATFORM_ADMIN
+      }
+    });
+    await setEventStatusForFixture(fixture.event.id, EventStatus.DRAFT);
+    const cookie = await login(admin.email);
+    const base = `/api/v1/admin/clients/${fixture.client.id}/events/${fixture.event.id}/floorplan`;
+    const asset = await createAsset(fixture, 'seat-batch');
+    await request(app.getHttpServer()).post(base).set('Cookie', cookie).send({ imageAssetId: asset.id }).expect(201);
+
+    const table = await request(app.getHttpServer())
+      .post(`${base}/shapes`)
+      .set('Cookie', cookie)
+      .send({
+        kind: FloorplanShapeKind.TABLE,
+        geometry: FloorplanGeometry.CIRCLE,
+        name: 'Mesa con lugares',
+        capacity: 2,
+        x: 0.1,
+        y: 0.1,
+        width: 0.2,
+        height: 0.2,
+        rotation: 0,
+        polygonPoints: null
+      })
+      .expect(201);
+    await request(app.getHttpServer())
+      .patch(`${base}/seating-mode`)
+      .set('Cookie', cookie)
+      .send({ seatingMode: 'SEAT' })
+      .expect(200);
+
+    const firstSeat = await request(app.getHttpServer())
+      .post(`${base}/shapes/${table.body.id}/seats`)
+      .set('Cookie', cookie)
+      .send({ label: 'Lugar 1', x: 0.15, y: 0.15 })
+      .expect(201);
+    const secondSeat = await request(app.getHttpServer())
+      .post(`${base}/shapes/${table.body.id}/seats`)
+      .set('Cookie', cookie)
+      .send({ label: 'Lugar 2', x: 0.25, y: 0.15 })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .patch(`${base}/seats/batch`)
+      .set('Cookie', cookie)
+      .send({
+        seats: [
+          { seatId: firstSeat.body.id, label: 'No debe persistir' },
+          { seatId: randomUUID(), label: 'Inexistente' }
+        ]
+      })
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('FLOORPLAN_SEAT_NOT_FOUND'));
+    expect(await prisma.floorplanSeat.findUniqueOrThrow({ where: { id: firstSeat.body.id } })).toMatchObject({
+      label: 'Lugar 1'
+    });
+
+    await request(app.getHttpServer())
+      .patch(`${base}/seats/batch`)
+      .set('Cookie', cookie)
+      .send({
+        seats: [
+          { seatId: firstSeat.body.id, label: 'Lugar 1 actualizado', x: 0.16 },
+          { seatId: secondSeat.body.id, x: 0.26 }
+        ]
+      })
+      .expect(200)
+      .expect(({ body }) => expect(body).toHaveLength(2));
+    const persistedFirstSeat = await prisma.floorplanSeat.findUniqueOrThrow({ where: { id: firstSeat.body.id } });
+    expect(persistedFirstSeat.label).toBe('Lugar 1 actualizado');
+    expect(Number(persistedFirstSeat.x)).toBeCloseTo(0.16);
+
+    await request(app.getHttpServer())
+      .patch(`${base}/shapes/${table.body.id}`)
+      .set('Cookie', cookie)
+      .send({ capacity: 3 })
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('FLOORPLAN_SEAT_CAPACITY_DERIVED'));
+
+    await request(app.getHttpServer())
+      .delete(`${base}/shapes/${table.body.id}`)
+      .set('Cookie', cookie)
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('FLOORPLAN_TABLE_SEATS_EXIST'));
+
+    await floorplan.assignSeats(
+      fixture.event.id,
+      randomUUID(),
+      { assignments: [{ assistantId: fixture.assistants[0]!.id, seatId: firstSeat.body.id }] },
+      fixture.principal
+    );
+    await request(app.getHttpServer())
+      .patch(`${base}/seats/${firstSeat.body.id}`)
+      .set('Cookie', cookie)
+      .send({ isBlocked: true })
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('FLOORPLAN_SEAT_OCCUPIED'));
+
+    const activeFixture = await createFixture();
+    const activeBase = `/api/v1/admin/clients/${activeFixture.client.id}/events/${activeFixture.event.id}/floorplan`;
+    await request(app.getHttpServer())
+      .post(activeBase)
+      .set('Cookie', cookie)
+      .send({ imageAssetId: (await createAsset(activeFixture, 'seat-mode-locked')).id })
+      .expect(201);
+    await request(app.getHttpServer())
+      .patch(`${activeBase}/seating-mode`)
+      .set('Cookie', cookie)
+      .send({ seatingMode: 'TABLE' })
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('FLOORPLAN_SEATING_MODE_STATE_LOCKED'));
+  });
+
   it('publishes only the authorized administrative Floorplan routes in OpenAPI', () => {
     const paths = createOpenApiDocument(app).paths;
     for (const pathName of [
@@ -1682,7 +1801,8 @@ describe('Floorplan and seating', () => {
       '/api/v1/admin/clients/{clientId}/events/{eventId}/floorplan/lock',
       '/api/v1/admin/clients/{clientId}/events/{eventId}/floorplan/unlock',
       '/api/v1/admin/clients/{clientId}/events/{eventId}/floorplan/shapes',
-      '/api/v1/admin/clients/{clientId}/events/{eventId}/floorplan/shapes/{shapeId}'
+      '/api/v1/admin/clients/{clientId}/events/{eventId}/floorplan/shapes/{shapeId}',
+      '/api/v1/admin/clients/{clientId}/events/{eventId}/floorplan/seats/batch'
     ]) {
       expect(paths).toHaveProperty(pathName);
     }
@@ -1898,6 +2018,37 @@ describe('Floorplan and seating', () => {
     await prisma.$transaction(async (tx) => {
       await tx.$executeRawUnsafe('SET LOCAL session_replication_role = replica');
       await tx.assistant.update({ where: { id: assistantId }, data: { floorplanShapeId } });
+    });
+  }
+
+  async function setEventStatusForFixture(eventId: string, status: EventStatus): Promise<void> {
+    const preparing = new Set<EventStatus>([
+      EventStatus.DRAFT,
+      EventStatus.CONFIGURED,
+      EventStatus.READY_TO_ACTIVATE
+    ]).has(status);
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe('SET LOCAL session_replication_role = replica');
+      await tx.event.update({
+        where: { id: eventId },
+        data: preparing
+          ? {
+              status,
+              activatedAt: null,
+              activatedByUserId: null,
+              activatedServiceId: null,
+              activatedServicePriceId: null,
+              baseCostCredits: null,
+              promotionDiscountCredits: null,
+              finalCostCredits: null,
+              purchasedCreditsUsed: null,
+              creditLineCreditsUsed: null,
+              creditUnitValueMxnCentsSnapshot: null,
+              activationReceiptId: null,
+              activationIdempotencyKey: null
+            }
+          : { status }
+      });
     });
   }
 

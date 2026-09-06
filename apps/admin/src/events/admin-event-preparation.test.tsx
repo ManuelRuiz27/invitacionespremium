@@ -1,4 +1,10 @@
-import { ApiError, type AdminFloorplan, type AdminFloorplanShape, type AdminPrice } from '@invitaciones/api-client';
+import {
+  ApiError,
+  type AdminFloorplan,
+  type AdminFloorplanSeat,
+  type AdminFloorplanShape,
+  type AdminPrice
+} from '@invitaciones/api-client';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
@@ -14,6 +20,7 @@ vi.mock('@invitaciones/floorplan', async (importOriginal) => {
     FloorplanSurface: (props: {
       floorplan: AdminFloorplan;
       onSelect: (shape: AdminFloorplanShape) => void;
+      onSeatSelect?: (seatId: string) => void;
       dock?: ReactNode;
     }) => {
       floorplanHarness.props = props as unknown as Record<string, unknown>;
@@ -22,6 +29,11 @@ vi.mock('@invitaciones/floorplan', async (importOriginal) => {
           {props.floorplan.shapes.map((shape) => (
             <button key={shape.id} onClick={() => props.onSelect(shape)}>
               {shape.name}
+            </button>
+          ))}
+          {props.floorplan.seats.map((seat) => (
+            <button key={seat.id} onClick={() => props.onSeatSelect?.(seat.id)}>
+              {seat.label}
             </button>
           ))}
           {props.dock}
@@ -943,6 +955,74 @@ describe('Admin Event preparation surfaces', () => {
     expect(await screen.findByText(/tiene lugares asignados/i)).toBeInTheDocument();
     expect(api.adminEventPreparation.removeFloorplanShape).toHaveBeenCalledOnce();
     expect((floorplanHarness.props?.floorplan as AdminFloorplan).shapes).toContainEqual(table);
+  });
+
+  it('uses only Admin provider controls for detailed-seat mutations', async () => {
+    const table = shape({ id: 'table-seats', capacity: 1, availableCapacity: 1 });
+    const seat: AdminFloorplanSeat = {
+      id: 'seat-1',
+      floorplanShapeId: table.id,
+      label: 'Lugar 1',
+      x: 0.2,
+      y: 0.2,
+      isBlocked: false,
+      occupied: false
+    };
+    const api = preparedFloorplanApi(floorplan({ seatingMode: 'SEAT', shapes: [table], seats: [seat] }));
+    vi.mocked(api.adminEventPreparation.updateFloorplanSeat).mockImplementation(
+      async (_client, _event, _id, input) => ({
+        ...seat,
+        ...input
+      })
+    );
+    vi.mocked(api.adminEventPreparation.createFloorplanSeat).mockResolvedValue({
+      ...seat,
+      id: 'seat-2',
+      label: 'Lugar 1 2',
+      x: 0.22,
+      y: 0.22
+    });
+    vi.mocked(api.adminEventPreparation.removeFloorplanSeat).mockResolvedValue(undefined);
+    vi.spyOn(window, 'prompt').mockReturnValue('Lugar de honor');
+
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await userEvent.click(await screen.findByRole('button', { name: seat.label }));
+    await userEvent.click(screen.getByRole('button', { name: 'Renombrar' }));
+    await waitFor(() =>
+      expect(api.adminEventPreparation.updateFloorplanSeat).toHaveBeenCalledWith(
+        adminEvent.clientId,
+        adminEvent.id,
+        seat.id,
+        { label: 'Lugar de honor' }
+      )
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Bloquear' }));
+    await waitFor(() =>
+      expect(api.adminEventPreparation.updateFloorplanSeat).toHaveBeenLastCalledWith(
+        adminEvent.clientId,
+        adminEvent.id,
+        seat.id,
+        { isBlocked: true }
+      )
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Duplicar' }));
+    await waitFor(() =>
+      expect(api.adminEventPreparation.createFloorplanSeat).toHaveBeenCalledWith(
+        adminEvent.clientId,
+        adminEvent.id,
+        table.id,
+        { label: 'Lugar 1 2', x: 0.22, y: 0.22 }
+      )
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Eliminar Lugar 1' }));
+    await waitFor(() =>
+      expect(api.adminEventPreparation.removeFloorplanSeat).toHaveBeenCalledWith(
+        adminEvent.clientId,
+        adminEvent.id,
+        seat.id
+      )
+    );
+    expect(api.floorplan.updateShape).not.toHaveBeenCalled();
   });
 });
 

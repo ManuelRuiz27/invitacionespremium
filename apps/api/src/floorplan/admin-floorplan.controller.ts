@@ -83,6 +83,25 @@ export class AdminFloorplanController {
     );
   }
 
+  @Patch('seats/batch')
+  @ApiBody({ type: BatchFloorplanSeatsRequestDto })
+  @ApiOkResponse({ type: FloorplanSeatResponseDto, isArray: true })
+  batchSeats(
+    @Param('clientId') clientId: string,
+    @Param('eventId') eventId: string,
+    @Body() body: unknown,
+    @CurrentAuth() principal: AuthPrincipal,
+    @Req() request: AuthenticatedRequest
+  ): Promise<FloorplanSeatResponseDto[]> {
+    return this.floorplan.batchSeatsAdministrative(
+      parseFloorplanId(clientId),
+      parseFloorplanId(eventId),
+      parseBatchSeats(body),
+      principal,
+      request.operationId
+    );
+  }
+
   @Patch('seats/:seatId')
   @ApiBody({ type: UpdateFloorplanSeatRequestDto })
   updateSeat(
@@ -98,25 +117,6 @@ export class AdminFloorplanController {
       parseFloorplanId(eventId),
       parseFloorplanId(seatId),
       parseUpdateSeat(body),
-      principal,
-      request.operationId
-    );
-  }
-
-  @Patch('seats/batch')
-  @ApiBody({ type: BatchFloorplanSeatsRequestDto })
-  @ApiOkResponse({ type: FloorplanSeatResponseDto, isArray: true })
-  batchSeats(
-    @Param('clientId') clientId: string,
-    @Param('eventId') eventId: string,
-    @Body() body: unknown,
-    @CurrentAuth() principal: AuthPrincipal,
-    @Req() request: AuthenticatedRequest
-  ): Promise<FloorplanSeatResponseDto[]> {
-    return this.floorplan.batchSeatsAdministrative(
-      parseFloorplanId(clientId),
-      parseFloorplanId(eventId),
-      parseBatchSeats(body),
       principal,
       request.operationId
     );
