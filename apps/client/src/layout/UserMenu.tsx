@@ -28,7 +28,7 @@ export function UserMenu() {
           color="inherit"
           size="small"
           onClick={() => void logout()}
-          sx={{ justifyContent: 'flex-start', px: 0, minHeight: 36, color: 'text.secondary' }}
+          sx={{ justifyContent: 'flex-start', px: 0, minHeight: 44, color: 'text.secondary' }}
         >
           Cerrar sesión
         </Button>
@@ -38,7 +38,11 @@ export function UserMenu() {
 
   return (
     <>
-      <IconButton aria-label="Abrir menú de usuario" onClick={(event) => setAnchor(event.currentTarget)}>
+      <IconButton
+        aria-label="Abrir menú de usuario"
+        onClick={(event) => setAnchor(event.currentTarget)}
+        sx={{ minWidth: 44, minHeight: 44 }}
+      >
         <AccountCircleOutlined />
       </IconButton>
       <Menu anchorEl={anchor} open={Boolean(anchor)} onClose={() => setAnchor(null)}>

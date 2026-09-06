@@ -55,13 +55,7 @@ describe('Invitation design readiness', () => {
     const eventId = crypto.randomUUID();
     const cover = page(designId, eventId, 1);
     const qr = page(designId, eventId, 2);
-    const design = flipbookDesign(
-      designId,
-      [cover, qr],
-      [
-        pageHotspot(designId, eventId, qr, HotspotAction.RSVP)
-      ]
-    );
+    const design = flipbookDesign(designId, [cover, qr], [pageHotspot(designId, eventId, qr, HotspotAction.RSVP)]);
     expect((await resolveDesignReadiness(dbWith(design), eventId, ServiceCode.FLIPBOOK)).blockers).toEqual([
       DESIGN_READINESS_BLOCKERS.FLIPBOOK_QR_AREA
     ]);

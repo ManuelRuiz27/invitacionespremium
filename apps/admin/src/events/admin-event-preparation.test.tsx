@@ -961,25 +961,36 @@ describe('Admin Event preparation surfaces', () => {
   it('keeps the primary seat within the additive selection', async () => {
     const table = shape({ id: 'table-selection', capacity: 2, availableCapacity: 2 });
     const [firstSeat, secondSeat] = serpentineSeats(table.id);
-    const api = preparedFloorplanApi(floorplan({ seatingMode: 'SEAT', shapes: [table], seats: [firstSeat!, secondSeat!] }));
+    const api = preparedFloorplanApi(
+      floorplan({ seatingMode: 'SEAT', shapes: [table], seats: [firstSeat!, secondSeat!] })
+    );
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
     await screen.findByTestId('admin-floorplan-surface');
 
     act(() => {
-      (floorplanHarness.props?.onSeatSelect as (seatId: string, options: { additive: boolean }) => void)(firstSeat!.id, {
-        additive: false
-      });
-      (floorplanHarness.props?.onSeatSelect as (seatId: string, options: { additive: boolean }) => void)(secondSeat!.id, {
-        additive: true
-      });
+      (floorplanHarness.props?.onSeatSelect as (seatId: string, options: { additive: boolean }) => void)(
+        firstSeat!.id,
+        {
+          additive: false
+        }
+      );
+      (floorplanHarness.props?.onSeatSelect as (seatId: string, options: { additive: boolean }) => void)(
+        secondSeat!.id,
+        {
+          additive: true
+        }
+      );
     });
     await waitFor(() => expect(floorplanHarness.props?.selectedSeatId).toBe(secondSeat!.id));
     expect(floorplanHarness.props?.selectedSeatIds).toEqual([firstSeat!.id, secondSeat!.id]);
 
     act(() => {
-      (floorplanHarness.props?.onSeatSelect as (seatId: string, options: { additive: boolean }) => void)(secondSeat!.id, {
-        additive: true
-      });
+      (floorplanHarness.props?.onSeatSelect as (seatId: string, options: { additive: boolean }) => void)(
+        secondSeat!.id,
+        {
+          additive: true
+        }
+      );
     });
     await waitFor(() => expect(floorplanHarness.props?.selectedSeatId).toBe(firstSeat!.id));
     expect(floorplanHarness.props?.selectedSeatIds).toEqual([firstSeat!.id]);
@@ -999,7 +1010,10 @@ describe('Admin Event preparation surfaces', () => {
     const initial = floorplan({ seatingMode: 'SEAT', shapes: [table], seats: [seat] });
     const reloaded = floorplan({ seatingMode: 'SEAT', shapes: [table], seats: [] });
     const api = preparedFloorplanApi(initial);
-    vi.mocked(api.adminEventPreparation.getFloorplan).mockReset().mockResolvedValueOnce(initial).mockResolvedValueOnce(reloaded);
+    vi.mocked(api.adminEventPreparation.getFloorplan)
+      .mockReset()
+      .mockResolvedValueOnce(initial)
+      .mockResolvedValueOnce(reloaded);
     vi.mocked(api.adminEventPreparation.updateFloorplanSeat).mockResolvedValue({ ...seat, isBlocked: true });
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
     await userEvent.click(await screen.findByRole('button', { name: seat.label }));
@@ -1119,7 +1133,10 @@ describe('Admin Event preparation surfaces', () => {
       body.seats.map((update) => ({ ...seats.find((seat) => seat.id === update.seatId)!, ...update }))
     );
     vi.mocked(api.adminEventPreparation.renumberFloorplanSeats).mockImplementation(async (_client, _event, body) =>
-      body.seatIds.map((seatId, index) => ({ ...seats.find((seat) => seat.id === seatId)!, label: `Lugar ${index + 1}` }))
+      body.seatIds.map((seatId, index) => ({
+        ...seats.find((seat) => seat.id === seatId)!,
+        label: `Lugar ${index + 1}`
+      }))
     );
 
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);

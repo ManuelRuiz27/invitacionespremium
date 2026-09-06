@@ -79,26 +79,23 @@ describe('integrated Event wizard flows', () => {
     expect(router.state.location.pathname).toBe(`/eventos/${physicalEvent.id}/configuracion/pases`);
   });
 
-  it.each(['pases'])(
-    'normalizes the incompatible %s deep link without mounting provider editors',
-    async (step) => {
-      const api = mockApiClient();
-      vi.mocked(api.events.get).mockResolvedValue({
-        ...configuredEvent,
-        serviceId: 'service-flyer',
-        serviceCode: 'FLYER'
-      });
-      const { router } = renderApp(api, `/eventos/${configuredEvent.id}/configuracion/${step}`);
-      expect(await screen.findByRole('heading', { name: 'Datos del Evento' })).toBeInTheDocument();
-      await waitFor(() =>
-        expect(router.state.location.pathname).toBe(`/eventos/${configuredEvent.id}/configuracion/datos`)
-      );
-      expect(api.design.get).not.toHaveBeenCalled();
-      expect(api.design.hotspots).not.toHaveBeenCalled();
-      expect(api.fileAssets.list).not.toHaveBeenCalled();
-      expect(api.floorplan.get).not.toHaveBeenCalled();
-    }
-  );
+  it.each(['pases'])('normalizes the incompatible %s deep link without mounting provider editors', async (step) => {
+    const api = mockApiClient();
+    vi.mocked(api.events.get).mockResolvedValue({
+      ...configuredEvent,
+      serviceId: 'service-flyer',
+      serviceCode: 'FLYER'
+    });
+    const { router } = renderApp(api, `/eventos/${configuredEvent.id}/configuracion/${step}`);
+    expect(await screen.findByRole('heading', { name: 'Datos del Evento' })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe(`/eventos/${configuredEvent.id}/configuracion/datos`)
+    );
+    expect(api.design.get).not.toHaveBeenCalled();
+    expect(api.design.hotspots).not.toHaveBeenCalled();
+    expect(api.fileAssets.list).not.toHaveBeenCalled();
+    expect(api.floorplan.get).not.toHaveBeenCalled();
+  });
 
   it('persists confirmation before continuing to the next digital step', async () => {
     const api = mockApiClient();

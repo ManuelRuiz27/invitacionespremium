@@ -323,7 +323,17 @@ export function createFloorplanClient(request: ApiRequester) {
         record
       ),
     assignSeats: (eventId: string, body: AssignSeatsInput, idempotencyKey: string, signal?: AbortSignal) =>
-      request<SeatingMutationResult>({ method: 'POST', path: `${eventBase(eventId)}/seating/assign-seats`, body, headers: { 'Idempotency-Key': idempotencyKey }, response: 'json', ...(signal ? { signal } : {}) }, record),
+      request<SeatingMutationResult>(
+        {
+          method: 'POST',
+          path: `${eventBase(eventId)}/seating/assign-seats`,
+          body,
+          headers: { 'Idempotency-Key': idempotencyKey },
+          response: 'json',
+          ...(signal ? { signal } : {})
+        },
+        record
+      ),
     assignFamily: (eventId: string, body: AssignFamilyInput, idempotencyKey: string, signal?: AbortSignal) =>
       request<SeatingMutationResult>(
         {

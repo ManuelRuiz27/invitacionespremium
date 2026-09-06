@@ -179,21 +179,14 @@ describe('FloorplanKonvaRenderer de producción', () => {
     const firstSeat = seats.find((node) => node.props.x === 200)!;
     const secondSeat = seats.find((node) => node.props.x === 300)!;
     const selectedCircle = konva.nodes.find(
-      (node) =>
-        node.type === 'Circle' && node.props.stroke === floorplanColors.warning && node.props.strokeWidth === 3
+      (node) => node.type === 'Circle' && node.props.stroke === floorplanColors.warning && node.props.strokeWidth === 3
     );
     expect(selectedCircle).toBeDefined();
 
     act(() => (firstSeat.props.onClick as (event: unknown) => void)({ cancelBubble: false, evt: {} }));
-    act(() =>
-      (firstSeat.props.onClick as (event: unknown) => void)({ cancelBubble: false, evt: { shiftKey: true } })
-    );
-    act(() =>
-      (firstSeat.props.onClick as (event: unknown) => void)({ cancelBubble: false, evt: { ctrlKey: true } })
-    );
-    act(() =>
-      (firstSeat.props.onClick as (event: unknown) => void)({ cancelBubble: false, evt: { metaKey: true } })
-    );
+    act(() => (firstSeat.props.onClick as (event: unknown) => void)({ cancelBubble: false, evt: { shiftKey: true } }));
+    act(() => (firstSeat.props.onClick as (event: unknown) => void)({ cancelBubble: false, evt: { ctrlKey: true } }));
+    act(() => (firstSeat.props.onClick as (event: unknown) => void)({ cancelBubble: false, evt: { metaKey: true } }));
     act(() => (firstSeat.props.onTap as (event: unknown) => void)({ cancelBubble: false, evt: {} }));
     act(() =>
       (firstSeat.props.onDragEnd as (event: unknown) => void)({

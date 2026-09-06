@@ -80,7 +80,17 @@ const checkInResultSnapshotSchema = z
             .object({ id: z.string().uuid(), name: z.string().min(1).max(120) })
             .strict()
             .nullable(),
-          seat: z.object({ id: z.string().uuid(), label: z.string().min(1).max(120), x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).strict().nullable().optional().default(null)
+          seat: z
+            .object({
+              id: z.string().uuid(),
+              label: z.string().min(1).max(120),
+              x: z.number().min(0).max(1),
+              y: z.number().min(0).max(1)
+            })
+            .strict()
+            .nullable()
+            .optional()
+            .default(null)
         })
         .strict()
     ),
@@ -94,7 +104,17 @@ const checkInResultSnapshotSchema = z
             .object({ id: z.string().uuid(), name: z.string().min(1).max(120) })
             .strict()
             .nullable(),
-          seat: z.object({ id: z.string().uuid(), label: z.string().min(1).max(120), x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).strict().nullable().optional().default(null)
+          seat: z
+            .object({
+              id: z.string().uuid(),
+              label: z.string().min(1).max(120),
+              x: z.number().min(0).max(1),
+              y: z.number().min(0).max(1)
+            })
+            .strict()
+            .nullable()
+            .optional()
+            .default(null)
         })
         .strict()
     ),
@@ -234,13 +254,19 @@ export class ScannerService {
               name: { not: null },
               responseStatus: AssistantResponseStatus.CONFIRMED
             },
-            include: { floorplanShape: { select: { id: true, name: true } }, floorplanSeat: { select: { id: true, label: true, x: true, y: true } } },
+            include: {
+              floorplanShape: { select: { id: true, name: true } },
+              floorplanSeat: { select: { id: true, label: true, x: true, y: true } }
+            },
             orderBy: { id: 'asc' }
           });
           if (assistants.length !== sortedIds.length) throw scannerSelectionNotFound();
 
           if (resolution.event.floorplanEnabled) {
-            const floorplan = await tx.floorplan.findFirst({ where: { eventId: invitation.eventId, deletedAt: null }, select: { seatingMode: true } });
+            const floorplan = await tx.floorplan.findFirst({
+              where: { eventId: invitation.eventId, deletedAt: null },
+              select: { seatingMode: true }
+            });
             const tableIds = [
               ...new Set(
                 assistants.map(({ floorplanShapeId }) => floorplanShapeId).filter((id): id is string => id !== null)
@@ -267,9 +293,22 @@ export class ScannerService {
             if (validTables !== tableIds.length) throw scannerTableAssignmentRequired();
             if (floorplan?.seatingMode === FloorplanSeatingMode.SEAT) {
               const assignedSeats = await tx.floorplanSeat.count({
-                where: { id: { in: assistants.map(({ floorplanSeatId }) => floorplanSeatId).filter((id): id is string => id !== null) }, eventId: invitation.eventId, deletedAt: null, isBlocked: false }
+                where: {
+                  id: {
+                    in: assistants
+                      .map(({ floorplanSeatId }) => floorplanSeatId)
+                      .filter((id): id is string => id !== null)
+                  },
+                  eventId: invitation.eventId,
+                  deletedAt: null,
+                  isBlocked: false
+                }
               });
-              if (assignedSeats !== assistants.length || assistants.some(({ floorplanSeatId }) => floorplanSeatId === null)) throw scannerSeatAssignmentRequired();
+              if (
+                assignedSeats !== assistants.length ||
+                assistants.some(({ floorplanSeatId }) => floorplanSeatId === null)
+              )
+                throw scannerSeatAssignmentRequired();
             }
           }
 
@@ -300,7 +339,13 @@ export class ScannerService {
               responseStatus: AssistantResponseStatus.CONFIRMED,
               checkIns: { none: { revertedAt: null } }
             },
-            select: { id: true, name: true, isPrimary: true, floorplanShape: { select: { id: true, name: true } }, floorplanSeat: { select: { id: true, label: true, x: true, y: true } } },
+            select: {
+              id: true,
+              name: true,
+              isPrimary: true,
+              floorplanShape: { select: { id: true, name: true } },
+              floorplanSeat: { select: { id: true, label: true, x: true, y: true } }
+            },
             orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }, { id: 'asc' }]
           });
           const checkedIn = assistants.map((assistant) => ({
@@ -609,7 +654,11 @@ function seatProjection(seat: { id: string; label: string; x: Prisma.Decimal; y:
 }
 
 function scannerSeatAssignmentRequired(): DomainError {
-  return new DomainError('SCANNER_SEAT_ASSIGNMENT_REQUIRED', 'All selected Assistants require an active detailed seat assignment.', HttpStatus.CONFLICT);
+  return new DomainError(
+    'SCANNER_SEAT_ASSIGNMENT_REQUIRED',
+    'All selected Assistants require an active detailed seat assignment.',
+    HttpStatus.CONFLICT
+  );
 }
 
 function idempotencyConflict(): DomainError {

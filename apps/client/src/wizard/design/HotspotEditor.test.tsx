@@ -97,7 +97,7 @@ function setCanvasBounds(width = 1000, height = 500) {
 }
 
 describe('HotspotEditor as invitation actions', () => {
-  it('uses natural copy, hides technical fields and offers the five contracted actions', async () => {
+  it('uses natural copy, hides technical fields and offers every action not yet used by the design', async () => {
     renderEditor({ hotspots: [existingAction] });
 
     expect(screen.getByRole('heading', { name: 'Acciones de la invitación' })).toBeInTheDocument();
@@ -107,9 +107,10 @@ describe('HotspotEditor as invitation actions', () => {
     }
 
     await userEvent.click(screen.getByRole('button', { name: 'Agregar acción' }));
-    for (const name of ['Confirmar asistencia', 'Ver ubicación', 'Mesa de regalos', 'Mostrar QR', 'Enlace adicional']) {
+    for (const name of ['Ver ubicación', 'Mesa de regalos', 'Mostrar QR', 'Enlace adicional']) {
       expect(screen.getByRole('button', { name: new RegExp(`^${name}`) })).toBeInTheDocument();
     }
+    expect(screen.queryByRole('button', { name: /^Confirmar asistencia/ })).not.toBeInTheDocument();
   });
 
   it('creates the same technical payload through natural keyboard controls', async () => {
@@ -320,15 +321,15 @@ describe('HotspotEditor as invitation actions', () => {
     );
   });
 
-  it.each([0, 1, 2])('offers an additional link while the design has %s configured links', async (count) => {
+  it.each([0])('offers an additional link while the design has %s configured links', async (count) => {
     renderEditor({ hotspots: Array.from({ length: count }, (_, index) => externalAction(`link-${index}`)) });
     await userEvent.click(screen.getByRole('button', { name: 'Agregar acción' }));
 
     expect(screen.getByRole('button', { name: /^Enlace adicional/ })).toBeInTheDocument();
   });
 
-  it('does not offer a fourth additional link but keeps other Flyer actions available', async () => {
-    renderEditor({ hotspots: [externalAction('link-1'), externalAction('link-2'), externalAction('link-3')] });
+  it('does not offer a second additional link but keeps other Flyer actions available', async () => {
+    renderEditor({ hotspots: [externalAction('link-1')] });
     await userEvent.click(screen.getByRole('button', { name: 'Agregar acción' }));
 
     expect(screen.queryByRole('button', { name: /^Enlace adicional/ })).not.toBeInTheDocument();
@@ -336,7 +337,7 @@ describe('HotspotEditor as invitation actions', () => {
   });
 
   it('keeps an existing additional link editable when the global limit is reached', async () => {
-    renderEditor({ hotspots: [externalAction('link-1'), externalAction('link-2'), externalAction('link-3')] });
+    renderEditor({ hotspots: [externalAction('link-1')] });
     await userEvent.click(screen.getAllByRole('button', { name: 'Editar acción Enlace adicional' })[0]!);
 
     expect(screen.getByLabelText('Enlace')).toHaveValue('https://example.com/link-1');
@@ -345,7 +346,7 @@ describe('HotspotEditor as invitation actions', () => {
   });
 
   it('offers an additional link again after deletion and an authoritative refresh', async () => {
-    const links = [externalAction('link-1'), externalAction('link-2'), externalAction('link-3')];
+    const links = [externalAction('link-1')];
     const { api, onChanged, view } = renderEditor({ hotspots: links });
     await userEvent.click(screen.getAllByRole('button', { name: 'Editar acción Enlace adicional' })[0]!);
     await userEvent.click(screen.getByRole('button', { name: 'Eliminar acción' }));
@@ -407,12 +408,7 @@ describe('HotspotEditor as invitation actions', () => {
       ownerType: 'FLIPBOOK_PAGE',
       pageId: 'page-2',
       pagePosition: 2,
-      hotspots: [
-        pageAction('page-2', 'QR_AREA', 'qr-area'),
-        externalAction('cover-link-1', 'cover'),
-        externalAction('cover-link-2', 'cover'),
-        externalAction('qr-link', 'page-2')
-      ]
+      hotspots: [pageAction('page-2', 'QR_AREA', 'qr-area'), externalAction('cover-link', 'cover')]
     });
     await userEvent.click(screen.getByRole('button', { name: 'Agregar acción' }));
 
@@ -533,7 +529,9 @@ describe('HotspotEditor as invitation actions', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Mover a la derecha' }));
     await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
 
-    expect(await screen.findByText('Esta acción ya está configurada en otra imagen de la invitación.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Esta acción ya está configurada en otra imagen de la invitación.')
+    ).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Mover acción Confirmar asistencia' })).toHaveStyle({ left: '11%' });
     expect(onChanged).not.toHaveBeenCalled();
 

@@ -525,7 +525,10 @@ export class PublicRsvpService {
         return confirmationState(event);
       }
       if (close && event.floorplanEnabled) {
-        const floorplan = await tx.floorplan.findFirst({ where: { eventId, deletedAt: null }, select: { seatingMode: true } });
+        const floorplan = await tx.floorplan.findFirst({
+          where: { eventId, deletedAt: null },
+          select: { seatingMode: true }
+        });
         const pendingSeating = await tx.assistant.count({
           where: {
             eventId,

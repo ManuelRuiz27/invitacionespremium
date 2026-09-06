@@ -216,12 +216,12 @@ export function SeatingWorkspace({ apiClient, event }: { apiClient: ApiClient; e
                     controller.signal
                   )
                 : await apiClient.floorplan.updateSeating(
-                  event.id,
-                  intent.assistantId,
-                  { tableShapeId: intent.tableShapeId },
-                  intent.key,
-                  controller.signal
-                );
+                    event.id,
+                    intent.assistantId,
+                    { tableShapeId: intent.tableShapeId },
+                    intent.key,
+                    controller.signal
+                  );
       updateFloorplanFromMutation(result);
       setSelectedIds(new Set());
       setUncertainIntent(undefined);
@@ -303,10 +303,20 @@ export function SeatingWorkspace({ apiClient, event }: { apiClient: ApiClient; e
               setFeedback('En modo Lugar selecciona un lugar libre y una sola persona antes de asignar.');
               return;
             }
-            void executeIntent({ kind: 'SEAT', assistantId: [...selectedIds][0]!, seatId: selectedSeatId, key: newKey() });
+            void executeIntent({
+              kind: 'SEAT',
+              assistantId: [...selectedIds][0]!,
+              seatId: selectedSeatId,
+              key: newKey()
+            });
             return;
           }
-          void executeIntent({ kind: 'ASSIGN', assistantIds: [...selectedIds], tableShapeId: selectedTable.id, key: newKey() });
+          void executeIntent({
+            kind: 'ASSIGN',
+            assistantIds: [...selectedIds],
+            tableShapeId: selectedTable.id,
+            key: newKey()
+          });
         }}
         onMove={() => setDestinationOpen(true)}
         onUnassign={(assistantId) =>

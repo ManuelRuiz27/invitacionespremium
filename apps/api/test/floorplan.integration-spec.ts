@@ -1857,7 +1857,9 @@ describe('Floorplan and seating', () => {
     expect(
       reload.body.seats.filter((seat: { floorplanShapeId: string }) => seat.floorplanShapeId === uTable.body.id)
     ).toHaveLength(10);
-    expect(reload.body.shapes.find((shape: { id: string }) => shape.id === serpentina.body.id)).toMatchObject({ capacity: 13 });
+    expect(reload.body.shapes.find((shape: { id: string }) => shape.id === serpentina.body.id)).toMatchObject({
+      capacity: 13
+    });
     await floorplan.assignSeats(
       fixture.event.id,
       randomUUID(),
@@ -1868,9 +1870,10 @@ describe('Floorplan and seating', () => {
       floorplanShapeId: serpentina.body.id,
       floorplanSeatId: reloadedSerpentine[0]!.id
     });
-    await expect(
-      prisma.$transaction((tx) => resolveFloorplanReadiness(tx, fixture.event.id))
-    ).resolves.toEqual({ complete: true, blockers: [] });
+    await expect(prisma.$transaction((tx) => resolveFloorplanReadiness(tx, fixture.event.id))).resolves.toEqual({
+      complete: true,
+      blockers: []
+    });
   });
 
   it('rejects invalid administrative seat renumbers and rolls back temporary labels', async () => {
@@ -1925,7 +1928,11 @@ describe('Floorplan and seating', () => {
         polygonPoints: null
       })
       .expect(201);
-    await request(app.getHttpServer()).patch(`${base}/seating-mode`).set('Cookie', cookie).send({ seatingMode: 'SEAT' }).expect(200);
+    await request(app.getHttpServer())
+      .patch(`${base}/seating-mode`)
+      .set('Cookie', cookie)
+      .send({ seatingMode: 'SEAT' })
+      .expect(200);
     const createSeat = async (tableId: string, label: string, x: number) =>
       request(app.getHttpServer())
         .post(`${base}/shapes/${tableId}/seats`)
@@ -2001,9 +2008,9 @@ describe('Floorplan and seating', () => {
         select: { label: true }
       })
     ).toEqual(expect.arrayContaining([{ label: 'A' }, { label: 'B' }]));
-    expect(
-      await prisma.floorplanSeat.count({ where: { label: { startsWith: '__renumber-' }, deletedAt: null } })
-    ).toBe(0);
+    expect(await prisma.floorplanSeat.count({ where: { label: { startsWith: '__renumber-' }, deletedAt: null } })).toBe(
+      0
+    );
 
     await prisma.$transaction(async (tx) => {
       await tx.$executeRawUnsafe('SET LOCAL session_replication_role = replica');

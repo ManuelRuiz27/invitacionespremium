@@ -111,6 +111,7 @@ const seatingItem = {
     assignedAssistantCount: 2
   },
   table: null,
+  seat: null,
   checkedIn: false
 } satisfies SeatingWorkspacePage['items'][number];
 
@@ -240,7 +241,7 @@ describe('Active Event workspace summary', () => {
     renderApp(api, '/eventos');
 
     const links = await screen.findAllByRole('link', { name: 'Ver evento' });
-    expect(links).toHaveLength(2);
+    expect(links).toHaveLength(1);
     expect(links.every((link) => link.getAttribute('href') === `/eventos/${activeEvent.id}`)).toBe(true);
     expect(screen.queryByRole('heading', { name: 'Resumen del Evento' })).not.toBeInTheDocument();
   });

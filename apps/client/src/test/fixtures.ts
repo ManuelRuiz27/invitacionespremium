@@ -216,6 +216,8 @@ export function mockApiClient(user: AuthUser = independentUser): ApiClient {
       createFloorplanSeat: vi.fn(),
       updateFloorplanSeat: vi.fn(),
       removeFloorplanSeat: vi.fn(),
+      batchFloorplanSeats: vi.fn(),
+      renumberFloorplanSeats: vi.fn(),
       createFloorplanShape: vi.fn(),
       updateFloorplanShape: vi.fn(),
       removeFloorplanShape: vi.fn(),

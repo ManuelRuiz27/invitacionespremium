@@ -258,8 +258,7 @@ describe('FileAssets and local storage', () => {
         contentType: 'image/jpeg',
         ownerType,
         fileType
-      })
-        .expect(201);
+      }).expect(201);
     }
     expect(await prisma.fileAsset.count({ where: { eventId: independentEvent.id } })).toBe(initialRows + 4);
 

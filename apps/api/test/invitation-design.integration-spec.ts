@@ -352,7 +352,9 @@ describe('InvitationDesignModule', () => {
       'FLIPBOOK_QR_AREA_HOTSPOT_MISSING'
     ]);
     const rsvp = (
-      await mutate('post', `/events/${event.id}/hotspots`, cookie).send(pageHotspot(otherPage!.id, HotspotAction.RSVP)).expect(201)
+      await mutate('post', `/events/${event.id}/hotspots`, cookie)
+        .send(pageHotspot(otherPage!.id, HotspotAction.RSVP))
+        .expect(201)
     ).body as { id: string };
     await mutate('patch', `/events/${event.id}/hotspots/${rsvp.id}`, cookie)
       .send({ flipbookPageId: cover!.id, x: 0.2, y: 0.2 })

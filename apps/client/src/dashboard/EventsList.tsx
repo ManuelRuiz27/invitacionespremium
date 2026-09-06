@@ -81,7 +81,7 @@ export function EventsList({ events }: { events: Event[] }) {
               aria-label="Filtrar Eventos"
             >
               {filters.map((item) => (
-                <ToggleButton key={item.value} value={item.value} aria-label={item.label}>
+                <ToggleButton key={item.value} value={item.value} aria-label={item.label} sx={{ minHeight: 44 }}>
                   {item.label}
                 </ToggleButton>
               ))}
