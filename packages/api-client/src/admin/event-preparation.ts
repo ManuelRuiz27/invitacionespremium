@@ -30,6 +30,7 @@ export type AdminFloorplanShapeUpdate = S['UpdateFloorplanShapeRequestDto'];
 export type AdminFloorplanSeat = S['FloorplanSeatResponseDto'];
 export type AdminFloorplanSeatInput = S['FloorplanSeatRequestDto'];
 export type AdminFloorplanSeatUpdate = S['UpdateFloorplanSeatRequestDto'];
+export type AdminFloorplanSeatsBatchUpdate = S['BatchFloorplanSeatsRequestDto'];
 export type AdminFloorplanSeatingMode = S['UpdateFloorplanSeatingModeRequestDto']['seatingMode'];
 export type AdminFloorplanFileAsset = S['FileAssetResponseDto'];
 export type AdminPilotObservationInput = S['PilotObservationRequestDto'];
@@ -396,6 +397,22 @@ export function createAdminEventPreparationClient(request: ApiRequester) {
           ...withSignal(signal)
         },
         record
+      ),
+    batchFloorplanSeats: (
+      clientId: string,
+      eventId: string,
+      body: AdminFloorplanSeatsBatchUpdate,
+      signal?: AbortSignal
+    ) =>
+      request<AdminFloorplanSeat[]>(
+        {
+          method: 'PATCH',
+          path: `${base(clientId, eventId)}/floorplan/seats/batch`,
+          body,
+          response: 'json',
+          ...withSignal(signal)
+        },
+        records
       ),
     removeFloorplanSeat: (clientId: string, eventId: string, seatId: string, signal?: AbortSignal) =>
       request<void>({

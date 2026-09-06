@@ -269,6 +269,13 @@ export class UpdateFloorplanSeatRequestDto {
   @ApiPropertyOptional({ type: Number, minimum: 0, maximum: 1 }) y?: number;
   @ApiPropertyOptional({ type: Boolean }) isBlocked?: boolean;
 }
+export class BatchFloorplanSeatUpdateDto extends UpdateFloorplanSeatRequestDto {
+  @ApiProperty({ type: String, format: 'uuid' }) seatId!: string;
+}
+export class BatchFloorplanSeatsRequestDto {
+  @ApiProperty({ type: () => BatchFloorplanSeatUpdateDto, isArray: true, minItems: 1, maxItems: 500 })
+  seats!: BatchFloorplanSeatUpdateDto[];
+}
 export class FloorplanSeatResponseDto extends FloorplanSeatRequestDto {
   @ApiProperty({ type: String, format: 'uuid' }) id!: string;
   @ApiProperty({ type: String, format: 'uuid' }) floorplanShapeId!: string;

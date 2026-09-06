@@ -480,6 +480,22 @@ export type paths = {
         patch: operations["AdminFloorplanController_updateSeat"];
         trace?: never;
     };
+    "/api/v1/admin/clients/{clientId}/events/{eventId}/floorplan/seats/batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["AdminFloorplanController_batchSeats"];
+        trace?: never;
+    };
     "/api/v1/admin/clients/{clientId}/events/{eventId}/floorplan/shapes": {
         parameters: {
             query?: never;
@@ -2836,6 +2852,17 @@ export type components = {
             lastLedgerSequence: string | null;
             matchesLedger: boolean;
             purchasedCredits: number;
+        };
+        BatchFloorplanSeatsRequestDto: {
+            seats: components["schemas"]["BatchFloorplanSeatUpdateDto"][];
+        };
+        BatchFloorplanSeatUpdateDto: {
+            isBlocked?: boolean;
+            label?: string;
+            /** Format: uuid */
+            seatId: string;
+            x?: number;
+            y?: number;
         };
         CheckedInAssistantDto: {
             /** Format: uuid */
@@ -5199,6 +5226,29 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    AdminFloorplanController_batchSeats: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BatchFloorplanSeatsRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FloorplanSeatResponseDto"][];
+                };
             };
         };
     };
