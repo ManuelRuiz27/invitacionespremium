@@ -17,9 +17,13 @@ Leer primero `docs/04-tecnico/REPOSITORY_SOURCE_OF_TRUTH.md` cuando una tarea me
 - `05_MODELO_COMERCIAL_PRICING_Y_OPERACION.md` — fuente de verdad comercial vigente para SKU vs canal, pricing, gate financiero, intake Provider y ajustes del flujo operator-led
 - `05A_PRICING_RESOLUTION_CLARIFICATION.md` — standard por capacidad, partner explícito y venue QR/EventOps por volumen sin inventar matriz de capacidad
 - `05B_LANDING_COMMERCIAL_SALES_CONTRACT.md` — fuente de verdad para posicionamiento público, pricing visible, funnel Planner/agencia y conversión Venue
-- `06_MODELOS_OPERATIVOS_DE_VENTA.md` — registro y reglas para modelar escenarios de venta antes de crear roles, superficies o código
-- `06A_MODELO_01_PLANNER_INDEPENDIENTE.md` — modelo base aprobado: InvitacionesPremium prepara, Planner administra invitados/mesas/Staff y Staff opera el acceso
-- `06B_MODELO_02_SALON_JARDIN_ORGANIZACION.md` — extensión aprobada para salón/jardín: Admin de Organización supervisa múltiples Eventos, Planner opera únicamente Eventos asignados y Staff permanece Event-scoped
+- `06_MODELOS_OPERATIVOS_DE_VENTA.md` — registro maestro de modelos M01–M05 y regla de separación entre operación, condición comercial y adquisición
+- `06A_MODELO_01_PLANNER_INDEPENDIENTE.md` — modelo base gestionado: InvitacionesPremium prepara, Planner administra invitados/mesas/Staff y Staff opera el acceso
+- `06B_MODELO_02_SALON_JARDIN_ORGANIZACION.md` — salón/jardín gestionado: Admin Organización supervisa múltiples Eventos y Planner opera Eventos asignados
+- `06C_MODELO_03_LICENCIA_AUTOSERVICIO.md` — Organización en autoservicio: cliente prepara/Opera Eventos sobre el mismo core multi-tenant
+- `06D_MODELO_04_CLIENTE_GRAN_ESCALA_DEDICADO.md` — cliente de gran escala: mismo core, certificación de escala y deployment dedicado sólo cuando se justifique
+- `06E_MODELO_05_PARTNER_RESELLER.md` — Partner/Reseller resuelto como capa comercial sobre M01–M04, no como rol funcional
+- `06F_MATRIZ_CAPACIDADES_GAPS_MODELOS.md` — auditoría runtime transversal; clasifica EXISTS/ADAPT/MISSING/FINANCE-ONLY/OUT-OF-SCOPE y consolida G01–G05
 - `ACCESS_MATRIX.md` — matriz estándar de roles/endpoints
 - `ACCESS_MATRIX_OPERATOR_LED_ADDENDUM.md` — capability administrativa adicional para lanzamiento, sin nuevo rol
 
@@ -116,6 +120,26 @@ Leer primero `docs/04-tecnico/REPOSITORY_SOURCE_OF_TRUTH.md` cuando una tarea me
 - `LOCAL_PILOT_OPERATION_RUNBOOK.md`
 - `PILOT03_COMMERCIAL_UAT_RUNBOOK.md` — contrato de ejecución final para UAT comercial: baseline CI verde, Partner/Flyer, Venue/QR, operación real y unit economics
 
+## Precedencia para modelos operativos M01–M05
+
+Cuando una tarea afecte quién prepara/opera un Evento, un nuevo tipo de cliente, salón/agencia, autoservicio, Partner/Reseller o cliente de gran escala:
+
+1. `06_MODELOS_OPERATIVOS_DE_VENTA.md` para identificar el modelo correcto.
+2. `06A`–`06E` para responsabilidades del escenario específico.
+3. `06F_MATRIZ_CAPACIDADES_GAPS_MODELOS.md` para saber si la capacidad ya existe, sólo requiere adaptación, falta, pertenece a Finance o está fuera de alcance.
+4. `03_ROLES_PERMISOS_ACCESO.md` + `ACCESS_MATRIX.md` para roles/ownership persistidos.
+5. contrato técnico especializado del dominio afectado.
+6. ticket técnico explícito antes de código.
+
+Reglas:
+
+- Partner/Reseller no crea un rol funcional;
+- ventas en frío no crean un modelo operativo;
+- salón/jardín no crea un rol `Venue Owner` mientras los roles Organization existentes cubran el actor;
+- M01/M02 son perfiles gestionados; M03/M04 son perfiles de autoservicio, con M04 añadiendo escala/aislamiento sólo cuando se justifique;
+- no confundir el límite comercial/intake actual de 150 con la capacidad del campo base `Event.capacity`;
+- no implementar todos los gaps de `06F` en bloque: cada gap requiere ticket y contratos identificados.
+
 ## Precedencia para el modelo comercial/operator-led vigente
 
 Cuando una tarea afecte SKU, pricing, canal, volumen, unit economics, adquisición, landing, inicio de preparación, creator/assignment de Evento o responsabilidades Provider/Planner:
@@ -124,7 +148,7 @@ Cuando una tarea afecte SKU, pricing, canal, volumen, unit economics, adquisici�
 2. `05A_PRICING_RESOLUTION_CLARIFICATION.md` para resolver standard/partner/venue sin inventar dimensiones de precio.
 3. `05B_LANDING_COMMERCIAL_SALES_CONTRACT.md` para landing, copy, pricing público y funnel de conversión.
 4. `04_OPERATOR_LED_MVP.md` para separación general Provider/Planner, salvo sustitución expresa.
-5. `06_MODELOS_OPERATIVOS_DE_VENTA.md` y el modelo `06A/06B/...` aplicable para reparto operativo por escenario antes de crear roles o superficies nuevas.
+5. `06_MODELOS_OPERATIVOS_DE_VENTA.md`, el modelo `06A`–`06E` aplicable y `06F` para reparto operativo/gaps antes de crear roles o superficies nuevas.
 6. `02_PRD.md`, `04_APP_FLOW.md`, `05_REGLAS_NEGOCIO.md` y `06_FINANZAS_CREDITOS_CONTABILIDAD.md` para reglas no sustituidas.
 7. Contrato técnico especializado del dominio afectado.
 8. `20_COMMERCIAL_PILOT_ROADMAP.md` para orden de ejecución de la segunda etapa.
@@ -135,7 +159,7 @@ En particular:
 
 - `ClientType` no debe interpretarse como canal comercial;
 - las tablas históricas Planner/Organization no son pricing definitivo;
-- la landing no debe publicar precios históricos ni prometer self-service técnico contrario al perfil operator-led;
+- la landing no debe publicar precios históricos ni prometer self-service técnico contrario al perfil operator-led vigente para M01/M02;
 - Venue/Organization no obtiene registro público por el simple hecho de aparecer como canal comercial;
 - un modelo operativo de salón/jardín no autoriza por sí mismo un nuevo rol persistido si `ORGANIZATION_ADMIN`, `ORGANIZATION_PLANNER`, assignment y Staff ya cubren el escenario.
 
@@ -165,7 +189,7 @@ Orden de ejecución:
 ## Precedencia para Croquis V2 / baseline operator-led
 
 1. `REPOSITORY_SOURCE_OF_TRUTH.md`.
-2. producto (`02_PRD.md`, `03_ROLES_PERMISOS_ACCESO.md`, `04_OPERATOR_LED_MVP.md`, `06_MODELOS_OPERATIVOS_DE_VENTA.md` y el modelo especializado aplicable, además de decisiones comerciales vigentes cuando correspondan).
+2. producto (`02_PRD.md`, `03_ROLES_PERMISOS_ACCESO.md`, `04_OPERATOR_LED_MVP.md`, `06_MODELOS_OPERATIVOS_DE_VENTA.md`, modelo `06A`–`06E` aplicable y `06F`, además de decisiones comerciales vigentes cuando correspondan).
 3. `FLOORPLAN_DETAILED_SEATING_CONTRACT.md` cuando la tarea afecte lugares/asientos persistentes, capacidad derivada por lugar, asignación exacta o scanner por lugar.
 4. resto de ADR/contratos especializados, incluido `FLOORPLAN_STICKER_SEATING_CONTRACT.md`.
 5. `FLOORPLAN_UX_TARGET.md` y `LEGACY_UI_VISUAL_PORT_GUIDE.md`.
