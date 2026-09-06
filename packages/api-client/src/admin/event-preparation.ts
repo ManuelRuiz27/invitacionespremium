@@ -31,6 +31,7 @@ export type AdminFloorplanSeat = S['FloorplanSeatResponseDto'];
 export type AdminFloorplanSeatInput = S['FloorplanSeatRequestDto'];
 export type AdminFloorplanSeatUpdate = S['UpdateFloorplanSeatRequestDto'];
 export type AdminFloorplanSeatsBatchUpdate = S['BatchFloorplanSeatsRequestDto'];
+export type AdminFloorplanSeatsRenumber = S['RenumberFloorplanSeatsRequestDto'];
 export type AdminFloorplanSeatingMode = S['UpdateFloorplanSeatingModeRequestDto']['seatingMode'];
 export type AdminFloorplanFileAsset = S['FileAssetResponseDto'];
 export type AdminPilotObservationInput = S['PilotObservationRequestDto'];
@@ -412,6 +413,16 @@ export function createAdminEventPreparationClient(request: ApiRequester) {
           response: 'json',
           ...withSignal(signal)
         },
+        records
+      ),
+    renumberFloorplanSeats: (
+      clientId: string,
+      eventId: string,
+      body: AdminFloorplanSeatsRenumber,
+      signal?: AbortSignal
+    ) =>
+      request<AdminFloorplanSeat[]>(
+        { method: 'PATCH', path: `${base(clientId, eventId)}/floorplan/seats/renumber`, body, response: 'json', ...withSignal(signal) },
         records
       ),
     removeFloorplanSeat: (clientId: string, eventId: string, seatId: string, signal?: AbortSignal) =>

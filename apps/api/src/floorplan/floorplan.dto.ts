@@ -78,6 +78,10 @@ const batchSeatsSchema = z
   })
   .strict();
 const seatingModeSchema = z.object({ seatingMode: z.enum(FloorplanSeatingMode) }).strict();
+const renumberSeatsSchema = z.object({ seatIds: z.array(uuid).min(1).max(500) }).strict().refine(
+  ({ seatIds }) => new Set(seatIds).size === seatIds.length,
+  { message: 'seatIds must not contain duplicates.' }
+);
 const assignSeatsSchema = z
   .object({
     assignments: z
@@ -121,6 +125,7 @@ export type UpdateSeatingInput = z.infer<typeof updateSeatingSchema>;
 export type FloorplanSeatInput = z.infer<typeof seatSchema>;
 export type UpdateFloorplanSeatInput = z.infer<typeof updateSeatSchema>;
 export type BatchFloorplanSeatsInput = z.infer<typeof batchSeatsSchema>;
+export type RenumberFloorplanSeatsInput = z.infer<typeof renumberSeatsSchema>;
 export type AssignSeatsInput = z.infer<typeof assignSeatsSchema>;
 export type SeatingWorkspaceQueryInput = z.infer<typeof seatingWorkspaceQuerySchema>;
 
@@ -275,6 +280,9 @@ export class BatchFloorplanSeatUpdateDto extends UpdateFloorplanSeatRequestDto {
 export class BatchFloorplanSeatsRequestDto {
   @ApiProperty({ type: () => BatchFloorplanSeatUpdateDto, isArray: true, minItems: 1, maxItems: 500 })
   seats!: BatchFloorplanSeatUpdateDto[];
+}
+export class RenumberFloorplanSeatsRequestDto {
+  @ApiProperty({ type: String, format: 'uuid', isArray: true, minItems: 1, maxItems: 500 }) seatIds!: string[];
 }
 export class FloorplanSeatResponseDto extends FloorplanSeatRequestDto {
   @ApiProperty({ type: String, format: 'uuid' }) id!: string;
@@ -433,6 +441,9 @@ export function parseUpdateSeat(input: unknown): UpdateFloorplanSeatInput {
 }
 export function parseBatchSeats(input: unknown): BatchFloorplanSeatsInput {
   return parse(batchSeatsSchema, input);
+}
+export function parseRenumberSeats(input: unknown): RenumberFloorplanSeatsInput {
+  return parse(renumberSeatsSchema, input);
 }
 export function parseSeatingMode(input: unknown): { seatingMode: FloorplanSeatingMode } {
   return parse(seatingModeSchema, input);

@@ -4,6 +4,22 @@ const MIN_SIZE = 0.001;
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 const round = (value: number) => Math.round(value * 1_000_000) / 1_000_000;
 
+/** Keeps a dragged seat group inside the normalized canvas without changing its offsets. */
+export function clampSeatGroupDelta(
+  seats: readonly { x: number; y: number }[],
+  requested: { x: number; y: number }
+) {
+  if (!seats.length) return { x: 0, y: 0 };
+  const minX = Math.min(...seats.map((seat) => seat.x));
+  const maxX = Math.max(...seats.map((seat) => seat.x));
+  const minY = Math.min(...seats.map((seat) => seat.y));
+  const maxY = Math.max(...seats.map((seat) => seat.y));
+  return {
+    x: round(clamp(requested.x, -minX, 1 - maxX)),
+    y: round(clamp(requested.y, -minY, 1 - maxY))
+  };
+}
+
 export class FloorplanShapeValidationError extends Error {}
 
 export function screenDeltaToLocal(deltaX: number, deltaY: number, rotation: number) {
