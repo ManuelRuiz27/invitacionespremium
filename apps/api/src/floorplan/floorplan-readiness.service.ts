@@ -1,5 +1,5 @@
 import type { Prisma } from '../generated/prisma/client';
-import { FileAssetStatus, FloorplanShapeKind } from '../generated/prisma/client';
+import { FileAssetStatus, FloorplanSeatingMode, FloorplanShapeKind } from '../generated/prisma/client';
 
 export const FLOORPLAN_READINESS_BLOCKERS = {
   MISSING: 'EVENT_FLOORPLAN_MISSING',
@@ -21,7 +21,11 @@ export async function resolveFloorplanReadiness(
     where: { eventId, deletedAt: null },
     include: {
       imageAsset: true,
-      shapes: { where: { deletedAt: null }, select: { kind: true, capacity: true } }
+      shapes: { where: { deletedAt: null }, select: { id: true, kind: true, capacity: true } },
+      seats: {
+        where: { deletedAt: null },
+        select: { floorplanShapeId: true, isBlocked: true }
+      }
     }
   });
   if (!floorplan) return { complete: false, blockers: [FLOORPLAN_READINESS_BLOCKERS.MISSING] };
@@ -40,6 +44,22 @@ export async function resolveFloorplanReadiness(
     )
   ) {
     blockers.push(FLOORPLAN_READINESS_BLOCKERS.INCONSISTENT);
+  }
+  if (floorplan.seatingMode === FloorplanSeatingMode.SEAT) {
+    const tables = floorplan.shapes.filter(({ kind }) => kind === FloorplanShapeKind.TABLE);
+    const tableIds = new Set(tables.map(({ id }) => id));
+    const activeSeats = floorplan.seats.filter((seat) => tableIds.has(seat.floorplanShapeId));
+    const hasInvalidParent = floorplan.seats.some((seat) => !tableIds.has(seat.floorplanShapeId));
+    const hasDivergentCapacity = tables.some(
+      (table) =>
+        table.capacity !== activeSeats.filter((seat) => seat.floorplanShapeId === table.id && !seat.isBlocked).length
+    );
+    const hasTableWithoutAvailableSeat = tables.some(
+      (table) => !activeSeats.some((seat) => seat.floorplanShapeId === table.id && !seat.isBlocked)
+    );
+    if (hasInvalidParent || hasDivergentCapacity || hasTableWithoutAvailableSeat) {
+      blockers.push(FLOORPLAN_READINESS_BLOCKERS.INCONSISTENT);
+    }
   }
   return { complete: blockers.length === 0, blockers };
 }

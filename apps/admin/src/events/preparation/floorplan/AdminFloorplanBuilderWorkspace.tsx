@@ -310,6 +310,44 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     );
     await refreshAfterConfirmedMutation();
   };
+  const updateSeat = async (seatId: string, input: { label?: string; isBlocked?: boolean }) => {
+    if (readOnly) return;
+    const saved = await runMutation('seating', () =>
+      apiClient.adminEventPreparation.updateFloorplanSeat(event.clientId, event.id, seatId, input)
+    );
+    if (!saved) return;
+    setFloorplan((current) =>
+      current ? { ...current, seats: current.seats.map((seat) => (seat.id === saved.id ? saved : seat)) } : current
+    );
+    await refreshAfterConfirmedMutation();
+  };
+  const renameSeat = () => {
+    if (!selectedSeat) return;
+    const label = window.prompt('Nombre del lugar', selectedSeat.label)?.trim();
+    if (label && label !== selectedSeat.label) void updateSeat(selectedSeat.id, { label });
+  };
+  const duplicateSeat = async () => {
+    if (!selectedSeat || readOnly || !floorplan) return;
+    const labels = new Set(
+      floorplan.seats
+        .filter((seat) => seat.floorplanShapeId === selectedSeat.floorplanShapeId)
+        .map((seat) => seat.label)
+    );
+    let sequence = 2;
+    let label = `${selectedSeat.label} ${sequence}`;
+    while (labels.has(label)) label = `${selectedSeat.label} ${++sequence}`;
+    const saved = await runMutation('seating', () =>
+      apiClient.adminEventPreparation.createFloorplanSeat(event.clientId, event.id, selectedSeat.floorplanShapeId, {
+        label,
+        x: Math.min(1, selectedSeat.x + 0.02),
+        y: Math.min(1, selectedSeat.y + 0.02)
+      })
+    );
+    if (!saved) return;
+    setFloorplan((current) => (current ? { ...current, seats: [...current.seats, saved] } : current));
+    setSelectedSeatId(saved.id);
+    await refreshAfterConfirmedMutation();
+  };
   const removeSeat = async () => {
     if (!selectedSeat || readOnly) return;
     const removedId = selectedSeat.id;
@@ -588,6 +626,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
       mode={mode}
       value={draft}
       disabled={pending}
+      capacityDerived={floorplan?.seatingMode === 'SEAT'}
       onChange={setDraft}
       onSave={() => void save()}
       {...(selected ? { onDuplicate: () => void duplicate(), onDelete: () => void remove() } : {})}
@@ -729,14 +768,29 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
                 Agregar lugar a {selected.name}
               </Button>
               {selectedSeat ? (
-                <Button
-                  size="small"
-                  color="error"
-                  disabled={readOnly || selectedSeat.occupied}
-                  onClick={() => void removeSeat()}
-                >
-                  Eliminar {selectedSeat.label}
-                </Button>
+                <>
+                  <Button size="small" disabled={readOnly} onClick={renameSeat}>
+                    Renombrar
+                  </Button>
+                  <Button size="small" disabled={readOnly} onClick={() => void duplicateSeat()}>
+                    Duplicar
+                  </Button>
+                  <Button
+                    size="small"
+                    disabled={readOnly || selectedSeat.occupied}
+                    onClick={() => void updateSeat(selectedSeat.id, { isBlocked: !selectedSeat.isBlocked })}
+                  >
+                    {selectedSeat.isBlocked ? 'Desbloquear' : 'Bloquear'}
+                  </Button>
+                  <Button
+                    size="small"
+                    color="error"
+                    disabled={readOnly || selectedSeat.occupied}
+                    onClick={() => void removeSeat()}
+                  >
+                    Eliminar {selectedSeat.label}
+                  </Button>
+                </>
               ) : null}
             </Stack>
           ) : null}
@@ -845,6 +899,7 @@ function ShapeInspector({
   mode,
   value,
   disabled,
+  capacityDerived,
   onChange,
   onSave,
   onDuplicate,
@@ -854,6 +909,7 @@ function ShapeInspector({
   mode: EditorMode;
   value: AdminFloorplanShapeInput;
   disabled: boolean;
+  capacityDerived: boolean;
   onChange: (value: AdminFloorplanShapeInput) => void;
   onSave: () => void;
   onDuplicate?: () => void;
@@ -878,7 +934,11 @@ function ShapeInspector({
           disabled={disabled}
           onChange={(event) => onChange({ ...value, name: event.target.value })}
         />
-        {table ? (
+        {table && capacityDerived ? (
+          <Typography variant="body2" color="text.secondary">
+            {value.capacity} lugares
+          </Typography>
+        ) : table ? (
           <TextField
             label="Número de lugares"
             type="number"

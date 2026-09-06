@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { FileAssetStatus, FloorplanShapeKind } from '../generated/prisma/client';
+import { FileAssetStatus, FloorplanSeatingMode, FloorplanShapeKind } from '../generated/prisma/client';
 import { FLOORPLAN_READINESS_BLOCKERS, resolveFloorplanReadiness } from './floorplan-readiness.service';
 
 describe('Floorplan readiness', () => {
@@ -41,5 +41,32 @@ describe('Floorplan readiness', () => {
       FLOORPLAN_READINESS_BLOCKERS.IMAGE_NOT_READY,
       FLOORPLAN_READINESS_BLOCKERS.TABLE_MISSING
     ]);
+  });
+
+  it('requires each detailed-seating table to match its active, unblocked seats', async () => {
+    const tx = {
+      floorplan: {
+        findFirst: vi.fn().mockResolvedValue({
+          seatingMode: FloorplanSeatingMode.SEAT,
+          imageAsset: { status: FileAssetStatus.READY, deletedAt: null },
+          shapes: [{ id: 'table-1', kind: FloorplanShapeKind.TABLE, capacity: 1 }],
+          seats: [{ floorplanShapeId: 'table-1', isBlocked: false }]
+        })
+      }
+    };
+    await expect(resolveFloorplanReadiness(tx as never, crypto.randomUUID())).resolves.toEqual({
+      complete: true,
+      blockers: []
+    });
+    tx.floorplan.findFirst.mockResolvedValueOnce({
+      seatingMode: FloorplanSeatingMode.SEAT,
+      imageAsset: { status: FileAssetStatus.READY, deletedAt: null },
+      shapes: [{ id: 'table-1', kind: FloorplanShapeKind.TABLE, capacity: 1 }],
+      seats: [{ floorplanShapeId: 'table-1', isBlocked: true }]
+    });
+    await expect(resolveFloorplanReadiness(tx as never, crypto.randomUUID())).resolves.toEqual({
+      complete: false,
+      blockers: [FLOORPLAN_READINESS_BLOCKERS.INCONSISTENT]
+    });
   });
 });
