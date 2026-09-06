@@ -496,6 +496,22 @@ export type paths = {
         patch: operations["AdminFloorplanController_batchSeats"];
         trace?: never;
     };
+    "/api/v1/admin/clients/{clientId}/events/{eventId}/floorplan/seats/renumber": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["AdminFloorplanController_renumberSeats"];
+        trace?: never;
+    };
     "/api/v1/admin/clients/{clientId}/events/{eventId}/floorplan/shapes": {
         parameters: {
             query?: never;
@@ -4006,6 +4022,9 @@ export type components = {
             /** Format: password */
             password: string;
         };
+        RenumberFloorplanSeatsRequestDto: {
+            seatIds: string[];
+        };
         ReorderFlipbookPagesRequestDto: {
             pageIds: string[];
         };
@@ -5239,6 +5258,29 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["BatchFloorplanSeatsRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FloorplanSeatResponseDto"][];
+                };
+            };
+        };
+    };
+    AdminFloorplanController_renumberSeats: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RenumberFloorplanSeatsRequestDto"];
             };
         };
         responses: {
