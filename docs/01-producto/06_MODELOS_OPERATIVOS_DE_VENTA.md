@@ -59,6 +59,10 @@ No implementar roles, permisos o superficies nuevas únicamente porque un escena
 | M04 | Cliente profesional de gran escala con aislamiento/servicio dedicado | **APROBADO COMO MODELO DE REFERENCIA — NO AUTORIZA CODE** | `06D_MODELO_04_CLIENTE_GRAN_ESCALA_DEDICADO.md` |
 | M05 | Partner/reseller y reventa | **RESUELTO COMO CAPA COMERCIAL SOBRE M01–M04 — NO AUTORIZA CODE** | `06E_MODELO_05_PARTNER_RESELLER.md` |
 
+Auditoría transversal de implementación:
+
+- `06F_MATRIZ_CAPACIDADES_GAPS_MODELOS.md` — compara M01–M05 contra el runtime y clasifica `EXISTS`, `ADAPT`, `MISSING`, `FINANCE-ONLY` y `OUT-OF-SCOPE`.
+
 La familia inicial queda cubierta. Un modelo nuevo sólo debe añadirse si representa una distribución de responsabilidades realmente distinta, no una tarifa o estrategia de adquisición distinta.
 
 ## 4. Modelos definidos
@@ -218,7 +222,7 @@ Un mismo producto funcional puede venderse bajo condiciones comerciales diferent
 
 Los documentos especializados conservan como antecedentes algunas hipótesis ya discutidas —Partner, volumen Venue o cliente dedicado— pero ninguna de ellas debe promoverse automáticamente a Price Book, Ledger o contratos de pago por el hecho de estar documentada aquí.
 
-La capa financiera se revisará después de cerrar el gap analysis funcional de esta familia.
+La capa financiera se revisará después de cerrar los gaps funcionales priorizados de esta familia.
 
 ## 8. Regla para agentes
 
@@ -227,21 +231,23 @@ Cuando una tarea mencione un nuevo tipo de cliente, partner, salón, agencia, re
 1. identificar primero qué modelo operativo representa;
 2. leer este registro;
 3. leer el documento especializado del modelo;
-4. separar modelo operativo, condición comercial y adquisición;
-5. comprobar si roles/ownership actuales ya lo resuelven;
-6. no crear código hasta convertir el gap en una decisión explícita y ticket técnico.
+4. leer `06F_MATRIZ_CAPACIDADES_GAPS_MODELOS.md` antes de afirmar que una capacidad falta o crearla;
+5. separar modelo operativo, condición comercial y adquisición;
+6. comprobar si roles/ownership actuales ya lo resuelven;
+7. no crear código hasta convertir el gap en una decisión explícita y ticket técnico.
 
-## 9. Siguiente fase autorizable
+## 9. Gap analysis completado
 
-Con M01–M05 documentados, el siguiente trabajo correcto es una **matriz transversal de capacidades y gap analysis** contra el runtime.
+La auditoría transversal ya se realizó en `06F_MATRIZ_CAPACIDADES_GAPS_MODELOS.md`.
 
-Debe responder por cada modelo:
+Consolidó cinco gaps funcionales relevantes:
 
-- qué ya existe;
-- qué sólo cambia de superficie;
-- qué requiere permiso nuevo sobre rol existente;
-- qué falta realmente;
-- qué pertenece exclusivamente a Finance/Commercial;
-- qué debe permanecer fuera de alcance.
+- `G01` — Managed vs Self-Service Capability Profile;
+- `G02` — Organization Management Surface;
+- `G03` — Client Reports Surface;
+- `G04` — Client Album Management Surface;
+- `G05` — Scale Certification, sólo para M04.
 
-No comenzar implementación de M03/M04 ni reestructuración financiera antes de esa auditoría.
+También confirmó que pricing, margen, volumen, licencia, setup fee, anualidad y estrategia de adquisición deben permanecer fuera del siguiente bloque funcional.
+
+La siguiente fase no está autorizada automáticamente por este documento: Product debe seleccionar qué gaps se convierten en tickets técnicos, empezando preferentemente por M01/M02.
