@@ -41,6 +41,15 @@ const detailedFloorplan: Floorplan = {
       y: 0.2,
       isBlocked: false,
       occupied: false
+    },
+    {
+      id: 'seat-2',
+      floorplanShapeId: table.id,
+      label: '2',
+      x: 0.3,
+      y: 0.2,
+      isBlocked: false,
+      occupied: false
     }
   ]
 };
@@ -235,5 +244,36 @@ describe('FloorplanDomRenderer', () => {
     fireEvent.pointerUp(seat, { pointerId: 2, clientX: 400, clientY: 300 });
     expect(onSeatMove).toHaveBeenCalledOnce();
     expect(onSeatMove).toHaveBeenCalledWith('seat-1', { x: 0.4, y: 0.6 });
+  });
+
+  it('reports plain and additive seat clicks and projects selectedSeatIds', () => {
+    const onSeatSelect = vi.fn();
+    render(
+      <FloorplanDomRenderer
+        floorplan={detailedFloorplan}
+        imageUrl="blob:plan"
+        disabled={false}
+        showSeats={false}
+        snap={false}
+        selectedSeatIds={['seat-2']}
+        onSelect={vi.fn()}
+        onDraftChange={vi.fn()}
+        onSeatSelect={onSeatSelect}
+      />
+    );
+    const firstSeat = screen.getByRole('button', { name: /Lugar 1, disponible/ });
+    const secondSeat = screen.getByRole('button', { name: /Lugar 2, disponible/ });
+    expect(firstSeat).toHaveAttribute('aria-pressed', 'false');
+    expect(secondSeat).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(firstSeat);
+    fireEvent.click(firstSeat, { shiftKey: true });
+    fireEvent.click(firstSeat, { ctrlKey: true });
+    fireEvent.click(firstSeat, { metaKey: true });
+
+    expect(onSeatSelect).toHaveBeenNthCalledWith(1, 'seat-1', { additive: false });
+    expect(onSeatSelect).toHaveBeenNthCalledWith(2, 'seat-1', { additive: true });
+    expect(onSeatSelect).toHaveBeenNthCalledWith(3, 'seat-1', { additive: true });
+    expect(onSeatSelect).toHaveBeenNthCalledWith(4, 'seat-1', { additive: true });
   });
 });

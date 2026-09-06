@@ -37,6 +37,7 @@ import { RealtimePublisherService } from '../src/realtime/realtime-publisher.ser
 import { RealtimeServerService } from '../src/realtime/realtime-server.service';
 import { ScannerService } from '../src/scanner/scanner.service';
 import { createOpenApiDocument } from '../src/openapi/openapi';
+import { resolveFloorplanReadiness } from '../src/floorplan/floorplan-readiness.service';
 
 const isolatedStorage = vi.hoisted(() => {
   const systemTemp =
@@ -1744,6 +1745,18 @@ describe('Floorplan and seating', () => {
       seats.push(created.body);
     }
     expect(seats.filter(({ x, y }) => x < 0.35 || x > 0.45 || y < 0.35 || y > 0.45)).toHaveLength(12);
+    expect(
+      await prisma.floorplanShape.findUniqueOrThrow({ where: { id: serpentina.body.id }, select: { capacity: true } })
+    ).toMatchObject({ capacity: 11 });
+    await request(app.getHttpServer())
+      .patch(`${base}/seats/${seats[0]!.id}`)
+      .set('Cookie', cookie)
+      .set('Origin', origin)
+      .send({ isBlocked: false })
+      .expect(200);
+    expect(
+      await prisma.floorplanShape.findUniqueOrThrow({ where: { id: serpentina.body.id }, select: { capacity: true } })
+    ).toMatchObject({ capacity: 12 });
     await request(app.getHttpServer())
       .patch(`${base}/seats/${seats[1]!.id}`)
       .set('Cookie', cookie)
@@ -1778,6 +1791,21 @@ describe('Floorplan and seating', () => {
       .set('Cookie', cookie)
       .set('Origin', origin)
       .send({ seatIds: [...seats.map(({ id }) => id), duplicate.body.id] })
+      .expect(200);
+
+    const beforeGroupMove = await request(app.getHttpServer()).get(base).set('Cookie', cookie).expect(200);
+    const beforeGroupMoveById = new Map<string, { id: string; x: number; y: number }>(
+      beforeGroupMove.body.seats
+        .filter((seat: { floorplanShapeId: string }) => seat.floorplanShapeId === serpentina.body.id)
+        .map((seat: { id: string; x: number; y: number }) => [seat.id, seat] as const)
+    );
+    await request(app.getHttpServer())
+      .patch(`${base}/seats/batch`)
+      .set('Cookie', cookie)
+      .set('Origin', origin)
+      .send({
+        seats: [...beforeGroupMoveById.values()].map(({ id, x, y }) => ({ seatId: id, x: x + 0.01, y: y + 0.02 }))
+      })
       .expect(200);
 
     const uTable = await createLogicalTable('Mesa U', 0.7, 0.1);
@@ -1815,15 +1843,181 @@ describe('Floorplan and seating', () => {
     const reloadedSerpentine = reload.body.seats.filter(
       (seat: { floorplanShapeId: string }) => seat.floorplanShapeId === serpentina.body.id
     );
-    expect(reloadedSerpentine).toEqual(persistedSerpentine);
+    expect(reloadedSerpentine).toHaveLength(persistedSerpentine.length);
+    for (const seat of reloadedSerpentine) {
+      const before = beforeGroupMoveById.get(seat.id)!;
+      expect(seat.x - before.x).toBeCloseTo(0.01);
+      expect(seat.y - before.y).toBeCloseTo(0.02);
+    }
     expect(reloadedSerpentine).toHaveLength(13);
-    expect(reloadedSerpentine.filter((seat: { isBlocked: boolean }) => seat.isBlocked)).toHaveLength(1);
+    expect(reloadedSerpentine.filter((seat: { isBlocked: boolean }) => seat.isBlocked)).toHaveLength(0);
     expect(reloadedSerpentine.map((seat: { label: string }) => seat.label)).not.toContain(
       expect.stringMatching(/^__tmp|^__renumber/)
     );
     expect(
       reload.body.seats.filter((seat: { floorplanShapeId: string }) => seat.floorplanShapeId === uTable.body.id)
     ).toHaveLength(10);
+    expect(reload.body.shapes.find((shape: { id: string }) => shape.id === serpentina.body.id)).toMatchObject({ capacity: 13 });
+    await floorplan.assignSeats(
+      fixture.event.id,
+      randomUUID(),
+      { assignments: [{ assistantId: fixture.assistants[0]!.id, seatId: reloadedSerpentine[0]!.id }] },
+      fixture.principal
+    );
+    expect(await prisma.assistant.findUniqueOrThrow({ where: { id: fixture.assistants[0]!.id } })).toMatchObject({
+      floorplanShapeId: serpentina.body.id,
+      floorplanSeatId: reloadedSerpentine[0]!.id
+    });
+    await expect(
+      prisma.$transaction((tx) => resolveFloorplanReadiness(tx, fixture.event.id))
+    ).resolves.toEqual({ complete: true, blockers: [] });
+  });
+
+  it('rejects invalid administrative seat renumbers and rolls back temporary labels', async () => {
+    const fixture = await createFixture();
+    await setEventStatusForFixture(fixture.event.id, EventStatus.DRAFT);
+    const admin = await prisma.user.create({
+      data: {
+        email: `${randomUUID()}@example.test`,
+        passwordHash: await hashPassword('correct horse battery staple'),
+        role: UserRole.PLATFORM_ADMIN
+      }
+    });
+    const cookie = await login(admin.email);
+    const base = `/api/v1/admin/clients/${fixture.client.id}/events/${fixture.event.id}/floorplan`;
+    await request(app.getHttpServer())
+      .post(base)
+      .set('Cookie', cookie)
+      .send({ imageAssetId: (await createAsset(fixture, 'renumber-guards')).id })
+      .expect(201);
+    const createTableFor = async (targetBase: string, name: string) =>
+      request(app.getHttpServer())
+        .post(`${targetBase}/shapes`)
+        .set('Cookie', cookie)
+        .send({
+          kind: FloorplanShapeKind.TABLE,
+          geometry: FloorplanGeometry.CIRCLE,
+          name,
+          capacity: 1,
+          x: 0.1,
+          y: 0.1,
+          width: 0.2,
+          height: 0.2,
+          rotation: 0,
+          polygonPoints: null
+        })
+        .expect(201);
+    const firstTable = await createTableFor(base, 'Mesa renumerable');
+    const secondTable = await createTableFor(base, 'Mesa distinta');
+    const zone = await request(app.getHttpServer())
+      .post(`${base}/shapes`)
+      .set('Cookie', cookie)
+      .send({
+        kind: FloorplanShapeKind.DECORATIVE_ZONE,
+        geometry: FloorplanGeometry.RECTANGLE,
+        name: 'Zona invalida',
+        capacity: 0,
+        x: 0.5,
+        y: 0.5,
+        width: 0.2,
+        height: 0.2,
+        rotation: 0,
+        polygonPoints: null
+      })
+      .expect(201);
+    await request(app.getHttpServer()).patch(`${base}/seating-mode`).set('Cookie', cookie).send({ seatingMode: 'SEAT' }).expect(200);
+    const createSeat = async (tableId: string, label: string, x: number) =>
+      request(app.getHttpServer())
+        .post(`${base}/shapes/${tableId}/seats`)
+        .set('Cookie', cookie)
+        .send({ label, x, y: 0.2 })
+        .expect(201);
+    const firstSeat = await createSeat(firstTable.body.id, 'A', 0.15);
+    const secondSeat = await createSeat(firstTable.body.id, 'B', 0.2);
+    const collisionSeat = await createSeat(firstTable.body.id, 'Lugar 1', 0.25);
+    const otherTableSeat = await createSeat(secondTable.body.id, 'Otra mesa', 0.2);
+
+    await request(app.getHttpServer())
+      .patch(`${base}/seats/renumber`)
+      .set('Cookie', cookie)
+      .send({ seatIds: [firstSeat.body.id, firstSeat.body.id] })
+      .expect(400);
+    await request(app.getHttpServer())
+      .patch(`${base}/seats/renumber`)
+      .set('Cookie', cookie)
+      .send({ seatIds: [randomUUID()] })
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('FLOORPLAN_SEAT_NOT_FOUND'));
+
+    const foreign = await createFixture();
+    await setEventStatusForFixture(foreign.event.id, EventStatus.DRAFT);
+    const foreignBase = `/api/v1/admin/clients/${foreign.client.id}/events/${foreign.event.id}/floorplan`;
+    await request(app.getHttpServer())
+      .post(foreignBase)
+      .set('Cookie', cookie)
+      .send({ imageAssetId: (await createAsset(foreign, 'foreign-renumber')).id })
+      .expect(201);
+    const foreignTable = await createTableFor(foreignBase, 'Mesa ajena');
+    await request(app.getHttpServer())
+      .patch(`${foreignBase}/seating-mode`)
+      .set('Cookie', cookie)
+      .send({ seatingMode: 'SEAT' })
+      .expect(200);
+    const foreignSeat = await request(app.getHttpServer())
+      .post(`${foreignBase}/shapes/${foreignTable.body.id}/seats`)
+      .set('Cookie', cookie)
+      .send({ label: 'Ajeno', x: 0.2, y: 0.2 })
+      .expect(201);
+    await request(app.getHttpServer())
+      .patch(`${base}/seats/renumber`)
+      .set('Cookie', cookie)
+      .send({ seatIds: [firstSeat.body.id, foreignSeat.body.id] })
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('FLOORPLAN_SEAT_NOT_FOUND'));
+    await request(app.getHttpServer())
+      .patch(`${base}/seats/renumber`)
+      .set('Cookie', cookie)
+      .send({ seatIds: [firstSeat.body.id, otherTableSeat.body.id] })
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('FLOORPLAN_SEAT_PARENT_INVALID'));
+
+    await request(app.getHttpServer()).post(`${base}/lock`).set('Cookie', cookie).send({}).expect(200);
+    await request(app.getHttpServer())
+      .patch(`${base}/seats/renumber`)
+      .set('Cookie', cookie)
+      .send({ seatIds: [firstSeat.body.id, secondSeat.body.id] })
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('FLOORPLAN_LAYOUT_LOCKED'));
+    await request(app.getHttpServer()).post(`${base}/unlock`).set('Cookie', cookie).send({}).expect(200);
+
+    await request(app.getHttpServer())
+      .patch(`${base}/seats/renumber`)
+      .set('Cookie', cookie)
+      .send({ seatIds: [firstSeat.body.id, secondSeat.body.id] })
+      .expect(500);
+    expect(
+      await prisma.floorplanSeat.findMany({
+        where: { id: { in: [firstSeat.body.id, secondSeat.body.id] } },
+        select: { label: true }
+      })
+    ).toEqual(expect.arrayContaining([{ label: 'A' }, { label: 'B' }]));
+    expect(
+      await prisma.floorplanSeat.count({ where: { label: { startsWith: '__renumber-' }, deletedAt: null } })
+    ).toBe(0);
+
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe('SET LOCAL session_replication_role = replica');
+      await tx.floorplanSeat.update({ where: { id: secondSeat.body.id }, data: { floorplanShapeId: zone.body.id } });
+    });
+    await request(app.getHttpServer())
+      .patch(`${base}/seats/renumber`)
+      .set('Cookie', cookie)
+      .send({ seatIds: [secondSeat.body.id] })
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('FLOORPLAN_SEAT_PARENT_INVALID'));
+    expect(await prisma.floorplanSeat.findUniqueOrThrow({ where: { id: collisionSeat.body.id } })).toMatchObject({
+      label: 'Lugar 1'
+    });
   });
 
   it('routes atomic seat batches through HTTP and preserves detailed seating guards', async () => {
@@ -1958,8 +2152,8 @@ describe('Floorplan and seating', () => {
       expect(paths).toHaveProperty(pathName);
     }
     expect(paths?.['/api/v1/events/{eventId}/floorplan']?.get).toBeDefined();
-    expect(paths?.['/api/v1/events/{eventId}/floorplan']?.post).toBeUndefined();
-    expect(paths?.['/api/v1/events/{eventId}/floorplan']?.patch).toBeUndefined();
+    expect(paths?.['/api/v1/events/{eventId}/floorplan']?.post).toBeDefined();
+    expect(paths?.['/api/v1/events/{eventId}/floorplan']?.patch).toBeDefined();
     expect(paths).not.toHaveProperty('/api/v1/events/{eventId}/floorplan/lock');
     expect(paths).not.toHaveProperty('/api/v1/events/{eventId}/floorplan/unlock');
     expect(paths).not.toHaveProperty('/api/v1/events/{eventId}/floorplan/shapes');

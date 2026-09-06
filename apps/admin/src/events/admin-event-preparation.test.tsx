@@ -958,6 +958,86 @@ describe('Admin Event preparation surfaces', () => {
     expect((floorplanHarness.props?.floorplan as AdminFloorplan).shapes).toContainEqual(table);
   });
 
+  it('keeps the primary seat within the additive selection', async () => {
+    const table = shape({ id: 'table-selection', capacity: 2, availableCapacity: 2 });
+    const [firstSeat, secondSeat] = serpentineSeats(table.id);
+    const api = preparedFloorplanApi(floorplan({ seatingMode: 'SEAT', shapes: [table], seats: [firstSeat!, secondSeat!] }));
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await screen.findByTestId('admin-floorplan-surface');
+
+    act(() => {
+      (floorplanHarness.props?.onSeatSelect as (seatId: string, options: { additive: boolean }) => void)(firstSeat!.id, {
+        additive: false
+      });
+      (floorplanHarness.props?.onSeatSelect as (seatId: string, options: { additive: boolean }) => void)(secondSeat!.id, {
+        additive: true
+      });
+    });
+    await waitFor(() => expect(floorplanHarness.props?.selectedSeatId).toBe(secondSeat!.id));
+    expect(floorplanHarness.props?.selectedSeatIds).toEqual([firstSeat!.id, secondSeat!.id]);
+
+    act(() => {
+      (floorplanHarness.props?.onSeatSelect as (seatId: string, options: { additive: boolean }) => void)(secondSeat!.id, {
+        additive: true
+      });
+    });
+    await waitFor(() => expect(floorplanHarness.props?.selectedSeatId).toBe(firstSeat!.id));
+    expect(floorplanHarness.props?.selectedSeatIds).toEqual([firstSeat!.id]);
+  });
+
+  it('reconciles primary and additive seat selection when a reload no longer contains the seat', async () => {
+    const table = shape({ id: 'table-reload', capacity: 1, availableCapacity: 1 });
+    const seat: AdminFloorplanSeat = {
+      id: 'seat-reload',
+      floorplanShapeId: table.id,
+      label: 'Lugar 1',
+      x: 0.2,
+      y: 0.2,
+      isBlocked: false,
+      occupied: false
+    };
+    const initial = floorplan({ seatingMode: 'SEAT', shapes: [table], seats: [seat] });
+    const reloaded = floorplan({ seatingMode: 'SEAT', shapes: [table], seats: [] });
+    const api = preparedFloorplanApi(initial);
+    vi.mocked(api.adminEventPreparation.getFloorplan).mockReset().mockResolvedValueOnce(initial).mockResolvedValueOnce(reloaded);
+    vi.mocked(api.adminEventPreparation.updateFloorplanSeat).mockResolvedValue({ ...seat, isBlocked: true });
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await userEvent.click(await screen.findByRole('button', { name: seat.label }));
+    await userEvent.click(screen.getByRole('button', { name: 'Bloquear' }));
+    await waitFor(() => expect(floorplanHarness.props?.floorplan).toEqual(reloaded));
+    expect(floorplanHarness.props?.selectedSeatId).toBeUndefined();
+    expect(floorplanHarness.props?.selectedSeatIds).toEqual([]);
+  });
+
+  it('requires explicit confirmation before changing detailed seating to table seating', async () => {
+    const api = preparedFloorplanApi(floorplan({ seatingMode: 'SEAT' }));
+    vi.mocked(api.adminEventPreparation.setFloorplanSeatingMode).mockResolvedValue(floorplan({ seatingMode: 'TABLE' }));
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    const chooseTableMode = async () => {
+      await userEvent.click(await screen.findByLabelText('Asignación'));
+      await userEvent.click(await screen.findByRole('option', { name: 'Por mesa' }));
+    };
+
+    await chooseTableMode();
+    expect(await screen.findByRole('heading', { name: '¿Cambiar a acomodo por mesa?' })).toBeInTheDocument();
+    expect(
+      screen.getByText('Las personas conservarán su mesa, pero dejarán de tener un lugar exacto asignado.')
+    ).toBeInTheDocument();
+    expect(api.adminEventPreparation.setFloorplanSeatingMode).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(api.adminEventPreparation.setFloorplanSeatingMode).not.toHaveBeenCalled();
+
+    await chooseTableMode();
+    await userEvent.click(screen.getByRole('button', { name: 'Cambiar a mesas' }));
+    await waitFor(() =>
+      expect(api.adminEventPreparation.setFloorplanSeatingMode).toHaveBeenCalledWith(
+        adminEvent.clientId,
+        adminEvent.id,
+        'TABLE'
+      )
+    );
+  });
+
   it('uses only Admin provider controls for detailed-seat mutations', async () => {
     const table = shape({ id: 'table-seats', capacity: 1, availableCapacity: 1 });
     const seat: AdminFloorplanSeat = {
@@ -1015,6 +1095,11 @@ describe('Admin Event preparation surfaces', () => {
         { label: 'Lugar 1 2', x: 0.22, y: 0.22 }
       )
     );
+    act(() => {
+      (floorplanHarness.props?.onSeatSelect as (seatId: string, options: { additive: boolean }) => void)(seat.id, {
+        additive: false
+      });
+    });
     await userEvent.click(screen.getByRole('button', { name: 'Eliminar Lugar 1' }));
     await waitFor(() =>
       expect(api.adminEventPreparation.removeFloorplanSeat).toHaveBeenCalledWith(
@@ -1032,6 +1117,9 @@ describe('Admin Event preparation surfaces', () => {
     const api = preparedFloorplanApi(floorplan({ seatingMode: 'SEAT', shapes: [table], seats }));
     vi.mocked(api.adminEventPreparation.batchFloorplanSeats).mockImplementation(async (_client, _event, body) =>
       body.seats.map((update) => ({ ...seats.find((seat) => seat.id === update.seatId)!, ...update }))
+    );
+    vi.mocked(api.adminEventPreparation.renumberFloorplanSeats).mockImplementation(async (_client, _event, body) =>
+      body.seatIds.map((seatId, index) => ({ ...seats.find((seat) => seat.id === seatId)!, label: `Lugar ${index + 1}` }))
     );
 
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
@@ -1052,25 +1140,15 @@ describe('Admin Event preparation surfaces', () => {
       });
     });
     await waitFor(() => expect(api.adminEventPreparation.batchFloorplanSeats).toHaveBeenCalledTimes(1));
-    expect(vi.mocked(api.adminEventPreparation.batchFloorplanSeats).mock.calls[0]![2]).toEqual({
-      seats: [
-        { seatId: 'seat-s1', x: 0.3, y: 0.3 },
-        { seatId: 'seat-s2', x: 0.4, y: 0.3 }
-      ]
-    });
+    expect(vi.mocked(api.adminEventPreparation.batchFloorplanSeats).mock.calls[0]![2].seats).toEqual([
+      expect.objectContaining({ seatId: 'seat-s1', x: expect.closeTo(0.3), y: expect.closeTo(0.3) }),
+      expect.objectContaining({ seatId: 'seat-s2', x: expect.closeTo(0.4), y: expect.closeTo(0.3) })
+    ]);
 
     await userEvent.click(screen.getByRole('button', { name: 'Renumerar lugares' }));
-    await waitFor(() => expect(api.adminEventPreparation.batchFloorplanSeats).toHaveBeenCalledTimes(3));
-    const [temporary, final] = vi.mocked(api.adminEventPreparation.batchFloorplanSeats).mock.calls.slice(1);
-    expect(temporary![2].seats.map((seat) => seat.label)).toEqual(
-      expect.arrayContaining([expect.stringMatching(/^__tmp-/u)])
-    );
-    expect(final![2]).toEqual({
-      seats: [
-        { seatId: 'seat-s1', label: 'Lugar 1' },
-        { seatId: 'seat-s2', label: 'Lugar 2' },
-        { seatId: 'seat-s3', label: 'Lugar 3' }
-      ]
+    await waitFor(() => expect(api.adminEventPreparation.renumberFloorplanSeats).toHaveBeenCalledTimes(1));
+    expect(api.adminEventPreparation.renumberFloorplanSeats).toHaveBeenCalledWith(adminEvent.clientId, adminEvent.id, {
+      seatIds: ['seat-s1', 'seat-s2', 'seat-s3']
     });
   });
 });

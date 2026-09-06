@@ -153,6 +153,7 @@ function SeatButton({
       component="button"
       type="button"
       aria-label={`Lugar ${seat.label}${seat.isBlocked ? ', bloqueado' : seat.occupied ? ', ocupado' : ', disponible'}`}
+      aria-pressed={selected}
       onClick={(event) => {
         event.stopPropagation();
         if (suppressClick.current) {

@@ -271,6 +271,7 @@ export function mockAdminApi(user: AuthUser = platformAdmin): AdminTestApiClient
       createFloorplanSeat: vi.fn(),
       updateFloorplanSeat: vi.fn(),
       batchFloorplanSeats: vi.fn(),
+      renumberFloorplanSeats: vi.fn(),
       removeFloorplanSeat: vi.fn(),
       createFloorplanShape: vi.fn(),
       updateFloorplanShape: vi.fn(),

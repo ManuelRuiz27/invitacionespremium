@@ -184,6 +184,7 @@ export function FloorplanKonvaRenderer(
           ? (props.floorplan.seats ?? []).map((seat) => (
               <Group
                 key={seat.id}
+                name="floorplan-seat"
                 x={seat.x * props.width}
                 y={seat.y * props.height}
                 listening={!props.captureCanvasClicks}
@@ -191,7 +192,7 @@ export function FloorplanKonvaRenderer(
                 onClick={(event) => {
                   event.cancelBubble = true;
                   props.onSeatSelect?.(seat.id, {
-                    additive: event.evt.shiftKey || event.evt.ctrlKey || event.evt.metaKey
+                    additive: Boolean(event.evt.shiftKey || event.evt.ctrlKey || event.evt.metaKey)
                   });
                 }}
                 onTap={(event) => {

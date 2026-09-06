@@ -62,6 +62,7 @@ vi.mock('react-konva', () => {
 });
 
 import { FloorplanKonvaRenderer } from './FloorplanKonvaRenderer';
+import { floorplanColors } from './floorplan-sticker-style';
 
 const table: FloorplanShape = {
   id: 'table-1',
@@ -91,7 +92,10 @@ const floorplan: Floorplan = {
 const detailedFloorplan: Floorplan = {
   ...floorplan,
   seatingMode: 'SEAT',
-  seats: [{ id: 'seat-1', floorplanShapeId: table.id, label: '1', x: 0.2, y: 0.2, isBlocked: false, occupied: false }]
+  seats: [
+    { id: 'seat-1', floorplanShapeId: table.id, label: '1', x: 0.2, y: 0.2, isBlocked: false, occupied: false },
+    { id: 'seat-2', floorplanShapeId: table.id, label: '2', x: 0.3, y: 0.2, isBlocked: false, occupied: false }
+  ]
 };
 const image = {} as HTMLImageElement;
 
@@ -161,6 +165,73 @@ describe('FloorplanKonvaRenderer de producción', () => {
     );
     expect(onCanvasPlace).toHaveBeenCalledWith({ x: 0.2, y: 0.2 });
     expect(latest('Group', 'floorplan-shape').props.listening).toBe(false);
+  });
+
+  it('selects seats with click modifiers, uses simple tap, projects selectedSeatIds and commits seat drag', () => {
+    const onSeatSelect = vi.fn();
+    const onSeatMove = vi.fn();
+    render(
+      <FloorplanKonvaRenderer
+        {...props({ floorplan: detailedFloorplan, selectedSeatIds: ['seat-2'], onSeatSelect, onSeatMove })}
+      />
+    );
+    const seats = konva.nodes.filter((node) => node.type === 'Group' && node.props.name === 'floorplan-seat');
+    const firstSeat = seats.find((node) => node.props.x === 200)!;
+    const secondSeat = seats.find((node) => node.props.x === 300)!;
+    const selectedCircle = konva.nodes.find(
+      (node) =>
+        node.type === 'Circle' && node.props.stroke === floorplanColors.warning && node.props.strokeWidth === 3
+    );
+    expect(selectedCircle).toBeDefined();
+
+    act(() => (firstSeat.props.onClick as (event: unknown) => void)({ cancelBubble: false, evt: {} }));
+    act(() =>
+      (firstSeat.props.onClick as (event: unknown) => void)({ cancelBubble: false, evt: { shiftKey: true } })
+    );
+    act(() =>
+      (firstSeat.props.onClick as (event: unknown) => void)({ cancelBubble: false, evt: { ctrlKey: true } })
+    );
+    act(() =>
+      (firstSeat.props.onClick as (event: unknown) => void)({ cancelBubble: false, evt: { metaKey: true } })
+    );
+    act(() => (firstSeat.props.onTap as (event: unknown) => void)({ cancelBubble: false, evt: {} }));
+    act(() =>
+      (firstSeat.props.onDragEnd as (event: unknown) => void)({
+        cancelBubble: false,
+        target: { x: () => 400, y: () => 300 }
+      })
+    );
+
+    expect(secondSeat.props.x).toBe(300);
+    expect(onSeatSelect).toHaveBeenNthCalledWith(1, 'seat-1', { additive: false });
+    expect(onSeatSelect).toHaveBeenNthCalledWith(2, 'seat-1', { additive: true });
+    expect(onSeatSelect).toHaveBeenNthCalledWith(3, 'seat-1', { additive: true });
+    expect(onSeatSelect).toHaveBeenNthCalledWith(4, 'seat-1', { additive: true });
+    expect(onSeatSelect).toHaveBeenNthCalledWith(5, 'seat-1', { additive: false });
+    expect(onSeatMove).toHaveBeenCalledWith('seat-1', { x: 0.4, y: 0.6 });
+  });
+
+  it('keeps the canvas as the only target while placing an exact seat', () => {
+    const onCanvasPlace = vi.fn();
+    const onSeatSelect = vi.fn();
+    render(
+      <FloorplanKonvaRenderer
+        {...props({ floorplan: detailedFloorplan, captureCanvasClicks: true, onCanvasPlace, onSeatSelect })}
+      />
+    );
+    const seat = latest('Group', 'floorplan-seat').props;
+    expect(seat.listening).toBe(false);
+    const stage = latest('Stage').props;
+    act(() =>
+      (stage.onTap as (event: unknown) => void)({
+        target: {
+          name: () => 'floorplan-seat',
+          getStage: () => ({ getPointerPosition: () => ({ x: 200, y: 100 }) })
+        }
+      })
+    );
+    expect(onCanvasPlace).toHaveBeenCalledWith({ x: 0.2, y: 0.2 });
+    expect(onSeatSelect).not.toHaveBeenCalled();
   });
 
   it('proyecta dragEnd normalizado, aplica snap y no persiste durante frames de drag', () => {

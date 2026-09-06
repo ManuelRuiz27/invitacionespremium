@@ -36,6 +36,11 @@ import {
   Box,
   Button,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   Drawer,
   MenuItem,
   Paper,
@@ -101,6 +106,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   const [selectedId, setSelectedId] = useState<string>();
   const [selectedSeatId, setSelectedSeatId] = useState<string>();
   const [selectedSeatIds, setSelectedSeatIds] = useState<string[]>([]);
+  const [tableModeConfirmationOpen, setTableModeConfirmationOpen] = useState(false);
   const [draft, setDraft] = useState<AdminFloorplanShapeInput>(emptyDraft);
   const [selectedPresetId, setSelectedPresetId] = useState<FloorplanStickerPresetId>();
   const [mutation, setMutation] = useState<Mutation>();
@@ -168,6 +174,17 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     setDraft(emptyDraft());
     setInspectorOpen(false);
   };
+
+  useEffect(() => {
+    const availableSeatIds = new Set(floorplan?.seats.map((seat) => seat.id) ?? []);
+    setSelectedSeatIds((current) => {
+      const reconciled = current.filter(
+        (seatId, index, all) => availableSeatIds.has(seatId) && all.indexOf(seatId) === index
+      );
+      setSelectedSeatId((primary) => (primary && reconciled.includes(primary) ? primary : reconciled[0]));
+      return reconciled.length === current.length ? current : reconciled;
+    });
+  }, [floorplan?.seats]);
 
   useEffect(() => {
     if (!dirty) return;
@@ -377,6 +394,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     if (!saved) return;
     setFloorplan((current) => (current ? { ...current, seats: [...current.seats, saved] } : current));
     setSelectedSeatId(saved.id);
+    setSelectedSeatIds([saved.id]);
     await refreshAfterConfirmedMutation();
   };
   const removeSeat = async () => {
@@ -404,6 +422,13 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     setSelectedSeatId(undefined);
     setSelectedSeatIds([]);
     await refreshAfterConfirmedMutation();
+  };
+  const requestSeatingModeChange = (seatingMode: 'TABLE' | 'SEAT') => {
+    if (seatingMode === 'TABLE' && floorplan?.seatingMode === 'SEAT') {
+      setTableModeConfirmationOpen(true);
+      return;
+    }
+    void setSeatingMode(seatingMode);
   };
   const upload = async (file: File) => {
     if (!['image/jpeg', 'image/png'].includes(file.type)) {
@@ -709,7 +734,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
             label="Asignación"
             value={floorplan.seatingMode}
             disabled={readOnly || editing}
-            onChange={(event) => void setSeatingMode(event.target.value as 'TABLE' | 'SEAT')}
+            onChange={(event) => requestSeatingModeChange(event.target.value as 'TABLE' | 'SEAT')}
             sx={{ minWidth: 148 }}
           >
             <MenuItem value="TABLE">Por mesa</MenuItem>
@@ -917,6 +942,26 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
       >
         {inspector}
       </Drawer>
+      <Dialog open={tableModeConfirmationOpen} onClose={() => setTableModeConfirmationOpen(false)}>
+        <DialogTitle>¿Cambiar a acomodo por mesa?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Las personas conservarán su mesa, pero dejarán de tener un lugar exacto asignado.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setTableModeConfirmationOpen(false)}>Cancelar</Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              setTableModeConfirmationOpen(false);
+              void setSeatingMode('TABLE');
+            }}
+          >
+            Cambiar a mesas
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }
