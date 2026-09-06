@@ -54,8 +54,8 @@ No implementar roles, permisos o superficies nuevas únicamente porque un escena
 | Modelo | Escenario | Estado | Documento |
 |---|---|---|---|
 | M01 | Venta directa a Planner independiente, servicio gestionado | **APROBADO COMO BASE** | `06A_MODELO_01_PLANNER_INDEPENDIENTE.md` |
-| M02 | Salón/jardín como Organización con operación de múltiples Eventos | **PENDIENTE DE DEFINICIÓN** | Pendiente |
-| M03 | Licencia/autoservicio para cliente que opera la plataforma | **HIPÓTESIS** | Pendiente |
+| M02 | Salón/jardín como Organización, múltiples Eventos y operación gestionada | **APROBADO COMO EXTENSIÓN DE M01** | `06B_MODELO_02_SALON_JARDIN_ORGANIZACION.md` |
+| M03 | Licencia/autoservicio para cliente que opera la plataforma | **HIPÓTESIS — SIGUIENTE A DEFINIR** | Pendiente |
 | M04 | Instancia/servicio dedicado para clientes de gran escala | **HIPÓTESIS** | Pendiente |
 | M05 | Partner/reseller u otros esquemas de reventa | **HIPÓTESIS COMERCIAL** | Pendiente |
 
@@ -76,6 +76,22 @@ Staff temporal
 ```
 
 La plataforma se lanza como servicio gestionado: InvitacionesPremium conserva la preparación técnica y el Planner conserva las decisiones sobre invitados y operación.
+
+M02 extiende esta relación mediante una Organización:
+
+```text
+InvitacionesPremium
+        ↓ prepara y supervisa
+Salón / Jardín (Organización)
+        ↓ administración global
+Admin de Organización
+        ↓ asigna/supervisa
+Planner(s) de Organización
+        ↓ operan Eventos asignados
+Staff temporal por Evento
+```
+
+M02 reutiliza roles y ownership existentes y no autoriza un rol nuevo para dueño de salón.
 
 ## 5. Separación de conceptos
 
@@ -104,9 +120,10 @@ Ejemplos vigentes:
 
 Responde: **¿cómo se reparte el trabajo entre InvitacionesPremium y el cliente en este escenario?**
 
-Ejemplo:
+Ejemplos:
 
 - M01: InvitacionesPremium prepara; Planner administra invitados; Staff opera accesos.
+- M02: InvitacionesPremium prepara; Admin de Organización supervisa el salón; Planner asignado opera cada Evento; Staff opera accesos.
 
 ### Condición comercial
 
