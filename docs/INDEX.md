@@ -44,7 +44,7 @@ Leer primero `docs/04-tecnico/REPOSITORY_SOURCE_OF_TRUTH.md` cuando una tarea me
 
 - `CLIENT_UI_VISUAL_SYSTEM.md` — **fuente de verdad visual para Client/Scanner**: task-first, content-first, progressive disclosure y fin del card-first UI; Croquis queda fuera
 - `LEGACY_UI_VISUAL_PORT_GUIDE.md` — dirección visual selectiva desde legacy sin migrar stack
-- `FLOORPLAN_UX_TARGET.md` — objetivo visual/interacción Croquis V2; el modo de lugar exacto se rige por el contrato especializado vigente
+- `FLOORPLAN_UX_TARGET.md` — objetivo visual/interacción Croquis V2; el modo de lugar exacto y la fuente SVG se subordinan a sus contratos especializados vigentes
 - `assets/floorplan-sticker-flow-target.svg` — render de referencia subordinado a contratos vigentes
 
 ## 04-tecnico
@@ -82,8 +82,9 @@ Leer primero `docs/04-tecnico/REPOSITORY_SOURCE_OF_TRUTH.md` cuando una tarea me
 - `ADMIN_APP_CONTRACT.md`
 - `EVENT_WIZARD_CONTRACT.md`
 - `ACTIVE_EVENT_WORKSPACE_CONTRACT.md`
-- `FLOORPLAN_DETAILED_SEATING_CONTRACT.md` — decisión posterior y fuente de verdad para acomodo opcional por lugar exacto; sustituye cualquier `Not now` previo de asientos individuales
-- `FLOORPLAN_STICKER_SEATING_CONTRACT.md` — contrato base de Croquis V2; subordinado a `FLOORPLAN_DETAILED_SEATING_CONTRACT.md` cuando el alcance sea asignación persistente por lugar
+- `FLOORPLAN_DETAILED_SEATING_CONTRACT.md` — fuente de verdad para acomodo opcional por lugar exacto; sustituye cualquier `Not now` previo de asientos individuales
+- `FLOORPLAN_SVG_MAPPING_CONTRACT.md` — **fuente de verdad para SVG de Croquis**: sanitización, canonicalización, selección manual de elementos y mapping a `FloorplanShape` sin convertir SVG en fuente de verdad
+- `FLOORPLAN_STICKER_SEATING_CONTRACT.md` — contrato base de Croquis V2; Sticker Model queda como fallback/complemento y se subordina a Detailed Seating y SVG Mapping en sus respectivos alcances
 - `FILE_ASSET_POLICY.md`
 - `REALTIME_PAYLOADS.md`
 
@@ -99,7 +100,8 @@ Leer primero `docs/04-tecnico/REPOSITORY_SOURCE_OF_TRUTH.md` cuando una tarea me
 - `19_OPERATOR_LED_FLOORPLAN_ROADMAP.md` — roadmap técnico original hacia piloto; objetivo completado
 - `20_COMMERCIAL_PILOT_ROADMAP.md` — segunda etapa: Pricing V2, landing/funnel, autorización comercial, Operator intake, Staff UI, unit economics y UAT comercial
 - `21_CLIENT_UI_REFACTOR_ROADMAP.md` — roadmap del refactor visual Client/Scanner task-first, excluyendo Croquis
-- `22_FLOORPLAN_FUNCTIONAL_COMPLETION_ROADMAP.md` — **roadmap activo de Croquis**: cerrar funcionalidad end-to-end antes del pulido UI; lugar exacto, productividad Builder, plantillas Venue, Seating Planner, Scanner e integridad/QA
+- `22_FLOORPLAN_FUNCTIONAL_COMPLETION_ROADMAP.md` — **histórico/superseded**; conserva baseline y decisiones anteriores de Croquis pero ya no define el orden activo
+- `23_FLOORPLAN_SVG_ASSISTED_ROADMAP.md` — **roadmap activo de Croquis**: certificar baseline, habilitar SVG seguro, mapping manual, estado visual, TABLE/SEAT, Planner/Scanner y QA; difiere align/grid/templates avanzados hasta evidencia de piloto
 - `UI01_CLIENT_FOUNDATION_EVENTS.md` — shell, visual foundation y Eventos
 - `UI02_WIZARD_GUESTS_CONFIRMATION.md` — Wizard, Invitados y Confirmación sin tocar Croquis
 - `UI03_INVITATION_EXPERIENCE.md` — Flyer/Flipbook con pieza gráfica dominante y acciones contextuales
@@ -191,19 +193,23 @@ Orden de ejecución:
 1. `REPOSITORY_SOURCE_OF_TRUTH.md`.
 2. producto (`02_PRD.md`, `03_ROLES_PERMISOS_ACCESO.md`, `04_OPERATOR_LED_MVP.md`, `06_MODELOS_OPERATIVOS_DE_VENTA.md`, modelo `06A`–`06E` aplicable y `06F`, además de decisiones comerciales vigentes cuando correspondan).
 3. `FLOORPLAN_DETAILED_SEATING_CONTRACT.md` cuando la tarea afecte lugares/asientos persistentes, capacidad derivada por lugar, asignación exacta o scanner por lugar.
-4. resto de ADR/contratos especializados, incluido `FLOORPLAN_STICKER_SEATING_CONTRACT.md`.
-5. `FLOORPLAN_UX_TARGET.md` y `LEGACY_UI_VISUAL_PORT_GUIDE.md`.
-6. `14_CODEX_RULES.md` + `14A_OPERATOR_LED_CODEX_RULES.md`.
-7. `19_OPERATOR_LED_FLOORPLAN_ROADMAP.md` como historial técnico completado.
-8. `FP06_DETAILED_SEATING.md` como ticket especializado del modo detallado, sin autoridad para cambiar el contrato.
-9. `22_FLOORPLAN_FUNCTIONAL_COMPLETION_ROADMAP.md` como **orden activo de ejecución para cerrar la funcionalidad de Croquis antes del pulido UI**; coordina gaps existentes sin sustituir contratos superiores.
-10. `20_COMMERCIAL_PILOT_ROADMAP.md` para cambios posteriores no cubiertos por el roadmap funcional de Croquis.
+4. `FLOORPLAN_SVG_MAPPING_CONTRACT.md` cuando la tarea afecte upload SVG, sanitización, canonicalización, elementos seleccionables, mapping, reemplazo de fuente o proyección de estado sobre SVG.
+5. resto de ADR/contratos especializados, incluido `FLOORPLAN_STICKER_SEATING_CONTRACT.md`.
+6. `FLOORPLAN_UX_TARGET.md` y `LEGACY_UI_VISUAL_PORT_GUIDE.md`.
+7. `14_CODEX_RULES.md` + `14A_OPERATOR_LED_CODEX_RULES.md`.
+8. `19_OPERATOR_LED_FLOORPLAN_ROADMAP.md` como historial técnico completado.
+9. `FP06_DETAILED_SEATING.md` como ticket especializado del modo detallado, sin autoridad para cambiar el contrato.
+10. `22_FLOORPLAN_FUNCTIONAL_COMPLETION_ROADMAP.md` como **roadmap histórico superseded**; no usarlo como orden activo.
+11. `23_FLOORPLAN_SVG_ASSISTED_ROADMAP.md` como **orden activo de ejecución** para Croquis.
+12. `20_COMMERCIAL_PILOT_ROADMAP.md` para cambios posteriores no cubiertos por el roadmap funcional de Croquis.
 
 Una referencia visual nunca puede cambiar dominio, permisos, estados, contratos API o reglas financieras.
 
 Para el modo detallado, la autorización de `FloorplanSeat` y `Assistant.floorplanSeatId` proviene de `FLOORPLAN_DETAILED_SEATING_CONTRACT.md`; Codex no debe detenerse por prohibiciones anteriores de crear asignación persistente por asiento que ese contrato sustituye expresamente.
 
-Mientras `22_FLOORPLAN_FUNCTIONAL_COMPLETION_ROADMAP.md` esté activo, no iniciar un refactor visual general de Croquis. Sólo se permiten cambios de presentación mínimos necesarios para implementar, probar o certificar una capability funcional del roadmap.
+Para SVG de Croquis, `FLOORPLAN_SVG_MAPPING_CONTRACT.md` sustituye las menciones anteriores que limiten la fuente a JPG/PNG o presenten Sticker Model como única vía de construcción. Esa sustitución es específica de Croquis y **no abre SVG genérico para otros uploads**.
+
+Mientras `23_FLOORPLAN_SVG_ASSISTED_ROADMAP.md` esté activo, no iniciar un refactor visual general de Croquis. Sólo se permiten cambios de presentación necesarios para implementar, probar o certificar la capability SVG y los gaps operacionales P0 que el roadmap conserve.
 
 ## Regla monorepo
 
