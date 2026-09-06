@@ -4,6 +4,8 @@ Estado: **FUENTE DE EJECUCIÓN — ACTIVO**
 Prioridad: **P0 de producto antes del siguiente refactor visual de Croquis**  
 Meta: **Tener un Croquis funcional como el objetivo operativo definido para InvitacionesPremium, tomando Planning Pod como referencia funcional de productividad, sin convertir el producto en CAD ni copiar su alcance completo.**
 
+Corte auditado: **2026-09-06 — `main` @ `5bc524d2e6c48e172fc8bd60296b58fd1788e72a`**
+
 Referencia funcional externa: `https://planningpod.com/event-floor-plan-software`
 
 ## 1. Decisión
@@ -125,7 +127,7 @@ No crear `FloorplanV3`, segundo renderer, segundo Seating Workspace ni persisten
 
 ### CF-00 — Baseline funcional verificable
 
-Estado inicial: **PARTIAL / REQUIERE CERTIFICACIÓN**  
+Estado actual: **PARTIAL / GATE DE CERTIFICACIÓN PENDIENTE**  
 Prioridad: **P0**
 
 Objetivo: congelar qué funciona hoy antes de agregar más comportamiento.
@@ -139,6 +141,22 @@ Entregables:
 - lista explícita de gaps contra este roadmap;
 - cero cambios visuales no necesarios.
 
+Evidencia incorporada al corte `5bc524d2`:
+
+- integración API/DB real para Croquis irregular con **Serpentina** y **Mesa U**;
+- persistencia y reload de `FloorplanSeat` independiente de la geometría de su `TABLE` lógica;
+- capacidad derivada validada en modo `SEAT`;
+- asignación real `Assistant -> FloorplanSeat`, conservando `floorplanShapeId` y `floorplanSeatId` coherentes;
+- readiness detallado validado sin exigir ocupación completa;
+- cobertura DOM y Konva de selección, modificadores, drag y prioridad del modo de colocación;
+- regresiones históricas de `TABLE`, seating, locks, scanner y persistencia siguen presentes en la suite de integración.
+
+Pendiente para cerrar CF-00:
+
+- ejecutar y registrar en el mismo corte las suites relevantes de Builder + Client + API + DB;
+- confirmar explícitamente que `TABLE` y `SEAT` pasan en el entorno local oficial sin divergencia;
+- registrar la evidencia de ejecución en este documento.
+
 Gate de salida:
 
 - se puede levantar localmente Builder + Client + API + DB;
@@ -150,7 +168,7 @@ Gate de salida:
 
 ### CF-01 — Cerrar Acomodo por lugar exacto
 
-Estado inicial: **IN PROGRESS**  
+Estado actual: **FUNCTIONAL GATE PASS / CERTIFICACIÓN FORMAL PENDIENTE**  
 Prioridad: **P0**  
 Dependencia: FP-06.
 
@@ -175,6 +193,28 @@ Debe quedar funcional:
 
 Debe eliminarse como flujo principal la suposición de que `Agregar lugar` significa “autodistribuir alrededor de una Mesa”. La autogeneración puede existir únicamente como acelerador opcional para Mesas simples.
 
+Evidencia funcional acumulada al corte `5bc524d2`:
+
+- colocación libre y drag individual persistente;
+- Seats pasivos durante `placing-seat` tanto en DOM como Konva;
+- renombrar, duplicar, bloquear/desbloquear y eliminar desde Provider;
+- multi-select con `Shift` / `Ctrl` / `Cmd`;
+- `selectedSeatId` y `selectedSeatIds` reconciliados después de interacción y reload;
+- movimiento agrupado mediante batch atómico y clamp de delta de grupo que preserva offsets relativos;
+- renumeración administrativa en una sola transacción `SERIALIZABLE`, con rollback sin fuga de labels temporales;
+- confirmación explícita antes de `SEAT -> TABLE`;
+- capacidad derivada coherente y de sólo lectura en modo `SEAT`;
+- fixture persistente Serpentina con lugares fuera de la caja geométrica de la Mesa;
+- fixture persistente Mesa U;
+- asignación real de una persona a un lugar exacto y readiness final verde en integración;
+- guards de backend para Seat inexistente, cross-event, parent inválido, mezcla de Mesas, lock y colisiones de renumeración.
+
+Decisión de gate:
+
+- **no agregar más funcionalidad a CF-01 salvo que la certificación descubra una regresión P0**;
+- la implementación funcional se considera completa para el alcance definido;
+- CF-01 pasa a `DONE` únicamente después de ejecutar el gate de certificación junto con CF-00 y registrar los resultados.
+
 Gate de salida:
 
 - reproducir con fidelidad operacional una Mesa en U, una curva/serpentina y una Mesa dibujada en el background sin modificar la geometría del mobiliario.
@@ -183,7 +223,7 @@ Gate de salida:
 
 ### CF-02 — Productividad del Builder
 
-Estado inicial: **PARTIAL**  
+Estado actual: **PARTIAL / SIGUIENTE BLOQUE DESPUÉS DEL GATE CF-00 + CF-01**  
 Prioridad: **P0/P1**
 
 Objetivo: que construir 30–100 Mesas no sea una secuencia de edición individual lenta.
