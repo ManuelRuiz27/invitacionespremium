@@ -17,6 +17,8 @@ Leer primero `docs/04-tecnico/REPOSITORY_SOURCE_OF_TRUTH.md` cuando una tarea me
 - `05_MODELO_COMERCIAL_PRICING_Y_OPERACION.md` — fuente de verdad comercial vigente para SKU vs canal, pricing, gate financiero, intake Provider y ajustes del flujo operator-led
 - `05A_PRICING_RESOLUTION_CLARIFICATION.md` — standard por capacidad, partner explícito y venue QR/EventOps por volumen sin inventar matriz de capacidad
 - `05B_LANDING_COMMERCIAL_SALES_CONTRACT.md` — fuente de verdad para posicionamiento público, pricing visible, funnel Planner/agencia y conversión Venue
+- `06_MODELOS_OPERATIVOS_DE_VENTA.md` — registro y reglas para modelar escenarios de venta antes de crear roles, superficies o código
+- `06A_MODELO_01_PLANNER_INDEPENDIENTE.md` — modelo base aprobado: InvitacionesPremium prepara, Planner administra invitados/mesas/Staff y Staff opera el acceso
 - `ACCESS_MATRIX.md` — matriz estándar de roles/endpoints
 - `ACCESS_MATRIX_OPERATOR_LED_ADDENDUM.md` — capability administrativa adicional para lanzamiento, sin nuevo rol
 
@@ -112,6 +114,24 @@ Leer primero `docs/04-tecnico/REPOSITORY_SOURCE_OF_TRUTH.md` cuando una tarea me
 - `PILOT02_MINIMUM_OPERATIONAL_INSTRUMENTATION.md`
 - `LOCAL_PILOT_OPERATION_RUNBOOK.md`
 - `PILOT03_COMMERCIAL_UAT_RUNBOOK.md` — contrato de ejecución final para UAT comercial: baseline CI verde, Partner/Flyer, Venue/QR, operación real y unit economics
+
+## Precedencia para modelos operativos de venta
+
+Cuando una tarea parta de un escenario como Planner independiente, salón/jardín, agencia, reseller, licencia o instancia dedicada y pretenda derivar roles, ownership, permisos o superficies:
+
+1. `06_MODELOS_OPERATIVOS_DE_VENTA.md` para identificar el modelo y su estado.
+2. Documento especializado `06A`, `06B`, etc., cuando exista.
+3. `03_ROLES_PERMISOS_ACCESO.md` y matrices de acceso para comprobar si los actores actuales ya resuelven el escenario.
+4. `04_OPERATOR_LED_MVP.md` para reparto Provider/Planner durante el lanzamiento.
+5. Contratos técnicos especializados del dominio afectado.
+6. Código únicamente después de clasificar los gaps como `EXISTS`, `ADAPT`, `MISSING`, `DOC-ONLY` u `OUT-OF-SCOPE` y abrir un ticket técnico explícito para cualquier cambio.
+
+Reglas:
+
+- un modelo comercial no crea automáticamente un nuevo rol;
+- pricing, margen, volumen o condición Partner no redefinen por sí mismos capacidades del Evento;
+- ownership/asignación debe preferirse a multiplicar roles cuando represente correctamente el escenario;
+- un modelo en estado `HIPÓTESIS` no autoriza implementación.
 
 ## Precedencia para el modelo comercial/operator-led vigente
 
