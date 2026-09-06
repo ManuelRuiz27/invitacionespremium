@@ -1675,6 +1675,157 @@ describe('Floorplan and seating', () => {
     });
   });
 
+  it('persists irregular Serpentina and Mesa U seats independently from their logical table geometry', async () => {
+    const fixture = await createFixture();
+    const admin = await prisma.user.create({
+      data: {
+        email: `${randomUUID()}@example.test`,
+        passwordHash: await hashPassword('correct horse battery staple'),
+        role: UserRole.PLATFORM_ADMIN
+      }
+    });
+    const cookie = await login(admin.email);
+    const base = `/api/v1/admin/clients/${fixture.client.id}/events/${fixture.event.id}/floorplan`;
+    const origin = 'http://localhost:5173';
+    await request(app.getHttpServer())
+      .post(base)
+      .set('Cookie', cookie)
+      .set('Origin', origin)
+      .send({ imageAssetId: (await createAsset(fixture, 'background-drawn-serpentina')).id })
+      .expect(201);
+    const createLogicalTable = async (name: string, x: number, y: number) =>
+      request(app.getHttpServer())
+        .post(`${base}/shapes`)
+        .set('Cookie', cookie)
+        .set('Origin', origin)
+        .send({
+          kind: FloorplanShapeKind.TABLE,
+          geometry: FloorplanGeometry.RECTANGLE,
+          name,
+          capacity: 1,
+          x,
+          y,
+          width: 0.1,
+          height: 0.1,
+          rotation: 0,
+          polygonPoints: null
+        })
+        .expect(201);
+    const serpentina = await createLogicalTable('Serpentina', 0.35, 0.35);
+    await request(app.getHttpServer())
+      .patch(`${base}/seating-mode`)
+      .set('Cookie', cookie)
+      .set('Origin', origin)
+      .send({ seatingMode: 'SEAT' })
+      .expect(200);
+
+    const serpentineCoordinates = [
+      [0.15, 0.2],
+      [0.25, 0.17],
+      [0.37, 0.18],
+      [0.48, 0.24],
+      [0.55, 0.34],
+      [0.49, 0.44],
+      [0.38, 0.5],
+      [0.27, 0.48],
+      [0.2, 0.58],
+      [0.3, 0.68],
+      [0.43, 0.71],
+      [0.57, 0.66]
+    ] as const;
+    const seats = [] as Array<{ id: string; x: number; y: number; label: string; isBlocked: boolean }>;
+    for (const [index, [x, y]] of serpentineCoordinates.entries()) {
+      const created = await request(app.getHttpServer())
+        .post(`${base}/shapes/${serpentina.body.id}/seats`)
+        .set('Cookie', cookie)
+        .set('Origin', origin)
+        .send({ label: `S${String(index + 1).padStart(2, '0')}`, x, y, isBlocked: index === 0 })
+        .expect(201);
+      seats.push(created.body);
+    }
+    expect(seats.filter(({ x, y }) => x < 0.35 || x > 0.45 || y < 0.35 || y > 0.45)).toHaveLength(12);
+    await request(app.getHttpServer())
+      .patch(`${base}/seats/${seats[1]!.id}`)
+      .set('Cookie', cookie)
+      .set('Origin', origin)
+      .send({ x: 0.28, y: 0.19 })
+      .expect(200);
+    await request(app.getHttpServer())
+      .patch(`${base}/seats/${seats[6]!.id}`)
+      .set('Cookie', cookie)
+      .set('Origin', origin)
+      .send({ x: 0.4, y: 0.53 })
+      .expect(200);
+    const duplicate = await request(app.getHttpServer())
+      .post(`${base}/shapes/${serpentina.body.id}/seats`)
+      .set('Cookie', cookie)
+      .set('Origin', origin)
+      .send({ label: 'S13', x: 0.62, y: 0.61 })
+      .expect(201);
+    await request(app.getHttpServer())
+      .patch(`${base}/seats/batch`)
+      .set('Cookie', cookie)
+      .set('Origin', origin)
+      .send({
+        seats: [
+          { seatId: seats[2]!.id, x: 0.42, y: 0.21 },
+          { seatId: seats[3]!.id, x: 0.53, y: 0.27 }
+        ]
+      })
+      .expect(200);
+    await request(app.getHttpServer())
+      .patch(`${base}/seats/renumber`)
+      .set('Cookie', cookie)
+      .set('Origin', origin)
+      .send({ seatIds: [...seats.map(({ id }) => id), duplicate.body.id] })
+      .expect(200);
+
+    const uTable = await createLogicalTable('Mesa U', 0.7, 0.1);
+    const uCoordinates = [
+      [0.68, 0.2],
+      [0.68, 0.3],
+      [0.68, 0.4],
+      [0.73, 0.48],
+      [0.78, 0.48],
+      [0.83, 0.48],
+      [0.88, 0.4],
+      [0.88, 0.3],
+      [0.88, 0.2],
+      [0.78, 0.2]
+    ] as const;
+    for (const [index, [x, y]] of uCoordinates.entries()) {
+      await request(app.getHttpServer())
+        .post(`${base}/shapes/${uTable.body.id}/seats`)
+        .set('Cookie', cookie)
+        .set('Origin', origin)
+        .send({ label: `U${index + 1}`, x, y })
+        .expect(201);
+    }
+    const beforeTableMove = await request(app.getHttpServer()).get(base).set('Cookie', cookie).expect(200);
+    const persistedSerpentine = beforeTableMove.body.seats.filter(
+      (seat: { floorplanShapeId: string }) => seat.floorplanShapeId === serpentina.body.id
+    );
+    await request(app.getHttpServer())
+      .patch(`${base}/shapes/${serpentina.body.id}`)
+      .set('Cookie', cookie)
+      .set('Origin', origin)
+      .send({ x: 0.05, y: 0.05 })
+      .expect(200);
+    const reload = await request(app.getHttpServer()).get(base).set('Cookie', cookie).expect(200);
+    const reloadedSerpentine = reload.body.seats.filter(
+      (seat: { floorplanShapeId: string }) => seat.floorplanShapeId === serpentina.body.id
+    );
+    expect(reloadedSerpentine).toEqual(persistedSerpentine);
+    expect(reloadedSerpentine).toHaveLength(13);
+    expect(reloadedSerpentine.filter((seat: { isBlocked: boolean }) => seat.isBlocked)).toHaveLength(1);
+    expect(reloadedSerpentine.map((seat: { label: string }) => seat.label)).not.toContain(
+      expect.stringMatching(/^__tmp|^__renumber/)
+    );
+    expect(
+      reload.body.seats.filter((seat: { floorplanShapeId: string }) => seat.floorplanShapeId === uTable.body.id)
+    ).toHaveLength(10);
+  });
+
   it('routes atomic seat batches through HTTP and preserves detailed seating guards', async () => {
     const fixture = await createFixture();
     const admin = await prisma.user.create({
