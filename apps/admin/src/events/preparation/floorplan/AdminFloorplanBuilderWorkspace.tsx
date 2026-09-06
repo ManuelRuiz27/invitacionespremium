@@ -13,6 +13,7 @@ import {
   FloorplanSurface,
   FloorplanTray,
   autoPlacePoint,
+  clampSeatGroupDelta,
   createPendingTables,
   createStickerDraft,
   createUniqueFloorplanName,
@@ -309,13 +310,13 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     const source = floorplan.seats.find((seat) => seat.id === seatId);
     if (!source) return;
     const moving = selectedSeatIds.includes(seatId) ? selectedSeats : [source];
-    const delta = { x: point.x - source.x, y: point.y - source.y };
+    const delta = clampSeatGroupDelta(moving, { x: point.x - source.x, y: point.y - source.y });
     const saved = await runMutation('seating', () =>
       apiClient.adminEventPreparation.batchFloorplanSeats(event.clientId, event.id, {
         seats: moving.map((seat) => ({
           seatId: seat.id,
-          x: Math.min(1, Math.max(0, seat.x + delta.x)),
-          y: Math.min(1, Math.max(0, seat.y + delta.y))
+          x: seat.x + delta.x,
+          y: seat.y + delta.y
         }))
       })
     );
@@ -328,21 +329,11 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   };
   const renumberSeats = async () => {
     if (!floorplan || !selected || selected.kind !== 'TABLE' || readOnly) return;
-    const seats = floorplan.seats
-      .filter((seat) => seat.floorplanShapeId === selected.id)
-      .sort((left, right) => left.y - right.y || left.x - right.x || left.id.localeCompare(right.id));
-    const finalUpdates = seats.map((seat, index) => ({ seatId: seat.id, label: `Lugar ${index + 1}` }));
-    if (
-      !finalUpdates.some((update) => floorplan.seats.find((seat) => seat.id === update.seatId)?.label !== update.label)
-    )
-      return;
-    const nonce = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-    const saved = await runMutation('seating', async () => {
-      await apiClient.adminEventPreparation.batchFloorplanSeats(event.clientId, event.id, {
-        seats: finalUpdates.map((update, index) => ({ seatId: update.seatId, label: `__tmp-${nonce}-${index + 1}` }))
-      });
-      return apiClient.adminEventPreparation.batchFloorplanSeats(event.clientId, event.id, { seats: finalUpdates });
-    });
+    const seatIds = floorplan.seats.filter((seat) => seat.floorplanShapeId === selected.id).map((seat) => seat.id);
+    if (!seatIds.length) return;
+    const saved = await runMutation('seating', () =>
+      apiClient.adminEventPreparation.renumberFloorplanSeats(event.clientId, event.id, { seatIds })
+    );
     if (!saved) return;
     const savedById = new Map(saved.map((seat) => [seat.id, seat]));
     setFloorplan((current) =>
@@ -861,15 +852,16 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
                 if (editing || readOnly) return;
                 const seat = floorplan.seats.find((candidate) => candidate.id === seatId);
                 if (!seat) return;
-                setSelectedSeatId(seat.id);
                 setSelectedId(seat.floorplanShapeId);
-                setSelectedSeatIds((current) =>
-                  options.additive
+                setSelectedSeatIds((current) => {
+                  const next = options.additive
                     ? current.includes(seat.id)
                       ? current.filter((id) => id !== seat.id)
                       : [...current, seat.id]
-                    : [seat.id]
-                );
+                    : [seat.id];
+                  setSelectedSeatId(next.includes(seat.id) ? seat.id : next[0]);
+                  return next;
+                });
               }}
               onDraftChange={setDraft}
               onCanvasPlace={

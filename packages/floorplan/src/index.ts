@@ -9,6 +9,7 @@ export { FloorplanToolbar } from './FloorplanToolbar';
 export { FloorplanTray } from './FloorplanTray';
 export {
   FloorplanShapeValidationError,
+  clampSeatGroupDelta,
   normalizeFloorplanShape,
   polygonClipPath,
   screenDeltaToLocal

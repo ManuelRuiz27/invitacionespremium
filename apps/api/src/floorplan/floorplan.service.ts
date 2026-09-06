@@ -911,6 +911,62 @@ export class FloorplanService {
       return results;
     });
   }
+  async renumberSeatsAdministrative(
+    clientId: string,
+    eventId: string,
+    input: import('./floorplan.dto').RenumberFloorplanSeatsInput,
+    principal: AuthPrincipal,
+    operationId?: string
+  ): Promise<FloorplanSeatResponseDto[]> {
+    return this.serializable(async (tx) => {
+      const event = await this.requireTargetEvent(tx, eventId, principal, { kind: 'ADMIN', clientId }, true);
+      this.assertLayoutMutable(event);
+      const floorplan = await this.lockFloorplan(tx, eventId);
+      this.assertUnlocked(floorplan);
+      const seatIds = [...input.seatIds].sort();
+      await tx.$queryRaw`SELECT "id" FROM "floorplan_seat" WHERE "id" = ANY(ARRAY[${Prisma.join(seatIds)}]::uuid[]) ORDER BY "id" FOR UPDATE`;
+      const seats = await tx.floorplanSeat.findMany({
+        where: { id: { in: seatIds }, eventId, floorplanId: floorplan.id, deletedAt: null }
+      });
+      if (seats.length !== seatIds.length) throw floorplanError('FLOORPLAN_SEAT_NOT_FOUND', 'Seat was not found.');
+      const parentId = seats[0]!.floorplanShapeId;
+      if (seats.some((seat) => seat.floorplanShapeId !== parentId))
+        throw floorplanError('FLOORPLAN_SEAT_PARENT_INVALID', 'Seats must share one table.');
+      const parent = await this.lockShape(tx, eventId, floorplan.id, parentId);
+      if (parent.kind !== FloorplanShapeKind.TABLE)
+        throw floorplanError('FLOORPLAN_SEAT_PARENT_INVALID', 'Seat requires a table parent.');
+      const ordered = [...seats].sort(
+        (left, right) =>
+          Number(left.y) - Number(right.y) || Number(left.x) - Number(right.x) || left.id.localeCompare(right.id)
+      );
+      // Keep the temporary names inside this same SERIALIZABLE transaction so a failed request cannot leak them.
+      for (const [index, seat] of ordered.entries()) {
+        await tx.floorplanSeat.update({
+          where: { id: seat.id },
+          data: {
+            label: `__renumber-${operationId ?? 'local'}-${index}`,
+            normalizedLabel: `__renumber-${operationId ?? 'local'}-${index}`
+          }
+        });
+      }
+      const results: FloorplanSeatResponseDto[] = [];
+      for (const [index, seat] of ordered.entries()) {
+        const label = `Lugar ${index + 1}`;
+        const updated = await tx.floorplanSeat.update({
+          where: { id: seat.id },
+          data: { label, normalizedLabel: normalizeFloorplanName(label).toLocaleLowerCase('es-MX') }
+        });
+        results.push(
+          toSeatResponse(updated, await tx.assistant.count({ where: { floorplanSeatId: seat.id, deletedAt: null } }))
+        );
+      }
+      await this.recordAudit(tx, event, principal, operationId, 'FLOORPLAN_SEATS_RENUMBER', parentId, {
+        seatIds: ordered.map((seat) => seat.id)
+      });
+      await recomputeDigitalEventPreparationStatus(tx, eventId);
+      return results;
+    });
+  }
   private async mutateSeat(
     clientId: string,
     eventId: string,

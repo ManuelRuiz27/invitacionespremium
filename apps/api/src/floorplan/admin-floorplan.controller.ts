@@ -7,6 +7,7 @@ import { UserRole } from '../generated/prisma/client';
 import {
   FloorplanImageRequestDto,
   BatchFloorplanSeatsRequestDto,
+  RenumberFloorplanSeatsRequestDto,
   FloorplanResponseDto,
   FloorplanShapeRequestDto,
   FloorplanShapeResponseDto,
@@ -21,6 +22,7 @@ import {
   parseUpdateFloorplan,
   parseUpdateShape,
   parseBatchSeats,
+  parseRenumberSeats,
   parseCreateSeat,
   parseUpdateSeat,
   parseSeatingMode
@@ -97,6 +99,25 @@ export class AdminFloorplanController {
       parseFloorplanId(clientId),
       parseFloorplanId(eventId),
       parseBatchSeats(body),
+      principal,
+      request.operationId
+    );
+  }
+
+  @Patch('seats/renumber')
+  @ApiBody({ type: RenumberFloorplanSeatsRequestDto })
+  @ApiOkResponse({ type: FloorplanSeatResponseDto, isArray: true })
+  renumberSeats(
+    @Param('clientId') clientId: string,
+    @Param('eventId') eventId: string,
+    @Body() body: unknown,
+    @CurrentAuth() principal: AuthPrincipal,
+    @Req() request: AuthenticatedRequest
+  ): Promise<FloorplanSeatResponseDto[]> {
+    return this.floorplan.renumberSeatsAdministrative(
+      parseFloorplanId(clientId),
+      parseFloorplanId(eventId),
+      parseRenumberSeats(body),
       principal,
       request.operationId
     );

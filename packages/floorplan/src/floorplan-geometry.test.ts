@@ -1,6 +1,11 @@
 import type { FloorplanShapeInput } from '@invitaciones/api-client';
 import { describe, expect, it } from 'vitest';
-import { normalizeFloorplanShape, polygonClipPath, screenDeltaToLocal } from './floorplan-geometry';
+import {
+  clampSeatGroupDelta,
+  normalizeFloorplanShape,
+  polygonClipPath,
+  screenDeltaToLocal
+} from './floorplan-geometry';
 
 const shape = (geometry: FloorplanShapeInput['geometry']): FloorplanShapeInput => ({
   name: 'Forma',
@@ -124,5 +129,36 @@ describe('floorplan geometry normalization', () => {
     const polygon = normalizeFloorplanShape(shape('POLYGON'));
     expect(polygon.polygonPoints).toEqual(shape('POLYGON').polygonPoints);
     expect(polygonClipPath(polygon.polygonPoints)).toBe('polygon(0% 0%, 100% 0%, 50% 100%)');
+  });
+});
+
+describe('clampSeatGroupDelta', () => {
+  it.each([
+    [
+      [
+        { x: 0.2, y: 0.2 },
+        { x: 0.3, y: 0.3 }
+      ],
+      { x: 0.1, y: 0.1 },
+      { x: 0.1, y: 0.1 }
+    ],
+    [
+      [
+        { x: 0.85, y: 0.85 },
+        { x: 0.95, y: 0.95 }
+      ],
+      { x: 0.1, y: 0.1 },
+      { x: 0.05, y: 0.05 }
+    ],
+    [
+      [
+        { x: 0.05, y: 0.05 },
+        { x: 0.15, y: 0.15 }
+      ],
+      { x: -0.1, y: -0.1 },
+      { x: -0.05, y: -0.05 }
+    ]
+  ])('preserves offsets while clamping both axes', (seats, requested, expected) => {
+    expect(clampSeatGroupDelta(seats, requested)).toEqual(expected);
   });
 });
