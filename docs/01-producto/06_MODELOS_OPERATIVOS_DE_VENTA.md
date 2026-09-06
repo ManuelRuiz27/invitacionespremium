@@ -55,15 +55,15 @@ No implementar roles, permisos o superficies nuevas únicamente porque un escena
 |---|---|---|---|
 | M01 | Venta directa a Planner independiente, servicio gestionado | **APROBADO COMO BASE** | `06A_MODELO_01_PLANNER_INDEPENDIENTE.md` |
 | M02 | Salón/jardín como Organización, múltiples Eventos y operación gestionada | **APROBADO COMO EXTENSIÓN DE M01** | `06B_MODELO_02_SALON_JARDIN_ORGANIZACION.md` |
-| M03 | Licencia/autoservicio para cliente que opera la plataforma | **HIPÓTESIS — SIGUIENTE A DEFINIR** | Pendiente |
-| M04 | Instancia/servicio dedicado para clientes de gran escala | **HIPÓTESIS** | Pendiente |
+| M03 | Licencia/autoservicio para Organización que opera directamente la plataforma | **APROBADO COMO MODELO DE REFERENCIA — NO AUTORIZA CODE** | `06C_MODELO_03_LICENCIA_AUTOSERVICIO.md` |
+| M04 | Instancia/servicio dedicado para clientes de gran escala | **HIPÓTESIS — SIGUIENTE A DEFINIR** | Pendiente |
 | M05 | Partner/reseller u otros esquemas de reventa | **HIPÓTESIS COMERCIAL** | Pendiente |
 
 El registro puede ampliarse, fusionarse o descartar modelos sin modificar el producto hasta que exista una decisión explícita.
 
-## 4. Modelo base
+## 4. Modelos definidos
 
-M01 es la referencia inicial porque representa el lanzamiento más simple y controlable:
+### M01 — Planner independiente gestionado
 
 ```text
 InvitacionesPremium / Platform Admin
@@ -75,9 +75,9 @@ Planner independiente
 Staff temporal
 ```
 
-La plataforma se lanza como servicio gestionado: InvitacionesPremium conserva la preparación técnica y el Planner conserva las decisiones sobre invitados y operación.
+InvitacionesPremium conserva la preparación técnica y el Planner conserva las decisiones sobre invitados y operación.
 
-M02 extiende esta relación mediante una Organización:
+### M02 — Salón/jardín gestionado
 
 ```text
 InvitacionesPremium
@@ -92,6 +92,24 @@ Staff temporal por Evento
 ```
 
 M02 reutiliza roles y ownership existentes y no autoriza un rol nuevo para dueño de salón.
+
+### M03 — Licencia/autoservicio
+
+```text
+InvitacionesPremium
+        ↓ mantiene plataforma y soporte
+Organización licenciada
+        ↓ administra
+Admin de Organización
+        ↓ asigna/supervisa
+Planner(s)
+        ↓ preparan y operan Eventos asignados
+Staff temporal por Evento
+```
+
+M03 no es una instancia dedicada ni white-label. La diferencia principal es que la Organización prepara sus propios Eventos y el Provider deja de ser el operador técnico ordinario de cada Evento.
+
+M03 reutiliza roles existentes, pero su implementación futura sí requeriría revisar qué capacidades de preparación hoy reservadas al Provider deben exponerse de forma segura a la Organización, especialmente Croquis/Builder y configuración avanzada.
 
 ## 5. Separación de conceptos
 
@@ -124,6 +142,7 @@ Ejemplos:
 
 - M01: InvitacionesPremium prepara; Planner administra invitados; Staff opera accesos.
 - M02: InvitacionesPremium prepara; Admin de Organización supervisa el salón; Planner asignado opera cada Evento; Staff opera accesos.
+- M03: InvitacionesPremium mantiene la plataforma; Organización/Planner preparan y operan sus propios Eventos; Staff opera accesos.
 
 ### Condición comercial
 
@@ -155,6 +174,8 @@ Esta serie documental no congela precios ni convierte hipótesis comerciales en 
 Un mismo producto funcional puede venderse bajo condiciones comerciales diferentes sin cambiar sus capacidades. Por ejemplo, una Invitación Digital puede conservar el mismo RSVP, Mesas, QR y check-in aunque el comprador sea Standard o tenga una condición Partner.
 
 Los cambios en precios, volumen, comisiones, margen o créditos deben revisarse posteriormente en sus contratos comerciales/financieros.
+
+En particular, la palabra **licencia** en M03 describe el modelo operativo de autoservicio y no implica todavía mensualidad, anualidad, tarifa plana, Eventos ilimitados o una fórmula financiera específica.
 
 ## 8. Regla para agentes
 
