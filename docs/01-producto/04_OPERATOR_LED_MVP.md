@@ -36,7 +36,7 @@ La construcción técnica de invitación, croquis, configuración RSVP y prepara
 - preparar la infraestructura RSVP;
 - construir el Croquis V2 mediante Sticker Model cuando el módulo esté habilitado;
 - definir mesas, capacidades, zonas y geometría del salón;
-- preparar accesos de Staff conforme a las reglas vigentes;
+- mantener la infraestructura necesaria para que el Planner cree y distribuya accesos de Staff conforme a las reglas vigentes;
 - preparar el Evento para activación;
 - resolver incidencias operativas mediante capacidades explícitas y auditadas.
 
@@ -49,6 +49,7 @@ La construcción técnica de invitación, croquis, configuración RSVP y prepara
 - consultar pendientes y asistencia;
 - asignar/mover/desasignar personas sobre las mesas ya construidas;
 - consultar el croquis sin alterar su infraestructura;
+- crear y distribuir accesos Staff mediante las superficies autorizadas;
 - operar las acciones de cliente habilitadas para el Evento.
 
 ### Staff temporal
