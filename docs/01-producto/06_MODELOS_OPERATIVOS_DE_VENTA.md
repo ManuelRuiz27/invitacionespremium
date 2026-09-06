@@ -23,7 +23,7 @@ No responde todavía:
 - qué descuento obtiene;
 - qué comisión o margen existe;
 - qué tier de volumen aplica;
-- qué esquema de créditos o línea comercial se utiliza.
+- qué esquema de créditos, suscripción, línea o anualidad se utiliza.
 
 Esas decisiones permanecen en la capa comercial/financiera y sólo deben convertirse en reglas de software cuando estén explícitamente aprobadas.
 
@@ -56,10 +56,10 @@ No implementar roles, permisos o superficies nuevas únicamente porque un escena
 | M01 | Venta directa a Planner independiente, servicio gestionado | **APROBADO COMO BASE** | `06A_MODELO_01_PLANNER_INDEPENDIENTE.md` |
 | M02 | Salón/jardín como Organización, múltiples Eventos y operación gestionada | **APROBADO COMO EXTENSIÓN DE M01** | `06B_MODELO_02_SALON_JARDIN_ORGANIZACION.md` |
 | M03 | Licencia/autoservicio para Organización que opera directamente la plataforma | **APROBADO COMO MODELO DE REFERENCIA — NO AUTORIZA CODE** | `06C_MODELO_03_LICENCIA_AUTOSERVICIO.md` |
-| M04 | Instancia/servicio dedicado para clientes de gran escala | **HIPÓTESIS — SIGUIENTE A DEFINIR** | Pendiente |
-| M05 | Partner/reseller u otros esquemas de reventa | **HIPÓTESIS COMERCIAL** | Pendiente |
+| M04 | Cliente profesional de gran escala con aislamiento/servicio dedicado | **APROBADO COMO MODELO DE REFERENCIA — NO AUTORIZA CODE** | `06D_MODELO_04_CLIENTE_GRAN_ESCALA_DEDICADO.md` |
+| M05 | Partner/reseller y reventa | **RESUELTO COMO CAPA COMERCIAL SOBRE M01–M04 — NO AUTORIZA CODE** | `06E_MODELO_05_PARTNER_RESELLER.md` |
 
-El registro puede ampliarse, fusionarse o descartar modelos sin modificar el producto hasta que exista una decisión explícita.
+La familia inicial queda cubierta. Un modelo nuevo sólo debe añadirse si representa una distribución de responsabilidades realmente distinta, no una tarifa o estrategia de adquisición distinta.
 
 ## 4. Modelos definidos
 
@@ -109,7 +109,37 @@ Staff temporal por Evento
 
 M03 no es una instancia dedicada ni white-label. La diferencia principal es que la Organización prepara sus propios Eventos y el Provider deja de ser el operador técnico ordinario de cada Evento.
 
-M03 reutiliza roles existentes, pero su implementación futura sí requeriría revisar qué capacidades de preparación hoy reservadas al Provider deben exponerse de forma segura a la Organización, especialmente Croquis/Builder y configuración avanzada.
+### M04 — Cliente de gran escala / dedicado
+
+```text
+Mismo core InvitacionesPremium
+        ↓
+Deployment/configuración dedicada cuando se justifique
+        ↓
+Organización enterprise
+        ↓
+Admin + Planner(s)
+        ↓
+Eventos de gran escala
+        ↓
+Staff/operación concurrente
+```
+
+M04 conserva el mismo repositorio/core. No se permite fork por cliente. El aislamiento dedicado sólo se justifica por escala, seguridad, SLA, integración o requisitos contractuales verificables.
+
+El escenario de origen considera clientes con aproximadamente 20–50 Eventos al año y Eventos de 500–1,500/2,000 invitados, por lo que requiere auditoría de capacidad y no puede resolverse cambiando únicamente el precio.
+
+### M05 — Partner / reseller
+
+M05 no es una quinta forma de operar el producto. Es una **capa comercial** sobre M01–M04.
+
+```text
+Modelo operativo M01/M02/M03/M04
+        +
+condición Partner / reventa / margen
+```
+
+Partner no es rol. Reseller no es permiso. Una estrategia de ventas en frío tampoco crea un modelo funcional nuevo.
 
 ## 5. Separación de conceptos
 
@@ -136,19 +166,31 @@ Ejemplos vigentes:
 
 ### Modelo operativo de venta
 
-Responde: **¿cómo se reparte el trabajo entre InvitacionesPremium y el cliente en este escenario?**
+Responde: **¿cómo se reparte el trabajo entre InvitacionesPremium y el cliente?**
 
-Ejemplos:
-
-- M01: InvitacionesPremium prepara; Planner administra invitados; Staff opera accesos.
-- M02: InvitacionesPremium prepara; Admin de Organización supervisa el salón; Planner asignado opera cada Evento; Staff opera accesos.
-- M03: InvitacionesPremium mantiene la plataforma; Organización/Planner preparan y operan sus propios Eventos; Staff opera accesos.
+- M01: Provider prepara; Planner opera.
+- M02: Provider prepara; Organización supervisa; Planner asignado opera.
+- M03: Organización/Planner preparan y operan; Provider mantiene y soporta.
+- M04: mismo patrón de autoservicio con escala/aislamiento dedicado cuando se justifica.
 
 ### Condición comercial
 
-Responde: **¿cómo se vende/cobra ese escenario?**
+Responde: **¿cómo se vende/cobra?**
 
-Ejemplos actuales pueden incluir Standard, Partner o Venue, pero esas condiciones no deben redefinir por sí mismas capacidades funcionales.
+Puede incluir Standard, Partner, Venue, volumen, anualidad, implementación, licencia u otras condiciones, pero no redefine por sí misma las capacidades funcionales.
+
+### Estrategia de adquisición
+
+Responde: **¿cómo llega el cliente?**
+
+Ejemplos:
+
+- ventas en frío en San Luis Potosí;
+- referrals;
+- alianzas;
+- inbound desde landing.
+
+La adquisición tampoco crea roles o permisos.
 
 ## 6. Regla de extensión
 
@@ -158,31 +200,48 @@ Un modelo posterior puede introducir una nueva necesidad funcional únicamente c
 - ownership/asignación existente;
 - Organización existente;
 - Staff temporal existente;
-- superficies administrativas explícitas del Provider.
+- superficies administrativas explícitas del Provider;
+- configuración/deployment del mismo core.
 
 Antes de crear un nuevo rol persistido debe demostrarse:
 
 1. que existe un actor humano distinto;
 2. que necesita permisos distintos de todos los roles existentes;
 3. que esa diferencia no se resuelve con ownership o asignación;
-4. que el modelo comercial que lo requiere fue aprobado como escenario de producto.
+4. que el modelo que lo requiere fue aprobado como escenario de producto.
 
 ## 7. Relación con pricing y finanzas
 
 Esta serie documental no congela precios ni convierte hipótesis comerciales en contratos financieros.
 
-Un mismo producto funcional puede venderse bajo condiciones comerciales diferentes sin cambiar sus capacidades. Por ejemplo, una Invitación Digital puede conservar el mismo RSVP, Mesas, QR y check-in aunque el comprador sea Standard o tenga una condición Partner.
+Un mismo producto funcional puede venderse bajo condiciones comerciales diferentes sin cambiar sus capacidades.
 
-Los cambios en precios, volumen, comisiones, margen o créditos deben revisarse posteriormente en sus contratos comerciales/financieros.
+Los documentos especializados conservan como antecedentes algunas hipótesis ya discutidas —Partner, volumen Venue o cliente dedicado— pero ninguna de ellas debe promoverse automáticamente a Price Book, Ledger o contratos de pago por el hecho de estar documentada aquí.
 
-En particular, la palabra **licencia** en M03 describe el modelo operativo de autoservicio y no implica todavía mensualidad, anualidad, tarifa plana, Eventos ilimitados o una fórmula financiera específica.
+La capa financiera se revisará después de cerrar el gap analysis funcional de esta familia.
 
 ## 8. Regla para agentes
 
-Cuando una tarea mencione un nuevo tipo de cliente, partner, salón, agencia, reseller, licencia o instancia dedicada:
+Cuando una tarea mencione un nuevo tipo de cliente, partner, salón, agencia, reseller, licencia, white-label, cliente grande o instancia dedicada:
 
 1. identificar primero qué modelo operativo representa;
 2. leer este registro;
-3. leer el documento especializado del modelo si existe;
-4. comprobar si roles/ownership actuales ya lo resuelven;
-5. no crear código hasta convertir el gap en una decisión explícita y ticket técnico.
+3. leer el documento especializado del modelo;
+4. separar modelo operativo, condición comercial y adquisición;
+5. comprobar si roles/ownership actuales ya lo resuelven;
+6. no crear código hasta convertir el gap en una decisión explícita y ticket técnico.
+
+## 9. Siguiente fase autorizable
+
+Con M01–M05 documentados, el siguiente trabajo correcto es una **matriz transversal de capacidades y gap analysis** contra el runtime.
+
+Debe responder por cada modelo:
+
+- qué ya existe;
+- qué sólo cambia de superficie;
+- qué requiere permiso nuevo sobre rol existente;
+- qué falta realmente;
+- qué pertenece exclusivamente a Finance/Commercial;
+- qué debe permanecer fuera de alcance.
+
+No comenzar implementación de M03/M04 ni reestructuración financiera antes de esa auditoría.
