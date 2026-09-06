@@ -190,11 +190,13 @@ export function FloorplanKonvaRenderer(
                 draggable={!props.disabled && !props.captureCanvasClicks && Boolean(props.onSeatMove)}
                 onClick={(event) => {
                   event.cancelBubble = true;
-                  props.onSeatSelect?.(seat.id);
+                  props.onSeatSelect?.(seat.id, {
+                    additive: event.evt.shiftKey || event.evt.ctrlKey || event.evt.metaKey
+                  });
                 }}
                 onTap={(event) => {
                   event.cancelBubble = true;
-                  props.onSeatSelect?.(seat.id);
+                  props.onSeatSelect?.(seat.id, { additive: false });
                 }}
                 onDragEnd={(event) => {
                   if (!props.onSeatMove) return;
@@ -209,8 +211,12 @@ export function FloorplanKonvaRenderer(
                   radius={7}
                   hitStrokeWidth={30}
                   fill={seat.isBlocked ? '#b0b6bf' : seat.occupied ? floorplanColors.accent : floorplanColors.paper}
-                  stroke={props.selectedSeatId === seat.id ? floorplanColors.warning : floorplanColors.line}
-                  strokeWidth={props.selectedSeatId === seat.id ? 3 : 1.5}
+                  stroke={
+                    (props.selectedSeatIds?.includes(seat.id) ?? props.selectedSeatId === seat.id)
+                      ? floorplanColors.warning
+                      : floorplanColors.line
+                  }
+                  strokeWidth={(props.selectedSeatIds?.includes(seat.id) ?? props.selectedSeatId === seat.id) ? 3 : 1.5}
                 />
                 <Text
                   text={seat.label}

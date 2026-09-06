@@ -20,7 +20,8 @@ vi.mock('@invitaciones/floorplan', async (importOriginal) => {
     FloorplanSurface: (props: {
       floorplan: AdminFloorplan;
       onSelect: (shape: AdminFloorplanShape) => void;
-      onSeatSelect?: (seatId: string) => void;
+      onSeatSelect?: (seatId: string, options: { additive: boolean }) => void;
+      onSeatMove?: (seatId: string, point: { x: number; y: number }) => void;
       dock?: ReactNode;
     }) => {
       floorplanHarness.props = props as unknown as Record<string, unknown>;
@@ -32,7 +33,7 @@ vi.mock('@invitaciones/floorplan', async (importOriginal) => {
             </button>
           ))}
           {props.floorplan.seats.map((seat) => (
-            <button key={seat.id} onClick={() => props.onSeatSelect?.(seat.id)}>
+            <button key={seat.id} onClick={() => props.onSeatSelect?.(seat.id, { additive: false })}>
               {seat.label}
             </button>
           ))}
@@ -1024,6 +1025,54 @@ describe('Admin Event preparation surfaces', () => {
     );
     expect(api.floorplan.updateShape).not.toHaveBeenCalled();
   });
+
+  it('moves a Serpentina selection as one Admin batch and renumbers it collision-safely', async () => {
+    const table = shape({ id: 'table-serpentina', capacity: 3, availableCapacity: 3 });
+    const seats = serpentineSeats(table.id);
+    const api = preparedFloorplanApi(floorplan({ seatingMode: 'SEAT', shapes: [table], seats }));
+    vi.mocked(api.adminEventPreparation.batchFloorplanSeats).mockImplementation(async (_client, _event, body) =>
+      body.seats.map((update) => ({ ...seats.find((seat) => seat.id === update.seatId)!, ...update }))
+    );
+
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await screen.findByTestId('admin-floorplan-surface');
+    act(() => {
+      (floorplanHarness.props?.onSeatSelect as (seatId: string, options: { additive: boolean }) => void)('seat-s1', {
+        additive: false
+      });
+      (floorplanHarness.props?.onSeatSelect as (seatId: string, options: { additive: boolean }) => void)('seat-s2', {
+        additive: true
+      });
+    });
+    expect(await screen.findByText('2 lugares seleccionados')).toBeInTheDocument();
+    act(() => {
+      (floorplanHarness.props?.onSeatMove as (seatId: string, point: { x: number; y: number }) => void)('seat-s1', {
+        x: 0.3,
+        y: 0.3
+      });
+    });
+    await waitFor(() => expect(api.adminEventPreparation.batchFloorplanSeats).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(api.adminEventPreparation.batchFloorplanSeats).mock.calls[0]![2]).toEqual({
+      seats: [
+        { seatId: 'seat-s1', x: 0.3, y: 0.3 },
+        { seatId: 'seat-s2', x: 0.4, y: 0.3 }
+      ]
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Renumerar lugares' }));
+    await waitFor(() => expect(api.adminEventPreparation.batchFloorplanSeats).toHaveBeenCalledTimes(3));
+    const [temporary, final] = vi.mocked(api.adminEventPreparation.batchFloorplanSeats).mock.calls.slice(1);
+    expect(temporary![2].seats.map((seat) => seat.label)).toEqual(
+      expect.arrayContaining([expect.stringMatching(/^__tmp-/u)])
+    );
+    expect(final![2]).toEqual({
+      seats: [
+        { seatId: 'seat-s1', label: 'Lugar 1' },
+        { seatId: 'seat-s2', label: 'Lugar 2' },
+        { seatId: 'seat-s3', label: 'Lugar 3' }
+      ]
+    });
+  });
 });
 
 function asset(id: string, fileType: 'FLYER_INITIAL_IMAGE' | 'FLYER_QR_IMAGE') {
@@ -1066,6 +1115,14 @@ function floorplan(overrides: Partial<AdminFloorplan> = {}): AdminFloorplan {
     updatedAt: adminEvent.updatedAt,
     ...overrides
   };
+}
+
+function serpentineSeats(floorplanShapeId: string): AdminFloorplanSeat[] {
+  return [
+    { id: 'seat-s1', floorplanShapeId, label: 'Asiento A', x: 0.2, y: 0.2, isBlocked: false, occupied: false },
+    { id: 'seat-s2', floorplanShapeId, label: 'Asiento B', x: 0.3, y: 0.2, isBlocked: false, occupied: false },
+    { id: 'seat-s3', floorplanShapeId, label: 'Asiento C', x: 0.3, y: 0.3, isBlocked: false, occupied: false }
+  ];
 }
 
 function shape(overrides: Partial<AdminFloorplanShape> = {}): AdminFloorplanShape {

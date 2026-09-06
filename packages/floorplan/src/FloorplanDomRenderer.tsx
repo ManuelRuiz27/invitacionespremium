@@ -23,7 +23,8 @@ export interface FloorplanRendererProps {
   onCanvasPlace?: ((point: { x: number; y: number }, pendingId?: string) => void) | undefined;
   captureCanvasClicks?: boolean | undefined;
   selectedSeatId?: string | undefined;
-  onSeatSelect?: ((seatId: string) => void) | undefined;
+  selectedSeatIds?: readonly string[] | undefined;
+  onSeatSelect?: ((seatId: string, options: { additive: boolean }) => void) | undefined;
   onSeatMove?: ((seatId: string, point: { x: number; y: number }) => void) | undefined;
 }
 
@@ -100,11 +101,11 @@ export function FloorplanDomRenderer(props: FloorplanRendererProps) {
             <SeatButton
               key={seat.id}
               seat={seat}
-              selected={props.selectedSeatId === seat.id}
+              selected={props.selectedSeatIds?.includes(seat.id) ?? props.selectedSeatId === seat.id}
               disabled={props.disabled}
               placementActive={props.captureCanvasClicks === true}
               ownerRef={ownerRef}
-              onSelect={() => props.onSeatSelect?.(seat.id)}
+              onSelect={(options) => props.onSeatSelect?.(seat.id, options)}
               onMove={props.onSeatMove}
             />
           ))
@@ -138,7 +139,7 @@ function SeatButton({
   disabled: boolean;
   placementActive: boolean;
   ownerRef: React.RefObject<HTMLDivElement | null>;
-  onSelect: () => void;
+  onSelect: (options: { additive: boolean }) => void;
   onMove?: FloorplanRendererProps['onSeatMove'];
 }) {
   const [preview, setPreview] = useState({ x: seat.x, y: seat.y });
@@ -158,7 +159,7 @@ function SeatButton({
           suppressClick.current = false;
           return;
         }
-        onSelect();
+        onSelect({ additive: event.shiftKey || event.ctrlKey || event.metaKey });
       }}
       onPointerDown={(event) => {
         if (disabled || !onMove) return;
