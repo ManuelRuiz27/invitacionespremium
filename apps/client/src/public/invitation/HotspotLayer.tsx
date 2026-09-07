@@ -1,3 +1,4 @@
+import type { SyntheticEvent } from 'react';
 import type { PublicInvitationView } from '@invitaciones/api-client';
 import { Box, Button } from '@mui/material';
 import { relativeRectStyles } from '../../shared/relative-rect';
@@ -30,6 +31,12 @@ export function HotspotLayer({
   qrAvailable,
   disabled = false
 }: HotspotLayerProps) {
+  const preventDisabledNavigation = (event: SyntheticEvent) => {
+    if (!disabled) return;
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
   return (
     <Box aria-hidden={disabled || undefined} sx={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
       {[...hotspots]
@@ -44,7 +51,7 @@ export function HotspotLayer({
               minWidth: 44,
               minHeight: 44,
               p: 0,
-              pointerEvents: 'auto',
+              pointerEvents: disabled ? 'none' : 'auto',
               color: '#fff',
               bgcolor: 'rgba(17,17,15,.36)',
               border: '1px solid rgba(255,255,255,.42)',
@@ -68,6 +75,8 @@ export function HotspotLayer({
                 referrerPolicy="no-referrer"
                 aria-disabled={disabled || undefined}
                 tabIndex={disabled ? -1 : undefined}
+                onClick={preventDisabledNavigation}
+                onKeyDown={preventDisabledNavigation}
                 {...common}
               >
                 {labels[hotspot.action]}

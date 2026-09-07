@@ -10,7 +10,8 @@ const assetIds = [
   '5c643f2f-7247-42a3-8348-000000000002',
   '5c643f2f-7247-42a3-8348-000000000003',
   '5c643f2f-7247-42a3-8348-000000000004',
-  '5c643f2f-7247-42a3-8348-000000000005'
+  '5c643f2f-7247-42a3-8348-000000000005',
+  '5c643f2f-7247-42a3-8348-000000000006'
 ];
 
 const fixtureApiClient = {
@@ -33,6 +34,7 @@ const fixtureView = {
     hotspots: [
       fixtureHotspot('fixture-rsvp', 'RSVP', 'fixture-page-1', 0.12, 0.72, 0.34, 0.1),
       fixtureHotspot('fixture-qr', 'QR_AREA', 'fixture-page-3', 0.3, 0.58, 0.34, 0.12),
+      fixtureHotspot('fixture-location', 'LOCATION', 'fixture-page-4', 0.18, 0.78, 0.42, 0.1, 'https://maps.example.com/venue'),
       fixtureHotspot('fixture-link', 'EXTERNAL_LINK', 'fixture-page-5', 0.18, 0.78, 0.42, 0.1, 'https://example.com/mesa-regalos')
     ]
   }
@@ -47,7 +49,7 @@ export function DevFlipbookFixturePage() {
           <Typography component="h1" variant="h2">
             Flipbook Magazine · fixture local
           </Typography>
-          <Typography color="text.secondary">Cinco páginas con acciones en portada, interior y cierre.</Typography>
+          <Typography color="text.secondary">Seis páginas con acciones en portada, interior y cierre.</Typography>
         </Stack>
         {notice ? <Alert severity="info">{notice}</Alert> : null}
         <FlipbookRenderer
@@ -65,7 +67,7 @@ export function DevFlipbookFixturePage() {
 
 function fixtureHotspot(
   id: string,
-  action: 'RSVP' | 'QR_AREA' | 'EXTERNAL_LINK',
+  action: 'RSVP' | 'QR_AREA' | 'LOCATION' | 'EXTERNAL_LINK',
   flipbookPageId: string,
   x: number,
   y: number,
@@ -77,7 +79,7 @@ function fixtureHotspot(
 }
 
 function fixturePageSvg(page: number): string {
-  const colors = ['#d9b48f', '#6b7c72', '#b7625d', '#7e6e9e', '#b88b4a'];
+  const colors = ['#d9b48f', '#6b7c72', '#b7625d', '#7e6e9e', '#b88b4a', '#61798b'];
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="1520" viewBox="0 0 1120 1520">
   <rect width="1120" height="1520" fill="#f8f1e8"/>
   <rect x="70" y="70" width="980" height="1380" rx="18" fill="${colors[page - 1]}" opacity=".18"/>
@@ -85,6 +87,6 @@ function fixturePageSvg(page: number): string {
   <text x="110" y="220" font-family="Georgia, serif" font-size="46" fill="#332b25" letter-spacing="8">INVITACIONES PREMIUM</text>
   <text x="110" y="450" font-family="Georgia, serif" font-size="152" fill="#332b25">${page === 1 ? 'Ana & Luis' : `Capítulo ${page}`}</text>
   <text x="116" y="535" font-family="Arial, sans-serif" font-size="35" fill="#4c4037">Fixture local para QA visual</text>
-  <text x="110" y="1360" font-family="Arial, sans-serif" font-size="28" fill="#f8f1e8">PÁGINA ${page} DE 5</text>
+  <text x="110" y="1360" font-family="Arial, sans-serif" font-size="28" fill="#f8f1e8">PÁGINA ${page} DE 6</text>
 </svg>`;
 }

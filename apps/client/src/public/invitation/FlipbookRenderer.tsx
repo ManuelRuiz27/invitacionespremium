@@ -1,12 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ApiClient, PublicInvitationView } from '@invitaciones/api-client';
 import HTMLFlipBook, { type BookSnapshot, type FlipBookHandle } from '@gullabs/react-flipbook';
-import { Box, Button, Stack, Typography, useMediaQuery, useTheme } from '@mui/material';
+import { Box, Button, Stack, Typography } from '@mui/material';
 import { FlipbookPage } from './FlipbookPage';
-import { createFlipbookViews, preloadFlipbookPageIndexes, type FlipbookMode } from './flipbook-model';
 import { useReducedMotion } from '../useReducedMotion';
 
 const initialSnapshot: BookSnapshot = { page: 0, pageCount: 0, orientation: 'portrait', visiblePages: [0] };
+
+function preloadPageIndexes(pageCount: number, visiblePages: number[]): Set<number> {
+  if (pageCount <= 0 || visiblePages.length === 0) return new Set();
+  const first = Math.max(0, visiblePages[0]! - 1);
+  const last = Math.min(pageCount - 1, visiblePages[visiblePages.length - 1]! + 1);
+  return new Set(Array.from({ length: last - first + 1 }, (_, index) => first + index));
+}
 
 export function FlipbookRenderer({
   apiClient,
@@ -24,100 +30,56 @@ export function FlipbookRenderer({
   onUnavailableQr: () => void;
 }) {
   const pages = useMemo(() => [...(view.design?.pages ?? [])].sort((a, b) => a.position - b.position), [view.design?.pages]);
-  const theme = useTheme();
-  const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
   const reducedMotion = useReducedMotion();
   const bookRef = useRef<FlipBookHandle | null>(null);
   const turningRef = useRef(false);
-  const userTurnRef = useRef(false);
-  const desiredViewRef = useRef(0);
   const [snapshot, setSnapshot] = useState<BookSnapshot>(initialSnapshot);
-  const [focalPageIndex, setFocalPageIndex] = useState(0);
   const [transitionState, setTransitionState] = useState<'idle' | 'turning' | 'settling'>('idle');
   const [preloadedPageIndexes, setPreloadedPageIndexes] = useState<Set<number>>(() => new Set([0]));
-  const mode: FlipbookMode = isDesktop ? 'spread' : 'single';
-  const bookKey = `${mode}:${reducedMotion}`;
-  const activeBookKey = useRef(bookKey);
-  const renderedMode = useRef(mode);
-  const restoringViewRef = useRef(false);
-  if (renderedMode.current !== mode) {
-    renderedMode.current = mode;
-    restoringViewRef.current = true;
-  }
-  activeBookKey.current = bookKey;
-  const views = useMemo(() => createFlipbookViews(pages.length, mode), [mode, pages.length]);
-  const initialViewIndex = Math.max(0, views.findIndex((logicalView) => logicalView.pageIndexes.includes(focalPageIndex)));
-  const visibleViewIndexes = snapshot.visiblePages.filter((viewIndex) => viewIndex >= 0 && viewIndex < views.length);
-  const visiblePageIndexes = visibleViewIndexes.flatMap((viewIndex) => views[viewIndex]!.pageIndexes);
+  const bookKey = `${token}:${pages.map((page) => page.id).join(':')}:${reducedMotion}`;
+  const visiblePageIndexes = snapshot.visiblePages.filter((pageIndex) => pageIndex >= 0 && pageIndex < pages.length);
   const visiblePageKey = visiblePageIndexes.join(',');
   const canGoPrevious = snapshot.page > 0;
-  const canGoNext = snapshot.page < views.length - 1;
+  const canGoNext = visiblePageIndexes.at(-1) !== pages.length - 1;
 
   useEffect(() => {
     setSnapshot(initialSnapshot);
     setPreloadedPageIndexes(new Set([0]));
-    setFocalPageIndex(0);
-    desiredViewRef.current = 0;
     turningRef.current = false;
     setTransitionState('idle');
-  }, [pages.length, token]);
+  }, [bookKey]);
 
   useEffect(() => {
-    const settlePreload = window.setTimeout(() => {
+    const preload = window.setTimeout(() => {
       setPreloadedPageIndexes((current) => {
         const next = new Set(current);
-        for (const pageIndex of preloadFlipbookPageIndexes(views, snapshot.page)) {
-          next.add(pageIndex);
-        }
+        for (const pageIndex of preloadPageIndexes(pages.length, visiblePageIndexes)) next.add(pageIndex);
         return next.size === current.size ? current : next;
       });
     }, 0);
-    return () => window.clearTimeout(settlePreload);
-  }, [snapshot.page, visiblePageKey, views]);
+    return () => window.clearTimeout(preload);
+  }, [pages.length, visiblePageKey]);
 
-  const syncSnapshot = useCallback(
-    (next: BookSnapshot) => {
-      if (activeBookKey.current !== bookKey) return;
-      const resolved = next;
-      const restoring = restoringViewRef.current || (!userTurnRef.current && next.page !== desiredViewRef.current);
-      if (restoring) {
-        const desired = desiredViewRef.current;
-        if (next.page !== desired) {
-          const book = bookRef.current?.pageFlip();
-          if (book) {
-            book.turnToPage(desired);
-            // turnToPage is asynchronous in the flip engine. Wait for its
-            // onPageChange snapshot instead of committing the old page.
-            return;
-          } else {
-            return;
-          }
-        }
-        restoringViewRef.current = false;
-      }
-      userTurnRef.current = false;
-      desiredViewRef.current = resolved.page;
-      setSnapshot(resolved);
-      const focal = resolved.visiblePages.flatMap((viewIndex) => views[viewIndex]?.pageIndexes ?? [])[0];
-      if (focal !== undefined) setFocalPageIndex(focal);
-    },
-    [bookKey, views]
-  );
-  useEffect(() => {
-    if (!restoringViewRef.current) return;
-    const restore = window.setTimeout(() => {
-      const book = bookRef.current?.pageFlip();
-      if (!book) return;
-      book.turnToPage(desiredViewRef.current);
-    }, 0);
-    return () => window.clearTimeout(restore);
-  }, [bookKey, syncSnapshot]);
+  const syncSnapshot = useCallback((next: BookSnapshot) => {
+    setSnapshot(next);
+  }, []);
+  const syncOrientation = useCallback(() => {
+    const book = bookRef.current?.pageFlip();
+    if (!book) return;
+    syncSnapshot({
+      page: book.getCurrentPageIndex(),
+      pageCount: book.getPageCount(),
+      orientation: book.getOrientation(),
+      visiblePages: book.getVisiblePages()
+    });
+  }, [syncSnapshot]);
+
   const navigate = useCallback(
     (direction: 'next' | 'prev') => {
       if (turningRef.current) return;
       const book = bookRef.current;
       if (!book) return;
-      desiredViewRef.current = snapshot.page + (direction === 'next' ? 1 : -1);
+
       turningRef.current = true;
       setTransitionState(reducedMotion ? 'settling' : 'turning');
       const moved = direction === 'next' ? book.flipNext() : book.flipPrev();
@@ -126,7 +88,7 @@ export function FlipbookRenderer({
         setTransitionState('idle');
       }
     },
-    [reducedMotion, snapshot.page]
+    [reducedMotion]
   );
 
   if (!pages.length) return <Typography>No pudimos cargar este contenido.</Typography>;
@@ -156,23 +118,29 @@ export function FlipbookRenderer({
           overflow: 'hidden',
           bgcolor: '#201d18',
           backgroundImage: 'radial-gradient(circle at 50% 30%, rgba(255,255,255,.14), transparent 55%)',
-          boxShadow: '0 28px 90px rgba(30,23,12,.28)'
+          boxShadow: '0 28px 90px rgba(30,23,12,.28)',
+          // The engine writes minWidth * 2 on its responsive host before it
+          // evaluates portrait mode. Remove that host floor so usePortrait can
+          // actually select one physical leaf below the available width.
+          '& .flipbook-magazine-engine.stf__parent': { minWidth: '0 !important' }
         }}
       >
         <HTMLFlipBook
           key={bookKey}
           ref={bookRef}
-          width={isDesktop ? 1120 : 560}
-          height={760}
+          className="flipbook-magazine-engine"
+          width={480}
+          height={680}
           sizing="responsive"
-          minWidth={isDesktop ? 600 : 280}
-          maxWidth={isDesktop ? 1120 : 560}
-          minHeight={300}
-          maxHeight={760}
+          minWidth={280}
+          maxWidth={480}
+          minHeight={396}
+          maxHeight={680}
           autoSize
-          initialPage={initialViewIndex}
-          page={initialViewIndex}
+          initialPage={0}
+          page={snapshot.page}
           pageTransition={reducedMotion ? 'instant' : 'animate'}
+          hardCovers
           usePortrait
           flippingTime={reducedMotion ? 0 : 720}
           respectReducedMotion
@@ -191,52 +159,33 @@ export function FlipbookRenderer({
           roleDescription="Libro de invitación"
           onReady={syncSnapshot}
           onPageChange={syncSnapshot}
+          onChangeOrientation={syncOrientation}
           onChangeState={({ state }) => {
             if (state === 'read') {
               turningRef.current = false;
               setTransitionState('idle');
             } else {
-              if (!turningRef.current) userTurnRef.current = true;
-              setTransitionState((current) => (current === 'turning' ? 'settling' : current));
+              setTransitionState((current) => (current === 'turning' ? 'settling' : 'turning'));
             }
           }}
         >
-          {views.map((logicalView, viewIndex) => (
-            <div key={logicalView.pageIndexes.map((pageIndex) => pages[pageIndex]!.id).join(':')} style={{ height: '100%' }}>
-              <Box
-                sx={{
-                  display: 'grid',
-                  gridTemplateColumns: `repeat(${logicalView.pageIndexes.length}, minmax(0, 1fr))`,
-                  height: '100%',
-                  bgcolor: '#f3eee6',
-                  ...(logicalView.pageIndexes.length === 2
-                    ? { columnGap: '2px', backgroundImage: 'linear-gradient(90deg, transparent 49.7%, rgba(25,20,14,.24) 50%, transparent 50.3%)' }
-                    : {})
-                }}
-              >
-                {logicalView.pageIndexes.map((pageIndex) => {
-                  const page = pages[pageIndex]!;
-                  return (
-                    <FlipbookPage
-                      key={page.id}
-                      apiClient={apiClient}
-                      token={token}
-                      page={page}
-                      pageNumber={pageIndex + 1}
-                      pageCount={pages.length}
-                      hotspots={(view.design?.hotspots ?? []).filter((hotspot) => hotspot.flipbookPageId === page.id)}
-                      visible={visibleViewIndexes.includes(viewIndex)}
-                      interactive={transitionState === 'idle'}
-                      shouldLoad={preloadedPageIndexes.has(pageIndex)}
-                      onRsvp={onRsvp}
-                      onQr={onQr}
-                      onUnavailableQr={onUnavailableQr}
-                      qrAvailable={view.qr?.available === true}
-                    />
-                  );
-                })}
-              </Box>
-            </div>
+          {pages.map((page, pageIndex) => (
+            <FlipbookPage
+              key={page.id}
+              apiClient={apiClient}
+              token={token}
+              page={page}
+              pageNumber={pageIndex + 1}
+              pageCount={pages.length}
+              hotspots={(view.design?.hotspots ?? []).filter((hotspot) => hotspot.flipbookPageId === page.id)}
+              visible={visiblePageIndexes.includes(pageIndex)}
+              interactive={transitionState === 'idle'}
+              shouldLoad={preloadedPageIndexes.has(pageIndex)}
+              onRsvp={onRsvp}
+              onQr={onQr}
+              onUnavailableQr={onUnavailableQr}
+              qrAvailable={view.qr?.available === true}
+            />
           ))}
         </HTMLFlipBook>
       </Box>
