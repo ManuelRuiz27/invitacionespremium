@@ -239,6 +239,32 @@ export class FloorplanImageResponseDto {
   fileAssetId!: string;
   @ApiProperty({ type: String })
   contentPath!: string;
+  @ApiProperty({ enum: ['RASTER', 'SVG'] })
+  sourceType!: 'RASTER' | 'SVG';
+}
+
+export class FloorplanSvgViewBoxDto {
+  @ApiProperty({ type: Number }) minX!: number;
+  @ApiProperty({ type: Number }) minY!: number;
+  @ApiProperty({ type: Number, minimum: 0, exclusiveMinimum: true }) width!: number;
+  @ApiProperty({ type: Number, minimum: 0, exclusiveMinimum: true }) height!: number;
+}
+export class FloorplanSvgBBoxDto {
+  @ApiProperty({ type: Number, minimum: 0, maximum: 1 }) x!: number;
+  @ApiProperty({ type: Number, minimum: 0, maximum: 1 }) y!: number;
+  @ApiProperty({ type: Number, minimum: 0, maximum: 1 }) width!: number;
+  @ApiProperty({ type: Number, minimum: 0, maximum: 1 }) height!: number;
+}
+export class FloorplanSvgSelectableElementDto {
+  @ApiProperty({ type: String }) sourceElementId!: string;
+  @ApiProperty({ type: String, enum: ['g', 'path', 'rect', 'circle', 'ellipse', 'polygon', 'polyline'] }) elementType!: string;
+  @ApiProperty({ type: FloorplanSvgBBoxDto }) bbox!: FloorplanSvgBBoxDto;
+}
+export class FloorplanSvgSourceResponseDto {
+  @ApiProperty({ type: String, format: 'uuid' }) fileAssetId!: string;
+  @ApiProperty({ type: FloorplanSvgViewBoxDto }) viewBox!: FloorplanSvgViewBoxDto;
+  @ApiProperty({ type: Number, minimum: 0, exclusiveMinimum: true }) aspectRatio!: number;
+  @ApiProperty({ type: FloorplanSvgSelectableElementDto, isArray: true }) selectableElements!: FloorplanSvgSelectableElementDto[];
 }
 
 export class FloorplanResponseDto {

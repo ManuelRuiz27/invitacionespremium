@@ -23,6 +23,7 @@ export type AdminHotspotUpdate = S['UpdateHotspotRequestDto'];
 export type AdminInvitationFileAsset = S['FileAssetResponseDto'];
 export type AdminInvitationFileAssetType = S['AdministrativeInvitationFileAssetUploadRequestDto']['fileType'];
 export type AdminFloorplan = S['FloorplanResponseDto'];
+export type AdminFloorplanSvgSource = S['FloorplanSvgSourceResponseDto'];
 export type AdminFloorplanImageInput = S['FloorplanImageRequestDto'];
 export type AdminFloorplanShape = S['FloorplanShapeResponseDto'];
 export type AdminFloorplanShapeInput = S['FloorplanShapeRequestDto'];
@@ -283,6 +284,11 @@ export function createAdminEventPreparationClient(request: ApiRequester) {
     getFloorplan: (clientId: string, eventId: string, signal?: AbortSignal) =>
       request<AdminFloorplan>(
         { path: `${base(clientId, eventId)}/floorplan`, response: 'json', ...withSignal(signal) },
+        record
+      ),
+    getFloorplanSvgSource: (clientId: string, eventId: string, signal?: AbortSignal) =>
+      request<AdminFloorplanSvgSource>(
+        { path: `${base(clientId, eventId)}/floorplan/svg-source`, response: 'json', ...withSignal(signal) },
         record
       ),
     createFloorplan: (clientId: string, eventId: string, body: AdminFloorplanImageInput, signal?: AbortSignal) =>

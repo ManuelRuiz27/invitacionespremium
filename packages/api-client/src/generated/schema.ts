@@ -560,6 +560,22 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/clients/{clientId}/events/{eventId}/floorplan/svg-source": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminFloorplanController_svgSource"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/clients/{clientId}/events/{eventId}/floorplan/unlock": {
         parameters: {
             query?: never;
@@ -3385,6 +3401,8 @@ export type components = {
             contentPath: string;
             /** Format: uuid */
             fileAssetId: string;
+            /** @enum {string} */
+            sourceType: "RASTER" | "SVG";
         };
         FloorplanResponseDto: {
             /** Format: date-time */
@@ -3452,6 +3470,31 @@ export type components = {
             width: number;
             x: number;
             y: number;
+        };
+        FloorplanSvgBBoxDto: {
+            height: number;
+            width: number;
+            x: number;
+            y: number;
+        };
+        FloorplanSvgSelectableElementDto: {
+            bbox: components["schemas"]["FloorplanSvgBBoxDto"];
+            /** @enum {string} */
+            elementType: "g" | "path" | "rect" | "circle" | "ellipse" | "polygon" | "polyline";
+            sourceElementId: string;
+        };
+        FloorplanSvgSourceResponseDto: {
+            aspectRatio: number;
+            /** Format: uuid */
+            fileAssetId: string;
+            selectableElements: components["schemas"]["FloorplanSvgSelectableElementDto"][];
+            viewBox: components["schemas"]["FloorplanSvgViewBoxDto"];
+        };
+        FloorplanSvgViewBoxDto: {
+            height: number;
+            minX: number;
+            minY: number;
+            width: number;
         };
         GeneratePhysicalPassesRequestDto: {
             /** @example 10 */
@@ -5314,6 +5357,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FloorplanSeatResponseDto"];
+                };
+            };
+        };
+    };
+    AdminFloorplanController_svgSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FloorplanSvgSourceResponseDto"];
                 };
             };
         };

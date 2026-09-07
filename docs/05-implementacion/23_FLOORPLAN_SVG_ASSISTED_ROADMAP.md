@@ -208,7 +208,7 @@ Gate:
 
 ## 8. SVG-02 — Fuente canónica y elementos seleccionables
 
-Estado: **READY**
+Estado: **DONE**
 Prioridad: **P0**
 
 Objetivo: convertir el SVG seguro en una fuente visual estructurada seleccionable sin convertirla en modelo de negocio.
@@ -233,7 +233,7 @@ Gate:
 
 ## 9. SVG-03 — Mapeo manual a `FloorplanShape`
 
-Estado: **BLOCKED por SVG-02**  
+Estado: **READY**  
 Prioridad: **P0 CORE**
 
 Objetivo: que el Provider convierta elementos del SVG a las entidades actuales sin redibujarlos.

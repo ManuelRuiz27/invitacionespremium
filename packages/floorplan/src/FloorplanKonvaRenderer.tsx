@@ -148,6 +148,23 @@ export function FloorplanKonvaRenderer(
           height={props.height}
           listening={!selected}
         />
+        {props.svgSource?.selectableElements.map((element) => (
+          <Rect
+            key={element.sourceElementId}
+            name="floorplan-svg-source-element"
+            x={element.bbox.x * props.width}
+            y={element.bbox.y * props.height}
+            width={element.bbox.width * props.width}
+            height={element.bbox.height * props.height}
+            fill="rgba(0,0,0,0)"
+            {...(props.selectedSourceElementId === element.sourceElementId
+              ? { stroke: floorplanColors.accent, strokeWidth: 3 }
+              : { strokeWidth: 0 })}
+            listening={Boolean(props.onSourceSelect) && !props.disabled && !selected}
+            onClick={(event) => { event.cancelBubble = true; props.onSourceSelect?.(element.sourceElementId); }}
+            onTap={(event) => { event.cancelBubble = true; props.onSourceSelect?.(element.sourceElementId); }}
+          />
+        ))}
         {props.snap
           ? Array.from({ length: 19 }, (_, index) => (index + 1) / 20).flatMap((position) => [
               <Line

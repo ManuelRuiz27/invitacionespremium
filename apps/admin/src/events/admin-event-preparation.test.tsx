@@ -356,7 +356,7 @@ describe('Admin Event preparation surfaces', () => {
 
   it('replaces an existing image through Admin upload plus PATCH and adopts the response', async () => {
     const api = preparedFloorplanApi();
-    const replacement = floorplan({ image: { fileAssetId: 'asset-replacement', contentPath: '/private/new' } });
+    const replacement = floorplan({ image: { fileAssetId: 'asset-replacement', contentPath: '/private/new', sourceType: 'RASTER' } });
     vi.mocked(api.adminEventPreparation.uploadFloorplanAsset).mockResolvedValue(
       floorplanAsset({ id: 'asset-replacement' })
     );
@@ -920,7 +920,7 @@ describe('Admin Event preparation surfaces', () => {
     const original = floorplan({ shapes: [shape()] });
     const replacement = floorplan({
       shapes: original.shapes,
-      image: { fileAssetId: 'asset-replacement', contentPath: '/private/new' }
+      image: { fileAssetId: 'asset-replacement', contentPath: '/private/new', sourceType: 'RASTER' }
     });
     const api = preparedFloorplanApi(original);
     vi.mocked(api.adminEventPreparation.uploadFloorplanAsset).mockResolvedValue(
@@ -1200,7 +1200,7 @@ function floorplan(overrides: Partial<AdminFloorplan> = {}): AdminFloorplan {
   return {
     id: 'floorplan-1',
     eventId: adminEvent.id,
-    image: { fileAssetId: 'asset-floorplan', contentPath: '/private' },
+    image: { fileAssetId: 'asset-floorplan', contentPath: '/private', sourceType: 'RASTER' },
     locked: false,
     lockedAt: null,
     seatingMode: 'TABLE',

@@ -4,6 +4,7 @@ import {
   type AdminFloorplan,
   type AdminFloorplanShape,
   type AdminFloorplanShapeInput,
+  type AdminFloorplanSvgSource,
   type ApiClient
 } from '@invitaciones/api-client';
 import {
@@ -106,6 +107,8 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   const [selectedId, setSelectedId] = useState<string>();
   const [selectedSeatId, setSelectedSeatId] = useState<string>();
   const [selectedSeatIds, setSelectedSeatIds] = useState<string[]>([]);
+  const [svgSource, setSvgSource] = useState<AdminFloorplanSvgSource>();
+  const [selectedSourceElementId, setSelectedSourceElementId] = useState<string>();
   const [tableModeConfirmationOpen, setTableModeConfirmationOpen] = useState(false);
   const [draft, setDraft] = useState<AdminFloorplanShapeInput>(emptyDraft);
   const [selectedPresetId, setSelectedPresetId] = useState<FloorplanStickerPresetId>();
@@ -150,6 +153,15 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
       });
     return () => controller.abort();
   }, [event.floorplanEnabled, load]);
+
+  useEffect(() => {
+    if (floorplan?.image.sourceType !== 'SVG') { setSvgSource(undefined); setSelectedSourceElementId(undefined); return; }
+    const controller = new AbortController();
+    void apiClient.adminEventPreparation.getFloorplanSvgSource(event.clientId, event.id, controller.signal)
+      .then((source) => { if (!controller.signal.aborted) setSvgSource(source); })
+      .catch(() => { if (!controller.signal.aborted) setSvgSource(undefined); });
+    return () => controller.abort();
+  }, [apiClient, event.clientId, event.id, floorplan?.image.sourceType, floorplan?.image.fileAssetId]);
 
   const selected = floorplan?.shapes.find((shape) => shape.id === selectedId);
   const selectedSeat = floorplan?.seats.find((seat) => seat.id === selectedSeatId);
@@ -894,6 +906,9 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
               }
               captureCanvasClicks={mode === 'placing-seat'}
               onSeatMove={(seatId, point) => void moveSeat(seatId, point)}
+              svgSource={svgSource}
+              selectedSourceElementId={selectedSourceElementId}
+              onSourceSelect={setSelectedSourceElementId}
               dock={
                 !floorplan.locked && mode === 'idle' ? (
                   <FloorplanTray

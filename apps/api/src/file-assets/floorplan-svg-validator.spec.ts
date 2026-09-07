@@ -13,7 +13,7 @@ describe('FloorplanSvgValidator', () => {
 
     expect(result.mimeType).toBe('image/svg+xml');
     expect(result.bytes.toString('utf8')).toBe(
-      '<svg viewBox="0 0 10 10" xmlns="http://www.w3.org/2000/svg"><g id="room"><rect fill="#fff" height="10" width="10"/></g></svg>\n'
+      '<svg viewBox="0 0 10 10" xmlns="http://www.w3.org/2000/svg"><g id="room"><rect fill="#fff" height="10" id="svg-c223d24a11db953bf4185309" width="10"/></g></svg>\n'
     );
     expect(result.checksumSha256).toBe(createHash('sha256').update(result.bytes).digest('hex'));
     expect(result.sizeBytes).toBe(result.bytes.length);
@@ -58,6 +58,24 @@ describe('FloorplanSvgValidator', () => {
     expect(() =>
       validator({ maxDepth: 2 }).validate(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><g><path/></g></svg>'))
     ).toThrow(expect.objectContaining({ response: expect.objectContaining({ code: 'FILE_SVG_LIMIT_EXCEEDED' }) }));
+  });
+
+  it('adds deterministic source ids when selectable elements omit ids', () => {
+    const source = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><rect width="2" height="3"/><circle r="1"/></svg>');
+    const first = validator().validate(source).bytes.toString('utf8');
+    const second = validator().validate(source).bytes.toString('utf8');
+    expect(first).toBe(second);
+    expect(first.match(/id="svg-[a-f0-9]{24}"/gu)).toHaveLength(2);
+  });
+
+  it('replaces duplicate selectable ids and fails closed when they are referenced', () => {
+    const source = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><rect id="seat" width="2" height="3"/><circle id="seat" r="1"/></svg>');
+    const output = validator().validate(source).bytes.toString('utf8');
+    expect(output).not.toContain('id="seat"');
+    expect(new Set(output.match(/id="svg-[a-f0-9]{24}"/gu))).toHaveLength(2);
+    expect(() => validator().validate(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><rect id="seat"/><circle id="seat"/><use href="#seat"/></svg>'))).toThrow(
+      expect.objectContaining({ response: expect.objectContaining({ code: 'FILE_SVG_UNSAFE' }) })
+    );
   });
 });
 

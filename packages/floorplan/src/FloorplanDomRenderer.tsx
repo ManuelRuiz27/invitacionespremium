@@ -26,6 +26,9 @@ export interface FloorplanRendererProps {
   selectedSeatIds?: readonly string[] | undefined;
   onSeatSelect?: ((seatId: string, options: { additive: boolean }) => void) | undefined;
   onSeatMove?: ((seatId: string, point: { x: number; y: number }) => void) | undefined;
+  svgSource?: { selectableElements: Array<{ sourceElementId: string; bbox: { x: number; y: number; width: number; height: number } }> } | undefined;
+  selectedSourceElementId?: string | undefined;
+  onSourceSelect?: ((sourceElementId: string) => void) | undefined;
 }
 
 export function FloorplanDomRenderer(props: FloorplanRendererProps) {
@@ -82,6 +85,23 @@ export function FloorplanDomRenderer(props: FloorplanRendererProps) {
         draggable={false}
         sx={{ display: 'block', width: '100%', height: 'auto' }}
       />
+      {props.svgSource?.selectableElements.map((element) => (
+        <Box
+          component="button"
+          key={element.sourceElementId}
+          type="button"
+          aria-label={`Elemento SVG ${element.sourceElementId}`}
+          aria-pressed={props.selectedSourceElementId === element.sourceElementId}
+          onClick={(event) => { event.stopPropagation(); props.onSourceSelect?.(element.sourceElementId); }}
+          sx={{
+            position: 'absolute', left: `${element.bbox.x * 100}%`, top: `${element.bbox.y * 100}%`,
+            width: `${element.bbox.width * 100}%`, height: `${element.bbox.height * 100}%`,
+            border: props.selectedSourceElementId === element.sourceElementId ? '3px solid #356ae6' : '0 solid transparent',
+            bgcolor: 'transparent', cursor: 'pointer', zIndex: 1, p: 0,
+            '&:focus-visible': { outline: '3px solid #f0a500', outlineOffset: 2 }
+          }}
+        />
+      ))}
       {props.floorplan.shapes.map((shape) => {
         if (props.draft && props.selectedId === shape.id) return null;
         return (

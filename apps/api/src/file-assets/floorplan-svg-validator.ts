@@ -109,6 +109,8 @@ interface CanonicalElement {
   children: Array<CanonicalElement | string>;
 }
 
+const SELECTABLE_ELEMENTS = new Set(['g', 'path', 'rect', 'circle', 'ellipse', 'polygon', 'polyline']);
+
 export interface ValidatedFloorplanSvg {
   bytes: Buffer;
   mimeType: 'image/svg+xml';
@@ -162,7 +164,7 @@ export class FloorplanSvgValidator {
         fail(svgLimitExceeded('SVG content exceeds the configured depth limit.'));
         return;
       }
-      const element = this.toCanonicalElement(tag, stack.length === 0, ids, references, (value) => {
+      const element = this.toCanonicalElement(tag, stack.length === 0, references, (value) => {
         usesXlink ||= value;
       });
       if (!element) {
@@ -214,6 +216,7 @@ export class FloorplanSvgValidator {
     }
     if (failure) throw failure;
     if (!root || stack.length !== 0 || root.name !== 'svg') throw invalidSvg();
+    if (!canonicalizeSelectableIds(root, ids)) throw unsafeSvg();
     for (const reference of references) {
       if (!ids.has(reference)) throw unsafeSvg();
     }
@@ -235,7 +238,6 @@ export class FloorplanSvgValidator {
   private toCanonicalElement(
     tag: SaxesTagNS,
     isRoot: boolean,
-    ids: Set<string>,
     references: string[],
     markXlink: (used: boolean) => void
   ): CanonicalElement | undefined {
@@ -271,16 +273,74 @@ export class FloorplanSvgValidator {
       const value = normalizeLineEndings(attribute.value);
       const reference = validateAttribute(canonicalName, value);
       if (reference === false) return undefined;
-      if (canonicalName === 'id') {
-        if (!isSafeId(value) || ids.has(value)) return undefined;
-        ids.add(value);
-      }
+      if (canonicalName === 'id' && !isSafeId(value)) return undefined;
       if (reference) references.push(reference);
       if (isXlinkHref) markXlink(true);
       attributes.push({ name: canonicalName, value });
     }
     return { name: CANONICAL_ELEMENT_NAMES.get(name)!, attributes, children: [] };
   }
+}
+
+/**
+ * Selectable nodes always get an identity in the canonical document.  The
+ * fingerprint deliberately describes the XML tree (rather than a renderer
+ * list position), so reloads of the same canonical source keep the same id.
+ * References to an ambiguous original id are rejected before serialization.
+ */
+function canonicalizeSelectableIds(root: CanonicalElement, ids: Set<string>): boolean {
+  const originals = new Map<string, CanonicalElement[]>();
+  const walk = (element: CanonicalElement) => {
+    const id = attribute(element, 'id');
+    if (id) originals.set(id, [...(originals.get(id) ?? []), element]);
+    for (const child of element.children) if (typeof child !== 'string') walk(child);
+  };
+  walk(root);
+  for (const [id, elements] of originals) {
+    if (elements.length === 1) ids.add(id);
+  }
+  const used = new Set(ids);
+  const assign = (element: CanonicalElement, ancestry: string) => {
+    const originalId = attribute(element, 'id');
+    const isUniqueOriginal = Boolean(originalId && originals.get(originalId)?.length === 1);
+    const signature = structuralSignature(element);
+    const address = `${ancestry}/${element.name}:${createHash('sha256').update(signature).digest('hex').slice(0, 20)}`;
+    if (SELECTABLE_ELEMENTS.has(element.name) && !isUniqueOriginal) {
+      let candidate = `svg-${createHash('sha256').update(address).digest('hex').slice(0, 24)}`;
+      let collision = 1;
+      while (used.has(candidate)) candidate = `svg-${createHash('sha256').update(`${address}:${collision++}`).digest('hex').slice(0, 24)}`;
+      setAttribute(element, 'id', candidate);
+      used.add(candidate);
+    }
+    for (const child of element.children) if (typeof child !== 'string') assign(child, address);
+  };
+  assign(root, 'root');
+  // A duplicate original reference cannot be safely reconciled to a node.
+  for (const [id, elements] of originals) if (elements.length > 1) return !hasReference(root, id);
+  return true;
+}
+
+function structuralSignature(element: CanonicalElement): string {
+  const attributes = element.attributes.filter(({ name }) => name !== 'id').map(({ name, value }) => `${name}=${value}`).sort().join('|');
+  const children = element.children.map((child) => typeof child === 'string' ? `#${child}` : structuralSignature(child)).join('');
+  return `${element.name}[${attributes}]${children}`;
+}
+
+function attribute(element: CanonicalElement, name: string): string | undefined {
+  return element.attributes.find((attribute) => attribute.name === name)?.value;
+}
+
+function setAttribute(element: CanonicalElement, name: string, value: string) {
+  const current = element.attributes.find((attribute) => attribute.name === name);
+  if (current) current.value = value;
+  else element.attributes.push({ name, value });
+}
+
+function hasReference(element: CanonicalElement, id: string): boolean {
+  return element.attributes.some(({ name, value }) => {
+    const reference = validateAttribute(name, value);
+    return reference === id;
+  }) || element.children.some((child) => typeof child !== 'string' && hasReference(child, id));
 }
 
 function validateAttribute(name: string, value: string): string | false | undefined {

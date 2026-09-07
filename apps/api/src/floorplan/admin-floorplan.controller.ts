@@ -9,6 +9,7 @@ import {
   BatchFloorplanSeatsRequestDto,
   RenumberFloorplanSeatsRequestDto,
   FloorplanResponseDto,
+  FloorplanSvgSourceResponseDto,
   FloorplanShapeRequestDto,
   FloorplanShapeResponseDto,
   FloorplanSeatRequestDto,
@@ -44,6 +45,16 @@ export class AdminFloorplanController {
     @CurrentAuth() principal: AuthPrincipal
   ): Promise<FloorplanResponseDto> {
     return this.floorplan.getAdministrative(parseFloorplanId(clientId), parseFloorplanId(eventId), principal);
+  }
+
+  @Get('svg-source')
+  @ApiOkResponse({ type: FloorplanSvgSourceResponseDto })
+  svgSource(
+    @Param('clientId') clientId: string,
+    @Param('eventId') eventId: string,
+    @CurrentAuth() principal: AuthPrincipal
+  ): Promise<FloorplanSvgSourceResponseDto> {
+    return this.floorplan.svgSourceAdministrative(parseFloorplanId(clientId), parseFloorplanId(eventId), principal);
   }
 
   @Patch('seating-mode')

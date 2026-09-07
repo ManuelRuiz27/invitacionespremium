@@ -21,6 +21,7 @@ import {
   EventStatus,
   FileAssetOwnerType,
   FileAssetStatus,
+  FileAssetType,
   FloorplanShapeKind,
   FloorplanSeatingMode,
   Prisma,
@@ -39,6 +40,7 @@ import type {
   BatchFloorplanSeatsInput,
   CreateFloorplanInput,
   FloorplanResponseDto,
+  FloorplanSvgSourceResponseDto,
   FloorplanShapeInput,
   FloorplanShapeResponseDto,
   FloorplanSeatInput,
@@ -53,6 +55,7 @@ import type {
 } from './floorplan.dto';
 import { floorplanShapeSchema, normalizeFloorplanName } from './floorplan.dto';
 import { FloorplanAccessService } from './floorplan-access.service';
+import { deriveFloorplanSvgSource } from './floorplan-svg-source';
 
 const LAYOUT_MUTABLE = new Set<EventStatus>([
   EventStatus.DRAFT,
@@ -175,6 +178,23 @@ export class FloorplanService {
 
   getAdministrative(clientId: string, eventId: string, principal: AuthPrincipal): Promise<FloorplanResponseDto> {
     return this.getForTarget(eventId, principal, { kind: 'ADMIN', clientId });
+  }
+
+  async svgSourceAdministrative(clientId: string, eventId: string, principal: AuthPrincipal): Promise<FloorplanSvgSourceResponseDto> {
+    return this.prisma.$transaction(async (tx) => {
+      await this.requireTargetEvent(tx, eventId, principal, { kind: 'ADMIN', clientId });
+      const floorplan = await tx.floorplan.findFirst({ where: { eventId, deletedAt: null }, include: { imageAsset: true } });
+      if (!floorplan) throw floorplanNotFound();
+      const asset = floorplan.imageAsset;
+      if (asset.fileType !== FileAssetType.FLOORPLAN_SVG || asset.status !== FileAssetStatus.READY || asset.deletedAt) {
+        throw floorplanError('FLOORPLAN_SVG_SOURCE_NOT_AVAILABLE', 'The active Floorplan SVG source is not available.');
+      }
+      try {
+        return deriveFloorplanSvgSource(asset.id, await this.storage.read(asset.storageKey));
+      } catch {
+        throw floorplanError('FLOORPLAN_SVG_SOURCE_INVALID', 'The active Floorplan SVG source has invalid geometry.');
+      }
+    }, CRITICAL_TRANSACTION_OPTIONS);
   }
 
   private async getForTarget(
@@ -1495,7 +1515,8 @@ export function toFloorplanResponse(floorplan: FloorplanView, contentPath?: stri
     eventId: floorplan.eventId,
     image: {
       fileAssetId: floorplan.imageAssetId,
-      contentPath: contentPath ?? `/api/v1/events/${floorplan.eventId}/file-assets/${floorplan.imageAssetId}/content`
+      contentPath: contentPath ?? `/api/v1/events/${floorplan.eventId}/file-assets/${floorplan.imageAssetId}/content`,
+      sourceType: floorplan.imageAsset.fileType === FileAssetType.FLOORPLAN_SVG ? 'SVG' : 'RASTER'
     },
     locked: floorplan.lockedAt !== null,
     lockedAt: floorplan.lockedAt?.toISOString() ?? null,

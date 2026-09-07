@@ -25,7 +25,7 @@ export function buildFloorplanScale(count: (typeof FLOORPLAN_SCALE_COUNTS)[numbe
   return {
     id: `scale-floorplan-${count}`,
     eventId: 'scale-event',
-    image: { fileAssetId: 'scale-image', contentPath: '/private' },
+    image: { fileAssetId: 'scale-image', contentPath: '/private', sourceType: 'RASTER' },
     locked: false,
     lockedAt: null,
     shapes: Array.from({ length: count }, (_, index) => buildFloorplanTable(index)),
