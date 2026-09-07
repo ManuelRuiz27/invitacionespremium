@@ -1,5 +1,6 @@
 import {
   Controller,
+  Body,
   Delete,
   Get,
   HttpCode,
@@ -28,7 +29,13 @@ import type { AuthenticatedRequest, AuthPrincipal } from '../auth/auth.types';
 import { CurrentAuth } from '../auth/current-auth.decorator';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../generated/prisma/client';
-import { FileAssetResponseDto, parseFileAssetEventId, parseFileAssetId } from './file-assets.dto';
+import {
+  AdministrativeFloorplanFileAssetUploadRequestDto,
+  FileAssetResponseDto,
+  parseAdministrativeFloorplanFileAssetUpload,
+  parseFileAssetEventId,
+  parseFileAssetId
+} from './file-assets.dto';
 import { FileAssetsService, type UploadedImageFile } from './file-assets.service';
 
 @ApiTags('admin-floorplan-file-assets')
@@ -46,13 +53,17 @@ export class AdminFloorplanFileAssetsController {
       type: 'object',
       additionalProperties: false,
       required: ['file'],
-      properties: { file: { type: 'string', format: 'binary' } }
+      properties: {
+        file: { type: 'string', format: 'binary' },
+        fileType: { type: 'string', enum: ['FLOORPLAN_SVG'] }
+      }
     }
   })
   @ApiCreatedResponse({ type: FileAssetResponseDto })
   upload(
     @Param('clientId') clientId: string,
     @Param('eventId') eventId: string,
+    @Body() body: AdministrativeFloorplanFileAssetUploadRequestDto,
     @UploadedFile() file: UploadedImageFile | undefined,
     @CurrentAuth() principal: AuthPrincipal,
     @Req() request: AuthenticatedRequest
@@ -60,6 +71,7 @@ export class AdminFloorplanFileAssetsController {
     return this.fileAssets.uploadAdministrativeFloorplanImage(
       parseFileAssetEventId(clientId),
       parseFileAssetEventId(eventId),
+      parseAdministrativeFloorplanFileAssetUpload(body),
       file,
       principal,
       request.operationId
@@ -80,7 +92,7 @@ export class AdminFloorplanFileAssetsController {
   }
 
   @Get(':fileAssetId/content')
-  @ApiProduces('image/jpeg', 'image/png')
+  @ApiProduces('image/jpeg', 'image/png', 'image/svg+xml')
   @ApiOkResponse({ description: 'Authorized private Floorplan image content.' })
   async content(
     @Param('clientId') clientId: string,
@@ -100,6 +112,7 @@ export class AdminFloorplanFileAssetsController {
     response.setHeader('Content-Disposition', 'inline');
     response.setHeader('Cache-Control', 'private, no-store');
     response.setHeader('X-Content-Type-Options', 'nosniff');
+    if (content.mimeType === 'image/svg+xml') response.setHeader('Content-Security-Policy', svgContentSecurityPolicy());
     response.end(content.bytes);
   }
 
@@ -121,4 +134,8 @@ export class AdminFloorplanFileAssetsController {
       request.operationId
     );
   }
+}
+
+function svgContentSecurityPolicy(): string {
+  return "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; script-src 'none'; style-src 'none'; object-src 'none'; connect-src 'none'; font-src 'none'; media-src 'none'; img-src 'self'";
 }

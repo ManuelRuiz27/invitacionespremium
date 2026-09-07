@@ -36,7 +36,8 @@ import {
   USER_IMAGE_FILE_TYPES
 } from './file-asset-compatibility';
 import { FileAssetOwnerRegistry, type FileAssetOwnerReference, ownerMismatch } from './file-asset-owner.registry';
-import { FileImageValidator } from './file-image-validator';
+import { FileImageValidator, type ValidatedImage } from './file-image-validator';
+import { FloorplanSvgValidator, type ValidatedFloorplanSvg } from './floorplan-svg-validator';
 import { FileStorage } from './file-storage';
 import type {
   AdministrativeInvitationUploadInput,
@@ -54,6 +55,7 @@ const GENERATED_FILE_TYPES = new Set<FileAssetType>([
   FileAssetType.INVITATION_QR_SVG,
   FileAssetType.PHYSICAL_PASS_QR_SVG
 ]);
+const FLOORPLAN_FILE_TYPES = new Set<FileAssetType>([FileAssetType.FLOORPLAN_IMAGE, FileAssetType.FLOORPLAN_SVG]);
 
 export interface UploadedImageFile {
   buffer: Buffer;
@@ -84,6 +86,8 @@ interface AdministrativeInvitationGuard {
   eventId: string;
 }
 
+type ValidatedUpload = ValidatedImage | (ValidatedFloorplanSvg & { width: null; height: null });
+
 @Injectable()
 export class FileAssetsService {
   private readonly logger = new Logger(FileAssetsService.name);
@@ -94,6 +98,7 @@ export class FileAssetsService {
     @Inject(EventAccessPolicy) private readonly eventAccess: EventAccessPolicy,
     @Inject(FileStorage) private readonly storage: FileStorage,
     @Inject(FileImageValidator) private readonly imageValidator: FileImageValidator,
+    @Inject(FloorplanSvgValidator) private readonly svgValidator: FloorplanSvgValidator,
     @Inject(FileAssetOwnerRegistry) private readonly owners: FileAssetOwnerRegistry,
     @Inject(AppConfigService) private readonly config: AppConfigService,
     @Inject(EventCommercialService) private readonly commercial: EventCommercialService
@@ -117,17 +122,18 @@ export class FileAssetsService {
   async uploadAdministrativeFloorplanImage(
     clientId: string,
     eventId: string,
+    input: { fileType?: 'FLOORPLAN_SVG' | undefined },
     file: UploadedImageFile | undefined,
     principal: AuthPrincipal,
     operationId?: string
   ): Promise<FileAssetResponseDto> {
     if (!file) {
-      throw fileError('FILE_UNSUPPORTED_TYPE', 'Only JPEG and PNG image uploads are accepted.');
+      throw fileError('FILE_UNSUPPORTED_TYPE', 'A Floorplan image or SVG upload is required.');
     }
     const event = await this.requireAdministrativeEvent(clientId, eventId);
     return this.uploadImageForEvent(
       event,
-      { ownerType: FileAssetOwnerType.FLOORPLAN, fileType: FileAssetType.FLOORPLAN_IMAGE },
+      { ownerType: FileAssetOwnerType.FLOORPLAN, fileType: input.fileType ?? FileAssetType.FLOORPLAN_IMAGE },
       file,
       principal.userId,
       operationId
@@ -167,7 +173,7 @@ export class FileAssetsService {
   ): Promise<FileAssetResponseDto> {
     const eventId = event.id;
     const operationalFloorplanUpload =
-      input.fileType === FileAssetType.FLOORPLAN_IMAGE &&
+      FLOORPLAN_FILE_TYPES.has(input.fileType) &&
       (event.status === EventStatus.ACTIVE || event.status === EventStatus.EVENT_DAY);
     const albumPhotoUpload =
       input.fileType === FileAssetType.ALBUM_PHOTO_IMAGE &&
@@ -202,7 +208,7 @@ export class FileAssetsService {
 
     let wroteBytes = false;
     try {
-      const validated = await this.imageValidator.validate(file.buffer);
+      const validated = await this.validateUpload(input.fileType, file.buffer);
       await this.storage.write({ storageKey, bytes: validated.bytes });
       wroteBytes = true;
       const ready = await this.serializable(async (transaction) => {
@@ -259,6 +265,13 @@ export class FileAssetsService {
     }
   }
 
+  private async validateUpload(fileType: FileAssetType, bytes: Buffer): Promise<ValidatedUpload> {
+    if (fileType === FileAssetType.FLOORPLAN_SVG) {
+      return { ...(this.svgValidator.validate(bytes)), width: null, height: null };
+    }
+    return this.imageValidator.validate(bytes);
+  }
+
   async listAdministrativeFloorplanImages(clientId: string, eventId: string): Promise<FileAssetResponseDto[]> {
     await this.requireAdministrativeEvent(clientId, eventId);
     const assets = await this.prisma.fileAsset.findMany({
@@ -266,7 +279,7 @@ export class FileAssetsService {
         clientId,
         eventId,
         ownerType: FileAssetOwnerType.FLOORPLAN,
-        fileType: FileAssetType.FLOORPLAN_IMAGE,
+        fileType: { in: [...FLOORPLAN_FILE_TYPES] },
         deletedAt: null
       },
       orderBy: [{ createdAt: 'desc' }, { id: 'asc' }]
@@ -306,7 +319,7 @@ export class FileAssetsService {
     await this.softDeleteAsset(eventId, fileAssetId, principal.userId, operationId, {
       clientId,
       ownerType: FileAssetOwnerType.FLOORPLAN,
-      fileType: FileAssetType.FLOORPLAN_IMAGE
+      fileType: { in: [...FLOORPLAN_FILE_TYPES] }
     });
   }
 
@@ -732,7 +745,7 @@ export class FileAssetsService {
         clientId,
         eventId,
         ownerType: FileAssetOwnerType.FLOORPLAN,
-        fileType: FileAssetType.FLOORPLAN_IMAGE,
+        fileType: { in: [...FLOORPLAN_FILE_TYPES] },
         ...(includeDeleted ? {} : { deletedAt: null })
       }
     });

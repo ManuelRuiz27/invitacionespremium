@@ -90,6 +90,7 @@ describe('administrative Event preparation API client', () => {
     );
     await api.adminEventPreparation.listFloorplanAssets(clientId, eventId, signal);
     await api.adminEventPreparation.uploadFloorplanAsset(clientId, eventId, new Blob(['floorplan']), signal);
+    await api.adminEventPreparation.uploadFloorplanSvgAsset(clientId, eventId, new Blob(['floorplan-svg']), signal);
     await api.adminEventPreparation.floorplanAssetContent(clientId, eventId, 'floorplan/asset', signal);
     await api.adminEventPreparation.removeFloorplanAsset(clientId, eventId, 'floorplan/asset', signal);
     await api.adminEventPreparation.lockFloorplan(clientId, eventId, signal);
@@ -167,6 +168,7 @@ describe('administrative Event preparation API client', () => {
       `${base}/floorplan`,
       `${base}/floorplan/file-assets`,
       `${base}/floorplan/file-assets`,
+      `${base}/floorplan/file-assets`,
       `${base}/floorplan/file-assets/floorplan%2Fasset/content`,
       `${base}/floorplan/file-assets/floorplan%2Fasset`,
       `${base}/floorplan/lock`,
@@ -209,6 +211,7 @@ describe('administrative Event preparation API client', () => {
       'PATCH',
       'GET',
       'POST',
+      'POST',
       'GET',
       'DELETE',
       'POST',
@@ -239,6 +242,13 @@ describe('administrative Event preparation API client', () => {
     expect(floorplanForm.has('file')).toBe(true);
     expect(floorplanForm.has('fileType')).toBe(false);
     expect(floorplanForm.has('ownerType')).toBe(false);
+    const floorplanSvgUpload = calls.filter(
+      ([url, init]) => String(url).endsWith('/floorplan/file-assets') && init?.method === 'POST'
+    )[1];
+    expect(floorplanSvgUpload?.[1]?.body).toBeInstanceOf(FormData);
+    const floorplanSvgForm = floorplanSvgUpload?.[1]?.body as FormData;
+    expect(floorplanSvgForm.get('fileType')).toBe('FLOORPLAN_SVG');
+    expect(floorplanSvgForm.has('ownerType')).toBe(false);
     expect(calls.find(([url]) => String(url).endsWith('/commercial-authorization'))?.[1]?.body).toBe(
       '{"acceptanceConfirmed":true}'
     );

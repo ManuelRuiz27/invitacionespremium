@@ -22,9 +22,13 @@ const administrativeInvitationUploadSchema = z
       });
     }
   });
+const administrativeFloorplanUploadSchema = z
+  .object({ fileType: z.literal(FileAssetType.FLOORPLAN_SVG).optional() })
+  .strict();
 
 export type UploadFileAssetInput = z.infer<typeof uploadSchema>;
 export type AdministrativeInvitationUploadInput = z.infer<typeof administrativeInvitationUploadSchema>;
+export type AdministrativeFloorplanUploadInput = z.infer<typeof administrativeFloorplanUploadSchema>;
 
 export class UploadFileAssetRequestDto {
   @ApiProperty({ type: 'string', format: 'binary' })
@@ -45,6 +49,14 @@ export class AdministrativeInvitationFileAssetUploadRequestDto {
     enum: [FileAssetType.FLYER_INITIAL_IMAGE, FileAssetType.FLYER_QR_IMAGE, FileAssetType.FLIPBOOK_PAGE_IMAGE]
   })
   fileType!: FileAssetType;
+}
+
+export class AdministrativeFloorplanFileAssetUploadRequestDto {
+  @ApiProperty({ type: 'string', format: 'binary' })
+  file!: unknown;
+
+  @ApiPropertyOptional({ enum: [FileAssetType.FLOORPLAN_SVG] })
+  fileType?: 'FLOORPLAN_SVG';
 }
 
 export class FileAssetResponseDto {
@@ -103,6 +115,10 @@ export function parseFileAssetUpload(input: unknown): UploadFileAssetInput {
 
 export function parseAdministrativeInvitationFileAssetUpload(input: unknown): AdministrativeInvitationUploadInput {
   return parse(administrativeInvitationUploadSchema, input);
+}
+
+export function parseAdministrativeFloorplanFileAssetUpload(input: unknown): AdministrativeFloorplanUploadInput {
+  return parse(administrativeFloorplanUploadSchema, input);
 }
 
 export function parseFileAssetId(input: unknown): string {

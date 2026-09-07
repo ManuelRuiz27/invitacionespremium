@@ -26,6 +26,9 @@ describe('validateEnvironment', () => {
     expect(environment.FILE_STORAGE_LOCAL_ROOT).toBe('var/file-assets');
     expect(environment.FILE_UPLOAD_MAX_BYTES).toBe(10_485_760);
     expect(environment.FILE_IMAGE_MAX_PIXELS).toBe(40_000_000);
+    expect(environment.FLOORPLAN_SVG_MAX_BYTES).toBe(5_242_880);
+    expect(environment.FLOORPLAN_SVG_MAX_NODES).toBe(5_000);
+    expect(environment.FLOORPLAN_SVG_MAX_DEPTH).toBe(64);
     expect(environment.FILE_ORPHAN_RETENTION_SECONDS).toBe(86_400);
     expect(Buffer.byteLength(environment.INVITATION_TOKEN_SIGNING_SECRET)).toBeGreaterThanOrEqual(32);
     expect(environment.PUBLIC_INVITATION_BASE_URL).toBe('http://localhost:5173/invitacion');
@@ -138,6 +141,12 @@ describe('validateEnvironment', () => {
       validateEnvironment({
         DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/app',
         PHONE_DEFAULT_REGION: 'mex'
+      })
+    ).toThrow();
+    expect(() =>
+      validateEnvironment({
+        DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/app',
+        FLOORPLAN_SVG_MAX_NODES: '0'
       })
     ).toThrow();
     expect(() =>

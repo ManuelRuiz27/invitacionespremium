@@ -4,7 +4,7 @@ import { FileAssetOwnerType, FileAssetType } from '../generated/prisma/client';
 export const FILE_ASSET_COMPATIBILITY: Readonly<Record<FileAssetOwnerType, readonly FileAssetType[]>> = {
   [FileAssetOwnerType.FLYER]: [FileAssetType.FLYER_INITIAL_IMAGE, FileAssetType.FLYER_QR_IMAGE],
   [FileAssetOwnerType.FLIPBOOK_PAGE]: [FileAssetType.FLIPBOOK_PAGE_IMAGE],
-  [FileAssetOwnerType.FLOORPLAN]: [FileAssetType.FLOORPLAN_IMAGE],
+  [FileAssetOwnerType.FLOORPLAN]: [FileAssetType.FLOORPLAN_IMAGE, FileAssetType.FLOORPLAN_SVG],
   [FileAssetOwnerType.ALBUM_PHOTO]: [FileAssetType.ALBUM_PHOTO_IMAGE],
   [FileAssetOwnerType.GENERATED_REPORT]: [FileAssetType.GENERATED_REPORT_PDF],
   [FileAssetOwnerType.INVITATION]: [FileAssetType.INVITATION_QR_SVG],
@@ -27,6 +27,7 @@ export const ADMIN_INVITATION_IMAGE_FILE_TYPES = new Set<FileAssetType>([
 
 export const PROVIDER_MANAGED_IMAGE_FILE_TYPES = new Set<FileAssetType>([
   FileAssetType.FLOORPLAN_IMAGE,
+  FileAssetType.FLOORPLAN_SVG,
   ...ADMIN_INVITATION_IMAGE_FILE_TYPES
 ]);
 

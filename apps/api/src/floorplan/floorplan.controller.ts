@@ -195,7 +195,7 @@ export class ScannerFloorplanController {
   }
 
   @Get('content')
-  @ApiProduces('image/jpeg', 'image/png')
+  @ApiProduces('image/jpeg', 'image/png', 'image/svg+xml')
   async content(@Param('staffToken') token: string, @Res() response: Response): Promise<void> {
     const content = await this.floorplan.scannerContent(token);
     response.setHeader('Content-Type', content.mimeType);
@@ -204,6 +204,11 @@ export class ScannerFloorplanController {
     response.setHeader('Content-Disposition', 'inline');
     response.setHeader('Cache-Control', 'private, no-store');
     response.setHeader('X-Content-Type-Options', 'nosniff');
+    if (content.mimeType === 'image/svg+xml') response.setHeader('Content-Security-Policy', svgContentSecurityPolicy());
     response.end(content.bytes);
   }
+}
+
+function svgContentSecurityPolicy(): string {
+  return "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; script-src 'none'; style-src 'none'; object-src 'none'; connect-src 'none'; font-src 'none'; media-src 'none'; img-src 'self'";
 }

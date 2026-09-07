@@ -15,6 +15,7 @@ import {
   InvitationFileAssetOwnerResolver
 } from './file-asset-owner.registry';
 import { FileImageValidator } from './file-image-validator';
+import { FloorplanSvgValidator } from './floorplan-svg-validator';
 import { FileStorage } from './file-storage';
 import { FileAssetsController } from './file-assets.controller';
 import { FileAssetsScheduler } from './file-assets.scheduler';
@@ -28,7 +29,7 @@ import { LocalFileStorage } from './local-file-storage';
     MulterModule.registerAsync({
       inject: [AppConfigService],
       useFactory: (config: AppConfigService) => ({
-        limits: { fileSize: config.fileUploadMaxBytes, files: 1 }
+        limits: { fileSize: Math.max(config.fileUploadMaxBytes, config.floorplanSvgMaxBytes), files: 1 }
       })
     })
   ],
@@ -37,6 +38,7 @@ import { LocalFileStorage } from './local-file-storage';
     FileAssetsService,
     FileAssetsScheduler,
     FileImageValidator,
+    FloorplanSvgValidator,
     LocalFileStorage,
     { provide: FileStorage, useExisting: LocalFileStorage },
     InvitationFileAssetOwnerResolver,

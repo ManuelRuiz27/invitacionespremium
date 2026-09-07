@@ -326,6 +326,21 @@ export function createAdminEventPreparationClient(request: ApiRequester) {
         record
       );
     },
+    uploadFloorplanSvgAsset: (clientId: string, eventId: string, file: Blob, signal?: AbortSignal) => {
+      const body = new FormData();
+      body.append('file', file);
+      body.append('fileType', 'FLOORPLAN_SVG');
+      return request<AdminFloorplanFileAsset>(
+        {
+          method: 'POST',
+          path: `${base(clientId, eventId)}/floorplan/file-assets`,
+          body,
+          response: 'json',
+          ...withSignal(signal)
+        },
+        record
+      );
+    },
     floorplanAssetContent: (clientId: string, eventId: string, assetId: string, signal?: AbortSignal) =>
       request<Blob>({
         path: `${base(clientId, eventId)}/floorplan/file-assets/${id(assetId)}/content`,

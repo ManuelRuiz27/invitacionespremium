@@ -3324,7 +3324,7 @@ export type components = {
         /** @enum {string} */
         FileAssetStatus: "UPLOADING" | "READY" | "FAILED" | "HIDDEN" | "DELETED";
         /** @enum {string} */
-        FileAssetType: "FLYER_INITIAL_IMAGE" | "FLYER_QR_IMAGE" | "FLIPBOOK_PAGE_IMAGE" | "FLOORPLAN_IMAGE" | "ALBUM_PHOTO_IMAGE" | "GENERATED_REPORT_PDF" | "INVITATION_QR_SVG" | "PHYSICAL_PASS_QR_SVG";
+        FileAssetType: "FLYER_INITIAL_IMAGE" | "FLYER_QR_IMAGE" | "FLIPBOOK_PAGE_IMAGE" | "FLOORPLAN_IMAGE" | "FLOORPLAN_SVG" | "ALBUM_PHOTO_IMAGE" | "GENERATED_REPORT_PDF" | "INVITATION_QR_SVG" | "PHYSICAL_PASS_QR_SVG";
         FinanceBalanceResponseDto: {
             /** Format: uuid */
             clientId: string;
@@ -5057,6 +5057,8 @@ export interface operations {
                 "multipart/form-data": {
                     /** Format: binary */
                     file: string;
+                    /** @enum {string} */
+                    fileType?: "FLOORPLAN_SVG";
                 };
             };
         };

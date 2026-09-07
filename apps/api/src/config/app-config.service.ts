@@ -74,6 +74,18 @@ export class AppConfigService {
     return this.configService.get('FILE_IMAGE_MAX_PIXELS', { infer: true });
   }
 
+  get floorplanSvgMaxBytes(): number {
+    return this.configService.get('FLOORPLAN_SVG_MAX_BYTES', { infer: true });
+  }
+
+  get floorplanSvgMaxNodes(): number {
+    return this.configService.get('FLOORPLAN_SVG_MAX_NODES', { infer: true });
+  }
+
+  get floorplanSvgMaxDepth(): number {
+    return this.configService.get('FLOORPLAN_SVG_MAX_DEPTH', { infer: true });
+  }
+
   get fileOrphanRetentionSeconds(): number {
     return this.configService.get('FILE_ORPHAN_RETENTION_SECONDS', { infer: true });
   }

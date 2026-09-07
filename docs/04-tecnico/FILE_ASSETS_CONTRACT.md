@@ -4,8 +4,9 @@
 
 `FileAssetsModule` implementa el almacenamiento privado común para archivos del dominio. CODEX-060 incluye
 storage local, subida autenticada de imágenes, consulta, contenido autenticado, asociación interna y limpieza
-de huérfanos. CODEX-061 agrega los adapters `FLYER` y `FLIPBOOK_PAGE`; Croquis, Álbum, QR gráfico,
-reportes PDF y frontend permanecen fuera de este contrato.
+de huérfanos. CODEX-061 agrega los adapters `FLYER` y `FLIPBOOK_PAGE`; el pipeline administrativo de Croquis
+agrega `FLOORPLAN_IMAGE` y `FLOORPLAN_SVG` seguro. Álbum, QR gráfico, reportes PDF y frontend permanecen fuera
+de este contrato salvo sus adapters explícitos ya documentados.
 
 ## Modelo
 
@@ -30,7 +31,7 @@ se expone públicamente. `ownerId` y `associatedAt` se establecen juntos.
 |---|---|
 | `FLYER` | `FLYER_INITIAL_IMAGE`, `FLYER_QR_IMAGE` |
 | `FLIPBOOK_PAGE` | `FLIPBOOK_PAGE_IMAGE` |
-| `FLOORPLAN` | `FLOORPLAN_IMAGE` |
+| `FLOORPLAN` | `FLOORPLAN_IMAGE`, `FLOORPLAN_SVG` |
 | `ALBUM_PHOTO` | `ALBUM_PHOTO_IMAGE` |
 | `GENERATED_REPORT` | `GENERATED_REPORT_PDF` |
 | `INVITATION` | `INVITATION_QR_SVG` |
@@ -45,6 +46,9 @@ combinación responde `409 FILE_TYPE_OWNER_MISMATCH`.
 FILE_STORAGE_LOCAL_ROOT=var/file-assets
 FILE_UPLOAD_MAX_BYTES=10485760
 FILE_IMAGE_MAX_PIXELS=40000000
+FLOORPLAN_SVG_MAX_BYTES=5242880
+FLOORPLAN_SVG_MAX_NODES=5000
+FLOORPLAN_SVG_MAX_DEPTH=64
 FILE_ORPHAN_RETENTION_SECONDS=86400
 ```
 
@@ -62,8 +66,11 @@ El multipart de Cliente acepta únicamente tipos de imagen de la tabla y bytes J
 6. elimina EXIF, XMP, IPTC e ICC no necesarios;
 7. calcula SHA-256 sobre los bytes finales almacenados.
 
-La extensión, nombre y `Content-Type` declarados no son fuente de verdad. PDF, SVG, HTML, WebP y formatos
-distintos se rechazan. PDF y SVG generados existen solo en métodos internos.
+La extensión, nombre y `Content-Type` declarados no son fuente de verdad. PDF, HTML, SVG no autorizado, WebP y formatos
+distintos se rechazan. El SVG se admite exclusivamente por la ruta administrativa de Croquis con
+`fileType=FLOORPLAN_SVG`: se decodifica como UTF-8, se parsea con XML seguro, se limita por bytes/nodos/profundidad,
+se rechaza contenido activo o referencias externas y se almacena solamente la salida SVG canónica. Las rutas genéricas
+de Planner continúan aceptando exclusivamente JPEG/PNG; PDF y SVG generados existen solo en métodos internos.
 
 Errores estables:
 
@@ -71,6 +78,9 @@ Errores estables:
 - `413 FILE_SIZE_EXCEEDED`;
 - `400 FILE_IMAGE_INVALID`;
 - `400 FILE_IMAGE_DIMENSIONS_EXCEEDED`;
+- `400 FILE_SVG_INVALID`;
+- `400 FILE_SVG_UNSAFE`;
+- `413 FILE_SVG_LIMIT_EXCEEDED`;
 - `500 FILE_STORAGE_FAILURE`.
 
 ## Storage local

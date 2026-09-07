@@ -701,8 +701,6 @@ describe('FileAssets and local storage', () => {
       .set('Cookie', adminCookie)
       .set('Origin', trustedOrigin)
       .set('x-operation-id', operationId)
-      .field('ownerType', 'FLYER')
-      .field('fileType', 'FLYER_INITIAL_IMAGE')
       .attach('file', jpeg, { filename: 'floorplan.jpg', contentType: 'image/jpeg' })
       .expect(201);
     expect(uploaded.body).toMatchObject({
@@ -774,6 +772,119 @@ describe('FileAssets and local storage', () => {
       status: FileAssetStatus.DELETED,
       deletedAt: expect.any(Date)
     });
+  });
+
+  it('accepts only canonical safe SVG through the administrative Floorplan surface', async () => {
+    const owner = await createClientUser(UserRole.INDEPENDENT_PLANNER);
+    const event = await createEvent(owner);
+    const ownerCookie = await login(owner.email);
+    const admin = await createUser(null, UserRole.PLATFORM_ADMIN);
+    const adminCookie = await login(admin.email);
+    const base = `/api/v1/admin/clients/${owner.clientId}/events/${event.id}/floorplan/file-assets`;
+    const source = Buffer.from(
+      '<svg viewBox="0 0 10 10" xmlns="http://www.w3.org/2000/svg"><!-- raw never stored --><g id="room"><rect width="10" height="10" fill="#fff"/></g></svg>'
+    );
+
+    const uploaded = await request(app.getHttpServer())
+      .post(base)
+      .set('Cookie', adminCookie)
+      .set('Origin', trustedOrigin)
+      .field('fileType', 'FLOORPLAN_SVG')
+      .attach('file', source, { filename: 'floorplan.svg', contentType: 'text/html' })
+      .expect(201);
+    expect(uploaded.body).toMatchObject({
+      ownerType: FileAssetOwnerType.FLOORPLAN,
+      fileType: FileAssetType.FLOORPLAN_SVG,
+      mimeType: 'image/svg+xml',
+      width: null,
+      height: null,
+      status: FileAssetStatus.READY
+    });
+    const stored = await prisma.fileAsset.findUniqueOrThrow({ where: { id: uploaded.body.id } });
+    const canonical = await storage.read(stored.storageKey);
+    expect(canonical.toString('utf8')).not.toContain('raw never stored');
+    expect(stored.checksumSha256).toBe(hash(canonical));
+
+    const listed = await request(app.getHttpServer()).get(base).set('Cookie', adminCookie).expect(200);
+    expect(listed.body).toHaveLength(1);
+    expect(listed.body[0].fileType).toBe(FileAssetType.FLOORPLAN_SVG);
+    const content = await request(app.getHttpServer())
+      .get(`${base}/${uploaded.body.id}/content`)
+      .set('Cookie', adminCookie)
+      .buffer(true)
+      .expect(200);
+    expect(content.headers['content-type']).toMatch(/^image\/svg\+xml/u);
+    expect(content.headers['cache-control']).toBe('private, no-store');
+    expect(content.headers['x-content-type-options']).toBe('nosniff');
+    expect(content.headers['content-security-policy']).toContain("default-src 'none'");
+    expect(content.body.equals(canonical)).toBe(true);
+
+    await prisma.$transaction(async (transaction) => {
+      const floorplan = await transaction.floorplan.create({
+        data: { eventId: event.id, imageAssetId: uploaded.body.id }
+      });
+      await fileAssets.claimReadyAssetInTransaction(
+        transaction,
+        uploaded.body.id,
+        { ownerType: FileAssetOwnerType.FLOORPLAN, ownerId: floorplan.id },
+        admin.id
+      );
+    });
+    await request(app.getHttpServer())
+      .delete(`${base}/${uploaded.body.id}`)
+      .set('Cookie', adminCookie)
+      .set('Origin', trustedOrigin)
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('FILE_ASSET_ASSOCIATED'));
+
+    await upload(event.id, ownerCookie, {
+      file: source,
+      filename: 'generic.svg',
+      contentType: 'image/svg+xml',
+      ownerType: 'FLOORPLAN',
+      fileType: 'FLOORPLAN_SVG'
+    })
+      .expect(400)
+      .expect(({ body }) => expect(body.code).toBe('FILE_UNSUPPORTED_TYPE'));
+
+    await request(app.getHttpServer())
+      .post(base)
+      .set('Cookie', adminCookie)
+      .set('Origin', trustedOrigin)
+      .field('fileType', 'FLOORPLAN_SVG')
+      .attach('file', Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script/></svg>'), {
+        filename: 'unsafe.svg',
+        contentType: 'image/svg+xml'
+      })
+      .expect(400)
+      .expect(({ body }) => expect(body.code).toBe('FILE_SVG_UNSAFE'));
+    const failed = await prisma.fileAsset.findFirstOrThrow({
+      where: { eventId: event.id, fileType: FileAssetType.FLOORPLAN_SVG, status: FileAssetStatus.FAILED }
+    });
+    expect(failed.failureCode).toBe('FILE_SVG_UNSAFE');
+    expect(await storage.exists(failed.storageKey)).toBe(false);
+
+    await request(app.getHttpServer())
+      .post(base)
+      .set('Cookie', adminCookie)
+      .set('Origin', trustedOrigin)
+      .field('fileType', 'FLYER_INITIAL_IMAGE')
+      .attach('file', source, { filename: 'wrong-type.svg', contentType: 'image/svg+xml' })
+      .expect(400)
+      .expect(({ body }) => expect(body.code).toBe('VALIDATION_ERROR'));
+
+    const deletable = await request(app.getHttpServer())
+      .post(base)
+      .set('Cookie', adminCookie)
+      .set('Origin', trustedOrigin)
+      .field('fileType', 'FLOORPLAN_SVG')
+      .attach('file', source, { filename: 'deletable.svg', contentType: 'image/svg+xml' })
+      .expect(201);
+    await request(app.getHttpServer())
+      .delete(`${base}/${deletable.body.id}`)
+      .set('Cookie', adminCookie)
+      .set('Origin', trustedOrigin)
+      .expect(204);
   });
 
   async function expectUploadError(

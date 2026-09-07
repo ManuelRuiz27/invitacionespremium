@@ -174,7 +174,7 @@ Si el gate pasa, el baseline queda congelado y cualquier regresión posterior se
 
 ## 7. SVG-01 — Pipeline seguro de FileAsset SVG
 
-Estado: **READY**
+Estado: **DONE**
 Prioridad: **P0 SECURITY**
 
 Objetivo: aceptar SVG sólo para Croquis sin introducir XSS/XML/CSS/external-resource risks.
@@ -208,7 +208,7 @@ Gate:
 
 ## 8. SVG-02 — Fuente canónica y elementos seleccionables
 
-Estado: **BLOCKED por SVG-01**  
+Estado: **READY**
 Prioridad: **P0**
 
 Objetivo: convertir el SVG seguro en una fuente visual estructurada seleccionable sin convertirla en modelo de negocio.

@@ -11,7 +11,7 @@ describe('FileAsset compatibility', () => {
     expect(FILE_ASSET_COMPATIBILITY).toEqual({
       FLYER: ['FLYER_INITIAL_IMAGE', 'FLYER_QR_IMAGE'],
       FLIPBOOK_PAGE: ['FLIPBOOK_PAGE_IMAGE'],
-      FLOORPLAN: ['FLOORPLAN_IMAGE'],
+      FLOORPLAN: ['FLOORPLAN_IMAGE', 'FLOORPLAN_SVG'],
       ALBUM_PHOTO: ['ALBUM_PHOTO_IMAGE'],
       GENERATED_REPORT: ['GENERATED_REPORT_PDF'],
       INVITATION: ['INVITATION_QR_SVG'],
@@ -20,6 +20,7 @@ describe('FileAsset compatibility', () => {
     expect(USER_IMAGE_FILE_TYPES).not.toContain(FileAssetType.GENERATED_REPORT_PDF);
     expect(USER_IMAGE_FILE_TYPES).not.toContain(FileAssetType.INVITATION_QR_SVG);
     expect(USER_IMAGE_FILE_TYPES).not.toContain(FileAssetType.PHYSICAL_PASS_QR_SVG);
+    expect(USER_IMAGE_FILE_TYPES).not.toContain(FileAssetType.FLOORPLAN_SVG);
   });
 
   it('rejects an incompatible owner/file pair with the stable error', () => {
