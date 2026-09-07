@@ -10,6 +10,7 @@ import { FinancePage } from '../finance/FinancePage';
 import { ClientShell } from '../layout/ClientShell';
 import { PublicAlbumPage } from '../public/album/PublicAlbumPage';
 import { PublicInvitationPage } from '../public/invitation/PublicInvitationPage';
+import { DevFlipbookFixturePage } from '../public/invitation/DevFlipbookFixturePage';
 import { PublicNotFoundPage } from '../public/PublicNotFoundPage';
 import { financeRoles } from '../shared/roles';
 import { WizardPage } from '../wizard/WizardPage';
@@ -34,6 +35,7 @@ export function createClientMemoryRouter(dependencies: RouterDependencies, initi
 
 function createRoutes(dependencies: RouterDependencies): RouteObject[] {
   return [
+    ...(import.meta.env.DEV ? [{ path: '/__dev/flipbook-magazine', element: <DevFlipbookFixturePage /> }] : []),
     { path: '/invitacion/:invitationToken', element: <PublicInvitationPage apiClient={dependencies.apiClient} /> },
     { path: '/album/:albumToken', element: <PublicAlbumPage apiClient={dependencies.apiClient} /> },
     {

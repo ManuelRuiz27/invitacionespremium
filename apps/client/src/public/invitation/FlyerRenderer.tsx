@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, type SyntheticEvent } from 'react';
 import type { ApiClient, PublicInvitationView } from '@invitaciones/api-client';
 import { Box, Button, CircularProgress, Stack, Typography } from '@mui/material';
 import { usePublicAssetUrl } from '../assets/usePublicAssetUrl';
@@ -12,13 +12,17 @@ export function PublicAssetImage({
   token,
   asset,
   alt,
-  eager = false
+  eager = false,
+  fill = false,
+  onImageLoad
 }: {
   apiClient: ApiClient;
   token: string;
   asset: Asset;
   alt: string;
   eager?: boolean;
+  fill?: boolean;
+  onImageLoad?: (image: HTMLImageElement) => void;
 }) {
   const assetId = invitationAssetIdFromPath(asset.contentPath, token);
   const load = useCallback(
@@ -43,7 +47,12 @@ export function PublicAssetImage({
       src={state.url}
       alt={alt}
       loading={eager ? 'eager' : 'lazy'}
-      sx={{ width: '100%', height: 'auto', display: 'block' }}
+      onLoad={(event: SyntheticEvent<HTMLImageElement>) => onImageLoad?.(event.currentTarget)}
+      sx={
+        fill
+          ? { width: '100%', height: '100%', objectFit: 'contain', display: 'block' }
+          : { width: '100%', height: 'auto', display: 'block' }
+      }
     />
   );
 }

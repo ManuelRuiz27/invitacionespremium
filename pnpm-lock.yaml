@@ -214,6 +214,9 @@ importers:
       '@emotion/styled':
         specifier: ^11.14.1
         version: 11.14.1(@emotion/react@11.14.0(@types/react@19.2.17)(react@19.2.8)(supports-color@10.2.2))(@types/react@19.2.17)(react@19.2.8)(supports-color@10.2.2)
+      '@gullabs/react-flipbook':
+        specifier: 3.1.0
+        version: 3.1.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@invitaciones/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
@@ -949,6 +952,17 @@ packages:
     peerDependenciesMeta:
       '@noble/hashes':
         optional: true
+
+  '@gullabs/flipbook-core@3.1.0':
+    resolution: {integrity: sha512-7ZHzhmWhjxJMdlBHZ8RB1NgSf1tC5HbIsblxnzLCDktZVgpmnM5HTY1nTl2DK0fiI6IKu4kh8OkaAYxYBBboHA==}
+    engines: {node: '>=22.18.0'}
+
+  '@gullabs/react-flipbook@3.1.0':
+    resolution: {integrity: sha512-+YJHiCYvz4JX+sTg4S9DgpZ7KzWKEZ+rhBvLF1Bma1gXfehrZKLVoAMv2WoNOPBh8UDc4jxgUY8eum3fiIACtA==}
+    engines: {node: '>=22.18.0'}
+    peerDependencies:
+      react: '>=18'
+      react-dom: '>=18'
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -5314,6 +5328,14 @@ snapshots:
   '@exodus/bytes@1.15.1(@noble/hashes@1.8.0)':
     optionalDependencies:
       '@noble/hashes': 1.8.0
+
+  '@gullabs/flipbook-core@3.1.0': {}
+
+  '@gullabs/react-flipbook@3.1.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+    dependencies:
+      '@gullabs/flipbook-core': 3.1.0
+      react: 19.2.8
+      react-dom: 19.2.8(react@19.2.8)
 
   '@humanfs/core@0.19.2':
     dependencies:

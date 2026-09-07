@@ -639,8 +639,8 @@ describe('local public media recovery', () => {
     };
     vi.mocked(api.publicInvitation.resolve).mockResolvedValue(view);
     renderApp(api, '/invitacion/A');
-    const image = await screen.findByAltText('Página 1 de la invitación');
-    expect(getComputedStyle(image.parentElement!).transition).toBe('none');
+    await screen.findByAltText('Página 1 de la invitación');
+    expect(screen.getByLabelText('Invitación en páginas')).toHaveAttribute('data-reduced-motion', 'true');
   });
 });
 

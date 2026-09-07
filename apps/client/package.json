@@ -15,6 +15,7 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+    "@gullabs/react-flipbook": "3.1.0",
     "@invitaciones/api-client": "workspace:*",
     "@invitaciones/floorplan": "workspace:*",
     "@invitaciones/ui": "workspace:*",

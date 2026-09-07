@@ -19,11 +19,19 @@ interface HotspotLayerProps {
   onQr: () => void;
   onUnavailableQr: () => void;
   qrAvailable: boolean;
+  disabled?: boolean;
 }
 
-export function HotspotLayer({ hotspots, onRsvp, onQr, onUnavailableQr, qrAvailable }: HotspotLayerProps) {
+export function HotspotLayer({
+  hotspots,
+  onRsvp,
+  onQr,
+  onUnavailableQr,
+  qrAvailable,
+  disabled = false
+}: HotspotLayerProps) {
   return (
-    <Box sx={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+    <Box aria-hidden={disabled || undefined} sx={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
       {[...hotspots]
         .sort((a, b) => a.priority - b.priority)
         .map((hotspot) => {
@@ -58,6 +66,8 @@ export function HotspotLayer({ hotspots, onRsvp, onQr, onUnavailableQr, qrAvaila
                 target="_blank"
                 rel="noopener noreferrer"
                 referrerPolicy="no-referrer"
+                aria-disabled={disabled || undefined}
+                tabIndex={disabled ? -1 : undefined}
                 {...common}
               >
                 {labels[hotspot.action]}
@@ -67,6 +77,7 @@ export function HotspotLayer({ hotspots, onRsvp, onQr, onUnavailableQr, qrAvaila
           return (
             <Button
               key={hotspot.id}
+              disabled={disabled}
               onClick={hotspot.action === 'RSVP' ? onRsvp : qrAvailable ? onQr : onUnavailableQr}
               {...common}
             >
