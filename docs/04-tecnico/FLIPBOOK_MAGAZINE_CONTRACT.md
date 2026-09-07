@@ -2,17 +2,17 @@
 
 Estado: **APPROVED / SOURCE OF TRUTH**  
 Alcance: renderer público de Invitaciones `FLIPBOOK` en `apps/client`.  
-Referencia visual: experiencia **Magazine** de Heyzine únicamente como benchmark de interacción; no es dependencia, contrato API ni autorización para copiar branding, assets o funcionalidades ajenas a InvitacionesPremium.
+Referencia visual: experiencia **Magazine** de Heyzine únicamente como benchmark de interacción; no es dependencia, contrato API ni autorización para copiar branding, assets o funcionalidades ajenas.
 
 ## 1. Objetivo
 
-El Flipbook público debe comportarse visualmente como una publicación física/revista: portada individual, páginas interiores enfrentadas cuando el viewport lo permite y transición de hoja con profundidad, giro y sombra.
+El Flipbook público debe comportarse como una publicación física: portada, hojas con giro realista, spreads en desktop cuando corresponde y una hoja por vista en mobile.
 
-El comportamiento actual de reemplazar una imagen por otra no satisface este contrato aunque incluya fade, botones o swipe.
+Un carrusel, slideshow, fade o simple sustitución de imágenes no satisface este contrato.
 
-Este contrato modifica **sólo presentación e interacción frontend**. No cambia dominio, persistencia, API, readiness, pricing, FileAsset, QR, RSVP ni cardinalidades de Hotspots.
+Este contrato modifica sólo presentación/interacción frontend. No cambia dominio, persistencia, API, readiness, pricing, FileAsset, QR, RSVP ni cardinalidades de Hotspots.
 
-## 2. Fuentes de verdad relacionadas
+## 2. Fuentes relacionadas
 
 Aplicar conjuntamente:
 
@@ -20,7 +20,7 @@ Aplicar conjuntamente:
 2. `docs/04-tecnico/PUBLIC_RSVP_CONTRACT.md` — proyección pública, assets, QR y seguridad.
 3. `docs/03-diseno/CLIENT_UI_VISUAL_SYSTEM.md` — principios visuales generales.
 4. este contrato — comportamiento especializado del renderer público Flipbook.
-5. `docs/05-implementacion/UI03A_FLIPBOOK_MAGAZINE_RENDERER.md` — orden de implementación y QA.
+5. `docs/05-implementacion/UI03A_FLIPBOOK_MAGAZINE_RENDERER.md` — implementación y QA.
 
 Si una referencia visual contradice dominio o seguridad, prevalecen los contratos técnicos.
 
@@ -28,326 +28,230 @@ Si una referencia visual contradice dominio o seguridad, prevalecen los contrato
 
 No modificar:
 
-- `InvitationDesign`;
-- `FlipbookPage`;
-- `Hotspot`;
-- IDs, orden o ownership de páginas;
+- `InvitationDesign`, `FlipbookPage` ni `Hotspot`;
+- IDs, orden u ownership de páginas;
 - coordenadas normalizadas `x`, `y`, `width`, `height`;
-- cardinalidades de acciones;
-- readiness;
+- cardinalidades/readiness;
 - endpoints públicos o autenticados;
 - `contentPath` de assets;
-- generación/visibilidad del QR;
-- lógica RSVP;
-- freeze del diseño después de activación;
+- QR/RSVP;
 - Prisma, migraciones u OpenAPI.
 
-El spread es únicamente una **proyección visual**. Una página continúa siendo la unidad persistida y un Hotspot continúa perteneciendo a un `flipbookPageId` estable.
+Cada página real sigue siendo una entidad independiente. El spread es sólo una proyección visual. Cada Hotspot pertenece a un `flipbookPageId` estable.
 
-## 4. Modelo visual de paginado
+## 4. Modelo físico de paginado
 
 Las páginas activas se ordenan por `position ASC`.
 
-### 4.1 Portada
+### 4.1 Desktop / landscape
 
-La página en posición `1` se muestra individualmente y centrada al abrir la invitación.
+Para reproducir una publicación física con cubiertas:
 
-`position=1` es portada sólo como concepto visual; no obtiene permisos, acciones ni reglas de readiness especiales.
+- posición `1` = portada visual, mostrada individualmente;
+- posición `N` = contraportada visual cuando `N > 1`, mostrada individualmente;
+- las páginas interiores `2..N-1` se emparejan secuencialmente en spreads de dos hojas;
+- si el número de páginas interiores es impar, la última interior queda individual antes de la contraportada;
+- no se crean páginas ficticias, duplicadas ni persistidas para corregir paridad.
 
-### 4.2 Spreads interiores
-
-En modo de doble página:
-
-- `2–3` forman el primer spread;
-- `4–5` forman el segundo;
-- `6–7`, etc.
-
-Si después del emparejamiento queda una única página final, se muestra individualmente como cierre/contraportada visual.
-
-Ejemplos:
+Ejemplos normativos:
 
 ```text
-N=1 -> [1]
-N=2 -> [1] [2]
-N=3 -> [1] [2|3]
-N=4 -> [1] [2|3] [4]
-N=5 -> [1] [2|3] [4|5]
+N=1  -> [1]
+N=2  -> [1] [2]
+N=3  -> [1] [2] [3]
+N=4  -> [1] [2|3] [4]
+N=5  -> [1] [2|3] [4] [5]
+N=6  -> [1] [2|3] [4|5] [6]
 N=10 -> [1] [2|3] [4|5] [6|7] [8|9] [10]
 ```
 
-No duplicar páginas ficticias para completar spreads y no alterar `position`.
+Esta semántica sustituye la regla anterior que exigía `N=5 -> [1] [2|3] [4|5]`. La regla anterior no representaba una publicación con cubierta posterior física y obligaba a pelear contra el modelo nativo del engine.
 
-### 4.3 Modo de una página
+`position=1` y `position=N` son roles visuales únicamente; no obtienen permisos, acciones ni reglas de readiness especiales.
 
-En viewport reducido cada `FlipbookPage` se muestra individualmente en el orden `1..N`.
+### 4.2 Mobile / portrait
 
-Cambiar entre modo single/spread por responsive no cambia el índice persistido, `pageId`, Hotspots ni datos del backend.
+Cada `FlipbookPage` se muestra individualmente en orden `1..N`.
 
-## 5. Requerimientos funcionales
+Cambiar orientación no altera `pageId`, `position`, Hotspots ni backend. Debe conservarse la página focal real que el usuario estaba leyendo.
 
-### FB-MAG-01 — Renderer tipo publicación
+## 5. Page turn
 
-`FlipbookRenderer` debe renderizar una publicación con profundidad visual. No se acepta como cumplimiento un carrusel, slideshow o sustitución de `<img>` con fade.
-
-### FB-MAG-02 — Page turn real
-
-Al avanzar o retroceder debe existir una transición de hoja que comunique físicamente el cambio mediante, como mínimo:
+El cambio de página debe comunicar una hoja física mediante como mínimo:
 
 - perspectiva;
-- rotación sobre eje Y;
-- `transform-origin` coherente con el sentido del giro;
-- clipping/máscara de la hoja durante la transición;
-- sombra dinámica entre hoja activa y contenido revelado;
-- stacking/z-index coherente.
+- giro sobre eje Y;
+- `transform-origin` según dirección;
+- clipping/máscara;
+- sombra dinámica;
+- stacking/z-index correcto.
 
-Puede implementarse con un engine/librería especializada o con implementación local mantenible. No se permite iframe ni servicio remoto de terceros para renderizar la invitación.
+Avanzar gira de derecha a izquierda; retroceder invierte el movimiento.
 
-### FB-MAG-03 — Dirección
+Implementación aprobada actualmente: `@gullabs/react-flipbook` como wrapper React y `@gullabs/flipbook-core` como engine HTML. Cada `FlipbookPage` real debe ser un child directo del engine; nunca un spread preagrupado.
 
-Avanzar gira la hoja de derecha a izquierda. Retroceder reproduce el movimiento inverso.
+`hardCovers` representa primera y última hoja como cubiertas físicas. No se debe reimplementar manualmente el pairing de spreads mientras el engine sea autoridad de `visiblePages`/orientation.
 
-### FB-MAG-04 — Navegación
+## 6. Navegación
 
 Debe soportar:
 
-- control anterior/siguiente visible;
-- `ArrowLeft` / `ArrowRight` en teclado;
-- swipe horizontal táctil;
-- click/tap de controles con target táctil mínimo de 44×44 px.
+- anterior/siguiente visible;
+- `ArrowLeft` / `ArrowRight`;
+- swipe horizontal;
+- controles touch >= 44×44 px.
 
-El arrastre continuo de esquina siguiendo el dedo/cursor es opcional para esta iteración; no debe retrasar el cumplimiento del page turn disparado por navegación/swipe.
+Mientras exista giro activo no puede iniciar otra navegación. Clicks, teclado o swipes repetidos no deben saltar páginas ni dejar estado intermedio.
 
-### FB-MAG-05 — Exclusión de transiciones concurrentes
-
-Mientras `transitionState !== idle` no puede iniciarse otra navegación. Clicks, teclado o swipes repetidos no deben saltar páginas ni dejar un estado visual intermedio.
-
-Estados mínimos conceptuales:
+Estados conceptuales mínimos:
 
 ```text
 idle -> turning -> settling -> idle
 ```
 
-No es obligatorio persistir estos estados ni exponerlos por API.
+Mostrar `Página X de N`; en spread puede mostrarse `2–3 de N`.
 
-### FB-MAG-06 — Indicador
+## 7. Responsive
 
-Mostrar posición comprensible `Página X de N` o equivalente visual accesible. En spread, el indicador puede presentar `2–3 de N`, pero los nombres accesibles deben seguir identificando cada página real.
+Usar el sistema responsive existente.
 
-### FB-MAG-07 — Límite
+### Desktop
 
-No navegar antes de la página 1 ni después de la última página. Los controles de límite deben quedar deshabilitados o ausentes de forma accesible.
+- portada y contraportada individuales;
+- interiores en dos hojas cuando la paridad lo permite;
+- interior individual permitido por paridad;
+- sin scroll horizontal accidental.
 
-## 6. Responsive
+### Mobile
 
-Usar breakpoints existentes del theme; no crear un sistema responsive paralelo.
+- una hoja visible;
+- swipe prioritario + controles accesibles;
+- sin spread forzado.
 
-### >= `md`
+Resize/orientation debe conservar la página focal real.
 
-- portada individual;
-- interior en spread de dos páginas;
-- página final individual si queda impar después de la portada;
-- navegación lateral disponible;
-- ancho máximo limitado por viewport y altura disponible, sin scroll horizontal de la página.
-
-### < `md`
-
-- una página visible a la vez;
-- swipe como interacción primaria complementada por controles accesibles;
-- sin spread forzado;
-- sin desbordamiento horizontal accidental.
-
-Un resize u orientation change debe recomponer la vista sin perder la página lógica que el usuario estaba leyendo. Si estaba visible cualquiera de las páginas de un spread, al pasar a single debe conservarse una de esas páginas, preferentemente la página actualmente activa/focal.
-
-## 7. Render de assets
+## 8. Assets
 
 - preservar aspect ratio;
-- nunca deformar ni estirar una página;
-- no aplicar crop que elimine contenido de la invitación;
-- usar `object-fit: contain` o equivalente;
-- fondo neutro detrás de páginas cuando la relación de aspecto no llene el viewport;
-- mostrar gutter/centro visual en spread sin modificar la imagen original;
-- portada, spreads y cierre deben conservar una escala visual coherente.
+- no deformar ni recortar contenido;
+- `object-fit: contain` o equivalente;
+- fondo neutro cuando el asset no llena la hoja;
+- tolerar relaciones de aspecto distintas;
+- usar exclusivamente el mecanismo seguro de assets públicos existente.
 
-Las páginas pueden tener relaciones de aspecto distintas. El renderer debe tolerarlo sin romper navegación ni Hotspots.
+## 9. Hotspots por página
 
-## 8. Hotspots por página
-
-### FB-MAG-08 — Ownership
-
-Cada `Hotspot` se renderiza exclusivamente sobre su `flipbookPageId`.
-
-En un spread existen dos capas independientes:
+Cada página visible conserva su propio `HotspotLayer`.
 
 ```text
-LeftPage
-  └─ HotspotLayer(pageId izquierdo)
-RightPage
-  └─ HotspotLayer(pageId derecho)
+LeftPage -> HotspotLayer(pageId izquierdo)
+RightPage -> HotspotLayer(pageId derecho)
 ```
 
-No crear una capa única de coordenadas para el spread.
+Las coordenadas `[0,1]` se proyectan contra el rectángulo renderizado de esa página, nunca contra el spread completo.
 
-### FB-MAG-09 — Coordenadas
+Durante cualquier giro:
 
-Las coordenadas normalizadas existentes `[0,1]` se proyectan contra el rectángulo real renderizado de **esa página**, no contra viewport, libro completo o spread.
-
-### FB-MAG-10 — Durante animación
-
-Los Hotspots de una hoja que está girando no son interactivos mientras `transitionState !== idle`.
-
-Al finalizar:
-
-- sólo Hotspots de páginas visibles pueden recibir interacción;
-- acciones no visibles no permanecen focusables;
-- la navegación no debe disparar accidentalmente RSVP, ubicación, regalos, QR o enlace externo.
-
-### FB-MAG-11 — Acciones vigentes
+- la hoja animada no acepta pointer events;
+- sus Hotspots no son focusables;
+- anchors de `LOCATION`, `GIFT_REGISTRY` y `EXTERNAL_LINK` deben bloquear navegación real, no sólo declarar `aria-disabled`;
+- al volver a `idle`, sólo las páginas visibles son interactivas.
 
 Conservar sin reinterpretar:
 
-- Confirmar asistencia (`RSVP`);
-- Ubicación (`LOCATION`);
-- Mesa de regalos (`GIFT_REGISTRY`);
-- Mostrar QR (`QR_AREA`);
-- Enlace adicional (`EXTERNAL_LINK`).
+- `RSVP`;
+- `LOCATION`;
+- `GIFT_REGISTRY`;
+- `QR_AREA`;
+- `EXTERNAL_LINK`.
 
-Cualquier página activa puede contener cualquiera de estas acciones conforme a `INVITATION_DESIGN_CONTRACT.md`.
+## 10. Precarga y rendimiento
 
-## 9. Precarga y rendimiento
+- carga prioritaria de páginas inicialmente visibles;
+- precargar hojas inmediatamente adyacentes según `visiblePages`;
+- no marcar las 10 páginas como eager;
+- evitar flash blanco/asset roto entre hojas ya precargadas;
+- objetivo visual: ~60 fps desktop moderno y experiencia estable ~30 fps móvil gama media;
+- no realizar trabajo proporcional a todas las páginas en cada frame.
 
-### FB-MAG-12 — Carga prioritaria
+El warning genérico de Vite por chunk >500 kB no bloquea UI-03A por sí solo. La optimización/lazy-loading del engine puede tratarse separadamente si medición real demuestra impacto.
 
-Cargar de forma prioritaria sólo las páginas visibles del estado inicial.
+## 11. Reduced motion y accesibilidad
 
-### FB-MAG-13 — Precarga adyacente
+Con `prefers-reduced-motion: reduce`:
 
-Después de estabilizar la vista, precargar assets necesarios para la vista lógica anterior y siguiente. No marcar las 10 páginas como `eager` simultáneamente.
-
-### FB-MAG-14 — Sin flash
-
-La transición no debe mostrar un frame blanco/roto entre páginas ya disponibles. Si el siguiente asset aún no está listo, mantener el estado actual hasta contar con una representación válida o mostrar un placeholder integrado que no cambie el orden lógico.
-
-### FB-MAG-15 — Objetivo de fluidez
-
-Objetivo de QA visual:
-
-- desktop moderno: transición visual cercana a 60 fps;
-- móvil gama media: al menos experiencia estable cercana a 30 fps;
-- no bloquear el main thread con trabajo proporcional a todas las páginas en cada frame.
-
-Los números son objetivos de experiencia, no métricas de backend.
-
-## 10. Reduced motion y accesibilidad
-
-Si `prefers-reduced-motion: reduce`:
-
-- no ejecutar giro 3D prolongado;
-- conservar navegación y lectura;
-- usar transición mínima/no animada sin ocultar contenido;
-- no degradar Hotspots, focus ni indicador.
+- giro 3D prolongado deshabilitado;
+- navegación/Hotspots preservados;
+- transición instantánea o mínima.
 
 Además:
 
-- `FlipbookRenderer` es navegable por teclado;
+- navegación por teclado;
 - focus visible;
-- cada página tiene nombre accesible `Página X de N`;
-- los controles tienen `aria-label` claro;
-- contenido visual no depende exclusivamente de animación para comprender el estado;
-- páginas ocultas/traseras no deben quedar disponibles al lector de pantalla como duplicados simultáneos.
+- nombre accesible `Página X de N`;
+- controles con labels claros;
+- páginas ocultas no deben quedar focusables ni duplicadas al lector de pantalla.
 
-## 11. Arquitectura frontend objetivo
+## 12. Dependencias y licencias
 
-Arquitectura conceptual, no nuevas entidades de dominio:
+Dependencias aprobadas:
 
-```text
-FlipbookRenderer
-├─ FlipbookViewport
-│  ├─ VisiblePage / LeftPage
-│  │  └─ HotspotLayer
-│  ├─ RightPage (spread cuando aplica)
-│  │  └─ HotspotLayer
-│  └─ TurningPage
-├─ FlipbookNavigation
-└─ FlipbookProgress
-```
+- `@gullabs/react-flipbook@3.1.0` — MIT;
+- `@gullabs/flipbook-core@3.1.0` — MPL-2.0.
 
-Puede factorizarse en componentes/hooks locales dentro de `apps/client/src/public/invitation/` si mejora pruebas y legibilidad.
+La aplicación debe conservar `THIRD_PARTY_NOTICES.md` con nombre, licencia y fuente upstream del core. La MPL-2.0 no cambia la licencia de InvitacionesPremium.
 
-No crear package compartido nuevo salvo necesidad demostrada. No mover lógica de dominio al renderer.
+No se permite iframe, runtime remoto ni branding de terceros para renderizar la invitación.
 
-## 12. Dependencias
+## 13. Escenarios obligatorios de QA
 
-Antes de agregar una librería de page-flip, verificar:
+Cubrir como mínimo:
 
-- compatibilidad con React 19/Vite actuales;
-- licencia permisiva apta para producto comercial;
-- ausencia de runtime remoto, iframe o branding obligatorio;
-- bundle razonable;
-- soporte touch;
-- control sobre DOM suficiente para mantener `HotspotLayer` por página;
-- soporte o fallback para reduced motion;
-- actividad/mantenimiento suficiente.
-
-Evaluar como máximo dos alternativas. Si ninguna conserva Hotspots y accesibilidad correctamente, implementar la transición localmente con CSS/React en vez de degradar el contrato.
-
-Toda dependencia nueva debe quedar justificada en el reporte final del ticket.
-
-## 13. Escenarios obligatorios
-
-QA debe cubrir como mínimo:
-
-1. 1 página;
-2. 2 páginas;
-3. 3 páginas: portada + spread `2–3`;
-4. 4 páginas: portada + `2–3` + cierre `4`;
-5. 5 páginas: portada + `2–3` + `4–5`;
-6. 10 páginas;
-7. Hotspot en portada;
-8. Hotspot en página izquierda de spread;
-9. Hotspot en página derecha de spread;
-10. QR en página interior;
-11. avance y retroceso;
-12. spam de navegación durante transición;
-13. swipe móvil;
-14. teclado desktop;
-15. cambio desktop -> mobile -> desktop conservando página lógica;
-16. reduced motion;
-17. assets con distinta relación de aspecto;
-18. asset adyacente aún cargando;
-19. QR no disponible conforme al contrato público;
-20. URL externa/ubicación/regalos conservando comportamiento existente.
+1. N=1;
+2. N=2;
+3. N=3: `[1] [2] [3]`;
+4. N=4: `[1] [2|3] [4]`;
+5. N=5: `[1] [2|3] [4] [5]`;
+6. N=6: `[1] [2|3] [4|5] [6]`;
+7. N=10: `[1] [2|3] [4|5] [6|7] [8|9] [10]`;
+8. Hotspot en portada;
+9. Hotspot en hoja izquierda;
+10. Hotspot en hoja derecha;
+11. QR interior;
+12. links externos bloqueados durante giro;
+13. avance/retroceso;
+14. spam de navegación;
+15. swipe móvil;
+16. teclado;
+17. desktop -> mobile -> desktop preservando página focal;
+18. reduced motion;
+19. assets con distinta relación de aspecto;
+20. asset adyacente cargando.
 
 ## 14. No-go
 
 Este trabajo no autoriza:
 
-- cambios backend;
-- migraciones;
-- cambios Prisma;
-- endpoints nuevos;
-- cambios a payload público;
-- cambios de readiness;
-- nuevas acciones/Hotspots;
-- múltiples QR;
-- convertir PDF;
-- audio/video/iframes/widgets multimedia;
-- descarga offline;
-- analytics de lectura;
-- bookshelf;
-- temas configurables tipo Heyzine;
-- copiar UI, logos o assets de Heyzine;
+- backend, Prisma, migraciones u OpenAPI;
+- cambios a DTO/API/readiness/cardinalidades;
+- nuevas acciones o múltiples QR;
+- PDF, multimedia, analytics, descarga offline, bookshelf o themes tipo Heyzine;
+- páginas ficticias para modificar paridad;
+- preagrupar dos páginas reales dentro de un único child del engine;
 - modificar Flyer salvo regresión compartida demostrada.
 
 ## 15. Definition of Done
 
-El contrato se considera implementado cuando:
+Cumplido cuando:
 
-- el renderer ya no se comporta como slideshow/carrusel;
-- portada individual y spreads cumplen el modelo definido;
-- existe page turn con profundidad real salvo reduced motion;
-- Hotspots permanecen vinculados y correctamente proyectados por `pageId`;
+- el renderer no es carrusel/fade;
+- cada página real es una hoja física independiente;
+- portada/contraportada/spreads cumplen este modelo;
+- page-turn es perceptiblemente físico;
+- Hotspots permanecen correctos por `pageId`;
 - navegación concurrente está bloqueada;
 - desktop/mobile/reduced-motion funcionan;
-- precarga adyacente evita flash sin cargar todo eager;
-- no cambió API, schema, dominio ni readiness;
-- tests automatizados y QA visual cubren los escenarios obligatorios.
+- precarga adyacente funciona;
+- `THIRD_PARTY_NOTICES.md` está presente;
+- tests y QA visual cubren escenarios normativos;
+- no cambió API, schema, dominio ni readiness.
