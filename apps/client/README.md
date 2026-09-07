@@ -12,6 +12,32 @@ Aplicación Cliente para Planner independiente, Admin de Organización y Planner
 - `/eventos/:eventId/configuracion/:step`: wizard reanudable con paso en la URL;
 - `/finanzas`: balance, movimientos y comprobantes para roles financieros.
 
+### Demo local Flipbook Magazine
+
+Para QA visual del renderer Flipbook sin backend:
+
+```bash
+pnpm --filter @invitaciones/client dev
+```
+
+Abrir:
+
+```text
+http://localhost:5173/demo/flipbook-magazine
+```
+
+Alias técnico:
+
+```text
+http://localhost:5173/__dev/flipbook-magazine
+```
+
+El fixture incluye seis páginas gráficas autocontenidas: portada, historia, RSVP/QR, ubicación, mesa de regalos/enlace y contraportada. Los assets se generan localmente como SVG Blob y no dependen de API, storage ni datos seed.
+
+Estas rutas se habilitan en Vite DEV y también cuando un build/preview corre desde un hostname loopback (`localhost`, `127.0.0.1`, `0.0.0.0` o `::1`). No se registran como demo en un hostname de producción.
+
+Si Vite informa que 5173 está ocupado y el usuario inicia un servidor que permite cambio automático de puerto, usar el puerto mostrado por la consola. Para una prueba determinista conviene cerrar el proceso que ocupa 5173 y levantar únicamente `@invitaciones/client`.
+
 La sesión usa exclusivamente la cookie HttpOnly emitida por la API. No se persisten tokens, contraseñas
 ni cookies en storage del navegador. Sus estados visibles son `loading`, `authenticated`, `anonymous`,
 `forbidden` y `unavailable`.
