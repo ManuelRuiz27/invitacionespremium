@@ -123,7 +123,7 @@ Pulido UI de Croquis
 
 ## 6. SVG-00 — Certificación del baseline actual
 
-Estado: **READY**  
+Estado: **DONE**
 Prioridad: **P0**
 
 Objetivo: no mezclar defectos previos con la nueva capability SVG.
@@ -174,7 +174,7 @@ Si el gate pasa, el baseline queda congelado y cualquier regresión posterior se
 
 ## 7. SVG-01 — Pipeline seguro de FileAsset SVG
 
-Estado: **NOT STARTED**  
+Estado: **READY**
 Prioridad: **P0 SECURITY**
 
 Objetivo: aceptar SVG sólo para Croquis sin introducir XSS/XML/CSS/external-resource risks.

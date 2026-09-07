@@ -200,6 +200,7 @@ export class AdminFloorplanController {
   }
 
   @Post('lock')
+  @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: FloorplanResponseDto })
   lock(
     @Param('clientId') clientId: string,
@@ -216,6 +217,7 @@ export class AdminFloorplanController {
   }
 
   @Post('unlock')
+  @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: FloorplanResponseDto })
   unlock(
     @Param('clientId') clientId: string,

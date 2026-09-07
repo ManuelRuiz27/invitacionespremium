@@ -1587,7 +1587,7 @@ describe('Floorplan and seating', () => {
       .post(`${base}/lock`)
       .set('Cookie', cookie)
       .set('Origin', 'http://localhost:5173')
-      .expect(201)
+      .expect(200)
       .expect(({ body }) => expect(body.locked).toBe(true));
     await request(app.getHttpServer())
       .patch(`${base}/shapes/${shape.body.id}`)
@@ -1600,7 +1600,7 @@ describe('Floorplan and seating', () => {
       .post(`${base}/unlock`)
       .set('Cookie', cookie)
       .set('Origin', 'http://localhost:5173')
-      .expect(201);
+      .expect(200);
 
     await floorplan.assign(
       fixture.event.id,
@@ -1678,6 +1678,7 @@ describe('Floorplan and seating', () => {
 
   it('persists irregular Serpentina and Mesa U seats independently from their logical table geometry', async () => {
     const fixture = await createFixture();
+    await setEventStatusForFixture(fixture.event.id, EventStatus.DRAFT);
     const admin = await prisma.user.create({
       data: {
         email: `${randomUUID()}@example.test`,
@@ -1740,11 +1741,17 @@ describe('Floorplan and seating', () => {
         .post(`${base}/shapes/${serpentina.body.id}/seats`)
         .set('Cookie', cookie)
         .set('Origin', origin)
-        .send({ label: `S${String(index + 1).padStart(2, '0')}`, x, y, isBlocked: index === 0 })
+        .send({ label: `S${String(index + 1).padStart(2, '0')}`, x, y })
         .expect(201);
       seats.push(created.body);
     }
     expect(seats.filter(({ x, y }) => x < 0.35 || x > 0.45 || y < 0.35 || y > 0.45)).toHaveLength(12);
+    await request(app.getHttpServer())
+      .patch(`${base}/seats/${seats[0]!.id}`)
+      .set('Cookie', cookie)
+      .set('Origin', origin)
+      .send({ isBlocked: true })
+      .expect(200);
     expect(
       await prisma.floorplanShape.findUniqueOrThrow({ where: { id: serpentina.body.id }, select: { capacity: true } })
     ).toMatchObject({ capacity: 11 });
@@ -2159,8 +2166,8 @@ describe('Floorplan and seating', () => {
       expect(paths).toHaveProperty(pathName);
     }
     expect(paths?.['/api/v1/events/{eventId}/floorplan']?.get).toBeDefined();
-    expect(paths?.['/api/v1/events/{eventId}/floorplan']?.post).toBeDefined();
-    expect(paths?.['/api/v1/events/{eventId}/floorplan']?.patch).toBeDefined();
+    expect(paths?.['/api/v1/events/{eventId}/floorplan']?.post).toBeUndefined();
+    expect(paths?.['/api/v1/events/{eventId}/floorplan']?.patch).toBeUndefined();
     expect(paths).not.toHaveProperty('/api/v1/events/{eventId}/floorplan/lock');
     expect(paths).not.toHaveProperty('/api/v1/events/{eventId}/floorplan/unlock');
     expect(paths).not.toHaveProperty('/api/v1/events/{eventId}/floorplan/shapes');

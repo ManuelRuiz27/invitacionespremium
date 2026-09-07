@@ -104,9 +104,10 @@ describe('Scanner and CheckIn', () => {
       remainingPendingCount: 1
     });
     expect(first.body.checkedIn).toHaveLength(1);
-    expect(first.body.remainingPendingAssistants).toEqual([
+    expect(first.body.remainingPendingAssistants).toMatchObject([
       { id: fixture.companionId, name: 'José López', isPrimary: false, table: null }
     ]);
+    expect(first.body.remainingPendingAssistants).toMatchObject([{ seat: null }]);
     const replay = await scannerCheckIn(fixture.staffToken, key, fixture.invitationId, [fixture.primaryId]).expect(200);
     expect(replay.body).toEqual(first.body);
     expect(await prisma.checkIn.count({ where: { eventId: fixture.eventId } })).toBe(1);
@@ -125,7 +126,8 @@ describe('Scanner and CheckIn', () => {
       .expect(({ body }) => expect(body.code).toBe('CHECK_IN_IDEMPOTENCY_CONFLICT'));
 
     const after = await scannerPost(fixture.staffToken, 'scan', { qrToken }).expect(200);
-    expect(after.body.pendingAssistants).toEqual([
+    expect(after.body.pendingAssistants).toMatchObject([{ seat: null }]);
+    expect(after.body.pendingAssistants).toMatchObject([
       { id: fixture.companionId, name: 'José López', isPrimary: false, table: null }
     ]);
     expect(JSON.stringify([scan.body, normalized.body, first.body, after.body])).not.toMatch(
