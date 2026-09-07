@@ -33,9 +33,22 @@ export function createClientMemoryRouter(dependencies: RouterDependencies, initi
   return createMemoryRouter(createRoutes(dependencies), { initialEntries });
 }
 
+function localFixtureRoutesEnabled(): boolean {
+  if (import.meta.env.DEV) return true;
+  if (typeof window === 'undefined') return false;
+  return ['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(window.location.hostname);
+}
+
 function createRoutes(dependencies: RouterDependencies): RouteObject[] {
+  const localFixtureRoutes: RouteObject[] = localFixtureRoutesEnabled()
+    ? [
+        { path: '/__dev/flipbook-magazine', element: <DevFlipbookFixturePage /> },
+        { path: '/demo/flipbook-magazine', element: <DevFlipbookFixturePage /> }
+      ]
+    : [];
+
   return [
-    ...(import.meta.env.DEV ? [{ path: '/__dev/flipbook-magazine', element: <DevFlipbookFixturePage /> }] : []),
+    ...localFixtureRoutes,
     { path: '/invitacion/:invitationToken', element: <PublicInvitationPage apiClient={dependencies.apiClient} /> },
     { path: '/album/:albumToken', element: <PublicAlbumPage apiClient={dependencies.apiClient} /> },
     {
