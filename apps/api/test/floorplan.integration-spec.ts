@@ -216,6 +216,100 @@ describe('Floorplan and seating', () => {
     expect(await prisma.floorplanShape.count({ where: { eventId: fixture.event.id } })).toBe(0);
   });
 
+  it('replaces raster and SVG sources without deleting domain records and detaches mappings only after confirmation', async () => {
+    const fixture = await createFixture();
+    await setEventStatusForFixture(fixture.event.id, EventStatus.DRAFT);
+    const firstRaster = await createAsset(fixture, 'first-raster');
+    const plan = await floorplan.create(fixture.event.id, { imageAssetId: firstRaster.id }, fixture.principal);
+    const manual = await createTable(fixture);
+    await floorplan.setSeatingModeAdministrative(fixture.client.id, fixture.event.id, 'SEAT', fixture.principal);
+    const seat = await floorplan.createSeatAdministrative(
+      fixture.client.id,
+      fixture.event.id,
+      manual.id,
+      { label: 'Lugar exterior', x: 0.92, y: 0.88 },
+      fixture.principal
+    );
+    await prisma.assistant.update({
+      where: { id: fixture.assistants[0]!.id },
+      data: { floorplanShapeId: manual.id, floorplanSeatId: seat.id }
+    });
+
+    const firstSvg = await createSvgAsset(fixture);
+    const rasterToSvg = await floorplan.replaceImageAdministrative(
+      fixture.client.id,
+      fixture.event.id,
+      { imageAssetId: firstSvg.id },
+      fixture.principal
+    );
+    expect(rasterToSvg).toMatchObject({ image: { fileAssetId: firstSvg.id, sourceType: 'SVG' }, seatingMode: 'SEAT' });
+    expect(rasterToSvg.shapes).toContainEqual(expect.objectContaining({ id: manual.id, sourceElementId: null }));
+    expect(rasterToSvg.seats).toContainEqual(expect.objectContaining({ id: seat.id, x: 0.92, y: 0.88 }));
+
+    const mapped = await floorplan.mapSvgElementAdministrative(
+      fixture.client.id,
+      fixture.event.id,
+      { sourceElementId: 'circle', kind: FloorplanShapeKind.TABLE, name: 'Mesa SVG', capacity: 0 },
+      fixture.principal
+    );
+    const secondSvg = await createSvgAsset(fixture);
+    await expect(
+      floorplan.replaceImageAdministrative(
+        fixture.client.id,
+        fixture.event.id,
+        { imageAssetId: secondSvg.id },
+        fixture.principal
+      )
+    ).rejects.toMatchObject({ response: { code: 'FLOORPLAN_SVG_MAPPING_REPLACEMENT_CONFIRMATION_REQUIRED' } });
+    expect(await prisma.floorplanShape.findUniqueOrThrow({ where: { id: mapped.id } })).toMatchObject({ sourceElementId: 'circle' });
+
+    const svgToSvg = await floorplan.replaceImageAdministrative(
+      fixture.client.id,
+      fixture.event.id,
+      { imageAssetId: secondSvg.id, confirmSvgMappingDetach: true },
+      fixture.principal
+    );
+    expect(svgToSvg).toMatchObject({ image: { fileAssetId: secondSvg.id, sourceType: 'SVG' }, seatingMode: 'SEAT' });
+    expect(svgToSvg.shapes).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: manual.id, sourceElementId: null }),
+      expect.objectContaining({ id: mapped.id, sourceElementId: null })
+    ]));
+    expect(svgToSvg.seats).toContainEqual(expect.objectContaining({ id: seat.id, floorplanShapeId: manual.id }));
+    expect(await prisma.assistant.findUniqueOrThrow({ where: { id: fixture.assistants[0]!.id } })).toMatchObject({
+      floorplanShapeId: manual.id,
+      floorplanSeatId: seat.id
+    });
+    expect(await prisma.auditLog.count({ where: { eventId: fixture.event.id, action: 'FLOORPLAN_SVG_MAPPING_DETACH_ON_REPLACE' } })).toBe(1);
+    expect(await prisma.auditLog.findFirstOrThrow({ where: { eventId: fixture.event.id, action: 'FLOORPLAN_IMAGE_REPLACE' }, orderBy: { occurredAt: 'desc' } }))
+      .toMatchObject({ afterData: expect.objectContaining({ detachedMappingCount: 1 }) });
+
+    const remapped = await floorplan.mapSvgElementAdministrative(
+      fixture.client.id,
+      fixture.event.id,
+      { sourceElementId: 'circle', kind: FloorplanShapeKind.TABLE, name: 'Mesa SVG nueva', capacity: 0 },
+      fixture.principal
+    );
+    const secondRaster = await createAsset(fixture, 'second-raster');
+    await expect(
+      floorplan.replaceImageAdministrative(
+        fixture.client.id,
+        fixture.event.id,
+        { imageAssetId: secondRaster.id },
+        fixture.principal
+      )
+    ).rejects.toMatchObject({ response: { code: 'FLOORPLAN_SVG_MAPPING_REPLACEMENT_CONFIRMATION_REQUIRED' } });
+    const svgToRaster = await floorplan.replaceImageAdministrative(
+      fixture.client.id,
+      fixture.event.id,
+      { imageAssetId: secondRaster.id, confirmSvgMappingDetach: true },
+      fixture.principal
+    );
+    expect(svgToRaster).toMatchObject({ image: { fileAssetId: secondRaster.id, sourceType: 'RASTER' }, seatingMode: 'SEAT' });
+    expect(svgToRaster.shapes).toContainEqual(expect.objectContaining({ id: remapped.id, sourceElementId: null }));
+    expect(svgToRaster.seats).toContainEqual(expect.objectContaining({ id: seat.id, floorplanShapeId: manual.id }));
+    expect(await prisma.floorplan.findUniqueOrThrow({ where: { id: plan.id } })).toMatchObject({ seatingMode: 'SEAT' });
+  });
+
   it('creates one active Floorplan, atomically replaces its image, and enforces layout lock', async () => {
     const fixture = await createFixture();
     const firstAsset = await createAsset(fixture, 'first');

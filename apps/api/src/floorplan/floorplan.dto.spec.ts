@@ -6,6 +6,7 @@ import {
   parseAssignSeating,
   parseCreateShape,
   parseSeatingWorkspaceQuery,
+  parseUpdateFloorplan,
   parseUpdateShape
 } from './floorplan.dto';
 import { requestSignature } from './floorplan.service';
@@ -56,6 +57,15 @@ describe('Floorplan DTOs', () => {
     expect(() => parseUpdateShape({ capacity: 10, unexpected: true })).toThrow();
     const id = '11111111-1111-4111-8111-111111111111';
     expect(() => parseAssignSeating({ assistantIds: [id, id], tableShapeId: id })).toThrow();
+  });
+
+  it('requires an explicit true confirmation flag for mapped SVG source replacement', () => {
+    const imageAssetId = '11111111-1111-4111-8111-111111111111';
+    expect(parseUpdateFloorplan({ imageAssetId, confirmSvgMappingDetach: true })).toEqual({
+      imageAssetId,
+      confirmSvgMappingDetach: true
+    });
+    expect(() => parseUpdateFloorplan({ imageAssetId, confirmSvgMappingDetach: false })).toThrow();
   });
 
   it('creates deterministic payload-sensitive signatures without PII snapshots', () => {

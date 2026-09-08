@@ -4051,6 +4051,12 @@ export type components = {
             /** Format: uuid */
             assetId: string;
         };
+        ReplaceFloorplanImageRequestDto: {
+            /** @description Explicit confirmation required when replacing an SVG source with active mappings. */
+            confirmSvgMappingDetach?: boolean;
+            /** Format: uuid */
+            imageAssetId: string;
+        };
         ReportAuthorizationResponseDto: {
             dataset: Record<string, never>;
             datasetHashSha256: string;
@@ -5095,7 +5101,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["FloorplanImageRequestDto"];
+                "application/json": components["schemas"]["ReplaceFloorplanImageRequestDto"];
             };
         };
         responses: {

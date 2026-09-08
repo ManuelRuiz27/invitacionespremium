@@ -114,6 +114,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   const [mappingName, setMappingName] = useState('Mesa');
   const [mappingCapacity, setMappingCapacity] = useState(8);
   const [tableModeConfirmationOpen, setTableModeConfirmationOpen] = useState(false);
+  const [sourceReplacementCandidate, setSourceReplacementCandidate] = useState<File>();
   const [draft, setDraft] = useState<AdminFloorplanShapeInput>(emptyDraft);
   const [selectedPresetId, setSelectedPresetId] = useState<FloorplanStickerPresetId>();
   const [mutation, setMutation] = useState<Mutation>();
@@ -229,7 +230,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     if (latest.locked || selectedMissing || (conflict && mode === 'editing-existing')) cancel();
   };
 
-  const recoverAfterFailedMutation = async (cause: unknown) => {
+  const recoverAfterFailedMutation = async (cause: unknown, forceAuthoritativeRecovery = false) => {
     const code = cause instanceof ApiError ? cause.code : undefined;
     const requiresImmediateAuthority =
       code === 'FLOORPLAN_CONCURRENCY_CONFLICT' ||
@@ -237,7 +238,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
       code === 'FLOORPLAN_EVENT_STATE_LOCKED' ||
       code === 'FLOORPLAN_SHAPE_NOT_FOUND' ||
       code === 'FLOORPLAN_NOT_FOUND';
-    if (!requiresImmediateAuthority) {
+    if (!requiresImmediateAuthority && !forceAuthoritativeRecovery) {
       setRefreshRequired(
         !(cause instanceof ApiError) || cause.status === 429 || cause.status >= 500 || cause.code === 'NETWORK_ERROR'
       );
@@ -252,7 +253,11 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     }
   };
 
-  const runMutation = async <T,>(kind: Mutation, operation: () => Promise<T>, options: { recover?: boolean } = {}) => {
+  const runMutation = async <T,>(
+    kind: Mutation,
+    operation: () => Promise<T>,
+    options: { recover?: boolean; forceAuthoritativeRecovery?: boolean } = {}
+  ) => {
     if (mutationLock.current) return undefined;
     mutationLock.current = true;
     setMutation(kind);
@@ -261,7 +266,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
       return await operation();
     } catch (cause) {
       setMessage(mutationMessage(kind, cause));
-      if (options.recover !== false) await recoverAfterFailedMutation(cause);
+      if (options.recover !== false) await recoverAfterFailedMutation(cause, options.forceAuthoritativeRecovery);
       return undefined;
     } finally {
       mutationLock.current = false;
@@ -491,24 +496,40 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     }
     void setSeatingMode(seatingMode);
   };
-  const upload = async (file: File) => {
-    if (!['image/jpeg', 'image/png'].includes(file.type)) {
-      setMessage('Selecciona una imagen JPG o PNG.');
+  const upload = async (file: File, confirmSvgMappingDetach = false) => {
+    const svg = file.type === 'image/svg+xml';
+    if (!svg && !['image/jpeg', 'image/png'].includes(file.type)) {
+      setMessage('Selecciona una imagen JPG, PNG o SVG.');
       return;
     }
     const updated = await runMutation('uploading', async () => {
-      const asset = await apiClient.adminEventPreparation.uploadFloorplanAsset(event.clientId, event.id, file);
+      const asset = svg
+        ? await apiClient.adminEventPreparation.uploadFloorplanSvgAsset(event.clientId, event.id, file)
+        : await apiClient.adminEventPreparation.uploadFloorplanAsset(event.clientId, event.id, file);
       return floorplan
         ? apiClient.adminEventPreparation.replaceFloorplanImage(event.clientId, event.id, {
-            imageAssetId: asset.id
+            imageAssetId: asset.id,
+            ...(confirmSvgMappingDetach ? { confirmSvgMappingDetach: true } : {})
           })
         : apiClient.adminEventPreparation.createFloorplan(event.clientId, event.id, { imageAssetId: asset.id });
-    });
+    }, { forceAuthoritativeRecovery: true });
     if (!updated) return;
     setFloorplan(updated);
     setNotFound(false);
     cancel();
     await refreshAfterConfirmedMutation();
+  };
+  const requestUpload = async (file: File) => {
+    if (!['image/jpeg', 'image/png', 'image/svg+xml'].includes(file.type)) {
+      setMessage('Selecciona una imagen JPG, PNG o SVG.');
+      return;
+    }
+    const mappedSvg = floorplan?.image.sourceType === 'SVG' && floorplan.shapes.some((shape) => shape.sourceElementId);
+    if (mappedSvg) {
+      setSourceReplacementCandidate(file);
+      return;
+    }
+    await upload(file);
   };
   const save = async () => {
     if (!draft.name.trim()) {
@@ -713,7 +734,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
           <UploadButton
             label={mutation === 'uploading' ? 'Subiendo plano...' : 'Subir plano'}
             disabled={pending}
-            onFile={upload}
+            onFile={requestUpload}
           />
           {message ? <Alert severity="warning">{message}</Alert> : null}
           {refreshRequired ? (
@@ -822,7 +843,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
             <MenuItem value="TABLE">Por mesa</MenuItem>
             <MenuItem value="SEAT">Por lugar</MenuItem>
           </TextField>
-          <UploadButton label="Cambiar plano" disabled={readOnly || editing} onFile={upload} />
+          <UploadButton label="Cambiar plano" disabled={readOnly || editing} onFile={requestUpload} />
           <Button
             variant={floorplan.locked ? 'contained' : 'outlined'}
             startIcon={floorplan.locked ? <LockOpenRounded /> : <LockRounded />}
@@ -1047,6 +1068,28 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
           </Button>
         </DialogActions>
       </Dialog>
+      <Dialog open={Boolean(sourceReplacementCandidate)} onClose={() => setSourceReplacementCandidate(undefined)}>
+        <DialogTitle>¿Reemplazar el plano SVG?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            El plano actual tiene elementos vinculados. Al reemplazarlo se desvincularán de este SVG; las mesas, los
+            lugares y las asignaciones se conservarán para que puedas vincularlos de nuevo si lo necesitas.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSourceReplacementCandidate(undefined)}>Cancelar</Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              const candidate = sourceReplacementCandidate;
+              setSourceReplacementCandidate(undefined);
+              if (candidate) void upload(candidate, true);
+            }}
+          >
+            Reemplazar y desvincular
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }
@@ -1214,7 +1257,7 @@ function UploadButton({
       <input
         hidden
         type="file"
-        accept="image/png,image/jpeg"
+        accept="image/png,image/jpeg,image/svg+xml"
         onChange={(event) => {
           const input = event.currentTarget;
           const file = input.files?.[0];

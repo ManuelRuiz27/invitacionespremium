@@ -8,6 +8,7 @@ import {
   FloorplanSvgMappingRequestDto,
   parseSvgMapping,
   FloorplanImageRequestDto,
+  ReplaceFloorplanImageRequestDto,
   BatchFloorplanSeatsRequestDto,
   RenumberFloorplanSeatsRequestDto,
   FloorplanResponseDto,
@@ -194,7 +195,7 @@ export class AdminFloorplanController {
   }
 
   @Patch()
-  @ApiBody({ type: FloorplanImageRequestDto })
+  @ApiBody({ type: ReplaceFloorplanImageRequestDto })
   @ApiOkResponse({ type: FloorplanResponseDto })
   replaceImage(
     @Param('clientId') clientId: string,

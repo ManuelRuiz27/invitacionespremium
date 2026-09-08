@@ -327,7 +327,7 @@ SVG-05+ permanece fuera de esta implementación.
 
 ## 11. SVG-05 — Reemplazo, reconciliación y recovery
 
-Estado: **READY**
+Estado: **DONE**
 Prioridad: **P0 DATA INTEGRITY**
 
 Objetivo: que cambiar la fuente visual nunca destruya el dominio.
@@ -356,9 +356,19 @@ Gate:
 
 - reemplazar la fuente jamás elimina Mesa/Seat/Assistant de forma implícita.
 
+Evidencia SVG-05:
+
+  - reemplazo transaccional raster → SVG, SVG → SVG y SVG → raster conserva FloorplanShape, FloorplanSeat,
+    asignaciones y seatingMode;
+  - un SVG con elementos vinculados exige confirmación explícita y desliga exclusivamente sourceElementId, sin
+    matching automático;
+  - reemplazo y cada desvinculación quedan auditados; Admin recarga el resultado autoritativo y recupera mediante GET
+    tras timeout o red sin repetir upload/PATCH;
+  - QA: API/DB 31, Admin 60, Floorplan renderers, Prisma, OpenAPI/api-client, lint, typecheck y build.
+
 ## 12. SVG-06 — Planner + Scanner: sólo gaps reales
 
-Estado: **DISCOVERY / ADAPT ONLY**  
+Estado: **READY**
 Prioridad: **P0 OPERACIONAL**
 
 Objetivo: adaptar las superficies consumidoras, no reescribirlas.

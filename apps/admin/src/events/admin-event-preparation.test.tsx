@@ -3,6 +3,7 @@ import {
   type AdminFloorplan,
   type AdminFloorplanSeat,
   type AdminFloorplanShape,
+  type AdminFloorplanSvgSource,
   type AdminPrice
 } from '@invitaciones/api-client';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
@@ -440,6 +441,89 @@ describe('Admin Event preparation surfaces', () => {
     expect(api.adminEventPreparation.createFloorplan).not.toHaveBeenCalled();
   });
 
+  it('uploads an SVG source through the Admin SVG asset endpoint without changing domain data', async () => {
+    const current = floorplan({ shapes: [shape()], seats: [serpentineSeats('table-a')[0]!] });
+    const replacement = floorplan({
+      shapes: current.shapes,
+      seats: current.seats,
+      image: { fileAssetId: 'svg-replacement', contentPath: '/private/svg', sourceType: 'SVG' }
+    });
+    const api = preparedFloorplanApi(current);
+    vi.mocked(api.adminEventPreparation.uploadFloorplanSvgAsset).mockResolvedValue(
+      floorplanAsset({ id: 'svg-replacement', fileType: 'FLOORPLAN_SVG', mimeType: 'image/svg+xml' })
+    );
+    vi.mocked(api.adminEventPreparation.replaceFloorplanImage).mockResolvedValue(replacement);
+    vi.mocked(api.adminEventPreparation.getFloorplan).mockResolvedValueOnce(current).mockResolvedValue(replacement);
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    const button = await screen.findByRole('button', { name: 'Cambiar plano' });
+    await userEvent.upload(button.querySelector('input')!, new File(['<svg/>'], 'salon.svg', { type: 'image/svg+xml' }));
+    await waitFor(() => expect(api.adminEventPreparation.uploadFloorplanSvgAsset).toHaveBeenCalledOnce());
+    expect(api.adminEventPreparation.replaceFloorplanImage).toHaveBeenCalledWith(adminEvent.clientId, adminEvent.id, {
+      imageAssetId: 'svg-replacement'
+    });
+    expect((floorplanHarness.props?.floorplan as AdminFloorplan).shapes).toEqual(current.shapes);
+    expect((floorplanHarness.props?.floorplan as AdminFloorplan).seats).toEqual(current.seats);
+  });
+
+  it('requires explicit confirmation before replacing a mapped SVG and sends the detach confirmation only then', async () => {
+    const mapped = shape({ sourceElementId: 'private-circle' });
+    const current = floorplan({
+      image: { fileAssetId: 'svg-current', contentPath: '/private/svg', sourceType: 'SVG' },
+      shapes: [mapped],
+      seats: [serpentineSeats(mapped.id)[0]!]
+    });
+    const replacement = floorplan({
+      image: { fileAssetId: 'raster-replacement', contentPath: '/private/raster', sourceType: 'RASTER' },
+      shapes: [{ ...mapped, sourceElementId: null }],
+      seats: current.seats
+    });
+    const api = preparedFloorplanApi(current);
+    vi.mocked(api.adminEventPreparation.uploadFloorplanAsset).mockResolvedValue(floorplanAsset({ id: 'raster-replacement' }));
+    vi.mocked(api.adminEventPreparation.replaceFloorplanImage).mockResolvedValue(replacement);
+    vi.mocked(api.adminEventPreparation.getFloorplan).mockResolvedValueOnce(current).mockResolvedValue(replacement);
+    vi.mocked(api.adminEventPreparation.getFloorplanSvgSource).mockResolvedValue(svgSource('svg-current'));
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    const button = await screen.findByRole('button', { name: 'Cambiar plano' });
+    await userEvent.upload(button.querySelector('input')!, new File(['next'], 'nuevo.png', { type: 'image/png' }));
+    expect(await screen.findByRole('heading', { name: '¿Reemplazar el plano SVG?' })).toBeInTheDocument();
+    expect(api.adminEventPreparation.uploadFloorplanAsset).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Reemplazar y desvincular' }));
+    await waitFor(() =>
+      expect(api.adminEventPreparation.replaceFloorplanImage).toHaveBeenCalledWith(adminEvent.clientId, adminEvent.id, {
+        imageAssetId: 'raster-replacement',
+        confirmSvgMappingDetach: true
+      })
+    );
+    expect((floorplanHarness.props?.floorplan as AdminFloorplan).shapes).toEqual(replacement.shapes);
+    expect((floorplanHarness.props?.floorplan as AdminFloorplan).seats).toEqual(current.seats);
+  });
+
+  it('refetches authoritative state after a replacement timeout without retrying the upload or PATCH', async () => {
+    const mapped = shape({ sourceElementId: 'private-circle' });
+    const current = floorplan({
+      image: { fileAssetId: 'svg-current', contentPath: '/private/svg', sourceType: 'SVG' },
+      shapes: [mapped]
+    });
+    const recovered = floorplan({
+      image: { fileAssetId: 'raster-replacement', contentPath: '/private/raster', sourceType: 'RASTER' },
+      shapes: [{ ...mapped, sourceElementId: null }]
+    });
+    const api = preparedFloorplanApi(current);
+    vi.mocked(api.adminEventPreparation.uploadFloorplanAsset).mockResolvedValue(floorplanAsset({ id: 'raster-replacement' }));
+    vi.mocked(api.adminEventPreparation.replaceFloorplanImage).mockRejectedValue(new Error('timeout'));
+    vi.mocked(api.adminEventPreparation.getFloorplan).mockResolvedValueOnce(current).mockResolvedValue(recovered);
+    vi.mocked(api.adminEventPreparation.getFloorplanSvgSource).mockResolvedValue(svgSource('svg-current'));
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    const button = await screen.findByRole('button', { name: 'Cambiar plano' });
+    await userEvent.upload(button.querySelector('input')!, new File(['next'], 'nuevo.png', { type: 'image/png' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Reemplazar y desvincular' }));
+    await waitFor(() => expect(api.adminEventPreparation.getFloorplan).toHaveBeenCalledTimes(2));
+    expect(api.adminEventPreparation.uploadFloorplanAsset).toHaveBeenCalledOnce();
+    expect(api.adminEventPreparation.replaceFloorplanImage).toHaveBeenCalledOnce();
+    expect((floorplanHarness.props?.floorplan as AdminFloorplan).image).toEqual(recovered.image);
+    expect((floorplanHarness.props?.floorplan as AdminFloorplan).shapes).toEqual(recovered.shapes);
+  });
+
   it('opens a natural table inspector only after selection and updates through Admin', async () => {
     const table = shape();
     const api = preparedFloorplanApi(floorplan({ shapes: [table] }));
@@ -862,7 +946,7 @@ describe('Admin Event preparation surfaces', () => {
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
     const input = (await screen.findByRole('button', { name: 'Subir plano' })).querySelector('input')!;
     fireEvent.change(input, { target: { files: [new File(['text'], 'plano.txt', { type: 'text/plain' })] } });
-    expect(await screen.findByText('Selecciona una imagen JPG o PNG.')).toBeInTheDocument();
+    expect(await screen.findByText('Selecciona una imagen JPG, PNG o SVG.')).toBeInTheDocument();
     expect(api.adminEventPreparation.uploadFloorplanAsset).not.toHaveBeenCalled();
   });
 
@@ -1358,6 +1442,15 @@ function floorplanAsset(overrides: Record<string, unknown> = {}) {
     updatedAt: adminEvent.updatedAt,
     deletedAt: null,
     ...overrides
+  };
+}
+
+function svgSource(fileAssetId: string): AdminFloorplanSvgSource {
+  return {
+    fileAssetId,
+    aspectRatio: 1,
+    viewBox: { minX: 0, minY: 0, width: 100, height: 100 },
+    selectableElements: []
   };
 }
 

@@ -52,6 +52,7 @@ import type {
   SeatingWorkspaceQueryInput,
   ScannerFloorplanResponseDto,
   UpdateFloorplanShapeInput,
+  UpdateFloorplanInput,
   UpdateFloorplanSeatInput,
   UpdateSeatingInput
 } from './floorplan.dto';
@@ -410,7 +411,7 @@ export class FloorplanService {
 
   async replaceImage(
     eventId: string,
-    input: CreateFloorplanInput,
+    input: UpdateFloorplanInput,
     principal: AuthPrincipal,
     operationId?: string
   ): Promise<FloorplanResponseDto> {
@@ -420,7 +421,7 @@ export class FloorplanService {
   replaceImageAdministrative(
     clientId: string,
     eventId: string,
-    input: CreateFloorplanInput,
+    input: UpdateFloorplanInput,
     principal: AuthPrincipal,
     operationId?: string
   ): Promise<FloorplanResponseDto> {
@@ -429,7 +430,7 @@ export class FloorplanService {
 
   private async replaceImageForTarget(
     eventId: string,
-    input: CreateFloorplanInput,
+    input: UpdateFloorplanInput,
     principal: AuthPrincipal,
     target: FloorplanTarget,
     operationId?: string
@@ -442,6 +443,23 @@ export class FloorplanService {
       if (current.imageAssetId === input.imageAssetId) {
         return this.toTargetResponse(await this.requireView(tx, eventId), target);
       }
+      const [currentAsset, mappedShapes] = await Promise.all([
+        tx.fileAsset.findFirst({
+          where: { id: current.imageAssetId, deletedAt: null },
+          select: { fileType: true }
+        }),
+        tx.floorplanShape.findMany({
+          where: { floorplanId: current.id, deletedAt: null, sourceElementId: { not: null } },
+          select: { id: true, sourceElementId: true }
+        })
+      ]);
+      const currentIsMappedSvg = currentAsset?.fileType === FileAssetType.FLOORPLAN_SVG && mappedShapes.length > 0;
+      if (currentIsMappedSvg && input.confirmSvgMappingDetach !== true) {
+        throw floorplanError(
+          'FLOORPLAN_SVG_MAPPING_REPLACEMENT_CONFIRMATION_REQUIRED',
+          'Replacing an SVG Floorplan with mapped elements requires explicit confirmation.'
+        );
+      }
       await this.fileAssets.claimReadyAssetInTransaction(
         tx,
         input.imageAssetId,
@@ -450,6 +468,19 @@ export class FloorplanService {
         operationId
       );
       await tx.floorplan.update({ where: { id: current.id }, data: { imageAssetId: input.imageAssetId } });
+      if (mappedShapes.length > 0) {
+        await tx.floorplanShape.updateMany({
+          where: { floorplanId: current.id, deletedAt: null, sourceElementId: { not: null } },
+          data: { sourceElementId: null }
+        });
+        for (const shape of mappedShapes) {
+          await this.recordAudit(tx, event, principal, operationId, 'FLOORPLAN_SVG_MAPPING_DETACH_ON_REPLACE', shape.id, {
+            floorplanId: current.id,
+            sourceElementId: shape.sourceElementId,
+            reason: 'SOURCE_REPLACED'
+          });
+        }
+      }
       await this.fileAssets.hideOwnedAssetInTransaction(
         tx,
         current.imageAssetId,
@@ -460,7 +491,9 @@ export class FloorplanService {
       await this.recordAudit(tx, event, principal, operationId, 'FLOORPLAN_IMAGE_REPLACE', current.id, {
         floorplanId: current.id,
         fromImageAssetId: current.imageAssetId,
-        toImageAssetId: input.imageAssetId
+        toImageAssetId: input.imageAssetId,
+        detachedMappingCount: mappedShapes.length,
+        detachedShapeIds: mappedShapes.map(({ id }) => id)
       });
       await recomputeDigitalEventPreparationStatus(tx, eventId);
       return this.toTargetResponse(await this.requireView(tx, eventId), target);

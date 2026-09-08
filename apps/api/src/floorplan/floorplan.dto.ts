@@ -52,7 +52,10 @@ const svgMappingSchema = z.object({
   capacity: z.number().int().min(0).max(100_000)
 }).strict();
 const createFloorplanSchema = z.object({ imageAssetId: uuid }).strict();
-const updateFloorplanSchema = z.object({ imageAssetId: uuid }).strict();
+const updateFloorplanSchema = z.object({
+  imageAssetId: uuid,
+  confirmSvgMappingDetach: z.literal(true).optional()
+}).strict();
 const updateShapeSchema = z.object(shapeFields).partial().strict();
 const assignSchema = z
   .object({ assistantIds: z.array(uuid).min(1).max(500), tableShapeId: uuid })
@@ -125,6 +128,7 @@ const seatingWorkspaceQuerySchema = z
 
 export type FloorplanSvgMappingInput = z.infer<typeof svgMappingSchema>;
 export type CreateFloorplanInput = z.infer<typeof createFloorplanSchema>;
+export type UpdateFloorplanInput = z.infer<typeof updateFloorplanSchema>;
 export type FloorplanShapeInput = z.infer<typeof floorplanShapeSchema>;
 export type UpdateFloorplanShapeInput = z.infer<typeof updateShapeSchema>;
 export type AssignSeatingInput = z.infer<typeof assignSchema>;
@@ -141,6 +145,14 @@ export type SeatingWorkspaceQueryInput = z.infer<typeof seatingWorkspaceQuerySch
 export class FloorplanImageRequestDto {
   @ApiProperty({ type: String, format: 'uuid' })
   imageAssetId!: string;
+}
+
+export class ReplaceFloorplanImageRequestDto extends FloorplanImageRequestDto {
+  @ApiPropertyOptional({
+    type: Boolean,
+    description: 'Explicit confirmation required when replacing an SVG source with active mappings.'
+  })
+  confirmSvgMappingDetach?: true;
 }
 
 export class PolygonPointDto {
@@ -460,7 +472,7 @@ export function parseFloorplanId(value: string): string {
 export function parseCreateFloorplan(input: unknown): CreateFloorplanInput {
   return parse(createFloorplanSchema, input);
 }
-export function parseUpdateFloorplan(input: unknown): CreateFloorplanInput {
+export function parseUpdateFloorplan(input: unknown): UpdateFloorplanInput {
   return parse(updateFloorplanSchema, input);
 }
 export function parseSvgMapping(input: unknown): FloorplanSvgMappingInput {
