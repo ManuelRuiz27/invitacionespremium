@@ -24,11 +24,14 @@ describe('FloorplanSvgValidator', () => {
     '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>',
     '<svg xmlns="http://www.w3.org/2000/svg"><foreignObject/></svg>',
     '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"/>',
+    '<svg xmlns="http://www.w3.org/2000/svg"><rect onclick="alert(1)"/></svg>',
     '<svg xmlns="http://www.w3.org/2000/svg"><image href="https://attacker.example/image.png"/></svg>',
     '<svg xmlns="http://www.w3.org/2000/svg"><style>@import url(https://attacker.example/style.css)</style></svg>',
     '<svg xmlns="http://www.w3.org/2000/svg"><use href="//attacker.example/shape"/></svg>',
+    '<svg xmlns="http://www.w3.org/2000/svg"><use href="javascript:alert(1)"/></svg>',
     '<svg xmlns="http://www.w3.org/2000/svg"><use href="data:image/svg+xml;base64,PHN2Zy8+"/></svg>',
     '<svg xmlns="http://www.w3.org/2000/svg"><animate attributeName="x"/></svg>',
+    '<svg xmlns="http://www.w3.org/2000/svg"><rect fill="url(https://attacker.example/paint)"/></svg>',
     '<svg xmlns="http://www.w3.org/2000/svg"><rect clip-path="url(#missing)"/></svg>'
   ])('rejects active, external, unsupported or unresolved SVG content', (source) => {
     expect(() => validator().validate(Buffer.from(source))).toThrow(
@@ -41,7 +44,9 @@ describe('FloorplanSvgValidator', () => {
       expect.objectContaining({ response: expect.objectContaining({ code: 'FILE_SVG_INVALID' }) })
     );
     expect(() =>
-      validator().validate(Buffer.from('<?xml version="1.0" encoding="ISO-8859-1"?><svg xmlns="http://www.w3.org/2000/svg"/>'))
+      validator().validate(
+        Buffer.from('<?xml version="1.0" encoding="ISO-8859-1"?><svg xmlns="http://www.w3.org/2000/svg"/>')
+      )
     ).toThrow(expect.objectContaining({ response: expect.objectContaining({ code: 'FILE_SVG_INVALID' }) }));
     expect(() => validator().validate(Buffer.from([0xff, 0xfe, 0xfd]))).toThrow(
       expect.objectContaining({ response: expect.objectContaining({ code: 'FILE_SVG_INVALID' }) })
@@ -49,7 +54,9 @@ describe('FloorplanSvgValidator', () => {
   });
 
   it('enforces independent SVG byte, node and depth limits', () => {
-    expect(() => validator({ maxBytes: 20 }).validate(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>'))).toThrow(
+    expect(() =>
+      validator({ maxBytes: 20 }).validate(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>'))
+    ).toThrow(
       expect.objectContaining({ status: 413, response: expect.objectContaining({ code: 'FILE_SVG_LIMIT_EXCEEDED' }) })
     );
     expect(() =>
@@ -61,7 +68,9 @@ describe('FloorplanSvgValidator', () => {
   });
 
   it('adds deterministic source ids when selectable elements omit ids', () => {
-    const source = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><rect width="2" height="3"/><circle r="1"/></svg>');
+    const source = Buffer.from(
+      '<svg xmlns="http://www.w3.org/2000/svg"><rect width="2" height="3"/><circle r="1"/></svg>'
+    );
     const first = validator().validate(source).bytes.toString('utf8');
     const second = validator().validate(source).bytes.toString('utf8');
     expect(first).toBe(second);
@@ -69,13 +78,19 @@ describe('FloorplanSvgValidator', () => {
   });
 
   it('replaces duplicate selectable ids and fails closed when they are referenced', () => {
-    const source = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><rect id="seat" width="2" height="3"/><circle id="seat" r="1"/></svg>');
+    const source = Buffer.from(
+      '<svg xmlns="http://www.w3.org/2000/svg"><rect id="seat" width="2" height="3"/><circle id="seat" r="1"/></svg>'
+    );
     const output = validator().validate(source).bytes.toString('utf8');
     expect(output).not.toContain('id="seat"');
     expect(new Set(output.match(/id="svg-[a-f0-9]{24}"/gu))).toHaveLength(2);
-    expect(() => validator().validate(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><rect id="seat"/><circle id="seat"/><use href="#seat"/></svg>'))).toThrow(
-      expect.objectContaining({ response: expect.objectContaining({ code: 'FILE_SVG_UNSAFE' }) })
-    );
+    expect(() =>
+      validator().validate(
+        Buffer.from(
+          '<svg xmlns="http://www.w3.org/2000/svg"><rect id="seat"/><circle id="seat"/><use href="#seat"/></svg>'
+        )
+      )
+    ).toThrow(expect.objectContaining({ response: expect.objectContaining({ code: 'FILE_SVG_UNSAFE' }) }));
   });
 });
 

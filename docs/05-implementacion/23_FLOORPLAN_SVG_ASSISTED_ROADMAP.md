@@ -420,8 +420,10 @@ Evidencia SVG-06:
 
 ## 13. SVG-07 — QA seguridad, escala y E2E
 
-Estado: **READY**
+Estado: **DONE**
 Prioridad: **P0 GATE**
+
+Evidencia: rechazo fail-closed de contenido hostil y límites de bytes/nodos/profundidad; IDs, bboxes y transforms canónicos; 50/100/200 elementos seleccionables; mapeos TABLE/DECORATIVE_ZONE, SEAT global, Serpentina/U, raster, reemplazo, reload, lock, readiness, concurrencia y aislamiento tenant/event; flujo Admin → Planner → Scanner verificado por API y superficies.
 
 Fixtures mínimos:
 
@@ -481,7 +483,7 @@ Gate:
 
 ## 14. SVG-08 — Freeze funcional
 
-Estado: **BLOCKED por SVG-07**  
+Estado: **READY**
 Prioridad: **GATE**
 
 Se declara freeze cuando:
