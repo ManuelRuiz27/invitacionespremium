@@ -63,9 +63,10 @@ describe('FloorplanDomRenderer', () => {
       svgSource={{ selectableElements: [{ sourceElementId: 'private-source-id', bbox: mapped }] }}
       selectedId={mapped.id} draft={mapped} disabled={false} showSeats={false} snap={false}
       onSelect={onSelect} onDraftChange={vi.fn()} />);
-    const element = screen.getByRole('button', { name: 'Mesa SVG, vinculado al plano' });
+    const element = screen.getByRole('button', { name: 'Mesa Mesa SVG, Vacía · 0 de 8, Seleccionada' });
     expect(element).toHaveAttribute('aria-pressed', 'true');
     expect(getComputedStyle(element).backgroundColor).toBe('rgba(0, 0, 0, 0)');
+    expect(screen.getByText('Vacía · 0 de 8 · Seleccionada')).toBeInTheDocument();
     expect(screen.queryByLabelText('Editar mesa Mesa SVG')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Mover mesa seleccionada')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Editar mesa Mesa 1')).toBeInTheDocument();
@@ -73,8 +74,40 @@ describe('FloorplanDomRenderer', () => {
     view.rerender(<FloorplanDomRenderer floorplan={{ ...floorplan, shapes: [table, mapped] }} imageUrl="blob:svg"
       svgSource={{ selectableElements: [{ sourceElementId: 'private-source-id', bbox: mapped }] }}
       disabled={false} showSeats={false} snap={false} onSelect={onSelect} onDraftChange={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Mesa SVG, vinculado al plano' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mesa Mesa SVG, Vacía · 0 de 8' }));
     expect(onSelect).toHaveBeenCalledWith(mapped);
+  });
+
+  it('projects empty, partial, full and read-only state over mapped SVG tables without using a proxy fill', () => {
+    const mapped = { ...table, id: 'mapped', name: 'Mesa SVG', sourceElementId: 'source-table', capacity: 4 };
+    const renderMapped = (shape: FloorplanShape, options: { selectedId?: string; disabled?: boolean; readOnly?: boolean } = {}) =>
+      <FloorplanDomRenderer floorplan={{ ...floorplan, image: { ...floorplan.image, sourceType: 'SVG' }, shapes: [shape] }} imageUrl="blob:svg"
+        svgSource={{ selectableElements: [{ sourceElementId: 'source-table', bbox: shape }] }}
+        disabled={options.disabled ?? false} readOnly={options.readOnly} selectedId={options.selectedId} showSeats={false} snap={false}
+        onSelect={vi.fn()} onDraftChange={vi.fn()} />;
+    const view = render(renderMapped(mapped));
+    expect(screen.getByText('Vacía · 0 de 4')).toBeInTheDocument();
+    view.rerender(renderMapped({ ...mapped, occupancy: 2, availableCapacity: 2 }));
+    expect(screen.getByText('Parcial · 2 de 4')).toBeInTheDocument();
+    view.rerender(renderMapped({ ...mapped, occupancy: 4, availableCapacity: 0 }, { selectedId: mapped.id, disabled: true, readOnly: true }));
+    expect(screen.getByText('Completa · 4 de 4 · Seleccionada · Solo lectura')).toBeInTheDocument();
+    const state = screen.getByRole('button', { name: 'Mesa Mesa SVG, Completa · 4 de 4, Seleccionada, Solo lectura' });
+    expect(state).toBeDisabled();
+    expect(getComputedStyle(state).backgroundColor).toBe('rgba(0, 0, 0, 0)');
+  });
+
+  it('uses active unblocked exact seats for a mapped SEAT table while seats remain at global coordinates', () => {
+    const mapped = { ...table, id: 'mapped', sourceElementId: 'source-table', capacity: 99, occupancy: 1, availableCapacity: 98 };
+    const seats = [
+      { id: 'seat-outside', floorplanShapeId: mapped.id, label: '1', x: 0.85, y: 0.8, isBlocked: false, occupied: true },
+      { id: 'seat-two', floorplanShapeId: mapped.id, label: '2', x: 0.9, y: 0.8, isBlocked: false, occupied: false },
+      { id: 'seat-blocked', floorplanShapeId: mapped.id, label: '3', x: 0.95, y: 0.8, isBlocked: true, occupied: false }
+    ];
+    render(<FloorplanDomRenderer floorplan={{ ...floorplan, image: { ...floorplan.image, sourceType: 'SVG' }, seatingMode: 'SEAT', shapes: [mapped], seats }} imageUrl="blob:svg"
+      svgSource={{ selectableElements: [{ sourceElementId: 'source-table', bbox: { x: 0.1, y: 0.1, width: 0.2, height: 0.2 } }] }}
+      disabled={false} showSeats={false} snap={false} onSelect={vi.fn()} onDraftChange={vi.fn()} />);
+    expect(screen.getByText('Parcial · 1 de 2')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Lugar 1, ocupado' })).toHaveStyle({ left: '85%', top: '80%' });
   });
 
   it('keeps unmapped element IDs private and blocks selection while locked', () => {

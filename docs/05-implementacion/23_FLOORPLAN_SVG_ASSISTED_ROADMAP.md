@@ -285,7 +285,7 @@ SVG-04+ permanece fuera de esta implementación.
 
 ## 10. SVG-04 — Estado visual operacional + Detailed Seating
 
-Estado: **READY**
+Estado: **DONE**
 
 Prioridad: **P0**
 
@@ -317,9 +317,17 @@ Gate:
 - Mesa SVG irregular puede operar `SEAT` con lugares exactos y asignación real;
 - cambiar ocupación cambia la presentación sin mutar el SVG almacenado.
 
+Evidencia de cierre (2026-09-07):
+
+- DOM y Konva proyectan sobre el elemento SVG mapeado estados `Vacía`, `Parcial`, `Completa`, `Seleccionada` y `Solo lectura` mediante borde/patrón y texto accesible, sin pintar ni persistir una geometría proxy opaca.
+- En `TABLE`, la proyección usa capacidad y ocupación autoritativas de `FloorplanShape`; en `SEAT`, la capacidad visible se deriva de los `FloorplanSeat` activos y no bloqueados, manteniendo sus coordenadas globales incluso fuera del bbox SVG.
+- QA: 99 pruebas de `packages/floorplan`, incluyendo DOM/Konva para estados SVG y Seating exacto; typecheck, lint, build, Prisma y api-client verdes.
+
+SVG-05+ permanece fuera de esta implementación.
+
 ## 11. SVG-05 — Reemplazo, reconciliación y recovery
 
-Estado: **BLOCKED por SVG-03**  
+Estado: **READY**
 Prioridad: **P0 DATA INTEGRITY**
 
 Objetivo: que cambiar la fuente visual nunca destruya el dominio.

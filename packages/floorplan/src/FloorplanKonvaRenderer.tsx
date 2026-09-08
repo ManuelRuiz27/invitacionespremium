@@ -1,12 +1,13 @@
 import type { FloorplanShape, FloorplanShapeInput } from '@invitaciones/api-client';
 import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
-import { useEffect, useMemo, useRef, type MutableRefObject } from 'react';
+import { Fragment, useEffect, useMemo, useRef, type MutableRefObject } from 'react';
 import { Circle, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text, Transformer } from 'react-konva';
 import { normalizeFloorplanShape } from './floorplan-geometry';
 import type { FloorplanRendererProps } from './FloorplanDomRenderer';
 import { hasEqualPhysicalSides, shapeToStageRect, stageRectToShape } from './floorplan-scene';
 import { floorplanColors } from './floorplan-sticker-style';
+import { resolveSvgTableVisualState } from './floorplan-svg-table-state';
 import { visualSeats } from './floorplan-visual-seats';
 
 export interface ViewportState {
@@ -153,12 +154,24 @@ export function FloorplanKonvaRenderer(
         {props.svgSource?.selectableElements.map((element) => {
           const mapped = props.floorplan.shapes.find((shape) => shape.sourceElementId === element.sourceElementId);
           const sourceSelected = props.selectedSourceElementId === element.sourceElementId || Boolean(mapped && props.selectedId === mapped.id);
+          const tableState = mapped
+            ? resolveSvgTableVisualState(props.floorplan, mapped, {
+                selected: sourceSelected,
+                readOnly: Boolean(props.readOnly || props.disabled)
+              })
+            : undefined;
           const selectElement = (event: KonvaEventObject<MouseEvent | TouchEvent>) => {
             event.cancelBubble = true;
             if (mapped) props.onSelect(mapped);
             else props.onSourceSelect?.(element.sourceElementId);
           };
+          const stateStroke = tableState?.occupancyState === 'FULL'
+            ? '#a03d2f'
+            : tableState?.occupancyState === 'PARTIAL'
+              ? '#9a6700'
+              : floorplanColors.accent;
           return (
+          <Fragment key={element.sourceElementId}>
           <Rect
             key={element.sourceElementId}
             name="floorplan-svg-source-element"
@@ -167,13 +180,35 @@ export function FloorplanKonvaRenderer(
             width={element.bbox.width * props.width}
             height={element.bbox.height * props.height}
             fill="rgba(0,0,0,0)"
-            {...(sourceSelected
+            {...(tableState
+              ? {
+                  stroke: sourceSelected ? floorplanColors.accent : stateStroke,
+                  strokeWidth: sourceSelected ? 4 : 3,
+                  dash: sourceSelected ? [] : tableState.occupancyState === 'PARTIAL' ? [8, 5] : tableState.occupancyState === 'FULL' ? [2, 2] : [],
+                  opacity: props.readOnly || props.disabled ? 0.72 : 1
+                }
+              : sourceSelected
               ? { stroke: floorplanColors.accent, strokeWidth: 3 }
               : mapped ? { stroke: floorplanColors.accent, strokeWidth: 2, dash: [6, 4] } : { strokeWidth: 0 })}
             listening={Boolean(mapped || props.onSourceSelect) && !props.disabled && !selected && !props.captureCanvasClicks}
             onClick={selectElement}
             onTap={selectElement}
           />
+          {tableState && element.bbox.width * props.width >= 56 && element.bbox.height * props.height >= 22 ? (
+            <Text
+              name="floorplan-svg-table-status"
+              x={element.bbox.x * props.width + 4}
+              y={element.bbox.y * props.height + 4}
+              width={Math.max(0, element.bbox.width * props.width - 8)}
+              text={tableState.label}
+              align="center"
+              fontSize={Math.max(8, Math.min(12, element.bbox.width * props.width / 8))}
+              fontStyle="bold"
+              fill={stateStroke}
+              listening={false}
+            />
+          ) : null}
+          </Fragment>
         ); })}
         {props.snap
           ? Array.from({ length: 19 }, (_, index) => (index + 1) / 20).flatMap((position) => [

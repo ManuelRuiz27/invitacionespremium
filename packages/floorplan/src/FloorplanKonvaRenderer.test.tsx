@@ -140,11 +140,50 @@ describe('FloorplanKonvaRenderer de producción', () => {
     expect(latest('Image').props.image).toBe(image);
     const hitArea = latest('Rect', 'floorplan-svg-source-element');
     expect(hitArea.props.fill).toBe('rgba(0,0,0,0)');
-    expect(hitArea.props.strokeWidth).toBe(3);
+    expect(hitArea.props.strokeWidth).toBe(4);
+    expect(latest('Text', 'floorplan-svg-table-status').props.text).toBe('Vacía · 0 de 4 · Seleccionada');
     expect(konva.nodes.filter((node) => node.props.name === 'floorplan-shape')).toHaveLength(1);
     expect(konva.nodes.some((node) => node.props.name === 'floorplan-editable-shape')).toBe(false);
     act(() => (hitArea.props.onClick as (event: object) => void)({ cancelBubble: false }));
     expect(onSelect).toHaveBeenCalledWith(mapped);
+  });
+
+  it('projects empty, partial, full, selected and read-only mapped SVG table states without a proxy fill', () => {
+    const mapped = { ...table, id: 'mapped', sourceElementId: 'source-table', geometry: 'RECTANGLE', capacity: 4 };
+    const source = { selectableElements: [{ sourceElementId: 'source-table', bbox: mapped }] };
+    const view = render(<FloorplanKonvaRenderer {...props({ floorplan: { ...floorplan, shapes: [mapped] }, svgSource: source })} />);
+    expect(latest('Text', 'floorplan-svg-table-status').props.text).toBe('Vacía · 0 de 4');
+    expect(latest('Rect', 'floorplan-svg-source-element').props.fill).toBe('rgba(0,0,0,0)');
+    view.rerender(<FloorplanKonvaRenderer {...props({
+      floorplan: { ...floorplan, shapes: [{ ...mapped, occupancy: 2, availableCapacity: 2 }] }, svgSource: source
+    })} />);
+    expect(latest('Rect', 'floorplan-svg-source-element').props.dash).toEqual([8, 5]);
+    expect(latest('Text', 'floorplan-svg-table-status').props.text).toBe('Parcial · 2 de 4');
+    view.rerender(<FloorplanKonvaRenderer {...props({
+      floorplan: { ...floorplan, shapes: [{ ...mapped, occupancy: 4, availableCapacity: 0 }] }, svgSource: source,
+      selectedId: mapped.id, disabled: true, readOnly: true
+    })} />);
+    expect(latest('Rect', 'floorplan-svg-source-element').props.strokeWidth).toBe(4);
+    expect(latest('Text', 'floorplan-svg-table-status').props.text).toBe('Completa · 4 de 4 · Seleccionada · Solo lectura');
+  });
+
+  it('derives mapped SEAT table capacity from active unblocked seats while retaining global seat positions', () => {
+    const mapped = { ...table, id: 'mapped', sourceElementId: 'source-table', geometry: 'RECTANGLE', capacity: 99, occupancy: 1, availableCapacity: 98 };
+    const seats = [
+      { id: 'seat-outside', floorplanShapeId: mapped.id, label: '1', x: 0.85, y: 0.8, isBlocked: false, occupied: true },
+      { id: 'seat-two', floorplanShapeId: mapped.id, label: '2', x: 0.9, y: 0.8, isBlocked: false, occupied: false },
+      { id: 'seat-blocked', floorplanShapeId: mapped.id, label: '3', x: 0.95, y: 0.8, isBlocked: true, occupied: false }
+    ];
+    render(<FloorplanKonvaRenderer {...props({
+      floorplan: {
+        ...floorplan,
+        image: { ...floorplan.image, sourceType: 'SVG' },
+        seatingMode: 'SEAT', shapes: [mapped], seats
+      },
+      svgSource: { selectableElements: [{ sourceElementId: 'source-table', bbox: { x: 0.1, y: 0.1, width: 0.2, height: 0.2 } }] }
+    })} />);
+    expect(latest('Text', 'floorplan-svg-table-status').props.text).toBe('Parcial · 1 de 2');
+    expect(konva.nodes.find((node) => node.props.name === 'floorplan-seat' && node.props.x === 850)?.props.y).toBe(400);
   });
   beforeEach(() => {
     konva.nodes.length = 0;
