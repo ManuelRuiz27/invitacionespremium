@@ -372,13 +372,16 @@ describe('Admin Event preparation surfaces', () => {
     expect(api.adminEventPreparation.createFloorplan).not.toHaveBeenCalled();
   });
 
-  it('loads the provider Builder with the Event-derived clientId and private image', async () => {
+  it('loads the provider Builder with a focused Croquis header and private image', async () => {
     const api = mockAdminApi();
     vi.mocked(api.adminEvents.get).mockResolvedValue({ ...adminEvent, floorplanEnabled: true });
     vi.mocked(api.adminEventPreparation.getFloorplan).mockResolvedValue(floorplan());
     vi.mocked(api.adminEventPreparation.floorplanAssetContent).mockResolvedValue(new Blob(['image']));
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
-    expect(await screen.findByRole('heading', { name: 'Taller de Croquis' })).toBeInTheDocument();
+    await screen.findByTestId('admin-floorplan-surface');
+    expect(screen.getByText('Croquis', { selector: 'h2' })).toBeInTheDocument();
+    expect(screen.queryByText(`Cliente ${adminEvent.clientId} · Servicio ${adminEvent.serviceCode}`)).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Acomodo')).toHaveTextContent('Por mesa');
     expect(api.adminEventPreparation.getFloorplan).toHaveBeenCalledWith(
       adminEvent.clientId,
       adminEvent.id,
@@ -1179,7 +1182,7 @@ describe('Admin Event preparation surfaces', () => {
     vi.mocked(api.adminEventPreparation.setFloorplanSeatingMode).mockResolvedValue(floorplan({ seatingMode: 'TABLE' }));
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
     const chooseTableMode = async () => {
-      await userEvent.click(await screen.findByLabelText('Asignación'));
+      await userEvent.click(await screen.findByLabelText('Acomodo'));
       await userEvent.click(await screen.findByRole('option', { name: 'Por mesa' }));
     };
 

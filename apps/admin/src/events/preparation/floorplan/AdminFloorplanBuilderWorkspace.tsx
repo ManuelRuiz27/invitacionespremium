@@ -700,8 +700,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
             Croquis deshabilitado
           </Typography>
           <Typography color="text.secondary">
-            Habilita el Croquis en Datos cuando el Evento requiera distribución de mesas. No crearemos un plano sin esa
-            decisión.
+            Habilita el Croquis en Datos cuando el Evento requiera distribución de mesas.
           </Typography>
           <Button
             component={Link}
@@ -729,7 +728,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
             Comienza con el plano del lugar
           </Typography>
           <Typography color="text.secondary">
-            Sube una imagen JPG o PNG para distribuir Mesas y Zonas sobre las medidas reales del salón.
+            Sube una imagen JPG, PNG o SVG para distribuir Mesas y Zonas.
           </Typography>
           <UploadButton
             label={mutation === 'uploading' ? 'Subiendo plano...' : 'Subir plano'}
@@ -796,18 +795,23 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   ) : null;
   return (
     <Stack spacing={1.5} component="section" aria-labelledby="admin-floorplan-title">
-      <Paper variant="outlined" sx={{ px: 2, py: 1.25, borderRadius: 3 }}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
-          <Box sx={{ flex: 1 }}>
+      <Stack
+        direction={{ xs: 'column', md: 'row' }}
+        useFlexGap
+        spacing={1}
+        sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between' }}
+      >
+        <Box sx={{ flex: '1 1 auto', minWidth: 0 }}>
             <Typography id="admin-floorplan-title" component="h2" variant="h5">
-              Taller de Croquis
+              Croquis
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {floorplan.locked
-                ? 'Distribución protegida en modo de lectura.'
-                : 'Edita el plano operativo del proveedor.'}
-            </Typography>
-          </Box>
+            {floorplan.locked ? (
+              <Typography variant="body2" color="text.secondary">
+                Distribución protegida en modo de lectura.
+              </Typography>
+            ) : null}
+        </Box>
+        <Stack direction="row" useFlexGap spacing={1} sx={{ flex: '0 1 auto', flexWrap: 'wrap', alignItems: 'center' }}>
           <Chip
             label={
               mutation
@@ -834,14 +838,14 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
           <TextField
             select
             size="small"
-            label="Asignación"
+            label="Acomodo"
             value={floorplan.seatingMode}
             disabled={readOnly || editing}
             onChange={(event) => requestSeatingModeChange(event.target.value as 'TABLE' | 'SEAT')}
             sx={{ minWidth: 148 }}
           >
             <MenuItem value="TABLE">Por mesa</MenuItem>
-            <MenuItem value="SEAT">Por lugar</MenuItem>
+            <MenuItem value="SEAT">Por lugar exacto</MenuItem>
           </TextField>
           <UploadButton label="Cambiar plano" disabled={readOnly || editing} onFile={requestUpload} />
           <Button
@@ -854,7 +858,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
             {floorplan.locked ? 'Editar distribución' : 'Finalizar distribución'}
           </Button>
         </Stack>
-      </Paper>
+      </Stack>
       {message ? <Alert severity="warning">{message}</Alert> : null}
       {reconciliationError ? (
         <Alert
@@ -892,11 +896,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
           alignItems: 'start'
         }}
       >
-        <Paper
-          component="aside"
-          variant="outlined"
-          sx={{ p: 1.5, borderRadius: 3, display: { xs: 'none', lg: 'block' } }}
-        >
+        <Box component="aside" sx={{ px: 0.5, display: { xs: 'none', lg: 'block' } }}>
           <Stack spacing={1.5}>
             <Palette
               selectedPresetId={selectedPresetId}
@@ -906,7 +906,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
             />
             {!compactLayout && inventoryOpen ? inventory : null}
           </Stack>
-        </Paper>
+        </Box>
         <Box sx={{ minWidth: 0 }}>
           {mode === 'placing-preset' || mode === 'placing-seat' ? (
             <Alert
@@ -1014,7 +1014,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
             />
           ) : (
             <Paper variant="outlined" sx={{ minHeight: 460, display: 'grid', placeItems: 'center', borderRadius: 3 }}>
-              <Typography color="text.secondary">Cargando imagen privada...</Typography>
+              <Typography color="text.secondary">Cargando plano...</Typography>
             </Paper>
           )}
         </Box>

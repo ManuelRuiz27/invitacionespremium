@@ -76,7 +76,9 @@ export function AdminEventPreparationPage({ apiClient }: { apiClient: ApiClient 
       </Button>
       <PageHeader
         title={`Preparar ${data.name ?? 'Evento sin nombre'}`}
-        description={`Cliente ${data.clientId} · Servicio ${data.serviceCode ?? 'sin asignar'}`}
+        {...(section === 'croquis'
+          ? {}
+          : { description: `Cliente ${data.clientId} · Servicio ${data.serviceCode ?? 'sin asignar'}` })}
         action={<StatusChip label={eventStatusLabel[data.status]} tone="neutral" />}
       />
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} aria-label="Secciones de preparación">
