@@ -483,8 +483,20 @@ Gate:
 
 ## 14. SVG-08 — Freeze funcional
 
-Estado: **READY**
+Estado: **DONE**
 Prioridad: **GATE**
+
+El Floorplan SVG asistido queda **congelado funcionalmente** para este alcance.
+
+Evidencia de freeze:
+
+- baseline TABLE/SEAT, mapping manual TABLE/DECORATIVE_ZONE, guardas y OpenAPI: `26b8e8d`;
+- estado visual autoritativo, SEAT sobre SVG y regresión DOM/Konva: `4d755b2`;
+- reemplazo seguro de fuente y recuperación autoritativa: `b8156d8`;
+- operación Planner y Scanner sobre SVG: `6a99da0`;
+- gate P0 de seguridad, escala, aislamiento, concurrencia y flujo E2E: `4bec625`.
+
+El alcance API/OpenAPI queda congelado con esta evidencia. El trabajo posterior sólo puede ser pulido visual de Croquis o trabajo de roadmap aprobado por separado.
 
 Se declara freeze cuando:
 
