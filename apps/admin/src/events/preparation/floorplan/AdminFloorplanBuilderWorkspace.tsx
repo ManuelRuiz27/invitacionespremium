@@ -114,6 +114,9 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   const [mappingName, setMappingName] = useState('Mesa');
   const [mappingCapacity, setMappingCapacity] = useState(8);
   const [tableModeConfirmationOpen, setTableModeConfirmationOpen] = useState(false);
+  const [renameSeatOpen, setRenameSeatOpen] = useState(false);
+  const [renameSeatTarget, setRenameSeatTarget] = useState<{ id: string; label: string }>();
+  const [renameSeatLabel, setRenameSeatLabel] = useState('');
   const [sourceReplacementCandidate, setSourceReplacementCandidate] = useState<File>();
   const [draft, setDraft] = useState<AdminFloorplanShapeInput>(emptyDraft);
   const [selectedPresetId, setSelectedPresetId] = useState<FloorplanStickerPresetId>();
@@ -435,10 +438,27 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     );
     await refreshAfterConfirmedMutation();
   };
-  const renameSeat = () => {
-    if (!selectedSeat) return;
-    const label = window.prompt('Nombre del lugar', selectedSeat.label)?.trim();
-    if (label && label !== selectedSeat.label) void updateSeat(selectedSeat.id, { label });
+  const openRenameSeat = () => {
+    if (!selectedSeat || readOnly) return;
+    setRenameSeatTarget({ id: selectedSeat.id, label: selectedSeat.label });
+    setRenameSeatLabel(selectedSeat.label);
+    setRenameSeatOpen(true);
+  };
+  const closeRenameSeat = () => {
+    setRenameSeatOpen(false);
+    setRenameSeatTarget(undefined);
+    setRenameSeatLabel('');
+  };
+  const submitRenameSeat = () => {
+    if (!renameSeatTarget) return;
+    const label = renameSeatLabel.trim();
+    if (!label || label === renameSeatTarget.label) {
+      closeRenameSeat();
+      return;
+    }
+    const seatId = renameSeatTarget.id;
+    closeRenameSeat();
+    void updateSeat(seatId, { label });
   };
   const duplicateSeat = async () => {
     if (!selectedSeat || readOnly || !floorplan) return;
@@ -924,45 +944,59 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
             </Alert>
           ) : null}
           {floorplan.seatingMode === 'SEAT' && selected?.kind === 'TABLE' ? (
-            <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
-              <Button size="small" variant="outlined" disabled={readOnly || mode === 'placing-seat'} onClick={addSeat}>
-                Agregar lugar a {selected.name}
-              </Button>
-              <Button
-                size="small"
-                variant="outlined"
-                disabled={readOnly || !floorplan.seats.some((seat) => seat.floorplanShapeId === selected.id)}
-                onClick={() => void renumberSeats()}
-              >
-                Renumerar lugares
-              </Button>
-              {selectedSeats.length > 1 ? (
-                <Chip size="small" label={`${selectedSeats.length} lugares seleccionados`} />
-              ) : null}
+            <Stack spacing={1} sx={{ mb: 1 }}>
+              <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap' }}>
+                <Button size="small" variant="outlined" disabled={readOnly || mode === 'placing-seat'} onClick={addSeat}>
+                  Agregar lugar
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  disabled={readOnly || !floorplan.seats.some((seat) => seat.floorplanShapeId === selected.id)}
+                  onClick={() => void renumberSeats()}
+                >
+                  Renumerar lugares
+                </Button>
+              </Stack>
               {selectedSeat ? (
-                <>
-                  <Button size="small" disabled={readOnly} onClick={renameSeat}>
-                    Renombrar
-                  </Button>
-                  <Button size="small" disabled={readOnly} onClick={() => void duplicateSeat()}>
-                    Duplicar
-                  </Button>
-                  <Button
-                    size="small"
-                    disabled={readOnly || selectedSeat.occupied}
-                    onClick={() => void updateSeat(selectedSeat.id, { isBlocked: !selectedSeat.isBlocked })}
-                  >
-                    {selectedSeat.isBlocked ? 'Desbloquear' : 'Bloquear'}
-                  </Button>
-                  <Button
-                    size="small"
-                    color="error"
-                    disabled={readOnly || selectedSeat.occupied}
-                    onClick={() => void removeSeat()}
-                  >
-                    Eliminar {selectedSeat.label}
-                  </Button>
-                </>
+                <Stack spacing={0.75} sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1 }}>
+                  <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
+                    <Typography variant="subtitle2">
+                      {selectedSeat.label} · {selected.name}
+                    </Typography>
+                    {selectedSeats.length > 1 ? (
+                      <Chip size="small" label={`${selectedSeats.length} lugares seleccionados`} />
+                    ) : null}
+                  </Stack>
+                  {selectedSeats.length > 1 ? (
+                    <Typography variant="caption" color="text.secondary">
+                      Las acciones siguientes se aplican solo a {selectedSeat.label}.
+                    </Typography>
+                  ) : null}
+                  <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap' }}>
+                    <Button size="small" disabled={readOnly} onClick={openRenameSeat}>
+                      Renombrar
+                    </Button>
+                    <Button size="small" disabled={readOnly} onClick={() => void duplicateSeat()}>
+                      Duplicar
+                    </Button>
+                    <Button
+                      size="small"
+                      disabled={readOnly || selectedSeat.occupied}
+                      onClick={() => void updateSeat(selectedSeat.id, { isBlocked: !selectedSeat.isBlocked })}
+                    >
+                      {selectedSeat.isBlocked ? 'Desbloquear' : 'Bloquear'}
+                    </Button>
+                    <Button
+                      size="small"
+                      color="error"
+                      disabled={readOnly || selectedSeat.occupied}
+                      onClick={() => void removeSeat()}
+                    >
+                      Eliminar {selectedSeat.label}
+                    </Button>
+                  </Stack>
+                </Stack>
               ) : null}
             </Stack>
           ) : null}
@@ -1067,6 +1101,32 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
             Cambiar a mesas
           </Button>
         </DialogActions>
+      </Dialog>
+      <Dialog open={renameSeatOpen} onClose={closeRenameSeat}>
+        <Box
+          component="form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            submitRenameSeat();
+          }}
+        >
+          <DialogTitle>Renombrar lugar</DialogTitle>
+          <DialogContent>
+            <TextField
+              autoFocus
+              fullWidth
+              label="Nombre del lugar"
+              value={renameSeatLabel}
+              onChange={(event) => setRenameSeatLabel(event.target.value)}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={closeRenameSeat}>Cancelar</Button>
+            <Button type="submit" variant="contained">
+              Guardar
+            </Button>
+          </DialogActions>
+        </Box>
       </Dialog>
       <Dialog open={Boolean(sourceReplacementCandidate)} onClose={() => setSourceReplacementCandidate(undefined)}>
         <DialogTitle>¿Reemplazar el plano SVG?</DialogTitle>

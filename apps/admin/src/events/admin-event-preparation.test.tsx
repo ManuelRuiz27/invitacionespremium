@@ -1232,11 +1232,13 @@ describe('Admin Event preparation surfaces', () => {
       y: 0.22
     });
     vi.mocked(api.adminEventPreparation.removeFloorplanSeat).mockResolvedValue(undefined);
-    vi.spyOn(window, 'prompt').mockReturnValue('Lugar de honor');
-
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await screen.findByTestId('admin-floorplan-surface');
     await userEvent.click(await screen.findByRole('button', { name: seat.label }));
     await userEvent.click(screen.getByRole('button', { name: 'Renombrar' }));
+    await userEvent.clear(screen.getByLabelText('Nombre del lugar'));
+    await userEvent.type(screen.getByLabelText('Nombre del lugar'), 'Lugar de honor');
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
     await waitFor(() =>
       expect(api.adminEventPreparation.updateFloorplanSeat).toHaveBeenCalledWith(
         adminEvent.clientId,
@@ -1245,6 +1247,7 @@ describe('Admin Event preparation surfaces', () => {
         { label: 'Lugar de honor' }
       )
     );
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Renombrar lugar' })).not.toBeInTheDocument());
     await userEvent.click(screen.getByRole('button', { name: 'Bloquear' }));
     await waitFor(() =>
       expect(api.adminEventPreparation.updateFloorplanSeat).toHaveBeenLastCalledWith(
@@ -1279,6 +1282,56 @@ describe('Admin Event preparation surfaces', () => {
     expect(api.floorplan.updateShape).not.toHaveBeenCalled();
   });
 
+  it('keeps seat rename local until a changed label is submitted from its dialog', async () => {
+    const table = shape({ id: 'table-rename', name: 'Mesa de honor', capacity: 1, availableCapacity: 1 });
+    const seat: AdminFloorplanSeat = {
+      id: 'seat-rename',
+      floorplanShapeId: table.id,
+      label: 'Lugar 1',
+      x: 0.2,
+      y: 0.2,
+      isBlocked: false,
+      occupied: false
+    };
+    const api = preparedFloorplanApi(floorplan({ seatingMode: 'SEAT', shapes: [table], seats: [seat] }));
+    vi.mocked(api.adminEventPreparation.updateFloorplanSeat).mockResolvedValue({ ...seat, label: 'Lugar de honor' });
+
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await screen.findByTestId('admin-floorplan-surface');
+    await userEvent.click(await screen.findByRole('button', { name: seat.label }));
+    expect(await screen.findByText('Lugar 1 · Mesa de honor')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Renombrar' }));
+    expect(screen.getByLabelText('Nombre del lugar')).toHaveValue('Lugar 1');
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Renombrar lugar' })).not.toBeInTheDocument());
+    expect(api.adminEventPreparation.updateFloorplanSeat).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Renombrar' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Renombrar lugar' })).not.toBeInTheDocument());
+    expect(api.adminEventPreparation.updateFloorplanSeat).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Renombrar' }));
+    await userEvent.clear(screen.getByLabelText('Nombre del lugar'));
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Renombrar lugar' })).not.toBeInTheDocument());
+    expect(api.adminEventPreparation.updateFloorplanSeat).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Renombrar' }));
+    const label = screen.getByLabelText('Nombre del lugar');
+    await userEvent.clear(label);
+    await userEvent.type(label, 'Lugar de honor{Enter}');
+    await waitFor(() =>
+      expect(api.adminEventPreparation.updateFloorplanSeat).toHaveBeenCalledWith(
+        adminEvent.clientId,
+        adminEvent.id,
+        seat.id,
+        { label: 'Lugar de honor' }
+      )
+    );
+    expect(api.adminEventPreparation.updateFloorplanSeat).toHaveBeenCalledOnce();
+  });
+
   it('moves a Serpentina selection as one Admin batch and renumbers it collision-safely', async () => {
     const table = shape({ id: 'table-serpentina', capacity: 3, availableCapacity: 3 });
     const seats = serpentineSeats(table.id);
@@ -1304,6 +1357,8 @@ describe('Admin Event preparation surfaces', () => {
       });
     });
     expect(await screen.findByText('2 lugares seleccionados')).toBeInTheDocument();
+    expect(screen.getByText('Asiento B · Mesa Principal')).toBeInTheDocument();
+    expect(screen.getByText('Las acciones siguientes se aplican solo a Asiento B.')).toBeInTheDocument();
     act(() => {
       (floorplanHarness.props?.onSeatMove as (seatId: string, point: { x: number; y: number }) => void)('seat-s1', {
         x: 0.3,
