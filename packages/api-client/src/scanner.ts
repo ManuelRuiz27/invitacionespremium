@@ -247,6 +247,9 @@ function isFloorplanShape(value: unknown): value is FloorplanShape {
     isRecord(value) &&
     isNonEmptyString(value.id) &&
     isNonEmptyString(value.name) &&
+    (value.sourceElementId === null ||
+      value.sourceElementId === undefined ||
+      isNonEmptyString(value.sourceElementId)) &&
     (value.kind === 'TABLE' || value.kind === 'DECORATIVE_ZONE') &&
     (value.geometry === 'RECTANGLE' ||
       value.geometry === 'SQUARE' ||
@@ -276,11 +279,54 @@ function isFloorplanShape(value: unknown): value is FloorplanShape {
   );
 }
 
+function isSvgBBox(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    isFiniteInRange(value.x, 0, 1) &&
+    isFiniteInRange(value.y, 0, 1) &&
+    isFiniteInRange(value.width, Number.MIN_VALUE, 1) &&
+    isFiniteInRange(value.height, Number.MIN_VALUE, 1) &&
+    value.x + value.width <= 1 &&
+    value.y + value.height <= 1
+  );
+}
+
+function isSvgSource(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    isNonEmptyString(value.fileAssetId) &&
+    typeof value.aspectRatio === 'number' &&
+    Number.isFinite(value.aspectRatio) &&
+    value.aspectRatio > 0 &&
+    isRecord(value.viewBox) &&
+    typeof value.viewBox.minX === 'number' &&
+    Number.isFinite(value.viewBox.minX) &&
+    typeof value.viewBox.minY === 'number' &&
+    Number.isFinite(value.viewBox.minY) &&
+    typeof value.viewBox.width === 'number' &&
+    Number.isFinite(value.viewBox.width) &&
+    value.viewBox.width > 0 &&
+    typeof value.viewBox.height === 'number' &&
+    Number.isFinite(value.viewBox.height) &&
+    value.viewBox.height > 0 &&
+    Array.isArray(value.selectableElements) &&
+    value.selectableElements.every(
+      (element) =>
+        isRecord(element) &&
+        isNonEmptyString(element.sourceElementId) &&
+        ['g', 'path', 'rect', 'circle', 'ellipse', 'polygon', 'polyline'].includes(String(element.elementType)) &&
+        isSvgBBox(element.bbox)
+    )
+  );
+}
+
 function isFloorplanResponse(value: unknown): value is ScannerFloorplanResponse {
   return (
     isRecord(value) &&
     isNonEmptyString(value.floorplanId) &&
     isNonEmptyString(value.contentPath) &&
+    (value.sourceType === 'RASTER' || value.sourceType === 'SVG') &&
+    (value.sourceType === 'RASTER' ? value.svgSource === null : isSvgSource(value.svgSource)) &&
     Array.isArray(value.shapes) &&
     value.shapes.every(isFloorplanShape)
   );

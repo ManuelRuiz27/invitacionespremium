@@ -1,25 +1,5 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Headers,
-  Inject,
-  Param,
-  Patch,
-  Post,
-  Query,
-  Req,
-  Res
-} from '@nestjs/common';
-import {
-  ApiBody,
-  ApiCookieAuth,
-  ApiHeader,
-  ApiOkResponse,
-  ApiProduces,
-  ApiQuery,
-  ApiTags
-} from '@nestjs/swagger';
+import { Body, Controller, Get, Headers, Inject, Param, Patch, Post, Query, Req, Res } from '@nestjs/common';
+import { ApiBody, ApiCookieAuth, ApiHeader, ApiOkResponse, ApiProduces, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import type { AuthenticatedRequest, AuthPrincipal } from '../auth/auth.types';
 import { CurrentAuth } from '../auth/current-auth.decorator';
@@ -34,6 +14,7 @@ import {
   AssignSeatingRequestDto,
   AssignSeatsRequestDto,
   FloorplanResponseDto,
+  FloorplanSvgSourceResponseDto,
   ScannerFloorplanResponseDto,
   SeatingMutationResponseDto,
   SeatingWorkspacePageDto,
@@ -44,7 +25,7 @@ import {
   parseAssignSeats,
   parseFloorplanId,
   parseSeatingWorkspaceQuery,
-  parseUpdateSeating,
+  parseUpdateSeating
 } from './floorplan.dto';
 import { FloorplanService } from './floorplan.service';
 
@@ -61,6 +42,15 @@ export class FloorplanController {
   @ApiOkResponse({ type: FloorplanResponseDto })
   get(@Param('eventId') eventId: string, @CurrentAuth() principal: AuthPrincipal): Promise<FloorplanResponseDto> {
     return this.floorplan.get(parseEventId(eventId), principal);
+  }
+
+  @Get('floorplan/svg-source')
+  @ApiOkResponse({ type: FloorplanSvgSourceResponseDto })
+  svgSource(
+    @Param('eventId') eventId: string,
+    @CurrentAuth() principal: AuthPrincipal
+  ): Promise<FloorplanSvgSourceResponseDto> {
+    return this.floorplan.svgSource(parseEventId(eventId), principal);
   }
 
   @Post('seating/assign-seats')

@@ -183,20 +183,21 @@ export class FloorplanService {
     return this.getForTarget(eventId, principal, { kind: 'ADMIN', clientId });
   }
 
-  async svgSourceAdministrative(clientId: string, eventId: string, principal: AuthPrincipal): Promise<FloorplanSvgSourceResponseDto> {
+  async svgSource(eventId: string, principal: AuthPrincipal): Promise<FloorplanSvgSourceResponseDto> {
+    return this.prisma.$transaction(async (tx) => {
+      await this.requireTargetEvent(tx, eventId, principal, { kind: 'PLANNER' });
+      return this.svgSourceForEvent(tx, eventId);
+    }, CRITICAL_TRANSACTION_OPTIONS);
+  }
+
+  async svgSourceAdministrative(
+    clientId: string,
+    eventId: string,
+    principal: AuthPrincipal
+  ): Promise<FloorplanSvgSourceResponseDto> {
     return this.prisma.$transaction(async (tx) => {
       await this.requireTargetEvent(tx, eventId, principal, { kind: 'ADMIN', clientId });
-      const floorplan = await tx.floorplan.findFirst({ where: { eventId, deletedAt: null }, include: { imageAsset: true } });
-      if (!floorplan) throw floorplanNotFound();
-      const asset = floorplan.imageAsset;
-      if (asset.fileType !== FileAssetType.FLOORPLAN_SVG || asset.status !== FileAssetStatus.READY || asset.deletedAt) {
-        throw floorplanError('FLOORPLAN_SVG_SOURCE_NOT_AVAILABLE', 'The active Floorplan SVG source is not available.');
-      }
-      try {
-        return deriveFloorplanSvgSource(asset.id, await this.storage.read(asset.storageKey));
-      } catch {
-        throw floorplanError('FLOORPLAN_SVG_SOURCE_INVALID', 'The active Floorplan SVG source has invalid geometry.');
-      }
+      return this.svgSourceForEvent(tx, eventId);
     }, CRITICAL_TRANSACTION_OPTIONS);
   }
 
@@ -371,9 +372,22 @@ export class FloorplanService {
         throw floorplanError('SCANNER_FLOORPLAN_NOT_AVAILABLE', 'Scanner Floorplan is not available.');
       }
       const response = toFloorplanResponse(floorplan);
+      let svgSource: FloorplanSvgSourceResponseDto | null = null;
+      if (response.image.sourceType === 'SVG') {
+        try {
+          svgSource = deriveFloorplanSvgSource(
+            floorplan.imageAsset.id,
+            await this.storage.read(floorplan.imageAsset.storageKey)
+          );
+        } catch {
+          throw floorplanError('SCANNER_FLOORPLAN_NOT_AVAILABLE', 'Scanner Floorplan is not available.');
+        }
+      }
       return {
         floorplanId: response.id,
         contentPath: `/api/v1/scanner/${encodeURIComponent(rawToken)}/floorplan/content`,
+        sourceType: response.image.sourceType,
+        svgSource,
         shapes: response.shapes
       };
     }, CRITICAL_TRANSACTION_OPTIONS);
@@ -474,11 +488,19 @@ export class FloorplanService {
           data: { sourceElementId: null }
         });
         for (const shape of mappedShapes) {
-          await this.recordAudit(tx, event, principal, operationId, 'FLOORPLAN_SVG_MAPPING_DETACH_ON_REPLACE', shape.id, {
-            floorplanId: current.id,
-            sourceElementId: shape.sourceElementId,
-            reason: 'SOURCE_REPLACED'
-          });
+          await this.recordAudit(
+            tx,
+            event,
+            principal,
+            operationId,
+            'FLOORPLAN_SVG_MAPPING_DETACH_ON_REPLACE',
+            shape.id,
+            {
+              floorplanId: current.id,
+              sourceElementId: shape.sourceElementId,
+              reason: 'SOURCE_REPLACED'
+            }
+          );
         }
       }
       await this.fileAssets.hideOwnedAssetInTransaction(
@@ -538,39 +560,62 @@ export class FloorplanService {
       this.assertLayoutMutable(event);
       const floorplan = await this.lockFloorplan(tx, eventId);
       this.assertUnlocked(floorplan);
-      const asset = await tx.fileAsset.findFirst({ where: {
-        id: floorplan.imageAssetId, clientId, eventId,
-        ownerType: FileAssetOwnerType.FLOORPLAN, ownerId: floorplan.id,
-        fileType: FileAssetType.FLOORPLAN_SVG, status: FileAssetStatus.READY, deletedAt: null
-      } });
-      if (!asset) throw floorplanError('FLOORPLAN_SVG_SOURCE_NOT_AVAILABLE', 'The active Floorplan SVG source is not available.');
+      const asset = await tx.fileAsset.findFirst({
+        where: {
+          id: floorplan.imageAssetId,
+          clientId,
+          eventId,
+          ownerType: FileAssetOwnerType.FLOORPLAN,
+          ownerId: floorplan.id,
+          fileType: FileAssetType.FLOORPLAN_SVG,
+          status: FileAssetStatus.READY,
+          deletedAt: null
+        }
+      });
+      if (!asset)
+        throw floorplanError('FLOORPLAN_SVG_SOURCE_NOT_AVAILABLE', 'The active Floorplan SVG source is not available.');
       let source: FloorplanSvgSourceResponseDto;
       try {
         source = deriveFloorplanSvgSource(asset.id, await this.storage.read(asset.storageKey));
       } catch {
         throw floorplanError('FLOORPLAN_SVG_SOURCE_INVALID', 'The active Floorplan SVG source has invalid geometry.');
       }
-      const element = source.selectableElements.find(({ sourceElementId }) => sourceElementId === input.sourceElementId);
+      const element = source.selectableElements.find(
+        ({ sourceElementId }) => sourceElementId === input.sourceElementId
+      );
       if (!element) throw floorplanError('FLOORPLAN_SVG_ELEMENT_NOT_FOUND', 'The selected SVG element does not exist.');
-      if (await tx.floorplanShape.findFirst({ where: { floorplanId: floorplan.id, sourceElementId: input.sourceElementId, deletedAt: null } })) {
+      if (
+        await tx.floorplanShape.findFirst({
+          where: { floorplanId: floorplan.id, sourceElementId: input.sourceElementId, deletedAt: null }
+        })
+      ) {
         throw floorplanError('FLOORPLAN_SVG_ELEMENT_ALREADY_MAPPED', 'The selected SVG element is already mapped.');
       }
       const seatTable = floorplan.seatingMode === FloorplanSeatingMode.SEAT && input.kind === FloorplanShapeKind.TABLE;
       if (seatTable && input.capacity !== 0) {
         throw floorplanError('FLOORPLAN_SEAT_CAPACITY_DERIVED', 'Table capacity is derived from active seats.');
       }
-      const geometry = element.elementType === 'circle' && element.bbox.width === element.bbox.height
-        ? FloorplanGeometry.CIRCLE : FloorplanGeometry.RECTANGLE;
+      const geometry =
+        element.elementType === 'circle' && element.bbox.width === element.bbox.height
+          ? FloorplanGeometry.CIRCLE
+          : FloorplanGeometry.RECTANGLE;
       const proxy = floorplanShapeSchema.safeParse({
-        kind: input.kind, name: input.name, capacity: seatTable ? 1 : input.capacity,
-        ...element.bbox, geometry, rotation: 0, polygonPoints: null
+        kind: input.kind,
+        name: input.name,
+        capacity: seatTable ? 1 : input.capacity,
+        ...element.bbox,
+        geometry,
+        rotation: 0,
+        polygonPoints: null
       });
       if (!proxy.success) throw floorplanError('FLOORPLAN_SHAPE_INVALID', 'Floorplan shape is invalid.');
-      const shape = await tx.floorplanShape.create({ data: {
-        ...shapeCreateData(floorplan.id, eventId, proxy.data),
-        capacity: seatTable ? 0 : proxy.data.capacity,
-        sourceElementId: input.sourceElementId
-      } });
+      const shape = await tx.floorplanShape.create({
+        data: {
+          ...shapeCreateData(floorplan.id, eventId, proxy.data),
+          capacity: seatTable ? 0 : proxy.data.capacity,
+          sourceElementId: input.sourceElementId
+        }
+      });
       await this.recordAudit(tx, event, principal, operationId, 'FLOORPLAN_SVG_MAP', shape.id, shapeAudit(shape));
       await recomputeDigitalEventPreparationStatus(tx, eventId);
       return toShapeResponse(shape, 0);
@@ -592,7 +637,8 @@ export class FloorplanService {
       const current = await this.lockShape(tx, eventId, floorplan.id, shapeId);
       const updated = await tx.floorplanShape.update({ where: { id: shapeId }, data: { sourceElementId: null } });
       await this.recordAudit(tx, event, principal, operationId, 'FLOORPLAN_SVG_UNLINK', shapeId, {
-        before: shapeAudit(current), after: shapeAudit(updated)
+        before: shapeAudit(current),
+        after: shapeAudit(updated)
       });
       await recomputeDigitalEventPreparationStatus(tx, eventId);
       return toShapeResponse(updated, await combinedOccupancy(tx, shapeId));
@@ -680,13 +726,15 @@ export class FloorplanService {
       ) {
         throw floorplanError('FLOORPLAN_SEAT_CAPACITY_DERIVED', 'Table capacity is derived from active seats.');
       }
-      const emptySeatTable = floorplan.seatingMode === FloorplanSeatingMode.SEAT &&
-        (input.kind ?? current.kind) === FloorplanShapeKind.TABLE && (input.capacity ?? current.capacity) === 0;
+      const emptySeatTable =
+        floorplan.seatingMode === FloorplanSeatingMode.SEAT &&
+        (input.kind ?? current.kind) === FloorplanShapeKind.TABLE &&
+        (input.capacity ?? current.capacity) === 0;
       const merged = floorplanShapeSchema.safeParse({
         kind: input.kind ?? current.kind,
         geometry: input.geometry ?? current.geometry,
         name: input.name ?? current.name,
-        capacity: emptySeatTable ? 1 : input.capacity ?? current.capacity,
+        capacity: emptySeatTable ? 1 : (input.capacity ?? current.capacity),
         x: input.x ?? Number(current.x),
         y: input.y ?? Number(current.y),
         width: input.width ?? Number(current.width),
@@ -1420,6 +1468,26 @@ export class FloorplanService {
       : this.access.requireOwnedEvent(tx, eventId, principal, lock);
   }
 
+  private async svgSourceForEvent(
+    tx: Prisma.TransactionClient,
+    eventId: string
+  ): Promise<FloorplanSvgSourceResponseDto> {
+    const floorplan = await tx.floorplan.findFirst({
+      where: { eventId, deletedAt: null },
+      include: { imageAsset: true }
+    });
+    if (!floorplan) throw floorplanNotFound();
+    const asset = floorplan.imageAsset;
+    if (asset.fileType !== FileAssetType.FLOORPLAN_SVG || asset.status !== FileAssetStatus.READY || asset.deletedAt) {
+      throw floorplanError('FLOORPLAN_SVG_SOURCE_NOT_AVAILABLE', 'The active Floorplan SVG source is not available.');
+    }
+    try {
+      return deriveFloorplanSvgSource(asset.id, await this.storage.read(asset.storageKey));
+    } catch {
+      throw floorplanError('FLOORPLAN_SVG_SOURCE_INVALID', 'The active Floorplan SVG source has invalid geometry.');
+    }
+  }
+
   private toTargetResponse(floorplan: FloorplanView, target: FloorplanTarget): FloorplanResponseDto {
     return target.kind === 'ADMIN'
       ? toFloorplanResponse(
@@ -1818,7 +1886,10 @@ function floorplanError(code: string, message: string): DomainError {
 function mapDatabaseError(error: unknown): unknown {
   const message = databaseMessage(error);
   if (message.includes('FLOORPLAN_TABLE_CAPACITY_REQUIRED')) {
-    return floorplanError('FLOORPLAN_TABLE_CAPACITY_REQUIRED', 'Table capacity must be positive in table seating mode.');
+    return floorplanError(
+      'FLOORPLAN_TABLE_CAPACITY_REQUIRED',
+      'Table capacity must be positive in table seating mode.'
+    );
   }
   if (message.includes('SEATING_TABLE_CAPACITY_EXCEEDED')) {
     return floorplanError('SEATING_TABLE_CAPACITY_EXCEEDED', 'Table capacity would be exceeded.');

@@ -59,6 +59,7 @@ export type {
   ScannerInvitationResult,
   FloorplanShape,
   ScannerTable,
+  ScannerSeat,
   ScannerClient
 } from './scanner';
 export type { CreateStaffTokenInput, CreatedStaffToken, StaffToken, StaffTokensClient } from './staff';

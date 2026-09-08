@@ -308,13 +308,14 @@ describe('generated API client runtime', () => {
     ]);
   });
 
-  it('exposes seating read and mutation wrappers generated from OpenAPI', async () => {
+  it('exposes seating and SVG source reads plus mutation wrappers generated from OpenAPI', async () => {
     const fetchImpl = vi
       .fn<typeof fetch>()
       .mockImplementation(async () => jsonResponse({ items: [], summary: {}, changes: [] }));
     const client = createApiClient({ baseUrl: 'https://api.example.com/api/v1', fetchImpl });
     const signal = new AbortController().signal;
 
+    await client.floorplan.svgSource('event/id', signal);
     await client.floorplan.seating(
       'event/id',
       { scope: 'TABLE', tableShapeId: 'table/id', groupId: 'group/id', search: 'Ana María', limit: 50 },
@@ -329,17 +330,19 @@ describe('generated API client runtime', () => {
     await client.floorplan.assignGroup('event/id', { groupId: 'group-1', tableShapeId: 'table-1' }, 'group-key');
     await client.floorplan.updateSeating('event/id', 'assistant/id', { tableShapeId: null }, 'update-key');
 
-    expect(fetchImpl.mock.calls[0]?.[0]).toBe(
+    expect(fetchImpl.mock.calls[0]?.[0]).toBe('https://api.example.com/api/v1/events/event%2Fid/floorplan/svg-source');
+    expect(fetchImpl.mock.calls[0]?.[1]).toEqual(expect.objectContaining({ signal }));
+    expect(fetchImpl.mock.calls[1]?.[0]).toBe(
       'https://api.example.com/api/v1/events/event%2Fid/seating?scope=TABLE&tableShapeId=table%2Fid&groupId=group%2Fid&search=Ana+Mar%C3%ADa&limit=50'
     );
-    expect(fetchImpl.mock.calls[0]?.[1]).toEqual(expect.objectContaining({ signal }));
-    expect(fetchImpl.mock.calls.slice(1).map(([, init]) => new Headers(init?.headers).get('Idempotency-Key'))).toEqual([
+    expect(fetchImpl.mock.calls[1]?.[1]).toEqual(expect.objectContaining({ signal }));
+    expect(fetchImpl.mock.calls.slice(2).map(([, init]) => new Headers(init?.headers).get('Idempotency-Key'))).toEqual([
       'assign-key',
       'family-key',
       'group-key',
       'update-key'
     ]);
-    expect(fetchImpl.mock.calls[4]?.[0]).toBe(
+    expect(fetchImpl.mock.calls[5]?.[0]).toBe(
       'https://api.example.com/api/v1/events/event%2Fid/seating/assistant%2Fid'
     );
   });

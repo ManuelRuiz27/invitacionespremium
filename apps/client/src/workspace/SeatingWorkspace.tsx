@@ -91,6 +91,11 @@ export function SeatingWorkspace({ apiClient, event }: { apiClient: ApiClient; e
     queryFn: ({ signal }) => apiClient.fileAssets.content(event.id, floorplanQuery.data!.image.fileAssetId, signal),
     enabled: Boolean(floorplanQuery.data)
   });
+  const svgSourceQuery = useQuery({
+    queryKey: ['workspace-floorplan-svg-source', event.id, floorplanQuery.data?.image.fileAssetId],
+    queryFn: ({ signal }) => apiClient.floorplan.svgSource(event.id, signal),
+    enabled: floorplanQuery.data?.image.sourceType === 'SVG'
+  });
   const imageUrl = useObjectUrl(imageQuery.data);
   const groupsQuery = useQuery({
     queryKey: ['workspace-groups', event.id],
@@ -251,10 +256,20 @@ export function SeatingWorkspace({ apiClient, event }: { apiClient: ApiClient; e
     }
   };
 
-  if (floorplanQuery.isPending || imageQuery.isPending) {
+  if (
+    floorplanQuery.isPending ||
+    imageQuery.isPending ||
+    (floorplanQuery.data?.image.sourceType === 'SVG' && svgSourceQuery.isPending)
+  ) {
     return <Typography role="status">Cargando distribución…</Typography>;
   }
-  if (floorplanQuery.isError || imageQuery.isError || !floorplan || !imageUrl) {
+  if (
+    floorplanQuery.isError ||
+    imageQuery.isError ||
+    (floorplanQuery.data?.image.sourceType === 'SVG' && svgSourceQuery.isError) ||
+    !floorplan ||
+    !imageUrl
+  ) {
     return <Alert severity="error">No pudimos cargar la distribución. Inténtalo nuevamente.</Alert>;
   }
 
@@ -354,6 +369,7 @@ export function SeatingWorkspace({ apiClient, event }: { apiClient: ApiClient; e
             imageUrl={imageUrl}
             selectedId={selectedTableId}
             selectedSeatId={selectedSeatId}
+            svgSource={svgSourceQuery.data}
             disabled={false}
             readOnly
             onSelect={selectTable}

@@ -448,6 +448,7 @@ export function mockAdminApi(user: AuthUser = platformAdmin): AdminTestApiClient
     },
     floorplan: {
       get: vi.fn(),
+      svgSource: vi.fn(),
       seating: vi.fn(),
       assign: vi.fn(),
       assignFamily: vi.fn(),

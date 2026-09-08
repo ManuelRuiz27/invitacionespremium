@@ -346,6 +346,7 @@ export function mockApiClient(user: AuthUser = independentUser): ApiClient {
     },
     floorplan: {
       get: vi.fn(),
+      svgSource: vi.fn(),
       seating: vi.fn(),
       assign: vi.fn(),
       assignFamily: vi.fn(),

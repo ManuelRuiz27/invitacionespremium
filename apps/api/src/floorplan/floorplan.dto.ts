@@ -45,17 +45,21 @@ export const floorplanShapeSchema = z
     }
   });
 
-const svgMappingSchema = z.object({
-  sourceElementId: z.string().min(1).max(256),
-  kind: z.enum(FloorplanShapeKind),
-  name,
-  capacity: z.number().int().min(0).max(100_000)
-}).strict();
+const svgMappingSchema = z
+  .object({
+    sourceElementId: z.string().min(1).max(256),
+    kind: z.enum(FloorplanShapeKind),
+    name,
+    capacity: z.number().int().min(0).max(100_000)
+  })
+  .strict();
 const createFloorplanSchema = z.object({ imageAssetId: uuid }).strict();
-const updateFloorplanSchema = z.object({
-  imageAssetId: uuid,
-  confirmSvgMappingDetach: z.literal(true).optional()
-}).strict();
+const updateFloorplanSchema = z
+  .object({
+    imageAssetId: uuid,
+    confirmSvgMappingDetach: z.literal(true).optional()
+  })
+  .strict();
 const updateShapeSchema = z.object(shapeFields).partial().strict();
 const assignSchema = z
   .object({ assistantIds: z.array(uuid).min(1).max(500), tableShapeId: uuid })
@@ -289,14 +293,16 @@ export class FloorplanSvgBBoxDto {
 }
 export class FloorplanSvgSelectableElementDto {
   @ApiProperty({ type: String }) sourceElementId!: string;
-  @ApiProperty({ type: String, enum: ['g', 'path', 'rect', 'circle', 'ellipse', 'polygon', 'polyline'] }) elementType!: string;
+  @ApiProperty({ type: String, enum: ['g', 'path', 'rect', 'circle', 'ellipse', 'polygon', 'polyline'] })
+  elementType!: string;
   @ApiProperty({ type: FloorplanSvgBBoxDto }) bbox!: FloorplanSvgBBoxDto;
 }
 export class FloorplanSvgSourceResponseDto {
   @ApiProperty({ type: String, format: 'uuid' }) fileAssetId!: string;
   @ApiProperty({ type: FloorplanSvgViewBoxDto }) viewBox!: FloorplanSvgViewBoxDto;
   @ApiProperty({ type: Number, minimum: 0, exclusiveMinimum: true }) aspectRatio!: number;
-  @ApiProperty({ type: FloorplanSvgSelectableElementDto, isArray: true }) selectableElements!: FloorplanSvgSelectableElementDto[];
+  @ApiProperty({ type: FloorplanSvgSelectableElementDto, isArray: true })
+  selectableElements!: FloorplanSvgSelectableElementDto[];
 }
 
 export class FloorplanResponseDto {
@@ -462,6 +468,10 @@ export class ScannerFloorplanResponseDto {
   floorplanId!: string;
   @ApiProperty({ type: String })
   contentPath!: string;
+  @ApiProperty({ enum: ['RASTER', 'SVG'] })
+  sourceType!: 'RASTER' | 'SVG';
+  @ApiProperty({ type: FloorplanSvgSourceResponseDto, nullable: true })
+  svgSource!: FloorplanSvgSourceResponseDto | null;
   @ApiProperty({ type: FloorplanShapeResponseDto, isArray: true })
   shapes!: FloorplanShapeResponseDto[];
 }

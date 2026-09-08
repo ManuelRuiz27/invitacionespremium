@@ -368,7 +368,7 @@ Evidencia SVG-05:
 
 ## 12. SVG-06 — Planner + Scanner: sólo gaps reales
 
-Estado: **READY**
+Estado: **DONE**
 Prioridad: **P0 OPERACIONAL**
 
 Objetivo: adaptar las superficies consumidoras, no reescribirlas.
@@ -409,9 +409,18 @@ Gate:
 
 - Planner y Staff pueden operar un Evento SVG sin conocer XML, IDs ni mapping técnico.
 
+Evidencia SVG-06:
+
+- Planner carga la geometría SVG canónica autorizada junto al Croquis existente; conserva selección TABLE/SEAT,
+  asignación, mover, desasignar, filtros, recuperación 409 y realtime.
+- Scanner recibe metadata SVG sólo para resaltar una Mesa vinculada sobre el SVG y conserva el overlay raster/manual; los
+  lugares seleccionados se proyectan en sus coordenadas globales sin ampliar PII ni modificar check-in.
+- QA: integración Floorplan/API 31, Planner 40, Scanner 38, renderers compartidos 99, OpenAPI/api-client, Prisma,
+  lint, typecheck y build.
+
 ## 13. SVG-07 — QA seguridad, escala y E2E
 
-Estado: **BLOCKED por SVG-01..06**  
+Estado: **READY**
 Prioridad: **P0 GATE**
 
 Fixtures mínimos:

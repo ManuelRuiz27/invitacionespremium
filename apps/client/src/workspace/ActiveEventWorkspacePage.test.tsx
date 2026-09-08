@@ -21,6 +21,7 @@ vi.mock('@invitaciones/floorplan', () => ({
     disabled: boolean;
     readOnly?: boolean;
     onSelect: (shape: Floorplan['shapes'][number]) => void;
+    onSeatSelect?: (seatId: string) => void;
   }) => {
     seatingFloorplanHarness.props = props as unknown as Record<string, unknown>;
     return (
@@ -28,6 +29,11 @@ vi.mock('@invitaciones/floorplan', () => ({
         {props.floorplan.shapes.map((shape) => (
           <button key={shape.id} onClick={() => props.onSelect(shape)}>
             Mesa {shape.name} · {shape.capacity}
+          </button>
+        ))}
+        {(props.floorplan.seats ?? []).map((seat) => (
+          <button key={seat.id} onClick={() => props.onSeatSelect?.(seat.id)}>
+            Lugar {seat.label}
           </button>
         ))}
       </div>
@@ -57,7 +63,11 @@ const workspaceEvent = {
 const floorplan = {
   id: 'c9bcb994-04fb-410e-bc1d-c87ff6dfab98',
   eventId: workspaceEvent.id,
-  image: { sourceType: 'RASTER' as const, fileAssetId: 'c6f89399-a5ac-42ba-91c5-392a8c9c7927', contentPath: '/floorplan' },
+  image: {
+    sourceType: 'RASTER' as const,
+    fileAssetId: 'c6f89399-a5ac-42ba-91c5-392a8c9c7927',
+    contentPath: '/floorplan'
+  },
   locked: true,
   lockedAt: '2026-08-09T18:00:00.000Z',
   shapes: [
@@ -371,6 +381,53 @@ describe('Active Event seating workspace', () => {
       expect.any(AbortSignal)
     );
     expect(api.floorplan.updateShape).not.toHaveBeenCalled();
+  });
+
+  it('passes canonical SVG geometry and global Seats to the read-only Planner surface', async () => {
+    const api = mockApiClient();
+    const svgFloorplan = {
+      ...floorplan,
+      image: { ...floorplan.image, sourceType: 'SVG' as const },
+      seatingMode: 'SEAT' as const,
+      shapes: [{ ...floorplan.shapes[0]!, sourceElementId: 'mesa-svg' }],
+      seats: [
+        {
+          id: 'seat-global',
+          floorplanShapeId: floorplan.shapes[0]!.id,
+          label: 'A1',
+          x: 0.9,
+          y: 0.9,
+          isBlocked: false,
+          occupied: false
+        }
+      ]
+    } satisfies Floorplan;
+    vi.mocked(api.events.get).mockResolvedValue(workspaceEvent);
+    vi.mocked(api.floorplan.get).mockResolvedValue(svgFloorplan);
+    vi.mocked(api.floorplan.svgSource).mockResolvedValue({
+      fileAssetId: svgFloorplan.image.fileAssetId,
+      viewBox: { minX: 0, minY: 0, width: 100, height: 100 },
+      aspectRatio: 1,
+      selectableElements: [
+        { sourceElementId: 'mesa-svg', elementType: 'path', bbox: { x: 0.1, y: 0.1, width: 0.25, height: 0.2 } }
+      ]
+    });
+    vi.mocked(api.fileAssets.content).mockResolvedValue(new Blob(['svg'], { type: 'image/svg+xml' }));
+    vi.mocked(api.floorplan.seating).mockResolvedValue(unassignedPage);
+    const user = userEvent.setup();
+    renderApp(api, `/eventos/${workspaceEvent.id}`);
+
+    await user.click(await screen.findByRole('link', { name: 'Mesas y distribución' }));
+    await waitFor(() =>
+      expect(api.floorplan.svgSource).toHaveBeenCalledWith(workspaceEvent.id, expect.any(AbortSignal))
+    );
+    expect(seatingFloorplanHarness.props?.svgSource).toMatchObject({
+      selectableElements: [{ sourceElementId: 'mesa-svg' }]
+    });
+    await user.click(screen.getByRole('button', { name: 'Mesa 12 · 10' }));
+    await user.click(screen.getByRole('button', { name: 'Lugar A1' }));
+    expect(seatingFloorplanHarness.props?.selectedId).toBe(floorplan.shapes[0]!.id);
+    expect(seatingFloorplanHarness.props?.selectedSeatId).toBe('seat-global');
   });
 
   it('retries an uncertain assignment with the same idempotency key', async () => {

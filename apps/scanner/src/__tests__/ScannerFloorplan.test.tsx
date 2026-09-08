@@ -53,6 +53,8 @@ const shape = (id: string, geometry: FloorplanShape['geometry']): FloorplanShape
 const floorplan = (shapes: FloorplanShape[]): ScannerFloorplanResponse => ({
   floorplanId: '50000000-0000-4000-8000-000000000001',
   contentPath: '/floorplan/content',
+  sourceType: 'RASTER',
+  svgSource: null,
   shapes
 });
 
@@ -150,5 +152,60 @@ describe('ScannerFloorplan', () => {
       />
     );
     expect(screen.queryByRole('img', { name: /Ubicación de la Mesa/ })).not.toBeInTheDocument();
+  });
+
+  it('conserva el overlay de una Mesa manual cuando la fuente del Croquis es SVG', () => {
+    render(
+      <ScannerFloorplan
+        floorplan={{
+          ...floorplan([shape('Mesa manual', 'CIRCLE')]),
+          sourceType: 'SVG',
+          svgSource: {
+            fileAssetId: '60000000-0000-4000-8000-000000000002',
+            viewBox: { minX: 0, minY: 0, width: 100, height: 100 },
+            aspectRatio: 1,
+            selectableElements: []
+          }
+        }}
+        contentUrl="https://content.example.test/floorplan.svg"
+        highlightedTableIds={['Mesa manual']}
+      />
+    );
+
+    expect(screen.getByRole('img', { name: 'Ubicación de la Mesa Mesa manual en el Croquis' })).toHaveAttribute(
+      'data-geometry',
+      'CIRCLE'
+    );
+  });
+
+  it('resalta el elemento SVG mapeado sin pintar la geometría proxy y conserva el Lugar global', () => {
+    render(
+      <ScannerFloorplan
+        floorplan={{
+          ...floorplan([{ ...shape('Mesa SVG', 'RECTANGLE'), sourceElementId: 'mesa-svg' }]),
+          sourceType: 'SVG',
+          svgSource: {
+            fileAssetId: '60000000-0000-4000-8000-000000000001',
+            viewBox: { minX: 0, minY: 0, width: 100, height: 100 },
+            aspectRatio: 1,
+            selectableElements: [
+              { sourceElementId: 'mesa-svg', elementType: 'path', bbox: { x: 0.1, y: 0.15, width: 0.4, height: 0.3 } }
+            ]
+          }
+        }}
+        contentUrl="https://content.example.test/floorplan.svg"
+        highlightedTableIds={['Mesa SVG']}
+        highlightedSeats={[{ id: 'seat-outside-bbox', label: 'A1', x: 0.85, y: 0.9 }]}
+      />
+    );
+
+    const table = screen.getByRole('img', { name: 'Ubicación de la Mesa Mesa SVG en el Croquis' });
+    expect(table).toHaveAttribute('data-renderer', 'svg-element');
+    expect(table).not.toHaveAttribute('data-geometry');
+    expect(table).toHaveStyle({ left: '10%', top: '15%', width: '40%', height: '30%' });
+    expect(screen.getByRole('img', { name: 'Lugar A1 seleccionado en el Croquis' })).toHaveStyle({
+      left: '85%',
+      top: '90%'
+    });
   });
 });

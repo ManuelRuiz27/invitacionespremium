@@ -31,6 +31,7 @@ export type Floorplan = Omit<S['FloorplanResponseDto'], 'seatingMode' | 'seats'>
   seats?: S['FloorplanResponseDto']['seats'];
 };
 export type FloorplanShape = S['FloorplanShapeResponseDto'];
+export type FloorplanSvgSource = S['FloorplanSvgSourceResponseDto'];
 export type FloorplanShapeInput = S['FloorplanShapeRequestDto'];
 export type FloorplanShapeUpdate = S['UpdateFloorplanShapeRequestDto'];
 export type FloorplanSeat = S['FloorplanSeatResponseDto'];
@@ -294,6 +295,11 @@ export function createFloorplanClient(request: ApiRequester) {
   return {
     get: (eventId: string, signal?: AbortSignal) =>
       request<Floorplan>({ path: base(eventId), response: 'json', ...(signal ? { signal } : {}) }, record),
+    svgSource: (eventId: string, signal?: AbortSignal) =>
+      request<FloorplanSvgSource>(
+        { path: `${base(eventId)}/svg-source`, response: 'json', ...(signal ? { signal } : {}) },
+        record
+      ),
     seating: (eventId: string, query: SeatingWorkspaceQuery, signal?: AbortSignal) => {
       const parameters = new URLSearchParams({ scope: query.scope });
       if (query.tableShapeId) parameters.set('tableShapeId', query.tableShapeId);

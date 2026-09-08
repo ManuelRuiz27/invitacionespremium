@@ -1842,6 +1842,22 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/events/{eventId}/floorplan/svg-source": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["FloorplanController_svgSource"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events/{eventId}/groups": {
         parameters: {
             query?: never;
@@ -4149,6 +4165,9 @@ export type components = {
             /** Format: uuid */
             floorplanId: string;
             shapes: components["schemas"]["FloorplanShapeResponseDto"][];
+            /** @enum {string} */
+            sourceType: "RASTER" | "SVG";
+            svgSource: components["schemas"]["FloorplanSvgSourceResponseDto"] | null;
         };
         ScannerInvitationDto: {
             /** Format: uuid */
@@ -7390,6 +7409,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FloorplanResponseDto"];
+                };
+            };
+        };
+    };
+    FloorplanController_svgSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FloorplanSvgSourceResponseDto"];
                 };
             };
         };

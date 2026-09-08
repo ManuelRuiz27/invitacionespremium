@@ -111,32 +111,71 @@ describe('Floorplan and seating', () => {
     const readinessBefore = await prisma.$transaction((tx) => resolveFloorplanReadiness(tx, fixture.event.id));
     const source = await floorplan.svgSourceAdministrative(fixture.client.id, fixture.event.id, fixture.principal);
     expect(source.selectableElements).toHaveLength(4);
+    await expect(floorplan.svgSource(fixture.event.id, fixture.principal)).resolves.toEqual(source);
     expect((await floorplan.get(fixture.event.id, fixture.principal)).shapes).toEqual([]);
     expect((await prisma.event.findUniqueOrThrow({ where: { id: fixture.event.id } })).status).toBe(before.status);
     expect(await prisma.$transaction((tx) => resolveFloorplanReadiness(tx, fixture.event.id))).toEqual(readinessBefore);
     const circle = await mapSvg(fixture, 'circle', 'Mesa circular');
-    expect(circle).toMatchObject({ sourceElementId: 'circle', geometry: 'CIRCLE', capacity: 2, rotation: 0, polygonPoints: null });
+    expect(circle).toMatchObject({
+      sourceElementId: 'circle',
+      geometry: 'CIRCLE',
+      capacity: 2,
+      rotation: 0,
+      polygonPoints: null
+    });
     const irregular = await mapSvg(fixture, 'irregular', 'Mesa irregular');
-    expect(irregular).toMatchObject({ sourceElementId: 'irregular', geometry: 'RECTANGLE', rotation: 0, polygonPoints: null });
-    const zone = await floorplan.mapSvgElementAdministrative(fixture.client.id, fixture.event.id,
-      { sourceElementId: 'zone', kind: FloorplanShapeKind.DECORATIVE_ZONE, name: 'Pista', capacity: 0 }, fixture.principal);
+    expect(irregular).toMatchObject({
+      sourceElementId: 'irregular',
+      geometry: 'RECTANGLE',
+      rotation: 0,
+      polygonPoints: null
+    });
+    const zone = await floorplan.mapSvgElementAdministrative(
+      fixture.client.id,
+      fixture.event.id,
+      { sourceElementId: 'zone', kind: FloorplanShapeKind.DECORATIVE_ZONE, name: 'Pista', capacity: 0 },
+      fixture.principal
+    );
     expect(zone).toMatchObject({ kind: 'DECORATIVE_ZONE', capacity: 0 });
     const manual = await createTable(fixture);
     expect(manual.sourceElementId).toBeNull();
     const reloaded = await floorplan.getAdministrative(fixture.client.id, fixture.event.id, fixture.principal);
-    expect(reloaded.shapes.map(({ sourceElementId }) => sourceElementId)).toEqual(['circle', 'irregular', 'zone', null]);
+    expect(reloaded.shapes.map(({ sourceElementId }) => sourceElementId)).toEqual([
+      'circle',
+      'irregular',
+      'zone',
+      null
+    ]);
+    const staff = await createStaffToken(fixture);
+    const scannerFloorplan = await floorplan.scannerFloorplan(staff.rawToken);
+    expect(scannerFloorplan.sourceType).toBe('SVG');
+    expect(scannerFloorplan.svgSource?.selectableElements).toEqual(
+      expect.arrayContaining([expect.objectContaining({ sourceElementId: 'circle' })])
+    );
+    expect(scannerFloorplan.shapes).toEqual(
+      expect.arrayContaining([expect.objectContaining({ sourceElementId: 'circle' })])
+    );
     expect(await prisma.auditLog.count({ where: { eventId: fixture.event.id, action: 'FLOORPLAN_SVG_MAP' } })).toBe(3);
   });
 
   it('serializes concurrent mappings and DB uniqueness allows only active bindings', async () => {
     const fixture = await createFixture();
     await floorplan.create(fixture.event.id, { imageAssetId: (await createSvgAsset(fixture)).id }, fixture.principal);
-    const outcomes = await Promise.allSettled([mapSvg(fixture, 'circle', 'Primera'), mapSvg(fixture, 'circle', 'Segunda')]);
+    const outcomes = await Promise.allSettled([
+      mapSvg(fixture, 'circle', 'Primera'),
+      mapSvg(fixture, 'circle', 'Segunda')
+    ]);
     expect(outcomes.filter(({ status }) => status === 'fulfilled')).toHaveLength(1);
-    expect(outcomes.find(({ status }) => status === 'rejected')).toMatchObject({ reason: { response: { code: 'FLOORPLAN_SVG_ELEMENT_ALREADY_MAPPED' } } });
-    const mapped = await prisma.floorplanShape.findFirstOrThrow({ where: { eventId: fixture.event.id, sourceElementId: 'circle' } });
+    expect(outcomes.find(({ status }) => status === 'rejected')).toMatchObject({
+      reason: { response: { code: 'FLOORPLAN_SVG_ELEMENT_ALREADY_MAPPED' } }
+    });
+    const mapped = await prisma.floorplanShape.findFirstOrThrow({
+      where: { eventId: fixture.event.id, sourceElementId: 'circle' }
+    });
     const manual = await createTable(fixture);
-    await expect(prisma.floorplanShape.update({ where: { id: manual.id }, data: { sourceElementId: 'circle' } })).rejects.toMatchObject({ code: 'P2002' });
+    await expect(
+      prisma.floorplanShape.update({ where: { id: manual.id }, data: { sourceElementId: 'circle' } })
+    ).rejects.toMatchObject({ code: 'P2002' });
     await floorplan.deleteShapeAdministrative(fixture.client.id, fixture.event.id, mapped.id, fixture.principal);
     await expect(mapSvg(fixture, 'circle', 'Reutilizada')).resolves.toMatchObject({ sourceElementId: 'circle' });
   });
@@ -145,21 +184,43 @@ describe('Floorplan and seating', () => {
     const fixture = await createFixture();
     const asset = await createSvgAsset(fixture);
     const plan = await floorplan.create(fixture.event.id, { imageAssetId: asset.id }, fixture.principal);
-    await expect(mapSvg(fixture, 'missing', 'Missing')).rejects.toMatchObject({ response: { code: 'FLOORPLAN_SVG_ELEMENT_NOT_FOUND' } });
+    await expect(mapSvg(fixture, 'missing', 'Missing')).rejects.toMatchObject({
+      response: { code: 'FLOORPLAN_SVG_ELEMENT_NOT_FOUND' }
+    });
     await floorplan.lock(fixture.event.id, fixture.principal);
-    await expect(mapSvg(fixture, 'circle', 'Locked')).rejects.toMatchObject({ response: { code: 'FLOORPLAN_LAYOUT_LOCKED' } });
+    await expect(mapSvg(fixture, 'circle', 'Locked')).rejects.toMatchObject({
+      response: { code: 'FLOORPLAN_LAYOUT_LOCKED' }
+    });
     await floorplan.unlock(fixture.event.id, fixture.principal);
     const foreign = await createFixture();
-    await expect(floorplan.mapSvgElementAdministrative(foreign.client.id, fixture.event.id,
-      { sourceElementId: 'circle', kind: FloorplanShapeKind.TABLE, name: 'Foreign', capacity: 2 }, fixture.principal))
-      .rejects.toMatchObject({ response: { code: 'EVENT_NOT_FOUND' } });
-    await expect(floorplan.mapSvgElementAdministrative(fixture.client.id, foreign.event.id,
-      { sourceElementId: 'circle', kind: FloorplanShapeKind.TABLE, name: 'Foreign event', capacity: 2 }, fixture.principal))
-      .rejects.toMatchObject({ response: { code: 'EVENT_NOT_FOUND' } });
+    await expect(
+      floorplan.mapSvgElementAdministrative(
+        foreign.client.id,
+        fixture.event.id,
+        { sourceElementId: 'circle', kind: FloorplanShapeKind.TABLE, name: 'Foreign', capacity: 2 },
+        fixture.principal
+      )
+    ).rejects.toMatchObject({ response: { code: 'EVENT_NOT_FOUND' } });
+    await expect(
+      floorplan.mapSvgElementAdministrative(
+        fixture.client.id,
+        foreign.event.id,
+        { sourceElementId: 'circle', kind: FloorplanShapeKind.TABLE, name: 'Foreign event', capacity: 2 },
+        fixture.principal
+      )
+    ).rejects.toMatchObject({ response: { code: 'EVENT_NOT_FOUND' } });
     await prisma.event.update({ where: { id: fixture.event.id }, data: { status: EventStatus.CLOSED } });
-    await expect(mapSvg(fixture, 'circle', 'Closed')).rejects.toMatchObject({ response: { code: 'FLOORPLAN_EVENT_STATE_LOCKED' } });
-    await floorplan.create(foreign.event.id, { imageAssetId: (await createAsset(foreign, 'raster')).id }, foreign.principal);
-    await expect(mapSvg(foreign, 'circle', 'Raster')).rejects.toMatchObject({ response: { code: 'FLOORPLAN_SVG_SOURCE_NOT_AVAILABLE' } });
+    await expect(mapSvg(fixture, 'circle', 'Closed')).rejects.toMatchObject({
+      response: { code: 'FLOORPLAN_EVENT_STATE_LOCKED' }
+    });
+    await floorplan.create(
+      foreign.event.id,
+      { imageAssetId: (await createAsset(foreign, 'raster')).id },
+      foreign.principal
+    );
+    await expect(mapSvg(foreign, 'circle', 'Raster')).rejects.toMatchObject({
+      response: { code: 'FLOORPLAN_SVG_SOURCE_NOT_AVAILABLE' }
+    });
     expect(await prisma.floorplanShape.count({ where: { floorplanId: plan.id } })).toBe(0);
   });
 
@@ -169,22 +230,63 @@ describe('Floorplan and seating', () => {
     await floorplan.create(fixture.event.id, { imageAssetId: (await createSvgAsset(fixture)).id }, fixture.principal);
     const mapped = await mapSvg(fixture, 'circle', 'Mesa');
     await floorplan.setSeatingModeAdministrative(fixture.client.id, fixture.event.id, 'SEAT', fixture.principal);
-    const empty = await floorplan.mapSvgElementAdministrative(fixture.client.id, fixture.event.id,
-      { sourceElementId: 'irregular', kind: FloorplanShapeKind.TABLE, name: 'Sin lugares', capacity: 0 }, fixture.principal);
+    const empty = await floorplan.mapSvgElementAdministrative(
+      fixture.client.id,
+      fixture.event.id,
+      { sourceElementId: 'irregular', kind: FloorplanShapeKind.TABLE, name: 'Sin lugares', capacity: 0 },
+      fixture.principal
+    );
     expect(empty.capacity).toBe(0);
-    await expect(floorplan.updateShapeAdministrative(fixture.client.id, fixture.event.id, empty.id,
-      { name: 'Mesa vacía' }, fixture.principal)).resolves.toMatchObject({ name: 'Mesa vacía', capacity: 0 });
-    await expect(mapSvg(fixture, 'zone', 'Manual capacity')).rejects.toMatchObject({ response: { code: 'FLOORPLAN_SEAT_CAPACITY_DERIVED' } });
-    const seat = await floorplan.createSeatAdministrative(fixture.client.id, fixture.event.id, mapped.id,
-      { label: '1', x: 0.8, y: 0.8 }, fixture.principal);
-    await prisma.assistant.update({ where: { id: fixture.assistants[0]!.id }, data: { floorplanShapeId: mapped.id, floorplanSeatId: seat.id } });
-    const result = await floorplan.unlinkSvgElementAdministrative(fixture.client.id, fixture.event.id, mapped.id, fixture.principal);
+    await expect(
+      floorplan.updateShapeAdministrative(
+        fixture.client.id,
+        fixture.event.id,
+        empty.id,
+        { name: 'Mesa vacía' },
+        fixture.principal
+      )
+    ).resolves.toMatchObject({ name: 'Mesa vacía', capacity: 0 });
+    await expect(mapSvg(fixture, 'zone', 'Manual capacity')).rejects.toMatchObject({
+      response: { code: 'FLOORPLAN_SEAT_CAPACITY_DERIVED' }
+    });
+    const seat = await floorplan.createSeatAdministrative(
+      fixture.client.id,
+      fixture.event.id,
+      mapped.id,
+      { label: '1', x: 0.8, y: 0.8 },
+      fixture.principal
+    );
+    await prisma.assistant.update({
+      where: { id: fixture.assistants[0]!.id },
+      data: { floorplanShapeId: mapped.id, floorplanSeatId: seat.id }
+    });
+    const result = await floorplan.unlinkSvgElementAdministrative(
+      fixture.client.id,
+      fixture.event.id,
+      mapped.id,
+      fixture.principal
+    );
     expect(result).toMatchObject({ id: mapped.id, sourceElementId: null, occupancy: 1, capacity: 1 });
-    expect(await prisma.floorplanSeat.findUniqueOrThrow({ where: { id: seat.id } })).toMatchObject({ deletedAt: null, floorplanShapeId: mapped.id });
-    expect(await prisma.assistant.findUniqueOrThrow({ where: { id: fixture.assistants[0]!.id } })).toMatchObject({ floorplanShapeId: mapped.id, floorplanSeatId: seat.id });
-    expect(await prisma.floorplanShape.findUniqueOrThrow({ where: { id: mapped.id } })).toMatchObject({ deletedAt: null, sourceElementId: null });
-    await expect(floorplan.mapSvgElementAdministrative(fixture.client.id, fixture.event.id,
-      { sourceElementId: 'circle', kind: FloorplanShapeKind.TABLE, name: 'Nueva mesa', capacity: 0 }, fixture.principal)).resolves.toMatchObject({ sourceElementId: 'circle' });
+    expect(await prisma.floorplanSeat.findUniqueOrThrow({ where: { id: seat.id } })).toMatchObject({
+      deletedAt: null,
+      floorplanShapeId: mapped.id
+    });
+    expect(await prisma.assistant.findUniqueOrThrow({ where: { id: fixture.assistants[0]!.id } })).toMatchObject({
+      floorplanShapeId: mapped.id,
+      floorplanSeatId: seat.id
+    });
+    expect(await prisma.floorplanShape.findUniqueOrThrow({ where: { id: mapped.id } })).toMatchObject({
+      deletedAt: null,
+      sourceElementId: null
+    });
+    await expect(
+      floorplan.mapSvgElementAdministrative(
+        fixture.client.id,
+        fixture.event.id,
+        { sourceElementId: 'circle', kind: FloorplanShapeKind.TABLE, name: 'Nueva mesa', capacity: 0 },
+        fixture.principal
+      )
+    ).resolves.toMatchObject({ sourceElementId: 'circle' });
   });
 
   it('enforces mapping HTTP authorization and strict request fields', async () => {
@@ -194,16 +296,42 @@ describe('Floorplan and seating', () => {
     const payload = { sourceElementId: 'circle', kind: 'TABLE', name: 'Mesa', capacity: 2 };
     await request(app.getHttpServer()).post(`${base}/svg-mappings`).send(payload).expect(401);
     const plannerCookie = await login(fixture.user.email);
-    await request(app.getHttpServer()).post(`${base}/svg-mappings`).set('Cookie', plannerCookie).send(payload).expect(403);
-    const admin = await prisma.user.create({ data: { email: `${randomUUID()}@example.test`,
-      passwordHash: await hashPassword('correct horse battery staple'), role: UserRole.PLATFORM_ADMIN } });
+    await request(app.getHttpServer())
+      .post(`${base}/svg-mappings`)
+      .set('Cookie', plannerCookie)
+      .send(payload)
+      .expect(403);
+    const admin = await prisma.user.create({
+      data: {
+        email: `${randomUUID()}@example.test`,
+        passwordHash: await hashPassword('correct horse battery staple'),
+        role: UserRole.PLATFORM_ADMIN
+      }
+    });
     const cookie = await login(admin.email);
-    await request(app.getHttpServer()).post(`${base}/svg-mappings`).set('Cookie', cookie).send({ ...payload, x: 0.4 }).expect(400);
-    const mapped = await request(app.getHttpServer()).post(`${base}/svg-mappings`).set('Cookie', cookie).send(payload).expect(201);
-    await request(app.getHttpServer()).patch(`${base}/shapes/${mapped.body.id}`).set('Cookie', cookie)
-      .send({ sourceElementId: 'zone' }).expect(400);
-    await request(app.getHttpServer()).delete(`${base}/shapes/${mapped.body.id}/svg-mapping`).set('Cookie', plannerCookie).expect(403);
-    const unlinked = await request(app.getHttpServer()).delete(`${base}/shapes/${mapped.body.id}/svg-mapping`).set('Cookie', cookie).expect(200);
+    await request(app.getHttpServer())
+      .post(`${base}/svg-mappings`)
+      .set('Cookie', cookie)
+      .send({ ...payload, x: 0.4 })
+      .expect(400);
+    const mapped = await request(app.getHttpServer())
+      .post(`${base}/svg-mappings`)
+      .set('Cookie', cookie)
+      .send(payload)
+      .expect(201);
+    await request(app.getHttpServer())
+      .patch(`${base}/shapes/${mapped.body.id}`)
+      .set('Cookie', cookie)
+      .send({ sourceElementId: 'zone' })
+      .expect(400);
+    await request(app.getHttpServer())
+      .delete(`${base}/shapes/${mapped.body.id}/svg-mapping`)
+      .set('Cookie', plannerCookie)
+      .expect(403);
+    const unlinked = await request(app.getHttpServer())
+      .delete(`${base}/shapes/${mapped.body.id}/svg-mapping`)
+      .set('Cookie', cookie)
+      .expect(200);
     expect(unlinked.body).toMatchObject({ id: mapped.body.id, sourceElementId: null });
   });
 
@@ -211,8 +339,15 @@ describe('Floorplan and seating', () => {
     const fixture = await createFixture();
     const asset = await createSvgAsset(fixture);
     await floorplan.create(fixture.event.id, { imageAssetId: asset.id }, fixture.principal);
-    await storage.write({ storageKey: asset.storageKey, bytes: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect id="circle" x="10" y="10" width="20" height="20" transform="translate(10) junk"/></svg>') });
-    await expect(mapSvg(fixture, 'circle', 'Invalid')).rejects.toMatchObject({ response: { code: 'FLOORPLAN_SVG_SOURCE_INVALID' } });
+    await storage.write({
+      storageKey: asset.storageKey,
+      bytes: Buffer.from(
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect id="circle" x="10" y="10" width="20" height="20" transform="translate(10) junk"/></svg>'
+      )
+    });
+    await expect(mapSvg(fixture, 'circle', 'Invalid')).rejects.toMatchObject({
+      response: { code: 'FLOORPLAN_SVG_SOURCE_INVALID' }
+    });
     expect(await prisma.floorplanShape.count({ where: { eventId: fixture.event.id } })).toBe(0);
   });
 
@@ -261,7 +396,9 @@ describe('Floorplan and seating', () => {
         fixture.principal
       )
     ).rejects.toMatchObject({ response: { code: 'FLOORPLAN_SVG_MAPPING_REPLACEMENT_CONFIRMATION_REQUIRED' } });
-    expect(await prisma.floorplanShape.findUniqueOrThrow({ where: { id: mapped.id } })).toMatchObject({ sourceElementId: 'circle' });
+    expect(await prisma.floorplanShape.findUniqueOrThrow({ where: { id: mapped.id } })).toMatchObject({
+      sourceElementId: 'circle'
+    });
 
     const svgToSvg = await floorplan.replaceImageAdministrative(
       fixture.client.id,
@@ -270,18 +407,28 @@ describe('Floorplan and seating', () => {
       fixture.principal
     );
     expect(svgToSvg).toMatchObject({ image: { fileAssetId: secondSvg.id, sourceType: 'SVG' }, seatingMode: 'SEAT' });
-    expect(svgToSvg.shapes).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: manual.id, sourceElementId: null }),
-      expect.objectContaining({ id: mapped.id, sourceElementId: null })
-    ]));
+    expect(svgToSvg.shapes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: manual.id, sourceElementId: null }),
+        expect.objectContaining({ id: mapped.id, sourceElementId: null })
+      ])
+    );
     expect(svgToSvg.seats).toContainEqual(expect.objectContaining({ id: seat.id, floorplanShapeId: manual.id }));
     expect(await prisma.assistant.findUniqueOrThrow({ where: { id: fixture.assistants[0]!.id } })).toMatchObject({
       floorplanShapeId: manual.id,
       floorplanSeatId: seat.id
     });
-    expect(await prisma.auditLog.count({ where: { eventId: fixture.event.id, action: 'FLOORPLAN_SVG_MAPPING_DETACH_ON_REPLACE' } })).toBe(1);
-    expect(await prisma.auditLog.findFirstOrThrow({ where: { eventId: fixture.event.id, action: 'FLOORPLAN_IMAGE_REPLACE' }, orderBy: { occurredAt: 'desc' } }))
-      .toMatchObject({ afterData: expect.objectContaining({ detachedMappingCount: 1 }) });
+    expect(
+      await prisma.auditLog.count({
+        where: { eventId: fixture.event.id, action: 'FLOORPLAN_SVG_MAPPING_DETACH_ON_REPLACE' }
+      })
+    ).toBe(1);
+    expect(
+      await prisma.auditLog.findFirstOrThrow({
+        where: { eventId: fixture.event.id, action: 'FLOORPLAN_IMAGE_REPLACE' },
+        orderBy: { occurredAt: 'desc' }
+      })
+    ).toMatchObject({ afterData: expect.objectContaining({ detachedMappingCount: 1 }) });
 
     const remapped = await floorplan.mapSvgElementAdministrative(
       fixture.client.id,
@@ -304,7 +451,10 @@ describe('Floorplan and seating', () => {
       { imageAssetId: secondRaster.id, confirmSvgMappingDetach: true },
       fixture.principal
     );
-    expect(svgToRaster).toMatchObject({ image: { fileAssetId: secondRaster.id, sourceType: 'RASTER' }, seatingMode: 'SEAT' });
+    expect(svgToRaster).toMatchObject({
+      image: { fileAssetId: secondRaster.id, sourceType: 'RASTER' },
+      seatingMode: 'SEAT'
+    });
     expect(svgToRaster.shapes).toContainEqual(expect.objectContaining({ id: remapped.id, sourceElementId: null }));
     expect(svgToRaster.seats).toContainEqual(expect.objectContaining({ id: seat.id, floorplanShapeId: manual.id }));
     expect(await prisma.floorplan.findUniqueOrThrow({ where: { id: plan.id } })).toMatchObject({ seatingMode: 'SEAT' });
@@ -2377,6 +2527,7 @@ describe('Floorplan and seating', () => {
     expect(paths?.['/api/v1/events/{eventId}/floorplan']?.get).toBeDefined();
     expect(paths?.['/api/v1/events/{eventId}/floorplan']?.post).toBeUndefined();
     expect(paths?.['/api/v1/events/{eventId}/floorplan']?.patch).toBeUndefined();
+    expect(paths?.['/api/v1/events/{eventId}/floorplan/svg-source']?.get).toBeDefined();
     expect(paths).not.toHaveProperty('/api/v1/events/{eventId}/floorplan/lock');
     expect(paths).not.toHaveProperty('/api/v1/events/{eventId}/floorplan/unlock');
     expect(paths).not.toHaveProperty('/api/v1/events/{eventId}/floorplan/shapes');
@@ -2525,20 +2676,38 @@ describe('Floorplan and seating', () => {
   }
 
   async function createSvgAsset(fixture: Awaited<ReturnType<typeof createFixture>>) {
-    const bytes = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle id="circle" cx="20" cy="20" r="10"/><path id="irregular" d="M40 10 L70 15 L60 35 L45 25 Z"/><rect id="zone" x="10" y="50" width="30" height="20"/><rect id="unused" x="70" y="70" width="10" height="10"/></svg>');
+    const bytes = Buffer.from(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle id="circle" cx="20" cy="20" r="10"/><path id="irregular" d="M40 10 L70 15 L60 35 L45 25 Z"/><rect id="zone" x="10" y="50" width="30" height="20"/><rect id="unused" x="70" y="70" width="10" height="10"/></svg>'
+    );
     const storageKey = createHash('sha256').update(`svg-${randomUUID()}`).digest('hex');
     await storage.write({ storageKey, bytes });
-    return prisma.fileAsset.create({ data: { clientId: fixture.client.id, eventId: fixture.event.id,
-      ownerType: FileAssetOwnerType.FLOORPLAN, fileType: FileAssetType.FLOORPLAN_SVG,
-      storageProvider: StorageProvider.LOCAL, storageKey, createdByUserId: fixture.user.id,
-      status: FileAssetStatus.READY, width: 100, height: 100,
-      mimeType: 'image/svg+xml', originalName: 'source.svg', sizeBytes: bytes.length,
-      checksumSha256: createHash('sha256').update(bytes).digest('hex') } });
+    return prisma.fileAsset.create({
+      data: {
+        clientId: fixture.client.id,
+        eventId: fixture.event.id,
+        ownerType: FileAssetOwnerType.FLOORPLAN,
+        fileType: FileAssetType.FLOORPLAN_SVG,
+        storageProvider: StorageProvider.LOCAL,
+        storageKey,
+        createdByUserId: fixture.user.id,
+        status: FileAssetStatus.READY,
+        width: 100,
+        height: 100,
+        mimeType: 'image/svg+xml',
+        originalName: 'source.svg',
+        sizeBytes: bytes.length,
+        checksumSha256: createHash('sha256').update(bytes).digest('hex')
+      }
+    });
   }
 
   function mapSvg(fixture: Awaited<ReturnType<typeof createFixture>>, sourceElementId: string, name: string) {
-    return floorplan.mapSvgElementAdministrative(fixture.client.id, fixture.event.id,
-      { sourceElementId, kind: FloorplanShapeKind.TABLE, name, capacity: 2 }, fixture.principal);
+    return floorplan.mapSvgElementAdministrative(
+      fixture.client.id,
+      fixture.event.id,
+      { sourceElementId, kind: FloorplanShapeKind.TABLE, name, capacity: 2 },
+      fixture.principal
+    );
   }
 
   async function createAsset(fixture: Awaited<ReturnType<typeof createFixture>>, label: string) {

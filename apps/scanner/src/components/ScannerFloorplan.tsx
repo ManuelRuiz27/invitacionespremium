@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { ScannerFloorplanResponse } from '@invitaciones/api-client';
+import type { ScannerFloorplanResponse, ScannerSeat } from '@invitaciones/api-client';
 import { projectAspectAwareRect, relativeRectStyles, useElementSize } from '@invitaciones/ui';
 import { Alert, Box, Typography } from '@mui/material';
 
@@ -7,9 +7,15 @@ export interface ScannerFloorplanProps {
   floorplan: ScannerFloorplanResponse;
   contentUrl: string;
   highlightedTableIds?: readonly string[];
+  highlightedSeats?: readonly Pick<ScannerSeat, 'id' | 'label' | 'x' | 'y'>[];
 }
 
-export function ScannerFloorplan({ floorplan, contentUrl, highlightedTableIds = [] }: ScannerFloorplanProps) {
+export function ScannerFloorplan({
+  floorplan,
+  contentUrl,
+  highlightedTableIds = [],
+  highlightedSeats = []
+}: ScannerFloorplanProps) {
   const [imageError, setImageError] = useState(false);
   const [measureOwner, ownerSize] = useElementSize<HTMLDivElement>();
   const uniqueTableIds = [...new Set(highlightedTableIds)];
@@ -18,13 +24,21 @@ export function ScannerFloorplan({ floorplan, contentUrl, highlightedTableIds = 
     uniqueTableIds.length === 1
       ? floorplan.shapes.find((shape) => shape.id === uniqueTableIds[0] && shape.kind === 'TABLE')
       : undefined;
-  const highlightedRect = highlightedTable
-    ? projectAspectAwareRect(
-        highlightedTable,
-        ownerSize,
-        highlightedTable.geometry === 'CIRCLE' || highlightedTable.geometry === 'SQUARE'
-      )
-    : undefined;
+  const highlightedSvgElement =
+    floorplan.sourceType === 'SVG' && highlightedTable?.sourceElementId
+      ? floorplan.svgSource?.selectableElements.find(
+          (element) => element.sourceElementId === highlightedTable.sourceElementId
+        )
+      : undefined;
+  const highlightedRect =
+    highlightedTable && (floorplan.sourceType === 'RASTER' || !highlightedTable.sourceElementId)
+      ? projectAspectAwareRect(
+          highlightedTable,
+          ownerSize,
+          highlightedTable.geometry === 'CIRCLE' || highlightedTable.geometry === 'SQUARE'
+        )
+      : undefined;
+  const exactSeats = [...new Map(highlightedSeats.map((seat) => [seat.id, seat])).values()];
 
   return (
     <Box component="section" aria-labelledby="floorplan-title">
@@ -79,6 +93,50 @@ export function ScannerFloorplan({ floorplan, contentUrl, highlightedTableIds = 
               }}
             />
           ) : null}
+          {highlightedTable && highlightedSvgElement ? (
+            <Box
+              role="img"
+              aria-label={`Ubicación de la Mesa ${highlightedTable.name} en el Croquis`}
+              data-renderer="svg-element"
+              sx={{
+                position: 'absolute',
+                ...relativeRectStyles(highlightedSvgElement.bbox),
+                boxSizing: 'border-box',
+                border: '3px solid',
+                borderColor: 'warning.main',
+                bgcolor: 'transparent',
+                pointerEvents: 'none'
+              }}
+            />
+          ) : null}
+          {exactSeats.map((seat) => (
+            <Box
+              key={seat.id}
+              role="img"
+              aria-label={`Lugar ${seat.label} seleccionado en el Croquis`}
+              data-renderer="floorplan-seat"
+              sx={{
+                position: 'absolute',
+                left: `${seat.x * 100}%`,
+                top: `${seat.y * 100}%`,
+                width: 22,
+                height: 22,
+                transform: 'translate(-50%, -50%)',
+                borderRadius: '50%',
+                border: '3px solid',
+                borderColor: 'primary.contrastText',
+                bgcolor: 'primary.main',
+                color: 'primary.contrastText',
+                display: 'grid',
+                placeItems: 'center',
+                fontSize: 12,
+                fontWeight: 700,
+                pointerEvents: 'none'
+              }}
+            >
+              {seat.label}
+            </Box>
+          ))}
         </Box>
       )}
     </Box>

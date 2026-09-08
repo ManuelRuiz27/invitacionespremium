@@ -143,6 +143,10 @@ export function ScannerSessionPage({
     scanResult?.pendingAssistants.flatMap((assistant) =>
       selectedAssistantIds.includes(assistant.id) && assistant.table ? [assistant.table.id] : []
     ) ?? [];
+  const highlightedSeats =
+    scanResult?.pendingAssistants.flatMap((assistant) =>
+      selectedAssistantIds.includes(assistant.id) && assistant.seat ? [assistant.seat] : []
+    ) ?? [];
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', py: 2 }}>
@@ -260,6 +264,7 @@ export function ScannerSessionPage({
                 floorplan={floorplan.data}
                 contentUrl={new URL(floorplan.data.contentPath, apiBaseUrl).toString()}
                 highlightedTableIds={tableIds}
+                highlightedSeats={highlightedSeats}
               />
             ) : null}
           </Box>

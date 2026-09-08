@@ -140,6 +140,8 @@ const server = setupServer(
     return HttpResponse.json({
       floorplanId: '50000000-0000-4000-8000-000000000001',
       contentPath: '/api/v1/scanner/event-floorplan/floorplan/content',
+      sourceType: 'RASTER',
+      svgSource: null,
       shapes: [
         {
           id: assistantOne.table.id,
@@ -154,6 +156,7 @@ const server = setupServer(
           width: 0.1,
           height: 0.1,
           rotation: 0,
+          sourceElementId: null,
           polygonPoints: null
         }
       ]
