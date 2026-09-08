@@ -37,6 +37,7 @@ describe('floorplan inventory', () => {
     const authoritative = {
       ...table.input,
       id: 'table-1',
+      sourceElementId: null,
       name: '  MESA 1  ',
       occupancy: 0,
       availableCapacity: 8

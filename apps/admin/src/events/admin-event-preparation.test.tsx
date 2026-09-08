@@ -51,6 +51,73 @@ vi.mock('@invitaciones/floorplan', async (importOriginal) => {
 });
 
 describe('Admin Event preparation surfaces', () => {
+  it.each(['TABLE', 'SEAT'] as const)('maps a selected table in %s mode, reloads and unlinks without deleting domain records', async (seatingMode) => {
+    const initial = floorplan({ seatingMode, image: { fileAssetId: 'svg-asset', contentPath: '/private', sourceType: 'SVG' } });
+    const mapped = shape({ sourceElementId: 'private-circle', capacity: seatingMode === 'SEAT' ? 0 : 8 });
+    const api = preparedFloorplanApi(initial);
+    vi.mocked(api.adminEventPreparation.getFloorplanSvgSource).mockResolvedValue({
+      fileAssetId: 'svg-asset', aspectRatio: 1, viewBox: { minX: 0, minY: 0, width: 100, height: 100 },
+      selectableElements: [{ sourceElementId: 'private-circle', elementType: 'circle', bbox: { x: 0.1, y: 0.1, width: 0.2, height: 0.2 } }]
+    });
+    vi.mocked(api.adminEventPreparation.mapFloorplanSvgElement).mockImplementation(async () => {
+      vi.mocked(api.adminEventPreparation.getFloorplan).mockResolvedValue({ ...initial, shapes: [mapped] });
+      return mapped;
+    });
+    vi.mocked(api.adminEventPreparation.unlinkFloorplanSvgMapping).mockImplementation(async () => {
+      const unlinked = { ...mapped, sourceElementId: null };
+      vi.mocked(api.adminEventPreparation.getFloorplan).mockResolvedValue({ ...initial, shapes: [unlinked] });
+      return unlinked;
+    });
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    // The first direct builder navigation also loads the lazy preparation route.
+    await screen.findByTestId('admin-floorplan-surface', {}, { timeout: 10_000 });
+    await waitFor(() => expect(floorplanHarness.props?.svgSource).toBeDefined());
+    act(() => (floorplanHarness.props!.onSourceSelect as (id: string) => void)('private-circle'));
+    expect(await screen.findByRole('heading', { name: '¿Qué representa?' })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/^Nombre/), { target: { value: 'Mesa Principal' } });
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(api.adminEventPreparation.mapFloorplanSvgElement).toHaveBeenCalledWith(adminEvent.clientId, adminEvent.id, {
+      sourceElementId: 'private-circle', kind: 'TABLE', name: 'Mesa Principal', capacity: seatingMode === 'TABLE' ? 8 : 0
+    }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Mesa Principal' }));
+    expect(screen.queryByLabelText('Forma')).not.toBeInTheDocument();
+    expect(floorplanHarness.props?.draft).toBeUndefined();
+    expect(screen.queryByText('private-circle')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Desvincular' }));
+    await waitFor(() => expect(api.adminEventPreparation.unlinkFloorplanSvgMapping).toHaveBeenCalledWith(adminEvent.clientId, adminEvent.id, mapped.id));
+    expect(api.adminEventPreparation.removeFloorplanShape).not.toHaveBeenCalled();
+    expect(api.adminEventPreparation.removeFloorplanSeat).not.toHaveBeenCalled();
+    await waitFor(() => expect((floorplanHarness.props?.floorplan as AdminFloorplan).shapes[0]?.sourceElementId).toBeNull());
+  });
+  it('maps an irregular decorative zone using the chosen suggested name and zero capacity', async () => {
+    const initial = floorplan({ image: { fileAssetId: 'svg-asset', contentPath: '/private', sourceType: 'SVG' } });
+    const api = preparedFloorplanApi(initial);
+    vi.mocked(api.adminEventPreparation.getFloorplanSvgSource).mockResolvedValue({
+      fileAssetId: 'svg-asset', aspectRatio: 1, viewBox: { minX: 0, minY: 0, width: 100, height: 100 },
+      selectableElements: [{ sourceElementId: 'private-path', elementType: 'path', bbox: { x: 0.1, y: 0.1, width: 0.2, height: 0.2 } }]
+    });
+    vi.mocked(api.adminEventPreparation.mapFloorplanSvgElement).mockImplementation(async (_client, _event, input) => {
+      const mapped = shape({ ...input, geometry: 'RECTANGLE' });
+      vi.mocked(api.adminEventPreparation.getFloorplan).mockResolvedValue({ ...initial, shapes: [mapped] });
+      return mapped;
+    });
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await waitFor(() => expect(floorplanHarness.props?.svgSource).toBeDefined());
+    act(() => (floorplanHarness.props!.onSourceSelect as (id: string) => void)('private-path'));
+    await userEvent.click(screen.getByRole('combobox', { name: 'Tipo de elemento' }));
+    for (const name of ['Mesa', 'Pista', 'DJ / escenario', 'Baños', 'Barra', 'Entrada', 'Zona']) {
+      expect(screen.getByRole('option', { name })).toBeInTheDocument();
+    }
+    await userEvent.click(screen.getByRole('option', { name: 'DJ / escenario' }));
+    expect(screen.getByLabelText(/^Nombre/)).toHaveValue('DJ / escenario');
+    expect(screen.queryByLabelText(/Número de lugares/)).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/^Nombre/), { target: { value: 'Escenario principal' } });
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(api.adminEventPreparation.mapFloorplanSvgElement).toHaveBeenCalledWith(adminEvent.clientId, adminEvent.id, {
+      sourceElementId: 'private-path', kind: 'DECORATIVE_ZONE', name: 'Escenario principal', capacity: 0
+    }));
+    expect(await screen.findByRole('button', { name: 'Escenario principal' })).toBeInTheDocument();
+  });
   beforeEach(() => {
     floorplanHarness.props = undefined;
     setAdminViewportWidth(1440);
@@ -1227,6 +1294,7 @@ function shape(overrides: Partial<AdminFloorplanShape> = {}): AdminFloorplanShap
     kind: 'TABLE',
     geometry: 'CIRCLE',
     capacity: 8,
+    sourceElementId: null,
     occupancy: 0,
     availableCapacity: 8,
     x: 0.1,

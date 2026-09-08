@@ -31,7 +31,7 @@ const hotspot: Hotspot = {
 const physicalFloorplan: Floorplan = {
   id: 'floorplan-physical',
   eventId: configuredEvent.id,
-  image: { fileAssetId: 'floorplan-image', contentPath: '/private' },
+  image: { sourceType: 'RASTER' as const, fileAssetId: 'floorplan-image', contentPath: '/private' },
   locked: true,
   lockedAt: '2026-01-01T00:00:00Z',
   shapes: [
@@ -48,6 +48,7 @@ const physicalFloorplan: Floorplan = {
       width: 0.2,
       height: 0.2,
       rotation: 0,
+      sourceElementId: null,
       polygonPoints: null
     }
   ],

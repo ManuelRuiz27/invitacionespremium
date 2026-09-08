@@ -3,6 +3,18 @@ import type { AdminInvitationFileAssetType } from './event-preparation';
 import { createApiClient } from '../index';
 
 describe('administrative Event preparation API client', () => {
+  it('maps with generated domain fields and explicitly unlinks through scoped routes', async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () => json({ sourceElementId: null }));
+    const api = createApiClient({ baseUrl: 'https://api.example.com/api/v1', fetchImpl });
+    const body = { sourceElementId: 'svg-table', kind: 'TABLE' as const, name: 'Mesa 1', capacity: 8 };
+    await api.adminEventPreparation.mapFloorplanSvgElement('client/value', 'event/value', body);
+    await api.adminEventPreparation.unlinkFloorplanSvgMapping('client/value', 'event/value', 'shape/value');
+    expect(fetchImpl.mock.calls[0]?.[0]).toBe('https://api.example.com/api/v1/admin/clients/client%2Fvalue/events/event%2Fvalue/floorplan/svg-mappings');
+    expect(fetchImpl.mock.calls[0]?.[1]).toMatchObject({ method: 'POST', body: JSON.stringify(body) });
+    expect(fetchImpl.mock.calls[1]?.[0]).toBe('https://api.example.com/api/v1/admin/clients/client%2Fvalue/events/event%2Fvalue/floorplan/shapes/shape%2Fvalue/svg-mapping');
+    expect(fetchImpl.mock.calls[1]?.[1]).toMatchObject({ method: 'DELETE' });
+  });
+
   it('exposes only Invitation image types from the generated administrative upload schema', () => {
     expectTypeOf<AdminInvitationFileAssetType>().toEqualTypeOf<
       'FLYER_INITIAL_IMAGE' | 'FLYER_QR_IMAGE' | 'FLIPBOOK_PAGE_IMAGE'

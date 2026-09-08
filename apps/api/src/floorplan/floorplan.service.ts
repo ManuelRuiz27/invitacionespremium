@@ -22,6 +22,7 @@ import {
   FileAssetOwnerType,
   FileAssetStatus,
   FileAssetType,
+  FloorplanGeometry,
   FloorplanShapeKind,
   FloorplanSeatingMode,
   Prisma,
@@ -41,6 +42,7 @@ import type {
   CreateFloorplanInput,
   FloorplanResponseDto,
   FloorplanSvgSourceResponseDto,
+  FloorplanSvgMappingInput,
   FloorplanShapeInput,
   FloorplanShapeResponseDto,
   FloorplanSeatInput,
@@ -491,6 +493,79 @@ export class FloorplanService {
     return this.changeLock(eventId, principal, { kind: 'ADMIN', clientId }, false, operationId);
   }
 
+  async mapSvgElementAdministrative(
+    clientId: string,
+    eventId: string,
+    input: FloorplanSvgMappingInput,
+    principal: AuthPrincipal,
+    operationId?: string
+  ): Promise<FloorplanShapeResponseDto> {
+    return this.serializable(async (tx) => {
+      const event = await this.requireTargetEvent(tx, eventId, principal, { kind: 'ADMIN', clientId }, true);
+      this.assertLayoutMutable(event);
+      const floorplan = await this.lockFloorplan(tx, eventId);
+      this.assertUnlocked(floorplan);
+      const asset = await tx.fileAsset.findFirst({ where: {
+        id: floorplan.imageAssetId, clientId, eventId,
+        ownerType: FileAssetOwnerType.FLOORPLAN, ownerId: floorplan.id,
+        fileType: FileAssetType.FLOORPLAN_SVG, status: FileAssetStatus.READY, deletedAt: null
+      } });
+      if (!asset) throw floorplanError('FLOORPLAN_SVG_SOURCE_NOT_AVAILABLE', 'The active Floorplan SVG source is not available.');
+      let source: FloorplanSvgSourceResponseDto;
+      try {
+        source = deriveFloorplanSvgSource(asset.id, await this.storage.read(asset.storageKey));
+      } catch {
+        throw floorplanError('FLOORPLAN_SVG_SOURCE_INVALID', 'The active Floorplan SVG source has invalid geometry.');
+      }
+      const element = source.selectableElements.find(({ sourceElementId }) => sourceElementId === input.sourceElementId);
+      if (!element) throw floorplanError('FLOORPLAN_SVG_ELEMENT_NOT_FOUND', 'The selected SVG element does not exist.');
+      if (await tx.floorplanShape.findFirst({ where: { floorplanId: floorplan.id, sourceElementId: input.sourceElementId, deletedAt: null } })) {
+        throw floorplanError('FLOORPLAN_SVG_ELEMENT_ALREADY_MAPPED', 'The selected SVG element is already mapped.');
+      }
+      const seatTable = floorplan.seatingMode === FloorplanSeatingMode.SEAT && input.kind === FloorplanShapeKind.TABLE;
+      if (seatTable && input.capacity !== 0) {
+        throw floorplanError('FLOORPLAN_SEAT_CAPACITY_DERIVED', 'Table capacity is derived from active seats.');
+      }
+      const geometry = element.elementType === 'circle' && element.bbox.width === element.bbox.height
+        ? FloorplanGeometry.CIRCLE : FloorplanGeometry.RECTANGLE;
+      const proxy = floorplanShapeSchema.safeParse({
+        kind: input.kind, name: input.name, capacity: seatTable ? 1 : input.capacity,
+        ...element.bbox, geometry, rotation: 0, polygonPoints: null
+      });
+      if (!proxy.success) throw floorplanError('FLOORPLAN_SHAPE_INVALID', 'Floorplan shape is invalid.');
+      const shape = await tx.floorplanShape.create({ data: {
+        ...shapeCreateData(floorplan.id, eventId, proxy.data),
+        capacity: seatTable ? 0 : proxy.data.capacity,
+        sourceElementId: input.sourceElementId
+      } });
+      await this.recordAudit(tx, event, principal, operationId, 'FLOORPLAN_SVG_MAP', shape.id, shapeAudit(shape));
+      await recomputeDigitalEventPreparationStatus(tx, eventId);
+      return toShapeResponse(shape, 0);
+    });
+  }
+
+  async unlinkSvgElementAdministrative(
+    clientId: string,
+    eventId: string,
+    shapeId: string,
+    principal: AuthPrincipal,
+    operationId?: string
+  ): Promise<FloorplanShapeResponseDto> {
+    return this.serializable(async (tx) => {
+      const event = await this.requireTargetEvent(tx, eventId, principal, { kind: 'ADMIN', clientId }, true);
+      this.assertLayoutMutable(event);
+      const floorplan = await this.lockFloorplan(tx, eventId);
+      this.assertUnlocked(floorplan);
+      const current = await this.lockShape(tx, eventId, floorplan.id, shapeId);
+      const updated = await tx.floorplanShape.update({ where: { id: shapeId }, data: { sourceElementId: null } });
+      await this.recordAudit(tx, event, principal, operationId, 'FLOORPLAN_SVG_UNLINK', shapeId, {
+        before: shapeAudit(current), after: shapeAudit(updated)
+      });
+      await recomputeDigitalEventPreparationStatus(tx, eventId);
+      return toShapeResponse(updated, await combinedOccupancy(tx, shapeId));
+    });
+  }
+
   async createShape(
     eventId: string,
     input: FloorplanShapeInput,
@@ -572,11 +647,13 @@ export class FloorplanService {
       ) {
         throw floorplanError('FLOORPLAN_SEAT_CAPACITY_DERIVED', 'Table capacity is derived from active seats.');
       }
+      const emptySeatTable = floorplan.seatingMode === FloorplanSeatingMode.SEAT &&
+        (input.kind ?? current.kind) === FloorplanShapeKind.TABLE && (input.capacity ?? current.capacity) === 0;
       const merged = floorplanShapeSchema.safeParse({
         kind: input.kind ?? current.kind,
         geometry: input.geometry ?? current.geometry,
         name: input.name ?? current.name,
-        capacity: input.capacity ?? current.capacity,
+        capacity: emptySeatTable ? 1 : input.capacity ?? current.capacity,
         x: input.x ?? Number(current.x),
         y: input.y ?? Number(current.y),
         width: input.width ?? Number(current.width),
@@ -590,7 +667,7 @@ export class FloorplanService {
       if (!merged.success) throw floorplanError('FLOORPLAN_SHAPE_INVALID', 'Floorplan shape is invalid.');
       const updated = await tx.floorplanShape.update({
         where: { id: shapeId },
-        data: shapeUpdateData(merged.data)
+        data: shapeUpdateData({ ...merged.data, capacity: emptySeatTable ? 0 : merged.data.capacity })
       });
       const occupancy = await combinedOccupancy(tx, shapeId);
       await this.recordAudit(tx, event, principal, operationId, 'FLOORPLAN_SHAPE_UPDATE', shapeId, {
@@ -1499,6 +1576,7 @@ function shapeAudit(shape: FloorplanShape): Record<string, unknown> {
     shapeId: shape.id,
     kind: shape.kind,
     geometry: shape.geometry,
+    sourceElementId: shape.sourceElementId ?? null,
     capacity: shape.capacity,
     x: Number(shape.x),
     y: Number(shape.y),
@@ -1541,6 +1619,7 @@ export function toFloorplanResponse(floorplan: FloorplanView, contentPath?: stri
 function toShapeResponse(shape: FloorplanShape, occupancy: number): FloorplanShapeResponseDto {
   return {
     id: shape.id,
+    sourceElementId: shape.sourceElementId ?? null,
     kind: shape.kind,
     geometry: shape.geometry,
     name: shape.name,
@@ -1705,6 +1784,9 @@ function floorplanError(code: string, message: string): DomainError {
 
 function mapDatabaseError(error: unknown): unknown {
   const message = databaseMessage(error);
+  if (message.includes('FLOORPLAN_TABLE_CAPACITY_REQUIRED')) {
+    return floorplanError('FLOORPLAN_TABLE_CAPACITY_REQUIRED', 'Table capacity must be positive in table seating mode.');
+  }
   if (message.includes('SEATING_TABLE_CAPACITY_EXCEEDED')) {
     return floorplanError('SEATING_TABLE_CAPACITY_EXCEEDED', 'Table capacity would be exceeded.');
   }

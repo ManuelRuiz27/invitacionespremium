@@ -261,6 +261,8 @@ export function mockAdminApi(user: AuthUser = platformAdmin): AdminTestApiClient
       removeInvitationAsset: vi.fn(),
       getFloorplan: vi.fn(),
       getFloorplanSvgSource: vi.fn(),
+      mapFloorplanSvgElement: vi.fn(),
+      unlinkFloorplanSvgMapping: vi.fn(),
       createFloorplan: vi.fn(),
       replaceFloorplanImage: vi.fn(),
       listFloorplanAssets: vi.fn().mockResolvedValue([]),

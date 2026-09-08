@@ -25,6 +25,7 @@ export function deriveFloorplanSvgSource(fileAssetId: string, bytes: Buffer): Fl
     const node: Node = {
       name: tag.local.toLowerCase(), attrs, matrix: multiply(parent?.matrix ?? identity(), transform(attrs.transform)), children: []
     };
+    if (node.matrix.some((value) => !Number.isFinite(value))) throw new Error('Invalid SVG transform.');
     if (parent) parent.children.push(node); else root = node;
     stack.push(node);
   });
@@ -66,7 +67,11 @@ function geometry(node: Node): Box | undefined {
     default: return undefined;
   }
   if (!points.length || points.some(({ x, y }) => !Number.isFinite(x) || !Number.isFinite(y))) return undefined;
-  return bounds(points.map((point) => apply(node.matrix, point)));
+  const transformed = points.map((point) => apply(node.matrix, point));
+  if (transformed.some(({ x, y }) => !Number.isFinite(x) || !Number.isFinite(y))) {
+    throw new Error('Invalid SVG transformed geometry.');
+  }
+  return bounds(transformed);
 }
 function pairs(value: string) { const values = value.trim().split(/[\s,]+/u).map(Number); const points = []; for (let i = 0; i + 1 < values.length; i += 2) points.push({ x: values[i]!, y: values[i + 1]! }); return points; }
 function corners(x: number, y: number, width: number, height: number) { return [{ x, y }, { x: x + width, y }, { x, y: y + height }, { x: x + width, y: y + height }]; }
@@ -76,4 +81,59 @@ function normalize(box: Box, viewBox: FloorplanSvgSourceDto['viewBox']): Box { c
 function identity(): Matrix { return [1, 0, 0, 1, 0, 0]; }
 function multiply(left: Matrix, right: Matrix): Matrix { return [left[0]*right[0]+left[2]*right[1], left[1]*right[0]+left[3]*right[1], left[0]*right[2]+left[2]*right[3], left[1]*right[2]+left[3]*right[3], left[0]*right[4]+left[2]*right[5]+left[4], left[1]*right[4]+left[3]*right[5]+left[5]]; }
 function apply(matrix: Matrix, point: { x: number; y: number }) { return { x: matrix[0]*point.x + matrix[2]*point.y + matrix[4], y: matrix[1]*point.x + matrix[3]*point.y + matrix[5] }; }
-function transform(value?: string): Matrix { if (!value) return identity(); const functions = [...value.matchAll(/([a-zA-Z]+)\(([^)]*)\)/gu)]; let result = identity(); for (const match of functions) { const values = match[2]!.trim().split(/[\s,]+/u).filter(Boolean).map(Number); if (values.some((item) => !Number.isFinite(item))) return identity(); let next = identity(); if (match[1] === 'matrix' && values.length === 6) next = values as Matrix; else if (match[1] === 'translate') next = [1,0,0,1,values[0] ?? 0,values[1] ?? 0]; else if (match[1] === 'scale') next = [values[0] ?? 1,0,0,values[1] ?? values[0] ?? 1,0,0]; else if (match[1] === 'rotate' && values.length >= 1) { const radians = values[0]! * Math.PI / 180; const rotation: Matrix = [Math.cos(radians),Math.sin(radians),-Math.sin(radians),Math.cos(radians),0,0]; const [cx,cy] = [values[1] ?? 0, values[2] ?? 0]; next = multiply(multiply([1,0,0,1,cx,cy], rotation), [1,0,0,1,-cx,-cy]); } else return identity(); result = multiply(result, next); } return result; }
+// Consume the entire list: ignoring syntax would persist geometry unlike the SVG.
+function transform(value?: string): Matrix {
+  if (value === undefined || value.trim() === '') return identity();
+  const invalid = () => { throw new Error('Invalid SVG transform.'); };
+  const number = '[+-]?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)(?:[eE][+-]?[0-9]+)?';
+  const argumentsPattern = new RegExp(`^${number}(?:(?:[ \\t\\r\\n]+,?[ \\t\\r\\n]*|,[ \\t\\r\\n]*)${number})*$`, 'u');
+  let remaining = value.trim();
+  let result = identity();
+  while (remaining) {
+    const match = /^([a-zA-Z]+)[ \t\r\n]*\(([^()]*)\)/u.exec(remaining);
+    if (!match) return invalid();
+    const args = match[2]!.trim();
+    if (!argumentsPattern.test(args)) return invalid();
+    const values = args.split(/[\s,]+/u).map(Number);
+    if (values.some((item) => !Number.isFinite(item))) return invalid();
+    let next: Matrix;
+    switch (match[1]) {
+      case 'matrix':
+        if (values.length !== 6) return invalid();
+        next = values as Matrix;
+        break;
+      case 'translate':
+        if (values.length !== 1 && values.length !== 2) return invalid();
+        next = [1, 0, 0, 1, values[0]!, values[1] ?? 0];
+        break;
+      case 'scale':
+        if (values.length !== 1 && values.length !== 2) return invalid();
+        next = [values[0]!, 0, 0, values[1] ?? values[0]!, 0, 0];
+        break;
+      case 'rotate': {
+        if (values.length !== 1 && values.length !== 3) return invalid();
+        const radians = (values[0]! % 360) * Math.PI / 180;
+        const rotation: Matrix = [Math.cos(radians), Math.sin(radians), -Math.sin(radians), Math.cos(radians), 0, 0];
+        const [cx, cy] = [values[1] ?? 0, values[2] ?? 0];
+        next = multiply(multiply([1, 0, 0, 1, cx, cy], rotation), [1, 0, 0, 1, -cx, -cy]);
+        break;
+      }
+      case 'skewX':
+      case 'skewY': {
+        if (values.length !== 1) return invalid();
+        const tangent = Math.tan((values[0]! % 180) * Math.PI / 180);
+        next = match[1] === 'skewX' ? [1, 0, tangent, 1, 0, 0] : [1, tangent, 0, 1, 0, 0];
+        break;
+      }
+      default: return invalid();
+    }
+    result = multiply(result, next);
+    if (result.some((item) => !Number.isFinite(item))) return invalid();
+    remaining = remaining.slice(match[0].length).trimStart();
+    if (remaining.startsWith(',')) {
+      remaining = remaining.slice(1).trimStart();
+      if (!remaining) return invalid();
+    }
+  }
+  return result;
+}

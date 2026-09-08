@@ -20,6 +20,7 @@ const table: FloorplanShape = {
   kind: 'TABLE',
   geometry: 'SQUARE',
   capacity: 8,
+  sourceElementId: null,
   occupancy: 0,
   availableCapacity: 8,
   x: 0.1,
@@ -32,7 +33,7 @@ const table: FloorplanShape = {
 const floorplan: Floorplan = {
   id: 'fp',
   eventId: 'event',
-  image: { fileAssetId: 'asset', contentPath: '/asset' },
+  image: { fileAssetId: 'asset', contentPath: '/asset', sourceType: 'RASTER' },
   locked: false,
   lockedAt: null,
   shapes: [table],

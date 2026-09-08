@@ -20,6 +20,7 @@ const table: FloorplanShape = {
   width: 0.2,
   height: 0.2,
   rotation: 30,
+  sourceElementId: null,
   polygonPoints: null
 };
 
@@ -42,7 +43,7 @@ const zone: FloorplanShape = {
 const floorplan: Floorplan = {
   id: 'floorplan-1',
   eventId: configuredEvent.id,
-  image: { fileAssetId: 'floorplan-image', contentPath: '/private' },
+  image: { sourceType: 'RASTER' as const, fileAssetId: 'floorplan-image', contentPath: '/private' },
   locked: false,
   lockedAt: null,
   shapes: [table, zone],

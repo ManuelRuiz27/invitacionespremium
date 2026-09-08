@@ -923,6 +923,7 @@ model FloorplanShape {
   geometry       FloorplanGeometry
   name           String             @db.VarChar(120)
   normalizedName String             @map("normalized_name") @db.VarChar(120)
+  sourceElementId String?            @map("source_element_id") @db.VarChar(256)
   capacity       Int
   x              Decimal            @db.Decimal(9, 8)
   y              Decimal            @db.Decimal(9, 8)

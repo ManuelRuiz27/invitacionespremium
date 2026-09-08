@@ -9,6 +9,7 @@ const table: FloorplanShape = {
   kind: 'TABLE',
   geometry: 'RECTANGLE',
   capacity: 8,
+  sourceElementId: null,
   occupancy: 0,
   availableCapacity: 8,
   x: 0.1,
@@ -22,7 +23,7 @@ const table: FloorplanShape = {
 const floorplan: Floorplan = {
   id: 'floorplan',
   eventId: 'event',
-  image: { fileAssetId: 'asset', contentPath: '/private' },
+  image: { fileAssetId: 'asset', contentPath: '/private', sourceType: 'RASTER' },
   locked: false,
   lockedAt: null,
   shapes: [table],
@@ -55,6 +56,37 @@ const detailedFloorplan: Floorplan = {
 };
 
 describe('FloorplanDomRenderer', () => {
+  it('keeps mapped SVG geometry transparent, selects its shape and preserves manual stickers', () => {
+    const mapped = { ...table, id: 'mapped', name: 'Mesa SVG', sourceElementId: 'private-source-id' };
+    const onSelect = vi.fn();
+    const view = render(<FloorplanDomRenderer floorplan={{ ...floorplan, shapes: [table, mapped] }} imageUrl="blob:svg"
+      svgSource={{ selectableElements: [{ sourceElementId: 'private-source-id', bbox: mapped }] }}
+      selectedId={mapped.id} draft={mapped} disabled={false} showSeats={false} snap={false}
+      onSelect={onSelect} onDraftChange={vi.fn()} />);
+    const element = screen.getByRole('button', { name: 'Mesa SVG, vinculado al plano' });
+    expect(element).toHaveAttribute('aria-pressed', 'true');
+    expect(getComputedStyle(element).backgroundColor).toBe('rgba(0, 0, 0, 0)');
+    expect(screen.queryByLabelText('Editar mesa Mesa SVG')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Mover mesa seleccionada')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Editar mesa Mesa 1')).toBeInTheDocument();
+    expect(view.container.textContent).not.toContain('private-source-id');
+    view.rerender(<FloorplanDomRenderer floorplan={{ ...floorplan, shapes: [table, mapped] }} imageUrl="blob:svg"
+      svgSource={{ selectableElements: [{ sourceElementId: 'private-source-id', bbox: mapped }] }}
+      disabled={false} showSeats={false} snap={false} onSelect={onSelect} onDraftChange={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Mesa SVG, vinculado al plano' }));
+    expect(onSelect).toHaveBeenCalledWith(mapped);
+  });
+
+  it('keeps unmapped element IDs private and blocks selection while locked', () => {
+    const onSourceSelect = vi.fn();
+    render(<FloorplanDomRenderer floorplan={floorplan} imageUrl="blob:svg"
+      svgSource={{ selectableElements: [{ sourceElementId: 'secret-id', bbox: table }] }}
+      disabled showSeats={false} snap={false} onSourceSelect={onSourceSelect} onSelect={vi.fn()} onDraftChange={vi.fn()} />);
+    const element = screen.getByRole('button', { name: 'Elemento del plano 1, sin vincular' });
+    expect(element).toBeDisabled();
+    fireEvent.click(element);
+    expect(onSourceSelect).not.toHaveBeenCalled();
+  });
   beforeEach(() => {
     class ResizeObserverStub {
       constructor(private callback: ResizeObserverCallback) {}

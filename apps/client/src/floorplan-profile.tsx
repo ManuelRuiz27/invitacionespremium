@@ -37,6 +37,7 @@ function shapes(count: number): FloorplanShape[] {
   return Array.from({ length: count }, (_, index) => {
     return {
       id: `table-${index}`,
+      sourceElementId: null,
       name: `${index + 1}`,
       kind: 'TABLE',
       geometry: index % 3 === 0 ? 'CIRCLE' : index % 3 === 1 ? 'SQUARE' : 'RECTANGLE',
@@ -57,7 +58,7 @@ function makeFloorplan(count: number): Floorplan {
   return {
     id: `profile-${count}`,
     eventId: event.id,
-    image: { fileAssetId: 'venue', contentPath: '/venue' },
+    image: { fileAssetId: 'venue', contentPath: '/venue', sourceType: 'RASTER' },
     locked: false,
     lockedAt: null,
     shapes: shapes(count),

@@ -10,6 +10,7 @@ const shape = (index: number): FloorplanShape => ({
   kind: 'TABLE',
   geometry: index % 3 === 0 ? 'CIRCLE' : index % 3 === 1 ? 'SQUARE' : 'RECTANGLE',
   capacity: 10,
+  sourceElementId: null,
   occupancy: 0,
   availableCapacity: 10,
   x: (index % 15) / 15,
@@ -23,7 +24,7 @@ const shape = (index: number): FloorplanShape => ({
 const floorplan = (count: number): Floorplan => ({
   id: 'profile-floorplan',
   eventId: 'profile-event',
-  image: { fileAssetId: 'profile-image', contentPath: '/private' },
+  image: { fileAssetId: 'profile-image', contentPath: '/private', sourceType: 'RASTER' },
   locked: false,
   lockedAt: null,
   shapes: Array.from({ length: count }, (_, index) => shape(index)),

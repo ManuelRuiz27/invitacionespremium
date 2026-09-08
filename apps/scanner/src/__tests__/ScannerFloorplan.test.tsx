@@ -28,6 +28,7 @@ function mockObservedOwner(width: number, height: number) {
 
 const shape = (id: string, geometry: FloorplanShape['geometry']): FloorplanShape => ({
   id,
+  sourceElementId: null,
   name: id,
   kind: 'TABLE',
   geometry,

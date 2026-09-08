@@ -28,12 +28,13 @@ const table: FloorplanShape = {
   width: 0.2,
   height: 0.2,
   rotation: 0,
+  sourceElementId: null,
   polygonPoints: null
 };
 const floorplan: Floorplan = {
   id: 'fp',
   eventId: configuredEvent.id,
-  image: { fileAssetId: 'asset', contentPath: '/asset' },
+  image: { sourceType: 'RASTER' as const, fileAssetId: 'asset', contentPath: '/asset' },
   locked: false,
   lockedAt: null,
   shapes: [table],

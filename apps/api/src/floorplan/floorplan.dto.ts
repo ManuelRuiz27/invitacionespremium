@@ -45,6 +45,12 @@ export const floorplanShapeSchema = z
     }
   });
 
+const svgMappingSchema = z.object({
+  sourceElementId: z.string().min(1).max(256),
+  kind: z.enum(FloorplanShapeKind),
+  name,
+  capacity: z.number().int().min(0).max(100_000)
+}).strict();
 const createFloorplanSchema = z.object({ imageAssetId: uuid }).strict();
 const updateFloorplanSchema = z.object({ imageAssetId: uuid }).strict();
 const updateShapeSchema = z.object(shapeFields).partial().strict();
@@ -117,6 +123,7 @@ const seatingWorkspaceQuerySchema = z
     }
   });
 
+export type FloorplanSvgMappingInput = z.infer<typeof svgMappingSchema>;
 export type CreateFloorplanInput = z.infer<typeof createFloorplanSchema>;
 export type FloorplanShapeInput = z.infer<typeof floorplanShapeSchema>;
 export type UpdateFloorplanShapeInput = z.infer<typeof updateShapeSchema>;
@@ -142,6 +149,17 @@ export class PolygonPointDto {
 
   @ApiProperty({ type: Number, minimum: 0, maximum: 1 })
   y!: number;
+}
+
+export class FloorplanSvgMappingRequestDto {
+  @ApiProperty({ type: String, minLength: 1, maxLength: 256 })
+  sourceElementId!: string;
+  @ApiProperty({ enum: FloorplanShapeKind })
+  kind!: FloorplanShapeKind;
+  @ApiProperty({ type: String, maxLength: 120 })
+  name!: string;
+  @ApiProperty({ type: Number, minimum: 0, maximum: 100_000 })
+  capacity!: number;
 }
 
 export class FloorplanShapeRequestDto {
@@ -226,6 +244,8 @@ export class UpdateSeatingRequestDto {
 }
 
 export class FloorplanShapeResponseDto extends FloorplanShapeRequestDto {
+  @ApiProperty({ type: String, nullable: true })
+  sourceElementId!: string | null;
   @ApiProperty({ type: String, format: 'uuid' })
   id!: string;
   @ApiProperty({ type: Number })
@@ -442,6 +462,9 @@ export function parseCreateFloorplan(input: unknown): CreateFloorplanInput {
 }
 export function parseUpdateFloorplan(input: unknown): CreateFloorplanInput {
   return parse(updateFloorplanSchema, input);
+}
+export function parseSvgMapping(input: unknown): FloorplanSvgMappingInput {
+  return parse(svgMappingSchema, input);
 }
 export function parseCreateShape(input: unknown): FloorplanShapeInput {
   return parse(floorplanShapeSchema, input);

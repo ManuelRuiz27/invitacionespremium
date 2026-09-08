@@ -233,7 +233,8 @@ Gate:
 
 ## 9. SVG-03 — Mapeo manual a `FloorplanShape`
 
-Estado: **READY**  
+Estado: **DONE**
+
 Prioridad: **P0 CORE**
 
 Objetivo: que el Provider convierta elementos del SVG a las entidades actuales sin redibujarlos.
@@ -271,9 +272,21 @@ Gate:
 
 - un Provider puede mapear una Mesa circular, una Mesa irregular y una Zona sin dibujar manualmente su geometría.
 
+Evidencia de cierre (2026-09-07):
+
+- `sourceElementId` nullable con índice único parcial para Shapes activas; Shapes manuales y raster conservan `null`.
+- API Admin de mapping y desvinculación con bbox normalizado, transacciones serializables, guards de fuente/tenant/Evento/lock, auditoría y recompute de readiness. Desvincular preserva Shape, Seats y asignaciones.
+- Admin clasifica Mesa/Zona con nombre y capacidad; recarga autoritativa y selección/desvinculación. DOM/Konva conservan la geometría SVG visible sin stickers proxy opacos ni estilos de ocupación.
+- Parser de transforms completo para matrix/translate/scale/rotate/skewX/skewY, con rechazo cerrado de sintaxis inválida, funciones desconocidas y desbordamientos; 38 pruebas de geometría.
+- QA: 30 pruebas de integración Floorplan/seating en PostgreSQL aislado, 57 pruebas Admin y 91 pruebas del renderer compartido; OpenAPI/api-client generado, Prisma validate, lint, typecheck y build verdes.
+- Ajuste necesario de integridad: capacidad derivada 0 permitida en SEAT, manteniendo capacidad positiva en TABLE. Se corrigieron por separado errores previos de tipado en fixtures raster y coordenadas del QR del demo local Flipbook, sin cambiar su comportamiento.
+
+SVG-04+ permanece fuera de esta implementación.
+
 ## 10. SVG-04 — Estado visual operacional + Detailed Seating
 
-Estado: **BLOCKED por SVG-03**  
+Estado: **READY**
+
 Prioridad: **P0**
 
 Objetivo: que el SVG deje de ser una imagen pasiva y refleje el estado del dominio existente.

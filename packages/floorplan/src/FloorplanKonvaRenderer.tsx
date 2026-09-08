@@ -36,7 +36,9 @@ export function FloorplanKonvaRenderer(
     | undefined
   >(undefined);
   const stageSize = { width: props.width, height: props.height };
-  const selected = props.draft;
+  const selectedIsMapped = props.floorplan.shapes.some((shape) => shape.id === props.selectedId && shape.sourceElementId &&
+    props.svgSource?.selectableElements.some((element) => element.sourceElementId === shape.sourceElementId));
+  const selected = selectedIsMapped ? undefined : props.draft;
   const selectedRect = selected ? shapeToStageRect(selected, stageSize) : undefined;
   const selectedOccupancy = props.floorplan.shapes.find((shape) => shape.id === props.selectedId)?.occupancy ?? 0;
 
@@ -148,7 +150,15 @@ export function FloorplanKonvaRenderer(
           height={props.height}
           listening={!selected}
         />
-        {props.svgSource?.selectableElements.map((element) => (
+        {props.svgSource?.selectableElements.map((element) => {
+          const mapped = props.floorplan.shapes.find((shape) => shape.sourceElementId === element.sourceElementId);
+          const sourceSelected = props.selectedSourceElementId === element.sourceElementId || Boolean(mapped && props.selectedId === mapped.id);
+          const selectElement = (event: KonvaEventObject<MouseEvent | TouchEvent>) => {
+            event.cancelBubble = true;
+            if (mapped) props.onSelect(mapped);
+            else props.onSourceSelect?.(element.sourceElementId);
+          };
+          return (
           <Rect
             key={element.sourceElementId}
             name="floorplan-svg-source-element"
@@ -157,14 +167,14 @@ export function FloorplanKonvaRenderer(
             width={element.bbox.width * props.width}
             height={element.bbox.height * props.height}
             fill="rgba(0,0,0,0)"
-            {...(props.selectedSourceElementId === element.sourceElementId
+            {...(sourceSelected
               ? { stroke: floorplanColors.accent, strokeWidth: 3 }
-              : { strokeWidth: 0 })}
-            listening={Boolean(props.onSourceSelect) && !props.disabled && !selected}
-            onClick={(event) => { event.cancelBubble = true; props.onSourceSelect?.(element.sourceElementId); }}
-            onTap={(event) => { event.cancelBubble = true; props.onSourceSelect?.(element.sourceElementId); }}
+              : mapped ? { stroke: floorplanColors.accent, strokeWidth: 2, dash: [6, 4] } : { strokeWidth: 0 })}
+            listening={Boolean(mapped || props.onSourceSelect) && !props.disabled && !selected && !props.captureCanvasClicks}
+            onClick={selectElement}
+            onTap={selectElement}
           />
-        ))}
+        ); })}
         {props.snap
           ? Array.from({ length: 19 }, (_, index) => (index + 1) / 20).flatMap((position) => [
               <Line
@@ -184,6 +194,7 @@ export function FloorplanKonvaRenderer(
             ])
           : null}
         {props.floorplan.shapes.map((shape) => {
+          if (shape.sourceElementId && props.svgSource?.selectableElements.some((element) => element.sourceElementId === shape.sourceElementId)) return null;
           if (selected && props.selectedId === shape.id) return null;
           return (
             <KonvaShapeNode

@@ -70,6 +70,7 @@ const table: FloorplanShape = {
   kind: 'TABLE',
   geometry: 'CIRCLE',
   capacity: 4,
+  sourceElementId: null,
   occupancy: 0,
   availableCapacity: 4,
   x: 0.1,
@@ -82,7 +83,7 @@ const table: FloorplanShape = {
 const floorplan: Floorplan = {
   id: 'fp',
   eventId: 'event',
-  image: { fileAssetId: 'asset', contentPath: '/asset' },
+  image: { fileAssetId: 'asset', contentPath: '/asset', sourceType: 'RASTER' },
   locked: false,
   lockedAt: null,
   shapes: [table],
@@ -129,6 +130,22 @@ const touchEvent = (touches: Array<{ clientX: number; clientY: number }>, preven
 });
 
 describe('FloorplanKonvaRenderer de producción', () => {
+  it('retains the SVG image and transparent mapped hit area alongside manual shapes', () => {
+    const mapped = { ...table, id: 'mapped', sourceElementId: 'source-circle' };
+    const onSelect = vi.fn();
+    render(<FloorplanKonvaRenderer {...props({
+      floorplan: { ...floorplan, shapes: [table, mapped] }, selectedId: mapped.id, draft: mapped, onSelect,
+      svgSource: { selectableElements: [{ sourceElementId: 'source-circle', bbox: mapped }] }
+    })} />);
+    expect(latest('Image').props.image).toBe(image);
+    const hitArea = latest('Rect', 'floorplan-svg-source-element');
+    expect(hitArea.props.fill).toBe('rgba(0,0,0,0)');
+    expect(hitArea.props.strokeWidth).toBe(3);
+    expect(konva.nodes.filter((node) => node.props.name === 'floorplan-shape')).toHaveLength(1);
+    expect(konva.nodes.some((node) => node.props.name === 'floorplan-editable-shape')).toBe(false);
+    act(() => (hitArea.props.onClick as (event: object) => void)({ cancelBubble: false }));
+    expect(onSelect).toHaveBeenCalledWith(mapped);
+  });
   beforeEach(() => {
     konva.nodes.length = 0;
   });

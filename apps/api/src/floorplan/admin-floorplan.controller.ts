@@ -5,6 +5,8 @@ import { CurrentAuth } from '../auth/current-auth.decorator';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../generated/prisma/client';
 import {
+  FloorplanSvgMappingRequestDto,
+  parseSvgMapping,
   FloorplanImageRequestDto,
   BatchFloorplanSeatsRequestDto,
   RenumberFloorplanSeatsRequestDto,
@@ -241,6 +243,36 @@ export class AdminFloorplanController {
       parseFloorplanId(eventId),
       principal,
       request.operationId
+    );
+  }
+
+  @Post('svg-mappings')
+  @ApiBody({ type: FloorplanSvgMappingRequestDto })
+  @ApiOkResponse({ type: FloorplanShapeResponseDto })
+  mapSvgElement(
+    @Param('clientId') clientId: string,
+    @Param('eventId') eventId: string,
+    @Body() body: unknown,
+    @CurrentAuth() principal: AuthPrincipal,
+    @Req() request: AuthenticatedRequest
+  ): Promise<FloorplanShapeResponseDto> {
+    return this.floorplan.mapSvgElementAdministrative(
+      parseFloorplanId(clientId), parseFloorplanId(eventId), parseSvgMapping(body), principal, request.operationId
+    );
+  }
+
+  @Delete('shapes/:shapeId/svg-mapping')
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({ type: FloorplanShapeResponseDto })
+  unlinkSvgElement(
+    @Param('clientId') clientId: string,
+    @Param('eventId') eventId: string,
+    @Param('shapeId') shapeId: string,
+    @CurrentAuth() principal: AuthPrincipal,
+    @Req() request: AuthenticatedRequest
+  ): Promise<FloorplanShapeResponseDto> {
+    return this.floorplan.unlinkSvgElementAdministrative(
+      parseFloorplanId(clientId), parseFloorplanId(eventId), parseFloorplanId(shapeId), principal, request.operationId
     );
   }
 

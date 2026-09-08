@@ -57,7 +57,7 @@ const workspaceEvent = {
 const floorplan = {
   id: 'c9bcb994-04fb-410e-bc1d-c87ff6dfab98',
   eventId: workspaceEvent.id,
-  image: { fileAssetId: 'c6f89399-a5ac-42ba-91c5-392a8c9c7927', contentPath: '/floorplan' },
+  image: { sourceType: 'RASTER' as const, fileAssetId: 'c6f89399-a5ac-42ba-91c5-392a8c9c7927', contentPath: '/floorplan' },
   locked: true,
   lockedAt: '2026-08-09T18:00:00.000Z',
   shapes: [
@@ -74,6 +74,7 @@ const floorplan = {
       width: 0.15,
       height: 0.15,
       rotation: 0,
+      sourceElementId: null,
       polygonPoints: null
     },
     {
@@ -89,6 +90,7 @@ const floorplan = {
       width: 0.18,
       height: 0.14,
       rotation: 0,
+      sourceElementId: null,
       polygonPoints: null
     }
   ],

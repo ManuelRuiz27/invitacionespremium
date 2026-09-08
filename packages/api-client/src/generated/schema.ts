@@ -560,6 +560,38 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/clients/{clientId}/events/{eventId}/floorplan/shapes/{shapeId}/svg-mapping": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["AdminFloorplanController_unlinkSvgElement"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/clients/{clientId}/events/{eventId}/floorplan/svg-mappings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminFloorplanController_mapSvgElement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/clients/{clientId}/events/{eventId}/floorplan/svg-source": {
         parameters: {
             query?: never;
@@ -3467,6 +3499,7 @@ export type components = {
             occupancy: number;
             polygonPoints?: components["schemas"]["PolygonPointDto"][] | null;
             rotation: number;
+            sourceElementId: string | null;
             width: number;
             x: number;
             y: number;
@@ -3476,6 +3509,13 @@ export type components = {
             width: number;
             x: number;
             y: number;
+        };
+        FloorplanSvgMappingRequestDto: {
+            capacity: number;
+            /** @enum {string} */
+            kind: "TABLE" | "DECORATIVE_ZONE";
+            name: string;
+            sourceElementId: string;
         };
         FloorplanSvgSelectableElementDto: {
             bbox: components["schemas"]["FloorplanSvgBBoxDto"];
@@ -5357,6 +5397,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FloorplanSeatResponseDto"];
+                };
+            };
+        };
+    };
+    AdminFloorplanController_unlinkSvgElement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FloorplanShapeResponseDto"];
+                };
+            };
+        };
+    };
+    AdminFloorplanController_mapSvgElement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FloorplanSvgMappingRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FloorplanShapeResponseDto"];
                 };
             };
         };

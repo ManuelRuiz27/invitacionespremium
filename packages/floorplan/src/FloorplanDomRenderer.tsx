@@ -32,6 +32,8 @@ export interface FloorplanRendererProps {
 }
 
 export function FloorplanDomRenderer(props: FloorplanRendererProps) {
+  const selectedIsMapped = props.floorplan.shapes.some((shape) => shape.id === props.selectedId && shape.sourceElementId &&
+    props.svgSource?.selectableElements.some((element) => element.sourceElementId === shape.sourceElementId));
   const ownerRef = useRef<HTMLDivElement>(null);
   const [measureOwner, ownerSize] = useElementSize<HTMLDivElement>();
   const setOwnerRef = useCallback(
@@ -85,24 +87,33 @@ export function FloorplanDomRenderer(props: FloorplanRendererProps) {
         draggable={false}
         sx={{ display: 'block', width: '100%', height: 'auto' }}
       />
-      {props.svgSource?.selectableElements.map((element) => (
+      {props.svgSource?.selectableElements.map((element, index) => {
+        const mapped = props.floorplan.shapes.find((shape) => shape.sourceElementId === element.sourceElementId);
+        const selected = props.selectedSourceElementId === element.sourceElementId || Boolean(mapped && props.selectedId === mapped.id);
+        return (
         <Box
           component="button"
           key={element.sourceElementId}
           type="button"
-          aria-label={`Elemento SVG ${element.sourceElementId}`}
-          aria-pressed={props.selectedSourceElementId === element.sourceElementId}
-          onClick={(event) => { event.stopPropagation(); props.onSourceSelect?.(element.sourceElementId); }}
+          aria-label={mapped ? `${mapped.name}, vinculado al plano` : `Elemento del plano ${index + 1}, sin vincular`}
+          aria-pressed={selected}
+          disabled={props.disabled || Boolean(props.draft) || Boolean(props.captureCanvasClicks)}
+          onClick={(event) => {
+            event.stopPropagation();
+            if (mapped) props.onSelect(mapped);
+            else props.onSourceSelect?.(element.sourceElementId);
+          }}
           sx={{
             position: 'absolute', left: `${element.bbox.x * 100}%`, top: `${element.bbox.y * 100}%`,
             width: `${element.bbox.width * 100}%`, height: `${element.bbox.height * 100}%`,
-            border: props.selectedSourceElementId === element.sourceElementId ? '3px solid #356ae6' : '0 solid transparent',
+            border: selected ? '3px solid #356ae6' : mapped ? '2px dashed #356ae6' : '0 solid transparent',
             bgcolor: 'transparent', cursor: 'pointer', zIndex: 1, p: 0,
             '&:focus-visible': { outline: '3px solid #f0a500', outlineOffset: 2 }
           }}
         />
-      ))}
+      ); })}
       {props.floorplan.shapes.map((shape) => {
+        if (shape.sourceElementId && props.svgSource?.selectableElements.some((element) => element.sourceElementId === shape.sourceElementId)) return null;
         if (props.draft && props.selectedId === shape.id) return null;
         return (
           <ShapeButton
@@ -130,7 +141,7 @@ export function FloorplanDomRenderer(props: FloorplanRendererProps) {
             />
           ))
         : null}
-      {props.draft ? (
+      {props.draft && !selectedIsMapped ? (
         <EditableShape
           shape={props.draft}
           renderedSize={ownerSize}
