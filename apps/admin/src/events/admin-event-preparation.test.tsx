@@ -674,6 +674,67 @@ describe('Admin Event preparation surfaces', () => {
     );
   });
 
+  it('presents a finalized Croquis as a canvas-first read-only view', async () => {
+    const table = shape({ id: 'finalized-table' });
+    const [seat] = serpentineSeats(table.id);
+    const api = preparedFloorplanApi(
+      floorplan({
+        locked: true,
+        lockedAt: adminEvent.updatedAt,
+        seatingMode: 'SEAT',
+        shapes: [table],
+        seats: [seat!]
+      })
+    );
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    expect(await screen.findByTestId('admin-floorplan-surface')).toBeInTheDocument();
+    expect(screen.getByText('Distribución finalizada. Vista de solo lectura.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Editar distribución' })).toBeInTheDocument();
+    expect(screen.getByText('Por lugar exacto')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Acomodo')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Cambiar plano' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Mesa redonda' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Crear varias mesas' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Agregar lugar' })).not.toBeInTheDocument();
+    expect(floorplanHarness.props?.disabled).toBe(true);
+  });
+
+  it('keeps the editor chrome in place while finalization is still saving', async () => {
+    const api = preparedFloorplanApi();
+    const locked = floorplan({ locked: true, lockedAt: adminEvent.updatedAt });
+    let resolveLock!: (value: AdminFloorplan) => void;
+    vi.mocked(api.adminEventPreparation.lockFloorplan).mockReturnValue(
+      new Promise((resolve) => {
+        resolveLock = resolve;
+      })
+    );
+    vi.mocked(api.adminEventPreparation.getFloorplan).mockResolvedValueOnce(floorplan()).mockResolvedValue(locked);
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await userEvent.click(await screen.findByRole('button', { name: 'Finalizar distribución' }));
+    expect((await screen.findAllByRole('button', { name: 'Mesa redonda' }))[0]).toBeDisabled();
+    expect(screen.getByLabelText('Acomodo')).toBeInTheDocument();
+    resolveLock(locked);
+    expect(await screen.findByRole('button', { name: 'Editar distribución' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Mesa redonda' })).not.toBeInTheDocument();
+  });
+
+  it('restores the existing editor presentation after unlocking', async () => {
+    const table = shape({ id: 'unlock-table' });
+    const locked = floorplan({ locked: true, lockedAt: adminEvent.updatedAt, seatingMode: 'SEAT', shapes: [table] });
+    const unlocked = floorplan({ seatingMode: 'SEAT', shapes: [table] });
+    const api = preparedFloorplanApi(locked);
+    vi.mocked(api.adminEventPreparation.unlockFloorplan).mockResolvedValue(unlocked);
+    vi.mocked(api.adminEventPreparation.getFloorplan).mockResolvedValueOnce(locked).mockResolvedValue(unlocked);
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await userEvent.click(await screen.findByRole('button', { name: 'Editar distribución' }));
+    await waitFor(() => expect(floorplanHarness.props?.disabled).toBe(false));
+    expect((await screen.findAllByRole('button', { name: 'Mesa redonda' }))[0]).toBeEnabled();
+    expect(screen.getByLabelText('Acomodo')).toHaveTextContent('Por lugar exacto');
+    expect(screen.getByRole('button', { name: 'Cambiar plano' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: table.name }));
+    expect(await screen.findByRole('button', { name: 'Agregar lugar' })).toBeInTheDocument();
+  });
+
   it('preserves an editable draft after a failed shape mutation', async () => {
     const api = preparedFloorplanApi();
     vi.mocked(api.adminEventPreparation.createFloorplanShape).mockRejectedValue(new Error('network'));
@@ -872,8 +933,8 @@ describe('Admin Event preparation surfaces', () => {
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
     await screen.findByTestId('admin-floorplan-surface');
     expect(floorplanHarness.props?.disabled).toBe(true);
-    expect((await screen.findAllByRole('button', { name: 'Mesa redonda' }))[0]).toBeDisabled();
-    expect(screen.getAllByRole('button', { name: 'Pista' })[0]).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Mesa redonda' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Pista' })).not.toBeInTheDocument();
     expect(api.adminEventPreparation.createFloorplanShape).not.toHaveBeenCalled();
   });
 
@@ -1024,7 +1085,7 @@ describe('Admin Event preparation surfaces', () => {
     await userEvent.click(enabledButton('Guardar cambios'));
     expect(await screen.findByRole('button', { name: 'Editar distribución' })).toBeInTheDocument();
     expect((floorplanHarness.props?.disabled as boolean) ?? false).toBe(true);
-    expect((await screen.findAllByRole('button', { name: 'Mesa redonda' }))[0]).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Mesa redonda' })).not.toBeInTheDocument();
     expect(api.adminEventPreparation.updateFloorplanShape).toHaveBeenCalledOnce();
   });
 

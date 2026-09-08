@@ -198,6 +198,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   const pending = Boolean(mutation);
   const editing = mode !== 'idle';
   const readOnly = pending || floorplan?.locked === true;
+  const finalized = floorplan?.locked === true;
   const dirty =
     mode === 'mapping-source' ||
     mode === 'creating-draft' ||
@@ -807,7 +808,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
       onCreate={createInventory}
     />
   );
-  const inspector = mode === 'mapping-source' ? (
+  const inspector = !finalized && mode === 'mapping-source' ? (
     <Paper component="section" variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
       <Stack spacing={2}>
         <Typography component="h3" variant="h6">¿Qué representa?</Typography>
@@ -826,7 +827,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
         <Button disabled={pending} onClick={cancel}>Cancelar</Button>
       </Stack>
     </Paper>
-  ) : editing ? (
+  ) : !finalized && editing ? (
     <ShapeInspector
       mode={mode}
       value={draft}
@@ -854,7 +855,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
             </Typography>
             {floorplan.locked ? (
               <Typography variant="body2" color="text.secondary">
-                Distribución protegida en modo de lectura.
+                Distribución finalizada. Vista de solo lectura.
               </Typography>
             ) : null}
         </Box>
@@ -888,19 +889,23 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
             aria-live="polite"
           />
           <Chip label={`${floorplan.shapes.length} elementos · ${places} lugares`} variant="outlined" />
-          <TextField
-            select
-            size="small"
-            label="Acomodo"
-            value={floorplan.seatingMode}
-            disabled={readOnly || editing}
-            onChange={(event) => requestSeatingModeChange(event.target.value as 'TABLE' | 'SEAT')}
-            sx={{ minWidth: 148 }}
-          >
-            <MenuItem value="TABLE">Por mesa</MenuItem>
-            <MenuItem value="SEAT">Por lugar exacto</MenuItem>
-          </TextField>
-          <UploadButton label="Cambiar plano" disabled={readOnly || editing} onFile={requestUpload} />
+          {finalized ? (
+            <Chip label={floorplan.seatingMode === 'TABLE' ? 'Por mesa' : 'Por lugar exacto'} variant="outlined" />
+          ) : (
+            <TextField
+              select
+              size="small"
+              label="Acomodo"
+              value={floorplan.seatingMode}
+              disabled={readOnly || editing}
+              onChange={(event) => requestSeatingModeChange(event.target.value as 'TABLE' | 'SEAT')}
+              sx={{ minWidth: 148 }}
+            >
+              <MenuItem value="TABLE">Por mesa</MenuItem>
+              <MenuItem value="SEAT">Por lugar exacto</MenuItem>
+            </TextField>
+          )}
+          {!finalized ? <UploadButton label="Cambiar plano" disabled={readOnly || editing} onFile={requestUpload} /> : null}
           <Button
             variant={floorplan.locked ? 'contained' : 'outlined'}
             startIcon={floorplan.locked ? <LockOpenRounded /> : <LockRounded />}
@@ -944,23 +949,25 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
           display: 'grid',
           gridTemplateColumns: {
             xs: 'minmax(0, 1fr)',
-            lg: inspector ? '248px minmax(0, 1fr) 320px' : '248px minmax(0, 1fr)'
+            lg: finalized ? 'minmax(0, 1fr)' : inspector ? '248px minmax(0, 1fr) 320px' : '248px minmax(0, 1fr)'
           },
           gap: 1.5,
           alignItems: 'start'
         }}
       >
-        <Box component="aside" sx={{ px: 0.5, display: { xs: 'none', lg: 'block' } }}>
-          <Stack spacing={1.5}>
-            <Palette
-              selectedPresetId={selectedPresetId}
-              disabled={readOnly || mode === 'editing-existing'}
-              onSelect={selectPreset}
-              onInventory={() => setInventoryOpen(true)}
-            />
-            {!compactLayout && inventoryOpen ? inventory : null}
-          </Stack>
-        </Box>
+        {!finalized ? (
+          <Box component="aside" sx={{ px: 0.5, display: { xs: 'none', lg: 'block' } }}>
+            <Stack spacing={1.5}>
+              <Palette
+                selectedPresetId={selectedPresetId}
+                disabled={readOnly || mode === 'editing-existing'}
+                onSelect={selectPreset}
+                onInventory={() => setInventoryOpen(true)}
+              />
+              {!compactLayout && inventoryOpen ? inventory : null}
+            </Stack>
+          </Box>
+        ) : null}
         <Box sx={{ minWidth: 0 }}>
           {svgSourceError ? (
             <Alert severity="warning" sx={{ mb: 1 }}>
@@ -982,7 +989,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
                 : 'Haz click o toca el punto del plano donde quieres colocar el elemento.'}
             </Alert>
           ) : null}
-          {floorplan.seatingMode === 'SEAT' && selected?.kind === 'TABLE' ? (
+          {!finalized && floorplan.seatingMode === 'SEAT' && selected?.kind === 'TABLE' ? (
             <Stack spacing={1} sx={{ mb: 1 }}>
               <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap' }}>
                 <Button size="small" variant="outlined" disabled={readOnly || mode === 'placing-seat'} onClick={addSeat}>
@@ -1074,7 +1081,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
               selectedSourceElementId={selectedSourceElementId}
               onSourceSelect={selectSource}
               dock={
-                !floorplan.locked && mode === 'idle' ? (
+                !finalized && mode === 'idle' ? (
                   <FloorplanTray
                     tables={pendingTables}
                     activeId={activePendingId}
@@ -1095,23 +1102,25 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
             </Paper>
           )}
         </Box>
-        {inspector ? (
+        {!finalized && inspector ? (
           <Box component="aside" sx={{ display: { xs: 'none', lg: 'block' } }}>
             {inspector}
           </Box>
         ) : null}
       </Box>
-      <Stack direction="row" spacing={1} sx={{ display: { xs: 'flex', lg: 'none' }, flexWrap: 'wrap' }}>
-        <Palette
-          selectedPresetId={selectedPresetId}
-          disabled={readOnly || mode === 'editing-existing'}
-          onSelect={selectPreset}
-          onInventory={() => setInventoryOpen(true)}
-        />
-      </Stack>
+      {!finalized ? (
+        <Stack direction="row" spacing={1} sx={{ display: { xs: 'flex', lg: 'none' }, flexWrap: 'wrap' }}>
+          <Palette
+            selectedPresetId={selectedPresetId}
+            disabled={readOnly || mode === 'editing-existing'}
+            onSelect={selectPreset}
+            onInventory={() => setInventoryOpen(true)}
+          />
+        </Stack>
+      ) : null}
       <Drawer
         anchor="bottom"
-        open={compactLayout && inventoryOpen}
+        open={!finalized && compactLayout && inventoryOpen}
         onClose={() => setInventoryOpen(false)}
         slotProps={{ paper: { sx: { p: 2, maxHeight: '82vh', borderRadius: '22px 22px 0 0' } } }}
       >
