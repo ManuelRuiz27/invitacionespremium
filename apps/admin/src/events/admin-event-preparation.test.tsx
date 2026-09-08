@@ -74,7 +74,9 @@ describe('Admin Event preparation surfaces', () => {
     await screen.findByTestId('admin-floorplan-surface', {}, { timeout: 10_000 });
     await waitFor(() => expect(floorplanHarness.props?.svgSource).toBeDefined());
     act(() => (floorplanHarness.props!.onSourceSelect as (id: string) => void)('private-circle'));
-    expect(await screen.findByRole('heading', { name: '¿Qué representa?' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Clasificar Mesa' })).toBeInTheDocument();
+    expect(screen.getByText('Nuevo elemento del plano')).toBeInTheDocument();
+    expect(screen.getByText('Guarda o cancela antes de seleccionar otro elemento.')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText(/^Nombre/), { target: { value: 'Mesa Principal' } });
     await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
     await waitFor(() => expect(api.adminEventPreparation.mapFloorplanSvgElement).toHaveBeenCalledWith(adminEvent.clientId, adminEvent.id, {
@@ -84,7 +86,11 @@ describe('Admin Event preparation surfaces', () => {
     expect(screen.queryByLabelText('Forma')).not.toBeInTheDocument();
     expect(floorplanHarness.props?.draft).toBeUndefined();
     expect(screen.queryByText('private-circle')).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Desvincular' }));
+    expect(screen.getByRole('heading', { name: 'Editar Mesa Principal' })).toBeInTheDocument();
+    expect(screen.getByText('Elemento vinculado al plano')).toBeInTheDocument();
+    expect(screen.queryByText('Mesa seleccionada')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Más opciones' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Desvincular del plano' }));
     await waitFor(() => expect(api.adminEventPreparation.unlinkFloorplanSvgMapping).toHaveBeenCalledWith(adminEvent.clientId, adminEvent.id, mapped.id));
     expect(api.adminEventPreparation.removeFloorplanShape).not.toHaveBeenCalled();
     expect(api.adminEventPreparation.removeFloorplanSeat).not.toHaveBeenCalled();

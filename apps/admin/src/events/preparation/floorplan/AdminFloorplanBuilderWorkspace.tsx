@@ -811,7 +811,17 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   const inspector = !finalized && mode === 'mapping-source' ? (
     <Paper component="section" variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
       <Stack spacing={2}>
-        <Typography component="h3" variant="h6">¿Qué representa?</Typography>
+        <Box>
+          <Typography component="h3" variant="h6">
+            Clasificar {mappingName.trim() || mappingPreset}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Nuevo elemento del plano
+          </Typography>
+        </Box>
+        <Typography variant="body2" color="text.secondary">
+          Guarda o cancela antes de seleccionar otro elemento.
+        </Typography>
         <TextField select label="Tipo de elemento" value={mappingPreset} disabled={readOnly} onChange={(event) => {
           setMappingPreset(event.target.value);
           setMappingName(createUniqueFloorplanName(event.target.value, floorplan.shapes.map((shape) => shape.name)));
@@ -1258,18 +1268,34 @@ function ShapeInspector({
   onDelete?: () => void;
   onCancel: () => void;
 }) {
+  const [moreOptionsOpen, setMoreOptionsOpen] = useState(false);
   const table = value.kind === 'TABLE';
+  const objectName = value.name || (table ? 'Mesa' : 'Zona');
   return (
     <Paper component="section" variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
       <Stack spacing={2}>
         <Box>
-          <Typography variant="overline" color="text.secondary">
-            {mode === 'creating-draft' ? 'Nuevo elemento' : table ? 'Mesa seleccionada' : 'Zona seleccionada'}
-          </Typography>
-          <Typography component="h3" variant="h6">
-            {table ? 'Mesa' : 'Zona'}
-          </Typography>
+          {mapped ? (
+            <>
+              <Typography component="h3" variant="h6">Editar {objectName}</Typography>
+              <Typography variant="body2" color="text.secondary">Elemento vinculado al plano</Typography>
+            </>
+          ) : (
+            <>
+              <Typography variant="overline" color="text.secondary">
+                {mode === 'creating-draft' ? 'Nuevo elemento' : table ? 'Mesa seleccionada' : 'Zona seleccionada'}
+              </Typography>
+              <Typography component="h3" variant="h6">
+                {table ? 'Mesa' : 'Zona'}
+              </Typography>
+            </>
+          )}
         </Box>
+        {mapped ? (
+          <Typography variant="body2" color="text.secondary">
+            Guarda o cancela antes de seleccionar otro elemento.
+          </Typography>
+        ) : null}
         <TextField
           label={table ? 'Nombre o número' : 'Nombre de zona'}
           value={value.name}
@@ -1318,7 +1344,18 @@ function ShapeInspector({
               </MenuItem>
             ))}
         </TextField>}
-        {onUnlink ? <Button disabled={disabled} onClick={onUnlink}>Desvincular</Button> : null}
+        {onUnlink ? (
+          <Stack spacing={0.5} sx={{ alignItems: 'flex-start' }}>
+            <Button size="small" disabled={disabled} onClick={() => setMoreOptionsOpen((open) => !open)}>
+              Más opciones
+            </Button>
+            {moreOptionsOpen ? (
+              <Button size="small" disabled={disabled} onClick={onUnlink}>
+                Desvincular del plano
+              </Button>
+            ) : null}
+          </Stack>
+        ) : null}
         <Stack direction="row" spacing={1}>
           <Button variant="contained" disabled={disabled} onClick={onSave} sx={{ minHeight: 44, flex: 1 }}>
             {mode === 'creating-draft' ? `Agregar ${table ? 'mesa' : 'zona'}` : 'Guardar cambios'}
