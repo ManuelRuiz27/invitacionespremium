@@ -109,6 +109,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   const [selectedSeatId, setSelectedSeatId] = useState<string>();
   const [selectedSeatIds, setSelectedSeatIds] = useState<string[]>([]);
   const [svgSource, setSvgSource] = useState<AdminFloorplanSvgSource>();
+  const [svgSourceError, setSvgSourceError] = useState(false);
   const [selectedSourceElementId, setSelectedSourceElementId] = useState<string>();
   const [mappingPreset, setMappingPreset] = useState<string>('Mesa');
   const [mappingName, setMappingName] = useState('Mesa');
@@ -122,6 +123,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   const [selectedPresetId, setSelectedPresetId] = useState<FloorplanStickerPresetId>();
   const [mutation, setMutation] = useState<Mutation>();
   const [message, setMessage] = useState<string>();
+  const [validationMessage, setValidationMessage] = useState<string>();
   const [reconciliationError, setReconciliationError] = useState(false);
   const [refreshRequired, setRefreshRequired] = useState(false);
   const [pendingTables, setPendingTables] = useState<PendingTable[]>([]);
@@ -130,7 +132,11 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const theme = useTheme();
   const compactLayout = useMediaQuery(theme.breakpoints.down('lg'));
-  const imageUrl = useAdminFloorplanImageUrl(apiClient, event, floorplan?.image.fileAssetId);
+  const { url: imageUrl, failed: imageLoadFailed } = useAdminFloorplanImageUrl(
+    apiClient,
+    event,
+    floorplan?.image.fileAssetId
+  );
 
   const load = useCallback(
     async (signal?: AbortSignal) => {
@@ -163,11 +169,26 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   }, [event.floorplanEnabled, load]);
 
   useEffect(() => {
-    if (floorplan?.image.sourceType !== 'SVG') { setSvgSource(undefined); setSelectedSourceElementId(undefined); return; }
+    if (floorplan?.image.sourceType !== 'SVG') {
+      setSvgSource(undefined);
+      setSvgSourceError(false);
+      setSelectedSourceElementId(undefined);
+      return;
+    }
     const controller = new AbortController();
+    setSvgSource(undefined);
+    setSvgSourceError(false);
     void apiClient.adminEventPreparation.getFloorplanSvgSource(event.clientId, event.id, controller.signal)
-      .then((source) => { if (!controller.signal.aborted) setSvgSource(source); })
-      .catch(() => { if (!controller.signal.aborted) setSvgSource(undefined); });
+      .then((source) => {
+        if (controller.signal.aborted) return;
+        setSvgSource(source);
+        setSvgSourceError(false);
+      })
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        setSvgSource(undefined);
+        setSvgSourceError(true);
+      });
     return () => controller.abort();
   }, [apiClient, event.clientId, event.id, floorplan?.image.sourceType, floorplan?.image.fileAssetId]);
 
@@ -182,6 +203,10 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     mode === 'creating-draft' ||
     (mode === 'editing-existing' && Boolean(selected) && !sameShapeInput(draft, editable(selected!))) ||
     pendingTables.length > 0;
+  const showValidationMessage = (text: string) => {
+    setMessage(undefined);
+    setValidationMessage(text);
+  };
   const navigationBlocker = useBlocker(dirty);
   const places =
     floorplan?.shapes.filter((shape) => shape.kind === 'TABLE').reduce((total, shape) => total + shape.capacity, 0) ??
@@ -265,6 +290,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     mutationLock.current = true;
     setMutation(kind);
     setMessage(undefined);
+    setValidationMessage(undefined);
     try {
       return await operation();
     } catch (cause) {
@@ -346,9 +372,9 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   const mapSource = async () => {
     if (!floorplan || !selectedSourceElementId || readOnly || refreshRequired || reconciliationError) return;
     const table = mappingPreset === 'Mesa';
-    if (!mappingName.trim()) { setMessage('Escribe el nombre del elemento.'); return; }
+    if (!mappingName.trim()) { showValidationMessage('Escribe el nombre del elemento.'); return; }
     if (table && floorplan.seatingMode === 'TABLE' && (!Number.isInteger(mappingCapacity) || mappingCapacity < 1)) {
-      setMessage('Indica un número de lugares mayor a cero.'); return;
+      showValidationMessage('Indica un número de lugares mayor a cero.'); return;
     }
     const saved = await runMutation('saving', () => apiClient.adminEventPreparation.mapFloorplanSvgElement(event.clientId, event.id, {
       sourceElementId: selectedSourceElementId,
@@ -519,7 +545,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   const upload = async (file: File, confirmSvgMappingDetach = false) => {
     const svg = file.type === 'image/svg+xml';
     if (!svg && !['image/jpeg', 'image/png'].includes(file.type)) {
-      setMessage('Selecciona una imagen JPG, PNG o SVG.');
+      showValidationMessage('Selecciona una imagen JPG, PNG o SVG.');
       return;
     }
     const updated = await runMutation('uploading', async () => {
@@ -541,7 +567,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   };
   const requestUpload = async (file: File) => {
     if (!['image/jpeg', 'image/png', 'image/svg+xml'].includes(file.type)) {
-      setMessage('Selecciona una imagen JPG, PNG o SVG.');
+      showValidationMessage('Selecciona una imagen JPG, PNG o SVG.');
       return;
     }
     const mappedSvg = floorplan?.image.sourceType === 'SVG' && floorplan.shapes.some((shape) => shape.sourceElementId);
@@ -553,18 +579,18 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   };
   const save = async () => {
     if (!draft.name.trim()) {
-      setMessage(draft.kind === 'TABLE' ? 'Escribe el nombre o número de la mesa.' : 'Escribe el nombre de la zona.');
+      showValidationMessage(draft.kind === 'TABLE' ? 'Escribe el nombre o número de la mesa.' : 'Escribe el nombre de la zona.');
       return;
     }
     if (draft.kind === 'TABLE' && (!Number.isInteger(draft.capacity) || draft.capacity < 1)) {
-      setMessage('Indica un número de lugares mayor a cero.');
+      showValidationMessage('Indica un número de lugares mayor a cero.');
       return;
     }
     let normalized: AdminFloorplanShapeInput;
     try {
       normalized = normalizeFloorplanShape({ ...draft, name: draft.name.trim() });
     } catch (cause) {
-      setMessage(
+      showValidationMessage(
         cause instanceof FloorplanShapeValidationError
           ? 'Ajusta la forma para que permanezca dentro del plano.'
           : 'No pudimos preparar este elemento.'
@@ -635,7 +661,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     if (!floorplan || editing || readOnly) return;
     const requested = configurations.reduce((total, configuration) => total + configuration.quantity, 0);
     if (pendingTables.length + requested > 200) {
-      setMessage('El inventario puede contener hasta 200 mesas pendientes.');
+      showValidationMessage('El inventario puede contener hasta 200 mesas pendientes.');
       return;
     }
     const reserved = [...floorplan.shapes, ...pendingTables.map((table) => table.input)];
@@ -755,7 +781,8 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
             disabled={pending}
             onFile={requestUpload}
           />
-          {message ? <Alert severity="warning">{message}</Alert> : null}
+          {validationMessage ? <Alert severity="warning">{validationMessage}</Alert> : null}
+          {message ? <Alert severity="error">{message}</Alert> : null}
           {refreshRequired ? (
             <Alert
               severity="warning"
@@ -836,7 +863,11 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
             label={
               mutation
                 ? 'Guardando...'
-                : message || reconciliationError || refreshRequired
+                : reconciliationError
+                  ? 'Guardado · falta actualizar'
+                  : validationMessage
+                    ? 'Revisa los datos'
+                    : message || refreshRequired
                   ? 'Error al guardar'
                   : dirty
                     ? 'Cambios sin guardar'
@@ -845,7 +876,9 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
             color={
               mutation
                 ? 'warning'
-                : message || reconciliationError || refreshRequired
+                : reconciliationError || validationMessage
+                  ? 'warning'
+                  : message || refreshRequired
                   ? 'error'
                   : dirty
                     ? 'warning'
@@ -879,7 +912,8 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
           </Button>
         </Stack>
       </Stack>
-      {message ? <Alert severity="warning">{message}</Alert> : null}
+      {validationMessage ? <Alert severity="warning">{validationMessage}</Alert> : null}
+      {message ? <Alert severity="error">{message}</Alert> : null}
       {reconciliationError ? (
         <Alert
           severity="warning"
@@ -889,7 +923,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
             </Button>
           }
         >
-          El cambio se guardó, pero no pudimos actualizar el plano. La acción no se repetirá.
+          Guardado · falta actualizar. La acción no se repetirá.
         </Alert>
       ) : null}
       {refreshRequired && !reconciliationError ? (
@@ -928,6 +962,11 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
           </Stack>
         </Box>
         <Box sx={{ minWidth: 0 }}>
+          {svgSourceError ? (
+            <Alert severity="warning" sx={{ mb: 1 }}>
+              No pudimos preparar las áreas editables del SVG.
+            </Alert>
+          ) : null}
           {mode === 'placing-preset' || mode === 'placing-seat' ? (
             <Alert
               severity="info"
@@ -1048,7 +1087,11 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
             />
           ) : (
             <Paper variant="outlined" sx={{ minHeight: 460, display: 'grid', placeItems: 'center', borderRadius: 3 }}>
-              <Typography color="text.secondary">Cargando plano...</Typography>
+              {imageLoadFailed ? (
+                <Alert severity="warning">No pudimos cargar el plano.</Alert>
+              ) : (
+                <Typography color="text.secondary">Cargando plano...</Typography>
+              )}
             </Paper>
           )}
         </Box>
@@ -1332,30 +1375,31 @@ function UploadButton({
 }
 
 function useAdminFloorplanImageUrl(apiClient: ApiClient, event: AdminEvent, assetId?: string) {
-  const [url, setUrl] = useState<string>();
+  const [image, setImage] = useState<{ url?: string; failed: boolean }>({ failed: false });
   useEffect(() => {
     if (!assetId) {
-      setUrl(undefined);
+      setImage({ failed: false });
       return;
     }
     const controller = new AbortController();
     let objectUrl: string | undefined;
+    setImage({ failed: false });
     void apiClient.adminEventPreparation
       .floorplanAssetContent(event.clientId, event.id, assetId, controller.signal)
       .then((blob) => {
         if (controller.signal.aborted) return;
         objectUrl = URL.createObjectURL(blob);
-        setUrl(objectUrl);
+        setImage({ url: objectUrl, failed: false });
       })
       .catch(() => {
-        if (!controller.signal.aborted) setUrl(undefined);
+        if (!controller.signal.aborted) setImage({ failed: true });
       });
     return () => {
       controller.abort();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [apiClient, assetId, event.clientId, event.id]);
-  return url;
+  return image;
 }
 
 function mutationMessage(kind: Mutation, cause: unknown) {

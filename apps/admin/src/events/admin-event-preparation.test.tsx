@@ -397,6 +397,26 @@ describe('Admin Event preparation surfaces', () => {
     expect(api.floorplan.get).not.toHaveBeenCalled();
   });
 
+  it('shows an image-load warning instead of waiting indefinitely for the Croquis', async () => {
+    const api = preparedFloorplanApi();
+    vi.mocked(api.adminEventPreparation.floorplanAssetContent).mockRejectedValue(new Error('asset unavailable'));
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await waitFor(() => expect(api.adminEventPreparation.floorplanAssetContent).toHaveBeenCalledOnce());
+    expect(await screen.findByText('No pudimos cargar el plano.')).toBeInTheDocument();
+    expect(screen.queryByText('Cargando plano...')).not.toBeInTheDocument();
+  });
+
+  it('shows a local warning when SVG metadata cannot load', async () => {
+    const api = preparedFloorplanApi(
+      floorplan({ image: { fileAssetId: 'svg-asset', contentPath: '/private', sourceType: 'SVG' } })
+    );
+    vi.mocked(api.adminEventPreparation.getFloorplanSvgSource).mockRejectedValue(new Error('metadata unavailable'));
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await waitFor(() => expect(api.adminEventPreparation.getFloorplanSvgSource).toHaveBeenCalledOnce());
+    expect(await screen.findByText('No pudimos preparar las áreas editables del SVG.')).toBeInTheDocument();
+    expect(floorplanHarness.props?.svgSource).toBeUndefined();
+  });
+
   it('shows the empty onboarding and creates a Floorplan from an Admin-only upload', async () => {
     const api = mockAdminApi();
     const event = { ...adminEvent, floorplanEnabled: true };
@@ -457,6 +477,7 @@ describe('Admin Event preparation surfaces', () => {
     );
     vi.mocked(api.adminEventPreparation.replaceFloorplanImage).mockResolvedValue(replacement);
     vi.mocked(api.adminEventPreparation.getFloorplan).mockResolvedValueOnce(current).mockResolvedValue(replacement);
+    vi.mocked(api.adminEventPreparation.getFloorplanSvgSource).mockResolvedValue(svgSource('svg-replacement'));
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
     const button = await screen.findByRole('button', { name: 'Cambiar plano' });
     await userEvent.upload(button.querySelector('input')!, new File(['<svg/>'], 'salon.svg', { type: 'image/svg+xml' }));
@@ -671,16 +692,20 @@ describe('Admin Event preparation surfaces', () => {
     vi.mocked(api.adminEventPreparation.createFloorplanShape).mockResolvedValue(shape());
     vi.mocked(api.adminEventPreparation.getFloorplan)
       .mockResolvedValueOnce(floorplan())
-      .mockRejectedValueOnce(new Error('refresh'));
+      .mockRejectedValueOnce(new Error('refresh'))
+      .mockResolvedValueOnce(floorplan({ shapes: [shape({ name: 'Mesa confirmada' })] }));
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
     await chooseStickerAndPlace('Mesa redonda');
     const input = (await screen.findAllByLabelText('Nombre o número')).at(-1)!;
     await userEvent.clear(input);
     await userEvent.type(input, 'Mesa confirmada');
     await userEvent.click(enabledButton('Agregar mesa'));
-    expect(await screen.findByText(/El cambio se guardó/)).toBeInTheDocument();
+    expect(await screen.findByText('Guardado · falta actualizar')).toBeInTheDocument();
+    expect(screen.queryByText('Error al guardar')).not.toBeInTheDocument();
     expect(api.adminEventPreparation.createFloorplanShape).toHaveBeenCalledOnce();
     await userEvent.click(screen.getByRole('button', { name: 'Actualizar plano' }));
+    await waitFor(() => expect(screen.queryByText('Guardado · falta actualizar')).not.toBeInTheDocument());
+    expect(screen.getByText('Guardado')).toBeInTheDocument();
     expect(api.adminEventPreparation.createFloorplanShape).toHaveBeenCalledOnce();
   });
 
@@ -698,7 +723,7 @@ describe('Admin Event preparation surfaces', () => {
     await userEvent.clear(name);
     await userEvent.type(name, 'Mesa guardada');
     await userEvent.click(enabledButton('Guardar cambios'));
-    expect(await screen.findByText(/El cambio se guardó/)).toBeInTheDocument();
+    expect(await screen.findByText('Guardado · falta actualizar')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Actualizar plano' }));
     expect(api.adminEventPreparation.updateFloorplanShape).toHaveBeenCalledOnce();
     expect(api.adminEventPreparation.getFloorplan).toHaveBeenCalledTimes(3);
@@ -715,7 +740,7 @@ describe('Admin Event preparation surfaces', () => {
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
     await userEvent.click(await screen.findByRole('button', { name: table.name }));
     await userEvent.click(enabledButton('Eliminar mesa'));
-    expect(await screen.findByText(/El cambio se guardó/)).toBeInTheDocument();
+    expect(await screen.findByText('Guardado · falta actualizar')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Actualizar plano' }));
     expect(api.adminEventPreparation.removeFloorplanShape).toHaveBeenCalledOnce();
     expect(api.adminEventPreparation.getFloorplan).toHaveBeenCalledTimes(3);
@@ -732,7 +757,7 @@ describe('Admin Event preparation surfaces', () => {
       .mockResolvedValueOnce(locked);
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
     await userEvent.click(await screen.findByRole('button', { name: 'Finalizar distribución' }));
-    expect(await screen.findByText(/El cambio se guardó/)).toBeInTheDocument();
+    expect(await screen.findByText('Guardado · falta actualizar')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Actualizar plano' }));
     expect(api.adminEventPreparation.lockFloorplan).toHaveBeenCalledOnce();
     expect(api.adminEventPreparation.getFloorplan).toHaveBeenCalledTimes(3);
@@ -749,7 +774,7 @@ describe('Admin Event preparation surfaces', () => {
       .mockResolvedValueOnce(unlocked);
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
     await userEvent.click(await screen.findByRole('button', { name: 'Editar distribución' }));
-    expect(await screen.findByText(/El cambio se guardó/)).toBeInTheDocument();
+    expect(await screen.findByText('Guardado · falta actualizar')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Actualizar plano' }));
     expect(api.adminEventPreparation.unlockFloorplan).toHaveBeenCalledOnce();
     expect(api.adminEventPreparation.getFloorplan).toHaveBeenCalledTimes(3);
@@ -901,7 +926,7 @@ describe('Admin Event preparation surfaces', () => {
       within(await screen.findByTestId('admin-floorplan-surface')).getByRole('button', { name: table.name })
     );
     await userEvent.click((await screen.findAllByRole('button', { name: 'Duplicar' })).at(-1)!);
-    expect(await screen.findByText(/El cambio se guardó/)).toBeInTheDocument();
+    expect(await screen.findByText('Guardado · falta actualizar')).toBeInTheDocument();
     expect(api.adminEventPreparation.createFloorplanShape).toHaveBeenCalledOnce();
     const payload = vi.mocked(api.adminEventPreparation.createFloorplanShape).mock.calls[0]![2];
     expect(payload).toEqual(
@@ -1088,7 +1113,7 @@ describe('Admin Event preparation surfaces', () => {
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
     const button = await screen.findByRole('button', { name: 'Cambiar plano' });
     await userEvent.upload(button.querySelector('input')!, new File(['next'], 'nuevo.jpg', { type: 'image/jpeg' }));
-    expect(await screen.findByText(/El cambio se guardó/)).toBeInTheDocument();
+    expect(await screen.findByText('Guardado · falta actualizar')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Actualizar plano' }));
     expect(api.adminEventPreparation.uploadFloorplanAsset).toHaveBeenCalledOnce();
     expect(api.adminEventPreparation.replaceFloorplanImage).toHaveBeenCalledOnce();
