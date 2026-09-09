@@ -63,7 +63,7 @@ describe('FloorplanDomRenderer', () => {
       svgSource={{ selectableElements: [{ sourceElementId: 'private-source-id', bbox: mapped }] }}
       selectedId={mapped.id} draft={mapped} disabled={false} showSeats={false} snap={false}
       onSelect={onSelect} onDraftChange={vi.fn()} />);
-    const element = screen.getByRole('button', { name: 'Mesa Mesa SVG, Vacía · 0 de 8, Seleccionada' });
+    const element = screen.getByRole('button', { name: 'Mesa SVG, Vacía · 0 de 8, Seleccionada' });
     expect(element).toHaveAttribute('aria-pressed', 'true');
     expect(getComputedStyle(element).backgroundColor).toBe('rgba(0, 0, 0, 0)');
     expect(screen.getByText('Vacía · 0 de 8 · Seleccionada')).toBeInTheDocument();
@@ -74,7 +74,7 @@ describe('FloorplanDomRenderer', () => {
     view.rerender(<FloorplanDomRenderer floorplan={{ ...floorplan, shapes: [table, mapped] }} imageUrl="blob:svg"
       svgSource={{ selectableElements: [{ sourceElementId: 'private-source-id', bbox: mapped }] }}
       disabled={false} showSeats={false} snap={false} onSelect={onSelect} onDraftChange={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Mesa Mesa SVG, Vacía · 0 de 8' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mesa SVG, Vacía · 0 de 8' }));
     expect(onSelect).toHaveBeenCalledWith(mapped);
   });
 
@@ -91,7 +91,7 @@ describe('FloorplanDomRenderer', () => {
     expect(screen.getByText('Parcial · 2 de 4')).toBeInTheDocument();
     view.rerender(renderMapped({ ...mapped, occupancy: 4, availableCapacity: 0 }, { selectedId: mapped.id, disabled: true, readOnly: true }));
     expect(screen.getByText('Completa · 4 de 4 · Seleccionada · Solo lectura')).toBeInTheDocument();
-    const state = screen.getByRole('button', { name: 'Mesa Mesa SVG, Completa · 4 de 4, Seleccionada, Solo lectura' });
+    const state = screen.getByRole('button', { name: 'Mesa SVG, Completa · 4 de 4, Seleccionada, Solo lectura' });
     expect(state).toBeDisabled();
     expect(getComputedStyle(state).backgroundColor).toBe('rgba(0, 0, 0, 0)');
   });

@@ -221,7 +221,7 @@ export function FloorplanSurface(props: FloorplanSurfaceProps) {
         sx={{ borderTop: `1px solid ${floorplanColors.line}`, bgcolor: floorplanColors.paper, px: 2, py: 1.25 }}
       >
         <Typography component="summary" id="floorplan-elements-title" variant="subtitle2" sx={{ cursor: 'pointer' }}>
-          Lista accesible del plano ({props.floorplan.shapes.length})
+          Mesas y zonas ({props.floorplan.shapes.length})
         </Typography>
         <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap', pt: 1.25 }}>
           {props.floorplan.shapes.map((shape) => (
@@ -233,13 +233,18 @@ export function FloorplanSurface(props: FloorplanSurfaceProps) {
               onClick={() => props.onSelect(shape)}
               sx={{ minHeight: 44 }}
             >
-              {shape.kind === 'TABLE' ? `Mesa ${shape.name} · ${shape.capacity}` : `Zona ${shape.name}`}
+              {shape.kind === 'TABLE' ? `${tableDisplayName(shape.name)} · ${shape.capacity}` : `Zona ${shape.name}`}
             </Button>
           ))}
         </Stack>
       </Box>
     </Box>
   );
+}
+
+function tableDisplayName(name: string) {
+  const trimmed = name.trim();
+  return /^mesa\b/i.test(trimmed) ? trimmed : `Mesa ${trimmed}`;
 }
 
 function sameFloorplanDraft(left: FloorplanShapeInput, right: FloorplanShapeInput) {

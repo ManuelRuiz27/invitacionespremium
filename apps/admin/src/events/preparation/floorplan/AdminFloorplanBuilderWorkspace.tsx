@@ -129,6 +129,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   const [pendingTables, setPendingTables] = useState<PendingTable[]>([]);
   const [activePendingId, setActivePendingId] = useState<string>();
   const [inventoryOpen, setInventoryOpen] = useState(false);
+  const [compactCatalogOpen, setCompactCatalogOpen] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const theme = useTheme();
   const compactLayout = useMediaQuery(theme.breakpoints.down('lg'));
@@ -808,6 +809,16 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
       onCreate={createInventory}
     />
   );
+  const compactInventory = (
+    <FloorplanInventory
+      disabled={readOnly || editing}
+      maxTables={200 - pendingTables.length}
+      onCreate={(configurations) => {
+        createInventory(configurations);
+        setCompactCatalogOpen(false);
+      }}
+    />
+  );
   const inspector = !finalized && mode === 'mapping-source' ? (
     <Paper component="section" variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
       <Stack spacing={2}>
@@ -1119,22 +1130,40 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
         ) : null}
       </Box>
       {!finalized ? (
-        <Stack direction="row" spacing={1} sx={{ display: { xs: 'flex', lg: 'none' }, flexWrap: 'wrap' }}>
-          <Palette
-            selectedPresetId={selectedPresetId}
+        <Box sx={{ display: { xs: 'block', lg: 'none' } }}>
+          <Button
+            variant="outlined"
+            startIcon={<TableRestaurantRounded />}
             disabled={readOnly || mode === 'editing-existing'}
-            onSelect={selectPreset}
-            onInventory={() => setInventoryOpen(true)}
-          />
-        </Stack>
+            onClick={() => setCompactCatalogOpen(true)}
+            sx={{ minHeight: 44 }}
+          >
+            Agregar mesa o zona
+          </Button>
+        </Box>
       ) : null}
       <Drawer
         anchor="bottom"
-        open={!finalized && compactLayout && inventoryOpen}
-        onClose={() => setInventoryOpen(false)}
+        open={!finalized && compactLayout && compactCatalogOpen}
+        onClose={() => setCompactCatalogOpen(false)}
         slotProps={{ paper: { sx: { p: 2, maxHeight: '82vh', borderRadius: '22px 22px 0 0' } } }}
       >
-        {inventory}
+        <Stack spacing={1.5}>
+          <Typography component="h3" variant="h6">
+            Agregar mesa o zona
+          </Typography>
+          <Palette
+            selectedPresetId={selectedPresetId}
+            disabled={readOnly || mode === 'editing-existing'}
+            showInventoryAction={false}
+            onSelect={(presetId) => {
+              selectPreset(presetId);
+              setCompactCatalogOpen(false);
+            }}
+            onInventory={() => undefined}
+          />
+          {compactInventory}
+        </Stack>
       </Drawer>
       <Drawer
         anchor="right"
@@ -1219,26 +1248,30 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
 function Palette({
   selectedPresetId,
   disabled,
+  showInventoryAction = true,
   onSelect,
   onInventory
 }: {
   selectedPresetId?: FloorplanStickerPresetId | undefined;
   disabled: boolean;
+  showInventoryAction?: boolean;
   onSelect: (presetId: FloorplanStickerPresetId) => void;
   onInventory: () => void;
 }) {
   return (
     <Stack spacing={1.25} sx={{ minWidth: 0 }}>
       <FloorplanStickerCatalog selectedId={selectedPresetId} disabled={disabled} onSelect={onSelect} />
-      <Button
-        variant="text"
-        startIcon={<TableRestaurantRounded />}
-        disabled={disabled}
-        onClick={onInventory}
-        sx={{ minHeight: 44, justifyContent: 'flex-start' }}
-      >
-        Crear varias mesas
-      </Button>
+      {showInventoryAction ? (
+        <Button
+          variant="text"
+          startIcon={<TableRestaurantRounded />}
+          disabled={disabled}
+          onClick={onInventory}
+          sx={{ minHeight: 44, justifyContent: 'flex-start' }}
+        >
+          Crear varias mesas
+        </Button>
+      ) : null}
     </Stack>
   );
 }

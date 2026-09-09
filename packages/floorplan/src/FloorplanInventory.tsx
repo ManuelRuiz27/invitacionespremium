@@ -43,38 +43,28 @@ export function FloorplanInventory({
 
   return (
     <Box component="section" aria-labelledby="inventory-title" sx={{ minWidth: 0 }}>
-      <Stack spacing={2}>
+      <Stack spacing={1.5}>
         <Box>
-          <Typography
-            component="p"
-            variant="overline"
-            sx={{ color: 'primary.main', fontWeight: 800, letterSpacing: '0.12em' }}
-          >
-            Mesas por colocar
+          <Typography component="h3" variant="h6" id="inventory-title">
+            Preparar mesas
           </Typography>
-          <Typography component="h3" variant="h4" id="inventory-title">
-            Prepara tus mesas
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            Define tus tipos una vez y arrastra cada mesa al plano.
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+            Define cantidad y lugares para colocarlas en el croquis.
           </Typography>
         </Box>
 
-        <Stack spacing={1.25}>
+        <Stack spacing={1}>
           {configurations.map((configuration, index) => (
             <Box
               key={configuration.id}
               sx={{
-                p: 1.5,
-                borderRadius: 3,
-                border: '1px solid',
-                borderColor: 'divider',
-                bgcolor: 'rgba(255, 254, 251, 0.82)',
-                boxShadow: '0 8px 24px rgba(23, 35, 60, 0.055)'
+                pt: index === 0 ? 0 : 1,
+                borderTop: index === 0 ? 0 : '1px solid',
+                borderColor: 'divider'
               }}
             >
-              <Stack spacing={1.5}>
-                <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
+              <Stack spacing={1.25}>
+                <Stack direction="row" useFlexGap spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
                   <Typography variant="subtitle2">Tipo {index + 1}</Typography>
                   <IconButton
                     aria-label={`Eliminar configuración ${index + 1}`}
@@ -157,7 +147,7 @@ export function FloorplanInventory({
           startIcon={<AddRounded />}
           disabled={disabled || total >= maxTables}
           onClick={() => setConfigurations((current) => [...current, newConfiguration()])}
-          sx={{ alignSelf: 'flex-start', px: 1 }}
+          sx={{ alignSelf: 'flex-start', px: 1, maxWidth: '100%', whiteSpace: 'normal', textAlign: 'left' }}
         >
           Otro tipo de mesa
         </Button>
@@ -165,7 +155,7 @@ export function FloorplanInventory({
         <Divider />
 
         <Stack spacing={1}>
-          <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+          <Stack direction="row" useFlexGap spacing={1} sx={{ justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap' }}>
             <Typography variant="body2" color="text.secondary">
               Total preparado
             </Typography>

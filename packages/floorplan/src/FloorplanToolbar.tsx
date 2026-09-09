@@ -127,12 +127,12 @@ export function FloorplanToolbar({
             </span>
           </Tooltip>
         ) : null}
-        <Tooltip title="Mostrar sillas">
+        <Tooltip title="Mostrar sillas de referencia">
           <ToggleButton
             value="seats"
             selected={showSeats}
             onChange={() => onShowSeatsChange(!showSeats)}
-            aria-label="Mostrar sillas"
+            aria-label="Mostrar sillas de referencia"
             sx={toggleSx}
           >
             <ChairAltRounded fontSize="small" />

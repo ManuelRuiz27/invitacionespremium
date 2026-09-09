@@ -43,7 +43,12 @@ export function resolveSvgTableVisualState(
     occupancy,
     occupancyState,
     label: modifiers.join(' · '),
-    accessibleLabel: `Mesa ${shape.name}, ${modifiers.join(', ')}`,
+    accessibleLabel: `${tableDisplayName(shape.name)}, ${modifiers.join(', ')}`,
     borderStyle: options.selected ? 'double' : occupancyState === 'PARTIAL' ? 'dashed' : occupancyState === 'FULL' ? 'double' : 'solid'
   };
+}
+
+function tableDisplayName(name: string) {
+  const trimmed = name.trim();
+  return /^mesa\b/i.test(trimmed) ? trimmed : `Mesa ${trimmed}`;
 }

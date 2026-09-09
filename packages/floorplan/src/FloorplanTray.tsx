@@ -40,7 +40,7 @@ export function FloorplanTray({
       }}
     >
       <Stack spacing={1.25}>
-        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
+        <Stack direction="row" useFlexGap spacing={1} sx={{ alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap' }}>
           <Box>
             <Typography component="h3" variant="subtitle2" id="tray-title">
               Por colocar · {tables.length}
@@ -55,7 +55,7 @@ export function FloorplanTray({
             startIcon={<AutoAwesomeRounded />}
             disabled={disabled}
             onClick={onAutoPlace}
-            sx={{ minHeight: 44, flexShrink: 0 }}
+            sx={{ minHeight: 44, flexShrink: 0, maxWidth: '100%', whiteSpace: 'normal', textAlign: 'left' }}
           >
             Colocar automáticamente
           </Button>

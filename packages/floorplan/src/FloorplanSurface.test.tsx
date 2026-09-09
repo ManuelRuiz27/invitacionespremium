@@ -98,7 +98,7 @@ describe('FloorplanSurface', () => {
     await waitFor(() => expect(renderer.props?.viewport).toEqual({ scale: 1.2, x: 0, y: 0 }));
     await userEvent.click(screen.getByRole('button', { name: /modo mover plano/ }));
     await userEvent.click(screen.getByRole('button', { name: /ayuda para alinear/ }));
-    await userEvent.click(screen.getByRole('button', { name: /Mostrar sillas/ }));
+    await userEvent.click(screen.getByRole('button', { name: /Mostrar sillas de referencia/ }));
     expect(renderer.props).toEqual(expect.objectContaining({ panEnabled: true, snap: true, showSeats: true }));
     act(() => (renderer.props?.onSelect as (shape: FloorplanShape) => void)(table));
     expect(onSelect).toHaveBeenCalledWith(table);
@@ -138,7 +138,7 @@ describe('FloorplanSurface', () => {
     });
     fireEvent(host, drop);
     expect(onCanvasPlace).toHaveBeenCalledWith({ x: 0.5, y: 0.5 }, 'pending-1');
-    await userEvent.click(screen.getByText(/Lista accesible del plano/));
+    await userEvent.click(screen.getByText(/Mesas y zonas/));
     await userEvent.click(screen.getByRole('button', { name: 'Mesa Uno · 8' }));
     expect(onSelect).toHaveBeenCalledWith(table);
   });

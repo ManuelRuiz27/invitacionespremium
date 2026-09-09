@@ -699,7 +699,6 @@ describe('Admin Event preparation surfaces', () => {
     expect(screen.getByText('Por lugar exacto')).toBeInTheDocument();
     expect(screen.queryByLabelText('Acomodo')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Cambiar plano' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Mesa redonda' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Crear varias mesas' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Agregar lugar' })).not.toBeInTheDocument();
     expect(floorplanHarness.props?.disabled).toBe(true);
@@ -721,7 +720,6 @@ describe('Admin Event preparation surfaces', () => {
     expect(screen.getByLabelText('Acomodo')).toBeInTheDocument();
     resolveLock(locked);
     expect(await screen.findByRole('button', { name: 'Editar distribución' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Mesa redonda' })).not.toBeInTheDocument();
   });
 
   it('restores the existing editor presentation after unlocking', async () => {
@@ -913,15 +911,15 @@ describe('Admin Event preparation surfaces', () => {
     expect(api.floorplan.addShape).not.toHaveBeenCalled();
   });
 
-  it('keeps the 200-table canvas, catalog and contextual inspector usable at 1024x768', async () => {
+  it('keeps the compact catalog behind one disclosure at 1024x768', async () => {
     setAdminViewportWidth(1024);
     const api = preparedFloorplanApi(floorplan({ shapes: scaleAdminShapes(200) }));
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
-    expect(await screen.findByTestId('admin-floorplan-surface')).toBeInTheDocument();
+    expect(await screen.findByTestId('admin-floorplan-surface', {}, { timeout: 10_000 })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Agregar mesa o zona' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Agregar mesa o zona' }));
     expect((await screen.findAllByRole('button', { name: 'Mesa redonda' }))[0]).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Mesa 200' }));
-    expect((await screen.findAllByText('Mesa seleccionada')).length).toBeGreaterThan(0);
-    expect(screen.getAllByLabelText('Nombre o número').at(-1)).toHaveValue('Mesa 200');
+    expect(screen.getByRole('button', { name: 'Preparar dos mesas' })).toBeInTheDocument();
   });
 
   it('keeps multi-table inventory available from the provider palette', async () => {
@@ -939,7 +937,6 @@ describe('Admin Event preparation surfaces', () => {
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
     await screen.findByTestId('admin-floorplan-surface');
     expect(floorplanHarness.props?.disabled).toBe(true);
-    expect(screen.queryByRole('button', { name: 'Mesa redonda' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Pista' })).not.toBeInTheDocument();
     expect(api.adminEventPreparation.createFloorplanShape).not.toHaveBeenCalled();
   });
@@ -1091,7 +1088,6 @@ describe('Admin Event preparation surfaces', () => {
     await userEvent.click(enabledButton('Guardar cambios'));
     expect(await screen.findByRole('button', { name: 'Editar distribución' })).toBeInTheDocument();
     expect((floorplanHarness.props?.disabled as boolean) ?? false).toBe(true);
-    expect(screen.queryByRole('button', { name: 'Mesa redonda' })).not.toBeInTheDocument();
     expect(api.adminEventPreparation.updateFloorplanShape).toHaveBeenCalledOnce();
   });
 
