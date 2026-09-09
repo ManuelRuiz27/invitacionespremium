@@ -146,12 +146,22 @@ export async function seedStaging(
     await prisma.$transaction(async (tx) => {
       await tx.client.upsert({
         where: { id: ids.plannerClient },
-        create: { id: ids.plannerClient, type: ClientType.PLANNER, name: '[STAGING DEMO] Planner' },
+        create: {
+          id: ids.plannerClient,
+          type: ClientType.PLANNER,
+          operatingProfile: 'SELF_SERVICE',
+          name: '[STAGING DEMO] Planner'
+        },
         update: { type: ClientType.PLANNER, name: '[STAGING DEMO] Planner', deletedAt: null }
       });
       await tx.client.upsert({
         where: { id: ids.organizationClient },
-        create: { id: ids.organizationClient, type: ClientType.ORGANIZATION, name: '[STAGING DEMO] Organización' },
+        create: {
+          id: ids.organizationClient,
+          type: ClientType.ORGANIZATION,
+          operatingProfile: 'SELF_SERVICE',
+          name: '[STAGING DEMO] Organización'
+        },
         update: { type: ClientType.ORGANIZATION, name: '[STAGING DEMO] Organización', deletedAt: null }
       });
       await upsertUser(tx, ids.platformAdmin, artifact.users.platformAdmin, UserRole.PLATFORM_ADMIN, null);

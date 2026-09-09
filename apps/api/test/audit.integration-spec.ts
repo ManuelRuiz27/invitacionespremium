@@ -40,7 +40,9 @@ describe('Audit persistence', () => {
 
     const adminEmail = `audit-admin-${randomUUID()}@example.com`;
     const plannerEmail = `audit-planner-${randomUUID()}@example.com`;
-    const client = await prisma.client.create({ data: { name: `Audit ${randomUUID()}`, type: ClientType.PLANNER } });
+    const client = await prisma.client.create({
+      data: { name: `Audit ${randomUUID()}`, type: ClientType.PLANNER, operatingProfile: 'SELF_SERVICE' }
+    });
     await prisma.user.createMany({
       data: [
         { email: adminEmail, passwordHash: await hashPassword(password), role: UserRole.PLATFORM_ADMIN },

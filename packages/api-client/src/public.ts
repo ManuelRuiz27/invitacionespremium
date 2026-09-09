@@ -116,9 +116,7 @@ const isRegisterPlannerResult = (value: unknown): value is RegisterPlannerResult
   isString(value.client.name) &&
   ['ACTIVE', 'SUSPENDED'].includes(String(value.client.status)) &&
   ['PLANNER', 'ORGANIZATION'].includes(String(value.client.type)) &&
-  (value.client.operatingProfile === null ||
-    value.client.operatingProfile === 'MANAGED' ||
-    value.client.operatingProfile === 'SELF_SERVICE') &&
+  (value.client.operatingProfile === 'MANAGED' || value.client.operatingProfile === 'SELF_SERVICE') &&
   (value.client.commercialChannel === null ||
     ['STANDARD', 'PARTNER', 'VENUE'].includes(String(value.client.commercialChannel))) &&
   isString(value.client.createdAt) &&

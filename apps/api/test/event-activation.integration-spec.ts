@@ -716,7 +716,9 @@ describe('Event activation', () => {
   }
 
   async function createClientUser(type: ClientType, role: UserRole, status: ClientStatus = ClientStatus.ACTIVE) {
-    const client = await prisma.client.create({ data: { type, status, name: `Client ${randomUUID()}` } });
+    const client = await prisma.client.create({
+      data: { type, operatingProfile: 'SELF_SERVICE', status, name: `Client ${randomUUID()}` }
+    });
     const user = await createUser(client.id, role);
     return { clientId: client.id, userId: user.userId, email: user.email };
   }

@@ -591,7 +591,7 @@ describe('Finance core', () => {
 
   async function createClientUser(clientType: ClientType, role: UserRole) {
     const client = await prisma.client.create({
-      data: { type: clientType, name: `Finance Client ${randomUUID()}` }
+      data: { type: clientType, operatingProfile: 'SELF_SERVICE', name: `Finance Client ${randomUUID()}` }
     });
     const email = `${randomUUID()}@example.com`;
     const user = await prisma.user.create({

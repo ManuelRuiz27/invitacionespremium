@@ -938,7 +938,7 @@ describe('FileAssets and local storage', () => {
   }
 
   async function createClient(type: ClientType) {
-    return prisma.client.create({ data: { type, name: `Client ${randomUUID()}` } });
+    return prisma.client.create({ data: { type, operatingProfile: 'SELF_SERVICE', name: `Client ${randomUUID()}` } });
   }
 
   async function createUser(clientId: string | null, role: UserRole) {

@@ -93,9 +93,7 @@ function isClient(value: unknown): value is AdminClient {
     typeof value.id === 'string' &&
     typeof value.name === 'string' &&
     (value.type === 'PLANNER' || value.type === 'ORGANIZATION') &&
-    (value.operatingProfile === null ||
-      value.operatingProfile === 'MANAGED' ||
-      value.operatingProfile === 'SELF_SERVICE') &&
+    (value.operatingProfile === 'MANAGED' || value.operatingProfile === 'SELF_SERVICE') &&
     (value.commercialChannel === null || ['STANDARD', 'PARTNER', 'VENUE'].includes(String(value.commercialChannel))) &&
     (value.status === 'ACTIVE' || value.status === 'SUSPENDED') &&
     typeof value.createdAt === 'string'

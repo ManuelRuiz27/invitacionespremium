@@ -137,8 +137,8 @@ export class ClientResponseDto {
   @ApiProperty({ enum: ClientType })
   type!: ClientType;
 
-  @ApiProperty({ enum: ClientOperatingProfile, enumName: 'ClientOperatingProfile', nullable: true })
-  operatingProfile!: ClientOperatingProfile | null;
+  @ApiProperty({ enum: ClientOperatingProfile, enumName: 'ClientOperatingProfile' })
+  operatingProfile!: ClientOperatingProfile;
 
   @ApiProperty({ enum: CommercialChannel, nullable: true })
   commercialChannel!: CommercialChannel | null;

@@ -322,7 +322,12 @@ describe('Admin pilot operational observations', () => {
 
   async function createFixture(): Promise<Fixture> {
     const client = await prisma.client.create({
-      data: { name: `Piloto ${randomUUID()}`, type: ClientType.PLANNER, status: ClientStatus.ACTIVE }
+      data: {
+        name: `Piloto ${randomUUID()}`,
+        type: ClientType.PLANNER,
+        operatingProfile: 'SELF_SERVICE',
+        status: ClientStatus.ACTIVE
+      }
     });
     const plannerEmail = `${randomUUID()}@example.test`;
     const adminEmail = `${randomUUID()}@example.test`;

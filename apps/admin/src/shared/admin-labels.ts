@@ -5,6 +5,10 @@ export const clientTypeLabel: Record<AdminClient['type'], string> = {
   ORGANIZATION: 'Organizacion'
 };
 export const clientStatusLabel: Record<AdminClient['status'], string> = { ACTIVE: 'Activo', SUSPENDED: 'Suspendido' };
+export const clientOperatingProfileLabel: Record<AdminClient['operatingProfile'], string> = {
+  MANAGED: 'Gestionado',
+  SELF_SERVICE: 'Autoservicio'
+};
 export const commercialChannelLabel = {
   STANDARD: 'Estándar / PVP',
   PARTNER: 'Planner / agencia partner',

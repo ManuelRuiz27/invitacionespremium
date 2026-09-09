@@ -292,7 +292,9 @@ describe('OP-02C provider Invitation FileAssets', () => {
   });
 
   async function createFixture() {
-    const client = await prisma.client.create({ data: { type: ClientType.PLANNER, name: `Client ${randomUUID()}` } });
+    const client = await prisma.client.create({
+      data: { type: ClientType.PLANNER, operatingProfile: 'SELF_SERVICE', name: `Client ${randomUUID()}` }
+    });
     const plannerEmail = `${randomUUID()}@example.com`;
     const adminEmail = `${randomUUID()}@example.com`;
     const passwordHash = await hashPassword(password);

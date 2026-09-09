@@ -201,7 +201,9 @@ describe('LAND-02 commercial lead intake', () => {
     const client =
       role === UserRole.PLATFORM_ADMIN
         ? null
-        : await prisma.client.create({ data: { name: `LAND02 test ${randomUUID()}`, type: ClientType.PLANNER } });
+        : await prisma.client.create({
+            data: { name: `LAND02 test ${randomUUID()}`, type: ClientType.PLANNER, operatingProfile: 'SELF_SERVICE' }
+          });
     await prisma.user.create({
       data: { email, passwordHash: await hashPassword(password), role, clientId: client?.id ?? null }
     });

@@ -15,7 +15,7 @@ export const independentUser = {
   role: 'INDEPENDENT_PLANNER',
   clientId: '7ae8117e-22df-41a8-8cbc-64778ea1a3b1',
   clientType: 'PLANNER',
-  clientOperatingProfile: null,
+  clientOperatingProfile: 'SELF_SERVICE',
   clientStatus: 'ACTIVE'
 } satisfies AuthUser;
 

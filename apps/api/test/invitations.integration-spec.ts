@@ -164,7 +164,7 @@ describe('Invitations and nominal assistants', () => {
     const independent = await createClientUser(UserRole.INDEPENDENT_PLANNER);
     const outsider = await createClientUser(UserRole.INDEPENDENT_PLANNER);
     const organization = await prisma.client.create({
-      data: { type: ClientType.ORGANIZATION, name: `Organization ${randomUUID()}` }
+      data: { type: ClientType.ORGANIZATION, operatingProfile: 'SELF_SERVICE', name: `Organization ${randomUUID()}` }
     });
     const admin = await createUser(organization.id, UserRole.ORGANIZATION_ADMIN);
     const planner = await createUser(organization.id, UserRole.ORGANIZATION_PLANNER);
@@ -366,7 +366,7 @@ describe('Invitations and nominal assistants', () => {
     await expectCancellationActorRejected(independentInvitations[2]!.id, owner.userId, 'actor-deleted-user');
 
     const organization = await prisma.client.create({
-      data: { type: ClientType.ORGANIZATION, name: `Organization ${randomUUID()}` }
+      data: { type: ClientType.ORGANIZATION, operatingProfile: 'SELF_SERVICE', name: `Organization ${randomUUID()}` }
     });
     const creator = await createUser(organization.id, UserRole.ORGANIZATION_PLANNER);
     const colleague = await createUser(organization.id, UserRole.ORGANIZATION_PLANNER);
@@ -650,7 +650,9 @@ describe('Invitations and nominal assistants', () => {
   }
 
   async function createClientUser(role: UserRole, type: ClientType = ClientType.PLANNER) {
-    const client = await prisma.client.create({ data: { type, name: `Client ${randomUUID()}` } });
+    const client = await prisma.client.create({
+      data: { type, operatingProfile: 'SELF_SERVICE', name: `Client ${randomUUID()}` }
+    });
     const user = await createUser(client.id, role);
     return { clientId: client.id, userId: user.userId, email: user.email };
   }

@@ -54,11 +54,21 @@ describe('PILOT-03 paid commercial journeys', () => {
   it('certifies Partner Flyer 80 from LAND-02 through immutable activation, Staff and economics', async () => {
     const admin = await createUser(null, UserRole.PLATFORM_ADMIN);
     const client = await prisma.client.create({
-      data: { name: 'UAT Partner', type: ClientType.PLANNER, status: ClientStatus.ACTIVE }
+      data: {
+        name: 'UAT Partner',
+        type: ClientType.PLANNER,
+        operatingProfile: 'SELF_SERVICE',
+        status: ClientStatus.ACTIVE
+      }
     });
     const planner = await createUser(client.id, UserRole.INDEPENDENT_PLANNER);
     const foreignClient = await prisma.client.create({
-      data: { name: 'UAT Foreign', type: ClientType.PLANNER, status: ClientStatus.ACTIVE }
+      data: {
+        name: 'UAT Foreign',
+        type: ClientType.PLANNER,
+        operatingProfile: 'SELF_SERVICE',
+        status: ClientStatus.ACTIVE
+      }
     });
     const foreignPlanner = await createUser(foreignClient.id, UserRole.INDEPENDENT_PLANNER);
     const adminCookie = await login(admin.email);
@@ -233,7 +243,12 @@ describe('PILOT-03 paid commercial journeys', () => {
   it('certifies Venue QR with calendar M-1 volume, refund exclusion, assignment and no digital product leakage', async () => {
     const admin = await createUser(null, UserRole.PLATFORM_ADMIN);
     const client = await prisma.client.create({
-      data: { name: 'UAT Venue', type: ClientType.ORGANIZATION, status: ClientStatus.ACTIVE }
+      data: {
+        name: 'UAT Venue',
+        type: ClientType.ORGANIZATION,
+        operatingProfile: 'SELF_SERVICE',
+        status: ClientStatus.ACTIVE
+      }
     });
     await createUser(client.id, UserRole.ORGANIZATION_ADMIN);
     const plannerA = await createUser(client.id, UserRole.ORGANIZATION_PLANNER);

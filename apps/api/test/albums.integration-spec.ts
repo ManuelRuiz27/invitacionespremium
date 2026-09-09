@@ -600,7 +600,12 @@ describe('Albums', () => {
       .expect(403);
 
     const organization = await prisma.client.create({
-      data: { type: ClientType.ORGANIZATION, name: `OrganizaciÃ³n ${randomUUID()}`, status: ClientStatus.ACTIVE }
+      data: {
+        type: ClientType.ORGANIZATION,
+        operatingProfile: 'SELF_SERVICE',
+        name: `OrganizaciÃ³n ${randomUUID()}`,
+        status: ClientStatus.ACTIVE
+      }
     });
     const organizationAdmin = await createUser(organization.id, UserRole.ORGANIZATION_ADMIN);
     const organizationPlanner = await createUser(organization.id, UserRole.ORGANIZATION_PLANNER);
@@ -1287,7 +1292,7 @@ describe('Albums', () => {
 
   async function createClientUser(type: ClientType, role: UserRole) {
     const client = await prisma.client.create({
-      data: { type, name: `Cliente ${randomUUID()}`, status: ClientStatus.ACTIVE }
+      data: { type, operatingProfile: 'SELF_SERVICE', name: `Cliente ${randomUUID()}`, status: ClientStatus.ACTIVE }
     });
     const user = await createUser(client.id, role);
     latestClientId = client.id;

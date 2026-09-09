@@ -1,5 +1,13 @@
 import { ConflictException, Inject, Injectable } from '@nestjs/common';
-import { AuditActorType, ClientStatus, ClientType, UserRole, type Client, type User } from '../generated/prisma/client';
+import {
+  AuditActorType,
+  ClientOperatingProfile,
+  ClientStatus,
+  ClientType,
+  UserRole,
+  type Client,
+  type User
+} from '../generated/prisma/client';
 import { AuditedMutationService, auditedResult } from '../audit/audited-mutation.service';
 import type { AuthPrincipal } from '../auth/auth.types';
 import { normalizeEmail } from '../auth/auth-token';
@@ -50,11 +58,15 @@ export class ClientsService {
         resourceType: 'CLIENT',
         action: 'CLIENT_REGISTER_PLANNER',
         ...(operationId === undefined ? {} : { operationId }),
-        metadata: { clientType: ClientType.PLANNER },
+        metadata: {
+          clientType: ClientType.PLANNER,
+          operatingProfile: ClientOperatingProfile.MANAGED
+        },
         mutate: async (transaction) => {
           const client = await transaction.client.create({
             data: {
               type: ClientType.PLANNER,
+              operatingProfile: ClientOperatingProfile.MANAGED,
               name: input.name
             }
           });
@@ -75,6 +87,7 @@ export class ClientsService {
             {
               clientId: client.id,
               clientType: client.type,
+              operatingProfile: client.operatingProfile,
               userId: user.id,
               role: user.role
             }
@@ -100,11 +113,15 @@ export class ClientsService {
         resourceType: 'CLIENT',
         action: 'CLIENT_CREATE_ORGANIZATION',
         ...(operationId === undefined ? {} : { operationId }),
-        metadata: { clientType: ClientType.ORGANIZATION },
+        metadata: {
+          clientType: ClientType.ORGANIZATION,
+          operatingProfile: ClientOperatingProfile.SELF_SERVICE
+        },
         mutate: async (transaction) => {
           const client = await transaction.client.create({
             data: {
               type: ClientType.ORGANIZATION,
+              operatingProfile: ClientOperatingProfile.SELF_SERVICE,
               name: input.name
             }
           });
@@ -125,6 +142,7 @@ export class ClientsService {
             {
               clientId: client.id,
               clientType: client.type,
+              operatingProfile: client.operatingProfile,
               userId: user.id,
               role: user.role
             }

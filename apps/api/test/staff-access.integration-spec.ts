@@ -761,7 +761,7 @@ describe('StaffAccess', () => {
 
   async function createFixture(role: UserRole, clientType: ClientType, status: EventStatus = EventStatus.ACTIVE) {
     const client = await prisma.client.create({
-      data: { type: clientType, name: randomUUID(), status: ClientStatus.ACTIVE }
+      data: { type: clientType, operatingProfile: 'SELF_SERVICE', name: randomUUID(), status: ClientStatus.ACTIVE }
     });
     const user = await createUser(role, client.id);
     const eventId = await createOperationalEvent(client.id, user.userId);
@@ -771,7 +771,12 @@ describe('StaffAccess', () => {
 
   async function createOrganizationFixture() {
     const client = await prisma.client.create({
-      data: { type: ClientType.ORGANIZATION, name: randomUUID(), status: ClientStatus.ACTIVE }
+      data: {
+        type: ClientType.ORGANIZATION,
+        operatingProfile: 'SELF_SERVICE',
+        name: randomUUID(),
+        status: ClientStatus.ACTIVE
+      }
     });
     const creator = await createUser(UserRole.ORGANIZATION_PLANNER, client.id);
     const admin = await createUser(UserRole.ORGANIZATION_ADMIN, client.id);

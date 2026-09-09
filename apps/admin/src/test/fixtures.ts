@@ -24,14 +24,14 @@ export const plannerUser = {
   role: 'INDEPENDENT_PLANNER',
   clientId: 'client-a',
   clientType: 'PLANNER',
-  clientOperatingProfile: null,
+  clientOperatingProfile: 'SELF_SERVICE',
   clientStatus: 'ACTIVE'
 } satisfies AuthUser;
 export const organization = {
   id: 'client-a',
   name: 'Casa Aurora',
   type: 'ORGANIZATION',
-  operatingProfile: null,
+  operatingProfile: 'SELF_SERVICE',
   commercialChannel: null,
   status: 'ACTIVE',
   suspendedAt: null,

@@ -764,7 +764,9 @@ describe('Scanner and CheckIn', () => {
   });
 
   async function createFixture() {
-    const client = await prisma.client.create({ data: { type: ClientType.PLANNER, name: randomUUID() } });
+    const client = await prisma.client.create({
+      data: { type: ClientType.PLANNER, operatingProfile: 'SELF_SERVICE', name: randomUUID() }
+    });
     const user = await createUser(UserRole.INDEPENDENT_PLANNER, client.id);
     const eventId = randomUUID();
     const invitationId = randomUUID();

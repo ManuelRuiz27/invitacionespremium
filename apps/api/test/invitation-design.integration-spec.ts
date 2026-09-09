@@ -827,7 +827,9 @@ describe('InvitationDesignModule', () => {
   }
 
   async function createOwner(role: UserRole, type: ClientType) {
-    const client = await prisma.client.create({ data: { type, name: `Client ${randomUUID()}` } });
+    const client = await prisma.client.create({
+      data: { type, operatingProfile: 'SELF_SERVICE', name: `Client ${randomUUID()}` }
+    });
     const user = await createUser(client.id, role);
     return { clientId: client.id, userId: user.id, email: user.email };
   }

@@ -2547,7 +2547,12 @@ describe('Floorplan and seating', () => {
     const clientType = options.clientType ?? ClientType.PLANNER;
     const role = options.role ?? UserRole.INDEPENDENT_PLANNER;
     const client = await prisma.client.create({
-      data: { type: clientType, name: `Client ${randomUUID()}`, status: ClientStatus.ACTIVE }
+      data: {
+        type: clientType,
+        operatingProfile: 'SELF_SERVICE',
+        name: `Client ${randomUUID()}`,
+        status: ClientStatus.ACTIVE
+      }
     });
     const user = await prisma.user.create({
       data: {

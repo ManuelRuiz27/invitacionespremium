@@ -865,7 +865,7 @@ describe('Realtime Socket.IO', () => {
 
   async function createClientUser(type: ClientType, role: UserRole) {
     const client = await prisma.client.create({
-      data: { type, name: `Cliente ${randomUUID()}`, status: ClientStatus.ACTIVE }
+      data: { type, operatingProfile: 'SELF_SERVICE', name: `Cliente ${randomUUID()}`, status: ClientStatus.ACTIVE }
     });
     const user = await createUser(client.id, role);
     return { clientId: client.id, userId: user.id, email: user.email, role };

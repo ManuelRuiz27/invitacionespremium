@@ -129,7 +129,7 @@ describe('Contacts, groups, and CSV imports', () => {
 
   it('limits organization planners to events they own inside their shared client', async () => {
     const client = await prisma.client.create({
-      data: { type: ClientType.ORGANIZATION, name: `Organization ${randomUUID()}` }
+      data: { type: ClientType.ORGANIZATION, operatingProfile: 'SELF_SERVICE', name: `Organization ${randomUUID()}` }
     });
     const planner = await createUser(client.id, UserRole.ORGANIZATION_PLANNER);
     const colleague = await createUser(client.id, UserRole.ORGANIZATION_PLANNER);
@@ -565,7 +565,9 @@ describe('Contacts, groups, and CSV imports', () => {
   }
 
   async function createClientUser(role: UserRole, type: ClientType = ClientType.PLANNER) {
-    const client = await prisma.client.create({ data: { type, name: `Client ${randomUUID()}` } });
+    const client = await prisma.client.create({
+      data: { type, operatingProfile: 'SELF_SERVICE', name: `Client ${randomUUID()}` }
+    });
     const user = await createUser(client.id, role);
     return { clientId: client.id, userId: user.userId, email: user.email };
   }

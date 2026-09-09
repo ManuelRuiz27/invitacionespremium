@@ -1119,7 +1119,12 @@ describe('Generated reports', () => {
 
   async function createClientUser() {
     const client = await prisma.client.create({
-      data: { type: ClientType.PLANNER, name: randomUUID(), status: ClientStatus.ACTIVE }
+      data: {
+        type: ClientType.PLANNER,
+        operatingProfile: 'SELF_SERVICE',
+        name: randomUUID(),
+        status: ClientStatus.ACTIVE
+      }
     });
     const email = `${randomUUID()}@example.test`;
     const user = await prisma.user.create({

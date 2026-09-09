@@ -80,6 +80,50 @@ describe('Admin Clients', () => {
     expect(organization.type).toBe('ORGANIZATION');
   });
 
+  it('updates an Autoservicio Client to Gestionado with an independent request', async () => {
+    const api = mockAdminApi();
+    const user = userEvent.setup();
+    renderAdminApp(api, '/clientes/client-a');
+
+    expect(await screen.findByText('Perfil operativo: Autoservicio')).toBeVisible();
+
+    await user.click(screen.getByRole('button', { name: 'Configurar perfil operativo' }));
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Perfil operativo' }));
+    await user.click(await screen.findByRole('option', { name: 'Gestionado' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    await waitFor(() =>
+      expect(api.adminClients.update).toHaveBeenCalledWith(
+        'client-a',
+        { operatingProfile: 'MANAGED' },
+        expect.any(AbortSignal)
+      )
+    );
+    expect(api.adminClients.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('updates a Gestionado Client to Autoservicio with an independent request', async () => {
+    const api = mockAdminApi();
+    vi.mocked(api.adminClients.get).mockResolvedValue({ ...organization, operatingProfile: 'MANAGED' });
+    const user = userEvent.setup();
+    renderAdminApp(api, '/clientes/client-a');
+
+    expect(await screen.findByText('Perfil operativo: Gestionado')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Configurar perfil operativo' }));
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Perfil operativo' }));
+    await user.click(await screen.findByRole('option', { name: 'Autoservicio' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    await waitFor(() =>
+      expect(api.adminClients.update).toHaveBeenCalledWith(
+        'client-a',
+        { operatingProfile: 'SELF_SERVICE' },
+        expect.any(AbortSignal)
+      )
+    );
+    expect(api.adminClients.update).toHaveBeenCalledTimes(1);
+  });
+
   it('suspends only after explicit confirmation and reloads authoritative data', async () => {
     const api = mockAdminApi();
     const user = userEvent.setup();

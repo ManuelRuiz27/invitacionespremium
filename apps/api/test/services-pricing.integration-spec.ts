@@ -727,7 +727,7 @@ describe('Services, prices, and promotions', () => {
 
   async function createOperationalUser(clientType: ClientType, role: UserRole) {
     const client = await prisma.client.create({
-      data: { type: clientType, name: `Client ${randomUUID()}` }
+      data: { type: clientType, operatingProfile: 'SELF_SERVICE', name: `Client ${randomUUID()}` }
     });
     const email = `${randomUUID()}@example.com`;
     const user = await prisma.user.create({

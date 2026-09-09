@@ -181,7 +181,9 @@ describe('OP-04 operator intake and Planner assignment', () => {
 
   it('enforces candidate type/tenant rules and exposes Independent Planners for Planner clients', async () => {
     const fixture = await organizationFixture();
-    const foreign = await prisma.client.create({ data: { type: ClientType.ORGANIZATION, name: 'Foreign' } });
+    const foreign = await prisma.client.create({
+      data: { type: ClientType.ORGANIZATION, operatingProfile: 'SELF_SERVICE', name: 'Foreign' }
+    });
     const foreignPlanner = await createUser(foreign.id, UserRole.ORGANIZATION_PLANNER);
     const quote = await intakeQuote(fixture.clientId, fixture.adminCookie, ServiceCode.FLYER, 80).expect(200);
     await intakeCreate(fixture.clientId, fixture.adminCookie, {
@@ -199,7 +201,9 @@ describe('OP-04 operator intake and Planner assignment', () => {
       acceptanceConfirmed: true
     }).expect(409);
 
-    const plannerClient = await prisma.client.create({ data: { type: ClientType.PLANNER, name: 'Planner Client' } });
+    const plannerClient = await prisma.client.create({
+      data: { type: ClientType.PLANNER, operatingProfile: 'SELF_SERVICE', name: 'Planner Client' }
+    });
     const independent = await createUser(plannerClient.id, UserRole.INDEPENDENT_PLANNER);
     const users = await request(app.getHttpServer())
       .get(`/api/v1/admin/clients/${plannerClient.id}/users`)
@@ -210,9 +214,11 @@ describe('OP-04 operator intake and Planner assignment', () => {
 
   it('enforces assignment in PostgreSQL and backfills only unambiguous Planner creators without changing provenance', async () => {
     const organization = await prisma.client.create({
-      data: { type: ClientType.ORGANIZATION, name: 'Backfill Organization' }
+      data: { type: ClientType.ORGANIZATION, operatingProfile: 'SELF_SERVICE', name: 'Backfill Organization' }
     });
-    const plannerClient = await prisma.client.create({ data: { type: ClientType.PLANNER, name: 'Backfill Planner' } });
+    const plannerClient = await prisma.client.create({
+      data: { type: ClientType.PLANNER, operatingProfile: 'SELF_SERVICE', name: 'Backfill Planner' }
+    });
     const organizationAdmin = await createUser(organization.id, UserRole.ORGANIZATION_ADMIN);
     const organizationPlanner = await createUser(organization.id, UserRole.ORGANIZATION_PLANNER);
     const independentPlanner = await createUser(plannerClient.id, UserRole.INDEPENDENT_PLANNER);
@@ -296,7 +302,7 @@ describe('OP-04 operator intake and Planner assignment', () => {
 
   async function organizationFixture(lineLimit = 100) {
     const client = await prisma.client.create({
-      data: { type: ClientType.ORGANIZATION, name: `Organization ${randomUUID()}` }
+      data: { type: ClientType.ORGANIZATION, operatingProfile: 'SELF_SERVICE', name: `Organization ${randomUUID()}` }
     });
     const organizationAdmin = await createUser(client.id, UserRole.ORGANIZATION_ADMIN);
     const plannerOne = await createUser(client.id, UserRole.ORGANIZATION_PLANNER);

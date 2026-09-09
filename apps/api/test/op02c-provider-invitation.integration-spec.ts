@@ -71,7 +71,7 @@ describe('OP-02C provider Invitation Design', () => {
       .expect(({ body }) => expect(body.blockers).toContain('INVITATION_DESIGN_MISSING'));
 
     const wrongClient = await prisma.client.create({
-      data: { type: ClientType.PLANNER, name: `Wrong ${randomUUID()}` }
+      data: { type: ClientType.PLANNER, operatingProfile: 'SELF_SERVICE', name: `Wrong ${randomUUID()}` }
     });
     await adminGet(wrongClient.id, fixture.event.id, 'design/readiness', adminCookie)
       .expect(404)
@@ -287,7 +287,9 @@ describe('OP-02C provider Invitation Design', () => {
   });
 
   async function createFixture(serviceCode: ServiceCode) {
-    const client = await prisma.client.create({ data: { type: ClientType.PLANNER, name: `Client ${randomUUID()}` } });
+    const client = await prisma.client.create({
+      data: { type: ClientType.PLANNER, operatingProfile: 'SELF_SERVICE', name: `Client ${randomUUID()}` }
+    });
     const planner = await createUser(client.id, UserRole.INDEPENDENT_PLANNER);
     const admin = await createUser(null, UserRole.PLATFORM_ADMIN);
     const service =

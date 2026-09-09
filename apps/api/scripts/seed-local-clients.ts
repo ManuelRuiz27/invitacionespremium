@@ -68,7 +68,12 @@ export async function seedLocalClients(): Promise<void> {
         for (const fixture of LOCAL_CLIENT_FIXTURES) {
           await transaction.client.upsert({
             where: { id: fixture.clientId },
-            create: { id: fixture.clientId, type: fixture.clientType, name: fixture.clientName },
+            create: {
+              id: fixture.clientId,
+              type: fixture.clientType,
+              operatingProfile: 'SELF_SERVICE',
+              name: fixture.clientName
+            },
             update: {
               type: fixture.clientType,
               name: fixture.clientName,

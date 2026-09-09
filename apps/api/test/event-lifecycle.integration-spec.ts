@@ -353,7 +353,9 @@ describe('Event lifecycle', () => {
   }
 
   async function createClientUser(type: ClientType, role: UserRole) {
-    const client = await prisma.client.create({ data: { type, name: `Client ${randomUUID()}` } });
+    const client = await prisma.client.create({
+      data: { type, operatingProfile: 'SELF_SERVICE', name: `Client ${randomUUID()}` }
+    });
     const user = await createUser(client.id, role);
     return { clientId: client.id, userId: user.userId, email: user.email, role: user.role };
   }

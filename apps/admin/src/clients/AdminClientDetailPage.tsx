@@ -11,6 +11,7 @@ import { adminErrorMessage } from '../shared/admin-error';
 import {
   clientStatusLabel,
   clientTypeLabel,
+  clientOperatingProfileLabel,
   commercialChannelLabel,
   formatDate,
   resolvedCommercialChannelLabel,
@@ -20,10 +21,11 @@ import { AdminEmptyState, AdminErrorState, AdminLoadingState } from '../shared/A
 import { ConfirmSensitiveActionDialog } from '../shared/ConfirmSensitiveActionDialog';
 import { isAbortError, type AdminScopedOperation, useAdminOperationScope } from '../shared/useAdminOperationScope';
 
-type ClientAction = 'rename' | 'classification' | 'suspend' | 'restore' | 'planner' | null;
+type ClientAction = 'rename' | 'operating-profile' | 'classification' | 'suspend' | 'restore' | 'planner' | null;
 type ClientMutationRequest =
   | { operation: AdminScopedOperation; kind: 'user'; userId: string; email: string; password: string }
   | { operation: AdminScopedOperation; kind: 'rename'; name: string }
+  | { operation: AdminScopedOperation; kind: 'operating-profile'; operatingProfile: 'MANAGED' | 'SELF_SERVICE' }
   | { operation: AdminScopedOperation; kind: 'classification'; commercialChannel: 'STANDARD' | 'PARTNER' | 'VENUE' }
   | { operation: AdminScopedOperation; kind: 'suspend'; reason: string }
   | { operation: AdminScopedOperation; kind: 'restore' }
@@ -39,6 +41,7 @@ function AdminClientDetail({ apiClient, clientId }: { apiClient: ApiClient; clie
   const [action, setAction] = useState<ClientAction>(null);
   const [name, setName] = useState('');
   const [reason, setReason] = useState('');
+  const [operatingProfile, setOperatingProfile] = useState<'MANAGED' | 'SELF_SERVICE'>('SELF_SERVICE');
   const [commercialChannel, setCommercialChannel] = useState<'STANDARD' | 'PARTNER' | 'VENUE'>('STANDARD');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -77,6 +80,8 @@ function AdminClientDetail({ apiClient, clientId }: { apiClient: ApiClient; clie
           signal
         );
       if (request.kind === 'rename') return apiClient.adminClients.update(clientId, { name: request.name }, signal);
+      if (request.kind === 'operating-profile')
+        return apiClient.adminClients.update(clientId, { operatingProfile: request.operatingProfile }, signal);
       if (request.kind === 'classification')
         return apiClient.adminClients.update(
           clientId,
@@ -120,6 +125,8 @@ function AdminClientDetail({ apiClient, clientId }: { apiClient: ApiClient; clie
       return;
     }
     if (action === 'rename') mutation.mutate({ operation, kind: 'rename', name: name.trim() });
+    else if (action === 'operating-profile')
+      mutation.mutate({ operation, kind: 'operating-profile', operatingProfile });
     else if (action === 'classification') mutation.mutate({ operation, kind: 'classification', commercialChannel });
     else if (action === 'suspend') mutation.mutate({ operation, kind: 'suspend', reason: reason.trim() });
     else if (action === 'restore') mutation.mutate({ operation, kind: 'restore' });
@@ -158,6 +165,9 @@ function AdminClientDetail({ apiClient, clientId }: { apiClient: ApiClient; clie
             <Typography color="text.secondary">
               Canal comercial: {resolvedCommercialChannelLabel(data.commercialChannel)}
             </Typography>
+            <Typography color="text.secondary">
+              Perfil operativo: {clientOperatingProfileLabel[data.operatingProfile]}
+            </Typography>
             {data.status === 'SUSPENDED' ? (
               <Alert severity="warning">
                 Suspendido {data.suspendedAt ? formatDate(data.suspendedAt) : ''}
@@ -165,6 +175,14 @@ function AdminClientDetail({ apiClient, clientId }: { apiClient: ApiClient; clie
               </Alert>
             ) : null}
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+              <Button
+                onClick={() => {
+                  setOperatingProfile(data.operatingProfile);
+                  setAction('operating-profile');
+                }}
+              >
+                Configurar perfil operativo
+              </Button>
               <Button
                 onClick={() => {
                   setName(data.name);
@@ -251,15 +269,17 @@ function AdminClientDetail({ apiClient, clientId }: { apiClient: ApiClient; clie
         title={
           dialogAction === 'rename'
             ? 'Editar Cliente'
-            : dialogAction === 'classification'
-              ? 'Canal comercial'
-              : dialogAction === 'suspend'
-                ? 'Suspender Cliente'
-                : dialogAction === 'restore'
-                  ? 'Restaurar Cliente'
-                  : dialogAction === 'planner'
-                    ? 'Crear planner'
-                    : 'Editar usuario'
+            : dialogAction === 'operating-profile'
+              ? 'Perfil operativo'
+              : dialogAction === 'classification'
+                ? 'Canal comercial'
+                : dialogAction === 'suspend'
+                  ? 'Suspender Cliente'
+                  : dialogAction === 'restore'
+                    ? 'Restaurar Cliente'
+                    : dialogAction === 'planner'
+                      ? 'Crear planner'
+                      : 'Editar usuario'
         }
         description={
           dialogAction === 'suspend'
@@ -277,6 +297,20 @@ function AdminClientDetail({ apiClient, clientId }: { apiClient: ApiClient; clie
       >
         {dialogAction === 'rename' ? (
           <TextField label="Nombre" value={name} onChange={(e) => setName(e.target.value)} required />
+        ) : null}
+        {dialogAction === 'operating-profile' ? (
+          <TextField
+            select
+            label="Perfil operativo"
+            value={operatingProfile}
+            onChange={(event) => setOperatingProfile(event.target.value as typeof operatingProfile)}
+          >
+            {Object.entries(clientOperatingProfileLabel).map(([value, label]) => (
+              <MenuItem key={value} value={value}>
+                {label}
+              </MenuItem>
+            ))}
+          </TextField>
         ) : null}
         {dialogAction === 'classification' ? (
           <TextField

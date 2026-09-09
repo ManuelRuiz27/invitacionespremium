@@ -785,7 +785,9 @@ describe('Public RSVP', () => {
   }
 
   async function createClientUser() {
-    const client = await prisma.client.create({ data: { type: ClientType.PLANNER, name: randomUUID() } });
+    const client = await prisma.client.create({
+      data: { type: ClientType.PLANNER, operatingProfile: 'SELF_SERVICE', name: randomUUID() }
+    });
     const user = await createUser(client.id, UserRole.INDEPENDENT_PLANNER);
     return { clientId: client.id, ...user };
   }

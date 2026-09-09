@@ -668,7 +668,12 @@ describe('PhysicalPasses', () => {
 
     await resetDatabase();
     const organization = await prisma.client.create({
-      data: { type: ClientType.ORGANIZATION, name: 'Organización pases', status: ClientStatus.ACTIVE }
+      data: {
+        type: ClientType.ORGANIZATION,
+        operatingProfile: 'SELF_SERVICE',
+        name: 'Organización pases',
+        status: ClientStatus.ACTIVE
+      }
     });
     const admin = await createUser(UserRole.ORGANIZATION_ADMIN, organization.id);
     const plannerOne = await createUser(UserRole.ORGANIZATION_PLANNER, organization.id);
@@ -1078,7 +1083,7 @@ describe('PhysicalPasses', () => {
 
   async function createClientOwner(type: ClientType, role: UserRole) {
     const client = await prisma.client.create({
-      data: { type, name: `Cliente ${randomUUID()}`, status: ClientStatus.ACTIVE }
+      data: { type, operatingProfile: 'SELF_SERVICE', name: `Cliente ${randomUUID()}`, status: ClientStatus.ACTIVE }
     });
     const user = await createUser(role, client.id);
     return { clientId: client.id, userId: user.id, email: user.email };
@@ -1133,7 +1138,12 @@ describe('PhysicalPasses', () => {
 
   async function createFixture(status: EventStatus, capacity: number, floorplanEnabled = false) {
     const client = await prisma.client.create({
-      data: { type: ClientType.PLANNER, name: `Cliente ${randomUUID()}`, status: ClientStatus.ACTIVE }
+      data: {
+        type: ClientType.PLANNER,
+        operatingProfile: 'SELF_SERVICE',
+        name: `Cliente ${randomUUID()}`,
+        status: ClientStatus.ACTIVE
+      }
     });
     const user = await createUser(UserRole.INDEPENDENT_PLANNER, client.id);
     const serviceRecord =

@@ -5,7 +5,7 @@ const client = {
   id: 'client-1',
   name: 'Casa Norte',
   type: 'ORGANIZATION',
-  operatingProfile: null,
+  operatingProfile: 'SELF_SERVICE',
   commercialChannel: null,
   status: 'ACTIVE',
   suspendedAt: null,

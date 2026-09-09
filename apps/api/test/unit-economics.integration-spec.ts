@@ -254,6 +254,7 @@ describe('Admin event unit economics', () => {
       data: {
         name: `Economics ${randomUUID()}`,
         type: clientType,
+        operatingProfile: 'SELF_SERVICE',
         status: ClientStatus.ACTIVE,
         commercialChannel: channel
       }

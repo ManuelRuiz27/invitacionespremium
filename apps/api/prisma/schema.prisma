@@ -350,7 +350,7 @@ model CommercialLead {
 model Client {
   id               String                  @id @default(uuid()) @db.Uuid
   type             ClientType
-  operatingProfile ClientOperatingProfile? @map("operating_profile")
+  operatingProfile ClientOperatingProfile  @map("operating_profile")
   commercialChannel CommercialChannel?      @map("commercial_channel")
   name             String                  @db.VarChar(160)
   status           ClientStatus            @default(ACTIVE)

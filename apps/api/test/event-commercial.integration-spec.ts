@@ -445,7 +445,12 @@ describe('Event commercial authorization and price lock', () => {
 
   async function createFixture(channel: CommercialChannel, serviceCode: ServiceCode, capacity: number) {
     const client = await prisma.client.create({
-      data: { type: ClientType.PLANNER, name: `Client ${randomUUID()}`, commercialChannel: channel }
+      data: {
+        type: ClientType.PLANNER,
+        operatingProfile: 'SELF_SERVICE',
+        name: `Client ${randomUUID()}`,
+        commercialChannel: channel
+      }
     });
     const planner = await createUser(client.id, UserRole.INDEPENDENT_PLANNER);
     const admin = await createUser(null, UserRole.PLATFORM_ADMIN);

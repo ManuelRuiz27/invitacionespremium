@@ -471,7 +471,9 @@ describe('Invitation QR SVG', () => {
   }
 
   async function createClientUser() {
-    const client = await prisma.client.create({ data: { type: ClientType.PLANNER, name: randomUUID() } });
+    const client = await prisma.client.create({
+      data: { type: ClientType.PLANNER, operatingProfile: 'SELF_SERVICE', name: randomUUID() }
+    });
     const email = `${randomUUID()}@example.com`;
     const user = await prisma.user.create({
       data: {

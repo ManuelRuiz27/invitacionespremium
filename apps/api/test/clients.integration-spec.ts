@@ -57,7 +57,7 @@ describe('Clients and Client users', () => {
     expect(first.body).toMatchObject({
       client: {
         type: ClientType.PLANNER,
-        operatingProfile: null,
+        operatingProfile: ClientOperatingProfile.MANAGED,
         status: ClientStatus.ACTIVE
       },
       user: {
@@ -71,7 +71,7 @@ describe('Clients and Client users', () => {
         where: { id: String(first.body.client.id) },
         select: { operatingProfile: true }
       })
-    ).toEqual({ operatingProfile: null });
+    ).toEqual({ operatingProfile: ClientOperatingProfile.MANAGED });
 
     const cookie = await login(first.body.user.email as string, registrationPassword());
 
@@ -126,29 +126,29 @@ describe('Clients and Client users', () => {
       .patch(`/api/v1/admin/clients/${clientId}`)
       .set('Origin', trustedOrigin)
       .set('Cookie', platformCookie)
-      .send({ operatingProfile: ClientOperatingProfile.MANAGED })
+      .send({ operatingProfile: ClientOperatingProfile.SELF_SERVICE })
       .expect(200)
       .expect((response) => {
         expect(response.body).toMatchObject({
           id: clientId,
           type: ClientType.PLANNER,
-          operatingProfile: ClientOperatingProfile.MANAGED,
+          operatingProfile: ClientOperatingProfile.SELF_SERVICE,
           commercialChannel: null
         });
       });
 
-    const managedAudit = await prisma.auditLog.findFirstOrThrow({
+    const selfServiceAudit = await prisma.auditLog.findFirstOrThrow({
       where: { resourceId: clientId, action: 'CLIENT_OPERATING_PROFILE_UPDATE' },
       orderBy: { occurredAt: 'desc' }
     });
-    expect(managedAudit.beforeData).toMatchObject({ operatingProfile: null });
-    expect(managedAudit.afterData).toMatchObject({ operatingProfile: ClientOperatingProfile.MANAGED });
+    expect(selfServiceAudit.beforeData).toMatchObject({ operatingProfile: ClientOperatingProfile.MANAGED });
+    expect(selfServiceAudit.afterData).toMatchObject({ operatingProfile: ClientOperatingProfile.SELF_SERVICE });
 
     await request(app.getHttpServer())
       .patch(`/api/v1/clients/${clientId}`)
       .set('Origin', trustedOrigin)
       .set('Cookie', plannerCookie)
-      .send({ operatingProfile: ClientOperatingProfile.SELF_SERVICE })
+      .send({ operatingProfile: ClientOperatingProfile.MANAGED })
       .expect(400)
       .expect((response) => {
         expect(response.body.code).toBe('VALIDATION_ERROR');
@@ -169,28 +169,28 @@ describe('Clients and Client users', () => {
       .set('Origin', trustedOrigin)
       .set('Cookie', platformCookie)
       .send({
-        operatingProfile: ClientOperatingProfile.SELF_SERVICE,
+        operatingProfile: ClientOperatingProfile.MANAGED,
         commercialChannel: CommercialChannel.PARTNER
       })
       .expect(200)
       .expect((response) => {
         expect(response.body).toMatchObject({
           type: ClientType.PLANNER,
-          operatingProfile: ClientOperatingProfile.SELF_SERVICE,
+          operatingProfile: ClientOperatingProfile.MANAGED,
           commercialChannel: CommercialChannel.PARTNER
         });
       });
 
-    const selfServiceAudit = await prisma.auditLog.findFirstOrThrow({
+    const managedAudit = await prisma.auditLog.findFirstOrThrow({
       where: { resourceId: clientId, action: 'CLIENT_OPERATING_PROFILE_UPDATE' },
       orderBy: { occurredAt: 'desc' }
     });
-    expect(selfServiceAudit.beforeData).toMatchObject({
-      operatingProfile: ClientOperatingProfile.MANAGED,
+    expect(managedAudit.beforeData).toMatchObject({
+      operatingProfile: ClientOperatingProfile.SELF_SERVICE,
       commercialChannel: null
     });
-    expect(selfServiceAudit.afterData).toMatchObject({
-      operatingProfile: ClientOperatingProfile.SELF_SERVICE,
+    expect(managedAudit.afterData).toMatchObject({
+      operatingProfile: ClientOperatingProfile.MANAGED,
       commercialChannel: CommercialChannel.PARTNER
     });
 
@@ -202,7 +202,7 @@ describe('Clients and Client users', () => {
       .expect(200)
       .expect((response) => {
         expect(response.body).toMatchObject({
-          operatingProfile: ClientOperatingProfile.SELF_SERVICE,
+          operatingProfile: ClientOperatingProfile.MANAGED,
           commercialChannel: CommercialChannel.VENUE
         });
       });
@@ -212,7 +212,7 @@ describe('Clients and Client users', () => {
       .set('Cookie', platformCookie)
       .expect(200)
       .expect((response) => {
-        expect(response.body.operatingProfile).toBe(ClientOperatingProfile.SELF_SERVICE);
+        expect(response.body.operatingProfile).toBe(ClientOperatingProfile.MANAGED);
       });
   });
 
@@ -237,6 +237,7 @@ describe('Clients and Client users', () => {
     expect(organizationResponse.body).toMatchObject({
       client: {
         type: ClientType.ORGANIZATION,
+        operatingProfile: ClientOperatingProfile.SELF_SERVICE,
         status: ClientStatus.ACTIVE
       },
       user: {
@@ -321,6 +322,7 @@ describe('Clients and Client users', () => {
     const organization = await prisma.client.create({
       data: {
         type: ClientType.ORGANIZATION,
+        operatingProfile: ClientOperatingProfile.SELF_SERVICE,
         name: 'Organización incompatible'
       }
     });

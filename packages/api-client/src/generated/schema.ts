@@ -2916,7 +2916,7 @@ export type components = {
             /** Format: uuid */
             id: string;
             name: string;
-            operatingProfile: components["schemas"]["ClientOperatingProfile"] | null;
+            operatingProfile: components["schemas"]["ClientOperatingProfile"];
             /** @enum {string} */
             status: "ACTIVE" | "SUSPENDED";
             /** Format: date-time */
