@@ -294,6 +294,7 @@ export async function seedStaging(
       role: UserRole.PLATFORM_ADMIN,
       clientId: null,
       clientType: null,
+      clientOperatingProfile: null,
       clientStatus: null
     } as const;
     for (const [clientId, label] of [

@@ -657,6 +657,7 @@ describe('Event activation', () => {
       role: UserRole.INDEPENDENT_PLANNER,
       clientId: planner.clientId,
       clientType: ClientType.PLANNER,
+      clientOperatingProfile: null,
       clientStatus: ClientStatus.ACTIVE
     };
 

@@ -924,6 +924,7 @@ describe('StaffAccess', () => {
       role: fixture.role,
       clientId: fixture.clientId,
       clientType: fixture.clientType,
+      clientOperatingProfile: null,
       clientStatus: ClientStatus.ACTIVE
     };
   }

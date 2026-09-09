@@ -172,6 +172,7 @@ function validResult() {
       name: input.name,
       status: 'ACTIVE',
       type: 'PLANNER',
+      operatingProfile: null,
       commercialChannel: null,
       suspendedAt: null,
       suspensionReason: null,

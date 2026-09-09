@@ -2830,6 +2830,7 @@ export type components = {
         AuthUserDto: {
             /** Format: uuid */
             clientId: string | null;
+            clientOperatingProfile: components["schemas"]["ClientOperatingProfile"] | null;
             /** @enum {string|null} */
             clientStatus: "ACTIVE" | "SUSPENDED" | null;
             /** @enum {string|null} */
@@ -2905,6 +2906,8 @@ export type components = {
             client: components["schemas"]["ClientResponseDto"];
             user: components["schemas"]["ClientUserResponseDto"];
         };
+        /** @enum {string} */
+        ClientOperatingProfile: "MANAGED" | "SELF_SERVICE";
         ClientResponseDto: {
             /** @enum {string|null} */
             commercialChannel: "STANDARD" | "PARTNER" | "VENUE" | null;
@@ -2913,6 +2916,7 @@ export type components = {
             /** Format: uuid */
             id: string;
             name: string;
+            operatingProfile: components["schemas"]["ClientOperatingProfile"] | null;
             /** @enum {string} */
             status: "ACTIVE" | "SUSPENDED";
             /** Format: date-time */
@@ -4397,6 +4401,7 @@ export type components = {
             /** @enum {string|null} */
             commercialChannel?: "STANDARD" | "PARTNER" | "VENUE" | null;
             name?: string;
+            operatingProfile?: components["schemas"]["ClientOperatingProfile"];
         };
         UpdateAlbumRequestDto: {
             externalButton?: components["schemas"]["AlbumExternalButtonDto"] | null;

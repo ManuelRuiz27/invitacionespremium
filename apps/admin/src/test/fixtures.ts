@@ -15,6 +15,7 @@ export const platformAdmin = {
   role: 'PLATFORM_ADMIN',
   clientId: null,
   clientType: null,
+  clientOperatingProfile: null,
   clientStatus: null
 } satisfies AuthUser;
 export const plannerUser = {
@@ -23,12 +24,14 @@ export const plannerUser = {
   role: 'INDEPENDENT_PLANNER',
   clientId: 'client-a',
   clientType: 'PLANNER',
+  clientOperatingProfile: null,
   clientStatus: 'ACTIVE'
 } satisfies AuthUser;
 export const organization = {
   id: 'client-a',
   name: 'Casa Aurora',
   type: 'ORGANIZATION',
+  operatingProfile: null,
   commercialChannel: null,
   status: 'ACTIVE',
   suspendedAt: null,

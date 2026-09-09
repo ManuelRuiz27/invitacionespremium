@@ -9,6 +9,7 @@ const principal = {
   role: 'INDEPENDENT_PLANNER',
   clientId: 'client',
   clientType: 'PLANNER',
+  clientOperatingProfile: null,
   clientStatus: 'ACTIVE'
 } as AuthPrincipal;
 

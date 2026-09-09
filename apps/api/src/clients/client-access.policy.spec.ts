@@ -36,6 +36,7 @@ function principal(overrides: Partial<AuthPrincipal> = {}): AuthPrincipal {
     role: UserRole.INDEPENDENT_PLANNER,
     clientId: '00000000-0000-4000-8000-000000000001',
     clientType: ClientType.PLANNER,
+    clientOperatingProfile: null,
     clientStatus: ClientStatus.ACTIVE,
     ...overrides
   };

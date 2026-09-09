@@ -109,6 +109,7 @@ export async function seedLocalClients(): Promise<void> {
       role: UserRole.PLATFORM_ADMIN,
       clientId: null,
       clientType: null,
+      clientOperatingProfile: null,
       clientStatus: null
     };
     const balances = [];

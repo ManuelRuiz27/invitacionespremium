@@ -74,6 +74,7 @@ function toAuthUserDto(principal: AuthPrincipal): AuthUserDto {
     role: principal.role,
     clientId: principal.clientId,
     clientType: principal.clientType,
+    clientOperatingProfile: principal.clientOperatingProfile,
     clientStatus: principal.clientStatus
   };
 }

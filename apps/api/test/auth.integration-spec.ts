@@ -4,7 +4,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../src/bootstrap/create-app';
 import { PrismaService } from '../src/common/database/prisma.service';
-import { UserRole } from '../src/generated/prisma/client';
+import { ClientOperatingProfile, ClientStatus, ClientType, UserRole } from '../src/generated/prisma/client';
 import { hashPassword } from '../src/auth/password-hasher';
 
 const trustedOrigin = 'http://localhost:5173';
@@ -34,11 +34,13 @@ describe('Local authentication', () => {
   beforeEach(async () => {
     await prisma.authSession.deleteMany();
     await prisma.user.deleteMany();
+    await prisma.client.deleteMany();
   });
 
   afterAll(async () => {
     await prisma.authSession.deleteMany();
     await prisma.user.deleteMany();
+    await prisma.client.deleteMany();
     await app.close();
   });
 
@@ -68,6 +70,7 @@ describe('Local authentication', () => {
         role: UserRole.PLATFORM_ADMIN,
         clientId: null,
         clientType: null,
+        clientOperatingProfile: null,
         clientStatus: null
       }
     });
@@ -94,6 +97,7 @@ describe('Local authentication', () => {
         role: UserRole.PLATFORM_ADMIN,
         clientId: null,
         clientType: null,
+        clientOperatingProfile: null,
         clientStatus: null
       });
 
@@ -132,6 +136,56 @@ describe('Local authentication', () => {
       select: { action: true }
     });
     expect(auditActions.map((entry) => entry.action).sort()).toEqual(['AUTH_LOGIN', 'AUTH_LOGOUT']);
+  });
+
+  it('propagates the current Client operating profile through login and every session authentication', async () => {
+    const password = 'correct horse battery staple';
+    const client = await prisma.client.create({
+      data: {
+        type: ClientType.PLANNER,
+        operatingProfile: ClientOperatingProfile.MANAGED,
+        name: `Planner ${randomUUID()}`
+      }
+    });
+    const user = await prisma.user.create({
+      data: {
+        email: `planner-${randomUUID()}@example.com`,
+        passwordHash: await hashPassword(password),
+        role: UserRole.INDEPENDENT_PLANNER,
+        clientId: client.id
+      }
+    });
+
+    const loginResponse = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .set('Origin', trustedOrigin)
+      .send({ email: user.email, password })
+      .expect(200);
+
+    expect(loginResponse.body.user).toMatchObject({
+      clientId: client.id,
+      clientType: ClientType.PLANNER,
+      clientOperatingProfile: ClientOperatingProfile.MANAGED,
+      clientStatus: ClientStatus.ACTIVE
+    });
+
+    const setCookie = loginResponse.headers['set-cookie'];
+    const cookieHeader = Array.isArray(setCookie) ? setCookie[0] : setCookie;
+    const sessionCookie = cookieHeader?.split(';')[0];
+    expect(sessionCookie).toBeTruthy();
+
+    await prisma.client.update({
+      where: { id: client.id },
+      data: { operatingProfile: ClientOperatingProfile.SELF_SERVICE }
+    });
+
+    await request(app.getHttpServer())
+      .get('/api/v1/auth/me')
+      .set('Cookie', sessionCookie ?? '')
+      .expect(200)
+      .expect((response) => {
+        expect(response.body.clientOperatingProfile).toBe(ClientOperatingProfile.SELF_SERVICE);
+      });
   });
 
   it('does not reveal whether the email exists', async () => {

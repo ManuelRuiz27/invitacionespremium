@@ -20,6 +20,7 @@ export type ClientRecord = Pick<
   Client,
   | 'id'
   | 'type'
+  | 'operatingProfile'
   | 'commercialChannel'
   | 'name'
   | 'status'
@@ -159,7 +160,7 @@ export class ClientsService {
     principal: AuthPrincipal,
     operationId?: string
   ): Promise<ClientResponseDto> {
-    return this.update(clientId, input, principal, operationId, input.commercialChannel !== undefined);
+    return this.update(clientId, input, principal, operationId);
   }
 
   async updateOwned(
@@ -169,7 +170,7 @@ export class ClientsService {
     operationId?: string
   ): Promise<ClientResponseDto> {
     this.accessPolicy.assertOwnedClient(principal, clientId);
-    return this.update(clientId, input, principal, operationId, false);
+    return this.update(clientId, input, principal, operationId);
   }
 
   async suspend(
@@ -259,17 +260,22 @@ export class ClientsService {
     clientId: string,
     input: UpdateAdminClientInput | UpdateClientInput,
     principal: AuthPrincipal,
-    operationId?: string,
-    commercialClassificationChanged = false
+    operationId?: string
   ): Promise<ClientResponseDto> {
     const current = await this.findActiveClient(clientId);
+    const action =
+      'operatingProfile' in input && input.operatingProfile !== undefined
+        ? 'CLIENT_OPERATING_PROFILE_UPDATE'
+        : 'commercialChannel' in input && input.commercialChannel !== undefined
+          ? 'CLIENT_COMMERCIAL_CLASSIFICATION_UPDATE'
+          : 'CLIENT_UPDATE';
 
     return this.auditedMutation.execute({
       actor: { type: AuditActorType.USER, id: principal.userId },
       clientId,
       resourceType: 'CLIENT',
       resourceId: clientId,
-      action: commercialClassificationChanged ? 'CLIENT_COMMERCIAL_CLASSIFICATION_UPDATE' : 'CLIENT_UPDATE',
+      action,
       beforeData: clientAuditSnapshot(current),
       ...(operationId === undefined ? {} : { operationId }),
       mutate: async (transaction) => {
@@ -279,6 +285,9 @@ export class ClientsService {
             ...(input.name === undefined ? {} : { name: input.name }),
             ...('commercialChannel' in input && input.commercialChannel !== undefined
               ? { commercialChannel: input.commercialChannel }
+              : {}),
+            ...('operatingProfile' in input && input.operatingProfile !== undefined
+              ? { operatingProfile: input.operatingProfile }
               : {})
           }
         });
@@ -308,6 +317,7 @@ export function toClientResponse(client: ClientRecord): ClientResponseDto {
   return {
     id: client.id,
     type: client.type,
+    operatingProfile: client.operatingProfile,
     commercialChannel: client.commercialChannel,
     name: client.name,
     status: client.status,
@@ -337,6 +347,7 @@ function clientAuditSnapshot(client: ClientRecord): Record<string, unknown> {
   return {
     id: client.id,
     type: client.type,
+    operatingProfile: client.operatingProfile,
     commercialChannel: client.commercialChannel,
     name: client.name,
     status: client.status,

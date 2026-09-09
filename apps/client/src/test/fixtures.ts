@@ -15,6 +15,7 @@ export const independentUser = {
   role: 'INDEPENDENT_PLANNER',
   clientId: '7ae8117e-22df-41a8-8cbc-64778ea1a3b1',
   clientType: 'PLANNER',
+  clientOperatingProfile: null,
   clientStatus: 'ACTIVE'
 } satisfies AuthUser;
 
@@ -38,6 +39,7 @@ export const platformAdmin = {
   role: 'PLATFORM_ADMIN',
   clientId: null,
   clientType: null,
+  clientOperatingProfile: null,
   clientStatus: null
 } satisfies AuthUser;
 

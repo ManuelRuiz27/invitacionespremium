@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { ApiProperty } from '@nestjs/swagger';
 import { z } from 'zod';
-import { ClientStatus, ClientType, UserRole } from '../generated/prisma/client';
+import { ClientOperatingProfile, ClientStatus, ClientType, UserRole } from '../generated/prisma/client';
 
 const loginRequestSchema = z.object({
   email: z.string().email().max(320),
@@ -41,6 +41,9 @@ export class AuthUserDto {
 
   @ApiProperty({ enum: ClientType, nullable: true })
   clientType!: ClientType | null;
+
+  @ApiProperty({ enum: ClientOperatingProfile, enumName: 'ClientOperatingProfile', nullable: true })
+  clientOperatingProfile!: ClientOperatingProfile | null;
 
   @ApiProperty({ enum: ClientStatus, nullable: true })
   clientStatus!: ClientStatus | null;

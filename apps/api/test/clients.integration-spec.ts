@@ -5,7 +5,13 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../src/bootstrap/create-app';
 import { hashPassword } from '../src/auth/password-hasher';
 import { PrismaService } from '../src/common/database/prisma.service';
-import { ClientStatus, ClientType, UserRole } from '../src/generated/prisma/client';
+import {
+  ClientOperatingProfile,
+  ClientStatus,
+  ClientType,
+  CommercialChannel,
+  UserRole
+} from '../src/generated/prisma/client';
 
 const trustedOrigin = 'http://localhost:5173';
 
@@ -51,6 +57,7 @@ describe('Clients and Client users', () => {
     expect(first.body).toMatchObject({
       client: {
         type: ClientType.PLANNER,
+        operatingProfile: null,
         status: ClientStatus.ACTIVE
       },
       user: {
@@ -59,6 +66,12 @@ describe('Clients and Client users', () => {
     });
     expect(first.body).not.toHaveProperty('password');
     expect(first.body.user).not.toHaveProperty('passwordHash');
+    expect(
+      await prisma.client.findUniqueOrThrow({
+        where: { id: String(first.body.client.id) },
+        select: { operatingProfile: true }
+      })
+    ).toEqual({ operatingProfile: null });
 
     const cookie = await login(first.body.user.email as string, registrationPassword());
 
@@ -99,6 +112,107 @@ describe('Clients and Client users', () => {
       .expect(409)
       .expect((response) => {
         expect(response.body.code).toBe('EMAIL_ALREADY_EXISTS');
+      });
+  });
+
+  it('allows only Platform Admin to classify the operating profile independently from Client type and channel', async () => {
+    const registered = await registerPlanner(`Planner ${randomUUID()}`, `planner-${randomUUID()}@example.com`);
+    const clientId = String(registered.body.client.id);
+    const plannerCookie = await login(String(registered.body.user.email), registrationPassword());
+    const platformAdmin = await createPlatformAdmin();
+    const platformCookie = await login(platformAdmin.email, platformAdmin.password);
+
+    await request(app.getHttpServer())
+      .patch(`/api/v1/admin/clients/${clientId}`)
+      .set('Origin', trustedOrigin)
+      .set('Cookie', platformCookie)
+      .send({ operatingProfile: ClientOperatingProfile.MANAGED })
+      .expect(200)
+      .expect((response) => {
+        expect(response.body).toMatchObject({
+          id: clientId,
+          type: ClientType.PLANNER,
+          operatingProfile: ClientOperatingProfile.MANAGED,
+          commercialChannel: null
+        });
+      });
+
+    const managedAudit = await prisma.auditLog.findFirstOrThrow({
+      where: { resourceId: clientId, action: 'CLIENT_OPERATING_PROFILE_UPDATE' },
+      orderBy: { occurredAt: 'desc' }
+    });
+    expect(managedAudit.beforeData).toMatchObject({ operatingProfile: null });
+    expect(managedAudit.afterData).toMatchObject({ operatingProfile: ClientOperatingProfile.MANAGED });
+
+    await request(app.getHttpServer())
+      .patch(`/api/v1/clients/${clientId}`)
+      .set('Origin', trustedOrigin)
+      .set('Cookie', plannerCookie)
+      .send({ operatingProfile: ClientOperatingProfile.SELF_SERVICE })
+      .expect(400)
+      .expect((response) => {
+        expect(response.body.code).toBe('VALIDATION_ERROR');
+      });
+
+    await request(app.getHttpServer())
+      .patch(`/api/v1/admin/clients/${clientId}`)
+      .set('Origin', trustedOrigin)
+      .set('Cookie', platformCookie)
+      .send({ operatingProfile: null })
+      .expect(400)
+      .expect((response) => {
+        expect(response.body.code).toBe('VALIDATION_ERROR');
+      });
+
+    await request(app.getHttpServer())
+      .patch(`/api/v1/admin/clients/${clientId}`)
+      .set('Origin', trustedOrigin)
+      .set('Cookie', platformCookie)
+      .send({
+        operatingProfile: ClientOperatingProfile.SELF_SERVICE,
+        commercialChannel: CommercialChannel.PARTNER
+      })
+      .expect(200)
+      .expect((response) => {
+        expect(response.body).toMatchObject({
+          type: ClientType.PLANNER,
+          operatingProfile: ClientOperatingProfile.SELF_SERVICE,
+          commercialChannel: CommercialChannel.PARTNER
+        });
+      });
+
+    const selfServiceAudit = await prisma.auditLog.findFirstOrThrow({
+      where: { resourceId: clientId, action: 'CLIENT_OPERATING_PROFILE_UPDATE' },
+      orderBy: { occurredAt: 'desc' }
+    });
+    expect(selfServiceAudit.beforeData).toMatchObject({
+      operatingProfile: ClientOperatingProfile.MANAGED,
+      commercialChannel: null
+    });
+    expect(selfServiceAudit.afterData).toMatchObject({
+      operatingProfile: ClientOperatingProfile.SELF_SERVICE,
+      commercialChannel: CommercialChannel.PARTNER
+    });
+
+    await request(app.getHttpServer())
+      .patch(`/api/v1/admin/clients/${clientId}`)
+      .set('Origin', trustedOrigin)
+      .set('Cookie', platformCookie)
+      .send({ commercialChannel: CommercialChannel.VENUE })
+      .expect(200)
+      .expect((response) => {
+        expect(response.body).toMatchObject({
+          operatingProfile: ClientOperatingProfile.SELF_SERVICE,
+          commercialChannel: CommercialChannel.VENUE
+        });
+      });
+
+    await request(app.getHttpServer())
+      .get(`/api/v1/admin/clients/${clientId}`)
+      .set('Cookie', platformCookie)
+      .expect(200)
+      .expect((response) => {
+        expect(response.body.operatingProfile).toBe(ClientOperatingProfile.SELF_SERVICE);
       });
   });
 

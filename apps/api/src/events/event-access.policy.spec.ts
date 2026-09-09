@@ -11,6 +11,7 @@ function principal(role: UserRole): AuthPrincipal {
     role,
     clientId: 'client-id',
     clientType: ClientType.ORGANIZATION,
+    clientOperatingProfile: null,
     clientStatus: ClientStatus.ACTIVE
   };
 }

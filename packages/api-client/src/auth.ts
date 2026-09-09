@@ -5,6 +5,7 @@ export type AuthUser = components['schemas']['AuthUserDto'];
 export type LoginInput = components['schemas']['LoginRequestDto'];
 export type LoginResult = components['schemas']['LoginResponseDto'];
 export type UserRole = AuthUser['role'];
+export type ClientOperatingProfile = components['schemas']['ClientOperatingProfile'];
 
 export interface AuthClient {
   login(input: LoginInput, signal?: AbortSignal): Promise<LoginResult>;
@@ -35,7 +36,10 @@ function isAuthUser(value: unknown): value is AuthUser {
     typeof value.id === 'string' &&
     typeof value.email === 'string' &&
     typeof value.role === 'string' &&
-    (value.clientId === null || typeof value.clientId === 'string')
+    (value.clientId === null || typeof value.clientId === 'string') &&
+    (value.clientOperatingProfile === null ||
+      value.clientOperatingProfile === 'MANAGED' ||
+      value.clientOperatingProfile === 'SELF_SERVICE')
   );
 }
 

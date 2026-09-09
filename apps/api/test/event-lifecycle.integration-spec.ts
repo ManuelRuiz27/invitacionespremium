@@ -690,6 +690,7 @@ describe('Event lifecycle', () => {
       role,
       clientId: user.clientId,
       clientType,
+      clientOperatingProfile: null,
       clientStatus: ClientStatus.ACTIVE
     };
   }

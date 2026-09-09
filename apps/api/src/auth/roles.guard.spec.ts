@@ -14,6 +14,7 @@ function context(role: UserRole): ExecutionContext {
       role,
       clientId: '00000000-0000-4000-8000-000000000003',
       clientType: ClientType.ORGANIZATION,
+      clientOperatingProfile: null,
       clientStatus: ClientStatus.ACTIVE
     }
   } as AuthenticatedRequest;

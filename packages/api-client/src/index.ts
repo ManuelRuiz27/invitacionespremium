@@ -34,7 +34,7 @@ import {
 export { ApiError } from './api-error';
 export { normalizeApiBaseUrl } from './api-client';
 export type { ApiClientRuntimeConfig } from './api-client';
-export type { AuthClient, AuthUser, LoginInput, LoginResult, UserRole } from './auth';
+export type { AuthClient, AuthUser, ClientOperatingProfile, LoginInput, LoginResult, UserRole } from './auth';
 export type {
   CreateEventInput,
   Event,

@@ -1,4 +1,4 @@
-import type { ClientStatus, ClientType, UserRole } from '../generated/prisma/client';
+import type { ClientOperatingProfile, ClientStatus, ClientType, UserRole } from '../generated/prisma/client';
 import type { RequestWithOperationId } from '../common/logging/request-context';
 
 export interface AuthPrincipal {
@@ -8,6 +8,7 @@ export interface AuthPrincipal {
   role: UserRole;
   clientId: string | null;
   clientType: ClientType | null;
+  clientOperatingProfile: ClientOperatingProfile | null;
   clientStatus: ClientStatus | null;
 }
 

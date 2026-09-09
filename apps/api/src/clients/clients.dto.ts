@@ -1,7 +1,13 @@
 import { BadRequestException } from '@nestjs/common';
 import { ApiProperty } from '@nestjs/swagger';
 import { z } from 'zod';
-import { ClientStatus, ClientType, CommercialChannel, UserRole } from '../generated/prisma/client';
+import {
+  ClientOperatingProfile,
+  ClientStatus,
+  ClientType,
+  CommercialChannel,
+  UserRole
+} from '../generated/prisma/client';
 
 const clientNameSchema = z.string().trim().min(2).max(160);
 const emailSchema = z.string().trim().email().max(320);
@@ -33,12 +39,17 @@ const updateClientSchema = z
 const updateAdminClientSchema = z
   .object({
     name: clientNameSchema.optional(),
-    commercialChannel: z.enum(CommercialChannel).nullable().optional()
+    commercialChannel: z.enum(CommercialChannel).nullable().optional(),
+    operatingProfile: z.enum(ClientOperatingProfile).optional()
   })
   .strict()
-  .refine((value) => value.name !== undefined || value.commercialChannel !== undefined, {
-    message: 'At least one field is required.'
-  });
+  .refine(
+    (value) =>
+      value.name !== undefined || value.commercialChannel !== undefined || value.operatingProfile !== undefined,
+    {
+      message: 'At least one field is required.'
+    }
+  );
 
 const suspendClientSchema = z
   .object({
@@ -93,6 +104,9 @@ export class UpdateClientRequestDto {
 export class UpdateAdminClientRequestDto extends UpdateClientRequestDto {
   @ApiProperty({ enum: CommercialChannel, required: false, nullable: true })
   commercialChannel?: CommercialChannel | null;
+
+  @ApiProperty({ enum: ClientOperatingProfile, enumName: 'ClientOperatingProfile', required: false })
+  operatingProfile?: ClientOperatingProfile;
 }
 
 export class SuspendClientRequestDto {
@@ -122,6 +136,9 @@ export class ClientResponseDto {
 
   @ApiProperty({ enum: ClientType })
   type!: ClientType;
+
+  @ApiProperty({ enum: ClientOperatingProfile, enumName: 'ClientOperatingProfile', nullable: true })
+  operatingProfile!: ClientOperatingProfile | null;
 
   @ApiProperty({ enum: CommercialChannel, nullable: true })
   commercialChannel!: CommercialChannel | null;

@@ -38,6 +38,7 @@ export class AuthService {
           select: {
             id: true,
             type: true,
+            operatingProfile: true,
             status: true,
             deletedAt: true
           }
@@ -72,6 +73,7 @@ export class AuthService {
       role: user.role,
       clientId: user.clientId,
       clientType: user.client?.type ?? null,
+      clientOperatingProfile: user.client?.operatingProfile ?? null,
       clientStatus: user.client?.status ?? null
     };
 
@@ -131,6 +133,7 @@ export class AuthService {
             client: {
               select: {
                 type: true,
+                operatingProfile: true,
                 status: true,
                 deletedAt: true
               }
@@ -158,6 +161,7 @@ export class AuthService {
       role: session.user.role,
       clientId: session.user.clientId,
       clientType: session.user.client?.type ?? null,
+      clientOperatingProfile: session.user.client?.operatingProfile ?? null,
       clientStatus: session.user.client?.status ?? null
     };
   }

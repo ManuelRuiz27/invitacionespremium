@@ -535,6 +535,7 @@ describe('Scanner and CheckIn', () => {
           role: UserRole.INDEPENDENT_PLANNER,
           clientId: fixture.clientId,
           clientType: ClientType.PLANNER,
+          clientOperatingProfile: null,
           clientStatus: ClientStatus.ACTIVE
         })
       ).rejects.toThrow('forced reversal audit failure');
@@ -911,6 +912,7 @@ describe('Scanner and CheckIn', () => {
       role: UserRole.INDEPENDENT_PLANNER,
       clientId: fixture.clientId,
       clientType: ClientType.PLANNER,
+      clientOperatingProfile: null,
       clientStatus: ClientStatus.ACTIVE
     } as const;
   }

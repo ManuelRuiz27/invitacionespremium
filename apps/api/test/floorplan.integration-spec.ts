@@ -1808,6 +1808,7 @@ describe('Floorplan and seating', () => {
       role: UserRole.PLATFORM_ADMIN,
       clientId: null,
       clientType: null,
+      clientOperatingProfile: null,
       clientStatus: null
     };
     await expect(floorplan.get(fixture.event.id, platform)).rejects.toMatchObject({
@@ -2671,6 +2672,7 @@ describe('Floorplan and seating', () => {
       role: user.role,
       clientId: client.id,
       clientType: client.type,
+      clientOperatingProfile: null,
       clientStatus: client.status
     };
   }

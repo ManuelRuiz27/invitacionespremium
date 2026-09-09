@@ -24,6 +24,13 @@ enum ClientType {
   @@map("client_type")
 }
 
+enum ClientOperatingProfile {
+  MANAGED
+  SELF_SERVICE
+
+  @@map("client_operating_profile")
+}
+
 enum CommercialChannel {
   STANDARD
   PARTNER
@@ -341,26 +348,27 @@ model CommercialLead {
 }
 
 model Client {
-  id                String             @id @default(uuid()) @db.Uuid
-  type              ClientType
-  commercialChannel CommercialChannel? @map("commercial_channel")
-  name              String             @db.VarChar(160)
-  status            ClientStatus       @default(ACTIVE)
-  suspendedAt       DateTime?          @map("suspended_at") @db.Timestamptz(6)
-  suspensionReason  String?            @map("suspension_reason") @db.VarChar(500)
-  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
-  deletedAt         DateTime?          @map("deleted_at") @db.Timestamptz(6)
-  users             User[]
-  promotions        Promotion[]
-  financeBalance    FinanceBalance?
-  creditLine        CreditLine?
-  ledgerEntries     LedgerEntry[]
-  payments          Payment[]
-  receipts          Receipt[]
-  events            Event[]
-  fileAssets        FileAsset[]
-  generatedReports  GeneratedReport[]
+  id               String                  @id @default(uuid()) @db.Uuid
+  type             ClientType
+  operatingProfile ClientOperatingProfile? @map("operating_profile")
+  commercialChannel CommercialChannel?      @map("commercial_channel")
+  name             String                  @db.VarChar(160)
+  status           ClientStatus            @default(ACTIVE)
+  suspendedAt      DateTime?               @map("suspended_at") @db.Timestamptz(6)
+  suspensionReason String?                 @map("suspension_reason") @db.VarChar(500)
+  createdAt        DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt        DateTime?               @map("deleted_at") @db.Timestamptz(6)
+  users            User[]
+  promotions       Promotion[]
+  financeBalance   FinanceBalance?
+  creditLine       CreditLine?
+  ledgerEntries    LedgerEntry[]
+  payments         Payment[]
+  receipts         Receipt[]
+  events           Event[]
+  fileAssets       FileAsset[]
+  generatedReports GeneratedReport[]
 
   @@index([type, status, deletedAt])
   @@index([status, deletedAt])

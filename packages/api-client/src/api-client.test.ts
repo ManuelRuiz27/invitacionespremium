@@ -7,6 +7,7 @@ const validUser = {
   role: 'INDEPENDENT_PLANNER',
   clientId: '2dfe5831-c6d6-4f3b-8b09-a6cecc86b55b',
   clientType: 'PLANNER',
+  clientOperatingProfile: 'MANAGED',
   clientStatus: 'ACTIVE'
 } as const;
 
