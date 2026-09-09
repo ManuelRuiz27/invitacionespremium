@@ -72,6 +72,7 @@ describe('Event lifecycle', () => {
       catalog.plannerPrice.id,
       EventStatus.EVENT_DAY
     );
+    await prisma.client.update({ where: { id: planner.clientId }, data: { operatingProfile: 'MANAGED' } });
 
     const closedActive = await transition(active.id, 'close', cookie, 'lifecycle-close-active').expect(200);
     const closedEventDay = await transition(eventDay.id, 'close', cookie, 'lifecycle-close-event-day').expect(200);

@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
 import type { AuthPrincipal } from '../auth/auth.types';
+import { ClientOperatingProfilePolicy } from '../clients/client-operating-profile.policy';
 import { PrismaService } from '../common/database/prisma.service';
 import { CRITICAL_TRANSACTION_OPTIONS } from '../common/database/transaction-policy';
 import { DomainError } from '../common/errors/domain-error';
@@ -56,6 +57,12 @@ const GENERATED_FILE_TYPES = new Set<FileAssetType>([
   FileAssetType.PHYSICAL_PASS_QR_SVG
 ]);
 const FLOORPLAN_FILE_TYPES = new Set<FileAssetType>([FileAssetType.FLOORPLAN_IMAGE, FileAssetType.FLOORPLAN_SVG]);
+const CLIENT_TECHNICAL_IMAGE_FILE_TYPES = new Set<FileAssetType>([
+  FileAssetType.FLYER_INITIAL_IMAGE,
+  FileAssetType.FLYER_QR_IMAGE,
+  FileAssetType.FLIPBOOK_PAGE_IMAGE,
+  FileAssetType.FLOORPLAN_IMAGE
+]);
 
 export interface UploadedImageFile {
   buffer: Buffer;
@@ -96,6 +103,7 @@ export class FileAssetsService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(AuditService) private readonly audit: AuditService,
     @Inject(EventAccessPolicy) private readonly eventAccess: EventAccessPolicy,
+    @Inject(ClientOperatingProfilePolicy) private readonly operatingProfile: ClientOperatingProfilePolicy,
     @Inject(FileStorage) private readonly storage: FileStorage,
     @Inject(FileImageValidator) private readonly imageValidator: FileImageValidator,
     @Inject(FloorplanSvgValidator) private readonly svgValidator: FloorplanSvgValidator,
@@ -116,6 +124,9 @@ export class FileAssetsService {
       throw fileError('FILE_UNSUPPORTED_TYPE', 'Only JPEG and PNG image uploads are accepted.');
     }
     const event = await this.requireOwnedEvent(eventId, principal);
+    if (CLIENT_TECHNICAL_IMAGE_FILE_TYPES.has(input.fileType)) {
+      await this.operatingProfile.assertTechnicalMutationAllowed(this.prisma, event.clientId);
+    }
     return this.uploadImageForEvent(event, input, file, principal.userId, operationId);
   }
 
@@ -267,7 +278,7 @@ export class FileAssetsService {
 
   private async validateUpload(fileType: FileAssetType, bytes: Buffer): Promise<ValidatedUpload> {
     if (fileType === FileAssetType.FLOORPLAN_SVG) {
-      return { ...(this.svgValidator.validate(bytes)), width: null, height: null };
+      return { ...this.svgValidator.validate(bytes), width: null, height: null };
     }
     return this.imageValidator.validate(bytes);
   }
@@ -456,6 +467,7 @@ export class FileAssetsService {
         throw fileAssetNotFound();
       }
       if (rejectProviderManaged && PROVIDER_MANAGED_IMAGE_FILE_TYPES.has(current.fileType)) {
+        await this.operatingProfile.assertTechnicalMutationAllowed(transaction, current.clientId);
         throw providerManagedFileAsset();
       }
       if (current.status === FileAssetStatus.DELETED && current.deletedAt !== null) {

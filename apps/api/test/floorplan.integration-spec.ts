@@ -599,6 +599,7 @@ describe('Floorplan and seating', () => {
       fixture.principal
     );
     const table = await createTable(fixture, 4);
+    await prisma.client.update({ where: { id: fixture.client.id }, data: { operatingProfile: 'MANAGED' } });
     const key = randomUUID();
     const publish = vi.spyOn(realtime, 'publishSeatingUpdated');
     const first = await floorplan.assignFamily(

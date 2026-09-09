@@ -7,6 +7,7 @@ import { hashPassword } from '../src/auth/password-hasher';
 import { createApp } from '../src/bootstrap/create-app';
 import { PrismaService } from '../src/common/database/prisma.service';
 import {
+  ClientOperatingProfile,
   ClientType,
   CommercialChannel,
   EventStatus,
@@ -710,6 +711,86 @@ describe('InvitationDesignModule', () => {
 
     const platform = await createUser(null, UserRole.PLATFORM_ADMIN);
     await read(`/events/${event.id}/design`, await login(platform.email)).expect(403);
+  });
+
+  it('blocks every Managed Planner design mutation while keeping reads and Provider mutations available', async () => {
+    const owner = await createOwner(UserRole.INDEPENDENT_PLANNER, ClientType.PLANNER);
+    const event = await createEvent(owner, ServiceCode.FLIPBOOK);
+    const plannerCookie = await login(owner.email);
+    await mutate('post', `/events/${event.id}/design/flipbook`, plannerCookie).expect(201);
+    await prisma.client.update({
+      where: { id: owner.clientId },
+      data: { operatingProfile: ClientOperatingProfile.MANAGED }
+    });
+
+    await read(`/events/${event.id}/design`, plannerCookie).expect(200);
+    await read(`/events/${event.id}/design/readiness`, plannerCookie).expect(200);
+    await read(`/events/${event.id}/hotspots`, plannerCookie).expect(200);
+
+    const uuid = randomUUID();
+    const cases: Array<{
+      method: 'post' | 'patch' | 'delete';
+      route: string;
+      body?: Record<string, unknown>;
+    }> = [
+      { method: 'post', route: 'design/flyer', body: { initialAssetId: uuid, qrAssetId: randomUUID() } },
+      { method: 'post', route: 'design/flipbook' },
+      { method: 'patch', route: 'design/flyer/initial-image', body: { assetId: uuid } },
+      { method: 'patch', route: 'design/flyer/qr-image', body: { assetId: uuid } },
+      { method: 'post', route: 'design/flipbook/pages', body: { fileAssetId: uuid } },
+      { method: 'patch', route: 'design/flipbook/pages/reorder', body: { pageIds: [uuid] } },
+      { method: 'patch', route: `design/flipbook/pages/${uuid}/asset`, body: { assetId: uuid } },
+      { method: 'delete', route: `design/flipbook/pages/${uuid}` },
+      {
+        method: 'post',
+        route: 'hotspots',
+        body: {
+          visualOwnerType: HotspotVisualOwnerType.FLYER,
+          action: HotspotAction.RSVP,
+          x: 0,
+          y: 0,
+          width: 0.2,
+          height: 0.2
+        }
+      },
+      { method: 'patch', route: `hotspots/${uuid}`, body: { priority: 1 } },
+      { method: 'delete', route: `hotspots/${uuid}` }
+    ];
+    for (const testCase of cases) {
+      const http = request(app.getHttpServer());
+      const pending = http[testCase.method](`/api/v1/events/${event.id}/${testCase.route}`)
+        .set('Cookie', plannerCookie)
+        .set('Origin', trustedOrigin);
+      if (testCase.body) pending.send(testCase.body);
+      await pending.expect(403).expect(({ body }) => expect(body.code).toBe('CLIENT_MANAGED_CAPABILITY_FORBIDDEN'));
+    }
+
+    const providerAsset = await readyAsset(
+      event,
+      providerUserId,
+      FileAssetOwnerType.FLIPBOOK_PAGE,
+      FileAssetType.FLIPBOOK_PAGE_IMAGE
+    );
+    await mutate('post', `/events/${event.id}/design/flipbook/pages`, plannerCookie)
+      .send({ fileAssetId: providerAsset.id })
+      .expect(201);
+    await prisma.client.update({
+      where: { id: owner.clientId },
+      data: { operatingProfile: ClientOperatingProfile.SELF_SERVICE }
+    });
+    const plannerAsset = await readyAsset(
+      event,
+      owner.userId,
+      FileAssetOwnerType.FLIPBOOK_PAGE,
+      FileAssetType.FLIPBOOK_PAGE_IMAGE
+    );
+    await request(app.getHttpServer())
+      .post(`/api/v1/events/${event.id}/design/flipbook/pages`)
+      .set('Cookie', plannerCookie)
+      .set('Origin', trustedOrigin)
+      .send({ fileAssetId: plannerAsset.id })
+      .expect(201);
+    expect(await prisma.flipbookPage.count({ where: { eventId: event.id, deletedAt: null } })).toBe(2);
   });
 
   it('blocks activation before finance when design is incomplete and exposes all routes in OpenAPI', async () => {

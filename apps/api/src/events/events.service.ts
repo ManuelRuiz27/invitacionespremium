@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, HttpStatus, Inject, Injectable 
 import { AuditService } from '../audit/audit.service';
 import { AuditedMutationService, auditedResult } from '../audit/audited-mutation.service';
 import type { AuthPrincipal } from '../auth/auth.types';
+import { ClientOperatingProfilePolicy } from '../clients/client-operating-profile.policy';
 import { PrismaService } from '../common/database/prisma.service';
 import { CRITICAL_TRANSACTION_OPTIONS } from '../common/database/transaction-policy';
 import { DomainError } from '../common/errors/domain-error';
@@ -67,6 +68,7 @@ export class EventsService {
     @Inject(AuditedMutationService) private readonly auditedMutation: AuditedMutationService,
     @Inject(AuditService) private readonly audit: AuditService,
     @Inject(EventAccessPolicy) private readonly accessPolicy: EventAccessPolicy,
+    @Inject(ClientOperatingProfilePolicy) private readonly operatingProfile: ClientOperatingProfilePolicy,
     @Inject(FinanceService) private readonly finance: FinanceService,
     @Inject(EventCommercialService) private readonly commercial: EventCommercialService
   ) {}
@@ -109,6 +111,7 @@ export class EventsService {
     const prepared = preparationData(input);
 
     return this.prisma.$transaction(async (transaction) => {
+      await this.operatingProfile.assertTechnicalMutationAllowed(transaction, clientId);
       await this.requireAvailableService(transaction, prepared.serviceId);
       const created = await transaction.event.create({
         data: {
@@ -271,8 +274,13 @@ export class EventsService {
     principal: AuthPrincipal,
     operationId?: string
   ): Promise<EventResponseDto> {
-    return this.updatePreparation(eventId, input, principal, operationId, (database) =>
-      this.findOwnedEvent(database, eventId, principal)
+    return this.updatePreparation(
+      eventId,
+      input,
+      principal,
+      operationId,
+      (database) => this.findOwnedEvent(database, eventId, principal),
+      true
     );
   }
 
@@ -283,8 +291,13 @@ export class EventsService {
     principal: AuthPrincipal,
     operationId?: string
   ): Promise<EventResponseDto> {
-    return this.updatePreparation(eventId, input, principal, operationId, (database) =>
-      this.findAdministrativeEventTarget(database, clientId, eventId)
+    return this.updatePreparation(
+      eventId,
+      input,
+      principal,
+      operationId,
+      (database) => this.findAdministrativeEventTarget(database, clientId, eventId),
+      false
     );
   }
 
@@ -393,7 +406,8 @@ export class EventsService {
     input: UpdateEventInput,
     principal: AuthPrincipal,
     operationId: string | undefined,
-    resolveTarget: (database: PrismaService | Prisma.TransactionClient) => Promise<EventWithService>
+    resolveTarget: (database: PrismaService | Prisma.TransactionClient) => Promise<EventWithService>,
+    gateClientTechnicalMutation: boolean
   ): Promise<EventResponseDto> {
     const current = await resolveTarget(this.prisma);
     if (!PREPARATION_STATUSES.includes(current.status)) {
@@ -412,6 +426,9 @@ export class EventsService {
       mutate: async (transaction) => {
         await transaction.$queryRaw`SELECT "id" FROM "event" WHERE "id" = ${eventId}::uuid FOR UPDATE`;
         const locked = await resolveTarget(transaction);
+        if (gateClientTechnicalMutation) {
+          await this.operatingProfile.assertTechnicalMutationAllowed(transaction, locked.clientId);
+        }
         if (!PREPARATION_STATUSES.includes(locked.status)) {
           throw invalidEventState('Only Events in preparation may be edited.');
         }
@@ -458,6 +475,7 @@ export class EventsService {
       beforeData: eventAuditSnapshot(current),
       ...(operationId === undefined ? {} : { operationId }),
       mutate: async (transaction) => {
+        await this.operatingProfile.assertTechnicalMutationAllowed(transaction, current.clientId);
         const event = await transaction.event.update({
           where: { id: eventId },
           data: { deletedAt: new Date() }
@@ -474,6 +492,7 @@ export class EventsService {
     operationId?: string
   ): Promise<EventActivationResponseDto> {
     const replayEvent = await this.findOwnedEventForReplay(this.prisma, eventId, principal);
+    await this.operatingProfile.assertTechnicalMutationAllowed(this.prisma, replayEvent.clientId);
     const prior = await this.findActivationResult(eventId, idempotencyKey);
     if (prior) {
       return prior;
@@ -499,6 +518,7 @@ export class EventsService {
           if (current.deletedAt !== null) {
             throw eventNotFound();
           }
+          await this.operatingProfile.assertTechnicalMutationAllowed(transaction, current.clientId);
           const client = await transaction.client.findFirst({
             where: { id: current.clientId, deletedAt: null },
             select: { status: true }

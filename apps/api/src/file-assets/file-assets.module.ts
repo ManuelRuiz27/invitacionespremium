@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MulterModule } from '@nestjs/platform-express';
 import { AuditModule } from '../audit/audit.module';
+import { ClientsModule } from '../clients/clients.module';
 import { AppConfigService } from '../config/app-config.service';
 import { EventsModule } from '../events/events.module';
 import { AdminFloorplanFileAssetsController } from './admin-floorplan-file-assets.controller';
@@ -25,6 +26,7 @@ import { LocalFileStorage } from './local-file-storage';
 @Module({
   imports: [
     AuditModule,
+    ClientsModule,
     EventsModule,
     MulterModule.registerAsync({
       inject: [AppConfigService],

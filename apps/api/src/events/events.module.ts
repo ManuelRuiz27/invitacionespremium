@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuditModule } from '../audit/audit.module';
+import { ClientsModule } from '../clients/clients.module';
 import { FinanceModule } from '../finance/finance.module';
 import { ServicesPricingModule } from '../services-pricing/services-pricing.module';
 import { StaffAccessModule } from '../staff-access/staff-access.module';
@@ -14,7 +15,7 @@ import { EventsController } from './events.controller';
 import { EventsService } from './events.service';
 
 @Module({
-  imports: [AuditModule, FinanceModule, ServicesPricingModule, StaffAccessModule],
+  imports: [AuditModule, ClientsModule, FinanceModule, ServicesPricingModule, StaffAccessModule],
   controllers: [EventsController, AdminEventsController, AdminClientEventsController, AdminEventCommercialController],
   providers: [EventsService, EventAccessPolicy, EventCommercialService, EventLifecycleService, EventLifecycleScheduler],
   exports: [EventsService, EventLifecycleService, EventAccessPolicy, EventCommercialService]

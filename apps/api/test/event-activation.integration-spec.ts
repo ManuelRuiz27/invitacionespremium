@@ -8,6 +8,7 @@ import { createApp } from '../src/bootstrap/create-app';
 import { PrismaService } from '../src/common/database/prisma.service';
 import { EventsService } from '../src/events/events.service';
 import {
+  ClientOperatingProfile,
   ClientStatus,
   ClientType,
   CommercialChannel,
@@ -111,6 +112,59 @@ describe('Event activation', () => {
     });
     expect(await prisma.ledgerEntry.count({ where: { eventId: event.id } })).toBe(1);
     expect(await prisma.receipt.count({ where: { operationReference: event.id } })).toBe(1);
+  });
+
+  it('blocks Managed Planner activation before any financial or activation side effect', async () => {
+    const planner = await createClientUser(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
+    const { service } = await createPricedService(ServiceCode.FLYER, ClientType.PLANNER, 12);
+    const event = await createReadyEvent(planner, service.id);
+    const cookie = await login(planner.email);
+    await prisma.client.update({
+      where: { id: planner.clientId },
+      data: { operatingProfile: ClientOperatingProfile.MANAGED }
+    });
+    const before = {
+      ledger: await prisma.ledgerEntry.count(),
+      receipts: await prisma.receipt.count(),
+      audits: await prisma.auditLog.count({ where: { eventId: event.id, action: 'EVENT_ACTIVATE' } })
+    };
+
+    await activate(event.id, cookie, 'managed-activation-forbidden')
+      .expect(403)
+      .expect(({ body }) => expect(body.code).toBe('CLIENT_MANAGED_CAPABILITY_FORBIDDEN'));
+
+    expect(await prisma.ledgerEntry.count()).toBe(before.ledger);
+    expect(await prisma.receipt.count()).toBe(before.receipts);
+    expect(await prisma.auditLog.count({ where: { eventId: event.id, action: 'EVENT_ACTIVATE' } })).toBe(before.audits);
+    expect(await prisma.event.findUniqueOrThrow({ where: { id: event.id } })).toMatchObject({
+      status: EventStatus.READY_TO_ACTIVATE,
+      activatedAt: null,
+      activationReceiptId: null,
+      activationIdempotencyKey: null
+    });
+
+    await prisma.client.update({
+      where: { id: planner.clientId },
+      data: { operatingProfile: ClientOperatingProfile.SELF_SERVICE }
+    });
+    await grantCredits(planner.clientId, planner.userId, 12);
+    const activated = await activate(event.id, cookie, 'self-service-then-managed-replay').expect(200);
+    await prisma.client.update({
+      where: { id: planner.clientId },
+      data: { operatingProfile: ClientOperatingProfile.MANAGED }
+    });
+    const replayFinancialState = {
+      ledger: await prisma.ledgerEntry.count(),
+      receipts: await prisma.receipt.count()
+    };
+    await activate(event.id, cookie, 'self-service-then-managed-replay')
+      .expect(403)
+      .expect(({ body }) => expect(body.code).toBe('CLIENT_MANAGED_CAPABILITY_FORBIDDEN'));
+    expect(await prisma.ledgerEntry.count()).toBe(replayFinancialState.ledger);
+    expect(await prisma.receipt.count()).toBe(replayFinancialState.receipts);
+    expect((await prisma.event.findUniqueOrThrow({ where: { id: event.id } })).activationReceiptId).toBe(
+      activated.body.receipt.id
+    );
   });
 
   it('rejects every direct snapshot mutation while allowing later lifecycle status changes', async () => {

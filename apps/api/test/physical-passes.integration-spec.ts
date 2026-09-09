@@ -10,6 +10,7 @@ import { hashPassword } from '../src/auth/password-hasher';
 import { createApp } from '../src/bootstrap/create-app';
 import { PrismaService } from '../src/common/database/prisma.service';
 import {
+  ClientOperatingProfile,
   ClientStatus,
   ClientType,
   CommercialChannel,
@@ -113,6 +114,32 @@ describe('PhysicalPasses', () => {
     expect(svgText).toContain('Evento pases');
     expect(svgText).toContain('Pase 1');
     expect(await prisma.fileAsset.count()).toBe(0);
+  }, 60_000);
+
+  it('blocks Managed generation from the current DB profile while leaving reads and Self-Service intact', async () => {
+    const fixture = await createFixture(EventStatus.CONFIGURED, 2);
+    const cookie = await login(fixture.email);
+    const event = await prisma.event.findUniqueOrThrow({ where: { id: fixture.eventId } });
+    await prisma.client.update({
+      where: { id: event.clientId },
+      data: { operatingProfile: ClientOperatingProfile.MANAGED }
+    });
+
+    await generate(fixture.eventId, cookie, 'managed-physical-forbidden', 1)
+      .expect(403)
+      .expect(({ body }) => expect(body.code).toBe('CLIENT_MANAGED_CAPABILITY_FORBIDDEN'));
+    expect(await prisma.physicalPass.count({ where: { eventId: fixture.eventId } })).toBe(0);
+    expect(await prisma.physicalPassGenerationOperation.count({ where: { eventId: fixture.eventId } })).toBe(0);
+    await request(app.getHttpServer())
+      .get(`/api/v1/events/${fixture.eventId}/physical-passes`)
+      .set('Cookie', cookie)
+      .expect(200, []);
+
+    await prisma.client.update({
+      where: { id: event.clientId },
+      data: { operatingProfile: ClientOperatingProfile.SELF_SERVICE }
+    });
+    await generate(fixture.eventId, cookie, 'self-service-physical-allowed', 1).expect(200);
   }, 60_000);
 
   it('serializes concurrent generation into unique non-overlapping ranges', async () => {

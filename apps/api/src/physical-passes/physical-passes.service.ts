@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { HttpStatus, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
 import type { AuthPrincipal } from '../auth/auth.types';
+import { ClientOperatingProfilePolicy } from '../clients/client-operating-profile.policy';
 import { PrismaService } from '../common/database/prisma.service';
 import { CRITICAL_TRANSACTION_OPTIONS } from '../common/database/transaction-policy';
 import { EventAccessPolicy, eventNotFound } from '../events/event-access.policy';
@@ -43,6 +44,7 @@ export class PhysicalPassesService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventAccessPolicy) private readonly access: EventAccessPolicy,
+    @Inject(ClientOperatingProfilePolicy) private readonly operatingProfile: ClientOperatingProfilePolicy,
     @Inject(AuditService) private readonly audit: AuditService,
     @Inject(StaffTokenResolverService) private readonly staffTokens: StaffTokenResolverService,
     @Inject(PhysicalPassTokenService) private readonly tokens: PhysicalPassTokenService,
@@ -67,6 +69,7 @@ export class PhysicalPassesService {
             include: { service: { select: { code: true } } }
           });
           if (!event) throw eventNotFound();
+          await this.operatingProfile.assertTechnicalMutationAllowed(tx, event.clientId);
           const replay = await tx.physicalPassGenerationOperation.findUnique({ where: { idempotencyKey } });
           if (replay) {
             if (replay.eventId !== eventId || replay.requestSignature !== signature) {

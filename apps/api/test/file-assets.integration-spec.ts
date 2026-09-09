@@ -10,6 +10,7 @@ import { hashPassword } from '../src/auth/password-hasher';
 import { createApp } from '../src/bootstrap/create-app';
 import { PrismaService } from '../src/common/database/prisma.service';
 import {
+  ClientOperatingProfile,
   ClientType,
   EventStatus,
   FileAssetOwnerType,
@@ -289,6 +290,60 @@ describe('FileAssets and local storage', () => {
       .get(`/api/v1/events/${independentEvent.id}/file-assets`)
       .set('Cookie', await login(platform.email))
       .expect(403);
+  });
+
+  it('blocks Managed technical uploads before persistence while preserving Album and Admin uploads', async () => {
+    const owner = await createClientUser(UserRole.INDEPENDENT_PLANNER);
+    const event = await createEvent(owner);
+    const plannerCookie = await login(owner.email);
+    await prisma.client.update({
+      where: { id: owner.clientId },
+      data: { operatingProfile: ClientOperatingProfile.MANAGED }
+    });
+    const storageWrite = vi.spyOn(storage, 'write');
+
+    for (const [ownerType, fileType] of [
+      [FileAssetOwnerType.FLOORPLAN, FileAssetType.FLOORPLAN_IMAGE],
+      [FileAssetOwnerType.FLYER, FileAssetType.FLYER_INITIAL_IMAGE],
+      [FileAssetOwnerType.FLYER, FileAssetType.FLYER_QR_IMAGE],
+      [FileAssetOwnerType.FLIPBOOK_PAGE, FileAssetType.FLIPBOOK_PAGE_IMAGE]
+    ] as const) {
+      await upload(event.id, plannerCookie, {
+        file: jpeg,
+        filename: 'managed-technical.jpg',
+        contentType: 'image/jpeg',
+        ownerType,
+        fileType
+      })
+        .expect(403)
+        .expect(({ body }) => expect(body.code).toBe('CLIENT_MANAGED_CAPABILITY_FORBIDDEN'));
+    }
+    expect(await prisma.fileAsset.count({ where: { eventId: event.id } })).toBe(0);
+    expect(storageWrite).not.toHaveBeenCalled();
+
+    const admin = await createUser(null, UserRole.PLATFORM_ADMIN);
+    const adminUpload = await request(app.getHttpServer())
+      .post(`/api/v1/admin/clients/${owner.clientId}/events/${event.id}/floorplan/file-assets`)
+      .set('Cookie', await login(admin.email))
+      .set('Origin', trustedOrigin)
+      .attach('file', jpeg, { filename: 'admin-floorplan.jpg', contentType: 'image/jpeg' })
+      .expect(201);
+    await mutate('delete', `/events/${event.id}/file-assets/${adminUpload.body.id}`, plannerCookie)
+      .expect(403)
+      .expect(({ body }) => expect(body.code).toBe('CLIENT_MANAGED_CAPABILITY_FORBIDDEN'));
+    expect(await prisma.fileAsset.findUniqueOrThrow({ where: { id: adminUpload.body.id } })).toMatchObject({
+      status: FileAssetStatus.READY,
+      deletedAt: null
+    });
+
+    await setActivatedStatus(event, owner, EventStatus.ACTIVE);
+    await upload(event.id, plannerCookie, {
+      file: png,
+      filename: 'managed-album.png',
+      contentType: 'image/png',
+      ownerType: FileAssetOwnerType.ALBUM_PHOTO,
+      fileType: FileAssetType.ALBUM_PHOTO_IMAGE
+    }).expect(201);
   });
 
   it('keeps assets isolated by Event and blocks non-ready content statuses', async () => {

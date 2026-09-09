@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { ConflictException, HttpStatus, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
 import type { AuthPrincipal } from '../auth/auth.types';
+import { ClientOperatingProfilePolicy } from '../clients/client-operating-profile.policy';
 import { PrismaService } from '../common/database/prisma.service';
 import { CRITICAL_TRANSACTION_OPTIONS } from '../common/database/transaction-policy';
 import { DomainError } from '../common/errors/domain-error';
@@ -70,6 +71,7 @@ export class InvitationDesignService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(AuditService) private readonly audit: AuditService,
     @Inject(EventAccessPolicy) private readonly eventAccess: EventAccessPolicy,
+    @Inject(ClientOperatingProfilePolicy) private readonly operatingProfile: ClientOperatingProfilePolicy,
     @Inject(FileAssetsService) private readonly fileAssets: FileAssetsService,
     @Inject(EventCommercialService) private readonly commercial: EventCommercialService
   ) {}
@@ -716,6 +718,8 @@ export class InvitationDesignService {
     const event = await this.requireTargetEvent(transaction, eventId, principal, target, true);
     if (target.kind === 'ADMIN') {
       await this.commercial.assertDesignMutationAllowed(transaction, target.clientId, eventId);
+    } else {
+      await this.operatingProfile.assertTechnicalMutationAllowed(transaction, event.clientId);
     }
     if (!MUTABLE_EVENT_STATUSES.has(event.status)) {
       throw new DomainError(

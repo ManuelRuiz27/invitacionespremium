@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuditModule } from '../audit/audit.module';
+import { ClientsModule } from '../clients/clients.module';
 import { EventsModule } from '../events/events.module';
 import { StaffAccessModule } from '../staff-access/staff-access.module';
 import { PhysicalPassQrService } from './physical-pass-qr.service';
@@ -8,7 +9,7 @@ import { PhysicalPassesController, ScannerPhysicalPassesController } from './phy
 import { PhysicalPassesService } from './physical-passes.service';
 
 @Module({
-  imports: [AuditModule, EventsModule, StaffAccessModule],
+  imports: [AuditModule, ClientsModule, EventsModule, StaffAccessModule],
   controllers: [PhysicalPassesController, ScannerPhysicalPassesController],
   providers: [PhysicalPassesService, PhysicalPassTokenService, PhysicalPassQrService],
   exports: [PhysicalPassesService]

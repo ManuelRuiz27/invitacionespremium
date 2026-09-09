@@ -7,6 +7,7 @@ import { hashPassword } from '../src/auth/password-hasher';
 import { PrismaService } from '../src/common/database/prisma.service';
 import {
   AuditActorType,
+  ClientOperatingProfile,
   ClientType,
   EventSocialType,
   EventStatus,
@@ -345,6 +346,67 @@ describe('Events CRUD', () => {
       })
     ).toBe(1);
     expect(await prisma.auditLog.count({ where: { eventId: created.body.id } })).toBe(3);
+  });
+
+  it('uses the current DB operating profile to gate Client Event mutations while preserving Admin setup', async () => {
+    const planner = await createClientUser(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
+    const platform = await createUser(null, UserRole.PLATFORM_ADMIN);
+    const plannerCookie = await login(planner.email);
+    const platformCookie = await login(platform.email);
+    const existing = await createEvent(plannerCookie, { name: 'Self-service draft' }).expect(201);
+    const service = await createService(ServiceCode.FLYER);
+
+    await request(app.getHttpServer())
+      .patch(`/api/v1/admin/clients/${planner.clientId}`)
+      .set('Origin', trustedOrigin)
+      .set('Cookie', platformCookie)
+      .send({ operatingProfile: ClientOperatingProfile.MANAGED })
+      .expect(200);
+
+    await createEvent(plannerCookie, { name: 'Forbidden managed draft' })
+      .expect(403)
+      .expect(({ body }) => expect(body.code).toBe('CLIENT_MANAGED_CAPABILITY_FORBIDDEN'));
+    await request(app.getHttpServer())
+      .patch(`/api/v1/events/${existing.body.id}`)
+      .set('Origin', trustedOrigin)
+      .set('Cookie', plannerCookie)
+      .send({ name: 'Forbidden managed update', serviceId: service.id })
+      .expect(403)
+      .expect(({ body }) => expect(body.code).toBe('CLIENT_MANAGED_CAPABILITY_FORBIDDEN'));
+    await request(app.getHttpServer())
+      .delete(`/api/v1/events/${existing.body.id}`)
+      .set('Origin', trustedOrigin)
+      .set('Cookie', plannerCookie)
+      .expect(403)
+      .expect(({ body }) => expect(body.code).toBe('CLIENT_MANAGED_CAPABILITY_FORBIDDEN'));
+
+    expect(await prisma.event.count({ where: { clientId: planner.clientId } })).toBe(1);
+    expect(await prisma.event.findUniqueOrThrow({ where: { id: existing.body.id } })).toMatchObject({
+      name: 'Self-service draft',
+      serviceId: null,
+      deletedAt: null
+    });
+    await request(app.getHttpServer())
+      .get(`/api/v1/events/${existing.body.id}`)
+      .set('Cookie', plannerCookie)
+      .expect(200);
+    await patchAdminEvent(platformCookie, planner.clientId, existing.body.id, { name: 'Configured by provider' })
+      .expect(200)
+      .expect(({ body }) => expect(body.name).toBe('Configured by provider'));
+
+    await request(app.getHttpServer())
+      .patch(`/api/v1/admin/clients/${planner.clientId}`)
+      .set('Origin', trustedOrigin)
+      .set('Cookie', platformCookie)
+      .send({ operatingProfile: ClientOperatingProfile.SELF_SERVICE })
+      .expect(200);
+    await request(app.getHttpServer())
+      .patch(`/api/v1/events/${existing.body.id}`)
+      .set('Origin', trustedOrigin)
+      .set('Cookie', plannerCookie)
+      .send({ name: 'Self-service restored' })
+      .expect(200);
+    await createEvent(plannerCookie, { name: 'Self-service second draft' }).expect(201);
   });
 
   it('publishes the CODEX-040 endpoints in OpenAPI', () => {
