@@ -9,8 +9,9 @@ Estado: **ÍNDICE OPERATIVO PARA DEV / AGENTES**
 1. `docs/00-inicio/00_START_HERE.md` — puerta de entrada, precedencia y clasificación documental.
 2. `docs/00-inicio/01_DIRECCION_ACTUAL_M01_MANAGED.md` — **dirección activa de lanzamiento: M01 Managed solamente**.
 3. `docs/05-implementacion/24_MANAGED_M01_LAUNCH_ROADMAP.md` — **roadmap técnico activo del lanzamiento M01**.
-4. `AGENTS.md` — workflow y reglas obligatorias para agentes/Codex.
-5. `docs/04-tecnico/REPOSITORY_SOURCE_OF_TRUTH.md` — repositorio canónico.
+4. `docs/05-implementacion/MG00_MANAGED_PROFILE_IMPLEMENTATION_AUDIT.md` — **audit de implementación M01 completado; pendiente de aprobación para code**.
+5. `AGENTS.md` — workflow y reglas obligatorias para agentes/Codex.
+6. `docs/04-tecnico/REPOSITORY_SOURCE_OF_TRUTH.md` — repositorio canónico.
 
 ### Objetivo activo
 
@@ -26,7 +27,7 @@ INDEPENDENT_PLANNER opera
 
 El siguiente lanzamiento certifica exclusivamente **M01 Managed**. M02–M05, Self-Service, Enterprise y expansión Commercial/Finance son referencia futura salvo ticket explícito.
 
-La auditoría de arquitectura/endpoints de septiembre se usa como evidencia de archaeology y priorización. **No es backlog automático**: el roadmap M01 decide qué hallazgos bloquean octubre y cuáles se preservan para futuro.
+La auditoría de arquitectura/endpoints de septiembre se usa como evidencia de archaeology y priorización. **No es backlog automático**: el roadmap M01 y MG-00 deciden qué hallazgos bloquean octubre y cuáles se preservan para futuro.
 
 ---
 
@@ -124,35 +125,46 @@ El Client Wizard actual contiene capacidades compatibles con Self-Service. Eso n
 - `02-flujos-reglas/06_FINANZAS_CREDITOS_CONTABILIDAD.md`
 - `02-flujos-reglas/LEDGER_TYPES.md`
 
-**Importante:** estos contratos siguen describiendo infraestructura real, pero Finance/Pricing no gobierna las capacidades funcionales de Managed Profile V1. No eliminar ni reescribir destructivamente; estudiar especialmente su acoplamiento con Activation durante MG-00/MG-03.
+**Importante:** estos contratos siguen describiendo infraestructura real, pero Finance/Pricing no gobierna las capacidades funcionales de Managed Profile V1. No eliminar ni reescribir destructivamente; MG-00 confirma acoplamiento tanto en Admin intake como en Activation, a resolver en MG-03A/MG-03B.
 
 ---
 
 # C. CURRENT WORK — Managed M01
 
-Roadmap activo:
+Fuentes actuales:
 
-- `05-implementacion/24_MANAGED_M01_LAUNCH_ROADMAP.md`
+- `05-implementacion/24_MANAGED_M01_LAUNCH_ROADMAP.md` — roadmap activo.
+- `05-implementacion/MG00_MANAGED_PROFILE_IMPLEMENTATION_AUDIT.md` — audit técnico completado, **pendiente de aprobación antes de code**.
 
-Camino crítico:
+El audit refina el camino crítico en tickets pequeños:
 
 ```text
-MG-00 Managed Profile Implementation Audit
+MG-01.1 Operating Profile Foundation
   ↓
-MG-01 Managed Profile Foundation
+MG-01.2 Managed Capability API Gates
+  ↓
+MG-02.1 Managed Client Surface
   ↓
 MG-01A SDK/OpenAPI Transport Guard
   ↓
-MG-02 Managed Planner Surface
+MG-02A.1 Guests Workspace
   ↓
-MG-02A Planner Operations Completeness
+MG-02A.2 Invitations / Assistants
   ↓
-MG-03 Managed Activation
+MG-02A.3 RSVP Operations
+  ↓
+MG-02A.4 Close Event
+  ↓
+MG-03A Managed Event Intake
+  ↓
+MG-03B Managed Activation
   ↓
 MG-04 Commercial Demo Fixture
   ↓
 MG-05 Managed E2E / Release UAT
 ```
+
+Este orden refinado es una **recomendación técnica producida por MG-00**. No autoriza implementación hasta aprobación explícita del audit/ticket.
 
 P1 posterior:
 
@@ -162,22 +174,22 @@ P1 posterior:
 Release gates:
 
 - `RG-01` Security / anti-abuse / production auth evidence.
-- `RG-02` Deployment / realtime topology.
+- `RG-02` Deployment / realtime topology; M01 inicial asume una sola réplica API mientras Realtime sea process-local.
 
-**Primera tarea autorizada:** `MG00_MANAGED_PROFILE_IMPLEMENTATION_AUDIT`.
+Hallazgos centrales de MG-00:
 
-No cambiar dominio, roles, Finance ni Managed Activation antes de aprobación del audit.
+- falta `operatingProfile` explícito; no derivarlo de Pricing/CommercialChannel;
+- Provider debe crear/configurar Event, Design y Croquis;
+- Planner Managed no debe alcanzar create/update técnico, Wizard, Design builder, Croquis builder ni Finance;
+- Guests deben salir del Wizard hacia el workspace operativo antes de ocultarlo;
+- siete rutas Client de Croquis están rotas y no deben restaurarse;
+- el SDK necesita un guard machine-checkable contra OpenAPI;
+- Admin intake actual exige quote/cobertura y por tanto también está acoplado a Finance;
+- Activation actual exige commercial lock + Finance + Ledger + Receipt + trigger PostgreSQL financiero;
+- Managed intake y Managed activation deben ser flujos separados que preserven Self-Service financiero;
+- Reports/Album no bloquean el primer demo M01.
 
-La auditoría Astra se traduce así para M01:
-
-- rutas Client de Croquis rotas → P0, no restaurar mutaciones Planner;
-- contradicción Provider/Planner → P0, resolver por Managed Profile;
-- drift SDK/OpenAPI → MG-01A P0 técnico;
-- Invitaciones/RSVP/lifecycle → conectar sólo subset necesario para M01;
-- Reports/Album → MG-06/MG-07;
-- Organization → M02/FUTURE;
-- Auth/antiabuse → RG-01;
-- Realtime multi-instancia → RG-02.
+**Primer ticket de código propuesto:** `MG-01.1 — Operating Profile Foundation`, únicamente después de aprobación explícita de MG-00.
 
 ---
 
@@ -259,16 +271,16 @@ Los siguientes documentos pueden explicar decisiones o implementación existente
 
 | Cambio | Leer primero |
 |---|---|
-| roadmap / tarea activa | `00_START_HERE` → dirección M01 → `24_MANAGED_M01_LAUNCH_ROADMAP.md` |
-| perfil Managed / quién prepara | dirección M01 → roadmap M01 → `04_OPERATOR_LED_MVP` → `06A` |
-| roles / ownership / autorización | dirección M01 → `03_ROLES_PERMISOS_ACCESO` → Access Matrix → contrato técnico |
-| Client | dirección M01 → roadmap M01 → `CLIENT_APP_CONTRACT` → `ACTIVE_EVENT_WORKSPACE_CONTRACT` |
-| Admin Provider | dirección M01 → roadmap M01 → `ADMIN_APP_CONTRACT` → ADR operator-led |
-| Activation | dirección M01 → roadmap M01 → `EVENT_ACTIVATION_CONTRACT` → `FINANCE_CONTRACT` → implementación real |
-| Invitación | dirección M01 → Invitation Design / Invitations / File Assets contracts |
-| Croquis | dirección M01 → Detailed Seating → SVG Mapping → Sticker Seating |
-| Staff / Scanner | dirección M01 → Staff Access → Scanner Check-in |
-| SDK/API drift | roadmap M01 MG-01A → OpenAPI/api-client implementation |
+| roadmap / tarea activa | `00_START_HERE` → dirección M01 → `24_MANAGED_M01_LAUNCH_ROADMAP.md` → `MG00_MANAGED_PROFILE_IMPLEMENTATION_AUDIT.md` |
+| perfil Managed / quién prepara | dirección M01 → MG-00 → `04_OPERATOR_LED_MVP` → `06A` |
+| roles / ownership / autorización | dirección M01 → MG-00 → `03_ROLES_PERMISOS_ACCESO` → Access Matrix → contrato técnico |
+| Client | dirección M01 → MG-00 → `CLIENT_APP_CONTRACT` → `ACTIVE_EVENT_WORKSPACE_CONTRACT` |
+| Admin Provider | dirección M01 → MG-00 → `ADMIN_APP_CONTRACT` → ADR operator-led |
+| Activation | dirección M01 → MG-00 → `EVENT_ACTIVATION_CONTRACT` → `FINANCE_CONTRACT` → implementación real |
+| Invitación | dirección M01 → MG-00 → Invitation Design / Invitations / File Assets contracts |
+| Croquis | dirección M01 → MG-00 → Detailed Seating → SVG Mapping → Sticker Seating |
+| Staff / Scanner | dirección M01 → MG-00 → Staff Access → Scanner Check-in |
+| SDK/API drift | MG-00 MG-01A → OpenAPI/api-client implementation |
 | Finance/Pricing | contratos Finance/Pricing; recordar que están fuera del lanzamiento salvo ticket |
 | modelo M02–M05 | `06_MODELOS...` + documento específico, sólo para análisis futuro |
 
@@ -279,14 +291,15 @@ Los siguientes documentos pueden explicar decisiones o implementación existente
 1. `AGENTS.md` manda sobre workflow.
 2. `00_START_HERE.md` manda sobre navegación documental.
 3. `01_DIRECCION_ACTUAL_M01_MANAGED.md` manda sobre alcance del lanzamiento.
-4. `24_MANAGED_M01_LAUNCH_ROADMAP.md` manda sobre orden técnico activo.
-5. M01/operator-led manda sobre reparto Provider/Planner para esta fase.
-6. Contratos especializados mandan sobre detalles técnicos del runtime.
-7. Código real resuelve archaeology cuando la documentación esté desactualizada; cualquier contradicción debe documentarse antes de cambiar negocio.
-8. Roadmaps y tickets completados no reabren scope.
-9. Documentos M02–M05 y Commercial/Finance no autorizan implementación por sí solos.
-10. Referencias visuales nunca cambian dominio, permisos, estados, API ni Finance.
-11. `MONOREPO_ARCHITECTURE.md` prevalece sobre cualquier instrucción histórica de repos separados.
+4. `24_MANAGED_M01_LAUNCH_ROADMAP.md` manda sobre orden técnico de alto nivel.
+5. `MG00_MANAGED_PROFILE_IMPLEMENTATION_AUDIT.md` manda sobre clasificación de gaps y refinamiento técnico de M01 una vez aprobado.
+6. M01/operator-led manda sobre reparto Provider/Planner para esta fase.
+7. Contratos especializados mandan sobre detalles técnicos del runtime.
+8. Código real resuelve archaeology cuando la documentación esté desactualizada; cualquier contradicción debe documentarse antes de cambiar negocio.
+9. Roadmaps y tickets completados no reabren scope.
+10. Documentos M02–M05 y Commercial/Finance no autorizan implementación por sí solos.
+11. Referencias visuales nunca cambian dominio, permisos, estados, API ni Finance.
+12. `MONOREPO_ARCHITECTURE.md` prevalece sobre cualquier instrucción histórica de repos separados.
 
 ## Repositorio canónico
 
