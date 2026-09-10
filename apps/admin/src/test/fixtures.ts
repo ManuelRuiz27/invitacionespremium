@@ -161,7 +161,20 @@ const mutationResult = {
   }
 } as const;
 
-type AdminTestApiClient = ApiClient & { adminAudit: NonNullable<ApiClient['adminAudit']> };
+type RemovedFloorplanTestDoubles = {
+  setImage: ReturnType<typeof vi.fn>;
+  replaceImage: ReturnType<typeof vi.fn>;
+  addShape: ReturnType<typeof vi.fn>;
+  updateShape: ReturnType<typeof vi.fn>;
+  removeShape: ReturnType<typeof vi.fn>;
+  lock: ReturnType<typeof vi.fn>;
+  unlock: ReturnType<typeof vi.fn>;
+};
+
+type AdminTestApiClient = Omit<ApiClient, 'floorplan'> & {
+  adminAudit: NonNullable<ApiClient['adminAudit']>;
+  floorplan: ApiClient['floorplan'] & RemovedFloorplanTestDoubles;
+};
 
 export function mockAdminApi(user: AuthUser = platformAdmin): AdminTestApiClient {
   return {

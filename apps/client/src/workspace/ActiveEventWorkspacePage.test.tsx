@@ -289,7 +289,6 @@ describe('Active Event seating workspace', () => {
     expect(await screen.findByRole('heading', { name: '12', level: 2 })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /Sin mesa/ })).toBeInTheDocument();
     expect(api.floorplan.seating).toHaveBeenCalled();
-    expectGeometryMutationsNotCalled(api);
   });
 
   it('keeps the full-width Floorplan oriented with an authoritative operational summary before Table selection', async () => {
@@ -310,7 +309,6 @@ describe('Active Event seating workspace', () => {
     expect(within(summary).getByText('Disponibles').parentElement).toHaveTextContent('9');
     expect(within(summary).getByText('Sin mesa').parentElement).toHaveTextContent('1');
     expect(screen.queryByText(/Confirmados/i)).not.toBeInTheDocument();
-    expectGeometryMutationsNotCalled(api);
   });
 
   it('prioritizes selected Table occupancy and identifies a full Table naturally', async () => {
@@ -355,7 +353,6 @@ describe('Active Event seating workspace', () => {
     expect(screen.queryByRole('tab', { name: /Sin mesa/ })).not.toBeInTheDocument();
     expect(api.floorplan.seating).not.toHaveBeenCalled();
     expect(screen.queryByText('Sin mesa')).not.toBeInTheDocument();
-    expectGeometryMutationsNotCalled(api);
   });
 
   it('assigns a bounded selection with one stable idempotency key and no layout mutation', async () => {
@@ -380,7 +377,6 @@ describe('Active Event seating workspace', () => {
       expect.stringMatching(/^[0-9a-f-]{36}$/u),
       expect.any(AbortSignal)
     );
-    expect(api.floorplan.updateShape).not.toHaveBeenCalled();
   });
 
   it('passes canonical SVG geometry and global Seats to the read-only Planner surface', async () => {
@@ -715,7 +711,6 @@ describe('Active Event seating workspace', () => {
     expect(await screen.findByTestId('seating-tablet-drawer')).toBeInTheDocument();
     expect(await screen.findByRole('heading', { name: '200', level: 2 })).toBeInTheDocument();
     expect(await screen.findAllByRole('checkbox', { name: /Seleccionar Persona/ })).toHaveLength(50);
-    expectGeometryMutationsNotCalled(api);
     expect((seatingFloorplanHarness.props?.floorplan as Floorplan).shapes).toHaveLength(200);
     expect(seatingFloorplanHarness.props?.readOnly).toBe(true);
     expect(api.floorplan.get).toHaveBeenCalledOnce();
@@ -855,16 +850,6 @@ function setViewportWidth(width: number) {
       };
     })
   });
-}
-
-function expectGeometryMutationsNotCalled(api: ReturnType<typeof mockApiClient>) {
-  expect(api.floorplan.setImage).not.toHaveBeenCalled();
-  expect(api.floorplan.replaceImage).not.toHaveBeenCalled();
-  expect(api.floorplan.addShape).not.toHaveBeenCalled();
-  expect(api.floorplan.updateShape).not.toHaveBeenCalled();
-  expect(api.floorplan.removeShape).not.toHaveBeenCalled();
-  expect(api.floorplan.lock).not.toHaveBeenCalled();
-  expect(api.floorplan.unlock).not.toHaveBeenCalled();
 }
 
 function scaleClientFloorplan(count: 200): Floorplan {

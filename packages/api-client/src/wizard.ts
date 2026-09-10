@@ -381,24 +381,7 @@ export function createFloorplanClient(request: ApiRequester) {
           ...(signal ? { signal } : {})
         },
         record
-      ),
-    setImage: (eventId: string, imageAssetId: string) =>
-      request<Floorplan>({ method: 'POST', path: base(eventId), body: { imageAssetId }, response: 'json' }, record),
-    replaceImage: (eventId: string, imageAssetId: string) =>
-      request<Floorplan>({ method: 'PATCH', path: base(eventId), body: { imageAssetId }, response: 'json' }, record),
-    addShape: (eventId: string, body: FloorplanShapeInput) =>
-      request<FloorplanShape>({ method: 'POST', path: `${base(eventId)}/shapes`, body, response: 'json' }, record),
-    updateShape: (eventId: string, shapeId: string, body: FloorplanShapeUpdate) =>
-      request<FloorplanShape>(
-        { method: 'PATCH', path: `${base(eventId)}/shapes/${id(shapeId)}`, body, response: 'json' },
-        record
-      ),
-    removeShape: (eventId: string, shapeId: string) =>
-      request<void>({ method: 'DELETE', path: `${base(eventId)}/shapes/${id(shapeId)}`, response: 'empty' }),
-    lock: (eventId: string) =>
-      request<Floorplan>({ method: 'POST', path: `${base(eventId)}/lock`, response: 'json' }, record),
-    unlock: (eventId: string) =>
-      request<Floorplan>({ method: 'POST', path: `${base(eventId)}/unlock`, response: 'json' }, record)
+      )
   };
 }
 

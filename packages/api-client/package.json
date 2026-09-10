@@ -14,13 +14,15 @@
   "scripts": {
     "generate": "node scripts/generate.mjs",
     "generate:check": "node scripts/generate.mjs --check",
+    "verify:openapi-routes": "node scripts/verify-openapi-routes.mjs",
     "build": "tsc -p tsconfig.build.json",
     "lint": "eslint src",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run && node --test scripts/verify-openapi-routes.node-test.mjs"
   },
   "devDependencies": {
     "openapi-typescript": "^7.13.0",
+    "typescript": "^5.9.3",
     "vitest": "^4.1.10"
   }
 }

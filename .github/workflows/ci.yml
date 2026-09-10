@@ -101,6 +101,9 @@ jobs:
           pnpm --filter @invitaciones/api-client generate:check
           git diff --exit-code -- packages/api-client/src/generated/schema.ts
 
+      - name: Verify API client routes
+        run: pnpm --filter @invitaciones/api-client verify:openapi-routes
+
       - name: Format check
         id: format
         continue-on-error: true

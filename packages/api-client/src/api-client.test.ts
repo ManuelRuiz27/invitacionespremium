@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createApiClient, normalizeApiBaseUrl } from './index';
+import { createRequester } from './api-client';
 
 const validUser = {
   id: '66a0bb4d-e408-4928-a955-08c258064928',
@@ -247,6 +248,22 @@ describe('generated API client runtime', () => {
     });
     expect(fetchImpl.mock.calls.map(([, init]) => init?.method)).toEqual(['POST', 'PATCH']);
     expect(fetchImpl.mock.calls[1]?.[1]?.body).toContain('"confirmationEnabled":true');
+  });
+
+  it('sends PUT requests through the shared requester', async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 204 }));
+
+    await createRequester({ baseUrl: 'https://api.example.com/api/v1', fetchImpl })({
+      method: 'PUT',
+      path: '/events/event-1/invitations/invitation-1/confirmation',
+      body: { responseStatus: 'CONFIRMED' },
+      response: 'empty'
+    });
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'https://api.example.com/api/v1/events/event-1/invitations/invitation-1/confirmation',
+      expect.objectContaining({ method: 'PUT', credentials: 'include' })
+    );
   });
 
   it('supports DELETE and 204 responses', async () => {

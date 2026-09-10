@@ -7,7 +7,7 @@ export interface ApiClientRuntimeConfig {
 }
 
 export interface ApiRequest {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   path: string;
   body?: unknown;
   headers?: Record<string, string>;

@@ -360,14 +360,7 @@ export function mockApiClient(user: AuthUser = independentUser): ApiClient {
       assignFamily: vi.fn(),
       assignGroup: vi.fn(),
       assignSeats: vi.fn(),
-      updateSeating: vi.fn(),
-      setImage: vi.fn(),
-      replaceImage: vi.fn(),
-      addShape: vi.fn(),
-      updateShape: vi.fn(),
-      removeShape: vi.fn(),
-      lock: vi.fn(),
-      unlock: vi.fn()
+      updateSeating: vi.fn()
     },
     physicalPasses: { list: vi.fn().mockResolvedValue([]), generate: vi.fn(), svg: vi.fn() },
     staffTokens: { list: vi.fn().mockResolvedValue([]), create: vi.fn() },
