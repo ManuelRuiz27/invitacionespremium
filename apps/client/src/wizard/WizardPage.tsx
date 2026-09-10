@@ -3,10 +3,11 @@ import { ErrorState, LoadingState } from '@invitaciones/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
+import { GuestManagementPanel } from '../guests/GuestManagementPanel';
+import { errorMessage } from '../shared/client-utils';
 import { useSessionExpiry } from '../shared/use-session-expiry';
 import { SerialAutosave } from './autosave/serial-autosave';
 import { ConfirmationStep } from './confirmation/ConfirmationStep';
-import { ContactsStep } from './contacts/ContactsStep';
 import { DataStep } from './data/DataStep';
 import { DesignStep } from './design/DesignStep';
 import { FloorplanSeatingStep } from './floorplan/FloorplanSeatingStep';
@@ -14,7 +15,6 @@ import { PhysicalPassesStep } from './physical-passes/PhysicalPassesStep';
 import { ReviewStep } from './review/ReviewStep';
 import { WizardLayout } from './WizardLayout';
 import { isEditableEvent, isMeaningfulDraft, stepsForService, type SaveState, type WizardStep } from './wizard-model';
-import { errorMessage } from './wizard-utils';
 
 const emptyDraft: UpdateEventInput = {
   serviceId: null,
@@ -216,7 +216,7 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
         />
       ) : null}
       {selectedStep === 'contactos' && event ? (
-        <ContactsStep apiClient={apiClient} event={event} disabled={!editable} />
+        <GuestManagementPanel apiClient={apiClient} event={event} readOnly={!editable} />
       ) : null}
       {selectedStep === 'invitacion' && event ? (
         <DesignStep apiClient={apiClient} event={event} service={service} disabled={!editable} />

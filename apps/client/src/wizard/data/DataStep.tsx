@@ -20,7 +20,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { priceRuleForCapacity, serviceLabels, socialTypeLabels } from '../../shared/formatters';
 import { instantToWallClock, supportedTimeZones, wallClockToInstant } from './timezone';
-import { errorMessage } from '../wizard-utils';
+import { errorMessage } from '../../shared/client-utils';
 
 export function DataStep({
   services,

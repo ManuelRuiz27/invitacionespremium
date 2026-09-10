@@ -3,7 +3,7 @@ import { Alert, Box, Button, Collapse, FormHelperText, MenuItem, Stack, TextFiel
 import { useEffect, useRef, useState } from 'react';
 import { isValidInvitationExternalUrl } from '../../shared/invitation-external-url';
 import { relativeRectStyles } from '../../shared/relative-rect';
-import { errorMessage, normalizeRect } from '../wizard-utils';
+import { errorMessage, normalizeRect } from '../../shared/client-utils';
 
 type Draft = Pick<Hotspot, 'x' | 'y' | 'width' | 'height' | 'action' | 'priority'> & { url: string };
 type EditorMode = 'idle' | 'choosing' | 'creating' | 'editing';

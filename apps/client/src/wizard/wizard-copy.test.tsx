@@ -4,7 +4,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { configuredEvent } from '../test/fixtures';
 import { WizardLayout } from './WizardLayout';
-import { blockerMessage, errorMessage, operationReference } from './wizard-utils';
+import { blockerMessage, errorMessage, operationReference } from '../shared/client-utils';
 import { ApiError } from '@invitaciones/api-client';
 
 const presentations: Array<[Event['status'], string]> = [

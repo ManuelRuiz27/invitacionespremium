@@ -20,7 +20,7 @@ import {
 } from '@mui/material';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { serviceLabels } from '../../shared/formatters';
-import { blockerMessage, errorMessage } from '../wizard-utils';
+import { blockerMessage, errorMessage } from '../../shared/client-utils';
 import { AssetPreview } from './AssetPreview';
 import { HotspotEditor } from './HotspotEditor';
 import { usePrivateAssetUrl } from './usePrivateAssetUrl';

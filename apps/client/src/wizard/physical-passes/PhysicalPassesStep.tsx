@@ -3,7 +3,7 @@ import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import { Alert, Button, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AttemptManager, isUncertainFailure } from '../wizard-model';
-import { downloadBlob, errorMessage } from '../wizard-utils';
+import { downloadBlob, errorMessage } from '../../shared/client-utils';
 import {
   createPhysicalPassesPdf,
   PHYSICAL_PASSES_PER_PDF_PAGE,

@@ -6,6 +6,7 @@ import { Alert, AlertTitle, Box, Button, Link as MuiLink, Stack, Typography } fr
 import { useQuery } from '@tanstack/react-query';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
+import { GuestManagementPanel } from '../guests/GuestManagementPanel';
 import { getEventStatusPresentation } from '../shared/event-status';
 import { formatEventDateLong, serviceLabels, socialTypeLabels } from '../shared/formatters';
 import { useSessionExpiry } from '../shared/use-session-expiry';
@@ -37,7 +38,7 @@ const stateMessages: Partial<Record<EventStatus, string>> = {
   CANCELLED: 'Este evento fue cancelado.'
 };
 
-type WorkspaceSection = 'resumen' | 'invitaciones' | 'mesas' | 'staff';
+type WorkspaceSection = 'resumen' | 'invitados' | 'invitaciones' | 'mesas' | 'staff';
 
 export function ActiveEventWorkspacePage({
   apiClient,
@@ -102,7 +103,7 @@ export function ActiveEventWorkspacePage({
 
   const destination = preparationDestinations[event.status];
   if (destination) {
-    if (managed) return <ManagedEventPreparation event={event} />;
+    if (managed) return <ManagedEventPreparation apiClient={apiClient} event={event} />;
     return <Navigate to={`/eventos/${eventId}/configuracion/${destination}`} replace />;
   }
 
@@ -113,8 +114,20 @@ export function ActiveEventWorkspacePage({
   return <EventWorkspace apiClient={apiClient} event={event} {...(scannerAppUrl ? { scannerAppUrl } : {})} />;
 }
 
-function ManagedEventPreparation({ event }: { event: Event }) {
+function ManagedEventPreparation({ apiClient, event }: { apiClient: ApiClient; event: Event }) {
+  const [searchParams] = useSearchParams();
+  const section = searchParams.get('seccion') === 'invitados' ? 'invitados' : 'resumen';
   const status = getEventStatusPresentation(event.status);
+  const navLinkSx = {
+    display: 'inline-flex',
+    minHeight: 44,
+    alignItems: 'center',
+    px: 1.5,
+    borderBottom: 2,
+    color: 'text.primary',
+    fontWeight: 700
+  } as const;
+
   return (
     <Stack spacing={{ xs: 3, md: 4 }} sx={{ maxWidth: 920 }}>
       <Button
@@ -138,11 +151,40 @@ function ManagedEventPreparation({ event }: { event: Event }) {
 
       <Alert severity="info">
         <AlertTitle>Preparación a cargo de InvitacionesPremium</AlertTitle>
-        Nuestro equipo está preparando la configuración técnica de este evento. Aquí puedes consultar sus datos
-        principales mientras queda listo para operar.
+        Nuestro equipo está preparando la configuración técnica de este evento. Puedes administrar invitados mientras
+        completamos la preparación.
       </Alert>
 
-      <EventDetails event={event} />
+      <Box
+        component="nav"
+        aria-label="Secciones del Evento"
+        sx={{ display: 'flex', borderBottom: 1, borderColor: 'divider' }}
+      >
+        <MuiLink
+          component={Link}
+          to={`/eventos/${event.id}`}
+          aria-current={section === 'resumen' ? 'page' : undefined}
+          underline="none"
+          sx={{ ...navLinkSx, borderColor: section === 'resumen' ? 'primary.main' : 'transparent' }}
+        >
+          Resumen
+        </MuiLink>
+        <MuiLink
+          component={Link}
+          to={`/eventos/${event.id}?seccion=invitados`}
+          aria-current={section === 'invitados' ? 'page' : undefined}
+          underline="none"
+          sx={{ ...navLinkSx, borderColor: section === 'invitados' ? 'primary.main' : 'transparent' }}
+        >
+          Invitados
+        </MuiLink>
+      </Box>
+
+      {section === 'invitados' ? (
+        <GuestManagementPanel apiClient={apiClient} event={event} />
+      ) : (
+        <EventDetails event={event} />
+      )}
     </Stack>
   );
 }
@@ -158,19 +200,22 @@ function EventWorkspace({
 }) {
   const [searchParams] = useSearchParams();
   const showInvitations = event.serviceCode === 'FLYER' || event.serviceCode === 'FLIPBOOK';
+  const showGuests = showInvitations;
   const showSeating =
     event.floorplanEnabled &&
     (event.serviceCode === 'FLYER' || event.serviceCode === 'FLIPBOOK' || event.serviceCode === 'PHYSICAL_QR');
   const showStaff = Boolean(scannerAppUrl && (event.status === 'ACTIVE' || event.status === 'EVENT_DAY'));
   const requestedSection = searchParams.get('seccion');
   const section: WorkspaceSection =
-    requestedSection === 'invitaciones' && showInvitations
-      ? 'invitaciones'
-      : requestedSection === 'mesas' && showSeating
-        ? 'mesas'
-        : requestedSection === 'staff' && showStaff
-          ? 'staff'
-          : 'resumen';
+    requestedSection === 'invitados' && showGuests
+      ? 'invitados'
+      : requestedSection === 'invitaciones' && showInvitations
+        ? 'invitaciones'
+        : requestedSection === 'mesas' && showSeating
+          ? 'mesas'
+          : requestedSection === 'staff' && showStaff
+            ? 'staff'
+            : 'resumen';
   const status = getEventStatusPresentation(event.status);
   const canShareInvitations = event.status === 'ACTIVE' || event.status === 'EVENT_DAY';
 
@@ -226,6 +271,17 @@ function EventWorkspace({
         >
           Resumen
         </MuiLink>
+        {showGuests ? (
+          <MuiLink
+            component={Link}
+            to={`/eventos/${event.id}?seccion=invitados`}
+            aria-current={section === 'invitados' ? 'page' : undefined}
+            underline="none"
+            sx={{ ...navLinkSx, borderColor: section === 'invitados' ? 'primary.main' : 'transparent' }}
+          >
+            Invitados
+          </MuiLink>
+        ) : null}
         {showInvitations ? (
           <MuiLink
             component={Link}
@@ -261,7 +317,9 @@ function EventWorkspace({
         ) : null}
       </Box>
 
-      {section === 'invitaciones' ? (
+      {section === 'invitados' ? (
+        <GuestManagementPanel apiClient={apiClient} event={event} readOnly />
+      ) : section === 'invitaciones' ? (
         <Box component="section" aria-labelledby="invitation-distribution-title">
           <Typography id="invitation-distribution-title" component="h2" variant="h3" sx={{ mb: 0.75 }}>
             {canShareInvitations ? 'Enviar invitaciones' : 'Invitaciones'}

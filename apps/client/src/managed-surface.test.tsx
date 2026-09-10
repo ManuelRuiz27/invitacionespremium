@@ -1,5 +1,5 @@
 import type { Event } from '@invitaciones/api-client';
-import { act, screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { activeEvent, configuredEvent, independentUser, managedUser, mockApiClient } from './test/fixtures';
 import { renderApp } from './test/render-app';
@@ -79,13 +79,16 @@ describe('Managed Client surface', () => {
       expect(screen.getByText('120 personas')).toBeInTheDocument();
       expect(screen.getByText('Con distribución de mesas')).toBeInTheDocument();
       expect(router.state.location.pathname).toBe(`/eventos/${event.id}`);
-      expect(screen.queryByRole('navigation', { name: 'Secciones del Evento' })).not.toBeInTheDocument();
+      const navigation = screen.getByRole('navigation', { name: 'Secciones del Evento' });
+      expect(within(navigation).getByRole('link', { name: 'Resumen', current: 'page' })).toBeInTheDocument();
+      expect(within(navigation).getByRole('link', { name: 'Invitados' })).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /Activar evento/i })).not.toBeInTheDocument();
       expect(api.services.listAvailable).not.toHaveBeenCalled();
       expect(api.events.activate).not.toHaveBeenCalled();
       expect(api.design.get).not.toHaveBeenCalled();
       expect(api.floorplan.get).not.toHaveBeenCalled();
       expect(api.physicalPasses.generate).not.toHaveBeenCalled();
+      expect(api.contacts.list).not.toHaveBeenCalled();
     }
   );
 

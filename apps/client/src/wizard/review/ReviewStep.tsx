@@ -16,7 +16,7 @@ import { Link } from 'react-router-dom';
 import { priceRuleForCapacity, serviceLabels } from '../../shared/formatters';
 import { AttemptManager, isUncertainFailure } from '../wizard-model';
 import type { WizardStep } from '../wizard-model';
-import { blockerMessage, errorMessage, operationReference } from '../wizard-utils';
+import { blockerMessage, errorMessage, operationReference } from '../../shared/client-utils';
 
 type Check = { label: string; ok: boolean; step?: WizardStep; detail?: string; managedByProvider?: boolean };
 export function ReviewStep({
