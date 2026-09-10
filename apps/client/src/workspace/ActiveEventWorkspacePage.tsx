@@ -2,9 +2,10 @@ import type { ApiClient, Event, EventStatus } from '@invitaciones/api-client';
 import { ApiError } from '@invitaciones/api-client';
 import { ErrorState, LoadingState, StatusChip } from '@invitaciones/ui';
 import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded';
-import { Alert, Box, Button, Link as MuiLink, Stack, Typography } from '@mui/material';
+import { Alert, AlertTitle, Box, Button, Link as MuiLink, Stack, Typography } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../auth/AuthProvider';
 import { getEventStatusPresentation } from '../shared/event-status';
 import { formatEventDateLong, serviceLabels, socialTypeLabels } from '../shared/formatters';
 import { useSessionExpiry } from '../shared/use-session-expiry';
@@ -46,6 +47,8 @@ export function ActiveEventWorkspacePage({
   scannerAppUrl?: string;
 }) {
   const { eventId = '' } = useParams();
+  const { user } = useAuth();
+  const managed = user?.clientOperatingProfile === 'MANAGED';
   const returnTo = `/eventos/${eventId}`;
   const eventQuery = useQuery({
     queryKey: ['events', eventId],
@@ -99,6 +102,7 @@ export function ActiveEventWorkspacePage({
 
   const destination = preparationDestinations[event.status];
   if (destination) {
+    if (managed) return <ManagedEventPreparation event={event} />;
     return <Navigate to={`/eventos/${eventId}/configuracion/${destination}`} replace />;
   }
 
@@ -107,6 +111,40 @@ export function ActiveEventWorkspacePage({
   }
 
   return <EventWorkspace apiClient={apiClient} event={event} {...(scannerAppUrl ? { scannerAppUrl } : {})} />;
+}
+
+function ManagedEventPreparation({ event }: { event: Event }) {
+  const status = getEventStatusPresentation(event.status);
+  return (
+    <Stack spacing={{ xs: 3, md: 4 }} sx={{ maxWidth: 920 }}>
+      <Button
+        component={Link}
+        to="/eventos"
+        startIcon={<ArrowBackRounded />}
+        sx={{ alignSelf: 'flex-start', minHeight: 44 }}
+      >
+        Volver a eventos
+      </Button>
+
+      <Stack component="header" spacing={1.5}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ gap: 1.5, alignItems: { sm: 'center' } }}>
+          <Typography component="h1" variant="h2">
+            {event.name ?? 'Evento sin nombre'}
+          </Typography>
+          <StatusChip label={status.label} tone={status.tone} />
+        </Stack>
+        <Typography color="text.secondary">{formatEventDateLong(event.eventDateTime, event.timeZone)}</Typography>
+      </Stack>
+
+      <Alert severity="info">
+        <AlertTitle>Preparación a cargo de InvitacionesPremium</AlertTitle>
+        Nuestro equipo está preparando la configuración técnica de este evento. Aquí puedes consultar sus datos
+        principales mientras queda listo para operar.
+      </Alert>
+
+      <EventDetails event={event} />
+    </Stack>
+  );
 }
 
 function EventWorkspace({
@@ -134,15 +172,7 @@ function EventWorkspace({
           ? 'staff'
           : 'resumen';
   const status = getEventStatusPresentation(event.status);
-  const serviceLabel = event.serviceCode ? serviceLabels[event.serviceCode] : 'Servicio no disponible';
   const canShareInvitations = event.status === 'ACTIVE' || event.status === 'EVENT_DAY';
-  const details = [
-    ['Fecha y hora', formatEventDateLong(event.eventDateTime, event.timeZone)],
-    ['Tipo de evento', event.socialType ? socialTypeLabels[event.socialType] : 'Tipo pendiente'],
-    ['Servicio contratado', serviceLabel],
-    ['Capacidad', event.capacity === null ? 'Capacidad pendiente' : `${event.capacity} personas`],
-    ['Mesas y distribución', event.floorplanEnabled ? 'Con distribución de mesas' : 'Sin distribución de mesas']
-  ];
 
   const navLinkSx = {
     display: 'inline-flex',
@@ -269,29 +299,42 @@ function EventWorkspace({
             {stateMessages[event.status]}
           </Alert>
 
-          <Box
-            component="dl"
-            sx={{
-              m: 0,
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' },
-              columnGap: 4
-            }}
-          >
-            {details.map(([label, value]) => (
-              <Box key={label} sx={{ minWidth: 0, py: 2, borderBottom: 1, borderColor: 'divider' }}>
-                <Typography component="dt" variant="body2" color="text.secondary">
-                  {label}
-                </Typography>
-                <Typography component="dd" sx={{ m: 0, mt: 0.5, fontWeight: 650, overflowWrap: 'anywhere' }}>
-                  {value}
-                </Typography>
-              </Box>
-            ))}
-          </Box>
+          <EventDetails event={event} />
         </Box>
       )}
     </Stack>
+  );
+}
+
+function EventDetails({ event }: { event: Event }) {
+  const details = [
+    ['Fecha y hora', formatEventDateLong(event.eventDateTime, event.timeZone)],
+    ['Tipo de evento', event.socialType ? socialTypeLabels[event.socialType] : 'Tipo pendiente'],
+    ['Servicio contratado', event.serviceCode ? serviceLabels[event.serviceCode] : 'Servicio no disponible'],
+    ['Capacidad', event.capacity === null ? 'Capacidad pendiente' : `${event.capacity} personas`],
+    ['Mesas y distribución', event.floorplanEnabled ? 'Con distribución de mesas' : 'Sin distribución de mesas']
+  ];
+  return (
+    <Box
+      component="dl"
+      sx={{
+        m: 0,
+        display: 'grid',
+        gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' },
+        columnGap: 4
+      }}
+    >
+      {details.map(([label, value]) => (
+        <Box key={label} sx={{ minWidth: 0, py: 2, borderBottom: 1, borderColor: 'divider' }}>
+          <Typography component="dt" variant="body2" color="text.secondary">
+            {label}
+          </Typography>
+          <Typography component="dd" sx={{ m: 0, mt: 0.5, fontWeight: 650, overflowWrap: 'anywhere' }}>
+            {value}
+          </Typography>
+        </Box>
+      ))}
+    </Box>
   );
 }
 

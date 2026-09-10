@@ -5,6 +5,7 @@ import { AuthProvider } from '../auth/AuthProvider';
 import { LoginPage } from '../auth/LoginPage';
 import { ProtectedRoute } from '../auth/ProtectedRoute';
 import { RoleRoute } from '../auth/RoleRoute';
+import { SelfServiceRoute } from '../auth/SelfServiceRoute';
 import { DashboardPage } from '../dashboard/DashboardPage';
 import { FinancePage } from '../finance/FinancePage';
 import { ClientShell } from '../layout/ClientShell';
@@ -81,14 +82,19 @@ function createRoutes(dependencies: RouterDependencies): RouteObject[] {
                     />
                   )
                 },
-                { path: '/eventos/nuevo', element: <WizardPage apiClient={dependencies.apiClient} /> },
                 {
-                  path: '/eventos/:eventId/configuracion/:step',
-                  element: <WizardPage apiClient={dependencies.apiClient} />
-                },
-                {
-                  element: <RoleRoute allowed={financeRoles} />,
-                  children: [{ path: '/finanzas', element: <FinancePage apiClient={dependencies.apiClient} /> }]
+                  element: <SelfServiceRoute />,
+                  children: [
+                    { path: '/eventos/nuevo', element: <WizardPage apiClient={dependencies.apiClient} /> },
+                    {
+                      path: '/eventos/:eventId/configuracion/:step',
+                      element: <WizardPage apiClient={dependencies.apiClient} />
+                    },
+                    {
+                      element: <RoleRoute allowed={financeRoles} />,
+                      children: [{ path: '/finanzas', element: <FinancePage apiClient={dependencies.apiClient} /> }]
+                    }
+                  ]
                 }
               ]
             }

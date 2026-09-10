@@ -27,7 +27,7 @@ const filters: { value: Filter; label: string }[] = [
   { value: 'cancelled', label: 'Cancelados' }
 ];
 
-export function EventsList({ events }: { events: Event[] }) {
+export function EventsList({ events, managed }: { events: Event[]; managed: boolean }) {
   const [filter, setFilter] = useState<Filter>('all');
   const [search, setSearch] = useState('');
 
@@ -96,7 +96,11 @@ export function EventsList({ events }: { events: Event[] }) {
             events.length ? 'No hay Eventos que coincidan con tu búsqueda.' : 'Aún no tienes eventos para mostrar.'
           }
           description={
-            events.length ? 'Prueba con otra búsqueda o filtro.' : 'Crea un Evento para comenzar a prepararlo.'
+            events.length
+              ? 'Prueba con otra búsqueda o filtro.'
+              : managed
+                ? 'Cuando InvitacionesPremium prepare un Evento, aparecerá aquí.'
+                : 'Crea un Evento para comenzar a prepararlo.'
           }
           action={events.length ? <Button onClick={clearFilters}>Limpiar búsqueda y filtros</Button> : undefined}
         />
@@ -104,11 +108,13 @@ export function EventsList({ events }: { events: Event[] }) {
         <Box component="ul" sx={{ m: 0, p: 0, borderTop: 1, borderColor: 'divider', listStyle: 'none' }}>
           {visible.map((event) => {
             const presentation = getEventStatusPresentation(event.status);
-            const action = ['DRAFT', 'CONFIGURED'].includes(event.status)
-              ? { label: 'Continuar configuración', to: `/eventos/${event.id}/configuracion/datos` }
-              : event.status === 'READY_TO_ACTIVATE'
-                ? { label: 'Activar evento', to: `/eventos/${event.id}/configuracion/revision` }
-                : { label: 'Ver evento', to: `/eventos/${event.id}` };
+            const action = managed
+              ? { label: 'Ver evento', to: `/eventos/${event.id}` }
+              : ['DRAFT', 'CONFIGURED'].includes(event.status)
+                ? { label: 'Continuar configuración', to: `/eventos/${event.id}/configuracion/datos` }
+                : event.status === 'READY_TO_ACTIVATE'
+                  ? { label: 'Activar evento', to: `/eventos/${event.id}/configuracion/revision` }
+                  : { label: 'Ver evento', to: `/eventos/${event.id}` };
 
             return (
               <Box component="li" key={event.id}>

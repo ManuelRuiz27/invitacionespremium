@@ -9,8 +9,7 @@ import { ConfirmationStep } from './confirmation/ConfirmationStep';
 import { ContactsStep } from './contacts/ContactsStep';
 import { DataStep } from './data/DataStep';
 import { DesignStep } from './design/DesignStep';
-import { FloorplanStep } from './floorplan/FloorplanStep';
-import { PhysicalQrTablesStep } from './floorplan/PhysicalQrTablesStep';
+import { FloorplanSeatingStep } from './floorplan/FloorplanSeatingStep';
 import { PhysicalPassesStep } from './physical-passes/PhysicalPassesStep';
 import { ReviewStep } from './review/ReviewStep';
 import { WizardLayout } from './WizardLayout';
@@ -225,19 +224,7 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
       {selectedStep === 'confirmacion' ? (
         <ConfirmationStep draft={draft} disabled={!editable} onChange={changeDraft} />
       ) : null}
-      {selectedStep === 'croquis' && event ? (
-        service?.code === 'PHYSICAL_QR' ? (
-          <PhysicalQrTablesStep apiClient={apiClient} event={event} />
-        ) : (
-          <FloorplanStep
-            apiClient={apiClient}
-            event={event}
-            draft={draft}
-            disabled={!editable}
-            onChange={changeDraft}
-          />
-        )
-      ) : null}
+      {selectedStep === 'croquis' && event ? <FloorplanSeatingStep apiClient={apiClient} event={event} /> : null}
       {selectedStep === 'pases' && event ? (
         <PhysicalPassesStep apiClient={apiClient} event={event} disabled={!editable} />
       ) : null}

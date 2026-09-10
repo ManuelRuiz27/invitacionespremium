@@ -33,6 +33,12 @@ export const organizationPlanner = {
   clientType: 'ORGANIZATION'
 } satisfies AuthUser;
 
+export const managedUser = {
+  ...independentUser,
+  email: 'managed@example.com',
+  clientOperatingProfile: 'MANAGED'
+} satisfies AuthUser;
+
 export const platformAdmin = {
   ...independentUser,
   email: 'platform@example.com',

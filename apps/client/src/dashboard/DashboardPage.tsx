@@ -6,8 +6,11 @@ import { useSessionExpiry } from '../shared/use-session-expiry';
 import { EventsList } from './EventsList';
 import { Button } from '@mui/material';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../auth/AuthProvider';
 
 export function DashboardPage({ apiClient }: { apiClient: ApiClient }) {
+  const { user } = useAuth();
+  const managed = user?.clientOperatingProfile === 'MANAGED';
   const eventsQuery = useQuery({
     queryKey: ['events'],
     queryFn: ({ signal }) => apiClient.events.list(signal)
@@ -19,16 +22,18 @@ export function DashboardPage({ apiClient }: { apiClient: ApiClient }) {
       <PageHeader
         title="Eventos"
         action={
-          <Button component={Link} to="/eventos/nuevo" variant="contained">
-            Nuevo evento
-          </Button>
+          managed ? undefined : (
+            <Button component={Link} to="/eventos/nuevo" variant="contained">
+              Nuevo evento
+            </Button>
+          )
         }
       />
       {eventsQuery.isPending ? <LoadingState label="Cargando Eventos…" /> : null}
       {eventsQuery.isError ? (
         <ErrorState {...toDisplayError(eventsQuery.error)} onRetry={() => void eventsQuery.refetch()} />
       ) : null}
-      {eventsQuery.data ? <EventsList events={eventsQuery.data} /> : null}
+      {eventsQuery.data ? <EventsList events={eventsQuery.data} managed={managed} /> : null}
     </>
   );
 }

@@ -1,10 +1,10 @@
-import type { ApiClient, Event, Floorplan, FloorplanShape } from '@invitaciones/api-client';
+import type { Floorplan, FloorplanShape } from '@invitaciones/api-client';
+import { FloorplanSurface } from '@invitaciones/floorplan';
 import { AppThemeProvider } from '@invitaciones/ui';
 import { Box, Button, Stack, Typography } from '@mui/material';
 import Konva from 'konva';
 import { StrictMode, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { FloorplanStep } from './wizard/floorplan/FloorplanStep';
 
 type ProfileResult = {
   scenario: string;
@@ -27,7 +27,7 @@ const venueSvg = new Blob(
   ],
   { type: 'image/svg+xml' }
 );
-const event = { id: 'profile-event', name: 'Boda de Andrea y Mateo', status: 'DRAFT', floorplanEnabled: true } as Event;
+const venueUrl = URL.createObjectURL(venueSvg);
 
 function shapes(count: number): FloorplanShape[] {
   const columns = count <= 20 ? 8 : count <= 60 ? 12 : 20;
@@ -57,7 +57,7 @@ function shapes(count: number): FloorplanShape[] {
 function makeFloorplan(count: number): Floorplan {
   return {
     id: `profile-${count}`,
-    eventId: event.id,
+    eventId: 'profile-event',
     image: { fileAssetId: 'venue', contentPath: '/venue', sourceType: 'RASTER' },
     locked: false,
     lockedAt: null,
@@ -72,23 +72,6 @@ function App() {
   const [runKey, setRunKey] = useState(0);
   const [results, setResults] = useState<ProfileResult[]>([]);
   const floorplan = useMemo(() => makeFloorplan(count), [count]);
-  const api = useMemo(
-    () =>
-      ({
-        floorplan: {
-          get: async () => floorplan,
-          addShape: async (_eventId: string, input: FloorplanShape) => ({ ...input, id: crypto.randomUUID() }),
-          updateShape: async (_eventId: string, id: string, input: FloorplanShape) => ({ ...input, id }),
-          removeShape: async () => undefined,
-          lock: async () => ({ ...floorplan, locked: true }),
-          unlock: async () => floorplan,
-          setImage: async () => floorplan,
-          replaceImage: async () => floorplan
-        },
-        fileAssets: { content: async () => venueSvg, upload: async () => ({ id: 'venue' }) }
-      }) as unknown as ApiClient,
-    [floorplan]
-  );
 
   window.__floorplanSetScenario = async (nextCount: number) => {
     setCount(nextCount);
@@ -109,13 +92,13 @@ function App() {
           Ejecutar perfil completo
         </Button>
       </Stack>
-      <FloorplanStep
+      <FloorplanSurface
         key={`${count}-${runKey}`}
-        apiClient={api}
-        event={event}
-        draft={{ confirmationEnabled: false, floorplanEnabled: true }}
+        floorplan={floorplan}
+        imageUrl={venueUrl}
         disabled={false}
-        onChange={() => undefined}
+        onSelect={() => undefined}
+        onDraftChange={() => undefined}
       />
       <Box
         component="pre"

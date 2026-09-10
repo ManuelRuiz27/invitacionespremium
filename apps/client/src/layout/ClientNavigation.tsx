@@ -11,7 +11,7 @@ export function ClientNavigation() {
 
   const items = [
     { to: '/eventos', label: 'Eventos', icon: <EventOutlined /> },
-    ...(canViewFinance(user.role)
+    ...(user.clientOperatingProfile === 'SELF_SERVICE' && canViewFinance(user.role)
       ? [{ to: '/finanzas', label: 'Finanzas', icon: <AccountBalanceWalletOutlined /> }]
       : [])
   ];
