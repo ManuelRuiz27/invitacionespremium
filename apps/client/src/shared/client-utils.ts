@@ -17,6 +17,13 @@ const messages: Record<string, string> = {
   CLIENT_NOT_ACTIVE: 'Tu cuenta no está habilitada para realizar esta acción.',
   VALIDATION_ERROR: 'Revisa los campos señalados e inténtalo nuevamente.',
   FILE_ASSET_NOT_READY: 'Espera a que el archivo termine de cargarse e inténtalo nuevamente.',
+  INVITATION_NOT_FOUND: 'Esta invitación ya no está disponible. Actualiza la información.',
+  ASSISTANT_NOT_FOUND: 'Este acompañante ya no está disponible. Actualiza la información.',
+  INVITATION_ASSISTANT_LIMIT_EXCEEDED:
+    'La cantidad de acompañantes supera el límite de esta invitación. Actualiza la información e inténtalo nuevamente.',
+  PRIMARY_ASSISTANT_PROTECTED: 'El nombre del titular se corrige desde Invitados.',
+  INVITATION_EVENT_NOT_MUTABLE: 'Las invitaciones nominales sólo pueden modificarse durante la preparación del evento.',
+  INVITATION_CANCELLED: 'Esta invitación está cancelada y ya no puede modificarse.',
   IDEMPOTENCY_CONFLICT: 'No pudimos completar esta operación. Actualiza la información e inténtalo nuevamente.',
   INVITATION_DESIGN_SERVICE_UNSUPPORTED: 'El servicio elegido no permite configurar una invitación digital.',
   INVITATION_DESIGN_NOT_FOUND: 'Todavía no hay un diseño de invitación.',

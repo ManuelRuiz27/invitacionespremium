@@ -10,7 +10,7 @@ import { GuestManagementPanel } from '../guests/GuestManagementPanel';
 import { getEventStatusPresentation } from '../shared/event-status';
 import { formatEventDateLong, serviceLabels, socialTypeLabels } from '../shared/formatters';
 import { useSessionExpiry } from '../shared/use-session-expiry';
-import { InvitationDistribution } from './InvitationDistribution';
+import { InvitationOperationsPanel } from './InvitationOperationsPanel';
 import { SeatingWorkspace } from './SeatingWorkspace';
 import { StaffAccessPanel } from './StaffAccessPanel';
 
@@ -116,7 +116,14 @@ export function ActiveEventWorkspacePage({
 
 function ManagedEventPreparation({ apiClient, event }: { apiClient: ApiClient; event: Event }) {
   const [searchParams] = useSearchParams();
-  const section = searchParams.get('seccion') === 'invitados' ? 'invitados' : 'resumen';
+  const showInvitations = event.serviceCode === 'FLYER' || event.serviceCode === 'FLIPBOOK';
+  const requestedSection = searchParams.get('seccion');
+  const section: WorkspaceSection =
+    requestedSection === 'invitados'
+      ? 'invitados'
+      : requestedSection === 'invitaciones' && showInvitations
+        ? 'invitaciones'
+        : 'resumen';
   const status = getEventStatusPresentation(event.status);
   const navLinkSx = {
     display: 'inline-flex',
@@ -151,14 +158,14 @@ function ManagedEventPreparation({ apiClient, event }: { apiClient: ApiClient; e
 
       <Alert severity="info">
         <AlertTitle>Preparación a cargo de InvitacionesPremium</AlertTitle>
-        Nuestro equipo está preparando la configuración técnica de este evento. Puedes administrar invitados mientras
-        completamos la preparación.
+        Nuestro equipo está preparando la configuración técnica de este evento. Puedes administrar invitados e
+        invitaciones nominales mientras completamos la preparación.
       </Alert>
 
       <Box
         component="nav"
         aria-label="Secciones del Evento"
-        sx={{ display: 'flex', borderBottom: 1, borderColor: 'divider' }}
+        sx={{ display: 'flex', overflowX: 'auto', borderBottom: 1, borderColor: 'divider' }}
       >
         <MuiLink
           component={Link}
@@ -178,10 +185,31 @@ function ManagedEventPreparation({ apiClient, event }: { apiClient: ApiClient; e
         >
           Invitados
         </MuiLink>
+        {showInvitations ? (
+          <MuiLink
+            component={Link}
+            to={`/eventos/${event.id}?seccion=invitaciones`}
+            aria-current={section === 'invitaciones' ? 'page' : undefined}
+            underline="none"
+            sx={{ ...navLinkSx, borderColor: section === 'invitaciones' ? 'primary.main' : 'transparent' }}
+          >
+            Invitaciones
+          </MuiLink>
+        ) : null}
       </Box>
 
       {section === 'invitados' ? (
         <GuestManagementPanel apiClient={apiClient} event={event} />
+      ) : section === 'invitaciones' ? (
+        <Box component="section" aria-labelledby="invitation-operations-title">
+          <Typography id="invitation-operations-title" component="h2" variant="h3" sx={{ mb: 0.75 }}>
+            Invitaciones
+          </Typography>
+          <Typography color="text.secondary" sx={{ mb: 2 }}>
+            Configura invitaciones individuales o familiares y administra acompañantes nominales.
+          </Typography>
+          <InvitationOperationsPanel apiClient={apiClient} event={event} />
+        </Box>
       ) : (
         <EventDetails event={event} />
       )}
@@ -329,7 +357,7 @@ function EventWorkspace({
               ? 'Comparte el enlace individual de cada invitación y consulta su respuesta.'
               : 'Consulta la respuesta final de las invitaciones de este evento.'}
           </Typography>
-          <InvitationDistribution apiClient={apiClient} event={event} />
+          <InvitationOperationsPanel apiClient={apiClient} event={event} />
         </Box>
       ) : section === 'mesas' ? (
         <Box component="section" aria-labelledby="seating-workspace-title">
