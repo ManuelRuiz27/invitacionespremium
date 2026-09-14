@@ -270,6 +270,12 @@ export function mockApiClient(user: AuthUser = independentUser): ApiClient {
       update: vi.fn().mockResolvedValue(configuredEvent),
       activate: vi.fn().mockResolvedValue({ event: activeEvent })
     },
+    eventConfirmation: {
+      get: vi.fn().mockResolvedValue({ enabled: true, open: true, closedAt: null, closedByUserId: null }),
+      close: vi.fn(),
+      reopen: vi.fn(),
+      override: vi.fn()
+    },
     finance: {
       balance: vi.fn().mockResolvedValue(financeBalance),
       movements: vi.fn().mockResolvedValue([movement]),

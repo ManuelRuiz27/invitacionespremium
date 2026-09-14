@@ -423,6 +423,7 @@ export function mockAdminApi(user: AuthUser = platformAdmin): AdminTestApiClient
       get: vi.fn().mockResolvedValue(commercialLead)
     },
     events: { list: vi.fn(), get: vi.fn(), create: vi.fn(), update: vi.fn(), activate: vi.fn() },
+    eventConfirmation: { get: vi.fn(), close: vi.fn(), reopen: vi.fn(), override: vi.fn() },
     finance: { balance: vi.fn(), movements: vi.fn(), receipts: vi.fn() },
     services: { listAvailable: vi.fn() },
     contacts: {

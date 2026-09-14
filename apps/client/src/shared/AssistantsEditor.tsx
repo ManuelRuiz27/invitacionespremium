@@ -1,4 +1,4 @@
-import type { PublicRsvpAssistantInput } from '@invitaciones/api-client';
+import type { RsvpAssistantInput } from '@invitaciones/api-client';
 import { Button, Stack, TextField, Typography } from '@mui/material';
 
 export function AssistantsEditor({
@@ -9,10 +9,10 @@ export function AssistantsEditor({
   onChange
 }: {
   primaryName: string;
-  assistants: PublicRsvpAssistantInput[];
+  assistants: RsvpAssistantInput[];
   limit: number;
   disabled?: boolean;
-  onChange: (value: PublicRsvpAssistantInput[]) => void;
+  onChange: (value: RsvpAssistantInput[]) => void;
 }) {
   return (
     <Stack spacing={2}>
@@ -31,7 +31,7 @@ export function AssistantsEditor({
             required
             disabled={disabled}
             fullWidth
-            slotProps={{ htmlInput: { maxLength: 120 } }}
+            slotProps={{ htmlInput: { maxLength: 160 } }}
             onChange={(event) =>
               onChange(
                 assistants.map((item, itemIndex) =>

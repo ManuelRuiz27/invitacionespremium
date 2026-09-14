@@ -75,6 +75,25 @@ const confirmedInvitation = {
   ]
 } satisfies Invitation;
 
+const rejectedInvitation = {
+  ...pendingInvitation,
+  id: '12121212-1212-4212-8212-121212121212',
+  contactId: '13131313-1313-4313-8313-131313131313',
+  contactName: 'Invitación rechazada',
+  responseStatus: 'REJECTED',
+  invitationLink: 'https://example.test/invitacion/token-rejected',
+  assistants: [
+    {
+      ...assistant(
+        '14141414-1414-4414-8414-141414141414',
+        '12121212-1212-4212-8212-121212121212',
+        'Invitación rechazada'
+      ),
+      responseStatus: 'REJECTED'
+    }
+  ]
+} satisfies Invitation;
+
 const cancelledInvitation = {
   ...pendingInvitation,
   id: '77777777-7777-4777-8777-777777777777',
@@ -326,6 +345,7 @@ describe('Invitation operations workspace', () => {
 
     expect(screen.getAllByRole('button', { name: 'Copiar enlace' })).toHaveLength(2);
     expect(screen.getAllByRole('link', { name: 'Abrir invitación' })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: 'Corregir confirmación' })).toHaveLength(2);
     expect(screen.queryByRole('combobox', { name: /Tipo de invitación/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Agregar acompañante' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Editar acompañante/ })).not.toBeInTheDocument();
@@ -336,8 +356,204 @@ describe('Invitation operations workspace', () => {
     expect(cancelledRow).not.toBeNull();
     expect(within(cancelledRow!).queryByRole('link', { name: 'Enviar por WhatsApp' })).not.toBeInTheDocument();
     expect(within(cancelledRow!).queryByRole('button', { name: 'Copiar enlace' })).not.toBeInTheDocument();
+    expect(within(cancelledRow!).queryByRole('button', { name: 'Corregir confirmación' })).not.toBeInTheDocument();
     expect(api.contacts.list).toHaveBeenCalledWith(digitalEvent.id, undefined, expect.any(AbortSignal));
     expect(api.invitations.list).toHaveBeenCalledWith(digitalEvent.id);
+  });
+
+  it('shows the ACTIVE confirmation state and authoritative summary, then closes and reopens RSVP', async () => {
+    const api = mockApiClient();
+    const open = { enabled: true, open: true, closedAt: null, closedByUserId: null };
+    const closed = {
+      enabled: true,
+      open: false,
+      closedAt: '2026-09-14T18:00:00.000Z',
+      closedByUserId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+    };
+    vi.mocked(api.events.get).mockResolvedValue(digitalEvent);
+    vi.mocked(api.contacts.list).mockResolvedValue([contactAna, contactLuis]);
+    vi.mocked(api.invitations.list).mockResolvedValue([
+      pendingInvitation,
+      confirmedInvitation,
+      rejectedInvitation,
+      cancelledInvitation
+    ]);
+    vi.mocked(api.eventConfirmation.get)
+      .mockResolvedValueOnce(open)
+      .mockResolvedValueOnce(closed)
+      .mockResolvedValue(open);
+    vi.mocked(api.eventConfirmation.close).mockResolvedValue(closed);
+    vi.mocked(api.eventConfirmation.reopen).mockResolvedValue(open);
+    const user = userEvent.setup();
+
+    renderApp(api, `/eventos/${digitalEvent.id}?seccion=invitaciones`);
+
+    expect(await screen.findByRole('heading', { name: 'Confirmaciones' })).toBeInTheDocument();
+    const summary = screen.getByLabelText('Resumen RSVP');
+    expect(within(summary).getByText('4')).toBeInTheDocument();
+    expect(within(summary).getAllByText('1')).toHaveLength(4);
+    await user.click(screen.getByRole('button', { name: 'Cerrar confirmaciones' }));
+
+    await waitFor(() => expect(api.eventConfirmation.close).toHaveBeenCalledWith(digitalEvent.id));
+    expect(await screen.findByRole('button', { name: 'Reabrir confirmaciones' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Reabrir confirmaciones' }));
+
+    await waitFor(() => expect(api.eventConfirmation.reopen).toHaveBeenCalledWith(digitalEvent.id));
+    expect(await screen.findByRole('button', { name: 'Cerrar confirmaciones' })).toBeInTheDocument();
+    expect(api.eventConfirmation.get).toHaveBeenCalledTimes(3);
+  });
+
+  it('explains provider-disabled RSVP without exposing technical setup controls', async () => {
+    const api = mockApiClient();
+    vi.mocked(api.events.get).mockResolvedValue(digitalEvent);
+    vi.mocked(api.contacts.list).mockResolvedValue([contactAna]);
+    vi.mocked(api.invitations.list).mockResolvedValue([pendingInvitation]);
+    vi.mocked(api.eventConfirmation.get).mockResolvedValue({
+      enabled: false,
+      open: false,
+      closedAt: null,
+      closedByUserId: null
+    });
+
+    renderApp(api, `/eventos/${digitalEvent.id}?seccion=invitaciones`);
+
+    expect(
+      await screen.findByText(/La preparación técnica de este evento tiene las confirmaciones deshabilitadas/)
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /confirmaciones/i })).not.toBeInTheDocument();
+    expect(api.events.update).not.toHaveBeenCalled();
+  });
+
+  it('keeps RSVP open and reports pending seating when close is rejected', async () => {
+    const api = mockApiClient();
+    vi.mocked(api.events.get).mockResolvedValue(digitalEvent);
+    vi.mocked(api.contacts.list).mockResolvedValue([contactAna]);
+    vi.mocked(api.invitations.list).mockResolvedValue([confirmedInvitation]);
+    vi.mocked(api.eventConfirmation.get).mockResolvedValue({
+      enabled: true,
+      open: true,
+      closedAt: null,
+      closedByUserId: null
+    });
+    vi.mocked(api.eventConfirmation.close).mockRejectedValue(
+      new ApiError(409, 'EVENT_FLOORPLAN_PENDING_SEATING', 'Pending seating.', 'operation-seating')
+    );
+    const user = userEvent.setup();
+
+    renderApp(api, `/eventos/${digitalEvent.id}?seccion=invitaciones`);
+    await user.click(await screen.findByRole('button', { name: 'Cerrar confirmaciones' }));
+
+    expect(
+      await screen.findByText(
+        'Asigna mesa y asiento a todas las personas confirmadas antes de cerrar las confirmaciones. Referencia: operation-seating'
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cerrar confirmaciones' })).toBeInTheDocument();
+    expect(api.eventConfirmation.get).toHaveBeenCalledTimes(2);
+  });
+
+  it('overrides RSVP while public confirmation is closed and sends the complete desired family', async () => {
+    const api = mockApiClient();
+    const authoritativeFamily = {
+      ...familyInvitation,
+      responseStatus: 'CONFIRMED',
+      assistants: familyInvitation.assistants.map((item) => ({ ...item, responseStatus: 'CONFIRMED' as const }))
+    } satisfies Invitation;
+    vi.mocked(api.events.get).mockResolvedValue(digitalEvent);
+    vi.mocked(api.contacts.list).mockResolvedValue([contactAna]);
+    vi.mocked(api.invitations.list).mockResolvedValue([authoritativeFamily]);
+    vi.mocked(api.eventConfirmation.get).mockResolvedValue({
+      enabled: true,
+      open: false,
+      closedAt: '2026-09-14T18:00:00.000Z',
+      closedByUserId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+    });
+    vi.mocked(api.eventConfirmation.override).mockResolvedValue({
+      invitationId: authoritativeFamily.id,
+      responseStatus: 'CONFIRMED',
+      assistants: authoritativeFamily.assistants
+    });
+    const user = userEvent.setup();
+
+    renderApp(api, `/eventos/${digitalEvent.id}?seccion=invitaciones`);
+    await user.click(await screen.findByRole('button', { name: 'Corregir confirmación' }));
+
+    const primary = screen.getByRole('textbox', { name: 'Invitado principal' });
+    expect(primary).toBeDisabled();
+    const firstExtra = screen.getByRole('textbox', { name: 'Acompañante 1' });
+    await user.clear(firstExtra);
+    await user.type(firstExtra, 'María Ruiz');
+    await user.click(screen.getByRole('button', { name: 'Agregar acompañante' }));
+    const secondExtra = screen.getByRole('textbox', { name: 'Acompañante 2' });
+    await user.type(secondExtra, 'Temporal');
+    await user.click(screen.getAllByRole('button', { name: 'Retirar' })[1]!);
+    await user.click(screen.getByRole('button', { name: 'Agregar acompañante' }));
+    await user.type(screen.getByRole('textbox', { name: 'Acompañante 2' }), 'Luisa García');
+    await user.click(screen.getByRole('button', { name: 'Guardar confirmación' }));
+
+    await waitFor(() =>
+      expect(api.eventConfirmation.override).toHaveBeenCalledWith(digitalEvent.id, authoritativeFamily.id, {
+        responseStatus: 'CONFIRMED',
+        additionalAssistants: [{ id: familyInvitation.assistants[1]!.id, name: 'María Ruiz' }, { name: 'Luisa García' }]
+      })
+    );
+    expect(api.invitations.list).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('sends the exact rejected override and reconciles the Invitation list', async () => {
+    const api = mockApiClient();
+    vi.mocked(api.events.get).mockResolvedValue(digitalEvent);
+    vi.mocked(api.contacts.list).mockResolvedValue([contactAna]);
+    vi.mocked(api.invitations.list).mockResolvedValue([familyInvitation]);
+    vi.mocked(api.eventConfirmation.override).mockResolvedValue({
+      invitationId: familyInvitation.id,
+      responseStatus: 'REJECTED',
+      assistants: familyInvitation.assistants.map((item) => ({ ...item, responseStatus: 'REJECTED' }))
+    });
+    const user = userEvent.setup();
+
+    renderApp(api, `/eventos/${digitalEvent.id}?seccion=invitaciones`);
+    await user.click(await screen.findByRole('button', { name: 'Corregir confirmación' }));
+    await user.click(screen.getByRole('button', { name: 'Marcar rechazada' }));
+
+    await waitFor(() =>
+      expect(api.eventConfirmation.override).toHaveBeenCalledWith(digitalEvent.id, familyInvitation.id, {
+        responseStatus: 'REJECTED',
+        additionalAssistants: []
+      })
+    );
+    expect(api.invitations.list).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    [
+      'RSVP_EVENT_CAPACITY_EXCEEDED',
+      'La confirmación supera la capacidad del evento. Revisa la lista y vuelve a intentarlo.'
+    ],
+    [
+      'RSVP_ASSISTANT_LIMIT_EXCEEDED',
+      'La cantidad de acompañantes supera el límite de esta invitación. Actualiza la información e inténtalo nuevamente.'
+    ],
+    ['RSVP_INVITATION_CANCELLED', 'Esta invitación está cancelada y ya no admite correcciones de confirmación.'],
+    ['RSVP_NOT_AVAILABLE', 'Las confirmaciones no están disponibles para este evento.']
+  ])('reports %s with a reference and restores authoritative state', async (code, message) => {
+    const api = mockApiClient();
+    vi.mocked(api.events.get).mockResolvedValue(digitalEvent);
+    vi.mocked(api.contacts.list).mockResolvedValue([contactAna]);
+    vi.mocked(api.invitations.list).mockResolvedValue([familyInvitation]);
+    vi.mocked(api.eventConfirmation.override).mockRejectedValue(
+      new ApiError(409, code, 'Contract rejected the override.', 'operation-override')
+    );
+    const user = userEvent.setup();
+
+    renderApp(api, `/eventos/${digitalEvent.id}?seccion=invitaciones`);
+    await user.click(await screen.findByRole('button', { name: 'Corregir confirmación' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar confirmación' }));
+
+    expect(await screen.findByText(`${message} Referencia: operation-override`)).toBeInTheDocument();
+    expect(api.invitations.list).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
   it('keeps sharing available on EVENT_DAY because it preserves ACTIVE operational rules', async () => {
@@ -410,8 +626,11 @@ describe('Invitation operations workspace', () => {
     expect(screen.queryByRole('link', { name: 'Abrir invitación' })).not.toBeInTheDocument();
     expect(screen.queryByRole('combobox', { name: /Tipo de invitación/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Agregar acompañante' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Corregir confirmación' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /confirmaciones/i })).not.toBeInTheDocument();
     expect(api.invitations.update).not.toHaveBeenCalled();
     expect(api.invitations.addAssistant).not.toHaveBeenCalled();
+    expect(api.eventConfirmation.get).not.toHaveBeenCalled();
   });
 
   it('does not expose invitation distribution for Physical QR', async () => {

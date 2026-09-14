@@ -24,6 +24,14 @@ const messages: Record<string, string> = {
   PRIMARY_ASSISTANT_PROTECTED: 'El nombre del titular se corrige desde Invitados.',
   INVITATION_EVENT_NOT_MUTABLE: 'Las invitaciones nominales sólo pueden modificarse durante la preparación del evento.',
   INVITATION_CANCELLED: 'Esta invitación está cancelada y ya no puede modificarse.',
+  EVENT_FLOORPLAN_PENDING_SEATING:
+    'Asigna mesa y asiento a todas las personas confirmadas antes de cerrar las confirmaciones.',
+  RSVP_EVENT_CAPACITY_EXCEEDED:
+    'La confirmación supera la capacidad del evento. Revisa la lista y vuelve a intentarlo.',
+  RSVP_ASSISTANT_LIMIT_EXCEEDED:
+    'La cantidad de acompañantes supera el límite de esta invitación. Actualiza la información e inténtalo nuevamente.',
+  RSVP_INVITATION_CANCELLED: 'Esta invitación está cancelada y ya no admite correcciones de confirmación.',
+  RSVP_NOT_AVAILABLE: 'Las confirmaciones no están disponibles para este evento.',
   IDEMPOTENCY_CONFLICT: 'No pudimos completar esta operación. Actualiza la información e inténtalo nuevamente.',
   INVITATION_DESIGN_SERVICE_UNSUPPORTED: 'El servicio elegido no permite configurar una invitación digital.',
   INVITATION_DESIGN_NOT_FOUND: 'Todavía no hay un diseño de invitación.',

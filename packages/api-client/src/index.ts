@@ -10,6 +10,7 @@ import {
   createAdminCommercialLeadsClient
 } from './admin';
 import { createAuthClient } from './auth';
+import { createEventConfirmationClient } from './confirmation';
 import { createEventsClient } from './events';
 import { createFinanceClient } from './finance';
 import {
@@ -35,6 +36,13 @@ export { ApiError } from './api-error';
 export { normalizeApiBaseUrl } from './api-client';
 export type { ApiClientRuntimeConfig } from './api-client';
 export type { AuthClient, AuthUser, ClientOperatingProfile, LoginInput, LoginResult, UserRole } from './auth';
+export type {
+  ConfirmationState,
+  EventConfirmationClient,
+  RsvpAssistantInput,
+  RsvpMutation,
+  RsvpOverrideInput
+} from './confirmation';
 export type {
   CreateEventInput,
   Event,
@@ -110,6 +118,7 @@ export function createApiClient(config: ApiClientRuntimeConfig) {
     adminAudit: createAdminAuditClient(request),
     adminCommercialLeads: createAdminCommercialLeadsClient(request),
     events: createEventsClient(request),
+    eventConfirmation: createEventConfirmationClient(request),
     finance: createFinanceClient(request),
     services: createServicesClient(request),
     contacts: createContactsClient(request),

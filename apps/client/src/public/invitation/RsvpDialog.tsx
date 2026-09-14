@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { PublicInvitationView, PublicRsvpAssistantInput } from '@invitaciones/api-client';
 import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, Typography } from '@mui/material';
 import { additionalAssistants } from './invitation-state';
-import { AssistantsEditor } from './AssistantsEditor';
+import { AssistantsEditor } from '../../shared/AssistantsEditor';
 import { useReducedMotion } from '../useReducedMotion';
 
 export function RsvpDialog({

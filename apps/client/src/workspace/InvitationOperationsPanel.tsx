@@ -1,4 +1,4 @@
-import type { ApiClient, Assistant, Contact, Event, Invitation } from '@invitaciones/api-client';
+import type { ApiClient, Assistant, Contact, Event, Invitation, RsvpOverrideInput } from '@invitaciones/api-client';
 import { ApiError } from '@invitaciones/api-client';
 import { ErrorState, LoadingState } from '@invitaciones/ui';
 import ContentCopyRounded from '@mui/icons-material/ContentCopyRounded';
@@ -9,6 +9,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { errorMessage, operationReference } from '../shared/client-utils';
 import { useSessionExpiry } from '../shared/use-session-expiry';
+import { EventConfirmationSummary, type InvitationSummary } from './EventConfirmationSummary';
+import { RsvpOverrideDialog } from './RsvpOverrideDialog';
 
 type DistributionFilter = 'ALL' | 'PENDING' | 'CONFIRMED' | 'REJECTED' | 'CANCELLED';
 type Feedback = { severity: 'success' | 'error'; message: string };
@@ -107,15 +109,6 @@ export function InvitationOperationsPanel({ apiClient, event }: { apiClient: Api
     );
   }
 
-  if (rows.length === 0) {
-    return (
-      <Alert severity="info">
-        Este evento todavía no tiene invitaciones. Cada invitado agregado en Invitados recibe automáticamente una
-        invitación individual.
-      </Alert>
-    );
-  }
-
   return (
     <Stack spacing={2.5} data-testid="invitation-operations-panel">
       {canManageNominal ? (
@@ -140,58 +133,69 @@ export function InvitationOperationsPanel({ apiClient, event }: { apiClient: Api
         </Alert>
       ) : null}
 
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: { sm: 'center' } }}>
-        <TextField
-          label="Buscar invitación"
-          placeholder="Nombre o WhatsApp"
-          value={search}
-          onChange={(searchEvent) => setSearch(searchEvent.target.value)}
-          size="small"
-          sx={{ flex: 1, minWidth: 0 }}
-        />
-        <TextField
-          select
-          label="Estado"
-          value={filter}
-          onChange={(filterEvent) => setFilter(filterEvent.target.value as DistributionFilter)}
-          size="small"
-          sx={{ minWidth: { xs: '100%', sm: 180 } }}
-        >
-          {filters.map((item) => (
-            <MenuItem key={item.value} value={item.value}>
-              {item.label}
-            </MenuItem>
-          ))}
-        </TextField>
-      </Stack>
+      {canShare ? <EventConfirmationSummary apiClient={apiClient} event={event} summary={summary} /> : null}
 
-      <Typography variant="body2" color="text.secondary">
-        {summary.total} invitaciones · {summary.confirmed} confirmadas · {summary.pending} sin respuesta
-      </Typography>
-
-      {visibleRows.length === 0 ? (
-        <Box sx={{ py: 4 }}>
-          <Typography sx={{ fontWeight: 700 }}>No encontramos invitaciones con esos filtros.</Typography>
-          <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-            Cambia la búsqueda o el estado para ver otros resultados.
-          </Typography>
-        </Box>
+      {rows.length === 0 ? (
+        <Alert severity="info">
+          Este evento todavía no tiene invitaciones. Cada invitado agregado en Invitados recibe automáticamente una
+          invitación individual.
+        </Alert>
       ) : (
-        <Box component="ul" sx={{ listStyle: 'none', p: 0, m: 0, borderTop: 1, borderColor: 'divider' }}>
-          {visibleRows.map((row) => (
-            <InvitationOperationRow
-              key={row.invitation.id}
-              apiClient={apiClient}
-              event={event}
-              row={row}
-              canManageNominal={canManageNominal}
-              canShare={canShare}
-              busyIdentity={busyIdentity}
-              runMutation={runMutation}
-              onFeedback={setFeedback}
+        <>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: { sm: 'center' } }}>
+            <TextField
+              label="Buscar invitación"
+              placeholder="Nombre o WhatsApp"
+              value={search}
+              onChange={(searchEvent) => setSearch(searchEvent.target.value)}
+              size="small"
+              sx={{ flex: 1, minWidth: 0 }}
             />
-          ))}
-        </Box>
+            <TextField
+              select
+              label="Estado"
+              value={filter}
+              onChange={(filterEvent) => setFilter(filterEvent.target.value as DistributionFilter)}
+              size="small"
+              sx={{ minWidth: { xs: '100%', sm: 180 } }}
+            >
+              {filters.map((item) => (
+                <MenuItem key={item.value} value={item.value}>
+                  {item.label}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Stack>
+
+          <Typography variant="body2" color="text.secondary">
+            {summary.total} invitaciones · {summary.confirmed} confirmadas · {summary.pending} sin respuesta
+          </Typography>
+
+          {visibleRows.length === 0 ? (
+            <Box sx={{ py: 4 }}>
+              <Typography sx={{ fontWeight: 700 }}>No encontramos invitaciones con esos filtros.</Typography>
+              <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+                Cambia la búsqueda o el estado para ver otros resultados.
+              </Typography>
+            </Box>
+          ) : (
+            <Box component="ul" sx={{ listStyle: 'none', p: 0, m: 0, borderTop: 1, borderColor: 'divider' }}>
+              {visibleRows.map((row) => (
+                <InvitationOperationRow
+                  key={row.invitation.id}
+                  apiClient={apiClient}
+                  event={event}
+                  row={row}
+                  canManageNominal={canManageNominal}
+                  canShare={canShare}
+                  busyIdentity={busyIdentity}
+                  runMutation={runMutation}
+                  onFeedback={setFeedback}
+                />
+              ))}
+            </Box>
+          )}
+        </>
       )}
     </Stack>
   );
@@ -224,6 +228,17 @@ function InvitationOperationRow({
       ? buildWhatsAppUrl(row.phone, event.name ?? 'el evento', invitation.invitationLink)
       : null;
   const nominalEditable = canManageNominal && !invitation.cancelledAt;
+  const [overrideOpen, setOverrideOpen] = useState(false);
+  const overrideBusy = busyIdentity === `${invitation.id}:override`;
+
+  const overrideRsvp = (input: RsvpOverrideInput) =>
+    runMutation(
+      `${invitation.id}:override`,
+      () => apiClient.eventConfirmation.override(event.id, invitation.id, input),
+      input.responseStatus === 'CONFIRMED'
+        ? `La confirmación de ${row.displayName} quedó actualizada.`
+        : `La invitación de ${row.displayName} quedó rechazada.`
+    );
 
   return (
     <Box component="li" sx={{ py: 2.5, borderBottom: 1, borderColor: 'divider' }}>
@@ -289,6 +304,9 @@ function InvitationOperationRow({
               >
                 Abrir invitación
               </Button>
+              <Button variant="outlined" disabled={overrideBusy} onClick={() => setOverrideOpen(true)}>
+                Corregir confirmación
+              </Button>
             </Stack>
           ) : null}
         </Stack>
@@ -307,6 +325,16 @@ function InvitationOperationRow({
           <ReadOnlyAssistants invitation={invitation} />
         )}
       </Stack>
+      {invitationShareable ? (
+        <RsvpOverrideDialog
+          invitation={invitation}
+          displayName={row.displayName}
+          open={overrideOpen}
+          busy={overrideBusy}
+          onClose={() => setOverrideOpen(false)}
+          onSubmit={overrideRsvp}
+        />
+      ) : null}
     </Box>
   );
 }
@@ -599,15 +627,17 @@ function filterRows(rows: InvitationRow[], search: string, filter: DistributionF
   });
 }
 
-function invitationSummary(rows: InvitationRow[]) {
+function invitationSummary(rows: InvitationRow[]): InvitationSummary {
   return rows.reduce(
     (summary, row) => {
       summary.total += 1;
-      if (!row.invitation.cancelledAt && row.invitation.responseStatus === 'CONFIRMED') summary.confirmed += 1;
-      if (!row.invitation.cancelledAt && row.invitation.responseStatus === 'PENDING') summary.pending += 1;
+      if (row.invitation.cancelledAt) summary.cancelled += 1;
+      else if (row.invitation.responseStatus === 'CONFIRMED') summary.confirmed += 1;
+      else if (row.invitation.responseStatus === 'REJECTED') summary.rejected += 1;
+      else summary.pending += 1;
       return summary;
     },
-    { total: 0, confirmed: 0, pending: 0 }
+    { total: 0, confirmed: 0, pending: 0, rejected: 0, cancelled: 0 }
   );
 }
 
