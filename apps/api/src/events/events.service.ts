@@ -9,6 +9,7 @@ import { DomainError } from '../common/errors/domain-error';
 import { activeWhere, assertPlatformAdminRestoration } from '../common/persistence/soft-delete.repository';
 import {
   AuditActorType,
+  ClientOperatingProfile,
   ClientType,
   ClientStatus,
   CommercialChannel,
@@ -36,6 +37,7 @@ import { resolvePreparationStatus } from './event-status.resolver';
 import type {
   AdminEventAssignmentInput,
   AdminEventIntakeInput,
+  AdminManagedEventIntakeInput,
   CreateEventInput,
   EventActivationResponseDto,
   EventResponseDto,
@@ -221,6 +223,79 @@ export class EventsService {
           action: 'EVENT_COMMERCIAL_AUTHORIZE',
           afterData: eventAuditSnapshot(event),
           metadata: { coverage: terms.coverage, acceptedServicePriceId: input.acceptedServicePriceId }
+        },
+        transaction
+      );
+      return toEventResponse(event);
+    });
+  }
+
+  async createManagedAdminIntake(
+    clientId: string,
+    input: AdminManagedEventIntakeInput,
+    principal: AuthPrincipal,
+    operationId?: string
+  ): Promise<EventResponseDto> {
+    return this.runCriticalTransaction(async (transaction) => {
+      const client = await transaction.client.findFirst({
+        where: { id: clientId, deletedAt: null },
+        select: { id: true, type: true, status: true, operatingProfile: true }
+      });
+      if (!client) {
+        throw new DomainError('CLIENT_NOT_FOUND', 'Client was not found.', HttpStatus.NOT_FOUND);
+      }
+      if (client.status !== ClientStatus.ACTIVE) {
+        throw new DomainError('CLIENT_NOT_ACTIVE', 'Client is not active.', HttpStatus.CONFLICT);
+      }
+      if (client.operatingProfile !== ClientOperatingProfile.MANAGED || client.type !== ClientType.PLANNER) {
+        throw new DomainError(
+          'EVENT_MANAGED_INTAKE_NOT_ALLOWED',
+          'Managed Event intake is available only for Managed Planner clients.',
+          HttpStatus.CONFLICT
+        );
+      }
+      const service = await transaction.service.findFirst({
+        where: { code: input.serviceCode, isActive: true },
+        select: { id: true, code: true }
+      });
+      if (!service || service.code === ServiceCode.DEMO) {
+        throw new DomainError('EVENT_SERVICE_NOT_AVAILABLE', 'Paid service is not available.', HttpStatus.CONFLICT);
+      }
+      await this.requireValidPlannerAssignment(transaction, clientId, client.type, input.assignedPlannerUserId);
+      const created = await transaction.event.create({
+        data: {
+          clientId,
+          createdByUserId: principal.userId,
+          assignedPlannerUserId: input.assignedPlannerUserId,
+          serviceId: service.id,
+          name: input.name ?? null,
+          capacity: input.capacity,
+          status: resolvePreparationStatus({
+            name: input.name ?? null,
+            serviceId: service.id,
+            socialType: null,
+            eventDateTime: null,
+            timeZone: null,
+            capacity: input.capacity
+          })
+        }
+      });
+      await recomputeDigitalEventPreparationStatus(transaction, created.id);
+      await recomputePhysicalPassPreparationStatus(transaction, created.id);
+      const event = await transaction.event.findUniqueOrThrow({
+        where: { id: created.id },
+        include: EVENT_SERVICE_INCLUDE
+      });
+      await this.audit.record(
+        {
+          actor: { type: AuditActorType.USER, id: principal.userId },
+          clientId,
+          eventId: event.id,
+          resourceType: 'EVENT',
+          resourceId: event.id,
+          action: 'EVENT_CREATE',
+          afterData: eventAuditSnapshot(event),
+          ...(operationId === undefined ? {} : { operationId })
         },
         transaction
       );

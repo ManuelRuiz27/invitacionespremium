@@ -62,6 +62,14 @@ const adminEventIntakeSchema = z
     acceptanceConfirmed: z.literal(true)
   })
   .strict();
+const adminManagedEventIntakeSchema = z
+  .object({
+    name: z.string().trim().min(1).max(160).nullable().optional(),
+    serviceCode: paidServiceCodeSchema,
+    capacity: z.number().int().min(1).max(150),
+    assignedPlannerUserId: z.string().uuid()
+  })
+  .strict();
 const adminEventAssignmentSchema = z.object({ assignedPlannerUserId: z.string().uuid().nullable() }).strict();
 const adminEventIntakeQuoteSchema = z
   .object({
@@ -144,6 +152,20 @@ export class AdminEventIntakeRequestDto {
 
   @ApiProperty({ type: Boolean, enum: [true] })
   acceptanceConfirmed!: true;
+}
+
+export class AdminManagedEventIntakeRequestDto {
+  @ApiProperty({ type: String, minLength: 1, maxLength: 160, required: false, nullable: true })
+  name?: string | null;
+
+  @ApiProperty({ enum: [ServiceCode.FLYER, ServiceCode.FLIPBOOK, ServiceCode.PHYSICAL_QR] })
+  serviceCode!: ServiceCode;
+
+  @ApiProperty({ type: Number, minimum: 1, maximum: 150 })
+  capacity!: number;
+
+  @ApiProperty({ type: String, format: 'uuid' })
+  assignedPlannerUserId!: string;
 }
 
 export class AdminEventAssignmentRequestDto {
@@ -322,6 +344,7 @@ export class EventActivationResponseDto {
 export type CreateEventInput = z.infer<typeof createEventSchema>;
 export type UpdateEventInput = z.infer<typeof updateEventSchema>;
 export type AdminEventIntakeInput = z.infer<typeof adminEventIntakeSchema>;
+export type AdminManagedEventIntakeInput = z.infer<typeof adminManagedEventIntakeSchema>;
 export type AdminEventAssignmentInput = z.infer<typeof adminEventAssignmentSchema>;
 export type AdminEventIntakeQuoteInput = z.infer<typeof adminEventIntakeQuoteSchema>;
 
@@ -335,6 +358,10 @@ export function parseUpdateEventRequest(input: unknown): UpdateEventInput {
 
 export function parseAdminEventIntake(input: unknown): AdminEventIntakeInput {
   return parse(adminEventIntakeSchema, input);
+}
+
+export function parseAdminManagedEventIntake(input: unknown): AdminManagedEventIntakeInput {
+  return parse(adminManagedEventIntakeSchema, input);
 }
 
 export function parseAdminEventAssignment(input: unknown): AdminEventAssignmentInput {

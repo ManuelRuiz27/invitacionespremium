@@ -28,7 +28,7 @@ import {
 } from '@mui/material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import { adminQueryKeys } from '../../app/query-client';
 import { adminErrorMessage } from '../../shared/admin-error';
 import { eventStatusLabel } from '../../shared/admin-labels';
@@ -55,15 +55,27 @@ export function AdminEventPreparationPage({ apiClient }: { apiClient: ApiClient 
     queryFn: ({ signal }) => apiClient.adminEvents.get(eventId, signal),
     enabled: Boolean(eventId)
   });
+  const client = useQuery({
+    queryKey: adminQueryKeys.client(event.data?.clientId ?? ''),
+    queryFn: ({ signal }) => apiClient.adminClients.get(event.data!.clientId, signal),
+    enabled: Boolean(event.data?.clientId)
+  });
 
   if (event.isPending) return <AdminLoadingState label="Cargando preparación del Evento..." />;
   if (event.isError) return <AdminErrorState onRetry={() => void event.refetch()} />;
+  if (client.isPending) return <AdminLoadingState label="Cargando perfil operativo..." />;
+  if (client.isError) return <AdminErrorState onRetry={() => void client.refetch()} />;
   if (event.data.deletedAt) {
     return <Alert severity="warning">Este Evento está eliminado y no admite preparación.</Alert>;
   }
 
   const data = event.data;
   const base = `/eventos/${data.id}/preparar`;
+  const managed = client.data.operatingProfile === 'MANAGED';
+  if (managed && section === 'comercial') return <Navigate to={`${base}/datos`} replace />;
+  const sections = managed
+    ? (['datos', 'invitacion', 'croquis', 'registro'] as const)
+    : (['comercial', 'datos', 'invitacion', 'croquis', 'registro'] as const);
   return (
     <Stack spacing={3}>
       <Button
@@ -82,7 +94,7 @@ export function AdminEventPreparationPage({ apiClient }: { apiClient: ApiClient 
         action={<StatusChip label={eventStatusLabel[data.status]} tone="neutral" />}
       />
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} aria-label="Secciones de preparación">
-        {(['comercial', 'datos', 'invitacion', 'croquis', 'registro'] as const).map((item) => (
+        {sections.map((item) => (
           <Button
             key={item}
             component={Link}
@@ -103,7 +115,7 @@ export function AdminEventPreparationPage({ apiClient }: { apiClient: ApiClient 
       </Stack>
       {section === 'comercial' ? <CommercialSection apiClient={apiClient} event={data} /> : null}
       {section === 'datos' ? <EventDataSection apiClient={apiClient} event={data} /> : null}
-      {section === 'invitacion' ? <InvitationSection apiClient={apiClient} event={data} /> : null}
+      {section === 'invitacion' ? <InvitationSection apiClient={apiClient} event={data} managed={managed} /> : null}
       {section === 'croquis' ? <AdminFloorplanBuilderWorkspace apiClient={apiClient} event={data} /> : null}
       {section === 'registro' ? <AdminPilotOperationalLog apiClient={apiClient} event={data} /> : null}
     </Stack>
@@ -534,7 +546,15 @@ function EventDataSection({ apiClient, event }: { apiClient: ApiClient; event: A
   );
 }
 
-function InvitationSection({ apiClient, event }: { apiClient: ApiClient; event: AdminEvent }) {
+function InvitationSection({
+  apiClient,
+  event,
+  managed
+}: {
+  apiClient: ApiClient;
+  event: AdminEvent;
+  managed: boolean;
+}) {
   const supported = event.serviceCode === 'FLYER' || event.serviceCode === 'FLIPBOOK';
   const [design, setDesign] = useState<AdminInvitationDesign>();
   const [readiness, setReadiness] = useState<{ complete: boolean; blockers: string[] }>();
@@ -631,7 +651,7 @@ function InvitationSection({ apiClient, event }: { apiClient: ApiClient; event: 
 
   if (!supported)
     return <Alert severity="info">El servicio de este Evento no admite diseño de invitación digital.</Alert>;
-  if (!event.designKickoffAt) {
+  if (!managed && !event.designKickoffAt) {
     return (
       <Alert
         severity="warning"

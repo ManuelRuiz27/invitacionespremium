@@ -186,6 +186,7 @@ export function mockApiClient(user: AuthUser = independentUser): ApiClient {
       restore: vi.fn(),
       quoteIntake: vi.fn(),
       createForClient: vi.fn(),
+      createManagedForClient: vi.fn(),
       updateAssignment: vi.fn()
     },
     adminEventPreparation: {

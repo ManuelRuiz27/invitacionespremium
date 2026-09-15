@@ -10,11 +10,13 @@ import { EventCommercialService } from './event-commercial.service';
 import {
   AdminEventAssignmentRequestDto,
   AdminEventIntakeRequestDto,
+  AdminManagedEventIntakeRequestDto,
   EventResponseDto,
   UpdateEventRequestDto,
   parseAdminEventAssignment,
   parseAdminEventIntake,
   parseAdminEventIntakeQuote,
+  parseAdminManagedEventIntake,
   parseEventId,
   parseUpdateEventRequest
 } from './events.dto';
@@ -55,6 +57,23 @@ export class AdminClientEventsController {
     return this.events.createAdminIntake(
       parseUuidParameter(clientIdInput, 'clientId'),
       parseAdminEventIntake(body),
+      principal,
+      request.operationId
+    );
+  }
+
+  @Post('managed')
+  @ApiBody({ type: AdminManagedEventIntakeRequestDto })
+  @ApiCreatedResponse({ type: EventResponseDto })
+  createManaged(
+    @Param('clientId') clientIdInput: string,
+    @Body() body: unknown,
+    @CurrentAuth() principal: AuthPrincipal,
+    @Req() request: AuthenticatedRequest
+  ): Promise<EventResponseDto> {
+    return this.events.createManagedAdminIntake(
+      parseUuidParameter(clientIdInput, 'clientId'),
+      parseAdminManagedEventIntake(body),
       principal,
       request.operationId
     );

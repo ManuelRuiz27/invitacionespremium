@@ -4,6 +4,7 @@ import { isRecord, isRecordArray, type ApiRequester } from '../api-client';
 export type AdminEvent = operations['AdminEventsController_get']['responses'][200]['content']['application/json'];
 export type AdminEventIntakeQuote = components['schemas']['EventIntakeQuoteResponseDto'];
 export type AdminEventIntakeInput = components['schemas']['AdminEventIntakeRequestDto'];
+export type AdminManagedEventIntakeInput = components['schemas']['AdminManagedEventIntakeRequestDto'];
 export type AdminEventAssignmentInput = components['schemas']['AdminEventAssignmentRequestDto'];
 export interface AdminEventIntakeQuoteInput {
   serviceCode: 'FLYER' | 'FLIPBOOK' | 'PHYSICAL_QR';
@@ -20,6 +21,11 @@ export interface AdminEventsClient {
     signal?: AbortSignal
   ): Promise<AdminEventIntakeQuote>;
   createForClient(clientId: string, input: AdminEventIntakeInput, signal?: AbortSignal): Promise<AdminEvent>;
+  createManagedForClient(
+    clientId: string,
+    input: AdminManagedEventIntakeInput,
+    signal?: AbortSignal
+  ): Promise<AdminEvent>;
   updateAssignment(
     clientId: string,
     eventId: string,
@@ -56,6 +62,17 @@ export function createAdminEventsClient(request: ApiRequester): AdminEventsClien
         {
           method: 'POST',
           path: clientEventsPath(clientId),
+          body,
+          response: 'json',
+          ...(signal ? { signal } : {})
+        },
+        isEvent
+      ),
+    createManagedForClient: (clientId, body, signal) =>
+      request(
+        {
+          method: 'POST',
+          path: `${clientEventsPath(clientId)}/managed`,
           body,
           response: 'json',
           ...(signal ? { signal } : {})

@@ -42,6 +42,55 @@ describe('Admin Events', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe(`/eventos/${adminEvent.id}/preparar/comercial`));
   });
 
+  it('creates a Managed Planner Event without quote or Finance controls and navigates to Datos', async () => {
+    const managedClient = {
+      ...organization,
+      id: 'managed-planner-client',
+      name: 'Elena Eventos',
+      type: 'PLANNER' as const,
+      operatingProfile: 'MANAGED' as const
+    };
+    const managedPlanner = {
+      ...clientUser,
+      id: 'managed-planner-user',
+      clientId: managedClient.id,
+      email: 'elena@example.com',
+      role: 'INDEPENDENT_PLANNER' as const
+    };
+    const managedEvent = { ...adminEvent, id: 'managed-event', clientId: managedClient.id };
+    const api = mockAdminApi();
+    vi.mocked(api.adminClients.list).mockResolvedValue([managedClient]);
+    vi.mocked(api.adminClients.listUsers).mockResolvedValue([managedPlanner]);
+    vi.mocked(api.adminEvents.createManagedForClient).mockResolvedValue(managedEvent);
+    const user = userEvent.setup();
+    const { router } = renderAdminApp(api, '/eventos');
+
+    await user.click(await screen.findByRole('button', { name: 'Nuevo evento' }));
+    await user.click(screen.getByLabelText('Cliente'));
+    await user.click(await screen.findByRole('option', { name: /Elena Eventos/ }));
+    await user.type(screen.getByLabelText('Nombre del evento'), 'Boda de Elena & Mateo');
+    await user.type(screen.getByLabelText('Capacidad'), '120');
+
+    expect(await screen.findByText(/servicio gestionado, sin cotización ni cobertura financiera/i)).toBeInTheDocument();
+    expect(api.adminEvents.quoteIntake).not.toHaveBeenCalled();
+    expect(screen.queryByText('Cotizacion autoritativa')).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: 'Confirmo estos términos comerciales' })).not.toBeInTheDocument();
+    const create = screen.getByRole('button', { name: 'Crear evento' });
+    await waitFor(() => expect(create).toBeEnabled());
+    await user.click(create);
+
+    await waitFor(() =>
+      expect(api.adminEvents.createManagedForClient).toHaveBeenCalledWith(managedClient.id, {
+        name: 'Boda de Elena & Mateo',
+        serviceCode: 'PHYSICAL_QR',
+        capacity: 120,
+        assignedPlannerUserId: managedPlanner.id
+      })
+    );
+    expect(api.adminEvents.createForClient).not.toHaveBeenCalled();
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/eventos/${managedEvent.id}/preparar/datos`));
+  });
+
   it('does not confirm insufficient coverage and requires fresh confirmation after a stale quote', async () => {
     const insufficientApi = mockAdminApi();
     vi.mocked(insufficientApi.adminEvents.quoteIntake).mockResolvedValue({

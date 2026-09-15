@@ -10,7 +10,7 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { adminEvent, deletedEvent, mockAdminApi } from '../test/fixtures';
+import { adminEvent, deletedEvent, mockAdminApi, organization } from '../test/fixtures';
 import { renderAdminApp } from '../test/render-admin-app';
 
 const floorplanHarness = vi.hoisted(() => ({ props: undefined as Record<string, unknown> | undefined }));
@@ -52,56 +52,91 @@ vi.mock('@invitaciones/floorplan', async (importOriginal) => {
 });
 
 describe('Admin Event preparation surfaces', () => {
-  it.each(['TABLE', 'SEAT'] as const)('maps a selected table in %s mode, reloads and unlinks without deleting domain records', async (seatingMode) => {
-    const initial = floorplan({ seatingMode, image: { fileAssetId: 'svg-asset', contentPath: '/private', sourceType: 'SVG' } });
-    const mapped = shape({ sourceElementId: 'private-circle', capacity: seatingMode === 'SEAT' ? 0 : 8 });
-    const api = preparedFloorplanApi(initial);
-    vi.mocked(api.adminEventPreparation.getFloorplanSvgSource).mockResolvedValue({
-      fileAssetId: 'svg-asset', aspectRatio: 1, viewBox: { minX: 0, minY: 0, width: 100, height: 100 },
-      selectableElements: [{ sourceElementId: 'private-circle', elementType: 'circle', bbox: { x: 0.1, y: 0.1, width: 0.2, height: 0.2 } }]
-    });
-    vi.mocked(api.adminEventPreparation.mapFloorplanSvgElement).mockImplementation(async () => {
-      vi.mocked(api.adminEventPreparation.getFloorplan).mockResolvedValue({ ...initial, shapes: [mapped] });
-      return mapped;
-    });
-    vi.mocked(api.adminEventPreparation.unlinkFloorplanSvgMapping).mockImplementation(async () => {
-      const unlinked = { ...mapped, sourceElementId: null };
-      vi.mocked(api.adminEventPreparation.getFloorplan).mockResolvedValue({ ...initial, shapes: [unlinked] });
-      return unlinked;
-    });
-    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
-    // The first direct builder navigation also loads the lazy preparation route.
-    await screen.findByTestId('admin-floorplan-surface', {}, { timeout: 10_000 });
-    await waitFor(() => expect(floorplanHarness.props?.svgSource).toBeDefined());
-    act(() => (floorplanHarness.props!.onSourceSelect as (id: string) => void)('private-circle'));
-    expect(await screen.findByRole('heading', { name: 'Clasificar Mesa' })).toBeInTheDocument();
-    expect(screen.getByText('Nuevo elemento del plano')).toBeInTheDocument();
-    expect(screen.getByText('Guarda o cancela antes de seleccionar otro elemento.')).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText(/^Nombre/), { target: { value: 'Mesa Principal' } });
-    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
-    await waitFor(() => expect(api.adminEventPreparation.mapFloorplanSvgElement).toHaveBeenCalledWith(adminEvent.clientId, adminEvent.id, {
-      sourceElementId: 'private-circle', kind: 'TABLE', name: 'Mesa Principal', capacity: seatingMode === 'TABLE' ? 8 : 0
-    }));
-    await userEvent.click(await screen.findByRole('button', { name: 'Mesa Principal' }));
-    expect(screen.queryByLabelText('Forma')).not.toBeInTheDocument();
-    expect(floorplanHarness.props?.draft).toBeUndefined();
-    expect(screen.queryByText('private-circle')).not.toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Editar Mesa Principal' })).toBeInTheDocument();
-    expect(screen.getByText('Elemento vinculado al plano')).toBeInTheDocument();
-    expect(screen.queryByText('Mesa seleccionada')).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Más opciones' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Desvincular del plano' }));
-    await waitFor(() => expect(api.adminEventPreparation.unlinkFloorplanSvgMapping).toHaveBeenCalledWith(adminEvent.clientId, adminEvent.id, mapped.id));
-    expect(api.adminEventPreparation.removeFloorplanShape).not.toHaveBeenCalled();
-    expect(api.adminEventPreparation.removeFloorplanSeat).not.toHaveBeenCalled();
-    await waitFor(() => expect((floorplanHarness.props?.floorplan as AdminFloorplan).shapes[0]?.sourceElementId).toBeNull());
-  });
+  it.each(['TABLE', 'SEAT'] as const)(
+    'maps a selected table in %s mode, reloads and unlinks without deleting domain records',
+    async (seatingMode) => {
+      const initial = floorplan({
+        seatingMode,
+        image: { fileAssetId: 'svg-asset', contentPath: '/private', sourceType: 'SVG' }
+      });
+      const mapped = shape({ sourceElementId: 'private-circle', capacity: seatingMode === 'SEAT' ? 0 : 8 });
+      const api = preparedFloorplanApi(initial);
+      vi.mocked(api.adminEventPreparation.getFloorplanSvgSource).mockResolvedValue({
+        fileAssetId: 'svg-asset',
+        aspectRatio: 1,
+        viewBox: { minX: 0, minY: 0, width: 100, height: 100 },
+        selectableElements: [
+          {
+            sourceElementId: 'private-circle',
+            elementType: 'circle',
+            bbox: { x: 0.1, y: 0.1, width: 0.2, height: 0.2 }
+          }
+        ]
+      });
+      vi.mocked(api.adminEventPreparation.mapFloorplanSvgElement).mockImplementation(async () => {
+        vi.mocked(api.adminEventPreparation.getFloorplan).mockResolvedValue({ ...initial, shapes: [mapped] });
+        return mapped;
+      });
+      vi.mocked(api.adminEventPreparation.unlinkFloorplanSvgMapping).mockImplementation(async () => {
+        const unlinked = { ...mapped, sourceElementId: null };
+        vi.mocked(api.adminEventPreparation.getFloorplan).mockResolvedValue({ ...initial, shapes: [unlinked] });
+        return unlinked;
+      });
+      renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+      // The first direct builder navigation also loads the lazy preparation route.
+      await screen.findByTestId('admin-floorplan-surface', {}, { timeout: 10_000 });
+      await waitFor(() => expect(floorplanHarness.props?.svgSource).toBeDefined());
+      act(() => (floorplanHarness.props!.onSourceSelect as (id: string) => void)('private-circle'));
+      expect(await screen.findByRole('heading', { name: 'Clasificar Mesa' })).toBeInTheDocument();
+      expect(screen.getByText('Nuevo elemento del plano')).toBeInTheDocument();
+      expect(screen.getByText('Guarda o cancela antes de seleccionar otro elemento.')).toBeInTheDocument();
+      fireEvent.change(screen.getByLabelText(/^Nombre/), { target: { value: 'Mesa Principal' } });
+      await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+      await waitFor(() =>
+        expect(api.adminEventPreparation.mapFloorplanSvgElement).toHaveBeenCalledWith(
+          adminEvent.clientId,
+          adminEvent.id,
+          {
+            sourceElementId: 'private-circle',
+            kind: 'TABLE',
+            name: 'Mesa Principal',
+            capacity: seatingMode === 'TABLE' ? 8 : 0
+          }
+        )
+      );
+      await userEvent.click(await screen.findByRole('button', { name: 'Mesa Principal' }));
+      expect(screen.queryByLabelText('Forma')).not.toBeInTheDocument();
+      expect(floorplanHarness.props?.draft).toBeUndefined();
+      expect(screen.queryByText('private-circle')).not.toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Editar Mesa Principal' })).toBeInTheDocument();
+      expect(screen.getByText('Elemento vinculado al plano')).toBeInTheDocument();
+      expect(screen.queryByText('Mesa seleccionada')).not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: 'Más opciones' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Desvincular del plano' }));
+      await waitFor(() =>
+        expect(api.adminEventPreparation.unlinkFloorplanSvgMapping).toHaveBeenCalledWith(
+          adminEvent.clientId,
+          adminEvent.id,
+          mapped.id
+        )
+      );
+      expect(api.adminEventPreparation.removeFloorplanShape).not.toHaveBeenCalled();
+      expect(api.adminEventPreparation.removeFloorplanSeat).not.toHaveBeenCalled();
+      await waitFor(() =>
+        expect((floorplanHarness.props?.floorplan as AdminFloorplan).shapes[0]?.sourceElementId).toBeNull()
+      );
+    }
+  );
   it('maps an irregular decorative zone using the chosen suggested name and zero capacity', async () => {
     const initial = floorplan({ image: { fileAssetId: 'svg-asset', contentPath: '/private', sourceType: 'SVG' } });
     const api = preparedFloorplanApi(initial);
     vi.mocked(api.adminEventPreparation.getFloorplanSvgSource).mockResolvedValue({
-      fileAssetId: 'svg-asset', aspectRatio: 1, viewBox: { minX: 0, minY: 0, width: 100, height: 100 },
-      selectableElements: [{ sourceElementId: 'private-path', elementType: 'path', bbox: { x: 0.1, y: 0.1, width: 0.2, height: 0.2 } }]
+      fileAssetId: 'svg-asset',
+      aspectRatio: 1,
+      viewBox: { minX: 0, minY: 0, width: 100, height: 100 },
+      selectableElements: [
+        { sourceElementId: 'private-path', elementType: 'path', bbox: { x: 0.1, y: 0.1, width: 0.2, height: 0.2 } }
+      ]
     });
     vi.mocked(api.adminEventPreparation.mapFloorplanSvgElement).mockImplementation(async (_client, _event, input) => {
       const mapped = shape({ ...input, geometry: 'RECTANGLE' });
@@ -120,9 +155,18 @@ describe('Admin Event preparation surfaces', () => {
     expect(screen.queryByLabelText(/Número de lugares/)).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText(/^Nombre/), { target: { value: 'Escenario principal' } });
     await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
-    await waitFor(() => expect(api.adminEventPreparation.mapFloorplanSvgElement).toHaveBeenCalledWith(adminEvent.clientId, adminEvent.id, {
-      sourceElementId: 'private-path', kind: 'DECORATIVE_ZONE', name: 'Escenario principal', capacity: 0
-    }));
+    await waitFor(() =>
+      expect(api.adminEventPreparation.mapFloorplanSvgElement).toHaveBeenCalledWith(
+        adminEvent.clientId,
+        adminEvent.id,
+        {
+          sourceElementId: 'private-path',
+          kind: 'DECORATIVE_ZONE',
+          name: 'Escenario principal',
+          capacity: 0
+        }
+      )
+    );
     expect(await screen.findByRole('button', { name: 'Escenario principal' })).toBeInTheDocument();
   });
   beforeEach(() => {
@@ -166,6 +210,30 @@ describe('Admin Event preparation surfaces', () => {
     );
     expect(api.events.update).not.toHaveBeenCalled();
     expect(api.services.listAvailable).not.toHaveBeenCalled();
+  });
+
+  it('keeps Managed preparation out of Commercial and redirects a direct URL to Datos', async () => {
+    const api = mockAdminApi();
+    vi.mocked(api.adminEvents.get).mockResolvedValue({ ...adminEvent, status: 'CONFIGURED', designKickoffAt: null });
+    vi.mocked(api.adminClients.get).mockResolvedValue({
+      ...organization,
+      id: adminEvent.clientId,
+      type: 'PLANNER',
+      operatingProfile: 'MANAGED'
+    });
+    const { router } = renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/comercial`);
+
+    expect(await screen.findByRole('heading', { name: 'Datos del Evento' })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe(`/eventos/${adminEvent.id}/preparar/datos`);
+    expect(screen.queryByRole('link', { name: 'Comercial' })).not.toBeInTheDocument();
+    expect(api.adminEventPreparation.getCommercialQuote).not.toHaveBeenCalled();
+
+    await router.navigate(`/eventos/${adminEvent.id}/preparar/invitacion`);
+    expect(
+      await screen.findByRole('button', { name: 'Subir imagen principal' }, { timeout: 5_000 })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Ir a Comercial' })).not.toBeInTheDocument();
+    expect(api.adminEventPreparation.getCommercialQuote).not.toHaveBeenCalled();
   });
 
   it('renders the authoritative commercial quote and submits authorization only once on a double click', async () => {
@@ -386,7 +454,9 @@ describe('Admin Event preparation surfaces', () => {
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
     await screen.findByTestId('admin-floorplan-surface');
     expect(screen.getByText('Croquis', { selector: 'h2' })).toBeInTheDocument();
-    expect(screen.queryByText(`Cliente ${adminEvent.clientId} · Servicio ${adminEvent.serviceCode}`)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(`Cliente ${adminEvent.clientId} · Servicio ${adminEvent.serviceCode}`)
+    ).not.toBeInTheDocument();
     expect(screen.getByLabelText('Acomodo')).toHaveTextContent('Por mesa');
     expect(api.adminEventPreparation.getFloorplan).toHaveBeenCalledWith(
       adminEvent.clientId,
@@ -453,7 +523,9 @@ describe('Admin Event preparation surfaces', () => {
 
   it('replaces an existing image through Admin upload plus PATCH and adopts the response', async () => {
     const api = preparedFloorplanApi();
-    const replacement = floorplan({ image: { fileAssetId: 'asset-replacement', contentPath: '/private/new', sourceType: 'RASTER' } });
+    const replacement = floorplan({
+      image: { fileAssetId: 'asset-replacement', contentPath: '/private/new', sourceType: 'RASTER' }
+    });
     vi.mocked(api.adminEventPreparation.uploadFloorplanAsset).mockResolvedValue(
       floorplanAsset({ id: 'asset-replacement' })
     );
@@ -486,7 +558,10 @@ describe('Admin Event preparation surfaces', () => {
     vi.mocked(api.adminEventPreparation.getFloorplanSvgSource).mockResolvedValue(svgSource('svg-replacement'));
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
     const button = await screen.findByRole('button', { name: 'Cambiar plano' });
-    await userEvent.upload(button.querySelector('input')!, new File(['<svg/>'], 'salon.svg', { type: 'image/svg+xml' }));
+    await userEvent.upload(
+      button.querySelector('input')!,
+      new File(['<svg/>'], 'salon.svg', { type: 'image/svg+xml' })
+    );
     await waitFor(() => expect(api.adminEventPreparation.uploadFloorplanSvgAsset).toHaveBeenCalledOnce());
     expect(api.adminEventPreparation.replaceFloorplanImage).toHaveBeenCalledWith(adminEvent.clientId, adminEvent.id, {
       imageAssetId: 'svg-replacement'
@@ -508,7 +583,9 @@ describe('Admin Event preparation surfaces', () => {
       seats: current.seats
     });
     const api = preparedFloorplanApi(current);
-    vi.mocked(api.adminEventPreparation.uploadFloorplanAsset).mockResolvedValue(floorplanAsset({ id: 'raster-replacement' }));
+    vi.mocked(api.adminEventPreparation.uploadFloorplanAsset).mockResolvedValue(
+      floorplanAsset({ id: 'raster-replacement' })
+    );
     vi.mocked(api.adminEventPreparation.replaceFloorplanImage).mockResolvedValue(replacement);
     vi.mocked(api.adminEventPreparation.getFloorplan).mockResolvedValueOnce(current).mockResolvedValue(replacement);
     vi.mocked(api.adminEventPreparation.getFloorplanSvgSource).mockResolvedValue(svgSource('svg-current'));
@@ -539,7 +616,9 @@ describe('Admin Event preparation surfaces', () => {
       shapes: [{ ...mapped, sourceElementId: null }]
     });
     const api = preparedFloorplanApi(current);
-    vi.mocked(api.adminEventPreparation.uploadFloorplanAsset).mockResolvedValue(floorplanAsset({ id: 'raster-replacement' }));
+    vi.mocked(api.adminEventPreparation.uploadFloorplanAsset).mockResolvedValue(
+      floorplanAsset({ id: 'raster-replacement' })
+    );
     vi.mocked(api.adminEventPreparation.replaceFloorplanImage).mockRejectedValue(new Error('timeout'));
     vi.mocked(api.adminEventPreparation.getFloorplan).mockResolvedValueOnce(current).mockResolvedValue(recovered);
     vi.mocked(api.adminEventPreparation.getFloorplanSvgSource).mockResolvedValue(svgSource('svg-current'));

@@ -49,8 +49,10 @@ export function AdminEventIntakeDialog({
   const [acceptanceConfirmed, setAcceptanceConfirmed] = useState(false);
   const [error, setError] = useState('');
   const selectedClient = clients.find((client) => client.id === clientId);
+  const managed = selectedClient?.operatingProfile === 'MANAGED';
+  const managedM01 = managed && selectedClient.type === 'PLANNER';
   const capacity = Number(capacityInput);
-  const validQuoteInput = Boolean(clientId) && Number.isInteger(capacity) && capacity >= 1 && capacity <= 150;
+  const validIntakeInput = Boolean(clientId) && Number.isInteger(capacity) && capacity >= 1 && capacity <= 150;
   const users = useQuery({
     queryKey: adminQueryKeys.clientUsers(clientId),
     queryFn: ({ signal }) => apiClient.adminClients.listUsers(clientId, signal),
@@ -62,7 +64,7 @@ export function AdminEventIntakeDialog({
   const quote = useQuery({
     queryKey: ['admin-event-intake-quote', clientId, serviceCode, capacity],
     queryFn: ({ signal }) => apiClient.adminEvents.quoteIntake(clientId, { serviceCode, capacity }, signal),
-    enabled: open && validQuoteInput
+    enabled: open && validIntakeInput && !managed
   });
 
   useEffect(() => {
@@ -79,23 +81,32 @@ export function AdminEventIntakeDialog({
   useEffect(() => setAcceptanceConfirmed(false), [serviceCode, capacityInput]);
 
   const create = useMutation({
-    mutationFn: () =>
-      apiClient.adminEvents.createForClient(clientId, {
-        name: name.trim() || null,
-        serviceCode,
-        capacity,
-        acceptedServicePriceId: quote.data!.servicePriceId,
-        assignedPlannerUserId: assignedPlannerUserId || null,
-        acceptanceConfirmed: true
-      }),
-    onSuccess: async (event) => {
+    mutationFn: async () => {
+      const event = managed
+        ? await apiClient.adminEvents.createManagedForClient(clientId, {
+            name: name.trim() || null,
+            serviceCode,
+            capacity,
+            assignedPlannerUserId
+          })
+        : await apiClient.adminEvents.createForClient(clientId, {
+            name: name.trim() || null,
+            serviceCode,
+            capacity,
+            acceptedServicePriceId: quote.data!.servicePriceId,
+            assignedPlannerUserId: assignedPlannerUserId || null,
+            acceptanceConfirmed: true
+          });
+      return { event, managed };
+    },
+    onSuccess: async ({ event, managed: createdAsManaged }) => {
       await queryClient.invalidateQueries({ queryKey: adminQueryKeys.events });
       reset();
       onClose();
-      await navigate(`/eventos/${event.id}/preparar/comercial`);
+      await navigate(`/eventos/${event.id}/preparar/${createdAsManaged ? 'datos' : 'comercial'}`);
     },
     onError: async (cause) => {
-      if (cause instanceof ApiError && cause.code === 'EVENT_COMMERCIAL_QUOTE_STALE') {
+      if (!managed && cause instanceof ApiError && cause.code === 'EVENT_COMMERCIAL_QUOTE_STALE') {
         setAcceptanceConfirmed(false);
         setError('La cotizacion cambio. Revisa los terminos actualizados y confirma nuevamente.');
         await quote.refetch();
@@ -120,11 +131,19 @@ export function AdminEventIntakeDialog({
 
   function submit() {
     if (submitLock.current) return;
-    if (!quote.data || !quote.data.coverage.sufficient || !acceptanceConfirmed) {
+    if (!validIntakeInput) {
+      setError('Captura una capacidad entre 1 y 150 personas.');
+      return;
+    }
+    if (managed && !managedM01) {
+      setError('El alta gestionada M01 sólo está disponible para Clientes Planner.');
+      return;
+    }
+    if (!managed && (!quote.data || !quote.data.coverage.sufficient || !acceptanceConfirmed)) {
       setError('Obtén una cotizacion con cobertura suficiente y confirma sus terminos.');
       return;
     }
-    if (selectedClient?.type === 'PLANNER' && !assignedPlannerUserId) {
+    if ((managed || selectedClient?.type === 'PLANNER') && !assignedPlannerUserId) {
       setError('Selecciona la Planner independiente responsable.');
       return;
     }
@@ -182,8 +201,16 @@ export function AdminEventIntakeDialog({
               </MenuItem>
             ))}
           </TextField>
-          {quote.isFetching ? <Typography color="text.secondary">Calculando cotizacion…</Typography> : null}
-          {quote.data ? (
+          {managedM01 ? (
+            <Alert severity="info">
+              Este Evento será preparado como servicio gestionado, sin cotización ni cobertura financiera.
+            </Alert>
+          ) : null}
+          {managed && !managedM01 ? (
+            <Alert severity="warning">El alta gestionada M01 sólo está disponible para Clientes Planner.</Alert>
+          ) : null}
+          {!managed && quote.isFetching ? <Typography color="text.secondary">Calculando cotizacion…</Typography> : null}
+          {!managed && quote.data ? (
             <Stack spacing={0.5} sx={{ p: 2, border: 1, borderColor: 'divider', borderRadius: 2 }}>
               <Typography variant="subtitle2">Cotizacion autoritativa</Typography>
               <Typography>Canal: {quote.data.commercialChannel}</Typography>
@@ -208,7 +235,7 @@ export function AdminEventIntakeDialog({
               />
             </Stack>
           ) : null}
-          {quote.isError ? <Alert severity="error">{adminErrorMessage(quote.error).message}</Alert> : null}
+          {!managed && quote.isError ? <Alert severity="error">{adminErrorMessage(quote.error).message}</Alert> : null}
           {error ? <Alert severity="error">{error}</Alert> : null}
         </Stack>
       </DialogContent>
@@ -216,7 +243,15 @@ export function AdminEventIntakeDialog({
         <Button onClick={onClose} disabled={create.isPending}>
           Cancelar
         </Button>
-        <Button variant="contained" onClick={submit} disabled={create.isPending || !quote.data?.coverage.sufficient}>
+        <Button
+          variant="contained"
+          onClick={submit}
+          disabled={
+            create.isPending ||
+            !validIntakeInput ||
+            (managed ? !managedM01 || !assignedPlannerUserId : !quote.data?.coverage.sufficient)
+          }
+        >
           {create.isPending ? 'Creando…' : 'Crear evento'}
         </Button>
       </DialogActions>

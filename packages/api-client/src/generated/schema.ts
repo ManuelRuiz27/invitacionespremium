@@ -720,6 +720,22 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/clients/{clientId}/events/managed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminClientEventsController_createManaged"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/clients/{clientId}/restore": {
         parameters: {
             query?: never;
@@ -2659,6 +2675,14 @@ export type components = {
             file: string;
             /** @enum {string} */
             fileType: "FLYER_INITIAL_IMAGE" | "FLYER_QR_IMAGE" | "FLIPBOOK_PAGE_IMAGE";
+        };
+        AdminManagedEventIntakeRequestDto: {
+            /** Format: uuid */
+            assignedPlannerUserId: string;
+            capacity: number;
+            name?: string | null;
+            /** @enum {string} */
+            serviceCode: "FLYER" | "FLIPBOOK" | "PHYSICAL_QR";
         };
         AdminReportListItemDto: {
             /** Format: uuid */
@@ -5695,6 +5719,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EventIntakeQuoteResponseDto"];
+                };
+            };
+        };
+    };
+    AdminClientEventsController_createManaged: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminManagedEventIntakeRequestDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventResponseDto"];
                 };
             };
         };

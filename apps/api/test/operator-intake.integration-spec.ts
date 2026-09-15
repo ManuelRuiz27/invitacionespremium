@@ -5,7 +5,15 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { hashPassword } from '../src/auth/password-hasher';
 import { createApp } from '../src/bootstrap/create-app';
 import { PrismaService } from '../src/common/database/prisma.service';
-import { ClientType, CommercialChannel, CreditLineStatus, ServiceCode, UserRole } from '../src/generated/prisma/client';
+import {
+  ClientOperatingProfile,
+  ClientStatus,
+  ClientType,
+  CommercialChannel,
+  CreditLineStatus,
+  ServiceCode,
+  UserRole
+} from '../src/generated/prisma/client';
 import { createOpenApiDocument } from '../src/openapi/openapi';
 
 const origin = 'http://localhost:5173';
@@ -34,6 +42,177 @@ describe('OP-04 operator intake and Planner assignment', () => {
     await resetDatabase();
     await app.close();
   }, 60_000);
+
+  it('creates an M01 Managed Event with real provenance and no commercial or Finance effects', async () => {
+    const fixture = await managedPlannerFixture();
+    await prisma.financeBalance.create({ data: { clientId: fixture.clientId } });
+    const balanceBefore = await prisma.financeBalance.findUniqueOrThrow({ where: { clientId: fixture.clientId } });
+
+    const created = await managedIntakeCreate(fixture.clientId, fixture.adminCookie, {
+      name: 'Boda de Elena & Mateo',
+      serviceCode: ServiceCode.FLYER,
+      capacity: 120,
+      assignedPlannerUserId: fixture.planner.id
+    }).expect(201);
+
+    expect(created.body).toMatchObject({
+      clientId: fixture.clientId,
+      createdByUserId: fixture.adminId,
+      assignedPlannerUserId: fixture.planner.id,
+      serviceId: fixture.serviceId,
+      serviceCode: ServiceCode.FLYER,
+      name: 'Boda de Elena & Mateo',
+      capacity: 120,
+      status: 'DRAFT'
+    });
+    const stored = await prisma.event.findUniqueOrThrow({ where: { id: created.body.id } });
+    expect(stored).toMatchObject({
+      createdByUserId: fixture.adminId,
+      assignedPlannerUserId: fixture.planner.id,
+      serviceId: fixture.serviceId,
+      commercialAuthorizedAt: null,
+      commercialAuthorizedByUserId: null,
+      commercialPriceLockedAt: null,
+      commercialServicePriceId: null,
+      commercialBaseCostCredits: null,
+      commercialPromotionDiscountCredits: null,
+      commercialFinalCostCredits: null,
+      commercialChannelSnapshot: null,
+      commercialCapacitySnapshot: null,
+      commercialCapacityMinSnapshot: null,
+      commercialCapacityMaxSnapshot: null,
+      commercialVenueTierSnapshot: null,
+      designKickoffAt: null,
+      designKickoffByUserId: null,
+      activatedAt: null,
+      activatedByUserId: null,
+      activatedServiceId: null,
+      activatedServicePriceId: null,
+      baseCostCredits: null,
+      promotionDiscountCredits: null,
+      finalCostCredits: null,
+      purchasedCreditsUsed: null,
+      creditLineCreditsUsed: null,
+      creditUnitValueMxnCentsSnapshot: null,
+      activationReceiptId: null,
+      activationIdempotencyKey: null
+    });
+    expect(await prisma.servicePrice.count()).toBe(0);
+    expect(await prisma.creditLine.count()).toBe(0);
+    expect(await prisma.ledgerEntry.count()).toBe(0);
+    expect(await prisma.receipt.count()).toBe(0);
+    expect(await prisma.financeBalance.findUniqueOrThrow({ where: { clientId: fixture.clientId } })).toEqual(
+      balanceBefore
+    );
+    expect(
+      await prisma.auditLog.findMany({ where: { eventId: stored.id }, orderBy: { occurredAt: 'asc' } })
+    ).toMatchObject([{ actorId: fixture.adminId, action: 'EVENT_CREATE' }]);
+  });
+
+  it('rejects inactive Managed Clients and inactive paid Services without creating an Event', async () => {
+    const fixture = await managedPlannerFixture();
+    await prisma.client.update({
+      where: { id: fixture.clientId },
+      data: { status: ClientStatus.SUSPENDED, suspendedAt: new Date(), suspensionReason: 'Test' }
+    });
+    await managedIntakeCreate(fixture.clientId, fixture.adminCookie, {
+      serviceCode: ServiceCode.FLYER,
+      capacity: 80,
+      assignedPlannerUserId: fixture.planner.id
+    })
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('CLIENT_NOT_ACTIVE'));
+
+    await prisma.client.update({
+      where: { id: fixture.clientId },
+      data: { status: ClientStatus.ACTIVE, suspendedAt: null, suspensionReason: null }
+    });
+    await prisma.service.update({ where: { id: fixture.serviceId }, data: { isActive: false } });
+    await managedIntakeCreate(fixture.clientId, fixture.adminCookie, {
+      serviceCode: ServiceCode.FLYER,
+      capacity: 80,
+      assignedPlannerUserId: fixture.planner.id
+    })
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('EVENT_SERVICE_NOT_AVAILABLE'));
+    expect(await prisma.event.count()).toBe(0);
+  });
+
+  it('rejects DEMO and invalid or foreign Planner assignments without creating an Event', async () => {
+    const fixture = await managedPlannerFixture();
+    await managedIntakeCreate(fixture.clientId, fixture.adminCookie, {
+      serviceCode: ServiceCode.DEMO,
+      capacity: 80,
+      assignedPlannerUserId: fixture.planner.id
+    })
+      .expect(400)
+      .expect(({ body }) => expect(body.code).toBe('VALIDATION_ERROR'));
+
+    const foreignClient = await prisma.client.create({
+      data: {
+        type: ClientType.PLANNER,
+        operatingProfile: ClientOperatingProfile.MANAGED,
+        name: 'Foreign Planner'
+      }
+    });
+    const foreignPlanner = await createUser(foreignClient.id, UserRole.INDEPENDENT_PLANNER);
+    for (const assignedPlannerUserId of [fixture.adminId, foreignPlanner.id]) {
+      await managedIntakeCreate(fixture.clientId, fixture.adminCookie, {
+        serviceCode: ServiceCode.FLYER,
+        capacity: 80,
+        assignedPlannerUserId
+      })
+        .expect(409)
+        .expect(({ body }) => expect(body.code).toBe('EVENT_PLANNER_ASSIGNMENT_INVALID'));
+    }
+    expect(await prisma.event.count()).toBe(0);
+  });
+
+  it('uses one stable error for non-Managed and non-M01 Clients', async () => {
+    const fixture = await managedPlannerFixture();
+    const selfService = await prisma.client.create({
+      data: {
+        type: ClientType.PLANNER,
+        operatingProfile: ClientOperatingProfile.SELF_SERVICE,
+        name: 'Self-Service Planner'
+      }
+    });
+    const selfServicePlanner = await createUser(selfService.id, UserRole.INDEPENDENT_PLANNER);
+    const managedOrganization = await prisma.client.create({
+      data: {
+        type: ClientType.ORGANIZATION,
+        operatingProfile: ClientOperatingProfile.MANAGED,
+        name: 'Managed Organization'
+      }
+    });
+    const organizationPlanner = await createUser(managedOrganization.id, UserRole.ORGANIZATION_PLANNER);
+
+    for (const target of [
+      { clientId: selfService.id, plannerId: selfServicePlanner.id },
+      { clientId: managedOrganization.id, plannerId: organizationPlanner.id }
+    ]) {
+      await managedIntakeCreate(target.clientId, fixture.adminCookie, {
+        serviceCode: ServiceCode.FLYER,
+        capacity: 80,
+        assignedPlannerUserId: target.plannerId
+      })
+        .expect(409)
+        .expect(({ body }) => expect(body.code).toBe('EVENT_MANAGED_INTAKE_NOT_ALLOWED'));
+    }
+    expect(await prisma.event.count()).toBe(0);
+  });
+
+  it('enforces Platform Admin authorization on Managed intake', async () => {
+    const fixture = await managedPlannerFixture();
+    const body = {
+      serviceCode: ServiceCode.FLYER,
+      capacity: 80,
+      assignedPlannerUserId: fixture.planner.id
+    };
+    await managedIntakeCreate(fixture.clientId, '', body).expect(401);
+    await managedIntakeCreate(fixture.clientId, fixture.plannerCookie, body).expect(403);
+    expect(await prisma.event.count()).toBe(0);
+  });
 
   it('quotes without writes and atomically creates an assigned Event with real Admin provenance and exact lock', async () => {
     const fixture = await organizationFixture();
@@ -291,9 +470,23 @@ describe('OP-04 operator intake and Planner assignment', () => {
 
   it('publishes the intake, assignment, and dual ownership projection in OpenAPI', () => {
     const document = createOpenApiDocument(app);
+    const managedIntakeSchema = document.components?.schemas?.AdminManagedEventIntakeRequestDto as
+      { properties?: Record<string, unknown> } | undefined;
     expect(document.paths['/api/v1/admin/clients/{clientId}/events/intake-quote']).toBeDefined();
     expect(document.paths['/api/v1/admin/clients/{clientId}/events']?.post).toBeDefined();
+    expect(document.paths['/api/v1/admin/clients/{clientId}/events/managed']?.post).toBeDefined();
     expect(document.paths['/api/v1/admin/clients/{clientId}/events/{eventId}/assignment']?.patch).toBeDefined();
+    expect(document.components?.schemas?.AdminManagedEventIntakeRequestDto).toMatchObject({
+      required: ['serviceCode', 'capacity', 'assignedPlannerUserId'],
+      properties: {
+        name: { nullable: true },
+        serviceCode: { enum: ['FLYER', 'FLIPBOOK', 'PHYSICAL_QR'] },
+        capacity: { minimum: 1, maximum: 150 },
+        assignedPlannerUserId: { format: 'uuid' }
+      }
+    });
+    expect(managedIntakeSchema?.properties).not.toHaveProperty('acceptedServicePriceId');
+    expect(managedIntakeSchema?.properties).not.toHaveProperty('acceptanceConfirmed');
     expect(document.components?.schemas?.EventResponseDto).toMatchObject({
       required: expect.arrayContaining(['createdByUserId', 'assignedPlannerUserId']),
       properties: { assignedPlannerUserId: { nullable: true } }
@@ -335,6 +528,27 @@ describe('OP-04 operator intake and Planner assignment', () => {
     };
   }
 
+  async function managedPlannerFixture() {
+    const client = await prisma.client.create({
+      data: {
+        type: ClientType.PLANNER,
+        operatingProfile: ClientOperatingProfile.MANAGED,
+        name: `Managed Planner ${randomUUID()}`
+      }
+    });
+    const planner = await createUser(client.id, UserRole.INDEPENDENT_PLANNER);
+    const admin = await createUser(null, UserRole.PLATFORM_ADMIN);
+    const service = await prisma.service.create({ data: { code: ServiceCode.FLYER } });
+    return {
+      clientId: client.id,
+      planner,
+      plannerCookie: await login(planner.email),
+      adminId: admin.id,
+      adminCookie: await login(admin.email),
+      serviceId: service.id
+    };
+  }
+
   function intakeQuote(clientId: string, cookie: string, serviceCode: ServiceCode, capacity: number) {
     return request(app.getHttpServer())
       .get(`/api/v1/admin/clients/${clientId}/events/intake-quote`)
@@ -348,6 +562,14 @@ describe('OP-04 operator intake and Planner assignment', () => {
       .set('Origin', origin)
       .set('Cookie', cookie)
       .send(body);
+  }
+
+  function managedIntakeCreate(clientId: string, cookie: string, body: Record<string, unknown>) {
+    const call = request(app.getHttpServer())
+      .post(`/api/v1/admin/clients/${clientId}/events/managed`)
+      .set('Origin', origin);
+    if (cookie) call.set('Cookie', cookie);
+    return call.send(body);
   }
 
   function contactCreate(eventId: string, cookie: string, name: string) {
@@ -389,15 +611,15 @@ describe('OP-04 operator intake and Planner assignment', () => {
 
   async function resetDatabase() {
     if (!prisma) return;
-    await prisma.$executeRawUnsafe(`
-      BEGIN;
-      SET LOCAL session_replication_role = replica;
-      TRUNCATE TABLE
+    await prisma.$transaction([
+      prisma.$executeRawUnsafe('SET LOCAL session_replication_role = replica'),
+      prisma.$executeRawUnsafe(`
+        TRUNCATE TABLE
         "contact_import_preview", "contact", "contact_group", "event_state_operation", "event",
         "debt_payment_allocation", "ledger_entry", "payment", "receipt", "credit_line", "finance_balance",
         "promotion", "service_price", "service", "audit_log", "auth_session", "app_user", "client"
-      RESTART IDENTITY CASCADE;
-      COMMIT;
-    `);
+        RESTART IDENTITY CASCADE
+      `)
+    ]);
   }
 });
