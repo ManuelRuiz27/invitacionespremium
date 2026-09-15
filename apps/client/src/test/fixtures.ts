@@ -268,7 +268,8 @@ export function mockApiClient(user: AuthUser = independentUser): ApiClient {
       get: vi.fn().mockResolvedValue(configuredEvent),
       create: vi.fn().mockResolvedValue(configuredEvent),
       update: vi.fn().mockResolvedValue(configuredEvent),
-      activate: vi.fn().mockResolvedValue({ event: activeEvent })
+      activate: vi.fn().mockResolvedValue({ event: activeEvent }),
+      close: vi.fn().mockResolvedValue({ ...activeEvent, status: 'CLOSED' })
     },
     eventConfirmation: {
       get: vi.fn().mockResolvedValue({ enabled: true, open: true, closedAt: null, closedByUserId: null }),

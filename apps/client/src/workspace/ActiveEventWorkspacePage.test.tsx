@@ -8,7 +8,7 @@ import {
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { activeEvent, configuredEvent, mockApiClient } from '../test/fixtures';
+import { activeEvent, configuredEvent, managedUser, mockApiClient } from '../test/fixtures';
 import { renderApp } from '../test/render-app';
 
 const seatingFloorplanHarness = vi.hoisted(() => ({ props: undefined as Record<string, unknown> | undefined }));
@@ -186,6 +186,148 @@ describe('Active Event workspace routing', () => {
     expect(screen.getByText(label)).toBeInTheDocument();
     expect(screen.getByText(message)).toBeInTheDocument();
     expect(screen.queryByText(status)).not.toBeInTheDocument();
+  });
+
+  it.each(['ACTIVE', 'EVENT_DAY'] as const)('offers explicit close to a Managed Planner in %s', async (status) => {
+    const api = mockApiClient(managedUser);
+    vi.mocked(api.events.get).mockResolvedValue({ ...workspaceEvent, status });
+
+    renderApp(api, `/eventos/${workspaceEvent.id}`);
+
+    expect(await screen.findByRole('button', { name: 'Cerrar evento' })).toBeInTheDocument();
+  });
+
+  it('requires confirmation before closing and cancellation leaves the Event untouched', async () => {
+    const api = mockApiClient(managedUser);
+    vi.mocked(api.events.get).mockResolvedValue(workspaceEvent);
+    const user = userEvent.setup();
+
+    renderApp(api, `/eventos/${workspaceEvent.id}`);
+    await user.click(await screen.findByRole('button', { name: 'Cerrar evento' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Cerrar evento' });
+    expect(within(dialog).getByText('Termina la operación del Evento.')).toBeInTheDocument();
+    expect(within(dialog).getByText('El Staff deja de operar.')).toBeInTheDocument();
+    expect(within(dialog).getByText('Los invitados ya no pueden responder.')).toBeInTheDocument();
+    expect(within(dialog).getByText('El Evento queda disponible para consulta.')).toBeInTheDocument();
+    expect(api.events.close).not.toHaveBeenCalled();
+
+    await user.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Cerrar evento' })).not.toBeInTheDocument());
+    expect(api.events.close).not.toHaveBeenCalled();
+  });
+
+  it('adopts CLOSED after success, refetches authority, and preserves read-only navigation', async () => {
+    const api = mockApiClient(managedUser);
+    const closedEvent = { ...workspaceEvent, status: 'CLOSED' } satisfies Event;
+    vi.mocked(api.events.get).mockResolvedValueOnce(workspaceEvent).mockResolvedValue(closedEvent);
+    vi.mocked(api.events.close).mockResolvedValue(closedEvent);
+    const user = userEvent.setup();
+
+    renderApp(api, `/eventos/${workspaceEvent.id}`, undefined, 'https://scanner.example.test');
+    await user.click(await screen.findByRole('button', { name: 'Cerrar evento' }));
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cerrar evento' }));
+
+    await waitFor(() => expect(api.events.close).toHaveBeenCalledWith(workspaceEvent.id, expect.any(String)));
+    expect(await screen.findByText('Cerrado')).toBeInTheDocument();
+    expect(api.events.get).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole('button', { name: 'Cerrar evento' })).not.toBeInTheDocument();
+    const navigation = screen.getByRole('navigation', { name: 'Secciones del Evento' });
+    expect(within(navigation).getByRole('link', { name: 'Invitados' })).toBeInTheDocument();
+    expect(within(navigation).getByRole('link', { name: 'Invitaciones' })).toBeInTheDocument();
+    expect(within(navigation).getByRole('link', { name: 'Mesas y distribución' })).toBeInTheDocument();
+    expect(within(navigation).queryByRole('link', { name: 'Staff' })).not.toBeInTheDocument();
+
+    await user.click(within(navigation).getByRole('link', { name: 'Invitados' }));
+    expect(await screen.findByText(/modo de consulta/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Agregar invitado' })).not.toBeInTheDocument();
+    await user.click(within(navigation).getByRole('link', { name: 'Resumen' }));
+    expect(screen.queryByRole('button', { name: 'Cerrar evento' })).not.toBeInTheDocument();
+  });
+
+  it('keeps one idempotency key across an uncertain retry', async () => {
+    const api = mockApiClient(managedUser);
+    vi.mocked(api.events.get).mockResolvedValue(workspaceEvent);
+    vi.mocked(api.events.close).mockRejectedValue(new TypeError('network'));
+    const user = userEvent.setup();
+
+    renderApp(api, `/eventos/${workspaceEvent.id}`);
+    await user.click(await screen.findByRole('button', { name: 'Cerrar evento' }));
+    const dialog = screen.getByRole('dialog');
+    const confirm = within(dialog).getByRole('button', { name: 'Cerrar evento' });
+    await user.click(confirm);
+    expect(await within(dialog).findByText(/No pudimos confirmar el cierre/)).toBeInTheDocument();
+    await user.click(confirm);
+
+    await waitFor(() => expect(api.events.close).toHaveBeenCalledTimes(2));
+    const firstKey = vi.mocked(api.events.close).mock.calls[0]?.[1];
+    const secondKey = vi.mocked(api.events.close).mock.calls[1]?.[1];
+    expect(firstKey).toBeTruthy();
+    expect(secondKey).toBe(firstKey);
+  });
+
+  it('accepts CLOSED from reconciliation after an uncertain response without repeating close', async () => {
+    const api = mockApiClient(managedUser);
+    const closedEvent = { ...workspaceEvent, status: 'CLOSED' } satisfies Event;
+    vi.mocked(api.events.get).mockResolvedValueOnce(workspaceEvent).mockResolvedValue(closedEvent);
+    vi.mocked(api.events.close).mockRejectedValue(new TypeError('network'));
+    const user = userEvent.setup();
+
+    renderApp(api, `/eventos/${workspaceEvent.id}`);
+    await user.click(await screen.findByRole('button', { name: 'Cerrar evento' }));
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cerrar evento' }));
+
+    expect(await screen.findByText('Cerrado')).toBeInTheDocument();
+    expect(api.events.close).toHaveBeenCalledTimes(1);
+    expect(api.events.get).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole('button', { name: 'Cerrar evento' })).not.toBeInTheDocument();
+  });
+
+  it('clears a definitive error attempt, shows its reference, and uses a new key on retry', async () => {
+    const api = mockApiClient(managedUser);
+    vi.mocked(api.events.get).mockResolvedValue(workspaceEvent);
+    vi.mocked(api.events.close).mockRejectedValue(
+      new ApiError(
+        409,
+        'EVENT_STATE_IDEMPOTENCY_CONFLICT',
+        'Key belongs to another state transition.',
+        'operation-close'
+      )
+    );
+    const user = userEvent.setup();
+
+    renderApp(api, `/eventos/${workspaceEvent.id}`);
+    await user.click(await screen.findByRole('button', { name: 'Cerrar evento' }));
+    const dialog = screen.getByRole('dialog');
+    const confirm = within(dialog).getByRole('button', { name: 'Cerrar evento' });
+    await user.click(confirm);
+    expect(
+      await within(dialog).findByText(
+        'Este intento ya fue utilizado para otra transición del evento. Vuelve a intentarlo. Referencia: operation-close'
+      )
+    ).toBeInTheDocument();
+    await user.click(confirm);
+
+    await waitFor(() => expect(api.events.close).toHaveBeenCalledTimes(2));
+    const firstKey = vi.mocked(api.events.close).mock.calls[0]?.[1];
+    const secondKey = vi.mocked(api.events.close).mock.calls[1]?.[1];
+    expect(firstKey).toBeTruthy();
+    expect(secondKey).toBeTruthy();
+    expect(secondKey).not.toBe(firstKey);
+  });
+
+  it.each([
+    ['CLOSED', managedUser],
+    ['ACTIVE', undefined]
+  ] as const)('does not offer Managed close for %s without the required profile/state', async (status, user) => {
+    const api = user ? mockApiClient(user) : mockApiClient();
+    vi.mocked(api.events.get).mockResolvedValue({ ...workspaceEvent, status });
+
+    renderApp(api, `/eventos/${workspaceEvent.id}`);
+
+    expect(await screen.findByRole('heading', { name: workspaceEvent.name! })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Cerrar evento' })).not.toBeInTheDocument();
+    expect(api.events.close).not.toHaveBeenCalled();
   });
 });
 

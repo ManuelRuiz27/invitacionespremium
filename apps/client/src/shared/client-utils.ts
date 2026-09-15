@@ -6,6 +6,8 @@ const messages: Record<string, string> = {
   EVENT_CAPACITY_EXCEEDED: 'Los Asistentes autorizados superan la capacidad del Evento.',
   SERVICE_NOT_AVAILABLE: 'El servicio seleccionado ya no está disponible.',
   EVENT_INVALID_STATE_TRANSITION: 'Este evento todavía no puede activarse.',
+  EVENT_STATE_IDEMPOTENCY_CONFLICT:
+    'Este intento ya fue utilizado para otra transición del evento. Vuelve a intentarlo.',
   EVENT_INVITATION_DESIGN_INCOMPLETE: 'Completa el diseño de la Invitación.',
   EVENT_ACTIVE_INVITATION_MISSING: 'Agrega al menos una Invitación activa.',
   EVENT_CONFIRMATION_NOT_ENABLED: 'Activa la Confirmación de asistencia.',

@@ -3,7 +3,7 @@ import { ApiError } from '@invitaciones/api-client';
 import { ErrorState, LoadingState, StatusChip } from '@invitaciones/ui';
 import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded';
 import { Alert, AlertTitle, Box, Button, Link as MuiLink, Stack, Typography } from '@mui/material';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { GuestManagementPanel } from '../guests/GuestManagementPanel';
@@ -11,6 +11,7 @@ import { getEventStatusPresentation } from '../shared/event-status';
 import { formatEventDateLong, serviceLabels, socialTypeLabels } from '../shared/formatters';
 import { useSessionExpiry } from '../shared/use-session-expiry';
 import { InvitationOperationsPanel } from './InvitationOperationsPanel';
+import { ManagedEventCloseAction } from './ManagedEventCloseAction';
 import { SeatingWorkspace } from './SeatingWorkspace';
 import { StaffAccessPanel } from './StaffAccessPanel';
 
@@ -50,6 +51,7 @@ export function ActiveEventWorkspacePage({
   const { eventId = '' } = useParams();
   const { user } = useAuth();
   const managed = user?.clientOperatingProfile === 'MANAGED';
+  const queryClient = useQueryClient();
   const returnTo = `/eventos/${eventId}`;
   const eventQuery = useQuery({
     queryKey: ['events', eventId],
@@ -111,7 +113,19 @@ export function ActiveEventWorkspacePage({
     return <WorkspaceUnavailable title="Este evento no está disponible." />;
   }
 
-  return <EventWorkspace apiClient={apiClient} event={event} {...(scannerAppUrl ? { scannerAppUrl } : {})} />;
+  return (
+    <EventWorkspace
+      apiClient={apiClient}
+      event={event}
+      managed={managed}
+      onClosed={async (closedEvent) => {
+        queryClient.setQueryData(['events', eventId], closedEvent);
+        await eventQuery.refetch();
+      }}
+      onReconcile={async () => (await eventQuery.refetch()).data}
+      {...(scannerAppUrl ? { scannerAppUrl } : {})}
+    />
+  );
 }
 
 function ManagedEventPreparation({ apiClient, event }: { apiClient: ApiClient; event: Event }) {
@@ -220,10 +234,16 @@ function ManagedEventPreparation({ apiClient, event }: { apiClient: ApiClient; e
 function EventWorkspace({
   apiClient,
   event,
+  managed,
+  onClosed,
+  onReconcile,
   scannerAppUrl
 }: {
   apiClient: ApiClient;
   event: Event;
+  managed: boolean;
+  onClosed: (event: Event) => Promise<void>;
+  onReconcile: () => Promise<Event | undefined>;
   scannerAppUrl?: string;
 }) {
   const [searchParams] = useSearchParams();
@@ -246,6 +266,7 @@ function EventWorkspace({
             : 'resumen';
   const status = getEventStatusPresentation(event.status);
   const canShareInvitations = event.status === 'ACTIVE' || event.status === 'EVENT_DAY';
+  const canClose = managed && canShareInvitations;
 
   const navLinkSx = {
     display: 'inline-flex',
@@ -386,6 +407,17 @@ function EventWorkspace({
           </Alert>
 
           <EventDetails event={event} />
+
+          {canClose ? (
+            <Box sx={{ mt: 3 }}>
+              <ManagedEventCloseAction
+                apiClient={apiClient}
+                event={event}
+                onClosed={onClosed}
+                onReconcile={onReconcile}
+              />
+            </Box>
+          ) : null}
         </Box>
       )}
     </Stack>

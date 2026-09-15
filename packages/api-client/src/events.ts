@@ -15,6 +15,7 @@ export interface EventsClient {
   create(input: CreateEventInput, signal?: AbortSignal): Promise<Event>;
   update(eventId: string, input: UpdateEventInput, signal?: AbortSignal): Promise<Event>;
   activate(eventId: string, idempotencyKey: string, signal?: AbortSignal): Promise<EventActivation>;
+  close(eventId: string, idempotencyKey: string, signal?: AbortSignal): Promise<Event>;
 }
 
 export function createEventsClient(request: ApiRequester): EventsClient {
@@ -52,6 +53,17 @@ export function createEventsClient(request: ApiRequester): EventsClient {
           ...(signal ? { signal } : {})
         },
         isEventActivation
+      ),
+    close: (eventId, idempotencyKey, signal) =>
+      request(
+        {
+          method: 'POST',
+          path: `/events/${encodeURIComponent(eventId)}/close`,
+          headers: { 'Idempotency-Key': idempotencyKey },
+          response: 'json',
+          ...(signal ? { signal } : {})
+        },
+        isEvent
       )
   };
 }
