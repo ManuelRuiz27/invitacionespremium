@@ -18,6 +18,7 @@
     "auth:seed-local-admin": "prisma generate && tsx scripts/seed-local-admin.ts",
     "clients:seed-local": "prisma generate && tsx scripts/seed-local-clients.ts",
     "local:seed": "pnpm auth:seed-local-admin && pnpm services-pricing:seed && pnpm clients:seed-local",
+    "managed-demo:seed": "prisma generate && tsx scripts/seed-managed-demo.ts",
     "services-pricing:seed": "prisma generate && tsx scripts/seed-services-pricing.ts",
     "openapi:generate": "prisma generate && tsx scripts/generate-openapi.ts",
     "staging:deploy": "prisma generate && tsx scripts/deploy-staging.ts",

@@ -20,6 +20,8 @@ var/file-assets/
 apps/api/var/file-assets/
 var/staging-seed/
 apps/api/var/staging-seed/
+var/managed-demo/
+apps/api/var/managed-demo/
 var/landing-product-proof/raw/
 var/landing-product-proof/qa/
 *.dump
