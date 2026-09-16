@@ -87,7 +87,7 @@ export function AdminEventPreparationPage({ apiClient }: { apiClient: ApiClient 
     if (activationRunning.current) return;
     if (
       !window.confirm(
-        'Al activar el Evento, la invitación quedará disponible y la configuración técnica se congelará. ¿Deseas continuar?'
+        'Al activar el Evento, quedará operativo y su configuración técnica se congelará. La activación Managed no genera ningún cargo financiero. ¿Deseas continuar?'
       )
     )
       return;
@@ -109,9 +109,26 @@ export function AdminEventPreparationPage({ apiClient }: { apiClient: ApiClient 
       const parsed = adminErrorMessage(cause);
       if (isUncertainFailure(cause)) {
         const reconciled = await event.refetch();
-        if (reconciled.data?.status === 'ACTIVE') {
+        const authoritative = reconciled.data;
+        if (authoritative?.activatedAt && authoritative.activationIdempotencyKey === attempt.key) {
           activationAttempt.current = undefined;
           setActivationFeedback({ severity: 'success', message: 'El Evento quedó activo.' });
+          return;
+        }
+        if (authoritative?.activatedAt) {
+          activationAttempt.current = undefined;
+          setActivationFeedback({
+            severity: 'warning',
+            message: 'El Evento fue activado por otra operación. Se adoptó el estado autoritativo.'
+          });
+          return;
+        }
+        if (authoritative?.status !== 'READY_TO_ACTIVATE') {
+          activationAttempt.current = undefined;
+          setActivationFeedback({
+            severity: 'warning',
+            message: 'El estado autoritativo del Evento cambió y ya no permite repetir la activación.'
+          });
           return;
         }
         setActivationFeedback({

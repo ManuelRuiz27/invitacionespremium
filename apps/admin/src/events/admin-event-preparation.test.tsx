@@ -274,6 +274,7 @@ describe('Admin Event preparation surfaces', () => {
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/datos`);
     await userEvent.click(await screen.findByRole('button', { name: 'Activar evento' }));
     expect(confirm).toHaveBeenCalledOnce();
+    expect(confirm).toHaveBeenCalledWith(expect.stringMatching(/no genera ningún cargo financiero/u));
     expect(api.adminEvents.activateManagedForClient).not.toHaveBeenCalled();
     confirm.mockRestore();
   });
@@ -296,7 +297,74 @@ describe('Admin Event preparation surfaces', () => {
     confirm.mockRestore();
   });
 
-  it('keeps the Managed activation key after an uncertain result and reconciles before retry', async () => {
+  it('adopts uncertain Managed activation only when the authoritative Event has the same key', async () => {
+    const ready = managedReadyEvent();
+    const api = mockAdminApi();
+    vi.mocked(api.adminEvents.get).mockResolvedValueOnce(ready);
+    vi.mocked(api.adminEvents.activateManagedForClient).mockImplementationOnce(async (_clientId, _eventId, key) => {
+      vi.mocked(api.adminEvents.get).mockResolvedValue({
+        ...ready,
+        status: 'ACTIVE',
+        activatedAt: '2026-09-15T12:00:00.000Z',
+        activationIdempotencyKey: key
+      });
+      throw new TypeError('network');
+    });
+    vi.mocked(api.adminClients.get).mockResolvedValue(managedPlannerClient());
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/datos`);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Activar evento' }));
+    expect(await screen.findByText('El Evento quedó activo.')).toBeInTheDocument();
+    expect(api.adminEvents.activateManagedForClient).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('button', { name: 'Activar evento' })).not.toBeInTheDocument();
+    confirm.mockRestore();
+  });
+
+  it('adopts an activation owned by another key without retrying the POST', async () => {
+    const ready = managedReadyEvent();
+    const active = {
+      ...ready,
+      status: 'ACTIVE' as const,
+      activatedAt: '2026-09-15T12:00:00.000Z',
+      activationIdempotencyKey: 'another-managed-activation-key'
+    };
+    const api = mockAdminApi();
+    vi.mocked(api.adminEvents.get).mockResolvedValueOnce(ready).mockResolvedValue(active);
+    vi.mocked(api.adminEvents.activateManagedForClient).mockRejectedValueOnce(new TypeError('network'));
+    vi.mocked(api.adminClients.get).mockResolvedValue(managedPlannerClient());
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/datos`);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Activar evento' }));
+    expect(await screen.findByText(/activado por otra operación/u)).toBeInTheDocument();
+    expect(api.adminEvents.activateManagedForClient).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('button', { name: 'Activar evento' })).not.toBeInTheDocument();
+    confirm.mockRestore();
+  });
+
+  it('uses a new Managed activation key after a definitive API error', async () => {
+    const ready = managedReadyEvent();
+    const active = { ...ready, status: 'ACTIVE' as const, activatedAt: '2026-09-15T12:00:00.000Z' };
+    const api = mockAdminApi();
+    vi.mocked(api.adminEvents.get).mockResolvedValueOnce(ready).mockResolvedValue(active);
+    vi.mocked(api.adminEvents.activateManagedForClient)
+      .mockRejectedValueOnce(new ApiError(409, 'EVENT_ACTIVATION_IDEMPOTENCY_CONFLICT', 'conflict'))
+      .mockResolvedValueOnce(active);
+    vi.mocked(api.adminClients.get).mockResolvedValue(managedPlannerClient());
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/datos`);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Activar evento' }));
+    expect(await screen.findByText(/ya fue activado mediante otra operación/u)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Activar evento' }));
+    await waitFor(() => expect(api.adminEvents.activateManagedForClient).toHaveBeenCalledTimes(2));
+    const calls = vi.mocked(api.adminEvents.activateManagedForClient).mock.calls;
+    expect(calls[0]?.[2]).not.toBe(calls[1]?.[2]);
+    confirm.mockRestore();
+  });
+
+  it('keeps exactly the same Managed activation key while uncertain authority remains ready', async () => {
     const ready = managedReadyEvent();
     const active = { ...ready, status: 'ACTIVE' as const, activatedAt: '2026-09-15T12:00:00.000Z' };
     const api = mockAdminApi();
