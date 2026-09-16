@@ -222,6 +222,7 @@ export function mockAdminApi(user: AuthUser = platformAdmin): AdminTestApiClient
       }),
       createForClient: vi.fn().mockResolvedValue(adminEvent),
       createManagedForClient: vi.fn().mockResolvedValue(adminEvent),
+      activateManagedForClient: vi.fn().mockResolvedValue({ ...adminEvent, status: 'ACTIVE' }),
       updateAssignment: vi.fn().mockResolvedValue(adminEvent)
     },
     adminEventPreparation: {

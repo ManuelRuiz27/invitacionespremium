@@ -167,6 +167,169 @@ describe('Event activation', () => {
     );
   });
 
+  it('activates a Managed Planner Event without Pricing, Receipt, Ledger, or Finance balance changes and replays once', async () => {
+    const fixture = await createManagedActivationFixture();
+    const cookie = await login(fixture.admin.email);
+    const before = {
+      ledger: await prisma.ledgerEntry.count(),
+      receipts: await prisma.receipt.count(),
+      balances: await prisma.financeBalance.count(),
+      prices: await prisma.servicePrice.count()
+    };
+
+    const activated = await activateManaged(
+      fixture.client.id,
+      fixture.event.id,
+      cookie,
+      'managed-activation-001'
+    ).expect(200);
+    expect(activated.body).toMatchObject({
+      id: fixture.event.id,
+      status: EventStatus.ACTIVE,
+      activatedByUserId: fixture.admin.userId,
+      activatedServiceId: fixture.service.id,
+      activationIdempotencyKey: 'managed-activation-001',
+      activatedServicePriceId: null,
+      baseCostCredits: null,
+      promotionDiscountCredits: null,
+      finalCostCredits: null,
+      purchasedCreditsUsed: null,
+      creditLineCreditsUsed: null,
+      creditUnitValueMxnCentsSnapshot: null,
+      activationReceiptId: null
+    });
+    expect(await counts(fixture.event.id)).toEqual({ ledger: 0, receipts: 0, audits: 1 });
+    expect({
+      ledger: await prisma.ledgerEntry.count(),
+      receipts: await prisma.receipt.count(),
+      balances: await prisma.financeBalance.count(),
+      prices: await prisma.servicePrice.count()
+    }).toEqual(before);
+
+    const replay = await activateManaged(fixture.client.id, fixture.event.id, cookie, 'managed-activation-001').expect(
+      200
+    );
+    expect(replay.body).toEqual(activated.body);
+    expect(await counts(fixture.event.id)).toEqual({ ledger: 0, receipts: 0, audits: 1 });
+  });
+
+  it('enforces Managed activation readiness, authorization, Client scope, and profile', async () => {
+    const fixture = await createManagedActivationFixture(EventStatus.CONFIGURED, {
+      confirmationEnabled: false
+    });
+    const adminCookie = await login(fixture.admin.email);
+
+    await activateManaged(fixture.client.id, fixture.event.id, adminCookie, 'managed-not-ready')
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('EVENT_INVALID_STATE_TRANSITION'));
+    await activateManaged(fixture.client.id, fixture.event.id, await login(fixture.planner.email), 'managed-planner')
+      .expect(403)
+      .expect(({ body }) => expect(body.code).toBe('ROLE_FORBIDDEN'));
+    await request(app.getHttpServer())
+      .post(`/api/v1/admin/clients/${fixture.client.id}/events/${fixture.event.id}/activate`)
+      .set('Origin', trustedOrigin)
+      .set('Idempotency-Key', 'managed-unauthenticated')
+      .expect(401);
+    await activateManaged(randomUUID(), fixture.event.id, adminCookie, 'managed-cross-client').expect(404);
+
+    await prisma.client.update({
+      where: { id: fixture.client.id },
+      data: { operatingProfile: ClientOperatingProfile.SELF_SERVICE }
+    });
+    await activateManaged(fixture.client.id, fixture.event.id, adminCookie, 'managed-self-service')
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('EVENT_MANAGED_ACTIVATION_NOT_ALLOWED'));
+    expect(await counts(fixture.event.id)).toEqual({ ledger: 0, receipts: 0, audits: 0 });
+  });
+
+  it('serializes Managed same-key and different-key activation and rejects key reuse across Events', async () => {
+    const fixture = await createManagedActivationFixture();
+    const second = await createReadyEvent(fixture.planner, fixture.service.id);
+    const third = await createReadyEvent(fixture.planner, fixture.service.id);
+    const cookie = await login(fixture.admin.email);
+
+    const sameKeyResponses = await Promise.all([
+      activateManaged(fixture.client.id, fixture.event.id, cookie, 'managed-concurrent-same'),
+      activateManaged(fixture.client.id, fixture.event.id, cookie, 'managed-concurrent-same')
+    ]);
+    expect(sameKeyResponses.map(({ status }) => status)).toEqual([200, 200]);
+    expect(await prisma.auditLog.count({ where: { eventId: fixture.event.id, action: 'EVENT_ACTIVATE' } })).toBe(1);
+
+    await activateManaged(fixture.client.id, second.id, cookie, 'managed-concurrent-same')
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('EVENT_ACTIVATION_IDEMPOTENCY_CONFLICT'));
+
+    const differentKeyResponses = await Promise.all([
+      activateManaged(fixture.client.id, third.id, cookie, 'managed-concurrent-a'),
+      activateManaged(fixture.client.id, third.id, cookie, 'managed-concurrent-b')
+    ]);
+    expect(differentKeyResponses.map(({ status }) => status).sort()).toEqual([200, 409]);
+    expect(differentKeyResponses.find(({ status }) => status === 409)?.body.code).toBe(
+      'EVENT_ACTIVATION_IDEMPOTENCY_CONFLICT'
+    );
+    expect(await prisma.auditLog.count({ where: { eventId: third.id, action: 'EVENT_ACTIVATE' } })).toBe(1);
+  });
+
+  it('enforces Managed activation snapshot references in the database and rolls back a late audit failure', async () => {
+    const fixture = await createManagedActivationFixture();
+    const invalidActor = await createReadyEvent(fixture.planner, fixture.service.id);
+    const invalidService = await createReadyEvent(fixture.planner, fixture.service.id);
+    const invalidFinance = await createReadyEvent(fixture.planner, fixture.service.id);
+
+    await expect(
+      prisma.event.update({
+        where: { id: invalidActor.id },
+        data: managedActivationSnapshot(fixture.planner.userId, fixture.service.id, 'managed-invalid-actor')
+      })
+    ).rejects.toThrow();
+
+    const otherService = await prisma.service.create({ data: { code: ServiceCode.FLIPBOOK } });
+    await expect(
+      prisma.event.update({
+        where: { id: invalidService.id },
+        data: managedActivationSnapshot(fixture.admin.userId, otherService.id, 'managed-invalid-service')
+      })
+    ).rejects.toThrow();
+
+    await expect(
+      prisma.event.update({
+        where: { id: invalidFinance.id },
+        data: {
+          ...managedActivationSnapshot(fixture.admin.userId, fixture.service.id, 'managed-invalid-finance'),
+          baseCostCredits: 1
+        }
+      })
+    ).rejects.toThrow();
+
+    const principal: AuthPrincipal = {
+      userId: fixture.admin.userId,
+      sessionId: randomUUID(),
+      email: fixture.admin.email,
+      role: UserRole.PLATFORM_ADMIN,
+      clientId: null,
+      clientType: null,
+      clientOperatingProfile: null,
+      clientStatus: null
+    };
+    await expect(
+      events.activateManagedAdmin(fixture.client.id, fixture.event.id, 'managed-rollback', principal, 'not-a-uuid')
+    ).rejects.toThrow();
+    expect(await counts(fixture.event.id)).toEqual({ ledger: 0, receipts: 0, audits: 0 });
+    expect(await prisma.event.findUniqueOrThrow({ where: { id: fixture.event.id } })).toMatchObject({
+      status: EventStatus.READY_TO_ACTIVATE,
+      activatedAt: null,
+      activationIdempotencyKey: null
+    });
+
+    const valid = await createReadyEvent(fixture.planner, fixture.service.id);
+    await expect(
+      prisma.event.update({
+        where: { id: valid.id },
+        data: managedActivationSnapshot(fixture.admin.userId, fixture.service.id, 'managed-valid-snapshot')
+      })
+    ).resolves.toMatchObject({ status: EventStatus.ACTIVE, activationReceiptId: null });
+  });
+
   it('rejects every direct snapshot mutation while allowing later lifecycle status changes', async () => {
     const planner = await createClientUser(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
     const { service } = await createPricedService(ServiceCode.FLYER, ClientType.PLANNER, 12);
@@ -759,11 +922,27 @@ describe('Event activation', () => {
       expect.arrayContaining([expect.objectContaining({ in: 'header', name: 'Idempotency-Key', required: true })])
     );
     expect(operation?.responses).toHaveProperty('200');
+
+    const managedOperation =
+      createOpenApiDocument(app).paths['/api/v1/admin/clients/{clientId}/events/{eventId}/activate']?.post;
+    expect(managedOperation).toBeDefined();
+    expect(managedOperation?.parameters).toEqual(
+      expect.arrayContaining([expect.objectContaining({ in: 'header', name: 'Idempotency-Key', required: true })])
+    );
+    expect(managedOperation?.responses).toHaveProperty('200');
   });
 
   function activate(eventId: string, cookie: string, idempotencyKey: string) {
     return request(app.getHttpServer())
       .post(`/api/v1/events/${eventId}/activate`)
+      .set('Origin', trustedOrigin)
+      .set('Cookie', cookie)
+      .set('Idempotency-Key', idempotencyKey);
+  }
+
+  function activateManaged(clientId: string, eventId: string, cookie: string, idempotencyKey: string) {
+    return request(app.getHttpServer())
+      .post(`/api/v1/admin/clients/${clientId}/events/${eventId}/activate`)
       .set('Origin', trustedOrigin)
       .set('Cookie', cookie)
       .set('Idempotency-Key', idempotencyKey);
@@ -783,6 +962,45 @@ describe('Event activation', () => {
       data: { email, passwordHash: await hashPassword(password), role, clientId }
     });
     return { userId: user.id, email };
+  }
+
+  async function createManagedActivationFixture(
+    status: EventStatus = EventStatus.READY_TO_ACTIVATE,
+    overrides: { confirmationEnabled?: boolean } = {}
+  ) {
+    const client = await prisma.client.create({
+      data: {
+        type: ClientType.PLANNER,
+        operatingProfile: ClientOperatingProfile.MANAGED,
+        status: ClientStatus.ACTIVE,
+        name: `Managed Planner ${randomUUID()}`
+      }
+    });
+    const plannerUser = await createUser(client.id, UserRole.INDEPENDENT_PLANNER);
+    const planner = { ...plannerUser, clientId: client.id };
+    const admin = await createUser(null, UserRole.PLATFORM_ADMIN);
+    const service = await prisma.service.create({ data: { code: ServiceCode.FLYER } });
+    const event = await createReadyEvent(
+      { clientId: client.id, userId: planner.userId },
+      service.id,
+      status,
+      overrides
+    );
+    await prisma.event.update({
+      where: { id: event.id },
+      data: { createdByUserId: admin.userId }
+    });
+    return { client, planner, admin, service, event };
+  }
+
+  function managedActivationSnapshot(actorUserId: string, serviceId: string, idempotencyKey: string) {
+    return {
+      status: EventStatus.ACTIVE,
+      activatedAt: new Date(),
+      activatedByUserId: actorUserId,
+      activatedServiceId: serviceId,
+      activationIdempotencyKey: idempotencyKey
+    };
   }
 
   async function createPricedService(code: ServiceCode, _clientType: ClientType, credits: number) {

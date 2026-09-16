@@ -594,107 +594,11 @@ export class EventsService {
             throw eventNotFound();
           }
           await this.operatingProfile.assertTechnicalMutationAllowed(transaction, current.clientId);
-          const client = await transaction.client.findFirst({
-            where: { id: current.clientId, deletedAt: null },
-            select: { status: true }
-          });
-          if (!client || client.status !== ClientStatus.ACTIVE) {
-            throw new DomainError(
-              'CLIENT_NOT_ACTIVE',
-              'Event activation requires an active Client.',
-              HttpStatus.CONFLICT
-            );
-          }
-          if (!current.serviceId) {
-            throw new DomainError(
-              'EVENT_SERVICE_NOT_AVAILABLE',
-              'Event activation requires an active service.',
-              HttpStatus.CONFLICT
-            );
-          }
-          const service = await transaction.service.findFirst({
-            where: { id: current.serviceId, isActive: true },
-            select: { id: true, code: true }
-          });
-          if (!service) {
-            throw new DomainError(
-              'EVENT_SERVICE_NOT_AVAILABLE',
-              'Event service does not exist or is inactive.',
-              HttpStatus.CONFLICT
-            );
-          }
-          if (service.code === ServiceCode.DEMO) {
-            throw new DomainError(
-              'EVENT_DEMO_NOT_ACTIVATABLE',
-              'Demo service cannot be activated as a real Event.',
-              HttpStatus.CONFLICT
-            );
-          }
-          if (
-            (service.code === ServiceCode.FLYER || service.code === ServiceCode.FLIPBOOK) &&
-            PREPARATION_STATUSES.includes(current.status)
-          ) {
-            await recomputeDigitalEventPreparationStatus(transaction, eventId);
-            current = await this.findOwnedEventForReplay(transaction, eventId, principal);
-          }
-          if (service.code === ServiceCode.PHYSICAL_QR && PREPARATION_STATUSES.includes(current.status)) {
-            await recomputePhysicalPassPreparationStatus(transaction, eventId);
-            current = await this.findOwnedEventForReplay(transaction, eventId, principal);
-          }
-          if (current.status !== EventStatus.READY_TO_ACTIVATE) {
-            throw invalidEventState('Only a ready Event may be activated.');
-          }
-          if (service.code === ServiceCode.FLYER || service.code === ServiceCode.FLIPBOOK) {
-            const designReadiness = await resolveDesignReadiness(transaction, eventId, service.code);
-            if (!designReadiness.complete) {
-              throw new DomainError(
-                'EVENT_INVITATION_DESIGN_INCOMPLETE',
-                'Event invitation design is incomplete.',
-                HttpStatus.CONFLICT,
-                { blockers: designReadiness.blockers }
-              );
-            }
-            const activeInvitation = await transaction.invitation.findFirst({
-              where: { eventId, deletedAt: null, cancelledAt: null, contact: { deletedAt: null } },
-              select: { id: true }
-            });
-            const publicInvitationBlockers = [
-              ...(current.confirmationEnabled ? [] : ['EVENT_CONFIRMATION_NOT_ENABLED']),
-              ...(current.locationUrl ? [] : ['EVENT_LOCATION_URL_MISSING']),
-              ...(current.giftRegistryUrl ? [] : ['EVENT_GIFT_REGISTRY_URL_MISSING']),
-              ...(activeInvitation ? [] : ['EVENT_ACTIVE_INVITATION_MISSING'])
-            ];
-            if (publicInvitationBlockers.length > 0) {
-              throw new DomainError(
-                'EVENT_PUBLIC_INVITATION_PREFLIGHT_INCOMPLETE',
-                'Event public invitation configuration is incomplete.',
-                HttpStatus.CONFLICT,
-                { blockers: publicInvitationBlockers }
-              );
-            }
-          }
-          if (service.code === ServiceCode.PHYSICAL_QR) {
-            const physicalPassReadiness = await resolvePhysicalPassReadiness(transaction, eventId);
-            if (!physicalPassReadiness.complete) {
-              throw new DomainError(
-                'EVENT_PHYSICAL_PASSES_INCOMPLETE',
-                'Event physical passes are incomplete.',
-                HttpStatus.CONFLICT,
-                { blockers: physicalPassReadiness.blockers }
-              );
-            }
-          }
-          if (current.floorplanEnabled) {
-            const floorplanReadiness = await resolveFloorplanReadiness(transaction, eventId);
-            if (!floorplanReadiness.complete) {
-              throw new DomainError(
-                'EVENT_FLOORPLAN_INCOMPLETE',
-                'Event Floorplan is incomplete.',
-                HttpStatus.CONFLICT,
-                { blockers: floorplanReadiness.blockers }
-              );
-            }
-          }
+          const preflight = await this.requireActivationPreflight(transaction, eventId, current, () =>
+            this.findOwnedEventForReplay(transaction, eventId, principal)
+          );
+          current = preflight.event;
+          const { service } = preflight;
 
           const activatedAt = new Date();
           const lockedTerms = await this.commercial.assertActivationLock(transaction, current);
@@ -768,6 +672,129 @@ export class EventsService {
           if (raced) {
             return raced;
           }
+        }
+        if (isRetryableTransactionError(error) && attempt < 19) {
+          await waitForRetry(attempt);
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    throw new DomainError(
+      'EVENT_ACTIVATION_CONFLICT',
+      'Event activation could not be serialized.',
+      HttpStatus.CONFLICT
+    );
+  }
+
+  async activateManagedAdmin(
+    clientId: string,
+    eventId: string,
+    idempotencyKey: string,
+    principal: AuthPrincipal,
+    operationId?: string
+  ): Promise<EventResponseDto> {
+    if (principal.role !== UserRole.PLATFORM_ADMIN || principal.clientId !== null) {
+      throw new DomainError('FORBIDDEN', 'Platform Admin access is required.', HttpStatus.FORBIDDEN);
+    }
+
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      try {
+        return await this.prisma.$transaction(async (transaction) => {
+          await transaction.$queryRaw`
+            SELECT "id"
+            FROM "event"
+            WHERE "id" = ${eventId}::uuid
+              AND "client_id" = ${clientId}::uuid
+            FOR UPDATE
+          `;
+          let current: Event = await this.findAdministrativeEventForReplay(transaction, clientId, eventId);
+          const keyOwner = await transaction.event.findFirst({
+            where: { activationIdempotencyKey: idempotencyKey },
+            include: EVENT_SERVICE_INCLUDE
+          });
+          if (keyOwner) {
+            if (keyOwner.id !== eventId || keyOwner.clientId !== clientId) {
+              throw activationIdempotencyConflict();
+            }
+            return toEventResponse(keyOwner);
+          }
+          if (current.activatedAt !== null || current.activationIdempotencyKey !== null) {
+            throw activationIdempotencyConflict();
+          }
+          const client = await transaction.client.findFirst({
+            where: { id: clientId, deletedAt: null },
+            select: { type: true, status: true, operatingProfile: true }
+          });
+          if (!client) {
+            throw new DomainError(
+              'CLIENT_NOT_ACTIVE',
+              'Event activation requires an active Client.',
+              HttpStatus.CONFLICT
+            );
+          }
+          if (client.operatingProfile !== ClientOperatingProfile.MANAGED || client.type !== ClientType.PLANNER) {
+            throw new DomainError(
+              'EVENT_MANAGED_ACTIVATION_NOT_ALLOWED',
+              'Managed Event activation is available only for Managed Planner clients.',
+              HttpStatus.CONFLICT
+            );
+          }
+
+          if (current.deletedAt !== null) {
+            throw eventNotFound();
+          }
+          if (client.status !== ClientStatus.ACTIVE) {
+            throw new DomainError(
+              'CLIENT_NOT_ACTIVE',
+              'Event activation requires an active Client.',
+              HttpStatus.CONFLICT
+            );
+          }
+          await this.requireValidPlannerAssignment(transaction, clientId, client.type, current.assignedPlannerUserId);
+          const preflight = await this.requireActivationPreflight(transaction, eventId, current, () =>
+            this.findAdministrativeEventForReplay(transaction, clientId, eventId)
+          );
+          current = preflight.event;
+          const activatedAt = new Date();
+          const event = await transaction.event.update({
+            where: { id: eventId },
+            include: EVENT_SERVICE_INCLUDE,
+            data: {
+              status: EventStatus.ACTIVE,
+              activatedAt,
+              activatedByUserId: principal.userId,
+              activatedServiceId: preflight.service.id,
+              activationIdempotencyKey: idempotencyKey
+            }
+          });
+          await this.audit.record(
+            {
+              actor: { type: AuditActorType.USER, id: principal.userId },
+              clientId,
+              eventId,
+              resourceType: 'EVENT',
+              resourceId: eventId,
+              action: 'EVENT_ACTIVATE',
+              beforeData: eventAuditSnapshot(current),
+              afterData: eventAuditSnapshot(event),
+              ...(operationId === undefined ? {} : { operationId })
+            },
+            transaction
+          );
+          return toEventResponse(event);
+        }, CRITICAL_TRANSACTION_OPTIONS);
+      } catch (error) {
+        if (hasPrismaCode(error, 'P2002')) {
+          const keyOwner = await this.prisma.event.findFirst({
+            where: { activationIdempotencyKey: idempotencyKey },
+            include: EVENT_SERVICE_INCLUDE
+          });
+          if (keyOwner?.id === eventId && keyOwner.clientId === clientId) {
+            return toEventResponse(keyOwner);
+          }
+          throw activationIdempotencyConflict();
         }
         if (isRetryableTransactionError(error) && attempt < 19) {
           await waitForRetry(attempt);
@@ -888,6 +915,21 @@ export class EventsService {
     return event;
   }
 
+  private async findAdministrativeEventForReplay(
+    database: PrismaService | Prisma.TransactionClient,
+    clientId: string,
+    eventId: string
+  ): Promise<EventWithService> {
+    const event = await database.event.findFirst({
+      where: { id: eventId, clientId },
+      include: EVENT_SERVICE_INCLUDE
+    });
+    if (!event) {
+      throw eventNotFound();
+    }
+    return event;
+  }
+
   private async findOwnedEventForReplay(
     database: PrismaService | Prisma.TransactionClient,
     eventId: string,
@@ -948,6 +990,111 @@ export class EventsService {
         HttpStatus.CONFLICT
       );
     }
+  }
+
+  private async requireActivationPreflight(
+    transaction: Prisma.TransactionClient,
+    eventId: string,
+    initial: Event,
+    reload: () => Promise<Event>
+  ): Promise<{ event: Event; service: { id: string; code: ServiceCode } }> {
+    const client = await transaction.client.findFirst({
+      where: { id: initial.clientId, deletedAt: null },
+      select: { status: true }
+    });
+    if (!client || client.status !== ClientStatus.ACTIVE) {
+      throw new DomainError('CLIENT_NOT_ACTIVE', 'Event activation requires an active Client.', HttpStatus.CONFLICT);
+    }
+    if (!initial.serviceId) {
+      throw new DomainError(
+        'EVENT_SERVICE_NOT_AVAILABLE',
+        'Event activation requires an active service.',
+        HttpStatus.CONFLICT
+      );
+    }
+    const service = await transaction.service.findFirst({
+      where: { id: initial.serviceId, isActive: true },
+      select: { id: true, code: true }
+    });
+    if (!service) {
+      throw new DomainError(
+        'EVENT_SERVICE_NOT_AVAILABLE',
+        'Event service does not exist or is inactive.',
+        HttpStatus.CONFLICT
+      );
+    }
+    if (service.code === ServiceCode.DEMO) {
+      throw new DomainError(
+        'EVENT_DEMO_NOT_ACTIVATABLE',
+        'Demo service cannot be activated as a real Event.',
+        HttpStatus.CONFLICT
+      );
+    }
+
+    let event = initial;
+    if (
+      (service.code === ServiceCode.FLYER || service.code === ServiceCode.FLIPBOOK) &&
+      PREPARATION_STATUSES.includes(event.status)
+    ) {
+      await recomputeDigitalEventPreparationStatus(transaction, eventId);
+      event = await reload();
+    }
+    if (service.code === ServiceCode.PHYSICAL_QR && PREPARATION_STATUSES.includes(event.status)) {
+      await recomputePhysicalPassPreparationStatus(transaction, eventId);
+      event = await reload();
+    }
+    if (event.status !== EventStatus.READY_TO_ACTIVATE) {
+      throw invalidEventState('Only a ready Event may be activated.');
+    }
+    if (service.code === ServiceCode.FLYER || service.code === ServiceCode.FLIPBOOK) {
+      const designReadiness = await resolveDesignReadiness(transaction, eventId, service.code);
+      if (!designReadiness.complete) {
+        throw new DomainError(
+          'EVENT_INVITATION_DESIGN_INCOMPLETE',
+          'Event invitation design is incomplete.',
+          HttpStatus.CONFLICT,
+          { blockers: designReadiness.blockers }
+        );
+      }
+      const activeInvitation = await transaction.invitation.findFirst({
+        where: { eventId, deletedAt: null, cancelledAt: null, contact: { deletedAt: null } },
+        select: { id: true }
+      });
+      const publicInvitationBlockers = [
+        ...(event.confirmationEnabled ? [] : ['EVENT_CONFIRMATION_NOT_ENABLED']),
+        ...(event.locationUrl ? [] : ['EVENT_LOCATION_URL_MISSING']),
+        ...(event.giftRegistryUrl ? [] : ['EVENT_GIFT_REGISTRY_URL_MISSING']),
+        ...(activeInvitation ? [] : ['EVENT_ACTIVE_INVITATION_MISSING'])
+      ];
+      if (publicInvitationBlockers.length > 0) {
+        throw new DomainError(
+          'EVENT_PUBLIC_INVITATION_PREFLIGHT_INCOMPLETE',
+          'Event public invitation configuration is incomplete.',
+          HttpStatus.CONFLICT,
+          { blockers: publicInvitationBlockers }
+        );
+      }
+    }
+    if (service.code === ServiceCode.PHYSICAL_QR) {
+      const physicalPassReadiness = await resolvePhysicalPassReadiness(transaction, eventId);
+      if (!physicalPassReadiness.complete) {
+        throw new DomainError(
+          'EVENT_PHYSICAL_PASSES_INCOMPLETE',
+          'Event physical passes are incomplete.',
+          HttpStatus.CONFLICT,
+          { blockers: physicalPassReadiness.blockers }
+        );
+      }
+    }
+    if (event.floorplanEnabled) {
+      const floorplanReadiness = await resolveFloorplanReadiness(transaction, eventId);
+      if (!floorplanReadiness.complete) {
+        throw new DomainError('EVENT_FLOORPLAN_INCOMPLETE', 'Event Floorplan is incomplete.', HttpStatus.CONFLICT, {
+          blockers: floorplanReadiness.blockers
+        });
+      }
+    }
+    return { event, service };
   }
 
   private async runCriticalTransaction<T>(work: (transaction: Prisma.TransactionClient) => Promise<T>): Promise<T> {
@@ -1261,6 +1408,14 @@ export function toEventResponse(event: EventWithService): EventResponseDto {
 
 function hasPrismaCode(error: unknown, code: string): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: unknown }).code === code;
+}
+
+function activationIdempotencyConflict(): DomainError {
+  return new DomainError(
+    'EVENT_ACTIVATION_IDEMPOTENCY_CONFLICT',
+    'Idempotency key is already assigned to another Event activation.',
+    HttpStatus.CONFLICT
+  );
 }
 
 function isRetryableTransactionError(error: unknown): boolean {

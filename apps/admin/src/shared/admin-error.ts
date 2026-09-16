@@ -22,6 +22,7 @@ const messages: Record<string, string> = {
   FINANCE_BALANCE_NOT_FOUND: 'El balance del Cliente no esta disponible.',
   IDEMPOTENCY_CONFLICT: 'La llave de la operacion ya corresponde a otra intencion.',
   FINANCE_DUPLICATE_OPERATION: 'La llave de la operacion ya corresponde a otra intencion.',
+  EVENT_ACTIVATION_IDEMPOTENCY_CONFLICT: 'El Evento ya fue activado mediante otra operación.',
   VALIDATION_ERROR: 'Revisa los datos capturados.',
   UNEXPECTED_API_RESPONSE: 'La API devolvio una respuesta inesperada.'
 };

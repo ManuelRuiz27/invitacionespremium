@@ -1,5 +1,6 @@
 import {
   ApiError,
+  type AdminEvent,
   type AdminFloorplan,
   type AdminFloorplanSeat,
   type AdminFloorplanShape,
@@ -226,6 +227,7 @@ describe('Admin Event preparation surfaces', () => {
     expect(await screen.findByRole('heading', { name: 'Datos del Evento' })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe(`/eventos/${adminEvent.id}/preparar/datos`);
     expect(screen.queryByRole('link', { name: 'Comercial' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Activar evento' })).not.toBeInTheDocument();
     expect(api.adminEventPreparation.getCommercialQuote).not.toHaveBeenCalled();
 
     await router.navigate(`/eventos/${adminEvent.id}/preparar/invitacion`);
@@ -234,6 +236,86 @@ describe('Admin Event preparation surfaces', () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Ir a Comercial' })).not.toBeInTheDocument();
     expect(api.adminEventPreparation.getCommercialQuote).not.toHaveBeenCalled();
+  });
+
+  it('offers Managed activation only when ready and requires explicit confirmation', async () => {
+    const ready = {
+      ...adminEvent,
+      status: 'READY_TO_ACTIVATE' as const,
+      activatedAt: null,
+      activatedByUserId: null,
+      activatedServiceId: null,
+      activatedServicePriceId: null,
+      baseCostCredits: null,
+      promotionDiscountCredits: null,
+      finalCostCredits: null,
+      purchasedCreditsUsed: null,
+      creditLineCreditsUsed: null,
+      creditUnitValueMxnCentsSnapshot: null,
+      activationReceiptId: null,
+      activationIdempotencyKey: null
+    };
+    const selfServiceApi = mockAdminApi();
+    vi.mocked(selfServiceApi.adminEvents.get).mockResolvedValue(ready);
+    const selfService = renderAdminApp(selfServiceApi, `/eventos/${adminEvent.id}/preparar/datos`);
+    expect(await screen.findByRole('heading', { name: 'Datos del Evento' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Activar evento' })).not.toBeInTheDocument();
+    selfService.unmount();
+
+    const api = mockAdminApi();
+    vi.mocked(api.adminEvents.get).mockResolvedValue(ready);
+    vi.mocked(api.adminClients.get).mockResolvedValue({
+      ...organization,
+      id: adminEvent.clientId,
+      type: 'PLANNER',
+      operatingProfile: 'MANAGED'
+    });
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/datos`);
+    await userEvent.click(await screen.findByRole('button', { name: 'Activar evento' }));
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(api.adminEvents.activateManagedForClient).not.toHaveBeenCalled();
+    confirm.mockRestore();
+  });
+
+  it('adopts authoritative ACTIVE and hides Managed activation after success', async () => {
+    const ready = managedReadyEvent();
+    const active = { ...ready, status: 'ACTIVE' as const, activatedAt: '2026-09-15T12:00:00.000Z' };
+    const api = mockAdminApi();
+    vi.mocked(api.adminEvents.get).mockResolvedValueOnce(ready).mockResolvedValue(active);
+    vi.mocked(api.adminEvents.activateManagedForClient).mockResolvedValue(active);
+    vi.mocked(api.adminClients.get).mockResolvedValue(managedPlannerClient());
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/datos`);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Activar evento' }));
+    await waitFor(() => expect(api.adminEvents.activateManagedForClient).toHaveBeenCalledOnce());
+    expect(await screen.findByText('Activo')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Activar evento' })).not.toBeInTheDocument();
+    expect(api.adminEvents.get).toHaveBeenCalledTimes(2);
+    confirm.mockRestore();
+  });
+
+  it('keeps the Managed activation key after an uncertain result and reconciles before retry', async () => {
+    const ready = managedReadyEvent();
+    const active = { ...ready, status: 'ACTIVE' as const, activatedAt: '2026-09-15T12:00:00.000Z' };
+    const api = mockAdminApi();
+    vi.mocked(api.adminEvents.get).mockResolvedValueOnce(ready).mockResolvedValueOnce(ready).mockResolvedValue(active);
+    vi.mocked(api.adminEvents.activateManagedForClient)
+      .mockRejectedValueOnce(new TypeError('network'))
+      .mockResolvedValueOnce(active);
+    vi.mocked(api.adminClients.get).mockResolvedValue(managedPlannerClient());
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/datos`);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Activar evento' }));
+    expect(await screen.findByText(/No pudimos confirmar el resultado/u)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Activar evento' }));
+    await waitFor(() => expect(api.adminEvents.activateManagedForClient).toHaveBeenCalledTimes(2));
+    const calls = vi.mocked(api.adminEvents.activateManagedForClient).mock.calls;
+    expect(calls[0]?.[2]).toBe(calls[1]?.[2]);
+    expect(await screen.findByText('Activo')).toBeInTheDocument();
+    confirm.mockRestore();
   });
 
   it('renders the authoritative commercial quote and submits authorization only once on a double click', async () => {
@@ -1708,5 +1790,44 @@ function catalogPrice(serviceId: string, serviceCode: AdminPrice['serviceCode'])
     validFrom: '2026-01-01T00:00:00.000Z',
     validUntil: null,
     createdAt: '2026-01-01T00:00:00.000Z'
+  };
+}
+
+function managedPlannerClient() {
+  return {
+    ...organization,
+    id: adminEvent.clientId,
+    type: 'PLANNER' as const,
+    operatingProfile: 'MANAGED' as const
+  };
+}
+
+function managedReadyEvent(): AdminEvent {
+  return {
+    ...adminEvent,
+    assignedPlannerUserId: 'planner-managed',
+    status: 'READY_TO_ACTIVATE',
+    commercialAuthorizedAt: null,
+    commercialPriceLockedAt: null,
+    commercialServicePriceId: null,
+    commercialBaseCostCredits: null,
+    commercialPromotionDiscountCredits: null,
+    commercialFinalCostCredits: null,
+    commercialChannelSnapshot: null,
+    commercialCapacitySnapshot: null,
+    designKickoffAt: null,
+    commercialTermsValid: false,
+    activatedAt: null,
+    activatedByUserId: null,
+    activatedServiceId: null,
+    activatedServicePriceId: null,
+    baseCostCredits: null,
+    promotionDiscountCredits: null,
+    finalCostCredits: null,
+    purchasedCreditsUsed: null,
+    creditLineCreditsUsed: null,
+    creditUnitValueMxnCentsSnapshot: null,
+    activationReceiptId: null,
+    activationIdempotencyKey: null
   };
 }

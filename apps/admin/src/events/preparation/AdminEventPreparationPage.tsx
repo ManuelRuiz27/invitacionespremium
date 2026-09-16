@@ -30,7 +30,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import { adminQueryKeys } from '../../app/query-client';
-import { adminErrorMessage } from '../../shared/admin-error';
+import { adminErrorMessage, isUncertainFailure } from '../../shared/admin-error';
 import { eventStatusLabel } from '../../shared/admin-labels';
 import { AdminErrorState, AdminLoadingState } from '../../shared/AdminStates';
 import { AdminFloorplanBuilderWorkspace } from './floorplan/AdminFloorplanBuilderWorkspace';
@@ -39,6 +39,7 @@ import { AdminPilotOperationalLog } from './pilot/AdminPilotOperationalLog';
 type Section = 'comercial' | 'datos' | 'invitacion' | 'croquis' | 'registro';
 
 export function AdminEventPreparationPage({ apiClient }: { apiClient: ApiClient }) {
+  const queryClient = useQueryClient();
   const { eventId = '' } = useParams();
   const location = useLocation();
   const section: Section = location.pathname.endsWith('/comercial')
@@ -60,6 +61,14 @@ export function AdminEventPreparationPage({ apiClient }: { apiClient: ApiClient 
     queryFn: ({ signal }) => apiClient.adminClients.get(event.data!.clientId, signal),
     enabled: Boolean(event.data?.clientId)
   });
+  const activationRunning = useRef(false);
+  const activationAttempt = useRef<{ eventId: string; key: string } | undefined>(undefined);
+  const [activationBusy, setActivationBusy] = useState(false);
+  const [activationFeedback, setActivationFeedback] = useState<{
+    severity: 'error' | 'success' | 'warning';
+    message: string;
+    operationId?: string;
+  }>();
 
   if (event.isPending) return <AdminLoadingState label="Cargando preparación del Evento..." />;
   if (event.isError) return <AdminErrorState onRetry={() => void event.refetch()} />;
@@ -72,6 +81,58 @@ export function AdminEventPreparationPage({ apiClient }: { apiClient: ApiClient 
   const data = event.data;
   const base = `/eventos/${data.id}/preparar`;
   const managed = client.data.operatingProfile === 'MANAGED';
+  const canActivateManaged = managed && client.data.type === 'PLANNER' && data.status === 'READY_TO_ACTIVATE';
+
+  async function activateManaged() {
+    if (activationRunning.current) return;
+    if (
+      !window.confirm(
+        'Al activar el Evento, la invitación quedará disponible y la configuración técnica se congelará. ¿Deseas continuar?'
+      )
+    )
+      return;
+    const attempt =
+      activationAttempt.current?.eventId === data.id
+        ? activationAttempt.current
+        : { eventId: data.id, key: globalThis.crypto.randomUUID() };
+    activationAttempt.current = attempt;
+    activationRunning.current = true;
+    setActivationBusy(true);
+    setActivationFeedback(undefined);
+    try {
+      const activated = await apiClient.adminEvents.activateManagedForClient(data.clientId, data.id, attempt.key);
+      activationAttempt.current = undefined;
+      queryClient.setQueryData(adminQueryKeys.event(data.id), activated);
+      setActivationFeedback({ severity: 'success', message: 'El Evento quedó activo.' });
+      await event.refetch();
+    } catch (cause) {
+      const parsed = adminErrorMessage(cause);
+      if (isUncertainFailure(cause)) {
+        const reconciled = await event.refetch();
+        if (reconciled.data?.status === 'ACTIVE') {
+          activationAttempt.current = undefined;
+          setActivationFeedback({ severity: 'success', message: 'El Evento quedó activo.' });
+          return;
+        }
+        setActivationFeedback({
+          severity: 'warning',
+          message: 'No pudimos confirmar el resultado. Reintenta para conservar la misma operación.',
+          ...(parsed.operationId ? { operationId: parsed.operationId } : {})
+        });
+      } else {
+        activationAttempt.current = undefined;
+        setActivationFeedback({
+          severity: 'error',
+          message: parsed.message,
+          ...(parsed.operationId ? { operationId: parsed.operationId } : {})
+        });
+      }
+    } finally {
+      activationRunning.current = false;
+      setActivationBusy(false);
+    }
+  }
+
   if (managed && section === 'comercial') return <Navigate to={`${base}/datos`} replace />;
   const sections = managed
     ? (['datos', 'invitacion', 'croquis', 'registro'] as const)
@@ -91,8 +152,23 @@ export function AdminEventPreparationPage({ apiClient }: { apiClient: ApiClient 
         {...(section === 'croquis'
           ? {}
           : { description: `Cliente ${data.clientId} · Servicio ${data.serviceCode ?? 'sin asignar'}` })}
-        action={<StatusChip label={eventStatusLabel[data.status]} tone="neutral" />}
+        action={
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
+            <StatusChip label={eventStatusLabel[data.status]} tone="neutral" />
+            {canActivateManaged ? (
+              <Button variant="contained" disabled={activationBusy} onClick={() => void activateManaged()}>
+                {activationBusy ? 'Activando…' : 'Activar evento'}
+              </Button>
+            ) : null}
+          </Stack>
+        }
       />
+      {activationFeedback ? (
+        <Alert severity={activationFeedback.severity}>
+          {activationFeedback.message}
+          {activationFeedback.operationId ? ` Referencia: ${activationFeedback.operationId}` : ''}
+        </Alert>
+      ) : null}
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} aria-label="Secciones de preparación">
         {sections.map((item) => (
           <Button

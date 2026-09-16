@@ -1,10 +1,32 @@
-import { Body, Controller, Get, Inject, Param, Patch, Post, Query, Req } from '@nestjs/common';
-import { ApiBody, ApiCookieAuth, ApiCreatedResponse, ApiOkResponse, ApiQuery, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  HttpCode,
+  HttpStatus,
+  Inject,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req
+} from '@nestjs/common';
+import {
+  ApiBody,
+  ApiCookieAuth,
+  ApiCreatedResponse,
+  ApiHeader,
+  ApiOkResponse,
+  ApiQuery,
+  ApiTags
+} from '@nestjs/swagger';
 import type { AuthenticatedRequest, AuthPrincipal } from '../auth/auth.types';
 import { CurrentAuth } from '../auth/current-auth.decorator';
 import { Roles } from '../auth/roles.decorator';
 import { parseUuidParameter } from '../clients/clients.dto';
 import { UserRole } from '../generated/prisma/client';
+import { parseIdempotencyKey } from '../finance/finance.dto';
 import { EventIntakeQuoteResponseDto } from './event-commercial.dto';
 import { EventCommercialService } from './event-commercial.service';
 import {
@@ -74,6 +96,26 @@ export class AdminClientEventsController {
     return this.events.createManagedAdminIntake(
       parseUuidParameter(clientIdInput, 'clientId'),
       parseAdminManagedEventIntake(body),
+      principal,
+      request.operationId
+    );
+  }
+
+  @Post(':eventId/activate')
+  @HttpCode(HttpStatus.OK)
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @ApiOkResponse({ type: EventResponseDto })
+  activateManaged(
+    @Param('clientId') clientIdInput: string,
+    @Param('eventId') eventIdInput: string,
+    @Headers('idempotency-key') idempotencyKey: unknown,
+    @CurrentAuth() principal: AuthPrincipal,
+    @Req() request: AuthenticatedRequest
+  ): Promise<EventResponseDto> {
+    return this.events.activateManagedAdmin(
+      parseUuidParameter(clientIdInput, 'clientId'),
+      parseEventId(eventIdInput),
+      parseIdempotencyKey(idempotencyKey),
       principal,
       request.operationId
     );

@@ -26,6 +26,12 @@ export interface AdminEventsClient {
     input: AdminManagedEventIntakeInput,
     signal?: AbortSignal
   ): Promise<AdminEvent>;
+  activateManagedForClient(
+    clientId: string,
+    eventId: string,
+    idempotencyKey: string,
+    signal?: AbortSignal
+  ): Promise<AdminEvent>;
   updateAssignment(
     clientId: string,
     eventId: string,
@@ -74,6 +80,17 @@ export function createAdminEventsClient(request: ApiRequester): AdminEventsClien
           method: 'POST',
           path: `${clientEventsPath(clientId)}/managed`,
           body,
+          response: 'json',
+          ...(signal ? { signal } : {})
+        },
+        isEvent
+      ),
+    activateManagedForClient: (clientId, eventId, idempotencyKey, signal) =>
+      request(
+        {
+          method: 'POST',
+          path: `${clientEventsPath(clientId)}/${encodeURIComponent(eventId)}/activate`,
+          headers: { 'Idempotency-Key': idempotencyKey },
           response: 'json',
           ...(signal ? { signal } : {})
         },
