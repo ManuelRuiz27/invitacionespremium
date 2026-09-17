@@ -31,6 +31,7 @@ export function ScannerSessionPage({
   const [realtimeNotice, setRealtimeNotice] = useState<string | null>(null);
   const [terminalState, setTerminalState] = useState(false);
   const terminalStateRef = useRef(false);
+  const confirmationRef = useRef<ScannerCheckInResponse | null>(null);
   const checkInAttempt = useRef<{ signature: string; key: string } | null>(null);
   const session = useScannerSession(apiClient, staffToken);
   const operational =
@@ -44,6 +45,7 @@ export function ScannerSessionPage({
 
   const clearResult = useCallback(() => {
     setScanResult(null);
+    confirmationRef.current = null;
     setConfirmation(null);
     setSelectedAssistantIds([]);
     checkInAttempt.current = null;
@@ -68,7 +70,10 @@ export function ScannerSessionPage({
         searchMutation.reset();
         setTerminalState(true);
       },
-      onInvitationStale: discardStaleResult,
+      onInvitationStale: () => {
+        if (confirmationRef.current) return;
+        discardStaleResult();
+      },
       onSeatingStale: discardStaleResult
     }
   );
@@ -99,6 +104,7 @@ export function ScannerSessionPage({
       {
         onSuccess: (result) => {
           if (terminalStateRef.current) return;
+          confirmationRef.current = result;
           setConfirmation(result);
           setSelectedAssistantIds(result.remainingPendingAssistants.map((assistant) => assistant.id));
           setScanResult({
