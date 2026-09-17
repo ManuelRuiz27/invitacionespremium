@@ -32,6 +32,7 @@ export function ScannerSessionPage({
   const [terminalState, setTerminalState] = useState(false);
   const terminalStateRef = useRef(false);
   const confirmationRef = useRef<ScannerCheckInResponse | null>(null);
+  const checkInInFlightRef = useRef(false);
   const checkInAttempt = useRef<{ signature: string; key: string } | null>(null);
   const session = useScannerSession(apiClient, staffToken);
   const operational =
@@ -46,6 +47,7 @@ export function ScannerSessionPage({
   const clearResult = useCallback(() => {
     setScanResult(null);
     confirmationRef.current = null;
+    checkInInFlightRef.current = false;
     setConfirmation(null);
     setSelectedAssistantIds([]);
     checkInAttempt.current = null;
@@ -71,7 +73,7 @@ export function ScannerSessionPage({
         setTerminalState(true);
       },
       onInvitationStale: () => {
-        if (confirmationRef.current) return;
+        if (confirmationRef.current || checkInInFlightRef.current) return;
         discardStaleResult();
       },
       onSeatingStale: discardStaleResult
@@ -99,12 +101,14 @@ export function ScannerSessionPage({
     const signature = JSON.stringify(payload);
     if (checkInAttempt.current?.signature !== signature)
       checkInAttempt.current = { signature, key: crypto.randomUUID() };
+    checkInInFlightRef.current = true;
     checkInMutation.mutate(
       { idempotencyKey: checkInAttempt.current.key, payload },
       {
         onSuccess: (result) => {
           if (terminalStateRef.current) return;
           confirmationRef.current = result;
+          checkInInFlightRef.current = false;
           setConfirmation(result);
           setSelectedAssistantIds(result.remainingPendingAssistants.map((assistant) => assistant.id));
           setScanResult({
@@ -114,6 +118,9 @@ export function ScannerSessionPage({
             pendingCount: result.remainingPendingCount,
             checkedInCount: scanResult.confirmedCount - result.remainingPendingCount
           });
+        },
+        onError: () => {
+          checkInInFlightRef.current = false;
         }
       }
     );
