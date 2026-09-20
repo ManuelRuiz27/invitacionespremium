@@ -1,10 +1,27 @@
 # 24 — Managed M01 Launch Roadmap
 
-Estado: **ACTIVE — ROADMAP TÉCNICO DEL SIGUIENTE LANZAMIENTO**
+Estado: **ACTIVE — CAMINO CRÍTICO M01 CERRADO; RELEASE GATES DE PRODUCCIÓN VIGENTES**
 
 Dirección de producto: `docs/00-inicio/01_DIRECCION_ACTUAL_M01_MANAGED.md`.
 
 Este roadmap sustituye como orden activo a los roadmaps Commercial/Pilot/UI/Floorplan anteriores. Esos documentos permanecen como historial o contratos de capacidades ya construidas.
+
+## Estado de ejecución — 2026-09-20
+
+El camino crítico **MG-00 → MG-05** está cerrado.
+
+Evidencia de cierre:
+
+- UAT Managed: **18 / 18 PASS**;
+- negativos de permisos/superficie: **6 / 6 PASS**;
+- harness E2E: **2 / 2 corridas limpias PASS**;
+- BLOCKER-01 Scanner: **CLOSED**, incluyendo el interleaving real WS-before-HTTP;
+- CI sobre `main@4b7ef7b071b7814a96d5ec400d42e96a72bd2fe0`: **GREEN** en migrations, OpenAPI/API-client, format, lint, typecheck, unit tests, API integration y build;
+- API integration final: **32 archivos / 315 tests PASS**.
+
+Esto certifica M01 para demo comercial y recorrido controlado contra runtime real. No equivale por sí solo a autorización de producción externa: **RG-01** sigue pendiente antes del primer piloto externo real y **RG-02** conserva el supuesto operativo `API replicas = 1` mientras Realtime permanezca en memoria de proceso.
+
+El workflow Staging del HEAD validó el commit probado y el preflight; el paso de deploy quedó **skipped**, por lo que no se toma como evidencia de despliegue efectivo.
 
 ## 1. Objetivo
 

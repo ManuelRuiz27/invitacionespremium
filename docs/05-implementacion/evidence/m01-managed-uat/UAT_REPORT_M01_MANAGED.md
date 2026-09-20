@@ -2,7 +2,13 @@
 
 **Fecha:** 2026-09-19
 
-**Base:** `main@fc5e8f74aa01d1c8e91acdc0c9f973fc45d6241e`
+**Cierre del release gate:** 2026-09-20
+
+**Base del UAT:** `main@fc5e8f74aa01d1c8e91acdc0c9f973fc45d6241e`
+
+**Commit de certificación E2E:** `3dc7eb211752531907077d96667811b44658dd2f`
+
+**HEAD de cierre del gate:** `4b7ef7b071b7814a96d5ec400d42e96a72bd2fe0`
 
 **Fixture:** Boda de Elena & Mateo (`15000000-0000-4000-8000-000000000005`)
 
@@ -102,4 +108,8 @@ Durante MG-05 se reprodujo y corrigió un defecto adicional de wiring DI en el r
 
 `pnpm test:e2e:managed` ejecuta migraciones y el seed oficial antes de levantar Vite, usa una base aislada, recorre 1–18 y los seis negativos, verifica aislamiento financiero y elimina únicamente sus procesos y artefactos efímeros. El comando pasó dos veces consecutivas desde estado limpio.
 
-La certificación de producto queda completa; el gate global de CI continúa rojo por deuda Prettier preexistente y debe estabilizarse en el ticket separado previsto.
+La certificación de producto queda completa. La deuda Prettier que mantenía rojo el gate global fue normalizada en un commit separado y las pruebas de integración históricas se alinearon con los contratos vigentes sin modificar comportamiento productivo.
+
+Sobre `main@4b7ef7b071b7814a96d5ec400d42e96a72bd2fe0`, GitHub Actions terminó verde en Prisma validate/migrations, OpenAPI y API client, route verification, format, lint, typecheck, unit tests, API integration (**32 archivos / 315 tests**) y build. Con esto desaparece la última stop condition de MG-05 y el camino crítico MG-00…MG-05 queda cerrado.
+
+La cámara física no forma parte de la automatización: el check-in E2E usa Scanner Search. RG-01 sigue siendo obligatorio antes del primer piloto externo real; RG-02 mantiene la restricción operativa de **una sola réplica API** mientras Realtime siga coordinado en memoria de proceso.
