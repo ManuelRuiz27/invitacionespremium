@@ -606,16 +606,18 @@ describe('Realtime Socket.IO', () => {
     const upload = (
       ownerType: 'FLYER' | 'FLOORPLAN',
       fileType: 'FLYER_INITIAL_IMAGE' | 'FLYER_QR_IMAGE' | 'FLOORPLAN_IMAGE'
-    ) =>
-      request(app.getHttpServer())
+    ) => {
+      const pending = request(app.getHttpServer())
         .post(
           ownerType === 'FLOORPLAN' ? `${providerBase}/floorplan/file-assets` : `${providerBase}/design/file-assets`
         )
         .set('Origin', origin)
-        .set('Cookie', providerCookie)
-        .field('ownerType', ownerType)
-        .field('fileType', fileType)
-        .attach('file', image, { filename: `${fileType}.png`, contentType: 'image/png' });
+        .set('Cookie', providerCookie);
+      if (ownerType !== 'FLOORPLAN') {
+        pending.field('ownerType', ownerType).field('fileType', fileType);
+      }
+      return pending.attach('file', image, { filename: `${fileType}.png`, contentType: 'image/png' });
+    };
     const initial = await upload('FLYER', 'FLYER_INITIAL_IMAGE').expect(201);
     const qrImage = await upload('FLYER', 'FLYER_QR_IMAGE').expect(201);
     const floorplanImage = await upload('FLOORPLAN', 'FLOORPLAN_IMAGE').expect(201);

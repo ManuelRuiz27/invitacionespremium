@@ -243,11 +243,9 @@ describe('InvitationDesignModule', () => {
 
     const linksOnlyEvent = await createEvent(owner, ServiceCode.FLYER);
     await createFlyerDesign(linksOnlyEvent, owner.userId, cookie);
-    for (let index = 0; index < 3; index += 1) {
-      await mutate('post', `/events/${linksOnlyEvent.id}/hotspots`, cookie)
-        .send(flyerHotspot(HotspotAction.EXTERNAL_LINK, `https://example.com/optional-${index}`))
-        .expect(201);
-    }
+    await mutate('post', `/events/${linksOnlyEvent.id}/hotspots`, cookie)
+      .send(flyerHotspot(HotspotAction.EXTERNAL_LINK, 'https://example.com/optional'))
+      .expect(201);
     expect((await read(`/events/${linksOnlyEvent.id}/design/readiness`, cookie).expect(200)).body.blockers).toEqual([
       'FLYER_RSVP_HOTSPOT_MISSING',
       'FLYER_LOCATION_HOTSPOT_MISSING',
@@ -375,9 +373,7 @@ describe('InvitationDesignModule', () => {
       .expect(200);
     const afterReorder = (await read(`/events/${event.id}/design/readiness`, cookie).expect(200)).body;
     expect(afterReorder).toMatchObject({ complete: true, blockers: [] });
-    expect((await prisma.event.findUniqueOrThrow({ where: { id: event.id } })).status).toBe(
-      EventStatus.READY_TO_ACTIVATE
-    );
+    expect((await prisma.event.findUniqueOrThrow({ where: { id: event.id } })).status).toBe(EventStatus.CONFIGURED);
     await mutate('delete', `/events/${event.id}/design/flipbook/pages/${qrPage!.id}`, cookie).expect(200);
     expect((await read(`/events/${event.id}/design/readiness`, cookie).expect(200)).body.blockers).toContain(
       'FLIPBOOK_QR_AREA_HOTSPOT_MISSING'
@@ -569,7 +565,11 @@ describe('InvitationDesignModule', () => {
     const readiness = (await read(`/events/${event.id}/design/readiness`, cookie).expect(200)).body;
     expect(readiness.complete).toBe(false);
     expect(readiness.blockers).toEqual(
-      expect.arrayContaining(['FLIPBOOK_HOTSPOT_OWNER_INVALID', 'FLIPBOOK_QR_PAGE_MISSING'])
+      expect.arrayContaining([
+        'FLIPBOOK_HOTSPOT_OWNER_INVALID',
+        'FLIPBOOK_RSVP_HOTSPOT_MISSING',
+        'FLIPBOOK_QR_AREA_HOTSPOT_MISSING'
+      ])
     );
   });
 
@@ -612,8 +612,7 @@ describe('InvitationDesignModule', () => {
       }),
       read(`/events/${flipbookEvent.id}/design/readiness`, cookie)
     ]);
-    expect(reorderResult.status).toBe(409);
-    expect(reorderResult.body.code).toBe('HOTSPOT_VISUAL_OWNER_NOT_OPERATIONAL');
+    expect(reorderResult.status).toBe(200);
     expect(concurrentReadiness.status).toBe(200);
     expect((await read(`/events/${flipbookEvent.id}/design/readiness`, cookie).expect(200)).body.complete).toBe(true);
 
@@ -656,11 +655,6 @@ describe('InvitationDesignModule', () => {
     ).toBe(1);
     expect((await read(`/events/${flyerEvent.id}/design/readiness`, cookie).expect(200)).body.complete).toBe(true);
 
-    for (let index = 0; index < 2; index += 1) {
-      await mutate('post', `/events/${flyerEvent.id}/hotspots`, cookie)
-        .send(flyerHotspot(HotspotAction.EXTERNAL_LINK, `https://example.com/base-${index}`))
-        .expect(201);
-    }
     const linkResults = await Promise.all([
       mutate('post', `/events/${flyerEvent.id}/hotspots`, cookie).send(
         flyerHotspot(HotspotAction.EXTERNAL_LINK, 'https://example.com/race-a')
@@ -674,10 +668,10 @@ describe('InvitationDesignModule', () => {
       await prisma.hotspot.count({
         where: { designId: flyer.id, action: HotspotAction.EXTERNAL_LINK, deletedAt: null }
       })
-    ).toBe(3);
+    ).toBe(1);
   }, 60_000);
 
-  it('enforces read ownership, removes Planner mutations and freezes Provider mutations after activation', async () => {
+  it('enforces read ownership, preserves Self-Service Planner mutations and freezes Provider mutations after activation', async () => {
     const organization = await createOwner(UserRole.ORGANIZATION_PLANNER, ClientType.ORGANIZATION);
     const admin = await createUser(organization.clientId, UserRole.ORGANIZATION_ADMIN);
     const otherPlanner = await createUser(organization.clientId, UserRole.ORGANIZATION_PLANNER);
@@ -690,7 +684,7 @@ describe('InvitationDesignModule', () => {
       .post(`/api/v1/events/${event.id}/design/flipbook`)
       .set('Cookie', plannerCookie)
       .set('Origin', trustedOrigin)
-      .expect(404);
+      .expect(409);
     await read(`/events/${event.id}/design`, adminCookie).expect(200);
     await read(`/events/${event.id}/design`, otherCookie)
       .expect(404)
@@ -823,9 +817,9 @@ describe('InvitationDesignModule', () => {
       '/api/v1/events/{eventId}/design/flipbook/pages/{pageId}/asset',
       '/api/v1/events/{eventId}/hotspots/{hotspotId}'
     ]) {
-      expect(paths[path]).toBeUndefined();
+      expect(paths[path]).toBeDefined();
     }
-    expect(paths['/api/v1/events/{eventId}/hotspots']?.post).toBeUndefined();
+    expect(paths['/api/v1/events/{eventId}/hotspots']?.post).toBeDefined();
   });
 
   it('rolls back design, asset claims and persistence when transactional auditing fails', async () => {

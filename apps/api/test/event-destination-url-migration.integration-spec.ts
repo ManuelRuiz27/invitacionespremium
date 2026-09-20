@@ -29,7 +29,7 @@ describe('Event destination URL migration', () => {
       await isolated.connect();
 
       const migrationDirectories = (await readdir(migrationsRoot, { withFileTypes: true }))
-        .filter((entry) => entry.isDirectory() && entry.name !== migrationName)
+        .filter((entry) => entry.isDirectory() && entry.name < migrationName)
         .map((entry) => entry.name)
         .sort();
       for (const directory of migrationDirectories) {

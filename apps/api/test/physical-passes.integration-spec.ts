@@ -823,8 +823,6 @@ describe('PhysicalPasses', () => {
       .post(`${providerBase}/floorplan/file-assets`)
       .set('Cookie', providerCookie)
       .set('Origin', origin)
-      .field('ownerType', 'FLOORPLAN')
-      .field('fileType', 'FLOORPLAN_IMAGE')
       .attach('file', image, { filename: 'croquis.png', contentType: 'image/png' })
       .expect(201);
     await request(app.getHttpServer())

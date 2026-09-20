@@ -329,7 +329,7 @@ describe('Generated reports', () => {
       .set('Origin', origin)
       .set('Cookie', providerCookie)
       .send({})
-      .expect(201);
+      .expect(200);
     for (const action of [
       HotspotAction.RSVP,
       HotspotAction.LOCATION,
