@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Logger } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
 import { describe, expect, it, vi } from 'vitest';
 import { REALTIME_ERROR_CODES, type RealtimeErrorCode } from './realtime-errors';
 import {
@@ -13,7 +14,7 @@ import {
   seatingUpdatedEnvelopeSchema
 } from './realtime-contract';
 import { RealtimePublisherService } from './realtime-publisher.service';
-import type { RealtimeServerService } from './realtime-server.service';
+import { RealtimeServerService } from './realtime-server.service';
 
 const eventId = randomUUID();
 const operationId = randomUUID();
@@ -196,6 +197,27 @@ describe('Realtime v1 contract', () => {
       'operationId'
     ]);
     logger.mockRestore();
+  });
+
+  it('resolves the realtime server explicitly in the Nest runtime container', async () => {
+    const emit = vi.fn();
+    const module = await Test.createTestingModule({
+      providers: [
+        RealtimePublisherService,
+        { provide: RealtimeServerService, useValue: { emit, disconnectStaff: vi.fn() } }
+      ]
+    }).compile();
+
+    await module.get(RealtimePublisherService).publishCheckInCreated({
+      eventId,
+      invitationId: randomUUID(),
+      operationId: randomUUID(),
+      occurredAt,
+      checkIns: [{ checkInId: randomUUID(), assistantId: randomUUID(), tableId: null }]
+    });
+
+    expect(emit).toHaveBeenCalledOnce();
+    await module.close();
   });
 
   it('exports the complete stable connection error code set', () => {

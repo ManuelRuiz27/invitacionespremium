@@ -109,6 +109,18 @@ pnpm --filter @invitaciones/api test:integration
 pnpm --filter @invitaciones/api openapi:generate
 ```
 
+Certificación E2E local de M01 Managed:
+
+```bash
+pnpm test:e2e:managed
+```
+
+El comando exige libres los puertos `3000`, `5173`, `5174` y `5175`; si alguno está ocupado, falla antes de
+modificar datos y no termina procesos ajenos. Crea una base PostgreSQL efímera, aplica migraciones, ejecuta
+`pnpm --filter @invitaciones/api managed-demo:seed` antes de iniciar Vite, corre el journey Playwright en Chromium y
+elimina únicamente la base, storage y procesos creados por la propia ejecución. Las credenciales continúan en
+`apps/api/var/managed-demo/credentials.json`, fuera de control de versiones.
+
 Filtrar una app:
 
 ```bash

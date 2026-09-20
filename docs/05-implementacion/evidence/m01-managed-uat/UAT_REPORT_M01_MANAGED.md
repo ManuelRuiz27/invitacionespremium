@@ -1,21 +1,26 @@
 # Reporte de UAT Exploratorio — M01 Managed
 
-**Fecha:** 2026-09-17  
-**Base:** `main@9e7280bee47ebad5e78ec503ad0b9b632f0a887c`  
-**Fixture:** Boda de Elena & Mateo (`15000000-0000-4000-8000-000000000005`)  
-**Generado con:** `pnpm --filter @invitaciones/api managed-demo:seed`  
+**Fecha:** 2026-09-19
+
+**Base:** `main@fc5e8f74aa01d1c8e91acdc0c9f973fc45d6241e`
+
+**Fixture:** Boda de Elena & Mateo (`15000000-0000-4000-8000-000000000005`)
+
+**Generado con:** `pnpm --filter @invitaciones/api managed-demo:seed`
+
 **Credenciales:** `apps/api/var/managed-demo/credentials.json`
 
 ---
 
 ## 1. Resumen Ejecutivo de Certificación
 
-Se ejecutó la prueba de aceptación de usuario (UAT) exploratoria sobre la superficie real de **M01 Managed (Planner independiente)** usando navegación automatizada con Playwright Chromium (desktop 1280x800 y mobile 390x844).
+Se certificó la superficie real de **M01 Managed (Planner independiente)** con el harness reproducible `pnpm test:e2e:managed` sobre Chromium, base PostgreSQL efímera y runtime real de API, Client, Admin y Scanner.
 
 * **Pasos de Journey evaluados:** 18
-* **Pasos Aprobados (PASS):** 14 / 18
-* **Pasos Bloqueados (FAIL):** 4 / 18 (derivados de un único Blocker funcional P0 en el módulo Scanner WebSocket)
-* **Casos Negativos de Seguridad y Superficie:** 5 / 5 PASS (100% sin bypass)
+* **Pasos Aprobados (PASS):** 18 / 18
+* **Pasos Bloqueados (FAIL):** 0 / 18
+* **Casos Negativos de Seguridad y Superficie:** 6 / 6 PASS (100% sin bypass)
+* **Repetibilidad:** 2 / 2 corridas limpias completas PASS
 
 ---
 
@@ -34,13 +39,13 @@ Se ejecutó la prueba de aceptación de usuario (UAT) exploratoria sobre la supe
 | **9** | Ejecuta un RSVP real | **PASS** | Modal de confirmación abierto, asistencia confirmada y respuesta persistida vía API ('Tu confirmación quedó guardada'). [Evidencia 04](./04-rsvp-dialog.png) y [Evidencia 05](./05-rsvp-confirmed.png) |
 | **10** | Regresa como Planner y verifica actualización | **PASS** | La fila de Diego Torres se actualiza en vivo a estado 'Confirmada'. [Evidencia 06](./06-planner-rsvp-updated.png) |
 | **11** | Opera seating sobre el Croquis Provider | **PASS** | Sección `?seccion=mesas` renderiza el canvas Konva con mesas preparadas por Provider y el panel de métricas de distribución. [Evidencia 07](./07-seating-workspace.png) |
-| **12** | Verifica mesas/seats reales y reload | **PASS** | Recarga completa del navegador mantiene intacto el estado del Croquis, ocupación y mesas configuradas. |
+| **12** | Ejecuta operación real de seating y reload | **PASS** | Diego Torres se desasigna desde la UI; tras recarga aparece sin mesa y deja de figurar en Mesa Elena. La geometría Provider no se modifica. |
 | **13** | Verifica/crea Staff mediante la UI disponible | **PASS** | Sección `?seccion=staff` lista token existente ('Acceso principal') y permite generar nuevo acceso Staff ('Recepción Puerta 2') con link a Scanner. [Evidencia 08](./08-staff-workspace.png) |
 | **14** | Abre Scanner con token real | **PASS** | Aplicación Scanner móvil en `:5175/scanner/:staffToken` valida sesión de Staff y muestra 'Evento activo · operativo'. [Evidencia 09](./09-scanner-before-checkin.png) |
-| **15** | Escanea/usa QR real y completa check-in | **FAIL (P0)** | El check-in se envía a la API (HTTP 200), pero **el propio Scanner destruye su mensaje de éxito inmediatamente** debido a un bug de eco en el listener WebSocket `checkin.created`. [Evidencia 10](./10-scanner-after-checkin.png) |
-| **16** | Recarga Scanner/Planner y verifica persistencia | **FAIL (Derivado)** | Bloqueado por la falla en la culminación del flujo de check-in en Scanner. |
-| **17** | Planner cierra el Event | **FAIL (Derivado)** | Bloqueado para mantener el orden secuencial del fixture de check-in. (El diálogo modal 'Cerrar evento' existe y responde en UI). |
-| **18** | Recarga y verifica CLOSED | **FAIL (Derivado)** | Bloqueado por paso 17. |
+| **15** | Completa check-in real de Familia Luna | **PASS** | Scanner Search ejecuta el check-in por UI, recibe HTTP 200 y conserva `Ingreso registrado: Andrea Luna, Bruno Luna, Clara Luna`. No se automatizó cámara física. |
+| **16** | Recarga Scanner/Planner y verifica persistencia | **PASS** | Tras recarga no quedan asistentes pendientes; Planner refleja los tres ingresos en Mesa Mateo. |
+| **17** | Planner cierra el Event | **PASS** | El cierre se ejecuta mediante el diálogo real de Client y responde HTTP 200. |
+| **18** | Recarga y verifica CLOSED | **PASS** | `CLOSED` persiste, Seating queda read-only y el token Staff deja de operar. |
 
 ---
 
@@ -52,30 +57,18 @@ Se ejecutó la prueba de aceptación de usuario (UAT) exploratoria sobre la supe
 | **Managed no entra al Wizard técnico** | Navegación a `http://localhost:5173/eventos/nuevo` es interceptada y redirigida a `/eventos`. | **PASS** |
 | **Planner no puede editar preparación técnica** | Navegación a `http://localhost:5173/eventos/:id/configuracion/datos` es interceptada y redirigida a `/eventos`. | **PASS** |
 | **Rutas/eventos ajenos no exponen datos** | Navegación a evento no asignado muestra mensaje de error 'Este evento no está disponible' / 'Acceso no permitido', sin filtrar metadatos de otros clientes. | **PASS** |
+| **Mutación técnica Managed queda prohibida** | `POST /events/:eventId/design/flipbook` con autenticación Planner real responde `403 CLIENT_MANAGED_CAPABILITY_FORBIDDEN`. | **PASS** |
 | **Sin cobro de créditos, Pricing ni Receipt** | El flujo completo operó de extremo a extremo sin requerir saldo de créditos, checkout ni pasarela comercial. | **PASS** |
 
 ---
 
 ## 4. Blocker P0
 
-### BLOCKER-01: Scanner WebSocket auto-invalida la pantalla de confirmación de check-in
-* **Severidad:** P0 (Impide certificar el flujo de check-in operativo).
-* **Ubicación:** `apps/scanner/src/hooks/useScannerRealtime.ts` (línea 79) y `apps/scanner/src/pages/ScannerSessionPage.tsx` (líneas 54–74).
-* **Comportamiento observado:**
-  1. El operador Staff busca a un asistente (ej. 'Familia Luna') y pulsa **'Registrar ingreso (3)'**.
-  2. La mutación `checkInMutation` responde exitosamente (HTTP 200) y activa `setConfirmation(result)` para mostrar la alerta: *'Ingreso registrado: Andrea Luna, Bruno Luna, Clara Luna'*.
-  3. Simultáneamente, el backend emite un evento WebSocket `checkin.created` a la sala del evento.
-  4. La misma pestaña del Scanner que emitió el check-in recibe el evento WebSocket `checkin.created`.
-  5. El hook `useScannerRealtime` ejecuta `invitationStale()`, el cual llama a `discardStaleResult()`.
-  6. `discardStaleResult()` ejecuta `clearResult()`, lo que fuerza `setConfirmation(null)` y reemplaza la pantalla de éxito por la advertencia: *'La disponibilidad cambió. Escanea o busca nuevamente.'*.
-  7. **Efecto para el usuario Staff:** El operador nunca ve la confirmación de ingreso registrada; la interfaz parpadea en milisegundos y borra el resultado de la pantalla como si hubiera ocurrido un error de concurrencia.
+### BLOCKER-01: CLOSED
 
-#### Pasos exactos de reproducción:
-1. Iniciar sesión en Scanner con token válido: `http://localhost:5175/scanner/<staffToken>`.
-2. Ir a pestaña **Buscar**, ingresar 'Familia Luna' y hacer clic en **Buscar**.
-3. Seleccionar el resultado de la búsqueda para abrir el panel de ingreso.
-4. Hacer clic en **Registrar ingreso (3)**.
-5. Observar cómo el mensaje verde de éxito no permanece; en su lugar, se muestra inmediatamente la alerta amarilla: *'La disponibilidad cambió. Escanea o busca nuevamente.'*.
+La corrección de BASE conserva la confirmación local ante el eco `checkin.created`. Las dos regresiones Scanner cubren tanto HTTP success seguido de self-echo como self-echo mientras el POST sigue in-flight; ambas pasan. La evidencia manual previa confirmó además el caso WS-before-HTTP en navegador real (~2.8 ms antes del HTTP 200), y el harness final confirma que el mensaje de éxito permanece, el estado persiste y el journey continúa hasta `CLOSED`.
+
+Durante MG-05 se reprodujo y corrigió un defecto adicional de wiring DI en el runtime `tsx`: `RealtimePublisherService` ahora inyecta explícitamente `RealtimeServerService`, con regresión de resolución mediante el contenedor Nest. No se cambió el protocolo realtime.
 
 ---
 
@@ -105,10 +98,8 @@ Se ejecutó la prueba de aceptación de usuario (UAT) exploratoria sobre la supe
 
 ---
 
-## 7. Lista Mínima de Cambios para Certificar M01
+## 7. Certificación automatizada final
 
-Para lograr la certificación del 100% del journey sin desbordar el alcance:
-1. **Fix en `apps/scanner/src/hooks/useScannerRealtime.ts`:**
-   * Ignorar eventos `checkin.created` provenientes del propio cliente / staffToken, o en `ScannerSessionPage.tsx` no descartar la confirmación si `confirmation` acaba de ser establecida por una mutación local reciente.
-2. **Completar ejecución de Pasos 15–18:**
-   * Una vez evitado el reseteo por WebSocket, validar la persistencia del check-in tras recarga, ejecutar el cierre de evento desde el Planner (`status: CLOSED`) y verificar su persistencia final.
+`pnpm test:e2e:managed` ejecuta migraciones y el seed oficial antes de levantar Vite, usa una base aislada, recorre 1–18 y los seis negativos, verifica aislamiento financiero y elimina únicamente sus procesos y artefactos efímeros. El comando pasó dos veces consecutivas desde estado limpio.
+
+La certificación de producto queda completa; el gate global de CI continúa rojo por deuda Prettier preexistente y debe estabilizarse en el ticket separado previsto.

@@ -22,6 +22,8 @@ var/staging-seed/
 apps/api/var/staging-seed/
 var/managed-demo/
 apps/api/var/managed-demo/
+test-results/
+playwright-report/
 var/landing-product-proof/raw/
 var/landing-product-proof/qa/
 *.dump

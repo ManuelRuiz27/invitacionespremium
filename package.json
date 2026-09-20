@@ -13,6 +13,7 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test --concurrency=1",
+    "test:e2e:managed": "node scripts/run-managed-m01-e2e.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "ci": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",

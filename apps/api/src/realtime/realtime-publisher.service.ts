@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
   checkInCreatedEnvelopeSchema,
   checkInRevertedEnvelopeSchema,
@@ -18,7 +18,7 @@ export class RealtimePublisherService {
   private readonly logger = new Logger(RealtimePublisherService.name);
   private readonly emitted = new Set<string>();
 
-  constructor(private readonly server: RealtimeServerService) {}
+  constructor(@Inject(RealtimeServerService) private readonly server: RealtimeServerService) {}
 
   async publishCheckInCreated(input: {
     eventId: string;
