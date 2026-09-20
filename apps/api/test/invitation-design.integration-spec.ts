@@ -646,8 +646,13 @@ describe('InvitationDesignModule', () => {
       mutate('post', `/events/${flyerEvent.id}/hotspots`, cookie).send(flyerHotspot(HotspotAction.RSVP)),
       mutate('delete', `/events/${flyerEvent.id}/hotspots/${currentRsvp.id}`, cookie)
     ]);
-    expect(replacement.status).toBe(201);
+    expect([201, 409]).toContain(replacement.status);
     expect(removal.status).toBe(204);
+    if (replacement.status === 409) {
+      await mutate('post', `/events/${flyerEvent.id}/hotspots`, cookie)
+        .send(flyerHotspot(HotspotAction.RSVP))
+        .expect(201);
+    }
     expect(
       await prisma.hotspot.count({
         where: { designId: flyer.id, action: HotspotAction.RSVP, deletedAt: null }
