@@ -38,9 +38,36 @@ const fixtureView = {
     hotspots: [
       fixtureHotspot('fixture-rsvp', 'RSVP', 'fixture-page-1', 0.16, 0.73, 0.36, 0.1),
       fixtureHotspot('fixture-qr', 'QR_AREA', 'fixture-page-3', 0.31, 0.59, 0.34, 0.13),
-      fixtureHotspot('fixture-location', 'LOCATION', 'fixture-page-4', 0.16, 0.78, 0.43, 0.1, 'https://maps.google.com/'),
-      fixtureHotspot('fixture-gift', 'GIFT_REGISTRY', 'fixture-page-5', 0.16, 0.68, 0.43, 0.1, 'https://example.com/mesa-regalos'),
-      fixtureHotspot('fixture-link', 'EXTERNAL_LINK', 'fixture-page-5', 0.16, 0.82, 0.43, 0.08, 'https://example.com/nuestra-historia')
+      fixtureHotspot(
+        'fixture-location',
+        'LOCATION',
+        'fixture-page-4',
+        0.16,
+        0.78,
+        0.43,
+        0.1,
+        'https://maps.google.com/'
+      ),
+      fixtureHotspot(
+        'fixture-gift',
+        'GIFT_REGISTRY',
+        'fixture-page-5',
+        0.16,
+        0.68,
+        0.43,
+        0.1,
+        'https://example.com/mesa-regalos'
+      ),
+      fixtureHotspot(
+        'fixture-link',
+        'EXTERNAL_LINK',
+        'fixture-page-5',
+        0.16,
+        0.82,
+        0.43,
+        0.08,
+        'https://example.com/nuestra-historia'
+      )
     ]
   }
 } as unknown as PublicInvitationView;
@@ -55,10 +82,13 @@ export function DevFlipbookFixturePage() {
             Flipbook Magazine · demo local
           </Typography>
           <Typography color="text.secondary">
-            Seis páginas gráficas autocontenidas. No requiere API, storage ni backend para probar el giro y las acciones.
+            Seis páginas gráficas autocontenidas. No requiere API, storage ni backend para probar el giro y las
+            acciones.
           </Typography>
         </Stack>
-        <Alert severity="success">Fixture visual cargado: portada, historia, RSVP/QR, ubicación, regalos y contraportada.</Alert>
+        <Alert severity="success">
+          Fixture visual cargado: portada, historia, RSVP/QR, ubicación, regalos y contraportada.
+        </Alert>
         {notice ? <Alert severity="info">{notice}</Alert> : null}
         <FlipbookRenderer
           apiClient={fixtureApiClient}
@@ -83,7 +113,18 @@ function fixtureHotspot(
   height: number,
   destination: string | null = null
 ) {
-  return { id, action, destination, flipbookPageId, visualOwnerType: 'FLIPBOOK_PAGE', x, y, width, height, priority: 0 };
+  return {
+    id,
+    action,
+    destination,
+    flipbookPageId,
+    visualOwnerType: 'FLIPBOOK_PAGE',
+    x,
+    y,
+    width,
+    height,
+    priority: 0
+  };
 }
 
 function fixturePageSvg(page: number): string {
@@ -151,10 +192,74 @@ function fixturePageSvg(page: number): string {
 
 function fakeQr(): string {
   const cells: Array<[number, number]> = [
-    [0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [0, 1], [4, 1], [0, 2], [2, 2], [4, 2], [0, 3], [4, 3], [0, 4], [1, 4], [2, 4], [3, 4], [4, 4],
-    [7, 0], [8, 0], [9, 0], [10, 0], [11, 0], [7, 1], [11, 1], [7, 2], [9, 2], [11, 2], [7, 3], [11, 3], [7, 4], [8, 4], [9, 4], [10, 4], [11, 4],
-    [0, 7], [1, 7], [2, 7], [3, 7], [4, 7], [0, 8], [4, 8], [0, 9], [2, 9], [4, 9], [0, 10], [4, 10], [0, 11], [1, 11], [2, 11], [3, 11], [4, 11],
-    [6, 6], [8, 6], [10, 6], [6, 7], [7, 8], [9, 8], [11, 8], [6, 9], [8, 9], [10, 10], [11, 11], [7, 11], [9, 6], [11, 6], [6, 11]
+    [0, 0],
+    [1, 0],
+    [2, 0],
+    [3, 0],
+    [4, 0],
+    [0, 1],
+    [4, 1],
+    [0, 2],
+    [2, 2],
+    [4, 2],
+    [0, 3],
+    [4, 3],
+    [0, 4],
+    [1, 4],
+    [2, 4],
+    [3, 4],
+    [4, 4],
+    [7, 0],
+    [8, 0],
+    [9, 0],
+    [10, 0],
+    [11, 0],
+    [7, 1],
+    [11, 1],
+    [7, 2],
+    [9, 2],
+    [11, 2],
+    [7, 3],
+    [11, 3],
+    [7, 4],
+    [8, 4],
+    [9, 4],
+    [10, 4],
+    [11, 4],
+    [0, 7],
+    [1, 7],
+    [2, 7],
+    [3, 7],
+    [4, 7],
+    [0, 8],
+    [4, 8],
+    [0, 9],
+    [2, 9],
+    [4, 9],
+    [0, 10],
+    [4, 10],
+    [0, 11],
+    [1, 11],
+    [2, 11],
+    [3, 11],
+    [4, 11],
+    [6, 6],
+    [8, 6],
+    [10, 6],
+    [6, 7],
+    [7, 8],
+    [9, 8],
+    [11, 8],
+    [6, 9],
+    [8, 9],
+    [10, 10],
+    [11, 11],
+    [7, 11],
+    [9, 6],
+    [11, 6],
+    [6, 11]
   ];
-  return cells.map(([x, y]) => `<rect x="${414 + x * 24}" y="${694 + y * 24}" width="20" height="20" rx="2"/>`).join('');
+  return cells
+    .map(([x, y]) => `<rect x="${414 + x * 24}" y="${694 + y * 24}" width="20" height="20" rx="2"/>`)
+    .join('');
 }

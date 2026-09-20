@@ -66,7 +66,10 @@ function currentOrientation(): 'portrait' | 'landscape' {
 
 function spreads(pageCount: number, orientation: 'portrait' | 'landscape', hardCovers: boolean): number[][] {
   if (orientation === 'portrait') return Array.from({ length: pageCount }, (_, pageIndex) => [pageIndex]);
-  if (!hardCovers) return Array.from({ length: Math.ceil(pageCount / 2) }, (_, spreadIndex) => [spreadIndex * 2, spreadIndex * 2 + 1].filter((pageIndex) => pageIndex < pageCount));
+  if (!hardCovers)
+    return Array.from({ length: Math.ceil(pageCount / 2) }, (_, spreadIndex) =>
+      [spreadIndex * 2, spreadIndex * 2 + 1].filter((pageIndex) => pageIndex < pageCount)
+    );
   if (pageCount <= 1) return pageCount ? [[0]] : [];
   const result = [[0]];
   for (let pageIndex = 1; pageIndex < pageCount - 1; pageIndex += 2) {
@@ -125,13 +128,23 @@ const HTMLFlipBook = forwardRef<FlipBookHandle, Props>(function HTMLFlipBook(
     return currentSpread ?? [0];
   }, [hardCovers, orientation, page, pages.length]);
   const snapshot = (nextPage = page, nextOrientation = orientation): BookSnapshot => {
-    const currentSpread = spreads(pages.length, nextOrientation, hardCovers).find((spread) => spread.includes(nextPage)) ?? [0];
-    return { page: currentSpread[0]!, pageCount: pages.length, orientation: nextOrientation, visiblePages: currentSpread };
+    const currentSpread = spreads(pages.length, nextOrientation, hardCovers).find((spread) =>
+      spread.includes(nextPage)
+    ) ?? [0];
+    return {
+      page: currentSpread[0]!,
+      pageCount: pages.length,
+      orientation: nextOrientation,
+      visiblePages: currentSpread
+    };
   };
   const move = (direction: 'next' | 'prev' | 'to', target?: number) => {
     const model = spreads(pages.length, orientation, hardCovers);
     const currentSpreadIndex = model.findIndex((spread) => spread.includes(page));
-    const nextSpread = direction === 'to' ? model.find((spread) => spread.includes(target ?? -1)) : model[currentSpreadIndex + (direction === 'next' ? 1 : -1)];
+    const nextSpread =
+      direction === 'to'
+        ? model.find((spread) => spread.includes(target ?? -1))
+        : model[currentSpreadIndex + (direction === 'next' ? 1 : -1)];
     if (!nextSpread || nextSpread === model[currentSpreadIndex]) return false;
     const nextPage = nextSpread[0]!;
     const commit = () => {
@@ -141,7 +154,8 @@ const HTMLFlipBook = forwardRef<FlipBookHandle, Props>(function HTMLFlipBook(
     };
     setLastTurnLeaf(nextPage);
     onChangeState?.({ state: 'flipping' });
-    if ((globalThis as typeof globalThis & { __flipbookMockAsync?: boolean }).__flipbookMockAsync) window.setTimeout(commit, 0);
+    if ((globalThis as typeof globalThis & { __flipbookMockAsync?: boolean }).__flipbookMockAsync)
+      window.setTimeout(commit, 0);
     else commit();
     return true;
   };

@@ -40,7 +40,12 @@ export function FloorplanTray({
       }}
     >
       <Stack spacing={1.25}>
-        <Stack direction="row" useFlexGap spacing={1} sx={{ alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+        <Stack
+          direction="row"
+          useFlexGap
+          spacing={1}
+          sx={{ alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap' }}
+        >
           <Box>
             <Typography component="h3" variant="subtitle2" id="tray-title">
               Por colocar · {tables.length}

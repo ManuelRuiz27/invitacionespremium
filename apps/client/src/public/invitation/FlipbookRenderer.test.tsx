@@ -35,7 +35,18 @@ function hotspot(
   flipbookPageId: string,
   destination: string | null = null
 ) {
-  return { id, action, destination, flipbookPageId, visualOwnerType: 'FLIPBOOK_PAGE', x: 0.1, y: 0.1, width: 0.3, height: 0.1, priority: 0 };
+  return {
+    id,
+    action,
+    destination,
+    flipbookPageId,
+    visualOwnerType: 'FLIPBOOK_PAGE',
+    x: 0.1,
+    y: 0.1,
+    width: 0.3,
+    height: 0.1,
+    priority: 0
+  };
 }
 
 function renderFlipbook(pageCount = 6) {
@@ -115,7 +126,9 @@ describe('FlipbookRenderer physical leaves', () => {
     setViewport(1200);
     (globalThis as typeof globalThis & { __flipbookMockAsync?: boolean }).__flipbookMockAsync = true;
     const onRsvp = vi.fn();
-    const apiClient = { publicInvitation: { asset: vi.fn().mockResolvedValue(new Blob(['page'])) } } as unknown as ApiClient;
+    const apiClient = {
+      publicInvitation: { asset: vi.fn().mockResolvedValue(new Blob(['page'])) }
+    } as unknown as ApiClient;
     render(
       <FlipbookRenderer
         apiClient={apiClient}

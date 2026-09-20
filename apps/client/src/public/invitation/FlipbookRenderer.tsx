@@ -29,7 +29,10 @@ export function FlipbookRenderer({
   onQr: () => void;
   onUnavailableQr: () => void;
 }) {
-  const pages = useMemo(() => [...(view.design?.pages ?? [])].sort((a, b) => a.position - b.position), [view.design?.pages]);
+  const pages = useMemo(
+    () => [...(view.design?.pages ?? [])].sort((a, b) => a.position - b.position),
+    [view.design?.pages]
+  );
   const reducedMotion = useReducedMotion();
   const bookRef = useRef<FlipBookHandle | null>(null);
   const turningRef = useRef(false);
@@ -109,7 +112,10 @@ export function FlipbookRenderer({
           navigate('next');
         }
       }}
-      sx={{ outline: 'none', '&:focus-visible': { outline: '3px solid', outlineColor: 'primary.main', outlineOffset: 4 } }}
+      sx={{
+        outline: 'none',
+        '&:focus-visible': { outline: '3px solid', outlineColor: 'primary.main', outlineOffset: 4 }
+      }}
     >
       <Box
         sx={{

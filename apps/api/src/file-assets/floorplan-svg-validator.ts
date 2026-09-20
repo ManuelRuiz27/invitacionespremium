@@ -93,10 +93,9 @@ const ELEMENT_ATTRIBUTES: Readonly<Record<string, readonly string[]>> = {
   tspan: ['x', 'y', 'dx', 'dy', 'rotate', 'lengthAdjust', 'textLength'],
   use: ['x', 'y', 'width', 'height', 'href', 'xlink:href']
 };
-const CANONICAL_ATTRIBUTE_NAMES = new Map<string, string>([
-  ...COMMON_ATTRIBUTES,
-  ...Object.values(ELEMENT_ATTRIBUTES).flat()
-].map((name) => [name.toLowerCase(), name]));
+const CANONICAL_ATTRIBUTE_NAMES = new Map<string, string>(
+  [...COMMON_ATTRIBUTES, ...Object.values(ELEMENT_ATTRIBUTES).flat()].map((name) => [name.toLowerCase(), name])
+);
 
 interface CanonicalAttribute {
   name: string;
@@ -308,7 +307,8 @@ function canonicalizeSelectableIds(root: CanonicalElement, ids: Set<string>): bo
     if (SELECTABLE_ELEMENTS.has(element.name) && !isUniqueOriginal) {
       let candidate = `svg-${createHash('sha256').update(address).digest('hex').slice(0, 24)}`;
       let collision = 1;
-      while (used.has(candidate)) candidate = `svg-${createHash('sha256').update(`${address}:${collision++}`).digest('hex').slice(0, 24)}`;
+      while (used.has(candidate))
+        candidate = `svg-${createHash('sha256').update(`${address}:${collision++}`).digest('hex').slice(0, 24)}`;
       setAttribute(element, 'id', candidate);
       used.add(candidate);
     }
@@ -321,8 +321,14 @@ function canonicalizeSelectableIds(root: CanonicalElement, ids: Set<string>): bo
 }
 
 function structuralSignature(element: CanonicalElement): string {
-  const attributes = element.attributes.filter(({ name }) => name !== 'id').map(({ name, value }) => `${name}=${value}`).sort().join('|');
-  const children = element.children.map((child) => typeof child === 'string' ? `#${child}` : structuralSignature(child)).join('');
+  const attributes = element.attributes
+    .filter(({ name }) => name !== 'id')
+    .map(({ name, value }) => `${name}=${value}`)
+    .sort()
+    .join('|');
+  const children = element.children
+    .map((child) => (typeof child === 'string' ? `#${child}` : structuralSignature(child)))
+    .join('');
   return `${element.name}[${attributes}]${children}`;
 }
 
@@ -337,10 +343,12 @@ function setAttribute(element: CanonicalElement, name: string, value: string) {
 }
 
 function hasReference(element: CanonicalElement, id: string): boolean {
-  return element.attributes.some(({ name, value }) => {
-    const reference = validateAttribute(name, value);
-    return reference === id;
-  }) || element.children.some((child) => typeof child !== 'string' && hasReference(child, id));
+  return (
+    element.attributes.some(({ name, value }) => {
+      const reference = validateAttribute(name, value);
+      return reference === id;
+    }) || element.children.some((child) => typeof child !== 'string' && hasReference(child, id))
+  );
 }
 
 function validateAttribute(name: string, value: string): string | false | undefined {

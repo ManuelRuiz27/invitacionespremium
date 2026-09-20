@@ -27,14 +27,25 @@ export interface FloorplanRendererProps {
   selectedSeatIds?: readonly string[] | undefined;
   onSeatSelect?: ((seatId: string, options: { additive: boolean }) => void) | undefined;
   onSeatMove?: ((seatId: string, point: { x: number; y: number }) => void) | undefined;
-  svgSource?: { selectableElements: Array<{ sourceElementId: string; bbox: { x: number; y: number; width: number; height: number } }> } | undefined;
+  svgSource?:
+    | {
+        selectableElements: Array<{
+          sourceElementId: string;
+          bbox: { x: number; y: number; width: number; height: number };
+        }>;
+      }
+    | undefined;
   selectedSourceElementId?: string | undefined;
   onSourceSelect?: ((sourceElementId: string) => void) | undefined;
 }
 
 export function FloorplanDomRenderer(props: FloorplanRendererProps) {
-  const selectedIsMapped = props.floorplan.shapes.some((shape) => shape.id === props.selectedId && shape.sourceElementId &&
-    props.svgSource?.selectableElements.some((element) => element.sourceElementId === shape.sourceElementId));
+  const selectedIsMapped = props.floorplan.shapes.some(
+    (shape) =>
+      shape.id === props.selectedId &&
+      shape.sourceElementId &&
+      props.svgSource?.selectableElements.some((element) => element.sourceElementId === shape.sourceElementId)
+  );
   const ownerRef = useRef<HTMLDivElement>(null);
   const [measureOwner, ownerSize] = useElementSize<HTMLDivElement>();
   const setOwnerRef = useCallback(
@@ -90,52 +101,87 @@ export function FloorplanDomRenderer(props: FloorplanRendererProps) {
       />
       {props.svgSource?.selectableElements.map((element, index) => {
         const mapped = props.floorplan.shapes.find((shape) => shape.sourceElementId === element.sourceElementId);
-        const selected = props.selectedSourceElementId === element.sourceElementId || Boolean(mapped && props.selectedId === mapped.id);
+        const selected =
+          props.selectedSourceElementId === element.sourceElementId ||
+          Boolean(mapped && props.selectedId === mapped.id);
         const tableState = mapped
-          ? resolveSvgTableVisualState(props.floorplan, mapped, { selected, readOnly: Boolean(props.readOnly || props.disabled) })
+          ? resolveSvgTableVisualState(props.floorplan, mapped, {
+              selected,
+              readOnly: Boolean(props.readOnly || props.disabled)
+            })
           : undefined;
         return (
-        <Box
-          component="button"
-          key={element.sourceElementId}
-          type="button"
-          aria-label={tableState?.accessibleLabel ?? (mapped ? `${mapped.name}, vinculado al plano` : `Elemento del plano ${index + 1}, sin vincular`)}
-          aria-pressed={selected}
-          disabled={props.disabled || Boolean(props.draft) || Boolean(props.captureCanvasClicks)}
-          onClick={(event) => {
-            event.stopPropagation();
-            if (mapped) props.onSelect(mapped);
-            else props.onSourceSelect?.(element.sourceElementId);
-          }}
-          sx={{
-            position: 'absolute', left: `${element.bbox.x * 100}%`, top: `${element.bbox.y * 100}%`,
-            width: `${element.bbox.width * 100}%`, height: `${element.bbox.height * 100}%`,
-            border: tableState
-              ? `3px ${tableState.borderStyle} ${tableState.occupancyState === 'FULL' ? '#a03d2f' : tableState.occupancyState === 'PARTIAL' ? '#9a6700' : '#356ae6'}`
-              : selected ? '3px solid #356ae6' : mapped ? '2px dashed #356ae6' : '0 solid transparent',
-            bgcolor: 'transparent', cursor: props.disabled ? 'default' : 'pointer', zIndex: 1, p: 0,
-            opacity: tableState && (props.readOnly || props.disabled) ? 0.72 : 1,
-            '&:focus-visible': { outline: '3px solid #f0a500', outlineOffset: 2 }
-          }}
-        >
-          {tableState ? (
-            <Box
-              component="span"
-              sx={{
-                position: 'absolute', top: 3, left: '50%', transform: 'translateX(-50%)',
-                maxWidth: 'calc(100% - 6px)', px: 0.5, py: 0.125, borderRadius: 0.5,
-                bgcolor: 'rgba(255,255,255,0.88)', color: 'text.primary', fontSize: '0.68rem',
-                fontWeight: 800, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                pointerEvents: 'none'
-              }}
-            >
-              {tableState.label}
-            </Box>
-          ) : null}
-        </Box>
-      ); })}
+          <Box
+            component="button"
+            key={element.sourceElementId}
+            type="button"
+            aria-label={
+              tableState?.accessibleLabel ??
+              (mapped ? `${mapped.name}, vinculado al plano` : `Elemento del plano ${index + 1}, sin vincular`)
+            }
+            aria-pressed={selected}
+            disabled={props.disabled || Boolean(props.draft) || Boolean(props.captureCanvasClicks)}
+            onClick={(event) => {
+              event.stopPropagation();
+              if (mapped) props.onSelect(mapped);
+              else props.onSourceSelect?.(element.sourceElementId);
+            }}
+            sx={{
+              position: 'absolute',
+              left: `${element.bbox.x * 100}%`,
+              top: `${element.bbox.y * 100}%`,
+              width: `${element.bbox.width * 100}%`,
+              height: `${element.bbox.height * 100}%`,
+              border: tableState
+                ? `3px ${tableState.borderStyle} ${tableState.occupancyState === 'FULL' ? '#a03d2f' : tableState.occupancyState === 'PARTIAL' ? '#9a6700' : '#356ae6'}`
+                : selected
+                  ? '3px solid #356ae6'
+                  : mapped
+                    ? '2px dashed #356ae6'
+                    : '0 solid transparent',
+              bgcolor: 'transparent',
+              cursor: props.disabled ? 'default' : 'pointer',
+              zIndex: 1,
+              p: 0,
+              opacity: tableState && (props.readOnly || props.disabled) ? 0.72 : 1,
+              '&:focus-visible': { outline: '3px solid #f0a500', outlineOffset: 2 }
+            }}
+          >
+            {tableState ? (
+              <Box
+                component="span"
+                sx={{
+                  position: 'absolute',
+                  top: 3,
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  maxWidth: 'calc(100% - 6px)',
+                  px: 0.5,
+                  py: 0.125,
+                  borderRadius: 0.5,
+                  bgcolor: 'rgba(255,255,255,0.88)',
+                  color: 'text.primary',
+                  fontSize: '0.68rem',
+                  fontWeight: 800,
+                  lineHeight: 1.2,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  pointerEvents: 'none'
+                }}
+              >
+                {tableState.label}
+              </Box>
+            ) : null}
+          </Box>
+        );
+      })}
       {props.floorplan.shapes.map((shape) => {
-        if (shape.sourceElementId && props.svgSource?.selectableElements.some((element) => element.sourceElementId === shape.sourceElementId)) return null;
+        if (
+          shape.sourceElementId &&
+          props.svgSource?.selectableElements.some((element) => element.sourceElementId === shape.sourceElementId)
+        )
+          return null;
         if (props.draft && props.selectedId === shape.id) return null;
         return (
           <ShapeButton

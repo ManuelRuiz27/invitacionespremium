@@ -53,7 +53,8 @@ export const FlipbookPage = forwardRef<HTMLDivElement, FlipbookPageProps>(functi
     [forwardedRef, pageRef]
   );
   const imageRect = useMemo(() => {
-    if (!imageSize || pageSize.width <= 0 || pageSize.height <= 0) return { left: 0, top: 0, width: '100%', height: '100%' };
+    if (!imageSize || pageSize.width <= 0 || pageSize.height <= 0)
+      return { left: 0, top: 0, width: '100%', height: '100%' };
     const scale = Math.min(pageSize.width / imageSize.width, pageSize.height / imageSize.height);
     const width = (imageSize.width * scale * 100) / pageSize.width;
     const height = (imageSize.height * scale * 100) / pageSize.height;
@@ -93,7 +94,10 @@ export const FlipbookPage = forwardRef<HTMLDivElement, FlipbookPageProps>(functi
           </Box>
         </Box>
       ) : (
-        <Box aria-label={`Preparando página ${pageNumber}`} sx={{ height: '100%', display: 'grid', placeItems: 'center' }}>
+        <Box
+          aria-label={`Preparando página ${pageNumber}`}
+          sx={{ height: '100%', display: 'grid', placeItems: 'center' }}
+        >
           <CircularProgress size={28} />
         </Box>
       )}

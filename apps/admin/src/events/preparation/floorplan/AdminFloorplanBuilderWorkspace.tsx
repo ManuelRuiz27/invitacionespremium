@@ -179,7 +179,8 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     const controller = new AbortController();
     setSvgSource(undefined);
     setSvgSourceError(false);
-    void apiClient.adminEventPreparation.getFloorplanSvgSource(event.clientId, event.id, controller.signal)
+    void apiClient.adminEventPreparation
+      .getFloorplanSvgSource(event.clientId, event.id, controller.signal)
       .then((source) => {
         if (controller.signal.aborted) return;
         setSvgSource(source);
@@ -357,9 +358,17 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     setMessage(undefined);
   };
   const selectSource = (sourceElementId: string) => {
-    if (editing || readOnly || !svgSource?.selectableElements.some((element) => element.sourceElementId === sourceElementId)) return;
+    if (
+      editing ||
+      readOnly ||
+      !svgSource?.selectableElements.some((element) => element.sourceElementId === sourceElementId)
+    )
+      return;
     const mapped = floorplan?.shapes.find((shape) => shape.sourceElementId === sourceElementId);
-    if (mapped) { selectShape(mapped); return; }
+    if (mapped) {
+      selectShape(mapped);
+      return;
+    }
     setSelectedSourceElementId(sourceElementId);
     setSelectedId(undefined);
     setSelectedSeatId(undefined);
@@ -374,16 +383,22 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   const mapSource = async () => {
     if (!floorplan || !selectedSourceElementId || readOnly || refreshRequired || reconciliationError) return;
     const table = mappingPreset === 'Mesa';
-    if (!mappingName.trim()) { showValidationMessage('Escribe el nombre del elemento.'); return; }
-    if (table && floorplan.seatingMode === 'TABLE' && (!Number.isInteger(mappingCapacity) || mappingCapacity < 1)) {
-      showValidationMessage('Indica un número de lugares mayor a cero.'); return;
+    if (!mappingName.trim()) {
+      showValidationMessage('Escribe el nombre del elemento.');
+      return;
     }
-    const saved = await runMutation('saving', () => apiClient.adminEventPreparation.mapFloorplanSvgElement(event.clientId, event.id, {
-      sourceElementId: selectedSourceElementId,
-      kind: table ? 'TABLE' : 'DECORATIVE_ZONE',
-      name: mappingName.trim(),
-      capacity: table && floorplan.seatingMode === 'TABLE' ? mappingCapacity : 0
-    }));
+    if (table && floorplan.seatingMode === 'TABLE' && (!Number.isInteger(mappingCapacity) || mappingCapacity < 1)) {
+      showValidationMessage('Indica un número de lugares mayor a cero.');
+      return;
+    }
+    const saved = await runMutation('saving', () =>
+      apiClient.adminEventPreparation.mapFloorplanSvgElement(event.clientId, event.id, {
+        sourceElementId: selectedSourceElementId,
+        kind: table ? 'TABLE' : 'DECORATIVE_ZONE',
+        name: mappingName.trim(),
+        capacity: table && floorplan.seatingMode === 'TABLE' ? mappingCapacity : 0
+      })
+    );
     if (!saved) return;
     cancel();
     await refreshAfterConfirmedMutation();
@@ -550,17 +565,21 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
       showValidationMessage('Selecciona una imagen JPG, PNG o SVG.');
       return;
     }
-    const updated = await runMutation('uploading', async () => {
-      const asset = svg
-        ? await apiClient.adminEventPreparation.uploadFloorplanSvgAsset(event.clientId, event.id, file)
-        : await apiClient.adminEventPreparation.uploadFloorplanAsset(event.clientId, event.id, file);
-      return floorplan
-        ? apiClient.adminEventPreparation.replaceFloorplanImage(event.clientId, event.id, {
-            imageAssetId: asset.id,
-            ...(confirmSvgMappingDetach ? { confirmSvgMappingDetach: true } : {})
-          })
-        : apiClient.adminEventPreparation.createFloorplan(event.clientId, event.id, { imageAssetId: asset.id });
-    }, { forceAuthoritativeRecovery: true });
+    const updated = await runMutation(
+      'uploading',
+      async () => {
+        const asset = svg
+          ? await apiClient.adminEventPreparation.uploadFloorplanSvgAsset(event.clientId, event.id, file)
+          : await apiClient.adminEventPreparation.uploadFloorplanAsset(event.clientId, event.id, file);
+        return floorplan
+          ? apiClient.adminEventPreparation.replaceFloorplanImage(event.clientId, event.id, {
+              imageAssetId: asset.id,
+              ...(confirmSvgMappingDetach ? { confirmSvgMappingDetach: true } : {})
+            })
+          : apiClient.adminEventPreparation.createFloorplan(event.clientId, event.id, { imageAssetId: asset.id });
+      },
+      { forceAuthoritativeRecovery: true }
+    );
     if (!updated) return;
     setFloorplan(updated);
     setNotFound(false);
@@ -581,7 +600,9 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   };
   const save = async () => {
     if (!draft.name.trim()) {
-      showValidationMessage(draft.kind === 'TABLE' ? 'Escribe el nombre o número de la mesa.' : 'Escribe el nombre de la zona.');
+      showValidationMessage(
+        draft.kind === 'TABLE' ? 'Escribe el nombre o número de la mesa.' : 'Escribe el nombre de la zona.'
+      );
       return;
     }
     if (draft.kind === 'TABLE' && (!Number.isInteger(draft.capacity) || draft.capacity < 1)) {
@@ -775,9 +796,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
           <Typography component="h2" variant="h4">
             Comienza con el plano del lugar
           </Typography>
-          <Typography color="text.secondary">
-            Sube una imagen JPG, PNG o SVG para distribuir Mesas y Zonas.
-          </Typography>
+          <Typography color="text.secondary">Sube una imagen JPG, PNG o SVG para distribuir Mesas y Zonas.</Typography>
           <UploadButton
             label={mutation === 'uploading' ? 'Subiendo plano...' : 'Subir plano'}
             disabled={pending}
@@ -819,49 +838,88 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
       }}
     />
   );
-  const inspector = !finalized && mode === 'mapping-source' ? (
-    <Paper component="section" variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
-      <Stack spacing={2}>
-        <Box>
-          <Typography component="h3" variant="h6">
-            Clasificar {mappingName.trim() || mappingPreset}
-          </Typography>
+  const inspector =
+    !finalized && mode === 'mapping-source' ? (
+      <Paper component="section" variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
+        <Stack spacing={2}>
+          <Box>
+            <Typography component="h3" variant="h6">
+              Clasificar {mappingName.trim() || mappingPreset}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Nuevo elemento del plano
+            </Typography>
+          </Box>
           <Typography variant="body2" color="text.secondary">
-            Nuevo elemento del plano
+            Guarda o cancela antes de seleccionar otro elemento.
           </Typography>
-        </Box>
-        <Typography variant="body2" color="text.secondary">
-          Guarda o cancela antes de seleccionar otro elemento.
-        </Typography>
-        <TextField select label="Tipo de elemento" value={mappingPreset} disabled={readOnly} onChange={(event) => {
-          setMappingPreset(event.target.value);
-          setMappingName(createUniqueFloorplanName(event.target.value, floorplan.shapes.map((shape) => shape.name)));
-        }}>
-          {mappingPresets.map((preset) => <MenuItem key={preset} value={preset}>{preset}</MenuItem>)}
-        </TextField>
-        <TextField label="Nombre" required value={mappingName} disabled={readOnly} onChange={(event) => setMappingName(event.target.value)} />
-        {mappingPreset === 'Mesa' && floorplan.seatingMode === 'TABLE' ? (
-          <TextField label="Número de lugares" required type="number" value={mappingCapacity} disabled={readOnly}
-            slotProps={{ htmlInput: { min: 1, step: 1 } }} onChange={(event) => setMappingCapacity(Number(event.target.value))} />
-        ) : mappingPreset === 'Mesa' ? <Typography variant="body2">La capacidad se calcula a partir de los lugares.</Typography> : null}
-        <Button variant="contained" disabled={readOnly || refreshRequired || reconciliationError} onClick={() => void mapSource()}>Guardar</Button>
-        <Button disabled={pending} onClick={cancel}>Cancelar</Button>
-      </Stack>
-    </Paper>
-  ) : !finalized && editing ? (
-    <ShapeInspector
-      mode={mode}
-      value={draft}
-      disabled={readOnly}
-      mapped={Boolean(selected?.sourceElementId)}
-      {...(selected?.sourceElementId ? { onUnlink: () => void unlinkSource() } : {})}
-      capacityDerived={floorplan?.seatingMode === 'SEAT'}
-      onChange={setDraft}
-      onSave={() => void save()}
-      {...(selected ? { onDuplicate: () => void duplicate(), onDelete: () => void remove() } : {})}
-      onCancel={cancel}
-    />
-  ) : null;
+          <TextField
+            select
+            label="Tipo de elemento"
+            value={mappingPreset}
+            disabled={readOnly}
+            onChange={(event) => {
+              setMappingPreset(event.target.value);
+              setMappingName(
+                createUniqueFloorplanName(
+                  event.target.value,
+                  floorplan.shapes.map((shape) => shape.name)
+                )
+              );
+            }}
+          >
+            {mappingPresets.map((preset) => (
+              <MenuItem key={preset} value={preset}>
+                {preset}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            label="Nombre"
+            required
+            value={mappingName}
+            disabled={readOnly}
+            onChange={(event) => setMappingName(event.target.value)}
+          />
+          {mappingPreset === 'Mesa' && floorplan.seatingMode === 'TABLE' ? (
+            <TextField
+              label="Número de lugares"
+              required
+              type="number"
+              value={mappingCapacity}
+              disabled={readOnly}
+              slotProps={{ htmlInput: { min: 1, step: 1 } }}
+              onChange={(event) => setMappingCapacity(Number(event.target.value))}
+            />
+          ) : mappingPreset === 'Mesa' ? (
+            <Typography variant="body2">La capacidad se calcula a partir de los lugares.</Typography>
+          ) : null}
+          <Button
+            variant="contained"
+            disabled={readOnly || refreshRequired || reconciliationError}
+            onClick={() => void mapSource()}
+          >
+            Guardar
+          </Button>
+          <Button disabled={pending} onClick={cancel}>
+            Cancelar
+          </Button>
+        </Stack>
+      </Paper>
+    ) : !finalized && editing ? (
+      <ShapeInspector
+        mode={mode}
+        value={draft}
+        disabled={readOnly}
+        mapped={Boolean(selected?.sourceElementId)}
+        {...(selected?.sourceElementId ? { onUnlink: () => void unlinkSource() } : {})}
+        capacityDerived={floorplan?.seatingMode === 'SEAT'}
+        onChange={setDraft}
+        onSave={() => void save()}
+        {...(selected ? { onDuplicate: () => void duplicate(), onDelete: () => void remove() } : {})}
+        onCancel={cancel}
+      />
+    ) : null;
   return (
     <Stack spacing={1.5} component="section" aria-labelledby="admin-floorplan-title">
       <Stack
@@ -871,14 +929,14 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
         sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between' }}
       >
         <Box sx={{ flex: '1 1 auto', minWidth: 0 }}>
-            <Typography id="admin-floorplan-title" component="h2" variant="h5">
-              Croquis
+          <Typography id="admin-floorplan-title" component="h2" variant="h5">
+            Croquis
+          </Typography>
+          {floorplan.locked ? (
+            <Typography variant="body2" color="text.secondary">
+              Distribución finalizada. Vista de solo lectura.
             </Typography>
-            {floorplan.locked ? (
-              <Typography variant="body2" color="text.secondary">
-                Distribución finalizada. Vista de solo lectura.
-              </Typography>
-            ) : null}
+          ) : null}
         </Box>
         <Stack direction="row" useFlexGap spacing={1} sx={{ flex: '0 1 auto', flexWrap: 'wrap', alignItems: 'center' }}>
           <Chip
@@ -890,10 +948,10 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
                   : validationMessage
                     ? 'Revisa los datos'
                     : message || refreshRequired
-                  ? 'Error al guardar'
-                  : dirty
-                    ? 'Cambios sin guardar'
-                    : 'Guardado'
+                      ? 'Error al guardar'
+                      : dirty
+                        ? 'Cambios sin guardar'
+                        : 'Guardado'
             }
             color={
               mutation
@@ -901,10 +959,10 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
                 : reconciliationError || validationMessage
                   ? 'warning'
                   : message || refreshRequired
-                  ? 'error'
-                  : dirty
-                    ? 'warning'
-                    : 'success'
+                    ? 'error'
+                    : dirty
+                      ? 'warning'
+                      : 'success'
             }
             variant="outlined"
             aria-live="polite"
@@ -926,7 +984,9 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
               <MenuItem value="SEAT">Por lugar exacto</MenuItem>
             </TextField>
           )}
-          {!finalized ? <UploadButton label="Cambiar plano" disabled={readOnly || editing} onFile={requestUpload} /> : null}
+          {!finalized ? (
+            <UploadButton label="Cambiar plano" disabled={readOnly || editing} onFile={requestUpload} />
+          ) : null}
           <Button
             variant={floorplan.locked ? 'contained' : 'outlined'}
             startIcon={floorplan.locked ? <LockOpenRounded /> : <LockRounded />}
@@ -1013,7 +1073,12 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
           {!finalized && floorplan.seatingMode === 'SEAT' && selected?.kind === 'TABLE' ? (
             <Stack spacing={1} sx={{ mb: 1 }}>
               <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap' }}>
-                <Button size="small" variant="outlined" disabled={readOnly || mode === 'placing-seat'} onClick={addSeat}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  disabled={readOnly || mode === 'placing-seat'}
+                  onClick={addSeat}
+                >
                   Agregar lugar
                 </Button>
                 <Button
@@ -1074,7 +1139,11 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
               selectedId={selectedId}
               selectedSeatId={selectedSeatId}
               selectedSeatIds={selectedSeatIds}
-              draft={(mode === 'creating-draft' || mode === 'editing-existing') && !selected?.sourceElementId ? draft : undefined}
+              draft={
+                (mode === 'creating-draft' || mode === 'editing-existing') && !selected?.sourceElementId
+                  ? draft
+                  : undefined
+              }
               disabled={readOnly}
               onSelect={selectShape}
               onSeatSelect={(seatId, options) => {
@@ -1310,8 +1379,12 @@ function ShapeInspector({
         <Box>
           {mapped ? (
             <>
-              <Typography component="h3" variant="h6">Editar {objectName}</Typography>
-              <Typography variant="body2" color="text.secondary">Elemento vinculado al plano</Typography>
+              <Typography component="h3" variant="h6">
+                Editar {objectName}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Elemento vinculado al plano
+              </Typography>
             </>
           ) : (
             <>
@@ -1349,34 +1422,38 @@ function ShapeInspector({
             onChange={(event) => onChange({ ...value, capacity: Number(event.target.value) })}
           />
         ) : null}
-        {mapped ? <Chip label="Vinculado al plano" variant="outlined" /> : <TextField
-          select
-          label="Forma"
-          value={value.geometry}
-          disabled={disabled}
-          onChange={(event) => {
-            const geometry = event.target.value as Geometry;
-            onChange(
-              normalizeFloorplanShape({
-                ...value,
-                geometry,
-                ...(geometry === 'CIRCLE' || geometry === 'SQUARE'
-                  ? { height: value.width, polygonPoints: null }
-                  : geometry === 'POLYGON'
-                    ? { polygonPoints: initialPolygon }
-                    : { polygonPoints: null })
-              })
-            );
-          }}
-        >
-          {geometryLabels
-            .filter((option) => !option.zonesOnly || !table)
-            .map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-        </TextField>}
+        {mapped ? (
+          <Chip label="Vinculado al plano" variant="outlined" />
+        ) : (
+          <TextField
+            select
+            label="Forma"
+            value={value.geometry}
+            disabled={disabled}
+            onChange={(event) => {
+              const geometry = event.target.value as Geometry;
+              onChange(
+                normalizeFloorplanShape({
+                  ...value,
+                  geometry,
+                  ...(geometry === 'CIRCLE' || geometry === 'SQUARE'
+                    ? { height: value.width, polygonPoints: null }
+                    : geometry === 'POLYGON'
+                      ? { polygonPoints: initialPolygon }
+                      : { polygonPoints: null })
+                })
+              );
+            }}
+          >
+            {geometryLabels
+              .filter((option) => !option.zonesOnly || !table)
+              .map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+          </TextField>
+        )}
         {onUnlink ? (
           <Stack spacing={0.5} sx={{ alignItems: 'flex-start' }}>
             <Button size="small" disabled={disabled} onClick={() => setMoreOptionsOpen((open) => !open)}>

@@ -37,8 +37,12 @@ export function FloorplanKonvaRenderer(
     | undefined
   >(undefined);
   const stageSize = { width: props.width, height: props.height };
-  const selectedIsMapped = props.floorplan.shapes.some((shape) => shape.id === props.selectedId && shape.sourceElementId &&
-    props.svgSource?.selectableElements.some((element) => element.sourceElementId === shape.sourceElementId));
+  const selectedIsMapped = props.floorplan.shapes.some(
+    (shape) =>
+      shape.id === props.selectedId &&
+      shape.sourceElementId &&
+      props.svgSource?.selectableElements.some((element) => element.sourceElementId === shape.sourceElementId)
+  );
   const selected = selectedIsMapped ? undefined : props.draft;
   const selectedRect = selected ? shapeToStageRect(selected, stageSize) : undefined;
   const selectedOccupancy = props.floorplan.shapes.find((shape) => shape.id === props.selectedId)?.occupancy ?? 0;
@@ -153,7 +157,9 @@ export function FloorplanKonvaRenderer(
         />
         {props.svgSource?.selectableElements.map((element) => {
           const mapped = props.floorplan.shapes.find((shape) => shape.sourceElementId === element.sourceElementId);
-          const sourceSelected = props.selectedSourceElementId === element.sourceElementId || Boolean(mapped && props.selectedId === mapped.id);
+          const sourceSelected =
+            props.selectedSourceElementId === element.sourceElementId ||
+            Boolean(mapped && props.selectedId === mapped.id);
           const tableState = mapped
             ? resolveSvgTableVisualState(props.floorplan, mapped, {
                 selected: sourceSelected,
@@ -165,51 +171,63 @@ export function FloorplanKonvaRenderer(
             if (mapped) props.onSelect(mapped);
             else props.onSourceSelect?.(element.sourceElementId);
           };
-          const stateStroke = tableState?.occupancyState === 'FULL'
-            ? '#a03d2f'
-            : tableState?.occupancyState === 'PARTIAL'
-              ? '#9a6700'
-              : floorplanColors.accent;
+          const stateStroke =
+            tableState?.occupancyState === 'FULL'
+              ? '#a03d2f'
+              : tableState?.occupancyState === 'PARTIAL'
+                ? '#9a6700'
+                : floorplanColors.accent;
           return (
-          <Fragment key={element.sourceElementId}>
-          <Rect
-            key={element.sourceElementId}
-            name="floorplan-svg-source-element"
-            x={element.bbox.x * props.width}
-            y={element.bbox.y * props.height}
-            width={element.bbox.width * props.width}
-            height={element.bbox.height * props.height}
-            fill="rgba(0,0,0,0)"
-            {...(tableState
-              ? {
-                  stroke: sourceSelected ? floorplanColors.accent : stateStroke,
-                  strokeWidth: sourceSelected ? 4 : 3,
-                  dash: sourceSelected ? [] : tableState.occupancyState === 'PARTIAL' ? [8, 5] : tableState.occupancyState === 'FULL' ? [2, 2] : [],
-                  opacity: props.readOnly || props.disabled ? 0.72 : 1
+            <Fragment key={element.sourceElementId}>
+              <Rect
+                key={element.sourceElementId}
+                name="floorplan-svg-source-element"
+                x={element.bbox.x * props.width}
+                y={element.bbox.y * props.height}
+                width={element.bbox.width * props.width}
+                height={element.bbox.height * props.height}
+                fill="rgba(0,0,0,0)"
+                {...(tableState
+                  ? {
+                      stroke: sourceSelected ? floorplanColors.accent : stateStroke,
+                      strokeWidth: sourceSelected ? 4 : 3,
+                      dash: sourceSelected
+                        ? []
+                        : tableState.occupancyState === 'PARTIAL'
+                          ? [8, 5]
+                          : tableState.occupancyState === 'FULL'
+                            ? [2, 2]
+                            : [],
+                      opacity: props.readOnly || props.disabled ? 0.72 : 1
+                    }
+                  : sourceSelected
+                    ? { stroke: floorplanColors.accent, strokeWidth: 3 }
+                    : mapped
+                      ? { stroke: floorplanColors.accent, strokeWidth: 2, dash: [6, 4] }
+                      : { strokeWidth: 0 })}
+                listening={
+                  Boolean(mapped || props.onSourceSelect) && !props.disabled && !selected && !props.captureCanvasClicks
                 }
-              : sourceSelected
-              ? { stroke: floorplanColors.accent, strokeWidth: 3 }
-              : mapped ? { stroke: floorplanColors.accent, strokeWidth: 2, dash: [6, 4] } : { strokeWidth: 0 })}
-            listening={Boolean(mapped || props.onSourceSelect) && !props.disabled && !selected && !props.captureCanvasClicks}
-            onClick={selectElement}
-            onTap={selectElement}
-          />
-          {tableState && element.bbox.width * props.width >= 56 && element.bbox.height * props.height >= 22 ? (
-            <Text
-              name="floorplan-svg-table-status"
-              x={element.bbox.x * props.width + 4}
-              y={element.bbox.y * props.height + 4}
-              width={Math.max(0, element.bbox.width * props.width - 8)}
-              text={tableState.label}
-              align="center"
-              fontSize={Math.max(8, Math.min(12, element.bbox.width * props.width / 8))}
-              fontStyle="bold"
-              fill={stateStroke}
-              listening={false}
-            />
-          ) : null}
-          </Fragment>
-        ); })}
+                onClick={selectElement}
+                onTap={selectElement}
+              />
+              {tableState && element.bbox.width * props.width >= 56 && element.bbox.height * props.height >= 22 ? (
+                <Text
+                  name="floorplan-svg-table-status"
+                  x={element.bbox.x * props.width + 4}
+                  y={element.bbox.y * props.height + 4}
+                  width={Math.max(0, element.bbox.width * props.width - 8)}
+                  text={tableState.label}
+                  align="center"
+                  fontSize={Math.max(8, Math.min(12, (element.bbox.width * props.width) / 8))}
+                  fontStyle="bold"
+                  fill={stateStroke}
+                  listening={false}
+                />
+              ) : null}
+            </Fragment>
+          );
+        })}
         {props.snap
           ? Array.from({ length: 19 }, (_, index) => (index + 1) / 20).flatMap((position) => [
               <Line
@@ -229,7 +247,11 @@ export function FloorplanKonvaRenderer(
             ])
           : null}
         {props.floorplan.shapes.map((shape) => {
-          if (shape.sourceElementId && props.svgSource?.selectableElements.some((element) => element.sourceElementId === shape.sourceElementId)) return null;
+          if (
+            shape.sourceElementId &&
+            props.svgSource?.selectableElements.some((element) => element.sourceElementId === shape.sourceElementId)
+          )
+            return null;
           if (selected && props.selectedId === shape.id) return null;
           return (
             <KonvaShapeNode

@@ -3,12 +3,30 @@ import { describe, expect, it } from 'vitest';
 import { resolveSvgTableVisualState } from './floorplan-svg-table-state';
 
 const table: FloorplanShape = {
-  id: 'svg-table', sourceElementId: 'table-source', name: 'Mesa SVG', kind: 'TABLE', geometry: 'RECTANGLE',
-  capacity: 8, occupancy: 0, availableCapacity: 8, x: 0.1, y: 0.1, width: 0.2, height: 0.2, rotation: 0, polygonPoints: null
+  id: 'svg-table',
+  sourceElementId: 'table-source',
+  name: 'Mesa SVG',
+  kind: 'TABLE',
+  geometry: 'RECTANGLE',
+  capacity: 8,
+  occupancy: 0,
+  availableCapacity: 8,
+  x: 0.1,
+  y: 0.1,
+  width: 0.2,
+  height: 0.2,
+  rotation: 0,
+  polygonPoints: null
 };
 const floorplan: Floorplan = {
-  id: 'floorplan', eventId: 'event', image: { fileAssetId: 'asset', contentPath: '/asset', sourceType: 'SVG' },
-  locked: false, lockedAt: null, shapes: [table], createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z'
+  id: 'floorplan',
+  eventId: 'event',
+  image: { fileAssetId: 'asset', contentPath: '/asset', sourceType: 'SVG' },
+  locked: false,
+  lockedAt: null,
+  shapes: [table],
+  createdAt: '2026-01-01T00:00:00Z',
+  updatedAt: '2026-01-01T00:00:00Z'
 };
 
 describe('resolveSvgTableVisualState', () => {

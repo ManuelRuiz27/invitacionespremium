@@ -64,7 +64,12 @@ export function FloorplanInventory({
               }}
             >
               <Stack spacing={1.25}>
-                <Stack direction="row" useFlexGap spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                <Stack
+                  direction="row"
+                  useFlexGap
+                  spacing={1}
+                  sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}
+                >
                   <Typography variant="subtitle2">Tipo {index + 1}</Typography>
                   <IconButton
                     aria-label={`Eliminar configuración ${index + 1}`}
@@ -155,7 +160,12 @@ export function FloorplanInventory({
         <Divider />
 
         <Stack spacing={1}>
-          <Stack direction="row" useFlexGap spacing={1} sx={{ justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap' }}>
+          <Stack
+            direction="row"
+            useFlexGap
+            spacing={1}
+            sx={{ justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap' }}
+          >
             <Typography variant="body2" color="text.secondary">
               Total preparado
             </Typography>

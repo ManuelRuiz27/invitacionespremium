@@ -20,31 +20,39 @@ export function resolveSvgTableVisualState(
   options: { selected: boolean; readOnly: boolean }
 ): SvgTableVisualState | undefined {
   if (shape.kind !== 'TABLE' || !shape.sourceElementId) return undefined;
-  const capacity = floorplan.seatingMode === 'SEAT'
-    ? (floorplan.seats ?? []).filter((seat) => seat.floorplanShapeId === shape.id && !seat.isBlocked).length
-    : shape.capacity;
+  const capacity =
+    floorplan.seatingMode === 'SEAT'
+      ? (floorplan.seats ?? []).filter((seat) => seat.floorplanShapeId === shape.id && !seat.isBlocked).length
+      : shape.capacity;
   const occupancy = Math.max(0, Math.min(shape.occupancy, capacity));
-  const occupancyState: SvgTableOccupancyState = occupancy === 0
-    ? 'EMPTY'
-    : capacity > 0 && occupancy >= capacity
-      ? 'FULL'
-      : 'PARTIAL';
-  const label = capacity === 0
-    ? 'Sin lugares activos'
-    : occupancyState === 'EMPTY'
-      ? `Vacía · 0 de ${capacity}`
-      : occupancyState === 'FULL'
-        ? `Completa · ${capacity} de ${capacity}`
-        : `Parcial · ${occupancy} de ${capacity}`;
-  const modifiers = [label, options.selected ? 'Seleccionada' : undefined, options.readOnly ? 'Solo lectura' : undefined]
-    .filter((value): value is string => Boolean(value));
+  const occupancyState: SvgTableOccupancyState =
+    occupancy === 0 ? 'EMPTY' : capacity > 0 && occupancy >= capacity ? 'FULL' : 'PARTIAL';
+  const label =
+    capacity === 0
+      ? 'Sin lugares activos'
+      : occupancyState === 'EMPTY'
+        ? `Vacía · 0 de ${capacity}`
+        : occupancyState === 'FULL'
+          ? `Completa · ${capacity} de ${capacity}`
+          : `Parcial · ${occupancy} de ${capacity}`;
+  const modifiers = [
+    label,
+    options.selected ? 'Seleccionada' : undefined,
+    options.readOnly ? 'Solo lectura' : undefined
+  ].filter((value): value is string => Boolean(value));
   return {
     capacity,
     occupancy,
     occupancyState,
     label: modifiers.join(' · '),
     accessibleLabel: `${tableDisplayName(shape.name)}, ${modifiers.join(', ')}`,
-    borderStyle: options.selected ? 'double' : occupancyState === 'PARTIAL' ? 'dashed' : occupancyState === 'FULL' ? 'double' : 'solid'
+    borderStyle: options.selected
+      ? 'double'
+      : occupancyState === 'PARTIAL'
+        ? 'dashed'
+        : occupancyState === 'FULL'
+          ? 'double'
+          : 'solid'
   };
 }
 

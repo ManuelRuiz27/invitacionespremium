@@ -292,14 +292,30 @@ export function createAdminEventPreparationClient(request: ApiRequester) {
         { path: `${base(clientId, eventId)}/floorplan/svg-source`, response: 'json', ...withSignal(signal) },
         record
       ),
-    mapFloorplanSvgElement: (clientId: string, eventId: string, body: AdminFloorplanSvgMappingInput, signal?: AbortSignal) =>
+    mapFloorplanSvgElement: (
+      clientId: string,
+      eventId: string,
+      body: AdminFloorplanSvgMappingInput,
+      signal?: AbortSignal
+    ) =>
       request<AdminFloorplanShape>(
-        { method: 'POST', path: `${base(clientId, eventId)}/floorplan/svg-mappings`, body, response: 'json', ...withSignal(signal) },
+        {
+          method: 'POST',
+          path: `${base(clientId, eventId)}/floorplan/svg-mappings`,
+          body,
+          response: 'json',
+          ...withSignal(signal)
+        },
         record
       ),
     unlinkFloorplanSvgMapping: (clientId: string, eventId: string, shapeId: string, signal?: AbortSignal) =>
       request<AdminFloorplanShape>(
-        { method: 'DELETE', path: `${base(clientId, eventId)}/floorplan/shapes/${id(shapeId)}/svg-mapping`, response: 'json', ...withSignal(signal) },
+        {
+          method: 'DELETE',
+          path: `${base(clientId, eventId)}/floorplan/shapes/${id(shapeId)}/svg-mapping`,
+          response: 'json',
+          ...withSignal(signal)
+        },
         record
       ),
     createFloorplan: (clientId: string, eventId: string, body: AdminFloorplanImageInput, signal?: AbortSignal) =>

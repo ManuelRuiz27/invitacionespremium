@@ -258,7 +258,11 @@ export class AdminFloorplanController {
     @Req() request: AuthenticatedRequest
   ): Promise<FloorplanShapeResponseDto> {
     return this.floorplan.mapSvgElementAdministrative(
-      parseFloorplanId(clientId), parseFloorplanId(eventId), parseSvgMapping(body), principal, request.operationId
+      parseFloorplanId(clientId),
+      parseFloorplanId(eventId),
+      parseSvgMapping(body),
+      principal,
+      request.operationId
     );
   }
 
@@ -273,7 +277,11 @@ export class AdminFloorplanController {
     @Req() request: AuthenticatedRequest
   ): Promise<FloorplanShapeResponseDto> {
     return this.floorplan.unlinkSvgElementAdministrative(
-      parseFloorplanId(clientId), parseFloorplanId(eventId), parseFloorplanId(shapeId), principal, request.operationId
+      parseFloorplanId(clientId),
+      parseFloorplanId(eventId),
+      parseFloorplanId(shapeId),
+      principal,
+      request.operationId
     );
   }
 
