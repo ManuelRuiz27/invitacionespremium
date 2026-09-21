@@ -4,8 +4,16 @@ import { Box, Typography } from '@mui/material';
 
 const steps = [
   ['01', 'Nos cuentas tu evento', 'Definimos contigo la experiencia que necesitan tus invitados.'],
-  ['02', 'Nosotros lo preparamos', 'Configuramos la invitación, las mesas y la operación digital antes de entregártela.'],
-  ['03', 'Tú organizas', 'Gestionas invitados, acompañantes, confirmaciones y asignaciones desde tu espacio de trabajo.'],
+  [
+    '02',
+    'Nosotros lo preparamos',
+    'Configuramos la invitación, las mesas y la operación digital antes de entregártela.'
+  ],
+  [
+    '03',
+    'Tú organizas',
+    'Gestionas invitados, acompañantes, confirmaciones y asignaciones desde tu espacio de trabajo.'
+  ],
   ['04', 'Tu equipo recibe', 'Habilitas accesos temporales para registrar entradas el día del evento.']
 ] as const;
 

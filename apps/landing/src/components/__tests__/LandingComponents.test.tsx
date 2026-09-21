@@ -31,7 +31,10 @@ describe('M01 Managed landing presentation', () => {
   });
 
   it('uses the Managed Hero promise and routes its CTAs to active sections', () => {
-    document.body.insertAdjacentHTML('beforeend', '<section id="producto"></section><section id="servicios"></section>');
+    document.body.insertAdjacentHTML(
+      'beforeend',
+      '<section id="producto"></section><section id="servicios"></section>'
+    );
     const product = document.getElementById('producto')!;
     const services = document.getElementById('servicios')!;
     product.scrollIntoView = vi.fn();
@@ -97,10 +100,7 @@ describe('M01 Managed landing presentation', () => {
     useDesktopMedia();
     const openCommercial = vi.fn();
     renderWithTheme(
-      <LandingHeader
-        onOpenCommercial={openCommercial}
-        config={createLandingConfig({}, { development: false })}
-      />
+      <LandingHeader onOpenCommercial={openCommercial} config={createLandingConfig({}, { development: false })} />
     );
     fireEvent.click(screen.getByRole('button', { name: content.cta.primaryCta }));
     expect(openCommercial).toHaveBeenCalledOnce();

@@ -34,11 +34,7 @@ export function App() {
 
       {commercialModalOpen && (
         <Suspense fallback={null}>
-          <CommercialLeadModal
-            open
-            opportunityType="PLANNER_AGENCY"
-            onClose={() => setCommercialModalOpen(false)}
-          />
+          <CommercialLeadModal open opportunityType="PLANNER_AGENCY" onClose={() => setCommercialModalOpen(false)} />
         </Suspense>
       )}
     </Box>

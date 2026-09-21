@@ -46,8 +46,7 @@ try {
           bodyText.includes(name)
         ),
         managedCopy:
-          bodyText.includes('Nosotros preparamos. Tú operas el evento.') &&
-          bodyText.includes('Solicitar una demo'),
+          bodyText.includes('Nosotros preparamos. Tú operas el evento.') && bodyText.includes('Solicitar una demo'),
         futureCommercialCopyHidden:
           !/créditos|planner partner|crear cuenta de planner|álbum del evento|reporte del evento/i.test(bodyText)
       };
