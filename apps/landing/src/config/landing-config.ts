@@ -9,31 +9,29 @@ export interface LandingConfigOptions {
 }
 
 const productName = 'InvitacionesPremium';
-const seoTitle = `${productName} — Gestión digital de invitados para tu evento`;
+const seoTitle = `${productName} — Gestión digital de invitados para Planners`;
 const seoDescription =
-  'Organiza invitaciones, confirmaciones, mesas y accesos con un servicio que acompaña a tus invitados hasta su llegada al evento.';
+  'InvitacionesPremium prepara la operación digital del evento para que el Planner gestione invitaciones, confirmaciones, mesas y accesos.';
 
 const commercialContent = {
   brand: {
     name: productName,
-    tagline: 'Gestión digital de invitados para eventos.'
+    tagline: 'Gestión digital de invitados para Planners.'
   },
   nav: [
     { label: 'Producto', href: '#producto' },
     { label: 'Cómo funciona', href: '#como-funciona' },
     { label: 'Servicios', href: '#servicios' },
-    { label: 'Precios', href: '#precios' },
-    { label: 'Planners', href: '#planners' },
-    { label: 'Salones y jardines', href: '#venues' },
+    { label: 'Para Planners', href: '#planners' },
     { label: 'FAQ', href: '#faq' }
   ],
   hero: {
-    badge: 'De la invitación a la llegada',
-    title: 'Invitados organizados. Un evento más fácil de operar.',
+    badge: 'Servicio gestionado para Planners',
+    title: 'Tú organizas el evento. Nosotros preparamos la operación digital.',
     subtitle:
-      'Nos encargamos de la gestión digital de tus invitados, desde la invitación y las confirmaciones hasta las mesas y el acceso al evento.',
+      'Te entregamos un evento listo para trabajar para que gestiones invitados, confirmaciones, mesas y accesos sin encargarte de la configuración técnica.',
     primaryCta: 'Ver cómo funciona',
-    secondaryCta: 'Ver servicios y precios'
+    secondaryCta: 'Conocer los servicios'
   },
   problem: {
     title: 'Organizar un Evento no debería significar perseguir mensajes y listas',
@@ -78,42 +76,40 @@ const commercialContent = {
         description: 'Tu equipo de recepción consulta cada acceso y registra la entrada.'
       },
       {
-        title: 'Un cierre con resultados claros',
-        description: 'Al terminar, cuentas con un reporte y, cuando aplica, un álbum para compartir.'
+        title: 'Una operación conectada hasta el cierre',
+        description: 'Invitados, confirmaciones, mesas y accesos permanecen dentro del mismo flujo operativo.'
       }
     ]
   },
   services: {
-    title: 'Elige el servicio para tu evento',
-    subtitle: 'Tres maneras de acompañar a tus invitados, con el mismo cuidado de principio a fin.',
+    title: 'Tres formas de acompañar a tus invitados',
+    subtitle:
+      'La experiencia de invitación puede cambiar; la gestión de invitados, mesas y accesos permanece conectada.',
     items: [
       {
         code: 'PHYSICAL_QR',
         name: 'Gestión de Invitados',
         description:
-          'Todo lo necesario para organizar invitados y accesos, sin contratar una invitación personalizada.',
+          'Para eventos que ya cuentan con su propia invitación y necesitan ordenar invitados, mesas y acceso.',
         features: [
-          'Control de invitados y accesos',
-          'Confirmaciones coordinadas según la modalidad contratada',
+          'Gestión de invitados y acompañantes',
           'Organización de mesas cuando aplica',
-          'Accesos digitales',
-          'Equipo de recepción y control de entrada',
-          'Reporte del evento',
+          'Accesos temporales para tu equipo de recepción',
+          'Búsqueda y registro de entrada',
           'No incluye formulario público de confirmación'
         ]
       },
       {
         code: 'FLYER',
         name: 'Invitación Digital',
-        description: 'Una invitación personalizada conectada con toda la gestión de tus invitados.',
+        description: 'Una invitación personalizada conectada con toda la operación de tus invitados.',
         features: [
-          'Diseño digital personalizado',
+          'Invitación digital preparada por nuestro equipo',
           'Confirmaciones y acompañantes',
           'Gestión de invitados',
           'Organización de mesas',
-          'Accesos y control de entrada',
-          'Álbum del evento',
-          'Hasta dos rondas consolidadas de cambios'
+          'Accesos temporales para Staff',
+          'Registro de entrada'
         ]
       },
       {
@@ -123,11 +119,11 @@ const commercialContent = {
         features: [
           'Hasta 10 páginas',
           'Experiencia visual premium',
-          'Confirmaciones e invitados',
+          'Confirmaciones y acompañantes',
+          'Gestión de invitados',
           'Organización de mesas',
-          'Accesos y control de entrada',
-          'Álbum del evento',
-          'Hasta dos rondas consolidadas de cambios'
+          'Accesos temporales para Staff',
+          'Registro de entrada'
         ]
       }
     ]
@@ -138,83 +134,80 @@ const commercialContent = {
     note: 'Precio por evento · MXN'
   },
   planners: {
-    title: 'Tú organizas el evento. Nosotros nos encargamos de la gestión digital de tus invitados.',
+    title: 'Nosotros preparamos. Tú operas el evento.',
     subtitle:
-      'Te entregamos el servicio preparado para trabajar: invitación cuando aplica, confirmaciones, organización de mesas y accesos. Tú mantienes el control con tu cliente y puedes generar un margen adicional por cada evento.',
+      'InvitacionesPremium deja lista la parte técnica. Tú decides quién asiste, revisas confirmaciones, organizas mesas y habilitas a tu equipo de recepción.',
     bulletPoints: [
       {
-        title: 'Menos trabajo administrativo',
-        description: 'Centraliza invitados, confirmaciones, cambios y mesas.'
+        title: 'Preparación técnica incluida',
+        description: 'Configuramos la experiencia digital y la estructura necesaria antes de entregarte el evento.'
       },
       {
-        title: 'Mantienes el control',
-        description: 'Tu cliente sigue siendo tu cliente y tú conservas las decisiones del evento.'
+        title: 'Tus decisiones siguen siendo tuyas',
+        description: 'Tú controlas invitados, acompañantes, confirmaciones y distribución en mesas.'
       },
       {
-        title: 'Generas un ingreso adicional',
-        description: 'Puedes acceder a condiciones Partner y definir el precio que presentas a tu cliente.'
+        title: 'Acceso listo para tu equipo',
+        description: 'Creas accesos temporales para que tu Staff opere únicamente ese evento.'
       }
     ],
-    commercialCta: 'Quiero trabajar como Planner Partner',
-    registerCta: 'Crear cuenta de Planner',
-    notice: 'Crear una cuenta Planner no asigna automáticamente condiciones Partner.'
+    commercialCta: 'Solicitar una demo',
+    notice: 'La solicitud inicia una conversación comercial. No crea una cuenta ni activa servicios automáticamente.'
   },
   venue: {
-    title: 'Agrega gestión digital de invitados a tus paquetes sin aumentar tu carga de trabajo.',
+    title: 'Soluciones para salones y jardines',
     subtitle:
-      'Tus clientes pueden organizar invitados y mesas, mientras tu equipo recibe el evento preparado para controlar accesos el día de la celebración.',
+      'Esta modalidad se evalúa de forma comercial y no forma parte del lanzamiento M01 Managed para Planner independiente.',
     bulletPoints: [
       {
-        title: 'Un servicio más para tus paquetes',
-        description: 'Integra la operación digital sin desarrollar tu propia tecnología.'
+        title: 'Mismo núcleo operativo',
+        description: 'La modalidad futura reutiliza la gestión de invitados, mesas y acceso del producto.'
       },
       {
-        title: 'Una recepción más organizada',
-        description: 'Tu equipo recibe información y accesos preparados para operar.'
+        title: 'Organización y ownership explícitos',
+        description: 'Cualquier extensión debe conservar los roles y límites definidos para Organizaciones.'
       },
       {
-        title: 'Una solución que puedes repetir',
-        description: 'Utiliza el servicio evento tras evento.'
-      },
-      {
-        title: 'Mejor tarifa con mayor volumen',
-        description: 'Las condiciones mejoran conforme aumenta el número real de eventos operados.'
+        title: 'Sin capacidad implícita por volumen',
+        description: 'El volumen comercial no habilita permisos ni funciones adicionales por sí solo.'
       }
     ],
-    cta: 'Quiero ofrecerlo en mi salón',
-    notice: 'La solicitud inicia una conversación comercial; no crea una cuenta ni asigna una tarifa automáticamente.'
+    cta: 'Hablar con nuestro equipo',
+    notice: 'Esta modalidad no forma parte de la landing activa M01.'
   },
   faq: {
     title: 'Preguntas frecuentes',
-    subtitle: 'Respuestas sobre el alcance comercial y operativo de InvitacionesPremium.',
+    subtitle: 'Respuestas sobre el servicio Managed que hoy ofrecemos a Planners independientes.',
     items: [
       {
-        question: '¿Cómo se define el precio estándar?',
-        answer: 'Por el servicio elegido y la capacidad del evento: hasta 50, 100 o 150 personas.'
-      },
-      {
-        question: '¿Qué es un crédito?',
+        question: '¿Qué prepara InvitacionesPremium?',
         answer:
-          'Es la unidad financiera del sistema. Un crédito equivale a $20 MXN; el precio público se muestra principalmente en MXN.'
+          'Preparamos la parte técnica del evento: la experiencia digital, la invitación cuando aplica y la estructura necesaria para que puedas operar invitados, mesas y accesos.'
       },
       {
-        question: '¿Registrarme como Planner me da tarifa Partner?',
+        question: '¿Qué administra el Planner?',
         answer:
-          'No. El registro de cuenta y la clasificación Partner son procesos distintos y requieren condiciones comerciales explícitas.'
+          'El Planner mantiene invitados y acompañantes, distribuye invitaciones, revisa confirmaciones, organiza personas en mesas y crea accesos temporales para su Staff.'
       },
       {
-        question: '¿Cómo funciona para salones y jardines?',
+        question: '¿Necesito configurar toda la plataforma?',
         answer:
-          'Revisamos el volumen real de eventos para ofrecer condiciones comerciales. La solicitud no crea una cuenta automáticamente.'
+          'No. El lanzamiento actual es un servicio gestionado: InvitacionesPremium prepara el evento y te lo entrega listo para la operación.'
       },
       {
-        question: '¿Qué incluye Gestión de Invitados?',
+        question: '¿Cómo funciona el acceso el día del evento?',
         answer:
-          'Incluye organización de accesos, mesas cuando aplican, equipo de recepción, control de entrada y reporte. No incluye formulario público de confirmación ni álbum.'
+          'El Planner habilita accesos temporales para su equipo. Staff puede buscar o escanear, identificar a los asistentes y registrar su entrada únicamente dentro de ese evento.'
       },
       {
-        question: '¿Cuáles son los límites por Evento?',
-        answer: 'Cada evento admite como máximo 150 invitados y tres accesos activos para el equipo de recepción.'
+        question: '¿Puedo crear una cuenta y preparar eventos por mi cuenta?',
+        answer:
+          'No en el lanzamiento M01 actual. El autoservicio se conserva como capacidad futura; el alta y la preparación se realizan hoy como parte del servicio gestionado.'
+      },
+      {
+        question: '¿Cómo se contrata?',
+        answer:
+          'La contratación se acuerda directamente con InvitacionesPremium. En esta fase no dependemos de compra de créditos, checkout ni pagos automáticos dentro de la plataforma.'
       }
     ]
   },
@@ -254,23 +247,19 @@ const commercialContent = {
     ]
   },
   registration: {
-    title: 'Crear cuenta de Planner',
-    intro: 'Crea tu cuenta de Planner. El registro no asigna automáticamente condiciones Partner.',
-    success: 'Tu cuenta fue creada. Inicia sesión para continuar con la configuración de tu perfil.'
+    title: 'Registro de Planner',
+    intro: 'El alta de Planner forma parte actualmente del proceso comercial de InvitacionesPremium.',
+    success: 'Tu cuenta fue creada. Inicia sesión para continuar.'
   },
   cta: {
-    title: 'Tu evento puede ser mucho más fácil de organizar.',
-    description: 'Elige el camino que mejor describe lo que necesitas.',
-    eventLabel: 'Estoy organizando un evento',
-    primaryCta: 'Ver servicios y precios',
-    plannerLabel: 'Soy Planner o agencia',
-    secondaryCta: 'Quiero trabajar como Partner',
-    venueLabel: 'Tengo un salón o jardín',
-    venueLink: 'Quiero ofrecerlo en mis eventos'
+    title: '¿Organizas eventos y quieres operar invitados sin cargar con la parte técnica?',
+    description:
+      'Solicita una demo del flujo Managed y revisa cómo InvitacionesPremium prepara el evento para que tú puedas operarlo.',
+    primaryCta: 'Solicitar una demo'
   },
   footer: {
     copyright: `© 2026 ${productName}. Todos los derechos reservados.`,
-    legalNotice: 'Gestión digital de invitados, desde la invitación hasta su llegada al evento.'
+    legalNotice: 'Servicio gestionado de invitados, confirmaciones, mesas y accesos para eventos.'
   },
   limits: {
     contactsPerEvent: 150,

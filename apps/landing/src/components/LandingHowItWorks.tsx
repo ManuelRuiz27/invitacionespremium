@@ -3,10 +3,10 @@ import { LandingContainer, LandingSectionIntro } from './primitives';
 import { Box, Typography } from '@mui/material';
 
 const steps = [
-  ['01', 'Eliges el servicio', 'Gestión de Invitados, Invitación Digital o Invitación Premium.'],
-  ['02', 'Nosotros lo preparamos', 'Configuramos la experiencia de acuerdo con tu evento.'],
-  ['03', 'Tú organizas a tus invitados', 'Mantienes el control de confirmaciones, acompañantes y mesas.'],
-  ['04', 'Recibes a tus invitados', 'Tu equipo utiliza los accesos preparados para registrar su llegada.']
+  ['01', 'Nos cuentas tu evento', 'Definimos contigo la experiencia que necesitan tus invitados.'],
+  ['02', 'Nosotros lo preparamos', 'Configuramos la invitación, las mesas y la operación digital antes de entregártela.'],
+  ['03', 'Tú organizas', 'Gestionas invitados, acompañantes, confirmaciones y asignaciones desde tu espacio de trabajo.'],
+  ['04', 'Tu equipo recibe', 'Habilitas accesos temporales para registrar entradas el día del evento.']
 ] as const;
 
 export function LandingHowItWorks() {
@@ -20,8 +20,8 @@ export function LandingHowItWorks() {
       <LandingContainer>
         <LandingSectionIntro
           headingId="landing-how-heading"
-          title="Cómo funciona"
-          subtitle="Cuatro pasos para llegar al evento con tus invitados organizados."
+          title="Un servicio preparado para que tú operes"
+          subtitle="InvitacionesPremium se encarga de la preparación técnica; tú mantienes las decisiones del evento."
           align="left"
           dark
         />

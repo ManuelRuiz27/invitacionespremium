@@ -1,6 +1,5 @@
 import { App } from '../../App';
 import { createLandingConfig, getLandingConfig } from '../../config/landing-config';
-import { publicPricingFixture } from '../../test/pricing-fixtures';
 import { AppThemeProvider } from '@invitaciones/ui';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
@@ -8,51 +7,46 @@ import { describe, expect, it, vi } from 'vitest';
 import { LandingCta } from '../LandingCta';
 import { LandingHeader } from '../LandingHeader';
 import { LandingHero } from '../LandingHero';
-import { LandingPricing } from '../LandingPricing';
 import { LandingProductProof } from '../LandingProductProof';
 import { LandingServices } from '../LandingServices';
-
-vi.mock('../../use-public-pricing', () => ({
-  usePublicPricing: () => ({ state: { status: 'unavailable' }, retry: vi.fn() })
-}));
 
 const content = getLandingConfig();
 const renderWithTheme = (node: ReactNode) => render(<AppThemeProvider>{node}</AppThemeProvider>);
 
-describe('LAND-03B commercial presentation', () => {
-  it('publishes the approved information architecture', () => {
+describe('M01 Managed landing presentation', () => {
+  it('publishes only the active M01 information architecture', () => {
     expect(content.nav.map((item) => item.href)).toEqual([
       '#producto',
       '#como-funciona',
       '#servicios',
-      '#precios',
       '#planners',
-      '#venues',
       '#faq'
     ]);
     renderWithTheme(<App />);
     for (const item of content.nav) expect(document.querySelector(item.href)).toBeInTheDocument();
-    expect(document.querySelector('#problema')).toBeNull();
-    expect(document.querySelector('#demo')).toBeNull();
+    expect(document.querySelector('#precios')).toBeNull();
+    expect(document.querySelector('#venues')).toBeNull();
+    expect(screen.queryByText(/Crear cuenta de Planner/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Planner Partner/i)).not.toBeInTheDocument();
   });
 
-  it('uses the approved Hero promise and routes both CTAs', () => {
-    document.body.insertAdjacentHTML('beforeend', '<section id="producto"></section><section id="precios"></section>');
+  it('uses the Managed Hero promise and routes its CTAs to active sections', () => {
+    document.body.insertAdjacentHTML('beforeend', '<section id="producto"></section><section id="servicios"></section>');
     const product = document.getElementById('producto')!;
-    const pricing = document.getElementById('precios')!;
+    const services = document.getElementById('servicios')!;
     product.scrollIntoView = vi.fn();
-    pricing.scrollIntoView = vi.fn();
+    services.scrollIntoView = vi.fn();
     renderWithTheme(<LandingHero />);
     expect(
       screen.getByRole('heading', {
         level: 1,
-        name: 'Invitados organizados. Un evento más fácil de operar.'
+        name: 'Tú organizas el evento. Nosotros preparamos la operación digital.'
       })
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Ver cómo funciona' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Ver servicios y precios' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Conocer los servicios' }));
     expect(product.scrollIntoView).toHaveBeenCalledOnce();
-    expect(pricing.scrollIntoView).toHaveBeenCalledOnce();
+    expect(services.scrollIntoView).toHaveBeenCalledOnce();
   });
 
   it('shows the five product-proof moments with real-image alternatives', () => {
@@ -69,7 +63,7 @@ describe('LAND-03B commercial presentation', () => {
     expect(screen.getAllByRole('img')).toHaveLength(6);
   });
 
-  it('keeps exactly three contractual paid SKUs', () => {
+  it('keeps the three operational services without promising Reports or Album', () => {
     expect(content.services.items.map((service) => service.code)).toEqual(['PHYSICAL_QR', 'FLYER', 'FLIPBOOK']);
     expect(content.services.items.map((service) => service.name)).toEqual([
       'Gestión de Invitados',
@@ -78,39 +72,38 @@ describe('LAND-03B commercial presentation', () => {
     ]);
     renderWithTheme(<LandingServices />);
     expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(3);
+    expect(screen.queryByText(/reporte del evento/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/álbum del evento/i)).not.toBeInTheDocument();
   });
 
-  it('renders the authoritative 3 by 3 MXN matrix without making credits part of the public decision', () => {
-    renderWithTheme(<LandingPricing state={{ status: 'ready', prices: publicPricingFixture }} onRetry={vi.fn()} />);
-    for (const price of ['$2,500', '$3,000', '$3,500', '$4,500', '$5,500', '$6,500', '$6,000', '$7,000', '$8,000'])
-      expect(screen.getByText(price, { exact: false })).toBeInTheDocument();
+  it('uses one Managed commercial conversion instead of public pricing, registration or Venue paths', () => {
+    const openCommercial = vi.fn();
+    renderWithTheme(<LandingCta onOpenCommercial={openCommercial} />);
+    fireEvent.click(screen.getByRole('button', { name: content.cta.primaryCta }));
+    expect(openCommercial).toHaveBeenCalledOnce();
     expect(screen.queryByText(/créditos/i)).not.toBeInTheDocument();
-    expect(screen.queryByText('$1,800 MXN')).not.toBeInTheDocument();
-  });
-
-  it('keeps Planner and Venue conversion as distinct lead actions', () => {
-    const planner = vi.fn();
-    const venue = vi.fn();
-    renderWithTheme(<LandingCta onOpenPlanner={planner} onOpenVenue={venue} />);
-    fireEvent.click(screen.getByRole('button', { name: content.cta.secondaryCta }));
-    fireEvent.click(screen.getByRole('button', { name: content.cta.venueLink }));
-    expect(planner).toHaveBeenCalledOnce();
-    expect(venue).toHaveBeenCalledOnce();
   });
 
   it('keeps mobile navigation semantic and complete', () => {
     useMobileMedia();
-    renderWithTheme(<LandingHeader onOpenRegister={vi.fn()} />);
+    renderWithTheme(<LandingHeader onOpenCommercial={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Abrir menú de navegación' }));
     const drawer = screen.getByRole('navigation', { name: 'Navegación principal' });
     for (const item of content.nav) expect(within(drawer).getByText(item.label)).toBeInTheDocument();
+    expect(within(drawer).getByRole('button', { name: content.cta.primaryCta })).toBeInTheDocument();
   });
 
-  it('disables login safely without a configured Client URL', () => {
+  it('routes the desktop commercial CTA and disables login safely without a configured Client URL', () => {
     useDesktopMedia();
+    const openCommercial = vi.fn();
     renderWithTheme(
-      <LandingHeader onOpenRegister={vi.fn()} config={createLandingConfig({}, { development: false })} />
+      <LandingHeader
+        onOpenCommercial={openCommercial}
+        config={createLandingConfig({}, { development: false })}
+      />
     );
+    fireEvent.click(screen.getByRole('button', { name: content.cta.primaryCta }));
+    expect(openCommercial).toHaveBeenCalledOnce();
     expect(screen.getByRole('button', { name: 'Iniciar sesión' })).toBeDisabled();
   });
 });

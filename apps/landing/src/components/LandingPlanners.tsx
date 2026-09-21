@@ -2,19 +2,17 @@ import distributionAvif from '../assets/product-proof/invitation-distribution-de
 import distributionWebp from '../assets/product-proof/invitation-distribution-desktop.webp';
 import { getLandingConfig } from '../config/landing-config';
 import { landingTokens } from '../theme/landing-theme';
-import PersonAddIcon from '@mui/icons-material/PersonAdd';
-import { Box, Button, Grid, Stack, Typography } from '@mui/material';
+import { Box, Button, Grid, Typography } from '@mui/material';
 import { LandingContainer, LandingSectionIntro } from './primitives';
 import { ProductProofPicture } from './ProductProofPicture';
 
 export interface LandingPlannersProps {
-  onOpenRegister: () => void;
   onOpenCommercial: () => void;
 }
 
 const landingContent = getLandingConfig();
 
-export function LandingPlanners({ onOpenRegister, onOpenCommercial }: LandingPlannersProps) {
+export function LandingPlanners({ onOpenCommercial }: LandingPlannersProps) {
   const headingId = 'landing-planners-heading';
 
   return (
@@ -55,40 +53,22 @@ export function LandingPlanners({ onOpenRegister, onOpenCommercial }: LandingPla
               ))}
             </Box>
 
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ alignItems: { sm: 'stretch' } }}>
-              <Button
-                variant="contained"
-                onClick={onOpenCommercial}
-                sx={{
-                  ...landingTokens.typography.headline,
-                  textTransform: 'none',
-                  minHeight: 56,
-                  px: 3,
-                  bgcolor: landingTokens.colors.light.text,
-                  color: landingTokens.colors.light.background,
-                  borderRadius: 0,
-                  boxShadow: 'none'
-                }}
-              >
-                {landingContent.planners.commercialCta}
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={onOpenRegister}
-                startIcon={<PersonAddIcon aria-hidden />}
-                sx={{
-                  ...landingTokens.typography.headline,
-                  textTransform: 'none',
-                  minHeight: 56,
-                  px: 3,
-                  color: landingTokens.colors.light.text,
-                  borderColor: landingTokens.colors.light.text,
-                  borderRadius: 0
-                }}
-              >
-                {landingContent.planners.registerCta}
-              </Button>
-            </Stack>
+            <Button
+              variant="contained"
+              onClick={onOpenCommercial}
+              sx={{
+                ...landingTokens.typography.headline,
+                textTransform: 'none',
+                minHeight: 56,
+                px: 3,
+                bgcolor: landingTokens.colors.light.text,
+                color: landingTokens.colors.light.background,
+                borderRadius: 0,
+                boxShadow: 'none'
+              }}
+            >
+              {landingContent.planners.commercialCta}
+            </Button>
 
             <Typography
               id="planner-commercial-notice"

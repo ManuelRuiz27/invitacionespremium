@@ -78,7 +78,7 @@ export function LandingHero({ config }: LandingHeroProps) {
                 variant="outlined"
                 size="large"
                 endIcon={<ArrowForwardIcon />}
-                onClick={() => scrollToLandingSection('#precios')}
+                onClick={() => scrollToLandingSection('#servicios')}
                 sx={secondaryButtonSx}
               >
                 {content.hero.secondaryCta}
@@ -213,6 +213,7 @@ const primaryButtonSx = {
   fontWeight: 700,
   '&:hover': { bgcolor: '#e7e0d4' }
 };
+
 const secondaryButtonSx = {
   minHeight: 56,
   px: 4,

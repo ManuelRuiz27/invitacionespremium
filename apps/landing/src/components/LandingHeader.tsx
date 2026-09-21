@@ -3,7 +3,6 @@ import { scrollToLandingSection } from '../navigation';
 import { landingTokens } from '../theme/landing-theme';
 import { LandingBrandLockup, LandingContainer } from './primitives';
 import MenuIcon from '@mui/icons-material/Menu';
-import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import {
   AppBar,
   Box,
@@ -18,15 +17,15 @@ import {
   useMediaQuery,
   useTheme
 } from '@mui/material';
-import { useRef, useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export interface LandingHeaderProps {
-  onOpenRegister: () => void;
+  onOpenCommercial: () => void;
   /** Optional injectable config for testing. Defaults to `getLandingConfig()`. */
   config?: LandingConfig;
 }
 
-export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
+export function LandingHeader({ onOpenCommercial, config }: LandingHeaderProps) {
   const landingContent = config ?? getLandingConfig();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('lg'));
@@ -39,7 +38,6 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
       setScrolled(window.scrollY > 50);
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
-    // Check initial state
     handleScroll();
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -69,7 +67,6 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
         zIndex: theme.zIndex.appBar
       }}
     >
-      {/* Skip link — visually hidden, visible on :focus-visible */}
       <Box
         component="a"
         href="#main-content"
@@ -106,14 +103,12 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
           disableGutters
           sx={{ minHeight: { xs: 64, md: 80 }, display: 'flex', justifyContent: 'space-between', gap: 2 }}
         >
-          {/* Brand lockup */}
           <LandingBrandLockup
             variant="horizontal"
             name={landingContent.brand.name}
             tagline={landingContent.brand.tagline}
           />
 
-          {/* Desktop navigation */}
           {!isMobile && (
             <Box
               component="nav"
@@ -125,8 +120,8 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
                   key={item.href}
                   component="a"
                   href={item.href}
-                  onClick={(e: React.MouseEvent) => {
-                    e.preventDefault();
+                  onClick={(event: React.MouseEvent) => {
+                    event.preventDefault();
                     handleNavClick(item.href);
                   }}
                   sx={{
@@ -135,9 +130,7 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
                     ...landingTokens.typography.eyebrow,
                     transition: `color ${landingTokens.transitions.duration} ${landingTokens.transitions.easing}`,
                     '&:hover': { color: landingTokens.colors.dark.text },
-                    '&:focus-visible': {
-                      color: landingTokens.colors.dark.text
-                    }
+                    '&:focus-visible': { color: landingTokens.colors.dark.text }
                   }}
                 >
                   {item.label}
@@ -146,9 +139,7 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
             </Box>
           )}
 
-          {/* Actions */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            {/* Login — visible only on desktop */}
             {!isMobile && (
               <Button
                 variant="outlined"
@@ -174,13 +165,11 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
               </Button>
             )}
 
-            {/* Register — visible only on desktop */}
             {!isMobile && (
               <Button
                 variant="contained"
                 size="medium"
-                startIcon={<PersonAddIcon />}
-                onClick={onOpenRegister}
+                onClick={onOpenCommercial}
                 sx={{
                   borderRadius: 0,
                   bgcolor: landingTokens.colors.dark.text,
@@ -197,11 +186,10 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
                   }
                 }}
               >
-                Crear cuenta de Planner
+                {landingContent.cta.primaryCta}
               </Button>
             )}
 
-            {/* Mobile hamburger */}
             {isMobile && (
               <IconButton
                 ref={menuButtonRef}
@@ -219,7 +207,6 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
         </Toolbar>
       </LandingContainer>
 
-      {/* Mobile Drawer */}
       <Drawer
         anchor="right"
         open={drawerOpen}
@@ -265,10 +252,9 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
             <Button
               variant="contained"
               fullWidth
-              startIcon={<PersonAddIcon />}
               onClick={() => {
                 setDrawerOpen(false);
-                onOpenRegister();
+                onOpenCommercial();
               }}
               sx={{
                 borderRadius: 0,
@@ -285,7 +271,7 @@ export function LandingHeader({ onOpenRegister, config }: LandingHeaderProps) {
                 }
               }}
             >
-              Crear cuenta de Planner
+              {landingContent.cta.primaryCta}
             </Button>
 
             <Button
