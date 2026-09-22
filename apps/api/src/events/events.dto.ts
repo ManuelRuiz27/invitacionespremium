@@ -35,6 +35,7 @@ const eventFields = {
   serviceId: nullableUuid,
   socialType: nullableSocialType,
   eventDateTime: nullableEventDateTime,
+  eventEndDateTime: nullableEventDateTime,
   timeZone: nullableTimeZone,
   capacity: nullableCapacity,
   confirmationEnabled: z.boolean().optional(),
@@ -90,6 +91,9 @@ export class CreateEventRequestDto {
 
   @ApiProperty({ type: String, format: 'date-time', required: false, nullable: true })
   eventDateTime?: string | null;
+
+  @ApiProperty({ type: String, format: 'date-time', required: false, nullable: true })
+  eventEndDateTime?: string | null;
 
   @ApiProperty({ type: String, example: 'America/Mexico_City', required: false, nullable: true })
   timeZone?: string | null;
@@ -211,6 +215,9 @@ export class EventResponseDto {
 
   @ApiProperty({ type: String, format: 'date-time', nullable: true })
   eventDateTime!: string | null;
+
+  @ApiProperty({ type: String, format: 'date-time', required: false, nullable: true })
+  eventEndDateTime?: string | null;
 
   @ApiProperty({ type: String, nullable: true })
   timeZone!: string | null;
