@@ -386,9 +386,13 @@ export function parseEventId(value: string): string {
 function parse<TSchema extends z.ZodType>(schema: TSchema, input: unknown): z.infer<TSchema> {
   const parsed = schema.safeParse(input);
   if (!parsed.success) {
+    const fields = [...new Set(parsed.error.issues.map((issue) => issue.path[0]))].filter(
+      (field): field is string => typeof field === 'string' && Object.hasOwn(eventFields, field)
+    );
     throw new BadRequestException({
       code: 'VALIDATION_ERROR',
-      message: 'Invalid Event request.'
+      message: 'Invalid Event request.',
+      ...(fields.length ? { details: { fields } } : {})
     });
   }
   return parsed.data;

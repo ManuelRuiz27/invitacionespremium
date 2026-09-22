@@ -9,6 +9,7 @@ import { useSessionExpiry } from '../shared/use-session-expiry';
 import { SerialAutosave } from './autosave/serial-autosave';
 import { ConfirmationStep } from './confirmation/ConfirmationStep';
 import { DataStep } from './data/DataStep';
+import { eventFieldErrors, type EventFieldErrors } from './data/event-field-errors';
 import { DesignStep } from './design/DesignStep';
 import { FloorplanSeatingStep } from './floorplan/FloorplanSeatingStep';
 import { PhysicalPassesStep } from './physical-passes/PhysicalPassesStep';
@@ -57,6 +58,7 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
   const [loadError, setLoadError] = useState<unknown>();
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [message, setMessage] = useState<string>();
+  const [fieldErrors, setFieldErrors] = useState<EventFieldErrors>({});
   const [creating, setCreating] = useState(false);
   const eventRef = useRef<Event | undefined>(undefined);
   eventRef.current = event;
@@ -65,9 +67,17 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
   const save = useCallback(
     async (value: UpdateEventInput) => {
       if (!eventRef.current) return;
-      const updated = await apiClient.events.update(eventRef.current.id, value);
-      eventRef.current = updated;
-      setEvent(updated);
+      try {
+        const updated = await apiClient.events.update(eventRef.current.id, value);
+        eventRef.current = updated;
+        setEvent(updated);
+        setFieldErrors({});
+        setMessage(undefined);
+      } catch (reason) {
+        setFieldErrors(eventFieldErrors(reason));
+        setMessage(errorMessage(reason));
+        throw reason;
+      }
     },
     [apiClient]
   );
@@ -109,6 +119,8 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
       navigate(`/eventos/${event.id}/configuracion/${selectedStep}`, { replace: true });
   }, [event, navigate, selectedStep, step]);
   const changeDraft = (patch: Partial<UpdateEventInput>) => {
+    setFieldErrors((current) => Object.fromEntries(Object.entries(current).filter(([field]) => !(field in patch))));
+    setMessage(undefined);
     const next = applyDraftPatch(draftRef.current, patch);
     draftRef.current = next;
     setDraft(next);
@@ -143,7 +155,6 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
   const ensureEvent = async (): Promise<Event | undefined> => {
     if (eventRef.current) {
       if (!(await autosave.flush())) {
-        setMessage('No pudimos guardar los cambios. Reintenta antes de salir.');
         return;
       }
       return eventRef.current;
@@ -155,6 +166,8 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
       return;
     }
     setCreating(true);
+    setMessage(undefined);
+    setFieldErrors({});
     setSaveState('saving');
     const promise = apiClient.events
       .create(currentDraft)
@@ -168,6 +181,7 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
       })
       .catch((reason) => {
         setSaveState('error');
+        setFieldErrors(eventFieldErrors(reason));
         setMessage(errorMessage(reason));
         return undefined;
       })
@@ -212,6 +226,7 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
           onChange={changeDraft}
           apiClient={apiClient}
           event={event}
+          fieldErrors={fieldErrors}
           onResetInvitationDesign={resetInvitationDesignAndChangeService}
         />
       ) : null}

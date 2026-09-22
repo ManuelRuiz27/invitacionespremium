@@ -295,6 +295,11 @@ la reconciliación resuelve resultados inciertos.
 Los códigos publicados se traducen sin mostrar mensajes técnicos por defecto; `operationId` aparece solo
 como referencia secundaria. `401` conserva `returnTo`; red o `500` no expiran la sesión.
 
+Los campos de Datos rechazados mediante `VALIDATION_ERROR.details.fields` se señalan individualmente con
+ayuda en español. El SDK conserva esos nombres en `ApiError.validationFields`; el wizard mantiene el
+borrador y permite corregir y reenviar. El mismo feedback aplica a creación y autosave, sin duplicar las
+reglas de negocio del API en el formulario.
+
 ## Verificación
 
 Las pruebas de componentes cubren creación concurrente, pasos incompatibles, CSV sucesivos, lotes iguales,

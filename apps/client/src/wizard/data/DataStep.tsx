@@ -21,6 +21,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { priceRuleForCapacity, serviceLabels, socialTypeLabels } from '../../shared/formatters';
 import { instantToWallClock, supportedTimeZones, wallClockToInstant } from './timezone';
 import { errorMessage } from '../../shared/client-utils';
+import type { EventFieldErrors } from './event-field-errors';
 
 export function DataStep({
   services,
@@ -29,6 +30,7 @@ export function DataStep({
   onChange,
   apiClient,
   event,
+  fieldErrors = {},
   onResetInvitationDesign
 }: {
   services: AvailableService[];
@@ -37,6 +39,7 @@ export function DataStep({
   onChange: (patch: Partial<UpdateEventInput>) => void;
   apiClient?: ApiClient;
   event?: Event | undefined;
+  fieldErrors?: EventFieldErrors;
   onResetInvitationDesign?: (serviceId: string) => Promise<void>;
 }) {
   const zones = useMemo(supportedTimeZones, []);
@@ -106,6 +109,8 @@ export function DataStep({
         select
         required
         label="Servicio"
+        error={Boolean(fieldErrors.serviceId)}
+        helperText={fieldErrors.serviceId}
         value={draft.serviceId ?? ''}
         disabled={disabled || serviceBusy}
         onChange={(e) => void chooseService(e.target.value)}
@@ -135,7 +140,8 @@ export function DataStep({
       ) : null}
       <TextField
         label="Nombre del evento"
-        helperText="Ej. Boda de Ana y Carlos"
+        error={Boolean(fieldErrors.name)}
+        helperText={fieldErrors.name ?? 'Ej. Boda de Ana y Carlos'}
         value={draft.name ?? ''}
         disabled={disabled}
         onChange={(e) => onChange({ name: e.target.value || null })}
@@ -143,6 +149,8 @@ export function DataStep({
       <TextField
         select
         label="Tipo de evento"
+        error={Boolean(fieldErrors.socialType)}
+        helperText={fieldErrors.socialType}
         value={draft.socialType ?? ''}
         disabled={disabled}
         onChange={(e) =>
@@ -163,8 +171,8 @@ export function DataStep({
         label="Fecha y hora"
         value={wallClock}
         disabled={disabled}
-        error={Boolean(dateError)}
-        helperText={dateError ?? `Hora local de ${timeZoneLabel(zone)}`}
+        error={Boolean(dateError ?? fieldErrors.eventDateTime)}
+        helperText={dateError ?? fieldErrors.eventDateTime ?? `Hora local de ${timeZoneLabel(zone)}`}
         slotProps={{ inputLabel: { shrink: true } }}
         onFocus={() => setEditingWallClock(true)}
         onBlur={() => setEditingWallClock(false)}
@@ -173,6 +181,8 @@ export function DataStep({
       <TextField
         select
         label="Zona horaria"
+        error={Boolean(fieldErrors.timeZone)}
+        helperText={fieldErrors.timeZone}
         value={zone}
         disabled={disabled}
         onChange={(e) => setPendingZone(e.target.value)}
@@ -186,6 +196,9 @@ export function DataStep({
       <TextField
         type="number"
         label="Capacidad"
+        name="capacity"
+        error={Boolean(fieldErrors.capacity)}
+        helperText={fieldErrors.capacity}
         value={draft.capacity ?? ''}
         disabled={disabled}
         slotProps={{ htmlInput: { min: 1 } }}
@@ -194,7 +207,9 @@ export function DataStep({
       <TextField
         type="url"
         label="Ubicación"
-        helperText="Pega el enlace de Google Maps o la ubicación del evento."
+        name="locationUrl"
+        error={Boolean(fieldErrors.locationUrl)}
+        helperText={fieldErrors.locationUrl ?? 'Pega el enlace de Google Maps o la ubicación del evento.'}
         value={draft.locationUrl ?? ''}
         disabled={disabled}
         onChange={(e) => onChange({ locationUrl: e.target.value || null })}
@@ -202,7 +217,9 @@ export function DataStep({
       <TextField
         type="url"
         label="Mesa de regalos"
-        helperText="Pega el enlace de la mesa de regalos."
+        name="giftRegistryUrl"
+        error={Boolean(fieldErrors.giftRegistryUrl)}
+        helperText={fieldErrors.giftRegistryUrl ?? 'Pega el enlace de la mesa de regalos.'}
         value={draft.giftRegistryUrl ?? ''}
         disabled={disabled}
         onChange={(e) => onChange({ giftRegistryUrl: e.target.value || null })}

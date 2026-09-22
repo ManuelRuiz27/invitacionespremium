@@ -15,6 +15,30 @@ const validUser = {
 afterEach(() => vi.restoreAllMocks());
 
 describe('generated API client runtime', () => {
+  it('preserves validated field names from a validation response without copying other details', async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid Event request.',
+          operationId: 'validation-test',
+          details: { fields: ['capacity', 'locationUrl', 7], submittedValue: 'private-value' }
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      )
+    );
+    await expect(
+      createApiClient({ baseUrl: 'https://api.example.com/api/v1', fetchImpl }).events.create({
+        confirmationEnabled: false,
+        floorplanEnabled: false
+      })
+    ).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+      validationFields: ['capacity', 'locationUrl'],
+      operationId: 'validation-test'
+    });
+  });
+
   it('normalizes base URLs and rejects unsafe URL parts', () => {
     expect(normalizeApiBaseUrl(' https://api.example.com/api/v1/// ')).toBe('https://api.example.com/api/v1');
     expect(() => normalizeApiBaseUrl('https://user@example.com/api')).toThrow(TypeError);

@@ -187,6 +187,10 @@ El detalle normativo se encuentra en `EVENT_LIFECYCLE_CONTRACT.md`.
 - `EVENT_STATE_TRANSITION_CONFLICT`: la transición no pudo serializarse después de reintentos;
 - `ROLE_FORBIDDEN`: rol sin acceso al grupo de rutas.
 
+Cuando la validación del payload identifica campos editables inválidos, `VALIDATION_ERROR` incluye
+`details.fields` con sus nombres técnicos. Esta lista no contiene valores capturados, mensajes internos
+del validador ni nombres de propiedades desconocidas. Las reglas de aceptación del payload se conservan.
+
 ## Alcance diferido
 
 No se implementan todavía:

@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import type { Event } from '@invitaciones/api-client';
+import { ApiError, type Event } from '@invitaciones/api-client';
 import { configuredEvent, mockApiClient, organizationPlanner } from '../test/fixtures';
 import { renderApp } from '../test/render-app';
 
@@ -34,6 +34,36 @@ const deferred = <T,>() => {
 };
 
 describe('integrated Event wizard flows', () => {
+  it('marks rejected fields, preserves the draft, and allows correcting and resubmitting creation', async () => {
+    const api = mockApiClient();
+    vi.mocked(api.events.create)
+      .mockRejectedValueOnce(
+        new ApiError(400, 'VALIDATION_ERROR', 'Invalid Event request.', 'validation-test', ['capacity', 'locationUrl'])
+      )
+      .mockResolvedValueOnce(configuredEvent);
+    renderApp(api, '/eventos/nuevo');
+    await userEvent.type(await screen.findByLabelText('Nombre del evento'), 'Evento conservado');
+    fireEvent.change(screen.getByLabelText('Capacidad'), { target: { value: '-1' } });
+    fireEvent.change(screen.getByLabelText('Ubicación'), { target: { value: 'enlace incorrecto' } });
+    await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
+    expect(await screen.findByText('Escribe una capacidad válida en número entero, mayor que cero.')).toBeVisible();
+    expect(screen.getByLabelText('Capacidad')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText('Ubicación')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText('Nombre del evento')).toHaveValue('Evento conservado');
+    fireEvent.change(screen.getByLabelText('Capacidad'), { target: { value: '100' } });
+    fireEvent.change(screen.getByLabelText('Ubicación'), { target: { value: 'https://example.com/location' } });
+    expect(screen.getByLabelText('Capacidad')).toHaveAttribute('aria-invalid', 'false');
+    await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
+    await waitFor(() => expect(api.events.create).toHaveBeenCalledTimes(2));
+    expect(api.events.create).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        name: 'Evento conservado',
+        capacity: 100,
+        locationUrl: 'https://example.com/location'
+      })
+    );
+  });
+
   it('shares one in-flight creation promise across real concurrent clicks and unlocks after success', async () => {
     const api = mockApiClient();
     const pending = deferred<Event>();

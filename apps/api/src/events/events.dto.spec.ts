@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { BadRequestException } from '@nestjs/common';
 import { EventSocialType } from '../generated/prisma/client';
 import {
   parseAdminEventAssignment,
@@ -9,6 +10,25 @@ import {
 } from './events.dto';
 
 describe('Event DTO validation', () => {
+  it.each([EventSocialType.OTHER, EventSocialType.CORPORATE, EventSocialType.WEDDING])(
+    'accepts event type %s',
+    (socialType) => {
+      expect(parseCreateEventRequest({ socialType, name: 'Prueba', capacity: 100 })).toMatchObject({ socialType });
+    }
+  );
+
+  it('identifies invalid editable fields without returning submitted values or unknown field names', () => {
+    try {
+      parseCreateEventRequest({ capacity: -1, locationUrl: 'private-invalid-value', 'private-unknown-field': true });
+      expect.fail('Expected validation to reject the invalid draft');
+    } catch (error) {
+      expect(error).toBeInstanceOf(BadRequestException);
+      const response = (error as BadRequestException).getResponse();
+      expect(response).toMatchObject({ code: 'VALIDATION_ERROR', details: { fields: ['capacity', 'locationUrl'] } });
+      expect(JSON.stringify(response)).not.toContain('private-');
+    }
+  });
+
   it('accepts an empty draft and valid IANA/configuration values', () => {
     expect(parseCreateEventRequest({})).toEqual({});
     expect(
