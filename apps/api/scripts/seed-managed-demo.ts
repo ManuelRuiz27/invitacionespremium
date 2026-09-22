@@ -75,6 +75,7 @@ export const MANAGED_DEMO_IDS = {
 const ACTIVATION_KEY = 'managed-demo-elena-mateo-activation-v1';
 const CHECK_IN_KEY = 'managed-demo-elena-mateo-check-in-v1';
 const EVENT_DATE = new Date('2035-10-18T23:00:00.000Z');
+const EVENT_END_DATE = new Date('2035-10-19T05:00:00.000Z');
 
 interface ManagedDemoArtifact {
   version: 1;
@@ -179,6 +180,7 @@ export async function seedManagedDemo(
           socialType: EventSocialType.WEDDING,
           status: EventStatus.CONFIGURED,
           eventDateTime: EVENT_DATE,
+          eventEndDateTime: EVENT_END_DATE,
           timeZone: 'America/Mexico_City',
           capacity: 60,
           confirmationEnabled: true,
@@ -192,6 +194,7 @@ export async function seedManagedDemo(
           name: 'Boda de Elena & Mateo',
           socialType: EventSocialType.WEDDING,
           eventDateTime: EVENT_DATE,
+          eventEndDateTime: EVENT_END_DATE,
           timeZone: 'America/Mexico_City',
           capacity: 60,
           confirmationEnabled: true,

@@ -633,6 +633,7 @@ model Event {
   socialType                         EventSocialType?                  @map("social_type")
   status                             EventStatus                       @default(DRAFT)
   eventDateTime                      DateTime?                         @map("event_date_time") @db.Timestamptz(6)
+  eventEndDateTime                   DateTime?                         @map("event_end_date_time") @db.Timestamptz(6)
   timeZone                           String?                           @map("time_zone") @db.VarChar(100)
   capacity                           Int?
   confirmationEnabled                Boolean                           @default(false) @map("confirmation_enabled")

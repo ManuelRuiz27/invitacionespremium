@@ -111,6 +111,7 @@ export class EventsService {
   async create(input: CreateEventInput, principal: AuthPrincipal, operationId?: string): Promise<EventResponseDto> {
     const clientId = requireClientId(principal);
     const prepared = preparationData(input);
+    assertEventSchedule(prepared);
 
     return this.prisma.$transaction(async (transaction) => {
       await this.operatingProfile.assertTechnicalMutationAllowed(transaction, clientId);
@@ -508,6 +509,7 @@ export class EventsService {
           throw invalidEventState('Only Events in preparation may be edited.');
         }
         const merged = mergePreparationData(locked, input);
+        assertEventSchedule(merged);
         await this.requireAvailableService(transaction, merged.serviceId);
         if (
           (input.serviceId !== undefined && input.serviceId !== locked.serviceId) ||
@@ -1249,6 +1251,7 @@ function preparationData(input: CreateEventInput) {
     serviceId: input.serviceId ?? null,
     socialType: input.socialType ?? null,
     eventDateTime: input.eventDateTime == null ? null : new Date(input.eventDateTime),
+    eventEndDateTime: input.eventEndDateTime == null ? null : new Date(input.eventEndDateTime),
     timeZone: input.timeZone ?? null,
     capacity: input.capacity ?? null,
     confirmationEnabled: input.confirmationEnabled ?? false,
@@ -1269,6 +1272,12 @@ function mergePreparationData(current: Event, input: UpdateEventInput) {
         : input.eventDateTime === null
           ? null
           : new Date(input.eventDateTime),
+    eventEndDateTime:
+      input.eventEndDateTime === undefined
+        ? current.eventEndDateTime
+        : input.eventEndDateTime === null
+          ? null
+          : new Date(input.eventEndDateTime),
     timeZone: input.timeZone === undefined ? current.timeZone : input.timeZone,
     capacity: input.capacity === undefined ? current.capacity : input.capacity,
     confirmationEnabled:
@@ -1288,6 +1297,9 @@ function updateData(input: UpdateEventInput): Prisma.EventUpdateInput {
     ...(input.eventDateTime === undefined
       ? {}
       : { eventDateTime: input.eventDateTime === null ? null : new Date(input.eventDateTime) }),
+    ...(input.eventEndDateTime === undefined
+      ? {}
+      : { eventEndDateTime: input.eventEndDateTime === null ? null : new Date(input.eventEndDateTime) }),
     ...(input.timeZone === undefined ? {} : { timeZone: input.timeZone }),
     ...(input.capacity === undefined ? {} : { capacity: input.capacity }),
     ...(input.confirmationEnabled === undefined ? {} : { confirmationEnabled: input.confirmationEnabled }),
@@ -1295,6 +1307,16 @@ function updateData(input: UpdateEventInput): Prisma.EventUpdateInput {
     ...(input.giftRegistryUrl === undefined ? {} : { giftRegistryUrl: input.giftRegistryUrl }),
     ...(input.floorplanEnabled === undefined ? {} : { floorplanEnabled: input.floorplanEnabled })
   };
+}
+
+function assertEventSchedule(value: { eventDateTime: Date | null; eventEndDateTime: Date | null }): void {
+  if (value.eventEndDateTime === null) return;
+  if (value.eventDateTime === null || value.eventEndDateTime.getTime() <= value.eventDateTime.getTime()) {
+    throw new BadRequestException({
+      code: 'VALIDATION_ERROR',
+      message: 'eventEndDateTime must be later than eventDateTime.'
+    });
+  }
 }
 
 function requireClientId(principal: AuthPrincipal): string {
@@ -1323,6 +1345,7 @@ export function eventAuditSnapshot(event: Event): Record<string, unknown> {
     socialType: event.socialType,
     status: event.status,
     eventDateTime: event.eventDateTime,
+    eventEndDateTime: event.eventEndDateTime,
     timeZone: event.timeZone,
     capacity: event.capacity,
     confirmationEnabled: event.confirmationEnabled,
@@ -1366,6 +1389,7 @@ export function toEventResponse(event: EventWithService): EventResponseDto {
     socialType: event.socialType,
     status: event.status,
     eventDateTime: event.eventDateTime?.toISOString() ?? null,
+    eventEndDateTime: event.eventEndDateTime?.toISOString() ?? null,
     timeZone: event.timeZone,
     capacity: event.capacity,
     confirmationEnabled: event.confirmationEnabled,

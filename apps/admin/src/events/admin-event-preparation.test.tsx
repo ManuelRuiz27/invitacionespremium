@@ -201,12 +201,16 @@ describe('Admin Event preparation surfaces', () => {
     expect(screen.getByLabelText('Servicio')).toBeDisabled();
     await userEvent.clear(screen.getByLabelText('Nombre'));
     await userEvent.type(screen.getByLabelText('Nombre'), 'Evento preparado');
+    await userEvent.type(screen.getByLabelText('Fecha y hora de finalización'), '2035-10-19T01:00');
     await userEvent.click(screen.getByRole('button', { name: 'Guardar datos' }));
     await waitFor(() =>
       expect(api.adminEventPreparation.updateEvent).toHaveBeenCalledWith(
         adminEvent.clientId,
         adminEvent.id,
-        expect.objectContaining({ name: 'Evento preparado' })
+        expect.objectContaining({
+          name: 'Evento preparado',
+          eventEndDateTime: expect.any(String)
+        })
       )
     );
     expect(api.events.update).not.toHaveBeenCalled();

@@ -15,12 +15,18 @@ describe('Event DTO validation', () => {
       parseCreateEventRequest({
         name: 'Evento',
         socialType: EventSocialType.OTHER,
+        eventDateTime: '2035-10-18T23:00:00.000Z',
+        eventEndDateTime: '2035-10-19T05:00:00.000Z',
         timeZone: 'America/Mexico_City',
         capacity: 1,
         confirmationEnabled: true,
         floorplanEnabled: false
       })
-    ).toMatchObject({ capacity: 1, confirmationEnabled: true });
+    ).toMatchObject({
+      capacity: 1,
+      confirmationEnabled: true,
+      eventEndDateTime: '2035-10-19T05:00:00.000Z'
+    });
   });
 
   it('rejects invalid time zones, capacities, and server-owned fields', () => {

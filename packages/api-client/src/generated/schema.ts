@@ -3137,6 +3137,8 @@ export type components = {
             confirmationEnabled: boolean;
             /** Format: date-time */
             eventDateTime?: string | null;
+            /** Format: date-time */
+            eventEndDateTime?: string | null;
             /** @default false */
             floorplanEnabled: boolean;
             /**
@@ -3379,6 +3381,8 @@ export type components = {
             designKickoffAt: string | null;
             /** Format: date-time */
             eventDateTime: string | null;
+            /** Format: date-time */
+            eventEndDateTime?: string | null;
             finalCostCredits: number | null;
             floorplanEnabled: boolean;
             /** Format: uri */
@@ -4048,6 +4052,10 @@ export type components = {
         PublicRsvpEventResponseDto: {
             /** Format: date-time */
             eventDateTime: string;
+            /** Format: date-time */
+            eventEndDateTime?: string | null;
+            /** Format: uri */
+            locationUrl?: string | null;
             name: string;
             timeZone: string;
         };
@@ -4472,6 +4480,8 @@ export type components = {
             confirmationEnabled: boolean;
             /** Format: date-time */
             eventDateTime?: string | null;
+            /** Format: date-time */
+            eventEndDateTime?: string | null;
             /** @default false */
             floorplanEnabled: boolean;
             /**

@@ -50,7 +50,11 @@ const isAvailableInvitation = (value: Record<string, unknown>) =>
   isRecord(value.event) &&
   isString(value.event.name) &&
   isString(value.event.eventDateTime) &&
+  (value.event.eventEndDateTime === undefined ||
+    value.event.eventEndDateTime === null ||
+    isString(value.event.eventEndDateTime)) &&
   isString(value.event.timeZone) &&
+  (value.event.locationUrl === undefined || value.event.locationUrl === null || isString(value.event.locationUrl)) &&
   isRecord(value.invitation) &&
   isString(value.invitation.id) &&
   ['INDIVIDUAL', 'FAMILY_NOMINAL'].includes(String(value.invitation.mode)) &&

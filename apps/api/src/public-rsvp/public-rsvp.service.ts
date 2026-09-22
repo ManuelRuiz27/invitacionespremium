@@ -672,7 +672,13 @@ export class PublicRsvpService {
     });
     return {
       status: 'AVAILABLE',
-      event: { name: event.name, eventDateTime: event.eventDateTime, timeZone: event.timeZone },
+      event: {
+        name: event.name,
+        eventDateTime: event.eventDateTime,
+        eventEndDateTime: event.eventEndDateTime,
+        timeZone: event.timeZone,
+        locationUrl: event.locationUrl
+      },
       invitation: {
         id: invitation.id,
         mode: invitation.mode,

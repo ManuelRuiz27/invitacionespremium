@@ -112,8 +112,14 @@ export class PublicRsvpEventResponseDto {
   @ApiProperty({ type: String, format: 'date-time' })
   eventDateTime!: Date;
 
+  @ApiPropertyOptional({ type: String, format: 'date-time', nullable: true })
+  eventEndDateTime?: Date | null;
+
   @ApiProperty({ type: String })
   timeZone!: string;
+
+  @ApiPropertyOptional({ type: String, format: 'uri', nullable: true })
+  locationUrl?: string | null;
 }
 
 export class PublicRsvpInvitationResponseDto {

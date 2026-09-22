@@ -70,7 +70,12 @@ describe('Public RSVP', () => {
     const view = await publicGet(fixture.token).expect(200);
     expect(view.body).toMatchObject({
       status: 'AVAILABLE',
-      event: { name: 'Evento RSVP', timeZone: 'America/Mexico_City' },
+      event: {
+        name: 'Evento RSVP',
+        eventEndDateTime: '2030-01-02T00:00:00.000Z',
+        timeZone: 'America/Mexico_City',
+        locationUrl: 'https://maps.google.com/?q=19.4326,-99.1332'
+      },
       invitation: { id: fixture.invitationId, responseStatus: 'PENDING' },
       confirmation: { open: true },
       designType: 'FLYER'
@@ -645,6 +650,7 @@ describe('Public RSVP', () => {
           name: 'Evento RSVP',
           status: EventStatus.ACTIVE,
           eventDateTime: new Date('2030-01-01T18:00:00.000Z'),
+          eventEndDateTime: new Date('2030-01-02T00:00:00.000Z'),
           timeZone: 'America/Mexico_City',
           capacity: input.capacity,
           confirmationEnabled: true,
