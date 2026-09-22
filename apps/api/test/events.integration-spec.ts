@@ -68,6 +68,7 @@ describe('Events CRUD', () => {
       serviceId: service.id,
       socialType: EventSocialType.WEDDING,
       eventDateTime: '2027-02-14T20:00:00.000Z',
+      eventEndDateTime: '2027-02-15T02:00:00.000Z',
       timeZone: 'America/Mexico_City',
       capacity: 150,
       confirmationEnabled: true,
@@ -159,7 +160,11 @@ describe('Events CRUD', () => {
       { serviceId: randomUUID() },
       { serviceId: inactiveService.id },
       { timeZone: 'Invalid/Zone' },
-      { capacity: 0 }
+      { capacity: 0 },
+      {
+        eventDateTime: '2035-10-18T23:00:00.000Z',
+        eventEndDateTime: '2035-10-18T22:00:00.000Z'
+      }
     ]) {
       await createEvent(firstCookie, body).expect(400);
     }
