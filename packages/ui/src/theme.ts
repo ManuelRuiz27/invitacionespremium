@@ -3,18 +3,22 @@ import { createTheme } from '@mui/material/styles';
 export const designTokens = {
   colors: {
     // Paleta principal - Editorial Contemporary / Quiet Luxury
-    canvas: '#F5F2EC',        // Background principal (Crema atemporal)
-    paper: '#FFFFFF',         // Superficie limpia / tarjetas (Blanco)
-    surfaceMuted: '#EFECE5',  // Superficie atenuada
-    ink: '#171717',           // Foreground principal (Negro sofisticado)
-    mutedInk: '#57594F',      // Foreground secundario / texto atenuado (Verde taupe oscuro / gris cálido accesible)
-    secondary: '#6D705E',     // Color secundario (Verde taupe natural)
+    canvas: '#F5F2EC', // Background principal (Crema atemporal)
+    paper: '#FFFFFF', // Superficie limpia / tarjetas (Blanco)
+    surfaceMuted: '#EFECE5', // Superficie atenuada
+    ink: '#171717', // Foreground principal (Negro sofisticado)
+    mutedInk: '#57594F', // Foreground secundario / texto atenuado (Verde taupe oscuro / gris cálido accesible)
+    secondary: '#6D705E', // Color secundario (Verde taupe natural)
     secondaryDark: '#585B4B',
-    accent: '#B8A58A',        // Acento cálido (Taupe elegante)
+    accent: '#B8A58A', // Acento cálido (Taupe elegante)
     accentDark: '#A69378',
-    line: '#E5E0D8',          // Líneas divisorias muy sutiles
-    lineSubtle: '#ECE7DF',    // Divisores suaves alternativos
+    line: '#E5E0D8', // Líneas divisorias muy sutiles
+    lineSubtle: '#ECE7DF', // Divisores suaves alternativos
     borderDark: 'rgba(23, 23, 23, 0.12)',
+    borderSubtle: '#D8D2C7',
+    inkHover: '#2A2A2A',
+    hoverAction: 'rgba(23, 23, 23, 0.04)',
+    mockupBorder: 'rgba(23, 23, 23, 0.12)',
     // Estados semánticos sobrios
     success: '#287A5B',
     warning: '#A76510',
@@ -25,12 +29,13 @@ export const designTokens = {
     fontFamilySans: '"Montserrat", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
   },
   radius: {
-    small: 6,                 // Inputs: 6px-8px, Buttons: 6px-8px
-    medium: 10,               // Cards: 8px-12px
+    small: 6, // Inputs: 6px-8px, Buttons: 6px-8px
+    medium: 10, // Cards: 8px-12px
     large: 12
   },
   shadow: {
-    soft: '0 4px 20px rgba(23, 23, 23, 0.04)'
+    soft: '0 4px 20px rgba(23, 23, 23, 0.04)',
+    protagonist: '0 20px 48px rgba(23, 23, 23, 0.07)'
   }
 } as const;
 
@@ -39,7 +44,7 @@ export const appTheme = createTheme({
     mode: 'light',
     primary: {
       main: designTokens.colors.ink,
-      dark: '#2A2A2A',
+      dark: designTokens.colors.inkHover,
       contrastText: designTokens.colors.canvas
     },
     secondary: {
@@ -57,7 +62,7 @@ export const appTheme = createTheme({
     },
     divider: designTokens.colors.line,
     action: {
-      hover: 'rgba(23, 23, 23, 0.04)',
+      hover: designTokens.colors.hoverAction,
       selected: 'rgba(109, 112, 94, 0.08)',
       focus: 'rgba(23, 23, 23, 0.08)'
     },
@@ -82,10 +87,10 @@ export const appTheme = createTheme({
       letterSpacing: '-0.015em'
     },
     h3: {
-      fontFamily: designTokens.typography.fontFamilySerif,
-      fontSize: '1.45rem',
-      lineHeight: 1.25,
-      fontWeight: 500,
+      fontFamily: designTokens.typography.fontFamilySans,
+      fontSize: '1.35rem',
+      lineHeight: 1.3,
+      fontWeight: 600,
       letterSpacing: '-0.01em'
     },
     h4: {
@@ -163,15 +168,15 @@ export const appTheme = createTheme({
           backgroundColor: designTokens.colors.ink,
           color: designTokens.colors.canvas,
           '&:hover': {
-            backgroundColor: '#2A2A2A'
+            backgroundColor: designTokens.colors.inkHover
           }
         },
         outlined: {
-          borderColor: '#D8D2C7',
+          borderColor: designTokens.colors.borderSubtle,
           color: designTokens.colors.ink,
           '&:hover': {
             borderColor: designTokens.colors.ink,
-            backgroundColor: 'rgba(23, 23, 23, 0.04)'
+            backgroundColor: designTokens.colors.hoverAction
           }
         }
       }

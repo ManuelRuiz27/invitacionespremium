@@ -1,5 +1,6 @@
 import { getLandingConfig } from '../config/landing-config';
 import { Box, Container, Divider, Stack, Typography } from '@mui/material';
+import { BrandLockup } from '@invitaciones/ui';
 import { landingTokens } from '../theme/landing-theme';
 
 const landingContent = getLandingConfig();
@@ -10,8 +11,8 @@ export function LandingFooter() {
       component="footer"
       sx={{
         py: 6,
-        bgcolor: landingTokens.colors.dark.background,
-        color: landingTokens.colors.dark.text,
+        bgcolor: landingTokens.colors.base.background,
+        color: landingTokens.colors.base.text,
         borderTop: landingTokens.borders.hairlineDark
       }}
     >
@@ -27,22 +28,12 @@ export function LandingFooter() {
             }}
           >
             <Box>
-              <Typography
-                variant="h6"
-                sx={{
-                  fontFamily: landingTokens.typography.fontFamily.serif,
-                  fontWeight: 600,
-                  color: landingTokens.colors.dark.text,
-                  fontSize: '1.25rem',
-                  letterSpacing: '-0.01em',
-                  mb: 1
-                }}
-              >
-                {landingContent.brand.name}
-              </Typography>
+              <Box sx={{ mb: 1 }}>
+                <BrandLockup size="small" />
+              </Box>
               <Typography
                 variant="caption"
-                sx={{ ...landingTokens.typography.body, color: landingTokens.colors.dark.textMuted }}
+                sx={{ ...landingTokens.typography.body, color: landingTokens.colors.base.textMuted }}
               >
                 {landingContent.footer.legalNotice}
               </Typography>
@@ -56,10 +47,10 @@ export function LandingFooter() {
                   href={item.href}
                   sx={{
                     ...landingTokens.typography.eyebrow,
-                    color: landingTokens.colors.dark.textMuted,
+                    color: landingTokens.colors.base.textMuted,
                     textDecoration: 'none',
                     transition: landingTokens.transitions.duration,
-                    '&:hover': { color: landingTokens.colors.dark.text }
+                    '&:hover': { color: landingTokens.colors.base.text }
                   }}
                 >
                   {item.label}
@@ -74,7 +65,7 @@ export function LandingFooter() {
             variant="caption"
             sx={{
               ...landingTokens.typography.body,
-              color: landingTokens.colors.dark.textMuted,
+              color: landingTokens.colors.base.textMuted,
               textAlign: 'center',
               display: 'block',
               fontSize: '0.85rem'

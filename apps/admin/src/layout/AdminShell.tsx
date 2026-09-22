@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Box, Drawer, Stack, Typography } from '@mui/material';
+import { Box, Drawer } from '@mui/material';
+import { BrandLockup } from '@invitaciones/ui';
 import { Outlet } from 'react-router-dom';
 import { AdminHeader } from './AdminHeader';
 import { AdminNavigation } from './AdminNavigation';
@@ -8,31 +9,9 @@ const drawerWidth = 256;
 
 function NavigationBrand() {
   return (
-    <Stack spacing={0.5} sx={{ p: 3, borderBottom: 1, borderColor: 'divider', mb: 1 }}>
-      <Typography
-        sx={{
-          fontFamily: (theme) => theme.typography.h1.fontFamily,
-          fontWeight: 600,
-          color: 'text.primary',
-          fontSize: '1.2rem',
-          letterSpacing: '-0.02em'
-        }}
-      >
-        InvitacionesPremium
-      </Typography>
-      <Typography
-        variant="caption"
-        sx={{
-          color: 'text.secondary',
-          fontWeight: 600,
-          letterSpacing: '0.08em',
-          textTransform: 'uppercase',
-          fontSize: '0.7rem'
-        }}
-      >
-        Platform Admin
-      </Typography>
-    </Stack>
+    <Box sx={{ p: 3, borderBottom: 1, borderColor: 'divider', mb: 1 }}>
+      <BrandLockup size="small" tagline="Platform Admin" />
+    </Box>
   );
 }
 

@@ -333,7 +333,7 @@ function AdminClientDetail({ apiClient, clientId }: { apiClient: ApiClient; clie
           <>
             <TextField label="Correo" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
             <TextField
-              label={dialogAction === 'user' ? 'Nueva contrasena (opcional)' : 'Contrasena temporal'}
+              label={dialogAction === 'user' ? 'Nueva contraseña (opcional)' : 'Contraseña temporal'}
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

@@ -176,11 +176,7 @@ export function ScanResultPanel({
       </Card>
 
       {/* Croquis con el lugar o mesa asignada al invitado */}
-      {floorplanSlot ? (
-        <Box sx={{ mt: 2.5 }}>
-          {floorplanSlot}
-        </Box>
-      ) : null}
+      {floorplanSlot ? <Box sx={{ mt: 2.5 }}>{floorplanSlot}</Box> : null}
     </Box>
   );
 }

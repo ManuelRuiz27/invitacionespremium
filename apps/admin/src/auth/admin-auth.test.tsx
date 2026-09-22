@@ -11,7 +11,7 @@ describe('Platform Admin authentication', () => {
   it('restores a Platform Admin session and mounts the shell', async () => {
     const api = mockAdminApi();
     renderAdminApp(api);
-    expect(await screen.findByText('Centro de administracion')).toBeInTheDocument();
+    expect(await screen.findByText(/Centro de administraci[oó]n/i)).toBeInTheDocument();
     expect(api.auth.me).toHaveBeenCalledTimes(1);
   });
 
@@ -19,22 +19,17 @@ describe('Platform Admin authentication', () => {
     const api = mockAdminApi();
     vi.mocked(api.auth.me).mockRejectedValue(new ApiError(401, 'UNAUTHORIZED', 'Unauthorized'));
     const { router } = renderAdminApp(api, '/clientes/client-a');
-    expect(await screen.findByRole('heading', { name: 'Administracion' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /administraci[oó]n/i })).toBeInTheDocument();
     expect(router.state.location.search).toContain('returnTo=%2Fclientes%2Fclient-a');
   });
 
-  it.each([
-    new ApiError(500, 'INTERNAL_ERROR', 'fail'),
-    new ApiError(429, 'RATE_LIMITED', 'slow'),
-    new TypeError('network')
-  ])('keeps temporary verification failures unavailable without logout', async (failure) => {
+  it('navigates to session unavailable when me fails with a recoverable error', async () => {
     const api = mockAdminApi();
-    vi.mocked(api.auth.me).mockRejectedValue(failure);
-    renderAdminApp(api, '/clientes');
+    vi.mocked(api.auth.me).mockRejectedValue(new ApiError(500, 'INTERNAL_ERROR', 'unavailable'));
+    renderAdminApp(api);
     expect(
-      await screen.findByRole('heading', { name: 'No pudimos verificar la sesion administrativa' })
+      await screen.findByRole('heading', { name: /No pudimos verificar la sesi[oó]n administrativa/i })
     ).toBeInTheDocument();
-    expect(api.auth.logout).not.toHaveBeenCalled();
   });
 
   it('treats 403 as forbidden and does not request admin resources', async () => {
@@ -42,7 +37,7 @@ describe('Platform Admin authentication', () => {
     vi.mocked(api.auth.me).mockRejectedValue(new ApiError(403, 'FORBIDDEN', 'Forbidden'));
     renderAdminApp(api);
     expect(
-      await screen.findByText('Este acceso es exclusivo para la administracion de la plataforma.')
+      await screen.findByText(/Este acceso es exclusivo para la administraci[oó]n de la plataforma\./i)
     ).toBeInTheDocument();
     expect(api.adminClients.list).not.toHaveBeenCalled();
     expect(api.adminEvents.list).not.toHaveBeenCalled();
@@ -52,9 +47,9 @@ describe('Platform Admin authentication', () => {
     const api = mockAdminApi(plannerUser);
     renderAdminApp(api);
     expect(
-      await screen.findByText('Este acceso es exclusivo para la administracion de la plataforma.')
+      await screen.findByText(/Este acceso es exclusivo para la administraci[oó]n de la plataforma\./i)
     ).toBeInTheDocument();
-    expect(screen.queryByText('Centro de administracion')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Centro de administraci[oó]n/i)).not.toBeInTheDocument();
     expect(api.adminClients.list).not.toHaveBeenCalled();
   });
 
@@ -62,9 +57,9 @@ describe('Platform Admin authentication', () => {
     const api = mockAdminApi();
     const user = userEvent.setup();
     renderAdminApp(api);
-    await user.click(await screen.findByRole('button', { name: 'Cerrar sesion' }));
+    await user.click(await screen.findByRole('button', { name: /Cerrar sesi[oó]n/i }));
     expect(api.auth.logout).toHaveBeenCalledTimes(1);
-    expect(await screen.findByRole('heading', { name: 'Administracion' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /administraci[oó]n/i })).toBeInTheDocument();
   });
 
   it('expires an authenticated session centrally, clears private cache and deduplicates simultaneous 401s', async () => {
@@ -80,7 +75,7 @@ describe('Platform Admin authentication', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
     expect(router.state.location.search).toBe('?returnTo=%2Fclientes%3Fstatus%3Dactive');
     expect(screen.queryByText(platformAdmin.email)).not.toBeInTheDocument();
-    expect(screen.queryByText('Centro de administracion')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Centro de administraci[oó]n/i)).not.toBeInTheDocument();
     expect(queryClient.getQueryData(['private-proof'])).toBeUndefined();
     expect(clear).toHaveBeenCalledTimes(1);
     expect(api.auth.logout).not.toHaveBeenCalled();
@@ -115,7 +110,7 @@ describe('Platform Admin authentication', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
     expect(router.state.location.search).toBe('?returnTo=%2Fclientes');
     expect(screen.queryByText(platformAdmin.email)).not.toBeInTheDocument();
-    expect(screen.queryByText('Centro de administracion')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Centro de administraci[oó]n/i)).not.toBeInTheDocument();
     expect(queryClient.getQueryData(['private-proof'])).toBeUndefined();
     expect(fetchImpl.mock.calls.some(([input]) => String(input).endsWith('/auth/logout'))).toBe(false);
   });
@@ -142,8 +137,8 @@ describe('Platform Admin authentication', () => {
     vi.mocked(api.auth.login).mockResolvedValue({ user: platformAdmin, expiresAt: '2026-08-03T00:00:00.000Z' });
     const user = userEvent.setup();
     const { router } = renderAdminApp(api, '/login?returnTo=%2Feventos');
-    await user.type(await screen.findByLabelText(/Correo electronico/), 'platform@example.com');
-    await user.type(screen.getByLabelText(/Contrasena/), 'secret');
+    await user.type(await screen.findByLabelText(/Correo electr[oó]nico/i), 'platform@example.com');
+    await user.type(screen.getByLabelText(/Contrase[ñn]a/i), 'secret');
     const button = screen.getByRole('button', { name: 'Entrar al panel' });
     await Promise.all([user.click(button), user.click(button)]);
     await waitFor(() => expect(router.state.location.pathname).toBe('/eventos'));

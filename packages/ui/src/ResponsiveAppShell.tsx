@@ -1,11 +1,12 @@
 import { useState, type ReactNode } from 'react';
 import MenuRounded from '@mui/icons-material/MenuRounded';
 import { AppBar, Box, Drawer, IconButton, Stack, Toolbar, Typography } from '@mui/material';
+import { BrandLockup } from './BrandLockup';
 
 const drawerWidth = 232;
 
 export interface ResponsiveAppShellProps {
-  brand: string;
+  brand?: ReactNode;
   navigation: ReactNode;
   userMenu: ReactNode;
   children: ReactNode;
@@ -15,8 +16,10 @@ export function ResponsiveAppShell({ brand, navigation, userMenu, children }: Re
   const [mobileOpen, setMobileOpen] = useState(false);
   const closeMobile = () => setMobileOpen(false);
 
-  const sidebar = (
-    <Stack sx={{ height: '100%', px: 1.5, py: 2 }} spacing={3}>
+  const brandNode =
+    brand === undefined || brand === 'InvitacionesPremium' ? (
+      <BrandLockup size="small" />
+    ) : typeof brand === 'string' ? (
       <Typography
         variant="body1"
         sx={{
@@ -29,6 +32,13 @@ export function ResponsiveAppShell({ brand, navigation, userMenu, children }: Re
       >
         {brand}
       </Typography>
+    ) : (
+      brand
+    );
+
+  const sidebar = (
+    <Stack sx={{ height: '100%', px: 1.5, py: 2 }} spacing={3}>
+      <Box sx={{ px: 1 }}>{brandNode}</Box>
       <Box component="nav" aria-label="Navegación principal" onClick={closeMobile} sx={{ flex: 1 }}>
         {navigation}
       </Box>
@@ -58,18 +68,7 @@ export function ResponsiveAppShell({ brand, navigation, userMenu, children }: Re
           >
             <MenuRounded />
           </IconButton>
-          <Typography
-            variant="h4"
-            component="span"
-            noWrap
-            sx={{
-              fontFamily: (theme) => theme.typography.h1.fontFamily,
-              fontWeight: 500,
-              fontSize: '1.25rem'
-            }}
-          >
-            {brand}
-          </Typography>
+          <Box sx={{ display: 'inline-flex', alignItems: 'center' }}>{brandNode}</Box>
           <Box sx={{ ml: 'auto' }}>{userMenu}</Box>
         </Toolbar>
       </AppBar>

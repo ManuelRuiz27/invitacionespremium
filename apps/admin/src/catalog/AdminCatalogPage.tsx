@@ -104,7 +104,7 @@ export function AdminCatalogPage({ apiClient }: { apiClient: ApiClient }) {
   return (
     <Stack spacing={3}>
       <PageHeader
-        title="Catalogo"
+        title="Catálogo"
         description="Servicios referenciados, historial de precios y elegibilidad de promociones."
       />
       {notice ? (
@@ -116,7 +116,7 @@ export function AdminCatalogPage({ apiClient }: { apiClient: ApiClient }) {
         <Tabs
           value={tab}
           onChange={(_, value: number) => setTab(value)}
-          aria-label="Secciones del catalogo"
+          aria-label="Secciones del catálogo"
           variant="scrollable"
         >
           <Tab label="Servicios" />

@@ -57,18 +57,10 @@ export function LandingPlanners({ onOpenCommercial }: LandingPlannersProps) {
               variant="contained"
               onClick={onOpenCommercial}
               sx={{
-                ...landingTokens.typography.headline,
-                textTransform: 'none',
+                ...landingTokens.buttons.primary,
                 minHeight: 50,
-                px: 3.5,
-                bgcolor: landingTokens.colors.light.text,
-                color: landingTokens.colors.light.background,
-                borderRadius: `${landingTokens.radius.button}px`,
-                boxShadow: 'none',
-                '&:hover': {
-                  bgcolor: '#2A2A2A',
-                  boxShadow: 'none'
-                }
+                ...landingTokens.typography.headline,
+                fontSize: '0.92rem'
               }}
             >
               {landingContent.planners.commercialCta}

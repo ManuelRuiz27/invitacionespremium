@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { ApiError } from '@invitaciones/api-client';
-import { AppThemeProvider, LoadingState } from '@invitaciones/ui';
+import { AppThemeProvider, BrandLockup, LoadingState, designTokens } from '@invitaciones/ui';
 import { Alert, Box, Button, Container, Link as MuiLink, Paper, Stack, TextField, Typography } from '@mui/material';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { AccessDeniedPage } from './AccessDeniedPage';
@@ -61,27 +61,27 @@ export function LoginPage({ landingUrl }: { landingUrl: string }) {
             }}
           >
             <Stack spacing={2.5} sx={{ maxWidth: 600 }}>
-              <Typography
-                component="p"
-                sx={{
-                  fontFamily: (theme) => theme.typography.h1.fontFamily,
-                  color: 'text.primary',
-                  fontWeight: 600,
-                  fontSize: '1.4rem',
-                  letterSpacing: '-0.02em'
-                }}
-              >
-                InvitacionesPremium
-              </Typography>
+              <Box sx={{ mb: 1 }}>
+                <BrandLockup size="medium" />
+              </Box>
               <Typography component="h1" variant="h1" sx={{ fontSize: { xs: '2.5rem', md: '3.4rem' } }}>
-                Tus Eventos, en un solo lugar.
+                Tus eventos, en un solo lugar.
               </Typography>
               <Typography color="text.secondary" sx={{ maxWidth: 480, fontSize: '1.08rem', lineHeight: 1.6 }}>
-                Consulta el estado de tus Eventos y la información financiera autorizada para tu cuenta.
+                Consulta el estado de tus eventos y la información financiera autorizada para tu cuenta.
               </Typography>
             </Stack>
 
-            <Paper elevation={0} sx={{ p: { xs: 3, sm: 5 }, border: 1, borderColor: 'divider', borderRadius: 2.5, bgcolor: 'background.paper' }}>
+            <Paper
+              elevation={0}
+              sx={{
+                p: { xs: 3, sm: 5 },
+                border: 1,
+                borderColor: 'divider',
+                borderRadius: `${designTokens.radius.medium}px`,
+                bgcolor: 'background.paper'
+              }}
+            >
               <Stack component="form" spacing={3} onSubmit={(event) => void submit(event)} noValidate>
                 <Box>
                   <Typography component="h2" variant="h2" sx={{ fontSize: '2rem' }}>
@@ -120,7 +120,13 @@ export function LoginPage({ landingUrl }: { landingUrl: string }) {
                   required
                   fullWidth
                 />
-                <Button type="submit" variant="contained" size="large" disabled={submitting} sx={{ minHeight: 46, fontSize: '0.95rem' }}>
+                <Button
+                  type="submit"
+                  variant="contained"
+                  size="large"
+                  disabled={submitting}
+                  sx={{ minHeight: 46, fontSize: '0.95rem' }}
+                >
                   {submitting ? 'Iniciando sesión…' : 'Iniciar sesión'}
                 </Button>
                 <MuiLink

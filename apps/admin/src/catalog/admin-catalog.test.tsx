@@ -48,7 +48,7 @@ describe('catalogo administrativo', () => {
     vi.mocked(api.adminCatalog.listPrices).mockResolvedValue([price]);
     vi.mocked(api.adminCatalog.listPromotions).mockResolvedValue([promotion]);
     renderAdminApp(api, '/catalogo');
-    expect(await screen.findByRole('heading', { name: 'Catalogo' })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: /cat[aá]logo/i })).toBeVisible();
     expect(await screen.findByText(/no publica un listado administrativo completo/i)).toBeVisible();
     expect(screen.getAllByText('Flyer').length).toBeGreaterThan(0);
     expect(api.services.listAvailable).not.toHaveBeenCalled();
@@ -66,7 +66,7 @@ describe('catalogo administrativo', () => {
     vi.mocked(api.adminCatalog.listPromotions).mockResolvedValue([promotion]);
     vi.mocked(api.adminCatalog.deactivatePromotion).mockReturnValue(new Promise(() => undefined));
     renderAdminApp(api, '/catalogo');
-    await screen.findByRole('heading', { name: 'Catalogo' });
+    await screen.findByRole('heading', { name: /cat[aá]logo/i });
     await userEvent.click(screen.getByRole('tab', { name: 'Promociones' }));
     await userEvent.click(screen.getAllByRole('button', { name: 'Desactivar' })[0]!);
     const buttons = screen.getAllByRole('button', { name: 'Desactivar' });
@@ -237,7 +237,7 @@ describe('catalogo administrativo', () => {
     const overlapApi = mockAdminApi();
     vi.mocked(overlapApi.adminCatalog.listPrices).mockResolvedValue([price]);
     renderAdminApp(overlapApi, '/catalogo');
-    await screen.findByRole('heading', { name: 'Catalogo' });
+    await screen.findByRole('heading', { name: /cat[aá]logo/i });
     await userEvent.click(screen.getByRole('tab', { name: 'Precios' }));
     await userEvent.click(screen.getByRole('button', { name: 'Crear precio' }));
     await userEvent.click(screen.getByLabelText('Servicio'));
@@ -256,7 +256,7 @@ describe('catalogo administrativo', () => {
       { ...promotion, clientId: organization.id, serviceId: price.serviceId }
     ]);
     renderAdminApp(api, '/catalogo');
-    await screen.findByRole('heading', { name: 'Catalogo' });
+    await screen.findByRole('heading', { name: /cat[aá]logo/i });
     await userEvent.click(screen.getByRole('tab', { name: 'Promociones' }));
     expect((await screen.findAllByText(organization.name)).length).toBeGreaterThan(0);
     expect(screen.getAllByText('Flyer').length).toBeGreaterThan(0);
@@ -280,7 +280,7 @@ describe('catalogo administrativo', () => {
       .mockRejectedValueOnce(new Error('fallo'))
       .mockResolvedValueOnce([]);
     renderAdminApp(promotionApi, '/catalogo');
-    await screen.findByRole('heading', { name: 'Catalogo' });
+    await screen.findByRole('heading', { name: /cat[aá]logo/i });
     await userEvent.click(screen.getByRole('tab', { name: 'Promociones' }));
     const retry = await screen.findByRole('button', { name: /reintentar/i });
     await userEvent.click(retry);
@@ -295,7 +295,7 @@ describe('catalogo administrativo', () => {
       .mockResolvedValueOnce([{ ...promotion, isActive: false }]);
     vi.mocked(api.adminCatalog.deactivatePromotion).mockRejectedValue(new ApiError(500, 'INTERNAL_ERROR', 'incierto'));
     renderAdminApp(api, '/catalogo');
-    await screen.findByRole('heading', { name: 'Catalogo' });
+    await screen.findByRole('heading', { name: /cat[aá]logo/i });
     await userEvent.click(screen.getByRole('tab', { name: 'Promociones' }));
     await userEvent.click(screen.getAllByRole('button', { name: 'Desactivar' })[0]!);
     await userEvent.click(screen.getAllByRole('button', { name: 'Desactivar' }).at(-1)!);
@@ -313,7 +313,7 @@ describe('catalogo administrativo', () => {
     vi.mocked(api.adminCatalog.listPromotions).mockResolvedValue([inactive]);
     vi.mocked(api.adminCatalog.activatePromotion).mockRejectedValue(new ApiError(500, 'INTERNAL_ERROR', 'incierto'));
     renderAdminApp(api, '/catalogo');
-    await screen.findByRole('heading', { name: 'Catalogo' });
+    await screen.findByRole('heading', { name: /cat[aá]logo/i });
     await userEvent.click(screen.getByRole('tab', { name: 'Promociones' }));
     await userEvent.click(screen.getAllByRole('button', { name: 'Activar' })[0]!);
     await userEvent.click(screen.getAllByRole('button', { name: 'Activar' }).at(-1)!);
@@ -333,7 +333,7 @@ describe('catalogo administrativo', () => {
       .mockRejectedValueOnce(new TypeError('red'))
       .mockResolvedValueOnce({ ...promotion, isActive: false });
     renderAdminApp(api, '/catalogo');
-    await screen.findByRole('heading', { name: 'Catalogo' });
+    await screen.findByRole('heading', { name: /cat[aá]logo/i });
     await userEvent.click(screen.getByRole('tab', { name: 'Promociones' }));
     await userEvent.click(screen.getAllByRole('button', { name: 'Desactivar' })[0]!);
     await userEvent.click(screen.getAllByRole('button', { name: 'Desactivar' }).at(-1)!);
@@ -379,7 +379,7 @@ describe('catalogo administrativo', () => {
       .mockRejectedValueOnce(new Error('red'))
       .mockResolvedValueOnce({ ...price, id: 'price-2', credits: 12, validFrom: '2027-08-03T18:00:00.000Z' });
     renderAdminApp(api, '/catalogo');
-    await screen.findByRole('heading', { name: 'Catalogo' });
+    await screen.findByRole('heading', { name: /cat[aá]logo/i });
     await userEvent.click(screen.getByRole('tab', { name: 'Precios' }));
     await userEvent.click(screen.getByRole('button', { name: 'Crear precio' }));
     await userEvent.click(screen.getByLabelText('Servicio'));
@@ -402,7 +402,7 @@ describe('catalogo administrativo', () => {
     vi.mocked(api.adminCatalog.listPromotions).mockResolvedValue([promotion]);
     vi.mocked(api.adminCatalog.updatePromotion).mockRejectedValue(new ApiError(500, 'INTERNAL_ERROR', 'incierto'));
     renderAdminApp(api, '/catalogo');
-    await screen.findByRole('heading', { name: 'Catalogo' });
+    await screen.findByRole('heading', { name: /cat[aá]logo/i });
     await userEvent.click(screen.getByRole('tab', { name: 'Promociones' }));
     await userEvent.click(screen.getAllByRole('button', { name: 'Editar' })[0]!);
     await userEvent.clear(screen.getByLabelText('Nombre'));
@@ -423,7 +423,7 @@ describe('catalogo administrativo', () => {
     vi.mocked(api.adminCatalog.listPromotions).mockResolvedValue([promotion]);
     vi.mocked(api.adminCatalog.updatePromotion).mockRejectedValue(new ApiError(429, 'RATE_LIMITED', 'incierto'));
     renderAdminApp(api, '/catalogo');
-    await screen.findByRole('heading', { name: 'Catalogo' });
+    await screen.findByRole('heading', { name: /cat[aá]logo/i });
     await userEvent.click(screen.getByRole('tab', { name: 'Promociones' }));
     await userEvent.click(screen.getAllByRole('button', { name: 'Editar' })[0]!);
     await userEvent.clear(screen.getByLabelText('Nombre'));
@@ -442,7 +442,7 @@ describe('catalogo administrativo', () => {
     vi.mocked(api.adminCatalog.listPromotions).mockResolvedValue([]);
     vi.mocked(api.adminCatalog.createPromotion).mockRejectedValue(new Error('red'));
     renderAdminApp(api, '/catalogo');
-    await screen.findByRole('heading', { name: 'Catalogo' });
+    await screen.findByRole('heading', { name: /cat[aá]logo/i });
     await userEvent.click(screen.getByRole('tab', { name: 'Promociones' }));
     await userEvent.click(screen.getByRole('button', { name: 'Crear promocion' }));
     await fillPromotionForm('Promocion incierta');
@@ -461,7 +461,7 @@ describe('catalogo administrativo', () => {
     vi.mocked(api.adminCatalog.listPromotions).mockResolvedValue([]);
     vi.mocked(api.adminCatalog.createPromotion).mockRejectedValue(new ApiError(500, 'INTERNAL_ERROR', 'incierto'));
     renderAdminApp(api, '/catalogo');
-    await screen.findByRole('heading', { name: 'Catalogo' });
+    await screen.findByRole('heading', { name: /cat[aá]logo/i });
     await userEvent.click(screen.getByRole('tab', { name: 'Promociones' }));
     await userEvent.click(screen.getByRole('button', { name: 'Crear promocion' }));
     await fillPromotionForm('Promocion confirmada');
@@ -483,7 +483,7 @@ describe('catalogo administrativo', () => {
       .mockRejectedValueOnce(new Error('red'))
       .mockResolvedValueOnce(promotionFromForm('promotion-new', 'Promocion ausente'));
     renderAdminApp(api, '/catalogo');
-    await screen.findByRole('heading', { name: 'Catalogo' });
+    await screen.findByRole('heading', { name: /cat[aá]logo/i });
     await userEvent.click(screen.getByRole('tab', { name: 'Promociones' }));
     await userEvent.click(screen.getByRole('button', { name: 'Crear promocion' }));
     await fillPromotionForm('Promocion ausente');
@@ -502,7 +502,7 @@ describe('catalogo administrativo', () => {
       .mockRejectedValueOnce(new Error('red'))
       .mockResolvedValueOnce({ ...price, validUntil: '2026-08-04T18:00:00.000Z' });
     renderAdminApp(api, '/catalogo');
-    await screen.findByRole('heading', { name: 'Catalogo' });
+    await screen.findByRole('heading', { name: /cat[aá]logo/i });
     await userEvent.click(screen.getByRole('tab', { name: 'Precios' }));
     await userEvent.click(screen.getAllByRole('button', { name: 'Cerrar vigencia' })[0]!);
     fireEvent.change(screen.getByLabelText('Fin de vigencia'), { target: { value: '2026-08-04T12:00:00' } });
@@ -520,7 +520,7 @@ describe('catalogo administrativo', () => {
     vi.mocked(api.adminCatalog.listPrices).mockResolvedValue([price]);
     vi.mocked(api.adminCatalog.closePrice).mockRejectedValue(new ApiError(500, 'INTERNAL_ERROR', 'incierto'));
     renderAdminApp(api, '/catalogo');
-    await screen.findByRole('heading', { name: 'Catalogo' });
+    await screen.findByRole('heading', { name: /cat[aá]logo/i });
     await userEvent.click(screen.getByRole('tab', { name: 'Precios' }));
     await userEvent.click(screen.getAllByRole('button', { name: 'Cerrar vigencia' })[0]!);
     fireEvent.change(screen.getByLabelText('Fin de vigencia'), { target: { value: '2026-08-04T12:00:00' } });
@@ -543,7 +543,7 @@ describe('catalogo administrativo', () => {
     );
     vi.mocked(api.adminCatalog.listPromotions).mockResolvedValue([{ ...promotion, clientId: organization.id }]);
     const view = renderAdminApp(api, '/catalogo');
-    await screen.findByRole('heading', { name: 'Catalogo' });
+    await screen.findByRole('heading', { name: /cat[aá]logo/i });
     await userEvent.click(screen.getByRole('tab', { name: 'Promociones' }));
     expect((await screen.findAllByText('Resolviendo Cliente…')).length).toBeGreaterThan(0);
     resolveClients([organization]);
@@ -556,7 +556,7 @@ describe('catalogo administrativo', () => {
       { ...promotion, clientId: organization.id }
     ]);
     const unresolvedView = renderAdminApp(unresolvedApi, '/catalogo');
-    await screen.findByRole('heading', { name: 'Catalogo' });
+    await screen.findByRole('heading', { name: /cat[aá]logo/i });
     await userEvent.click(screen.getByRole('tab', { name: 'Promociones' }));
     expect((await screen.findAllByText('Cliente no resuelto')).length).toBeGreaterThan(0);
     unresolvedView.unmount();
@@ -567,7 +567,7 @@ describe('catalogo administrativo', () => {
       { ...promotion, clientId: organization.id }
     ]);
     renderAdminApp(forbiddenApi, '/catalogo');
-    await screen.findByRole('heading', { name: 'Catalogo' });
+    await screen.findByRole('heading', { name: /cat[aá]logo/i });
     await userEvent.click(screen.getByRole('tab', { name: 'Promociones' }));
     expect(await screen.findByText(/falta de permiso/i)).toBeVisible();
     expect(screen.getAllByText(promotion.name).length).toBeGreaterThan(0);
@@ -580,7 +580,7 @@ describe('catalogo administrativo', () => {
       .mockResolvedValueOnce([organization]);
     vi.mocked(api.adminCatalog.listPromotions).mockResolvedValue([{ ...promotion, clientId: organization.id }]);
     renderAdminApp(api, '/catalogo');
-    await screen.findByRole('heading', { name: 'Catalogo' });
+    await screen.findByRole('heading', { name: /cat[aá]logo/i });
     await userEvent.click(screen.getByRole('tab', { name: 'Promociones' }));
     expect(await screen.findByText('No fue posible resolver los Clientes.')).toBeVisible();
     expect(screen.getAllByText(promotion.name).length).toBeGreaterThan(0);
@@ -596,7 +596,7 @@ describe('catalogo administrativo', () => {
     vi.mocked(api.adminClients.list).mockRejectedValueOnce(failure).mockResolvedValueOnce([organization]);
     vi.mocked(api.adminCatalog.listPromotions).mockResolvedValue([{ ...promotion, clientId: organization.id }]);
     renderAdminApp(api, '/catalogo');
-    await screen.findByRole('heading', { name: 'Catalogo' });
+    await screen.findByRole('heading', { name: /cat[aá]logo/i });
     await userEvent.click(screen.getByRole('tab', { name: 'Promociones' }));
     expect(await screen.findByText('No fue posible resolver los Clientes.')).toBeVisible();
     await userEvent.click(screen.getByRole('button', { name: 'Reintentar resolución' }));

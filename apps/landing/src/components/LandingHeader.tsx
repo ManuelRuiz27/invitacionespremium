@@ -62,7 +62,7 @@ export function LandingHeader({ onOpenCommercial, config }: LandingHeaderProps) 
         backdropFilter: 'blur(10px)',
         borderBottom: scrolled ? landingTokens.borders.hairlineDark : '1px solid transparent',
         transition: `all ${landingTokens.transitions.duration} ${landingTokens.transitions.easing}`,
-        color: landingTokens.colors.dark.text,
+        color: landingTokens.colors.base.text,
         top: 0,
         zIndex: theme.zIndex.appBar
       }}
@@ -78,16 +78,14 @@ export function LandingHeader({ onOpenCommercial, config }: LandingHeaderProps) 
           height: '1px',
           overflow: 'hidden',
           zIndex: theme.zIndex.tooltip,
-          '&:focus-visible': {
-            position: 'fixed',
-            top: 8,
-            left: 8,
+          '&:focus': {
+            position: 'static',
             width: 'auto',
             height: 'auto',
-            px: 2,
-            py: 1,
-            bgcolor: landingTokens.colors.dark.text,
-            color: landingTokens.colors.dark.background,
+            display: 'block',
+            p: 2,
+            bgcolor: landingTokens.colors.base.text,
+            color: landingTokens.colors.base.background,
             borderRadius: 0,
             ...landingTokens.typography.headline,
             fontSize: '0.85rem',
@@ -125,12 +123,12 @@ export function LandingHeader({ onOpenCommercial, config }: LandingHeaderProps) 
                     handleNavClick(item.href);
                   }}
                   sx={{
-                    color: landingTokens.colors.dark.textMuted,
+                    color: landingTokens.colors.base.textMuted,
                     textDecoration: 'none',
                     ...landingTokens.typography.eyebrow,
                     transition: `color ${landingTokens.transitions.duration} ${landingTokens.transitions.easing}`,
-                    '&:hover': { color: landingTokens.colors.dark.text },
-                    '&:focus-visible': { color: landingTokens.colors.dark.text }
+                    '&:hover': { color: landingTokens.colors.base.text },
+                    '&:focus-visible': { color: landingTokens.colors.base.text }
                   }}
                 >
                   {item.label}
@@ -147,18 +145,12 @@ export function LandingHeader({ onOpenCommercial, config }: LandingHeaderProps) 
                 href={landingContent.urls.login}
                 disabled={!landingContent.urls.login}
                 sx={{
-                  borderRadius: `${landingTokens.radius.button}px`,
-                  color: landingTokens.colors.dark.text,
-                  borderColor: '#D8D2C7',
-                  ...landingTokens.typography.headline,
-                  fontSize: '0.88rem',
+                  ...landingTokens.buttons.secondary,
+                  minHeight: 40,
                   px: 2.5,
                   py: 0.85,
-                  textTransform: 'none',
-                  '&:hover': {
-                    borderColor: landingTokens.colors.dark.text,
-                    backgroundColor: 'rgba(23, 23, 23, 0.04)'
-                  }
+                  ...landingTokens.typography.headline,
+                  fontSize: '0.88rem'
                 }}
               >
                 Iniciar sesión
@@ -171,19 +163,12 @@ export function LandingHeader({ onOpenCommercial, config }: LandingHeaderProps) 
                 size="medium"
                 onClick={onOpenCommercial}
                 sx={{
-                  borderRadius: `${landingTokens.radius.button}px`,
-                  bgcolor: landingTokens.colors.dark.text,
-                  color: landingTokens.colors.dark.background,
-                  ...landingTokens.typography.headline,
-                  fontSize: '0.88rem',
+                  ...landingTokens.buttons.primary,
+                  minHeight: 40,
                   px: 2.75,
                   py: 0.85,
-                  textTransform: 'none',
-                  boxShadow: 'none',
-                  '&:hover': {
-                    bgcolor: '#2A2A2A',
-                    boxShadow: 'none'
-                  }
+                  ...landingTokens.typography.headline,
+                  fontSize: '0.88rem'
                 }}
               >
                 {landingContent.cta.primaryCta}
@@ -193,12 +178,11 @@ export function LandingHeader({ onOpenCommercial, config }: LandingHeaderProps) 
             {isMobile && (
               <IconButton
                 ref={menuButtonRef}
-                aria-label="Abrir menú de navegación"
-                aria-expanded={drawerOpen}
-                aria-controls="landing-mobile-navigation"
-                edge="end"
                 onClick={toggleDrawer(true)}
-                sx={{ color: landingTokens.colors.dark.text }}
+                aria-label="Abrir menú de navegación"
+                aria-controls="landing-mobile-navigation"
+                aria-expanded={drawerOpen}
+                sx={{ color: landingTokens.colors.base.text }}
               >
                 <MenuIcon />
               </IconButton>
@@ -257,18 +241,10 @@ export function LandingHeader({ onOpenCommercial, config }: LandingHeaderProps) 
                 onOpenCommercial();
               }}
               sx={{
-                borderRadius: `${landingTokens.radius.button}px`,
-                bgcolor: landingTokens.colors.dark.text,
-                color: landingTokens.colors.dark.background,
-                ...landingTokens.typography.headline,
-                fontSize: '0.92rem',
+                ...landingTokens.buttons.primary,
                 py: 1.25,
-                textTransform: 'none',
-                boxShadow: 'none',
-                '&:hover': {
-                  bgcolor: '#2A2A2A',
-                  boxShadow: 'none'
-                }
+                ...landingTokens.typography.headline,
+                fontSize: '0.92rem'
               }}
             >
               {landingContent.cta.primaryCta}
@@ -280,17 +256,10 @@ export function LandingHeader({ onOpenCommercial, config }: LandingHeaderProps) 
               href={landingContent.urls.login}
               disabled={!landingContent.urls.login}
               sx={{
-                borderRadius: `${landingTokens.radius.button}px`,
-                color: landingTokens.colors.dark.text,
-                borderColor: '#D8D2C7',
-                ...landingTokens.typography.headline,
-                fontSize: '0.92rem',
+                ...landingTokens.buttons.secondary,
                 py: 1.25,
-                textTransform: 'none',
-                '&:hover': {
-                  borderColor: landingTokens.colors.dark.text,
-                  backgroundColor: 'rgba(23, 23, 23, 0.04)'
-                }
+                ...landingTokens.typography.headline,
+                fontSize: '0.92rem'
               }}
             >
               Iniciar sesión

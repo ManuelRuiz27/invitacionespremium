@@ -158,7 +158,7 @@ export function ScannerSessionPage({
 
   const activeAssistants = confirmation
     ? confirmation.checkedIn
-    : scanResult?.pendingAssistants.filter((assistant) => selectedAssistantIds.includes(assistant.id)) ?? [];
+    : (scanResult?.pendingAssistants.filter((assistant) => selectedAssistantIds.includes(assistant.id)) ?? []);
 
   const tableIds = activeAssistants.flatMap((assistant) => (assistant.table ? [assistant.table.id] : []));
   const highlightedSeats = activeAssistants.flatMap((assistant) => (assistant.seat ? [assistant.seat] : []));
@@ -167,8 +167,8 @@ export function ScannerSessionPage({
     <>
       {realtimeStatus === 'error' || realtimeStatus === 'disconnected' ? (
         <Alert severity="warning" sx={{ mb: 2 }}>
-          La actualización en tiempo real no está disponible. Puedes continuar usando el Scanner;
-          validaremos cada operación con el servidor.
+          La actualización en tiempo real no está disponible. Puedes continuar usando el Scanner; validaremos cada
+          operación con el servidor.
         </Alert>
       ) : null}
       {realtimeNotice ? (
@@ -279,9 +279,7 @@ export function ScannerSessionPage({
                 ) : null}
 
                 {/* Alertas debajo del video en modo scanner */}
-                <Box sx={{ mt: 2 }}>
-                  {alertsBlock}
-                </Box>
+                <Box sx={{ mt: 2 }}>{alertsBlock}</Box>
 
                 {/* Información operativa del evento debajo de la cámara */}
                 <Stack component="header" spacing={0.75} sx={{ mt: 1, mb: 1.5 }}>
@@ -327,9 +325,7 @@ export function ScannerSessionPage({
               <Typography color="text.secondary">Staff: {sessionData.staff.alias}</Typography>
               <StatusChip
                 label={
-                  sessionData.event.status === 'EVENT_DAY'
-                    ? 'Día del Evento · operativo'
-                    : 'Evento activo · operativo'
+                  sessionData.event.status === 'EVENT_DAY' ? 'Día del Evento · operativo' : 'Evento activo · operativo'
                 }
                 tone="success"
               />
@@ -381,9 +377,7 @@ export function ScannerSessionPage({
               <Typography color="text.secondary">Staff: {sessionData.staff.alias}</Typography>
               <StatusChip
                 label={
-                  sessionData.event.status === 'EVENT_DAY'
-                    ? 'Día del Evento · operativo'
-                    : 'Evento activo · operativo'
+                  sessionData.event.status === 'EVENT_DAY' ? 'Día del Evento · operativo' : 'Evento activo · operativo'
                 }
                 tone="success"
               />

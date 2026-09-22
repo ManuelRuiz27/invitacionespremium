@@ -42,7 +42,7 @@ describe('Admin Client finance', () => {
     view.financeIntentRegistry.record(uncertainIntent('client-a', 'logout-key'));
     await waitForFinancePanel();
 
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Cerrar sesion' }));
+    await userEvent.setup().click(screen.getByRole('button', { name: /Cerrar sesi[oó]n/i }));
 
     await waitFor(() => expect(view.router.state.location.pathname).toBe('/login'));
     expect(view.financeIntentRegistry.list('client-a')).toHaveLength(0);

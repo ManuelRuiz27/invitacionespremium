@@ -11,15 +11,15 @@ export function AdminHeader({ onOpenNavigation }: { onOpenNavigation: () => void
           <MenuOutlined />
         </IconButton>
         <Box sx={{ flex: 1 }}>
-          <Typography sx={{ fontWeight: 760 }}>Centro de administracion</Typography>
+          <Typography sx={{ fontWeight: 760 }}>Centro de administración</Typography>
           <Typography variant="caption" color="text.secondary">
-            Operacion global, sin impersonacion
+            Operación global, sin impersonación
           </Typography>
         </Box>
         <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
           <Chip
             icon={<VerifiedUserOutlined />}
-            label="Sesion verificada"
+            label="Sesión verificada"
             color="success"
             variant="outlined"
             sx={{ display: { xs: 'none', sm: 'flex' } }}
@@ -33,7 +33,7 @@ export function AdminHeader({ onOpenNavigation }: { onOpenNavigation: () => void
             </Typography>
           </Box>
           <Button startIcon={<LogoutOutlined />} onClick={() => void auth.logout()}>
-            Cerrar sesion
+            Cerrar sesión
           </Button>
         </Stack>
       </Toolbar>

@@ -7,19 +7,22 @@ import { designTokens } from '@invitaciones/ui';
  * Fully coherent with global designTokens from `@invitaciones/ui`.
  */
 const palette = {
-  ink: designTokens.colors.ink,             // #171717 (Negro sofisticado)
-  canvas: designTokens.colors.canvas,       // #F5F2EC (Crema atemporal)
-  paper: designTokens.colors.paper,         // #FFFFFF (Blanco puro)
+  ink: designTokens.colors.ink, // #171717 (Negro sofisticado)
+  inkHover: designTokens.colors.inkHover, // #2A2A2A
+  canvas: designTokens.colors.canvas, // #F5F2EC (Crema atemporal)
+  paper: designTokens.colors.paper, // #FFFFFF (Blanco puro)
   surfaceMuted: designTokens.colors.surfaceMuted, // #EFECE5
   secondary: designTokens.colors.secondary, // #6D705E (Verde taupe natural)
   secondaryDark: designTokens.colors.secondaryDark,
-  accent: designTokens.colors.accent,       // #B8A58A (Taupe elegante)
+  accent: designTokens.colors.accent, // #B8A58A (Taupe elegante)
   accentDark: designTokens.colors.accentDark,
-  muted: designTokens.colors.mutedInk,      // #57594F
-  line: designTokens.colors.line,           // #E5E0D8
+  muted: designTokens.colors.mutedInk, // #57594F
+  line: designTokens.colors.line, // #E5E0D8
   lineSubtle: designTokens.colors.lineSubtle,
-  borderDark: 'rgba(23, 23, 23, 0.1)',
-  borderLight: 'rgba(23, 23, 23, 0.08)'
+  borderSubtle: designTokens.colors.borderSubtle, // #D8D2C7
+  borderDark: designTokens.colors.borderDark,
+  hoverAction: designTokens.colors.hoverAction,
+  mockupBorder: designTokens.colors.mockupBorder
 } as const;
 
 export const landingTokens = {
@@ -70,7 +73,7 @@ export const landingTokens = {
 
   colors: {
     // Modo principal editorial: Fondo crema atemporal y superficies blancas/crema
-    dark: {
+    base: {
       background: palette.canvas,
       surface: palette.paper,
       text: palette.ink,
@@ -78,36 +81,49 @@ export const landingTokens = {
       border: palette.line,
       accent: palette.secondary
     },
-    light: {
-      background: palette.canvas,
-      surface: palette.paper,
+    surface: {
+      background: palette.paper,
       text: palette.ink,
       textMuted: palette.muted,
-      border: palette.line,
-      accent: palette.secondary
+      border: palette.line
     },
     contrast: {
       background: palette.ink,
-      surface: '#242424',
+      surface: palette.inkHover,
       text: palette.canvas,
-      textMuted: 'rgba(245, 242, 236, 0.72)',
+      textMuted: palette.accent,
       border: 'rgba(245, 242, 236, 0.15)',
       accent: palette.accent
     },
-    darkSurface: {
-      background: palette.paper,
-      accent: palette.secondary,
-      accentMuted: palette.accent,
-      textPrimary: palette.ink,
-      textSecondary: palette.muted,
-      divider: palette.line
+    accent: {
+      primary: palette.secondary,
+      warm: palette.accent,
+      hover: palette.inkHover
+    },
+    // Compatibilidad retroactiva durante migración
+    get dark() {
+      return this.base;
+    },
+    get light() {
+      return this.base;
+    },
+    get darkSurface() {
+      return {
+        background: palette.paper,
+        accent: palette.secondary,
+        accentMuted: palette.accent,
+        textPrimary: palette.ink,
+        textSecondary: palette.muted,
+        divider: palette.line
+      };
     }
   },
 
   radius: {
     badge: designTokens.radius.small,
     card: designTokens.radius.medium,
-    button: designTokens.radius.small
+    button: designTokens.radius.small,
+    mockup: 24
   },
 
   spacing: {
@@ -119,7 +135,10 @@ export const landingTokens = {
     hairlineDark: `1px solid ${palette.line}`,
     hairlineLight: `1px solid ${palette.line}`,
     darkColor: palette.line,
-    lightColor: palette.line
+    lightColor: palette.line,
+    subtle: `1px solid ${palette.line}`,
+    mockup: `1px solid ${palette.mockupBorder}`,
+    buttonOutlined: `1px solid ${palette.borderSubtle}`
   },
 
   surfaces: {
@@ -142,7 +161,42 @@ export const landingTokens = {
 
   shadows: {
     elevated: designTokens.shadow.soft,
-    productLayer: '0 12px 32px rgba(23, 23, 23, 0.06)'
+    productLayer: designTokens.shadow.protagonist,
+    natural: designTokens.shadow.soft,
+    protagonist: designTokens.shadow.protagonist
+  },
+
+  mockup: {
+    border: `1px solid ${palette.mockupBorder}`,
+    borderRadius: '24px',
+    boxShadow: designTokens.shadow.protagonist
+  },
+
+  buttons: {
+    primary: {
+      minHeight: 52,
+      px: 3.5,
+      bgcolor: palette.ink,
+      color: palette.canvas,
+      borderRadius: `${designTokens.radius.small}px`,
+      textTransform: 'none' as const,
+      fontWeight: 600,
+      boxShadow: 'none',
+      '&:hover': { bgcolor: palette.inkHover, boxShadow: 'none' }
+    },
+    secondary: {
+      minHeight: 52,
+      px: 3.5,
+      borderColor: palette.borderSubtle,
+      color: palette.ink,
+      borderRadius: `${designTokens.radius.small}px`,
+      textTransform: 'none' as const,
+      fontWeight: 600,
+      '&:hover': {
+        borderColor: palette.ink,
+        backgroundColor: palette.hoverAction
+      }
+    }
   },
 
   overlays: {

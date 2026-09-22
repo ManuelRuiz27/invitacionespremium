@@ -203,7 +203,7 @@ export function LandingProductProof() {
               placeItems: 'center',
               alignSelf: 'start',
               overflow: 'hidden',
-              bgcolor: '#ede9e0',
+              bgcolor: 'background.default',
               border: landingTokens.borders.hairlineLight
             }}
           >

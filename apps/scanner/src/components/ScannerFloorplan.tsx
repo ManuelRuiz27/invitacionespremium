@@ -78,12 +78,13 @@ export function ScannerFloorplan({
             fontWeight: 600,
             border: 1,
             borderColor: 'warning.light',
-            bgcolor: (theme) =>
-              theme.palette.mode === 'dark' ? 'rgba(255, 152, 0, 0.12)' : 'rgba(255, 152, 0, 0.08)',
+            bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(255, 152, 0, 0.12)' : 'rgba(255, 152, 0, 0.08)'),
             '& .MuiAlert-message': { width: '100%' }
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+          <Box
+            sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}
+          >
             <span>
               Mesa asignada: <strong>{highlightedTable.name}</strong>
               {exactSeats.length > 0 ? ` · Asiento: ${exactSeats.map((s) => s.label).join(', ')}` : ''}

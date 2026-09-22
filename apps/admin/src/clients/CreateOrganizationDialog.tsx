@@ -37,7 +37,7 @@ export function CreateOrganizationDialog({
   const submit = () => {
     if (lock.current) return;
     if (!name.trim() || !/^\S+@\S+\.\S+$/.test(email) || password.length < 8) {
-      setError('Completa nombre, correo valido y una contrasena de al menos 8 caracteres.');
+      setError('Completa nombre, correo valido y una contraseña de al menos 8 caracteres.');
       return;
     }
     lock.current = true;
@@ -63,7 +63,7 @@ export function CreateOrganizationDialog({
             required
           />
           <TextField
-            label="Contrasena inicial"
+            label="Contraseña inicial"
             type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}

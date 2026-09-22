@@ -13,7 +13,7 @@ export function LandingCta({ onOpenCommercial }: { onOpenCommercial: () => void 
       aria-labelledby="landing-final-cta-heading"
       sx={{
         py: { xs: 12, md: 18 },
-        bgcolor: landingTokens.colors.dark.background,
+        bgcolor: landingTokens.colors.base.background,
         borderTop: landingTokens.borders.hairlineDark
       }}
     >
@@ -24,7 +24,7 @@ export function LandingCta({ onOpenCommercial }: { onOpenCommercial: () => void 
             component="h2"
             sx={{
               ...landingTokens.typography.display,
-              color: landingTokens.colors.dark.text,
+              color: landingTokens.colors.base.text,
               fontSize: { xs: '2.4rem', md: '4.2rem' },
               textWrap: 'balance'
             }}
@@ -32,11 +32,19 @@ export function LandingCta({ onOpenCommercial }: { onOpenCommercial: () => void 
             {content.cta.title}
           </Typography>
           <Typography
-            sx={{ ...landingTokens.typography.body, color: landingTokens.colors.dark.textMuted, maxWidth: 680 }}
+            sx={{ ...landingTokens.typography.body, color: landingTokens.colors.base.textMuted, maxWidth: 680 }}
           >
             {content.cta.description}
           </Typography>
-          <Button variant="contained" size="large" onClick={onOpenCommercial} sx={buttonSx}>
+          <Button
+            variant="contained"
+            size="large"
+            onClick={onOpenCommercial}
+            sx={{
+              ...landingTokens.buttons.primary,
+              px: 4
+            }}
+          >
             {content.cta.primaryCta}
           </Button>
         </Stack>
@@ -44,18 +52,3 @@ export function LandingCta({ onOpenCommercial }: { onOpenCommercial: () => void 
     </Box>
   );
 }
-
-const buttonSx = {
-  minHeight: 52,
-  px: 4,
-  borderRadius: `${landingTokens.radius.button}px`,
-  bgcolor: landingTokens.colors.dark.text,
-  color: landingTokens.colors.dark.background,
-  textTransform: 'none',
-  fontWeight: 600,
-  boxShadow: 'none',
-  '&:hover': {
-    bgcolor: '#2A2A2A',
-    boxShadow: 'none'
-  }
-};

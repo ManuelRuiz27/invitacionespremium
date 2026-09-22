@@ -37,7 +37,7 @@ describe('Admin Clients', () => {
     await user.click(await screen.findByRole('button', { name: 'Crear organizacion' }));
     await user.type(screen.getByLabelText(/Nombre de la organizacion/), 'Salon Nube');
     await user.type(screen.getByLabelText(/Correo del Administrador/), 'admin@nube.mx');
-    await user.type(screen.getByLabelText(/Contrasena inicial/), 'secret123');
+    await user.type(screen.getByLabelText(/Contrase[ñn]a inicial/i), 'secret123');
     await user.click(screen.getByRole('button', { name: 'Crear organizacion' }));
     await waitFor(() =>
       expect(api.adminClients.createOrganization).toHaveBeenCalledWith({
@@ -167,7 +167,7 @@ describe('Admin Clients', () => {
     await user.click(await screen.findByRole('button', { name: openLabel }));
     if (kind === 'planner') {
       await user.type(screen.getByLabelText('Correo'), 'planner@aurora.mx');
-      await user.type(screen.getByLabelText('Contrasena temporal'), 'secret123');
+      await user.type(screen.getByLabelText(/Contrase[ñn]a temporal/i), 'secret123');
     }
     const confirm = screen.getByRole('button', { name: confirmLabel });
     fireEvent.click(confirm);
