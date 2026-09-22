@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ApiClient, PublicInvitationView } from '@invitaciones/api-client';
 import HTMLFlipBook, { type BookSnapshot, type FlipBookHandle } from '@gullabs/react-flipbook';
 import { Box, Button, Stack, Typography } from '@mui/material';
 import { FlipbookPage } from './FlipbookPage';
 import { useReducedMotion } from '../useReducedMotion';
+import './FlipbookRenderer.css';
 
 const initialSnapshot: BookSnapshot = { page: 0, pageCount: 0, orientation: 'portrait', visiblePages: [0] };
 
@@ -36,8 +37,11 @@ export function FlipbookRenderer({
   const reducedMotion = useReducedMotion();
   const bookRef = useRef<FlipBookHandle | null>(null);
   const turningRef = useRef(false);
+  const introStartedRef = useRef(false);
+  const introTimerRef = useRef<number | null>(null);
   const [snapshot, setSnapshot] = useState<BookSnapshot>(initialSnapshot);
   const [transitionState, setTransitionState] = useState<'idle' | 'turning' | 'settling'>('idle');
+  const [introState, setIntroState] = useState<'closed' | 'lifting' | 'opening' | 'open'>('closed');
   const [preloadedPageIndexes, setPreloadedPageIndexes] = useState<Set<number>>(() => new Set([0]));
   const bookKey = `${token}:${pages.map((page) => page.id).join(':')}:${reducedMotion}`;
   const visiblePageIndexes = snapshot.visiblePages.filter((pageIndex) => pageIndex >= 0 && pageIndex < pages.length);
@@ -45,12 +49,23 @@ export function FlipbookRenderer({
   const canGoPrevious = snapshot.page > 0;
   const canGoNext = visiblePageIndexes.at(-1) !== pages.length - 1;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setSnapshot(initialSnapshot);
     setPreloadedPageIndexes(new Set([0]));
     turningRef.current = false;
+    introStartedRef.current = false;
+    if (introTimerRef.current !== null) window.clearTimeout(introTimerRef.current);
+    introTimerRef.current = null;
     setTransitionState('idle');
+    setIntroState('closed');
   }, [bookKey]);
+
+  useEffect(
+    () => () => {
+      if (introTimerRef.current !== null) window.clearTimeout(introTimerRef.current);
+    },
+    []
+  );
 
   useEffect(() => {
     const preload = window.setTimeout(() => {
@@ -78,10 +93,17 @@ export function FlipbookRenderer({
   }, [syncSnapshot]);
 
   const navigate = useCallback(
-    (direction: 'next' | 'prev') => {
+    (direction: 'next' | 'prev', fromIntro = false) => {
       if (turningRef.current) return;
       const book = bookRef.current;
       if (!book) return;
+
+      if (!fromIntro) {
+        if (introTimerRef.current !== null) window.clearTimeout(introTimerRef.current);
+        introTimerRef.current = null;
+        introStartedRef.current = true;
+        setIntroState('open');
+      }
 
       turningRef.current = true;
       setTransitionState(reducedMotion ? 'settling' : 'turning');
@@ -93,6 +115,25 @@ export function FlipbookRenderer({
     },
     [reducedMotion]
   );
+
+  useEffect(() => {
+    if (!snapshot.pageCount || introStartedRef.current) return;
+    introStartedRef.current = true;
+    if (reducedMotion) {
+      setIntroState('open');
+      return;
+    }
+    setIntroState('lifting');
+    introTimerRef.current = window.setTimeout(() => {
+      introTimerRef.current = null;
+      if (pages.length < 2) {
+        setIntroState('open');
+        return;
+      }
+      setIntroState('opening');
+      navigate('next', true);
+    }, 560);
+  }, [navigate, pages.length, reducedMotion, snapshot.pageCount]);
 
   if (!pages.length) return <Typography>No pudimos cargar este contenido.</Typography>;
   const progress = visiblePageIndexes.map((pageIndex) => pageIndex + 1).join('–') || '1';
@@ -118,12 +159,13 @@ export function FlipbookRenderer({
       }}
     >
       <Box
+        className="flipbook-stage"
         sx={{
-          py: { xs: 1, md: 2 },
-          px: { xs: 0, md: 2 },
+          py: { xs: 4, md: 7 },
+          px: { xs: 1, md: 4 },
           overflow: 'hidden',
           bgcolor: '#201d18',
-          backgroundImage: 'radial-gradient(circle at 50% 30%, rgba(255,255,255,.14), transparent 55%)',
+          backgroundImage: 'radial-gradient(ellipse at 50% 34%, rgba(226,196,147,.2), transparent 65%)',
           boxShadow: '0 28px 90px rgba(30,23,12,.28)',
           // The engine writes minWidth * 2 on its responsive host before it
           // evaluates portrait mode. Remove that host floor so usePortrait can
@@ -131,69 +173,77 @@ export function FlipbookRenderer({
           '& .flipbook-magazine-engine.stf__parent': { minWidth: '0 !important' }
         }}
       >
-        <HTMLFlipBook
-          key={bookKey}
-          ref={bookRef}
-          className="flipbook-magazine-engine"
-          width={480}
-          height={680}
-          sizing="responsive"
-          minWidth={280}
-          maxWidth={480}
-          minHeight={396}
-          maxHeight={680}
-          autoSize
-          initialPage={0}
-          page={snapshot.page}
-          pageTransition={reducedMotion ? 'instant' : 'animate'}
-          hardCovers
-          usePortrait
-          flippingTime={reducedMotion ? 0 : 720}
-          respectReducedMotion
-          drawShadow
-          maxShadowOpacity={0.48}
-          pageBackground="#f3eee6"
-          flipOnClick="never"
-          respectInteractiveContent
-          allowTouchScroll
-          swipeDistance={40}
-          lazyRadius={1}
-          useKeyboard={false}
-          controls="none"
-          liveRegion={false}
-          aria-label="Invitación en formato revista"
-          roleDescription="Libro de invitación"
-          onReady={syncSnapshot}
-          onPageChange={syncSnapshot}
-          onChangeOrientation={syncOrientation}
-          onChangeState={({ state }) => {
-            if (state === 'read') {
-              turningRef.current = false;
-              setTransitionState('idle');
-            } else {
-              setTransitionState((current) => (current === 'turning' ? 'settling' : 'turning'));
-            }
-          }}
+        <Box
+          className="flipbook-volume"
+          data-intro={introState}
+          data-orientation={snapshot.orientation}
+          data-cover={snapshot.page === 0 && snapshot.orientation === 'landscape' ? 'landscape' : 'none'}
         >
-          {pages.map((page, pageIndex) => (
-            <FlipbookPage
-              key={page.id}
-              apiClient={apiClient}
-              token={token}
-              page={page}
-              pageNumber={pageIndex + 1}
-              pageCount={pages.length}
-              hotspots={(view.design?.hotspots ?? []).filter((hotspot) => hotspot.flipbookPageId === page.id)}
-              visible={visiblePageIndexes.includes(pageIndex)}
-              interactive={transitionState === 'idle'}
-              shouldLoad={preloadedPageIndexes.has(pageIndex)}
-              onRsvp={onRsvp}
-              onQr={onQr}
-              onUnavailableQr={onUnavailableQr}
-              qrAvailable={view.qr?.available === true}
-            />
-          ))}
-        </HTMLFlipBook>
+          <HTMLFlipBook
+            key={bookKey}
+            ref={bookRef}
+            className="flipbook-magazine-engine"
+            width={480}
+            height={680}
+            sizing="responsive"
+            minWidth={280}
+            maxWidth={480}
+            minHeight={396}
+            maxHeight={680}
+            autoSize
+            initialPage={0}
+            page={snapshot.page}
+            pageTransition={reducedMotion ? 'instant' : 'animate'}
+            hardCovers
+            usePortrait
+            flippingTime={reducedMotion ? 0 : 720}
+            respectReducedMotion
+            drawShadow
+            maxShadowOpacity={0.48}
+            pageBackground="#f3eee6"
+            flipOnClick="never"
+            respectInteractiveContent
+            allowTouchScroll
+            swipeDistance={40}
+            lazyRadius={1}
+            useKeyboard={false}
+            controls="none"
+            liveRegion={false}
+            aria-label="Invitación en formato revista"
+            roleDescription="Libro de invitación"
+            onReady={syncSnapshot}
+            onPageChange={syncSnapshot}
+            onChangeOrientation={syncOrientation}
+            onChangeState={({ state }) => {
+              if (state === 'read') {
+                turningRef.current = false;
+                setTransitionState('idle');
+                setIntroState('open');
+              } else {
+                setTransitionState((current) => (current === 'turning' ? 'settling' : 'turning'));
+              }
+            }}
+          >
+            {pages.map((page, pageIndex) => (
+              <FlipbookPage
+                key={page.id}
+                apiClient={apiClient}
+                token={token}
+                page={page}
+                pageNumber={pageIndex + 1}
+                pageCount={pages.length}
+                hotspots={(view.design?.hotspots ?? []).filter((hotspot) => hotspot.flipbookPageId === page.id)}
+                visible={visiblePageIndexes.includes(pageIndex)}
+                interactive={transitionState === 'idle'}
+                shouldLoad={preloadedPageIndexes.has(pageIndex)}
+                onRsvp={onRsvp}
+                onQr={onQr}
+                onUnavailableQr={onUnavailableQr}
+                qrAvailable={view.qr?.available === true}
+              />
+            ))}
+          </HTMLFlipBook>
+        </Box>
       </Box>
       <Stack direction="row" spacing={2} sx={{ mt: 2, justifyContent: 'center', alignItems: 'center' }}>
         <Button

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ApiClient, PublicInvitationView } from '@invitaciones/api-client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FlipbookRenderer } from './FlipbookRenderer';
@@ -78,6 +78,20 @@ afterEach(() => {
 });
 
 describe('FlipbookRenderer physical leaves', () => {
+  it('opens the centered cover automatically, then leaves normal page navigation available', async () => {
+    setViewport(1200);
+    const { container } = renderFlipbook();
+    await waitFor(() =>
+      expect(container.querySelector('.flipbook-stage .flipbook-volume')).toHaveAttribute('data-intro', 'lifting')
+    );
+    expect(screen.getByText('Página 1 de 6')).toBeVisible();
+
+    await waitFor(() => expect(screen.getByText('Página 2–3 de 6')).toBeVisible(), { timeout: 2000 });
+    expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-intro', 'open');
+    fireEvent.click(screen.getByRole('button', { name: 'Anterior' }));
+    expect(screen.getByText('Página 1 de 6')).toBeVisible();
+  });
+
   it('passes each persisted page as a direct engine leaf and exposes the native desktop spreads', async () => {
     setViewport(1200);
     renderFlipbook();
