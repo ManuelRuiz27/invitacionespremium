@@ -20,14 +20,12 @@ export function FlipbookRenderer({
   token,
   view,
   onRsvp,
-  onQr,
   onUnavailableQr
 }: {
   apiClient: ApiClient;
   token: string;
   view: PublicInvitationView;
   onRsvp: () => void;
-  onQr: () => void;
   onUnavailableQr: () => void;
 }) {
   const pages = useMemo(
@@ -247,7 +245,7 @@ export function FlipbookRenderer({
                 interactive={transitionState === 'idle' && !isOpening}
                 shouldLoad={preloadedPageIndexes.has(pageIndex)}
                 onRsvp={onRsvp}
-                onQr={onQr}
+                rsvpConfirmed={view.invitation?.responseStatus === 'CONFIRMED'}
                 onUnavailableQr={onUnavailableQr}
                 qrAvailable={view.qr?.available === true}
               />

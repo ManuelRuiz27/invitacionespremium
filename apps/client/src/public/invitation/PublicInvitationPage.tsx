@@ -13,7 +13,6 @@ import { isAbortError, usePublicOperationScope } from '../operations/usePublicOp
 import { albumTokenFromContentPath } from '../routing/public-content-path';
 import { InvitationRenderer } from './InvitationRenderer';
 import { invitationStatusLabel, nominalIntentMatches } from './invitation-state';
-import { PublicQrDialog } from './PublicQrDialog';
 import { RsvpDialog } from './RsvpDialog';
 
 type LoadState =
@@ -29,7 +28,6 @@ export function PublicInvitationPage({ apiClient }: { apiClient: ApiClient }) {
 function PublicInvitationTokenPage({ apiClient, invitationToken }: { apiClient: ApiClient; invitationToken: string }) {
   const [state, setState] = useState<LoadState>({ kind: 'loading', token: invitationToken });
   const [rsvpOpen, setRsvpOpen] = useState<string | null>(null);
-  const [qrOpen, setQrOpen] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ message: string; severity: 'success' | 'info' } | null>(null);
   const [rsvpError, setRsvpError] = useState<string>();
@@ -59,7 +57,6 @@ function PublicInvitationTokenPage({ apiClient, invitationToken }: { apiClient: 
 
   useEffect(() => {
     setRsvpOpen(null);
-    setQrOpen(null);
     setNotice(null);
     setRsvpError(undefined);
     setBusy(false);
@@ -102,7 +99,6 @@ function PublicInvitationTokenPage({ apiClient, invitationToken }: { apiClient: 
           if (!operation.isCurrent()) return;
           setState({ kind: 'ready', token: invitationToken, view });
           setRsvpOpen(null);
-          if (view.status !== 'AVAILABLE') setQrOpen(null);
           return;
         } catch (reloadError) {
           if (!operation.isCurrent() || isAbortError(reloadError)) return;
@@ -114,7 +110,6 @@ function PublicInvitationTokenPage({ apiClient, invitationToken }: { apiClient: 
               ...(reloadError.operationId ? { operationId: reloadError.operationId } : {})
             });
             setRsvpOpen(null);
-            setQrOpen(null);
             return;
           }
         }
@@ -218,7 +213,6 @@ function PublicInvitationTokenPage({ apiClient, invitationToken }: { apiClient: 
                 message: 'La confirmación de asistencia ya fue cerrada. Contacta al organizador.'
               });
           }}
-          onQr={() => setQrOpen(invitationToken)}
           onUnavailableQr={() =>
             setNotice({
               severity: 'info',
@@ -228,35 +222,15 @@ function PublicInvitationTokenPage({ apiClient, invitationToken }: { apiClient: 
             })
           }
         />
-        <Stack
-          component="section"
-          aria-labelledby="confirmation-title"
-          spacing={2}
-          sx={{ py: 3, borderTop: '1px solid', borderColor: 'divider' }}
-        >
-          <Typography id="confirmation-title" component="h2" variant="h2">
-            Tu asistencia
-          </Typography>
-          {!view.confirmation?.open ? (
-            <Alert severity="info">La confirmación de asistencia ya fue cerrada. Contacta al organizador.</Alert>
-          ) : null}
-          {view.confirmation?.open ? (
-            <Button variant="contained" onClick={() => setRsvpOpen(invitationToken)} sx={{ width: 'fit-content' }}>
-              {response === 'CONFIRMED' ? 'Modificar acompañantes' : 'Confirmar asistencia'}
-            </Button>
-          ) : null}
-          {view.qr?.available ? (
-            <Button variant="outlined" onClick={() => setQrOpen(invitationToken)} sx={{ width: 'fit-content' }}>
-              Ver mi QR
-            </Button>
-          ) : null}
-          {albumToken ? (
-            <Button component={Link} to={`/album/${encodeURIComponent(albumToken)}`} sx={{ width: 'fit-content' }}>
-              Abrir álbum
-            </Button>
-          ) : null}
-          {view.album?.state === 'RESTRICTED' ? <Typography>Álbum disponible solo para asistentes</Typography> : null}
-        </Stack>
+        {!view.confirmation?.open ? (
+          <Alert severity="info">La confirmación de asistencia ya fue cerrada. Contacta al organizador.</Alert>
+        ) : null}
+        {albumToken ? (
+          <Button component={Link} to={`/album/${encodeURIComponent(albumToken)}`} sx={{ width: 'fit-content' }}>
+            Abrir álbum
+          </Button>
+        ) : null}
+        {view.album?.state === 'RESTRICTED' ? <Typography>Álbum disponible solo para asistentes</Typography> : null}
       </Stack>
       <RsvpDialog
         open={rsvpOpen === invitationToken}
@@ -271,9 +245,6 @@ function PublicInvitationTokenPage({ apiClient, invitationToken }: { apiClient: 
         onConfirm={(value) => void mutate('CONFIRMED', value)}
         onReject={() => void mutate('REJECTED')}
       />
-      {qrOpen === invitationToken && view.qr?.available ? (
-        <PublicQrDialog apiClient={apiClient} token={invitationToken} onClose={() => setQrOpen(null)} />
-      ) : null}
     </PublicLayout>
   );
 }

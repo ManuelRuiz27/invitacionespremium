@@ -62,14 +62,12 @@ export function FlyerRenderer({
   token,
   view,
   onRsvp,
-  onQr,
   onUnavailableQr
 }: {
   apiClient: ApiClient;
   token: string;
   view: PublicInvitationView;
   onRsvp: () => void;
-  onQr: () => void;
   onUnavailableQr: () => void;
 }) {
   const design = view.design;
@@ -92,9 +90,11 @@ export function FlyerRenderer({
           eager
         />
         <HotspotLayer
+          apiClient={apiClient}
+          token={token}
           hotspots={design.hotspots.filter((hotspot) => hotspot.visualOwnerType === 'FLYER')}
           onRsvp={onRsvp}
-          onQr={onQr}
+          rsvpConfirmed={view.invitation?.responseStatus === 'CONFIRMED'}
           onUnavailableQr={onUnavailableQr}
           qrAvailable={view.qr?.available === true}
         />

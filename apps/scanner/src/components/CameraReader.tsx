@@ -94,12 +94,28 @@ export function CameraReader({ onScan, paused = false }: CameraReaderProps) {
   if (error) return <Alert severity="error">{error}</Alert>;
 
   return (
-    <Box sx={{ position: 'relative', width: '100%', maxWidth: 520, mx: 'auto', overflow: 'hidden', borderRadius: 2 }}>
+    <Box
+      sx={{
+        position: 'relative',
+        width: '100%',
+        maxWidth: 520,
+        mx: 'auto',
+        overflow: 'hidden',
+        borderRadius: 3,
+        aspectRatio: { xs: '3/4', sm: '4/5' },
+        minHeight: { xs: 380, sm: 480 },
+        bgcolor: '#090a0f',
+        boxShadow: (theme) => theme.shadows[4],
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}
+    >
       <video
         ref={videoRef}
         playsInline
         muted
-        style={{ width: '100%', display: 'block' }}
+        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
         aria-label="Vista de la cámara"
       />
       <canvas ref={canvasRef} hidden />
@@ -108,10 +124,44 @@ export function CameraReader({ onScan, paused = false }: CameraReaderProps) {
         sx={{
           position: 'absolute',
           inset: 0,
-          boxShadow: (theme) => `inset 0 0 0 40px ${theme.palette.action.disabled}`,
           pointerEvents: 'none'
         }}
-      />
+      >
+        {/* Retícula central de escaneo sin texto ni botones */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '74%',
+            aspectRatio: '1 / 1',
+            maxHeight: '78%',
+            borderRadius: 3,
+            boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.45)',
+            border: '2px solid rgba(255, 255, 255, 0.35)',
+            overflow: 'hidden'
+          }}
+        >
+          {/* Línea animada de escaneo */}
+          <Box
+            sx={{
+              position: 'absolute',
+              left: 12,
+              right: 12,
+              height: 2,
+              bgcolor: 'primary.light',
+              boxShadow: (theme) => `0 0 10px 2px ${theme.palette.primary.main}`,
+              animation: 'scannerLaserPulse 2.4s ease-in-out infinite alternate',
+              '@keyframes scannerLaserPulse': {
+                '0%': { top: '8%', opacity: 0.3 },
+                '50%': { opacity: 1 },
+                '100%': { top: '92%', opacity: 0.3 }
+              }
+            }}
+          />
+        </Box>
+      </Box>
     </Box>
   );
 }

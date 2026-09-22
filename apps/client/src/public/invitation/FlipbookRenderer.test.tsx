@@ -59,7 +59,6 @@ function renderFlipbook(pageCount = 6) {
       token={token}
       view={fixture(pageCount)}
       onRsvp={vi.fn()}
-      onQr={vi.fn()}
       onUnavailableQr={vi.fn()}
     />
   );
@@ -160,7 +159,6 @@ describe('FlipbookRenderer physical leaves', () => {
         token={token}
         view={fixture(6)}
         onRsvp={onRsvp}
-        onQr={vi.fn()}
         onUnavailableQr={vi.fn()}
       />
     );

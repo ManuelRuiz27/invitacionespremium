@@ -1,8 +1,10 @@
 import type { SyntheticEvent } from 'react';
-import type { PublicInvitationView } from '@invitaciones/api-client';
-import { Box, Button } from '@mui/material';
+import type { ApiClient, PublicInvitationView } from '@invitaciones/api-client';
+import { Box } from '@mui/material';
 import { relativeRectStyles } from '../../shared/relative-rect';
 import { safeHttpsUrl } from '../routing/public-content-path';
+import { QrHotspot } from './QrHotspot';
+import './HotspotLayer.css';
 
 type Hotspot = NonNullable<PublicInvitationView['design']>['hotspots'][number];
 
@@ -15,20 +17,24 @@ const labels = {
 } as const;
 
 interface HotspotLayerProps {
+  apiClient: ApiClient;
+  token: string;
   hotspots: Hotspot[];
   onRsvp: () => void;
-  onQr: () => void;
   onUnavailableQr: () => void;
   qrAvailable: boolean;
+  rsvpConfirmed?: boolean;
   disabled?: boolean;
 }
 
 export function HotspotLayer({
+  apiClient,
+  token,
   hotspots,
   onRsvp,
-  onQr,
   onUnavailableQr,
   qrAvailable,
+  rsvpConfirmed = false,
   disabled = false
 }: HotspotLayerProps) {
   const preventDisabledNavigation = (event: SyntheticEvent) => {
@@ -44,29 +50,20 @@ export function HotspotLayer({
         .map((hotspot) => {
           const href = safeHttpsUrl(hotspot.destination);
           const common = {
-            'aria-label': labels[hotspot.action],
+            'aria-label':
+              hotspot.action === 'RSVP' && rsvpConfirmed ? 'Modificar acompañantes' : labels[hotspot.action],
+            className: 'invitation-hotspot',
             sx: {
               position: 'absolute',
               ...relativeRectStyles(hotspot),
               minWidth: 44,
               minHeight: 44,
-              p: 0,
-              pointerEvents: disabled ? 'none' : 'auto',
-              color: '#fff',
-              bgcolor: 'rgba(17,17,15,.36)',
-              border: '1px solid rgba(255,255,255,.42)',
-              fontSize: { xs: '.68rem', sm: '.78rem' },
-              lineHeight: 1.1,
-              '&:hover, &:focus-visible': {
-                color: '#fff',
-                bgcolor: 'rgba(17,17,15,.72)',
-                borderColor: 'rgba(255,255,255,.7)'
-              }
+              pointerEvents: disabled ? 'none' : 'auto'
             }
           } as const;
           if (['LOCATION', 'GIFT_REGISTRY', 'EXTERNAL_LINK'].includes(hotspot.action)) {
             return href ? (
-              <Button
+              <Box
                 key={hotspot.id}
                 component="a"
                 href={href}
@@ -78,20 +75,24 @@ export function HotspotLayer({
                 onClick={preventDisabledNavigation}
                 onKeyDown={preventDisabledNavigation}
                 {...common}
-              >
-                {labels[hotspot.action]}
-              </Button>
+              />
             ) : null;
           }
+          if (hotspot.action === 'QR_AREA') {
+            return (
+              <QrHotspot
+                key={`${hotspot.id}:${token}:${qrAvailable}`}
+                apiClient={apiClient}
+                token={token}
+                available={qrAvailable}
+                disabled={disabled}
+                onUnavailable={onUnavailableQr}
+                sx={common.sx}
+              />
+            );
+          }
           return (
-            <Button
-              key={hotspot.id}
-              disabled={disabled}
-              onClick={hotspot.action === 'RSVP' ? onRsvp : qrAvailable ? onQr : onUnavailableQr}
-              {...common}
-            >
-              {labels[hotspot.action]}
-            </Button>
+            <Box component="button" type="button" key={hotspot.id} disabled={disabled} onClick={onRsvp} {...common} />
           );
         })}
     </Box>

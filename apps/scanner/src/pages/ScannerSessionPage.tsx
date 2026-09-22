@@ -2,6 +2,10 @@ import { useCallback, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import type { ApiClient, ScannerCheckInResponse } from '@invitaciones/api-client';
 import { Alert, Box, Button, CircularProgress, Container, Stack, Tab, Tabs, Typography } from '@mui/material';
+import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
+import MapRounded from '@mui/icons-material/MapRounded';
+import QrCodeScannerRounded from '@mui/icons-material/QrCodeScannerRounded';
+import SearchRounded from '@mui/icons-material/SearchRounded';
 import { ErrorState, LoadingState, StatusChip } from '@invitaciones/ui';
 import { CameraReader } from '../components/CameraReader';
 import { ScanResultPanel, type ScannerOperationalResult } from '../components/ScanResultPanel';
@@ -152,82 +156,116 @@ export function ScannerSessionPage({
       </Container>
     );
 
-  const tableIds =
-    scanResult?.pendingAssistants.flatMap((assistant) =>
-      selectedAssistantIds.includes(assistant.id) && assistant.table ? [assistant.table.id] : []
-    ) ?? [];
-  const highlightedSeats =
-    scanResult?.pendingAssistants.flatMap((assistant) =>
-      selectedAssistantIds.includes(assistant.id) && assistant.seat ? [assistant.seat] : []
-    ) ?? [];
+  const activeAssistants = confirmation
+    ? confirmation.checkedIn
+    : scanResult?.pendingAssistants.filter((assistant) => selectedAssistantIds.includes(assistant.id)) ?? [];
+
+  const tableIds = activeAssistants.flatMap((assistant) => (assistant.table ? [assistant.table.id] : []));
+  const highlightedSeats = activeAssistants.flatMap((assistant) => (assistant.seat ? [assistant.seat] : []));
+
+  const alertsBlock = (
+    <>
+      {realtimeStatus === 'error' || realtimeStatus === 'disconnected' ? (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          La actualización en tiempo real no está disponible. Puedes continuar usando el Scanner;
+          validaremos cada operación con el servidor.
+        </Alert>
+      ) : null}
+      {realtimeNotice ? (
+        <Alert severity="warning" sx={{ mb: 2 }} onClose={() => setRealtimeNotice(null)}>
+          {realtimeNotice}
+        </Alert>
+      ) : null}
+    </>
+  );
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', py: 2 }}>
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', pt: { xs: 1.5, sm: 2 }, pb: 12 }}>
       <Container maxWidth="sm">
-        <Stack component="header" spacing={0.75} sx={{ mb: 2 }}>
-          <Typography component="h1" variant="h1">
-            {sessionData.event.name}
-          </Typography>
-          <Typography color="text.secondary">Staff: {sessionData.staff.alias}</Typography>
-          <StatusChip
-            label={
-              sessionData.event.status === 'EVENT_DAY' ? 'Día del Evento · operativo' : 'Evento activo · operativo'
-            }
-            tone="success"
-          />
-        </Stack>
-        {realtimeStatus === 'error' || realtimeStatus === 'disconnected' ? (
-          <Alert severity="warning" sx={{ mb: 2 }}>
-            La actualización en tiempo real no está disponible. Puedes continuar usando el Scanner; validaremos cada
-            operación con el servidor.
-          </Alert>
-        ) : null}
-        {realtimeNotice ? (
-          <Alert severity="warning" sx={{ mb: 2 }} onClose={() => setRealtimeNotice(null)}>
-            {realtimeNotice}
-          </Alert>
-        ) : null}
-        <Tabs
-          value={currentTab}
-          onChange={(_, value: number) => setCurrentTab(value)}
-          aria-label="Herramientas de Scanner"
-          variant="fullWidth"
-          sx={{ mb: 3 }}
-        >
-          <Tab label="Cámara" id="scanner-tab-camera" aria-controls="scanner-panel-camera" />
-          <Tab label="Buscar" id="scanner-tab-search" aria-controls="scanner-panel-search" />
-          {sessionData.event.floorplanEnabled ? (
-            <Tab label="Croquis" id="scanner-tab-floorplan" aria-controls="scanner-panel-floorplan" />
-          ) : null}
-        </Tabs>
+        {/* Pestaña 0: Scanner */}
         {currentTab === 0 ? (
           <Box role="tabpanel" id="scanner-panel-camera" aria-labelledby="scanner-tab-camera">
             {confirmation ? (
-              <Stack spacing={2}>
-                <Alert severity="success">
-                  Ingreso registrado: {confirmation.checkedIn.map((assistant) => assistant.name).join(', ')}.
-                </Alert>
-                <Button variant="contained" size="large" onClick={clearResult}>
-                  Siguiente escaneo
-                </Button>
-              </Stack>
+              <Box
+                sx={{
+                  animation: 'scannerConfirmIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+                  '@keyframes scannerConfirmIn': {
+                    '0%': { opacity: 0, transform: 'translateY(16px)' },
+                    '100%': { opacity: 1, transform: 'translateY(0)' }
+                  }
+                }}
+              >
+                {alertsBlock}
+                <Stack spacing={2.5}>
+                  <Alert severity="success" icon={<CheckCircleRounded />}>
+                    Ingreso registrado: {confirmation.checkedIn.map((assistant) => assistant.name).join(', ')}.
+                  </Alert>
+
+                  {sessionData.event.floorplanEnabled && floorplan.data ? (
+                    <Box sx={{ mt: 1 }}>
+                      <ScannerFloorplan
+                        floorplan={floorplan.data}
+                        contentUrl={new URL(floorplan.data.contentPath, apiBaseUrl).toString()}
+                        highlightedTableIds={tableIds}
+                        highlightedSeats={highlightedSeats}
+                      />
+                    </Box>
+                  ) : null}
+
+                  <Button
+                    variant="contained"
+                    size="large"
+                    startIcon={<QrCodeScannerRounded />}
+                    onClick={clearResult}
+                    fullWidth
+                    sx={{ minHeight: 48, borderRadius: 2 }}
+                  >
+                    Siguiente escaneo
+                  </Button>
+                </Stack>
+              </Box>
             ) : scanResult ? (
-              <ScanResultPanel
-                scanResult={scanResult}
-                onCheckIn={handleCheckIn}
-                onCancel={clearResult}
-                selectedIds={selectedAssistantIds}
-                onSelectionChange={setSelectedAssistantIds}
-                isLoading={checkInMutation.isPending}
-                errorMessage={
-                  checkInMutation.error
-                    ? scannerErrorMessage(checkInMutation.error, 'No pudimos registrar el ingreso.')
-                    : null
-                }
-              />
+              <>
+                {alertsBlock}
+                <ScanResultPanel
+                  scanResult={scanResult}
+                  onCheckIn={handleCheckIn}
+                  onCancel={clearResult}
+                  selectedIds={selectedAssistantIds}
+                  onSelectionChange={setSelectedAssistantIds}
+                  isLoading={checkInMutation.isPending}
+                  errorMessage={
+                    checkInMutation.error
+                      ? scannerErrorMessage(checkInMutation.error, 'No pudimos registrar el ingreso.')
+                      : null
+                  }
+                  floorplanSlot={
+                    sessionData.event.floorplanEnabled ? (
+                      <Box sx={{ mt: 2 }}>
+                        {floorplan.isLoading ? <LoadingState label="Cargando Croquis…" /> : null}
+                        {floorplan.error ? (
+                          <Alert severity="info">
+                            {scannerErrorMessage(floorplan.error, 'El Croquis no está disponible.')}
+                          </Alert>
+                        ) : null}
+                        {floorplan.data ? (
+                          <ScannerFloorplan
+                            floorplan={floorplan.data}
+                            contentUrl={new URL(floorplan.data.contentPath, apiBaseUrl).toString()}
+                            highlightedTableIds={tableIds}
+                            highlightedSeats={highlightedSeats}
+                          />
+                        ) : null}
+                      </Box>
+                    ) : null
+                  }
+                />
+              </>
             ) : (
               <>
+                {/* Div de video en la parte superior: limpio, alargado, sin etiquetas, botones ni texto */}
                 <CameraReader onScan={handleScan} paused={scanMutation.isPending} />
+
                 {scanMutation.isPending ? (
                   <Stack role="status" spacing={1} sx={{ mt: 2, alignItems: 'center' }}>
                     <CircularProgress size={28} />
@@ -239,12 +277,64 @@ export function ScannerSessionPage({
                     {scannerErrorMessage(scanMutation.error, 'No pudimos procesar el código.')}
                   </Alert>
                 ) : null}
+
+                {/* Alertas debajo del video en modo scanner */}
+                <Box sx={{ mt: 2 }}>
+                  {alertsBlock}
+                </Box>
+
+                {/* Información operativa del evento debajo de la cámara */}
+                <Stack component="header" spacing={0.75} sx={{ mt: 1, mb: 1.5 }}>
+                  <Typography component="h1" variant="h1">
+                    {sessionData.event.name}
+                  </Typography>
+                  <Typography color="text.secondary">Staff: {sessionData.staff.alias}</Typography>
+                  <StatusChip
+                    label={
+                      sessionData.event.status === 'EVENT_DAY'
+                        ? 'Día del Evento · operativo'
+                        : 'Evento activo · operativo'
+                    }
+                    tone="success"
+                  />
+                </Stack>
               </>
             )}
           </Box>
         ) : null}
+
+        {/* Pestaña 1: Buscar */}
         {currentTab === 1 ? (
           <Box role="tabpanel" id="scanner-panel-search" aria-labelledby="scanner-tab-search">
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<QrCodeScannerRounded />}
+                onClick={() => setCurrentTab(0)}
+                sx={{ borderRadius: 999, px: 2 }}
+              >
+                Volver al Scanner
+              </Button>
+            </Box>
+
+            {alertsBlock}
+
+            <Stack component="header" spacing={0.75} sx={{ mb: 2 }}>
+              <Typography component="h1" variant="h1">
+                {sessionData.event.name}
+              </Typography>
+              <Typography color="text.secondary">Staff: {sessionData.staff.alias}</Typography>
+              <StatusChip
+                label={
+                  sessionData.event.status === 'EVENT_DAY'
+                    ? 'Día del Evento · operativo'
+                    : 'Evento activo · operativo'
+                }
+                tone="success"
+              />
+            </Stack>
+
             <ScannerSearchPanel
               onSearch={(query) => {
                 setRealtimeNotice(null);
@@ -266,8 +356,39 @@ export function ScannerSessionPage({
             />
           </Box>
         ) : null}
+
+        {/* Pestaña 2: Croquis */}
         {currentTab === 2 && sessionData.event.floorplanEnabled ? (
           <Box role="tabpanel" id="scanner-panel-floorplan" aria-labelledby="scanner-tab-floorplan">
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<QrCodeScannerRounded />}
+                onClick={() => setCurrentTab(0)}
+                sx={{ borderRadius: 999, px: 2 }}
+              >
+                Volver al Scanner
+              </Button>
+            </Box>
+
+            {alertsBlock}
+
+            <Stack component="header" spacing={0.75} sx={{ mb: 2 }}>
+              <Typography component="h1" variant="h1">
+                {sessionData.event.name}
+              </Typography>
+              <Typography color="text.secondary">Staff: {sessionData.staff.alias}</Typography>
+              <StatusChip
+                label={
+                  sessionData.event.status === 'EVENT_DAY'
+                    ? 'Día del Evento · operativo'
+                    : 'Evento activo · operativo'
+                }
+                tone="success"
+              />
+            </Stack>
+
             {floorplan.isLoading ? <LoadingState label="Cargando Croquis…" /> : null}
             {floorplan.error ? (
               <Alert severity="info">{scannerErrorMessage(floorplan.error, 'El Croquis no está disponible.')}</Alert>
@@ -283,6 +404,69 @@ export function ScannerSessionPage({
           </Box>
         ) : null}
       </Container>
+
+      {/* Menú inferior accesible a los pulgares */}
+      <Box
+        component="nav"
+        sx={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 1100,
+          bgcolor: 'background.paper',
+          borderTop: 1,
+          borderColor: 'divider',
+          boxShadow: (theme) =>
+            `0 -2px 10px ${theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.06)'}`,
+          pb: 'max(env(safe-area-inset-bottom), 8px)',
+          pt: 0.5
+        }}
+      >
+        <Container maxWidth="sm" disableGutters>
+          <Tabs
+            value={currentTab}
+            onChange={(_, value: number) => setCurrentTab(value)}
+            aria-label="Herramientas de Scanner"
+            variant="fullWidth"
+            sx={{
+              minHeight: 56,
+              '& .MuiTab-root': {
+                minHeight: 56,
+                minWidth: 48,
+                py: 0.75,
+                fontSize: '0.8125rem',
+                fontWeight: 600,
+                touchAction: 'manipulation'
+              }
+            }}
+          >
+            <Tab
+              icon={<QrCodeScannerRounded />}
+              iconPosition="top"
+              label="Scanner"
+              id="scanner-tab-camera"
+              aria-controls="scanner-panel-camera"
+            />
+            <Tab
+              icon={<SearchRounded />}
+              iconPosition="top"
+              label="Buscar"
+              id="scanner-tab-search"
+              aria-controls="scanner-panel-search"
+            />
+            {sessionData.event.floorplanEnabled ? (
+              <Tab
+                icon={<MapRounded />}
+                iconPosition="top"
+                label="Croquis"
+                id="scanner-tab-floorplan"
+                aria-controls="scanner-panel-floorplan"
+              />
+            ) : null}
+          </Tabs>
+        </Container>
+      </Box>
     </Box>
   );
 }

@@ -48,7 +48,18 @@ function invitation(token: string, name = `Invitación ${token}`, confirmed = fa
         contentPath: `/api/v1/public/invitations/${token}/assets/${assetId}/content`
       },
       pages: [],
-      hotspots: []
+      hotspots: (['RSVP', 'QR_AREA'] as const).map((action, index) => ({
+        id: `hotspot-${action}`,
+        action,
+        destination: null,
+        visualOwnerType: 'FLYER',
+        flipbookPageId: null,
+        x: 0.1,
+        y: index === 0 ? 0.7 : 0.2,
+        width: 0.5,
+        height: 0.2,
+        priority: 0
+      }))
     },
     qr: { available: confirmed, ...(confirmed ? { contentPath: `/api/v1/public/invitations/${token}/qr.svg` } : {}) }
   };
@@ -194,6 +205,7 @@ describe('token-scoped public reads', () => {
     const api = publicApi();
     const viewA = invitation('A', 'Evento secreto A', true);
     viewA.design!.hotspots = [
+      ...viewA.design!.hotspots,
       {
         id: 'hotspot-a',
         action: 'EXTERNAL_LINK',
@@ -213,8 +225,8 @@ describe('token-scoped public reads', () => {
     const { router } = renderApp(api, '/invitacion/A');
     expect(await screen.findByRole('heading', { name: 'Evento secreto A' })).toBeVisible();
     expect(await screen.findByRole('link', { name: 'Abrir enlace' })).toBeVisible();
-    await userEvent.click(screen.getByRole('button', { name: 'Ver mi QR' }));
-    expect(await screen.findByRole('dialog')).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Mostrar QR' }));
+    expect(await screen.findByRole('img', { name: 'Código QR de acceso' })).toBeVisible();
 
     await act(async () => router.navigate('/invitacion/B'));
 
@@ -224,6 +236,7 @@ describe('token-scoped public reads', () => {
     expect(screen.queryByText('Principal')).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Abrir enlace' })).not.toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByAltText('Código QR de acceso')).not.toBeInTheDocument();
     expect(screen.queryByAltText('Diseño de la invitación')).not.toBeInTheDocument();
 
     pendingB.resolve(invitation('B', 'Evento B'));
@@ -391,9 +404,8 @@ describe('token-scoped RSVP mutations', () => {
         await screen.findByText('La confirmación de asistencia ya fue cerrada. Contacta al organizador.')
       ).toBeVisible();
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-      expect(
-        screen.queryByRole('button', { name: /Confirmar asistencia|Modificar acompañantes/ })
-      ).not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: /Confirmar asistencia|Modificar acompañantes/ }));
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       expect(screen.getByRole('heading', { name: 'Diseño permitido' })).toBeVisible();
       expect(api.publicInvitation.resolve).toHaveBeenCalledTimes(2);
     }
@@ -457,22 +469,25 @@ describe('token-scoped RSVP mutations', () => {
 });
 
 describe('local public media recovery', () => {
-  it('retries only a failed QR and keeps the dialog open', async () => {
+  it('retries only a failed QR when its area is closed and reopened', async () => {
     const api = publicApi();
     vi.mocked(api.publicInvitation.resolve).mockResolvedValue(invitation('A', 'Confirmada', true));
     vi.mocked(api.publicInvitation.qr)
       .mockRejectedValueOnce(new Error('storage'))
       .mockResolvedValueOnce(new Blob(['svg']));
     renderApp(api, '/invitacion/A');
-    await userEvent.click(await screen.findByRole('button', { name: 'Ver mi QR' }));
-    expect(await screen.findByText('No pudimos preparar el QR.')).toBeVisible();
-    await userEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Mostrar QR' }));
+    expect(await screen.findByText(/No pudimos preparar el QR/)).toBeVisible();
+    const toggle = screen.getByRole('button', { name: 'Ocultar QR' });
+    await userEvent.click(toggle);
+    fireEvent.transitionEnd(toggle.querySelector('.invitation-qr-rotor')!, { propertyName: 'transform' });
+    await userEvent.click(screen.getByRole('button', { name: 'Mostrar QR' }));
     expect(await screen.findByAltText('Código QR de acceso')).toBeVisible();
     expect(api.publicInvitation.resolve).toHaveBeenCalledTimes(1);
     expect(api.publicInvitation.qr).toHaveBeenCalledTimes(2);
   });
 
-  it('aborts and discards a late QR response after closing the dialog', async () => {
+  it('aborts and discards a late QR response after returning to the transparent face', async () => {
     const lateQr = deferred<Blob>();
     const api = publicApi();
     let signal: AbortSignal | undefined;
@@ -482,9 +497,11 @@ describe('local public media recovery', () => {
       return lateQr.promise;
     });
     renderApp(api, '/invitacion/A');
-    await userEvent.click(await screen.findByRole('button', { name: 'Ver mi QR' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Mostrar QR' }));
     await waitFor(() => expect(signal).toBeDefined());
-    await userEvent.click(screen.getByRole('button', { name: 'Cerrar' }));
+    const toggle = screen.getByRole('button', { name: 'Ocultar QR' });
+    await userEvent.click(toggle);
+    fireEvent.transitionEnd(toggle.querySelector('.invitation-qr-rotor')!, { propertyName: 'transform' });
     expect(signal?.aborted).toBe(true);
     lateQr.resolve(new Blob(['late']));
     await waitFor(() => expect(screen.queryByAltText('Código QR de acceso')).not.toBeInTheDocument());

@@ -42,6 +42,18 @@ function availableView(overrides: Partial<PublicInvitationView> = {}): PublicInv
           width: 0.5,
           height: 0.1,
           priority: 0
+        },
+        {
+          id: 'qr-hotspot',
+          action: 'QR_AREA',
+          destination: null,
+          flipbookPageId: null,
+          visualOwnerType: 'FLYER',
+          x: 0.25,
+          y: 0.25,
+          width: 0.5,
+          height: 0.35,
+          priority: 0
         }
       ]
     },
@@ -228,6 +240,11 @@ describe('public invitation', () => {
 
     expect(await screen.findByText('Aún no has confirmado')).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Ver mi QR' })).not.toBeInTheDocument();
+    const rsvpArea = screen.getByRole('button', { name: 'Confirmar asistencia' });
+    expect(rsvpArea).toBeEmptyDOMElement();
+    await userEvent.click(screen.getByRole('button', { name: 'Mostrar QR' }));
+    expect(screen.getByText('Confirma tu asistencia para ver tu QR.')).toBeVisible();
+    expect(api.publicInvitation.qr).not.toHaveBeenCalled();
     await userEvent.click(screen.getAllByRole('button', { name: 'Confirmar asistencia' }).at(-1)!);
     const dialog = screen.getByRole('dialog');
     expect(within(dialog).getByDisplayValue('Invitado principal')).toBeDisabled();
@@ -242,14 +259,25 @@ describe('public invitation', () => {
         expect.any(AbortSignal)
       )
     );
-    expect(await screen.findByRole('button', { name: 'Ver mi QR' })).toBeVisible();
+    expect(await screen.findByText('Tu confirmación quedó guardada.')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Ver mi QR' })).not.toBeInTheDocument();
+    expect(await screen.findAllByRole('button', { name: 'Modificar acompañantes' })).toHaveLength(1);
     expect(api.publicInvitation.qr).not.toHaveBeenCalled();
-    await userEvent.click(screen.getByRole('button', { name: 'Ver mi QR' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Mostrar QR' }));
     await waitFor(() => expect(api.publicInvitation.qr).toHaveBeenCalledTimes(1));
-    await userEvent.click(screen.getByRole('button', { name: 'Pantalla completa' }));
-    expect(screen.getByRole('button', { name: 'Salir de pantalla completa' })).toBeVisible();
-    await userEvent.click(screen.getByRole('button', { name: 'Cerrar' }));
+    expect(await screen.findByRole('img', { name: 'Código QR de acceso' })).toBeVisible();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    const toggle = screen.getByRole('button', { name: 'Ocultar QR' });
+    const rotor = toggle.querySelector('.invitation-qr-rotor')!;
+    expect(rotor).toHaveStyle({ transform: 'rotateY(180deg)' });
+    await userEvent.click(toggle);
+    expect(rotor).toHaveStyle({ transform: 'rotateY(360deg)' });
+    expect(screen.queryByRole('img', { name: 'Código QR de acceso' })).not.toBeInTheDocument();
+    fireEvent.transitionEnd(rotor, { propertyName: 'transform' });
     expect(URL.revokeObjectURL).toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Mostrar QR' }));
+    expect(rotor).toHaveStyle({ transform: 'rotateY(540deg)' });
+    expect(await screen.findByRole('img', { name: 'Código QR de acceso' })).toBeVisible();
   });
 
   it('preserves assistant identity while editing and removing nominal companions', async () => {

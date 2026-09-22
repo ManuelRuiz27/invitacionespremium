@@ -16,6 +16,13 @@ const assetIds = [
 
 const fixtureApiClient = {
   publicInvitation: {
+    qr: async () =>
+      new Blob(
+        [
+          `<svg xmlns="http://www.w3.org/2000/svg" viewBox="390 670 336 336"><rect x="390" y="670" width="336" height="336" fill="white"/><g fill="#111827">${fakeQr()}</g></svg>`
+        ],
+        { type: 'image/svg+xml' }
+      ),
     asset: async (_token: string, assetId: string) => {
       const page = assetIds.indexOf(assetId) + 1;
       if (page < 1) throw new Error('Fixture asset not found');
@@ -95,7 +102,6 @@ export function DevFlipbookFixturePage() {
           token={token}
           view={fixtureView}
           onRsvp={() => setNotice('Confirmar asistencia: hotspot funcional.')}
-          onQr={() => setNotice('Mostrar QR: hotspot funcional.')}
           onUnavailableQr={() => setNotice('El QR no está disponible.')}
         />
       </Stack>

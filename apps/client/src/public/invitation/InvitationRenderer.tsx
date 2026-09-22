@@ -7,7 +7,6 @@ export function InvitationRenderer(props: {
   token: string;
   view: PublicInvitationView;
   onRsvp: () => void;
-  onQr: () => void;
   onUnavailableQr: () => void;
 }) {
   return props.view.designType === 'FLIPBOOK' ? <FlipbookRenderer {...props} /> : <FlyerRenderer {...props} />;

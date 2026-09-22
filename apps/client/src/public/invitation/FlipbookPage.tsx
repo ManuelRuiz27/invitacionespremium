@@ -19,7 +19,7 @@ interface FlipbookPageProps {
   interactive: boolean;
   shouldLoad: boolean;
   onRsvp: () => void;
-  onQr: () => void;
+  rsvpConfirmed: boolean;
   onUnavailableQr: () => void;
   qrAvailable: boolean;
 }
@@ -36,7 +36,7 @@ export const FlipbookPage = forwardRef<HTMLDivElement, FlipbookPageProps>(functi
     interactive,
     shouldLoad,
     onRsvp,
-    onQr,
+    rsvpConfirmed,
     onUnavailableQr,
     qrAvailable
   },
@@ -84,9 +84,11 @@ export const FlipbookPage = forwardRef<HTMLDivElement, FlipbookPageProps>(functi
           />
           <Box sx={{ position: 'absolute', ...imageRect }}>
             <HotspotLayer
+              apiClient={apiClient}
+              token={token}
               hotspots={hotspots}
               onRsvp={onRsvp}
-              onQr={onQr}
+              rsvpConfirmed={rsvpConfirmed}
               onUnavailableQr={onUnavailableQr}
               qrAvailable={qrAvailable}
               disabled={disabled}
