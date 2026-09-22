@@ -32,10 +32,6 @@
   z-index: 1;
 }
 
-.flipbook-volume[data-orientation='portrait'] {
-  max-width: 480px;
-}
-
 .flipbook-volume[data-orientation='portrait'][data-intro='closed'] {
   transform: translateY(15px) rotateX(0deg) rotateZ(0deg) scale(0.97);
 }
@@ -75,6 +71,13 @@
   pointer-events: none;
   transform: translate3d(7px, 5px, -2px);
   transition: left 720ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.flipbook-volume[data-orientation='portrait']::before {
+  left: 50%;
+  right: auto;
+  width: min(480px, 100%);
+  transform: translateX(-50%) translate3d(7px, 5px, -2px);
 }
 
 .flipbook-volume[data-cover='landscape']::before {
