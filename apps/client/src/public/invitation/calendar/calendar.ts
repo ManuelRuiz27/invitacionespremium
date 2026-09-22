@@ -32,11 +32,12 @@ export function toCalendarEventData(event: PublicEvent | undefined): CalendarEve
 }
 
 export function buildGoogleCalendarUrl(event: CalendarEventData): string {
-  const url = new URL('https://calendar.google.com/calendar/render');
+  const url = new URL('https://calendar.google.com/calendar/r/eventedit');
   url.searchParams.set('action', 'TEMPLATE');
   url.searchParams.set('text', event.name);
   url.searchParams.set('dates', calendarUtc(event.eventDateTime) + '/' + calendarUtc(event.eventEndDateTime));
-  url.searchParams.set('ctz', event.timeZone);
+  url.searchParams.set('stz', event.timeZone);
+  url.searchParams.set('etz', event.timeZone);
   url.searchParams.set('details', 'Invitación del evento');
   if (event.locationUrl) url.searchParams.set('location', event.locationUrl);
   return url.toString();
@@ -79,7 +80,10 @@ export function calendarFileName(name: string): string {
 function calendarUtc(value: string | Date): string {
   const date = value instanceof Date ? value : new Date(value);
   if (!Number.isFinite(date.getTime())) throw new TypeError('Invalid calendar date.');
-  return date.toISOString().replace(/[-:]/gu, '').replace(/\.\d{3}Z$/u, 'Z');
+  return date
+    .toISOString()
+    .replace(/[-:]/gu, '')
+    .replace(/\.\d{3}Z$/u, 'Z');
 }
 
 function escapeIcs(value: string): string {

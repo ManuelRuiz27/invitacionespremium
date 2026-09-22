@@ -10,13 +10,16 @@ const event = {
 };
 
 describe('public invitation calendar helpers', () => {
-  it('builds a Google Calendar URL with authoritative instants, timezone and location', () => {
+  it('builds the documented Google Calendar event-edit URL with authoritative instants and timezone', () => {
     const url = new URL(buildGoogleCalendarUrl(event));
     expect(url.origin).toBe('https://calendar.google.com');
+    expect(url.pathname).toBe('/calendar/r/eventedit');
     expect(url.searchParams.get('action')).toBe('TEMPLATE');
     expect(url.searchParams.get('text')).toBe(event.name);
     expect(url.searchParams.get('dates')).toBe('20351018T230000Z/20351019T050000Z');
-    expect(url.searchParams.get('ctz')).toBe(event.timeZone);
+    expect(url.searchParams.get('stz')).toBe(event.timeZone);
+    expect(url.searchParams.get('etz')).toBe(event.timeZone);
+    expect(url.searchParams.get('ctz')).toBeNull();
     expect(url.searchParams.get('location')).toBe(event.locationUrl);
   });
 

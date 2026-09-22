@@ -1,12 +1,7 @@
 import { useState } from 'react';
 import CalendarMonthOutlined from '@mui/icons-material/CalendarMonthOutlined';
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack } from '@mui/material';
-import {
-  buildGoogleCalendarUrl,
-  buildIcsCalendar,
-  calendarFileName,
-  type CalendarEventData
-} from './calendar';
+import { buildGoogleCalendarUrl, buildIcsCalendar, calendarFileName, type CalendarEventData } from './calendar';
 
 export function CalendarAction({ event }: { event: CalendarEventData }) {
   const [open, setOpen] = useState(false);
