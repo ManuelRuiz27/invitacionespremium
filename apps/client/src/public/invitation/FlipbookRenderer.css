@@ -90,6 +90,10 @@
   filter: drop-shadow(0 12px 16px rgba(0, 0, 0, 0.25));
 }
 
+.flipbook-volume[data-can-open='true'][data-intro='closed'] .flipbook-magazine-engine.stf__parent {
+  cursor: pointer;
+}
+
 @media (max-width: 767px) {
   .flipbook-volume[data-cover='landscape'],
   .flipbook-volume[data-intro='closed'] {

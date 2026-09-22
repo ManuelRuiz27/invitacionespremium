@@ -393,7 +393,7 @@ describe('public invitation', () => {
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     expect(link).toHaveAttribute('referrerpolicy', 'no-referrer');
     fireEvent.keyDown(screen.getByLabelText('Invitación en páginas'), { key: 'ArrowRight' });
-    expect(screen.getByText('Página 2 de 2')).toBeVisible();
+    expect(await screen.findByText('Página 2 de 2')).toBeVisible();
   });
 
   it.each([

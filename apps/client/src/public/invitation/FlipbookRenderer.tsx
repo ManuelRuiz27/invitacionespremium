@@ -37,7 +37,6 @@ export function FlipbookRenderer({
   const reducedMotion = useReducedMotion();
   const bookRef = useRef<FlipBookHandle | null>(null);
   const turningRef = useRef(false);
-  const introStartedRef = useRef(false);
   const introTimerRef = useRef<number | null>(null);
   const [snapshot, setSnapshot] = useState<BookSnapshot>(initialSnapshot);
   const [transitionState, setTransitionState] = useState<'idle' | 'turning' | 'settling'>('idle');
@@ -48,12 +47,13 @@ export function FlipbookRenderer({
   const visiblePageKey = visiblePageIndexes.join(',');
   const canGoPrevious = snapshot.page > 0;
   const canGoNext = visiblePageIndexes.at(-1) !== pages.length - 1;
+  const coverCanOpen = snapshot.page === 0 && snapshot.pageCount > 0 && pages.length > 1;
+  const isOpening = introState === 'lifting' || introState === 'opening';
 
   useLayoutEffect(() => {
     setSnapshot(initialSnapshot);
     setPreloadedPageIndexes(new Set([0]));
     turningRef.current = false;
-    introStartedRef.current = false;
     if (introTimerRef.current !== null) window.clearTimeout(introTimerRef.current);
     introTimerRef.current = null;
     setTransitionState('idle');
@@ -80,6 +80,7 @@ export function FlipbookRenderer({
 
   const syncSnapshot = useCallback((next: BookSnapshot) => {
     setSnapshot(next);
+    setIntroState(next.page === 0 ? 'closed' : 'open');
   }, []);
   const syncOrientation = useCallback(() => {
     const book = bookRef.current?.pageFlip();
@@ -92,18 +93,11 @@ export function FlipbookRenderer({
     });
   }, [syncSnapshot]);
 
-  const navigate = useCallback(
-    (direction: 'next' | 'prev', fromIntro = false) => {
+  const turnPage = useCallback(
+    (direction: 'next' | 'prev') => {
       if (turningRef.current) return;
       const book = bookRef.current;
       if (!book) return;
-
-      if (!fromIntro) {
-        if (introTimerRef.current !== null) window.clearTimeout(introTimerRef.current);
-        introTimerRef.current = null;
-        introStartedRef.current = true;
-        setIntroState('open');
-      }
 
       turningRef.current = true;
       setTransitionState(reducedMotion ? 'settling' : 'turning');
@@ -116,24 +110,31 @@ export function FlipbookRenderer({
     [reducedMotion]
   );
 
-  useEffect(() => {
-    if (!snapshot.pageCount || introStartedRef.current) return;
-    introStartedRef.current = true;
+  const openCover = useCallback(() => {
+    if (!coverCanOpen || turningRef.current || introTimerRef.current !== null) return;
     if (reducedMotion) {
-      setIntroState('open');
+      setIntroState('opening');
+      turnPage('next');
       return;
     }
     setIntroState('lifting');
     introTimerRef.current = window.setTimeout(() => {
       introTimerRef.current = null;
-      if (pages.length < 2) {
-        setIntroState('open');
+      setIntroState('opening');
+      turnPage('next');
+    }, 560);
+  }, [coverCanOpen, reducedMotion, turnPage]);
+
+  const navigate = useCallback(
+    (direction: 'next' | 'prev') => {
+      if (direction === 'next' && snapshot.page === 0) {
+        openCover();
         return;
       }
-      setIntroState('opening');
-      navigate('next', true);
-    }, 560);
-  }, [navigate, pages.length, reducedMotion, snapshot.pageCount]);
+      turnPage(direction);
+    },
+    [openCover, snapshot.page, turnPage]
+  );
 
   if (!pages.length) return <Typography>No pudimos cargar este contenido.</Typography>;
   const progress = visiblePageIndexes.map((pageIndex) => pageIndex + 1).join('–') || '1';
@@ -144,6 +145,10 @@ export function FlipbookRenderer({
       aria-label="Invitación en páginas"
       data-reduced-motion={reducedMotion || undefined}
       onKeyDown={(event) => {
+        if ((event.key === 'Enter' || event.key === ' ') && event.target === event.currentTarget && coverCanOpen) {
+          event.preventDefault();
+          openCover();
+        }
         if (event.key === 'ArrowLeft') {
           event.preventDefault();
           navigate('prev');
@@ -178,6 +183,12 @@ export function FlipbookRenderer({
           data-intro={introState}
           data-orientation={snapshot.orientation}
           data-cover={snapshot.page === 0 && snapshot.orientation === 'landscape' ? 'landscape' : 'none'}
+          data-can-open={coverCanOpen ? 'true' : undefined}
+          onClick={(event) => {
+            if (snapshot.page !== 0 || !(event.target instanceof Element)) return;
+            if (event.target.closest('button, a, input, select, textarea, [role="button"]')) return;
+            openCover();
+          }}
         >
           <HTMLFlipBook
             key={bookKey}
@@ -218,7 +229,6 @@ export function FlipbookRenderer({
               if (state === 'read') {
                 turningRef.current = false;
                 setTransitionState('idle');
-                setIntroState('open');
               } else {
                 setTransitionState((current) => (current === 'turning' ? 'settling' : 'turning'));
               }
@@ -234,7 +244,7 @@ export function FlipbookRenderer({
                 pageCount={pages.length}
                 hotspots={(view.design?.hotspots ?? []).filter((hotspot) => hotspot.flipbookPageId === page.id)}
                 visible={visiblePageIndexes.includes(pageIndex)}
-                interactive={transitionState === 'idle'}
+                interactive={transitionState === 'idle' && !isOpening}
                 shouldLoad={preloadedPageIndexes.has(pageIndex)}
                 onRsvp={onRsvp}
                 onQr={onQr}
@@ -247,7 +257,7 @@ export function FlipbookRenderer({
       </Box>
       <Stack direction="row" spacing={2} sx={{ mt: 2, justifyContent: 'center', alignItems: 'center' }}>
         <Button
-          disabled={!canGoPrevious || transitionState !== 'idle'}
+          disabled={!canGoPrevious || transitionState !== 'idle' || isOpening}
           onClick={() => navigate('prev')}
           sx={{ minWidth: 44, minHeight: 44 }}
         >
@@ -257,11 +267,11 @@ export function FlipbookRenderer({
           Página {progress} de {pages.length}
         </Typography>
         <Button
-          disabled={!canGoNext || transitionState !== 'idle'}
+          disabled={!canGoNext || (snapshot.page === 0 && !coverCanOpen) || transitionState !== 'idle' || isOpening}
           onClick={() => navigate('next')}
           sx={{ minWidth: 44, minHeight: 44 }}
         >
-          Siguiente
+          {snapshot.page === 0 ? 'Abrir invitación' : 'Siguiente'}
         </Button>
       </Stack>
     </Box>
