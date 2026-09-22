@@ -59,12 +59,16 @@ export function LandingPlanners({ onOpenCommercial }: LandingPlannersProps) {
               sx={{
                 ...landingTokens.typography.headline,
                 textTransform: 'none',
-                minHeight: 56,
-                px: 3,
+                minHeight: 50,
+                px: 3.5,
                 bgcolor: landingTokens.colors.light.text,
                 color: landingTokens.colors.light.background,
-                borderRadius: 0,
-                boxShadow: 'none'
+                borderRadius: `${landingTokens.radius.button}px`,
+                boxShadow: 'none',
+                '&:hover': {
+                  bgcolor: '#2A2A2A',
+                  boxShadow: 'none'
+                }
               }}
             >
               {landingContent.planners.commercialCta}

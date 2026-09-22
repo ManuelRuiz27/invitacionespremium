@@ -58,8 +58,8 @@ export function LandingHeader({ onOpenCommercial, config }: LandingHeaderProps) 
       color="default"
       elevation={0}
       sx={{
-        backgroundColor: scrolled ? landingTokens.glass.headerScrolled.backgroundColor : 'transparent',
-        backdropFilter: scrolled ? landingTokens.glass.headerScrolled.backdropFilter : 'none',
+        backgroundColor: scrolled ? landingTokens.glass.headerScrolled.backgroundColor : 'rgba(245, 242, 236, 0.85)',
+        backdropFilter: 'blur(10px)',
         borderBottom: scrolled ? landingTokens.borders.hairlineDark : '1px solid transparent',
         transition: `all ${landingTokens.transitions.duration} ${landingTokens.transitions.easing}`,
         color: landingTokens.colors.dark.text,
@@ -147,17 +147,17 @@ export function LandingHeader({ onOpenCommercial, config }: LandingHeaderProps) 
                 href={landingContent.urls.login}
                 disabled={!landingContent.urls.login}
                 sx={{
-                  borderRadius: 0,
+                  borderRadius: `${landingTokens.radius.button}px`,
                   color: landingTokens.colors.dark.text,
-                  borderColor: landingTokens.colors.dark.textMuted,
+                  borderColor: '#D8D2C7',
                   ...landingTokens.typography.headline,
-                  fontSize: '0.9rem',
-                  px: 3,
-                  py: 1,
+                  fontSize: '0.88rem',
+                  px: 2.5,
+                  py: 0.85,
                   textTransform: 'none',
                   '&:hover': {
                     borderColor: landingTokens.colors.dark.text,
-                    backgroundColor: 'transparent'
+                    backgroundColor: 'rgba(23, 23, 23, 0.04)'
                   }
                 }}
               >
@@ -171,17 +171,17 @@ export function LandingHeader({ onOpenCommercial, config }: LandingHeaderProps) 
                 size="medium"
                 onClick={onOpenCommercial}
                 sx={{
-                  borderRadius: 0,
+                  borderRadius: `${landingTokens.radius.button}px`,
                   bgcolor: landingTokens.colors.dark.text,
                   color: landingTokens.colors.dark.background,
                   ...landingTokens.typography.headline,
-                  fontSize: '0.9rem',
-                  px: 3,
-                  py: 1,
+                  fontSize: '0.88rem',
+                  px: 2.75,
+                  py: 0.85,
                   textTransform: 'none',
                   boxShadow: 'none',
                   '&:hover': {
-                    bgcolor: landingTokens.colors.dark.textMuted,
+                    bgcolor: '#2A2A2A',
                     boxShadow: 'none'
                   }
                 }}
@@ -214,8 +214,8 @@ export function LandingHeader({ onOpenCommercial, config }: LandingHeaderProps) 
         slotProps={{
           paper: {
             sx: {
-              bgcolor: landingTokens.colors.dark.surface,
-              color: landingTokens.colors.dark.text,
+              bgcolor: 'background.paper',
+              color: 'text.primary',
               borderLeft: landingTokens.borders.hairlineDark
             }
           }
@@ -238,10 +238,10 @@ export function LandingHeader({ onOpenCommercial, config }: LandingHeaderProps) 
           <List>
             {landingContent.nav.map((item) => (
               <ListItem key={item.href} disablePadding>
-                <ListItemButton onClick={() => handleNavClick(item.href)} sx={{ borderRadius: 0, my: 0.5 }}>
+                <ListItemButton onClick={() => handleNavClick(item.href)} sx={{ borderRadius: 1, my: 0.5 }}>
                   <ListItemText
                     primary={item.label}
-                    slotProps={{ primary: { sx: { ...landingTokens.typography.headline, fontSize: '1.1rem' } } }}
+                    slotProps={{ primary: { sx: { ...landingTokens.typography.headline, fontSize: '1.05rem' } } }}
                   />
                 </ListItemButton>
               </ListItem>
@@ -257,16 +257,16 @@ export function LandingHeader({ onOpenCommercial, config }: LandingHeaderProps) 
                 onOpenCommercial();
               }}
               sx={{
-                borderRadius: 0,
+                borderRadius: `${landingTokens.radius.button}px`,
                 bgcolor: landingTokens.colors.dark.text,
                 color: landingTokens.colors.dark.background,
                 ...landingTokens.typography.headline,
-                fontSize: '0.95rem',
-                py: 1.5,
+                fontSize: '0.92rem',
+                py: 1.25,
                 textTransform: 'none',
                 boxShadow: 'none',
                 '&:hover': {
-                  bgcolor: landingTokens.colors.dark.textMuted,
+                  bgcolor: '#2A2A2A',
                   boxShadow: 'none'
                 }
               }}
@@ -280,16 +280,16 @@ export function LandingHeader({ onOpenCommercial, config }: LandingHeaderProps) 
               href={landingContent.urls.login}
               disabled={!landingContent.urls.login}
               sx={{
-                borderRadius: 0,
+                borderRadius: `${landingTokens.radius.button}px`,
                 color: landingTokens.colors.dark.text,
-                borderColor: landingTokens.colors.dark.textMuted,
+                borderColor: '#D8D2C7',
                 ...landingTokens.typography.headline,
-                fontSize: '0.95rem',
-                py: 1.5,
+                fontSize: '0.92rem',
+                py: 1.25,
                 textTransform: 'none',
                 '&:hover': {
                   borderColor: landingTokens.colors.dark.text,
-                  backgroundColor: 'transparent'
+                  backgroundColor: 'rgba(23, 23, 23, 0.04)'
                 }
               }}
             >

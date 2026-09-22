@@ -30,9 +30,11 @@ export function LandingFooter() {
               <Typography
                 variant="h6"
                 sx={{
-                  ...landingTokens.typography.headline,
+                  fontFamily: landingTokens.typography.fontFamily.serif,
+                  fontWeight: 600,
                   color: landingTokens.colors.dark.text,
                   fontSize: '1.25rem',
+                  letterSpacing: '-0.01em',
                   mb: 1
                 }}
               >
@@ -66,7 +68,7 @@ export function LandingFooter() {
             </Box>
           </Box>
 
-          <Divider sx={{ borderColor: landingTokens.colors.dark.surface }} />
+          <Divider sx={{ borderColor: landingTokens.borders.darkColor }} />
 
           <Typography
             variant="caption"

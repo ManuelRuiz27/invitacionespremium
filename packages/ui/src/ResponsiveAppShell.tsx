@@ -17,7 +17,16 @@ export function ResponsiveAppShell({ brand, navigation, userMenu, children }: Re
 
   const sidebar = (
     <Stack sx={{ height: '100%', px: 1.5, py: 2 }} spacing={3}>
-      <Typography variant="body2" sx={{ px: 1, fontWeight: 700, letterSpacing: '-0.025em' }}>
+      <Typography
+        variant="body1"
+        sx={{
+          px: 1,
+          fontFamily: (theme) => theme.typography.h1.fontFamily,
+          fontWeight: 600,
+          fontSize: '1.15rem',
+          letterSpacing: '-0.01em'
+        }}
+      >
         {brand}
       </Typography>
       <Box component="nav" aria-label="Navegación principal" onClick={closeMobile} sx={{ flex: 1 }}>
@@ -49,7 +58,16 @@ export function ResponsiveAppShell({ brand, navigation, userMenu, children }: Re
           >
             <MenuRounded />
           </IconButton>
-          <Typography variant="h4" component="span" noWrap>
+          <Typography
+            variant="h4"
+            component="span"
+            noWrap
+            sx={{
+              fontFamily: (theme) => theme.typography.h1.fontFamily,
+              fontWeight: 500,
+              fontSize: '1.25rem'
+            }}
+          >
             {brand}
           </Typography>
           <Box sx={{ ml: 'auto' }}>{userMenu}</Box>

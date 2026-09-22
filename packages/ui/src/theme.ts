@@ -2,24 +2,35 @@ import { createTheme } from '@mui/material/styles';
 
 export const designTokens = {
   colors: {
-    ink: '#17233C',
-    mutedInk: '#5F6879',
-    accent: '#3157C8',
-    accentDark: '#23409B',
-    canvas: '#F6F4EF',
-    paper: '#FFFEFB',
-    line: '#E2DED5',
+    // Paleta principal - Editorial Contemporary / Quiet Luxury
+    canvas: '#F5F2EC',        // Background principal (Crema atemporal)
+    paper: '#FFFFFF',         // Superficie limpia / tarjetas (Blanco)
+    surfaceMuted: '#EFECE5',  // Superficie atenuada
+    ink: '#171717',           // Foreground principal (Negro sofisticado)
+    mutedInk: '#57594F',      // Foreground secundario / texto atenuado (Verde taupe oscuro / gris cálido accesible)
+    secondary: '#6D705E',     // Color secundario (Verde taupe natural)
+    secondaryDark: '#585B4B',
+    accent: '#B8A58A',        // Acento cálido (Taupe elegante)
+    accentDark: '#A69378',
+    line: '#E5E0D8',          // Líneas divisorias muy sutiles
+    lineSubtle: '#ECE7DF',    // Divisores suaves alternativos
+    borderDark: 'rgba(23, 23, 23, 0.12)',
+    // Estados semánticos sobrios
     success: '#287A5B',
     warning: '#A76510',
     danger: '#B53A43'
   },
+  typography: {
+    fontFamilySerif: '"Playfair Display", "Cormorant Garamond", Georgia, serif',
+    fontFamilySans: '"Montserrat", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+  },
   radius: {
-    small: 10,
-    medium: 16,
-    large: 24
+    small: 6,                 // Inputs: 6px-8px, Buttons: 6px-8px
+    medium: 10,               // Cards: 8px-12px
+    large: 12
   },
   shadow: {
-    soft: '0 16px 48px rgba(23, 35, 60, 0.08)'
+    soft: '0 4px 20px rgba(23, 23, 23, 0.04)'
   }
 } as const;
 
@@ -27,8 +38,13 @@ export const appTheme = createTheme({
   palette: {
     mode: 'light',
     primary: {
-      main: designTokens.colors.accent,
-      dark: designTokens.colors.accentDark,
+      main: designTokens.colors.ink,
+      dark: '#2A2A2A',
+      contrastText: designTokens.colors.canvas
+    },
+    secondary: {
+      main: designTokens.colors.secondary,
+      dark: designTokens.colors.secondaryDark,
       contrastText: '#FFFFFF'
     },
     background: {
@@ -40,17 +56,58 @@ export const appTheme = createTheme({
       secondary: designTokens.colors.mutedInk
     },
     divider: designTokens.colors.line,
+    action: {
+      hover: 'rgba(23, 23, 23, 0.04)',
+      selected: 'rgba(109, 112, 94, 0.08)',
+      focus: 'rgba(23, 23, 23, 0.08)'
+    },
     success: { main: designTokens.colors.success },
     warning: { main: designTokens.colors.warning },
     error: { main: designTokens.colors.danger }
   },
   typography: {
-    fontFamily: '"Inter", "Aptos", "Segoe UI", sans-serif',
-    h1: { fontSize: 'clamp(2rem, 4vw, 3rem)', lineHeight: 1.08, fontWeight: 720, letterSpacing: '-0.04em' },
-    h2: { fontSize: 'clamp(1.65rem, 3vw, 2.25rem)', lineHeight: 1.12, fontWeight: 700, letterSpacing: '-0.035em' },
-    h3: { fontSize: '1.4rem', lineHeight: 1.25, fontWeight: 680, letterSpacing: '-0.025em' },
-    h4: { fontSize: '1.12rem', lineHeight: 1.35, fontWeight: 680 },
-    button: { textTransform: 'none', fontWeight: 650, letterSpacing: '-0.01em' }
+    fontFamily: designTokens.typography.fontFamilySans,
+    h1: {
+      fontFamily: designTokens.typography.fontFamilySerif,
+      fontSize: 'clamp(2.4rem, 4.5vw, 3.6rem)',
+      lineHeight: 1.1,
+      fontWeight: 500,
+      letterSpacing: '-0.02em'
+    },
+    h2: {
+      fontFamily: designTokens.typography.fontFamilySerif,
+      fontSize: 'clamp(1.75rem, 3.2vw, 2.5rem)',
+      lineHeight: 1.15,
+      fontWeight: 500,
+      letterSpacing: '-0.015em'
+    },
+    h3: {
+      fontFamily: designTokens.typography.fontFamilySerif,
+      fontSize: '1.45rem',
+      lineHeight: 1.25,
+      fontWeight: 500,
+      letterSpacing: '-0.01em'
+    },
+    h4: {
+      fontFamily: designTokens.typography.fontFamilySans,
+      fontSize: '1.12rem',
+      lineHeight: 1.35,
+      fontWeight: 600
+    },
+    body1: {
+      fontFamily: designTokens.typography.fontFamilySans,
+      lineHeight: 1.6
+    },
+    body2: {
+      fontFamily: designTokens.typography.fontFamilySans,
+      lineHeight: 1.5
+    },
+    button: {
+      fontFamily: designTokens.typography.fontFamilySans,
+      textTransform: 'none',
+      fontWeight: 600,
+      letterSpacing: '-0.005em'
+    }
   },
   shape: {
     borderRadius: designTokens.radius.medium
@@ -69,11 +126,16 @@ export const appTheme = createTheme({
       styleOverrides: {
         '*': { boxSizing: 'border-box' },
         html: { backgroundColor: designTokens.colors.canvas },
-        body: { minWidth: 320, margin: 0 },
+        body: {
+          minWidth: 320,
+          margin: 0,
+          backgroundColor: designTokens.colors.canvas,
+          color: designTokens.colors.ink
+        },
         'a, button, input, [tabindex]': {
           '&:focus-visible': {
-            outline: `3px solid ${designTokens.colors.accent}55`,
-            outlineOffset: 3
+            outline: `2px solid ${designTokens.colors.ink}`,
+            outlineOffset: 2
           }
         },
         '@media (prefers-reduced-motion: reduce)': {
@@ -91,15 +153,73 @@ export const appTheme = createTheme({
         disableElevation: true
       },
       styleOverrides: {
-        root: { minHeight: 44, borderRadius: designTokens.radius.small, paddingInline: 18 }
+        root: {
+          minHeight: 42,
+          borderRadius: designTokens.radius.small,
+          paddingInline: 18,
+          transition: 'background-color 140ms ease, border-color 140ms ease, color 140ms ease'
+        },
+        contained: {
+          backgroundColor: designTokens.colors.ink,
+          color: designTokens.colors.canvas,
+          '&:hover': {
+            backgroundColor: '#2A2A2A'
+          }
+        },
+        outlined: {
+          borderColor: '#D8D2C7',
+          color: designTokens.colors.ink,
+          '&:hover': {
+            borderColor: designTokens.colors.ink,
+            backgroundColor: 'rgba(23, 23, 23, 0.04)'
+          }
+        }
       }
     },
     MuiCard: {
       styleOverrides: {
         root: {
           backgroundImage: 'none',
+          backgroundColor: designTokens.colors.paper,
           border: `1px solid ${designTokens.colors.line}`,
+          borderRadius: designTokens.radius.medium,
           boxShadow: 'none'
+        }
+      }
+    },
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          backgroundImage: 'none'
+        },
+        outlined: {
+          borderColor: designTokens.colors.line,
+          borderRadius: designTokens.radius.medium
+        }
+      }
+    },
+    MuiOutlinedInput: {
+      styleOverrides: {
+        root: {
+          borderRadius: designTokens.radius.small,
+          backgroundColor: designTokens.colors.paper,
+          '& .MuiOutlinedInput-notchedOutline': {
+            borderColor: designTokens.colors.line
+          },
+          '&:hover .MuiOutlinedInput-notchedOutline': {
+            borderColor: designTokens.colors.ink
+          },
+          '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+            borderColor: designTokens.colors.ink,
+            borderWidth: 1.5
+          }
+        }
+      }
+    },
+    MuiChip: {
+      styleOverrides: {
+        root: {
+          borderRadius: designTokens.radius.small
         }
       }
     },
@@ -108,9 +228,13 @@ export const appTheme = createTheme({
         head: {
           color: designTokens.colors.mutedInk,
           fontSize: '0.75rem',
-          fontWeight: 700,
-          letterSpacing: '0.06em',
-          textTransform: 'uppercase'
+          fontWeight: 600,
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          fontFamily: designTokens.typography.fontFamilySans
+        },
+        root: {
+          borderColor: designTokens.colors.line
         }
       }
     }

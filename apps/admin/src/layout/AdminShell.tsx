@@ -8,10 +8,29 @@ const drawerWidth = 256;
 
 function NavigationBrand() {
   return (
-    <Stack spacing={0.5} sx={{ p: 3 }}>
-      <Typography sx={{ fontWeight: 800, color: '#D3B66F', letterSpacing: '.08em' }}>IP ADMIN</Typography>
-      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,.62)' }}>
+    <Stack spacing={0.5} sx={{ p: 3, borderBottom: 1, borderColor: 'divider', mb: 1 }}>
+      <Typography
+        sx={{
+          fontFamily: (theme) => theme.typography.h1.fontFamily,
+          fontWeight: 600,
+          color: 'text.primary',
+          fontSize: '1.2rem',
+          letterSpacing: '-0.02em'
+        }}
+      >
         InvitacionesPremium
+      </Typography>
+      <Typography
+        variant="caption"
+        sx={{
+          color: 'text.secondary',
+          fontWeight: 600,
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          fontSize: '0.7rem'
+        }}
+      >
+        Platform Admin
       </Typography>
     </Stack>
   );
@@ -23,10 +42,15 @@ export function AdminShell() {
     <Box
       sx={{
         height: '100%',
-        bgcolor: '#102B33',
-        color: 'rgba(255,255,255,.86)',
-        '& .MuiListItemIcon-root': { color: 'inherit' },
-        '& .Mui-selected': { bgcolor: 'rgba(211,182,111,.18)!important', color: '#fff' }
+        bgcolor: 'background.paper',
+        color: 'text.primary',
+        '& .MuiListItemIcon-root': { color: 'text.secondary' },
+        '& .Mui-selected': {
+          bgcolor: 'action.selected !important',
+          color: 'text.primary',
+          fontWeight: 600,
+          '& .MuiListItemIcon-root': { color: 'primary.main' }
+        }
       }}
     >
       <NavigationBrand />
@@ -34,13 +58,18 @@ export function AdminShell() {
     </Box>
   );
   return (
-    <Box sx={{ minHeight: '100svh', display: 'flex' }}>
+    <Box sx={{ minHeight: '100svh', display: 'flex', bgcolor: 'background.default' }}>
       <Drawer
         variant="permanent"
         sx={{
           display: { xs: 'none', md: 'block' },
           width: drawerWidth,
-          '& .MuiDrawer-paper': { width: drawerWidth, border: 0 }
+          '& .MuiDrawer-paper': {
+            width: drawerWidth,
+            borderRight: 1,
+            borderColor: 'divider',
+            bgcolor: 'background.paper'
+          }
         }}
       >
         {navigation}
@@ -48,7 +77,15 @@ export function AdminShell() {
       <Drawer
         open={mobileOpen}
         onClose={() => setMobileOpen(false)}
-        sx={{ display: { md: 'none' }, '& .MuiDrawer-paper': { width: drawerWidth } }}
+        sx={{
+          display: { md: 'none' },
+          '& .MuiDrawer-paper': {
+            width: drawerWidth,
+            borderRight: 1,
+            borderColor: 'divider',
+            bgcolor: 'background.paper'
+          }
+        }}
       >
         {navigation}
       </Drawer>

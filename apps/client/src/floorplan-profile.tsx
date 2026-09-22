@@ -21,8 +21,8 @@ type InteractionResult = { durationMs: number; approximateFps: number; p95FrameM
 const venueSvg = new Blob(
   [
     `<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="820" viewBox="0 0 1400 820">
-      <rect width="1400" height="820" fill="#F6F4EF"/><path d="M80 90H1320V730H80Z" fill="#FFFEFB" stroke="#B9B4AA" stroke-width="10"/>
-      <path d="M460 90V730M930 90V730M80 410H1320" stroke="#DDD8CE" stroke-width="6"/><text x="115" y="145" font-family="sans-serif" font-size="28" fill="#5F6879">Salón principal</text>
+      <rect width="1400" height="820" fill="#F5F2EC"/><path d="M80 90H1320V730H80Z" fill="#FFFFFF" stroke="#E5E0D8" stroke-width="10"/>
+      <path d="M460 90V730M930 90V730M80 410H1320" stroke="#ECE7DF" stroke-width="6"/><text x="115" y="145" font-family="sans-serif" font-size="28" fill="#57594F">Salón principal</text>
     </svg>`
   ],
   { type: 'image/svg+xml' }
@@ -103,7 +103,7 @@ function App() {
       <Box
         component="pre"
         data-testid="profile-results"
-        sx={{ mt: 2, p: 2, overflow: 'auto', bgcolor: '#17233C', color: '#fff' }}
+        sx={{ mt: 2, p: 2, overflow: 'auto', bgcolor: '#171717', color: '#fff', borderRadius: 1 }}
       >
         {JSON.stringify(results, null, 2)}
       </Box>

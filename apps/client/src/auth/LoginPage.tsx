@@ -61,21 +61,30 @@ export function LoginPage({ landingUrl }: { landingUrl: string }) {
             }}
           >
             <Stack spacing={2.5} sx={{ maxWidth: 600 }}>
-              <Typography component="p" variant="h3" color="primary.main">
+              <Typography
+                component="p"
+                sx={{
+                  fontFamily: (theme) => theme.typography.h1.fontFamily,
+                  color: 'text.primary',
+                  fontWeight: 600,
+                  fontSize: '1.4rem',
+                  letterSpacing: '-0.02em'
+                }}
+              >
                 InvitacionesPremium
               </Typography>
-              <Typography component="h1" variant="h1">
+              <Typography component="h1" variant="h1" sx={{ fontSize: { xs: '2.5rem', md: '3.4rem' } }}>
                 Tus Eventos, en un solo lugar.
               </Typography>
-              <Typography color="text.secondary" sx={{ maxWidth: 480, fontSize: '1.08rem' }}>
+              <Typography color="text.secondary" sx={{ maxWidth: 480, fontSize: '1.08rem', lineHeight: 1.6 }}>
                 Consulta el estado de tus Eventos y la información financiera autorizada para tu cuenta.
               </Typography>
             </Stack>
 
-            <Paper elevation={1} sx={{ p: { xs: 3, sm: 5 }, border: 1, borderColor: 'divider' }}>
+            <Paper elevation={0} sx={{ p: { xs: 3, sm: 5 }, border: 1, borderColor: 'divider', borderRadius: 2.5, bgcolor: 'background.paper' }}>
               <Stack component="form" spacing={3} onSubmit={(event) => void submit(event)} noValidate>
                 <Box>
-                  <Typography component="h2" variant="h2">
+                  <Typography component="h2" variant="h2" sx={{ fontSize: '2rem' }}>
                     Iniciar sesión
                   </Typography>
                   <Typography color="text.secondary" sx={{ mt: 1 }}>
@@ -111,10 +120,19 @@ export function LoginPage({ landingUrl }: { landingUrl: string }) {
                   required
                   fullWidth
                 />
-                <Button type="submit" variant="contained" size="large" disabled={submitting}>
+                <Button type="submit" variant="contained" size="large" disabled={submitting} sx={{ minHeight: 46, fontSize: '0.95rem' }}>
                   {submitting ? 'Iniciando sesión…' : 'Iniciar sesión'}
                 </Button>
-                <MuiLink href={landingUrl} color="text.secondary" sx={{ textAlign: 'center' }}>
+                <MuiLink
+                  href={landingUrl}
+                  color="text.secondary"
+                  sx={{
+                    textAlign: 'center',
+                    fontSize: '0.88rem',
+                    textDecoration: 'none',
+                    '&:hover': { textDecoration: 'underline', color: 'text.primary' }
+                  }}
+                >
                   Volver al sitio
                 </MuiLink>
               </Stack>

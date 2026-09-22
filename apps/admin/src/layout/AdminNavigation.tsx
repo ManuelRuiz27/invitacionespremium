@@ -33,10 +33,28 @@ export function AdminNavigation({ onNavigate }: { onNavigate?: () => void }) {
             to={item.path}
             selected={selected}
             onClick={onNavigate}
-            sx={{ borderRadius: 1.5, mb: 0.5 }}
+            sx={{
+              borderRadius: 1,
+              mb: 0.5,
+              py: 1,
+              px: 1.5,
+              borderLeft: '2px solid',
+              borderColor: selected ? 'secondary.main' : 'transparent',
+              transition: 'background-color 140ms ease, border-color 140ms ease'
+            }}
           >
-            <ListItemIcon sx={{ minWidth: 42 }}>{item.icon}</ListItemIcon>
-            <ListItemText primary={item.label} />
+            <ListItemIcon sx={{ minWidth: 38 }}>{item.icon}</ListItemIcon>
+            <ListItemText
+              primary={item.label}
+              slotProps={{
+                primary: {
+                  sx: {
+                    fontWeight: selected ? 650 : 500,
+                    fontSize: '0.92rem'
+                  }
+                }
+              }}
+            />
           </ListItemButton>
         );
       })}

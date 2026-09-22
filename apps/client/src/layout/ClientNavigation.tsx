@@ -27,19 +27,19 @@ export function ClientNavigation() {
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
-                  minHeight: 48,
+                  minHeight: 44,
                   px: 1.5,
                   borderRadius: 1,
-                  color: isActive ? 'primary.main' : 'text.primary',
+                  color: isActive ? 'text.primary' : 'text.secondary',
                   backgroundColor: isActive ? 'action.selected' : 'transparent',
                   borderLeft: '2px solid',
-                  borderColor: isActive ? 'primary.main' : 'transparent',
-                  transition: 'background-color 120ms ease, color 120ms ease',
-                  '&:hover': { backgroundColor: 'action.hover' }
+                  borderColor: isActive ? 'secondary.main' : 'transparent',
+                  transition: 'background-color 140ms ease, color 140ms ease',
+                  '&:hover': { backgroundColor: 'action.hover', color: 'text.primary' }
                 }}
               >
                 <ListItemIcon sx={{ minWidth: 36, color: 'inherit' }}>{item.icon}</ListItemIcon>
-                <Typography component="span" sx={{ fontWeight: isActive ? 680 : 500 }}>
+                <Typography component="span" sx={{ fontWeight: isActive ? 600 : 500, fontSize: '0.92rem' }}>
                   {item.label}
                 </Typography>
               </Box>

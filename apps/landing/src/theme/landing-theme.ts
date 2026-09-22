@@ -1,149 +1,165 @@
 import { designTokens } from '@invitaciones/ui';
 
 /**
- * Landing-exclusive visual layer.
+ * Landing visual layer.
  *
- * Reuses `designTokens` from `@invitaciones/ui` without modifying the shared theme.
- * Implements the Dark Luxury Editorial aesthetic.
+ * Implements Editorial Contemporary / Quiet Luxury aesthetic.
+ * Fully coherent with global designTokens from `@invitaciones/ui`.
  */
 const palette = {
-  ink: '#0A0F18',
-  ivory: '#FDFBF7',
-  graphite: '#1A1D20',
-  accent: designTokens.colors.accent, // Shared functional accent
-  muted: '#6B7280',
-  borderDark: 'rgba(253, 251, 247, 0.1)',
-  borderLight: 'rgba(10, 15, 24, 0.1)'
+  ink: designTokens.colors.ink,             // #171717 (Negro sofisticado)
+  canvas: designTokens.colors.canvas,       // #F5F2EC (Crema atemporal)
+  paper: designTokens.colors.paper,         // #FFFFFF (Blanco puro)
+  surfaceMuted: designTokens.colors.surfaceMuted, // #EFECE5
+  secondary: designTokens.colors.secondary, // #6D705E (Verde taupe natural)
+  secondaryDark: designTokens.colors.secondaryDark,
+  accent: designTokens.colors.accent,       // #B8A58A (Taupe elegante)
+  accentDark: designTokens.colors.accentDark,
+  muted: designTokens.colors.mutedInk,      // #57594F
+  line: designTokens.colors.line,           // #E5E0D8
+  lineSubtle: designTokens.colors.lineSubtle,
+  borderDark: 'rgba(23, 23, 23, 0.1)',
+  borderLight: 'rgba(23, 23, 23, 0.08)'
 } as const;
 
 export const landingTokens = {
   typography: {
     fontFamily: {
-      serif: 'Georgia, "Times New Roman", serif',
-      sans: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+      serif: designTokens.typography.fontFamilySerif,
+      sans: designTokens.typography.fontFamilySans
     },
     display: {
-      fontFamily: 'Georgia, "Times New Roman", serif',
-      fontWeight: 400,
+      fontFamily: designTokens.typography.fontFamilySerif,
+      fontWeight: 500,
       letterSpacing: '-0.02em',
-      lineHeight: 1.1
+      lineHeight: 1.12
     },
     headline: {
-      fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      fontWeight: 500,
+      fontFamily: designTokens.typography.fontFamilySans,
+      fontWeight: 600,
       letterSpacing: '-0.01em',
-      lineHeight: 1.2
+      lineHeight: 1.25
     },
     body: {
-      fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      fontFamily: designTokens.typography.fontFamilySans,
       fontWeight: 400,
-      lineHeight: 1.6
+      lineHeight: 1.65
     },
     eyebrow: {
-      fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      fontFamily: designTokens.typography.fontFamilySans,
       fontWeight: 600,
       fontSize: '0.75rem',
-      letterSpacing: '0.1em',
+      letterSpacing: '0.12em',
       textTransform: 'uppercase' as const
     },
     brand: {
       name: {
-        fontFamily: 'Georgia, "Times New Roman", serif',
-        fontWeight: 400,
+        fontFamily: designTokens.typography.fontFamilySerif,
+        fontWeight: 600,
         letterSpacing: '-0.02em',
         lineHeight: 1
       },
       tagline: {
-        fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        fontWeight: 400,
-        letterSpacing: '0.02em',
+        fontFamily: designTokens.typography.fontFamilySans,
+        fontWeight: 500,
+        letterSpacing: '0.04em',
         color: palette.muted
       }
     }
   },
 
   colors: {
+    // Modo principal editorial: Fondo crema atemporal y superficies blancas/crema
     dark: {
-      background: palette.ink,
-      surface: palette.graphite,
-      text: palette.ivory,
-      textMuted: 'rgba(253, 251, 247, 0.6)',
-      border: palette.borderDark,
-      accent: palette.accent
-    },
-    light: {
-      background: palette.ivory,
-      surface: '#FFFFFF',
+      background: palette.canvas,
+      surface: palette.paper,
       text: palette.ink,
       textMuted: palette.muted,
-      border: palette.borderLight,
+      border: palette.line,
+      accent: palette.secondary
+    },
+    light: {
+      background: palette.canvas,
+      surface: palette.paper,
+      text: palette.ink,
+      textMuted: palette.muted,
+      border: palette.line,
+      accent: palette.secondary
+    },
+    contrast: {
+      background: palette.ink,
+      surface: '#242424',
+      text: palette.canvas,
+      textMuted: 'rgba(245, 242, 236, 0.72)',
+      border: 'rgba(245, 242, 236, 0.15)',
       accent: palette.accent
     },
     darkSurface: {
-      background: palette.graphite,
-      accent: '#60A5FA',
-      accentMuted: '#5B83F1',
-      textPrimary: palette.ivory,
-      textSecondary: '#9CA3AF',
-      divider: palette.borderDark
+      background: palette.paper,
+      accent: palette.secondary,
+      accentMuted: palette.accent,
+      textPrimary: palette.ink,
+      textSecondary: palette.muted,
+      divider: palette.line
     }
   },
 
   radius: {
-    badge: designTokens.radius.medium,
-    card: designTokens.radius.medium
+    badge: designTokens.radius.small,
+    card: designTokens.radius.medium,
+    button: designTokens.radius.small
   },
 
   spacing: {
-    sectionY: { xs: 8, md: 16 },
+    sectionY: { xs: 8, md: 14 },
     rhythm: { xs: 4, md: 8 }
   },
 
   borders: {
-    hairlineDark: `1px solid ${palette.borderDark}`,
-    hairlineLight: `1px solid ${palette.borderLight}`,
-    darkColor: palette.borderDark,
-    lightColor: palette.borderLight
+    hairlineDark: `1px solid ${palette.line}`,
+    hairlineLight: `1px solid ${palette.line}`,
+    darkColor: palette.line,
+    lightColor: palette.line
   },
 
   surfaces: {
     cardDark: {
-      bgcolor: palette.graphite,
-      border: `1px solid ${palette.borderDark}`
+      bgcolor: palette.paper,
+      border: `1px solid ${palette.line}`
     },
     heroExperienceGlass: {
-      background: 'rgba(255, 254, 251, 0.82)',
-      border: `1px solid ${designTokens.colors.line}`
+      background: palette.paper,
+      border: `1px solid ${palette.line}`
     },
     invitationLayer: {
-      background: designTokens.colors.paper,
-      border: `1px solid ${designTokens.colors.line}`
+      background: palette.paper,
+      border: `1px solid ${palette.line}`
     },
     demoSceneLight: {
-      mutedBlock: designTokens.colors.line
+      mutedBlock: palette.line
     }
   },
 
   shadows: {
     elevated: designTokens.shadow.soft,
-    productLayer: '0 24px 64px rgba(10, 15, 24, 0.18)'
+    productLayer: '0 12px 32px rgba(23, 23, 23, 0.06)'
   },
 
   overlays: {
-    heroGradient: 'linear-gradient(to bottom, rgba(10, 15, 24, 0.4) 0%, rgba(10, 15, 24, 0.8) 60%, #0A0F18 100%)',
-    ctaGradient: 'linear-gradient(to top, #0A0F18 0%, rgba(10, 15, 24, 0.4) 100%)',
-    darkWash: 'rgba(10, 15, 24, 0.85)'
+    heroGradient: 'none',
+    ctaGradient: 'none',
+    darkWash: 'rgba(23, 23, 23, 0.65)'
   },
 
   glass: {
     headerScrolled: {
-      backgroundColor: 'rgba(10, 15, 24, 0.95)',
-      backdropFilter: 'blur(12px)'
+      backgroundColor: 'rgba(245, 242, 236, 0.94)',
+      backdropFilter: 'blur(10px)'
     }
   },
 
   transitions: {
-    duration: '0.4s',
+    duration: '0.22s',
     easing: 'cubic-bezier(0.16, 1, 0.3, 1)'
   }
 } as const;

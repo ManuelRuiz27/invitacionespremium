@@ -204,22 +204,27 @@ export function LandingHero({ config }: LandingHeroProps) {
 }
 
 const primaryButtonSx = {
-  minHeight: 56,
-  px: 4,
+  minHeight: 52,
+  px: 3.5,
   bgcolor: landingTokens.colors.dark.text,
   color: landingTokens.colors.dark.background,
-  borderRadius: 0,
+  borderRadius: `${landingTokens.radius.button}px`,
   textTransform: 'none',
-  fontWeight: 700,
-  '&:hover': { bgcolor: '#e7e0d4' }
+  fontWeight: 600,
+  boxShadow: 'none',
+  '&:hover': { bgcolor: '#2A2A2A', boxShadow: 'none' }
 };
 
 const secondaryButtonSx = {
-  minHeight: 56,
-  px: 4,
-  borderColor: landingTokens.colors.dark.textMuted,
+  minHeight: 52,
+  px: 3.5,
+  borderColor: '#D8D2C7',
   color: landingTokens.colors.dark.text,
-  borderRadius: 0,
+  borderRadius: `${landingTokens.radius.button}px`,
   textTransform: 'none',
-  '&:hover': { borderColor: landingTokens.colors.dark.text }
+  fontWeight: 600,
+  '&:hover': {
+    borderColor: landingTokens.colors.dark.text,
+    backgroundColor: 'rgba(23, 23, 23, 0.04)'
+  }
 };

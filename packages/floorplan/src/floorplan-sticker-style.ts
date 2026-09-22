@@ -9,11 +9,11 @@ export const floorplanColors = {
   paper: designTokens.colors.paper,
   mutedInk: designTokens.colors.mutedInk,
   warning: designTokens.colors.warning,
-  accentWash: 'rgba(49, 87, 200, 0.08)',
-  gridLine: 'rgba(49, 87, 200, 0.22)',
-  selectionHalo: 'rgba(49, 87, 200, 0.18)',
-  stickerShadow: 'rgba(23, 35, 60, 0.14)',
-  zoneFill: 'rgba(167, 101, 16, 0.14)'
+  accentWash: 'rgba(109, 112, 94, 0.08)',
+  gridLine: 'rgba(109, 112, 94, 0.16)',
+  selectionHalo: 'rgba(109, 112, 94, 0.22)',
+  stickerShadow: 'rgba(23, 23, 23, 0.08)',
+  zoneFill: 'rgba(184, 165, 138, 0.14)'
 } as const;
 
 export function stickerColor(_key: string, decorative = false) {

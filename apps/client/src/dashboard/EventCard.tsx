@@ -11,7 +11,16 @@ export function EventCard({ event }: { event: Event }) {
     <Box component="article" sx={{ py: 2.5 }}>
       <Stack direction="row" sx={{ justifyContent: 'space-between', gap: 2, alignItems: 'flex-start' }}>
         <Box sx={{ minWidth: 0 }}>
-          <Typography component="h3" variant="h4">
+          <Typography
+            component="h3"
+            variant="h4"
+            sx={{
+              fontFamily: (theme) => theme.typography.h1.fontFamily,
+              fontWeight: 600,
+              fontSize: '1.25rem',
+              letterSpacing: '-0.01em'
+            }}
+          >
             {event.name ?? 'Evento sin nombre'}
           </Typography>
           <Typography color="text.secondary" variant="body2" sx={{ mt: 0.5 }}>
@@ -41,15 +50,30 @@ export function EventCard({ event }: { event: Event }) {
         </Box>
       </Box>
       {['DRAFT', 'CONFIGURED'].includes(event.status) ? (
-        <Button component={Link} to={`/eventos/${event.id}/configuracion/datos`} variant="text">
+        <Button
+          component={Link}
+          to={`/eventos/${event.id}/configuracion/datos`}
+          variant="text"
+          sx={{ fontWeight: 600, color: 'text.primary', px: 1, ml: -1 }}
+        >
           Continuar configuración
         </Button>
       ) : event.status === 'READY_TO_ACTIVATE' ? (
-        <Button component={Link} to={`/eventos/${event.id}/configuracion/revision`} variant="text">
+        <Button
+          component={Link}
+          to={`/eventos/${event.id}/configuracion/revision`}
+          variant="text"
+          sx={{ fontWeight: 600, color: 'text.primary', px: 1, ml: -1 }}
+        >
           Activar evento
         </Button>
       ) : (
-        <Button component={Link} to={`/eventos/${event.id}`} variant="text">
+        <Button
+          component={Link}
+          to={`/eventos/${event.id}`}
+          variant="text"
+          sx={{ fontWeight: 600, color: 'text.primary', px: 1, ml: -1 }}
+        >
           Ver evento
         </Button>
       )}

@@ -46,11 +46,16 @@ export function LandingCta({ onOpenCommercial }: { onOpenCommercial: () => void 
 }
 
 const buttonSx = {
-  minHeight: 56,
+  minHeight: 52,
   px: 4,
-  borderRadius: 0,
+  borderRadius: `${landingTokens.radius.button}px`,
   bgcolor: landingTokens.colors.dark.text,
   color: landingTokens.colors.dark.background,
   textTransform: 'none',
-  fontWeight: 700
+  fontWeight: 600,
+  boxShadow: 'none',
+  '&:hover': {
+    bgcolor: '#2A2A2A',
+    boxShadow: 'none'
+  }
 };

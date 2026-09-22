@@ -218,7 +218,7 @@ export function ScannerSessionPage({
                     startIcon={<QrCodeScannerRounded />}
                     onClick={clearResult}
                     fullWidth
-                    sx={{ minHeight: 48, borderRadius: 2 }}
+                    sx={{ minHeight: 46, borderRadius: 1 }}
                   >
                     Siguiente escaneo
                   </Button>
@@ -417,8 +417,6 @@ export function ScannerSessionPage({
           bgcolor: 'background.paper',
           borderTop: 1,
           borderColor: 'divider',
-          boxShadow: (theme) =>
-            `0 -2px 10px ${theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.06)'}`,
           pb: 'max(env(safe-area-inset-bottom), 8px)',
           pt: 0.5
         }}
