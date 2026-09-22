@@ -502,12 +502,15 @@ function KonvaShapeNode({
   useEffect(() => {
     const node = groupRef.current;
     if (!node) return;
-    node.cache({ pixelRatio: 1 });
+    node.clearCache();
+    if (!selected) {
+      node.cache({ pixelRatio: 1 });
+    }
     node.getLayer()?.batchDraw();
     return () => {
       node.clearCache();
     };
-  }, [rect.height, rect.width, shape.capacity, shape.geometry, shape.name, shape.occupancy, showSeats]);
+  }, [rect.height, rect.width, selected, shape.capacity, shape.geometry, shape.name, shape.occupancy, showSeats]);
   return (
     <Group
       ref={groupRef}

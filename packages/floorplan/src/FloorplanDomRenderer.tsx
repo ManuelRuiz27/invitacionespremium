@@ -187,6 +187,7 @@ export function FloorplanDomRenderer(props: FloorplanRendererProps) {
           <ShapeButton
             key={shape.id}
             shape={shape}
+            selected={props.selectedId === shape.id}
             renderedSize={ownerSize}
             disabled={props.disabled || Boolean(props.draft) || Boolean(props.captureCanvasClicks)}
             readOnly={props.readOnly}
@@ -345,6 +346,7 @@ function SeatButton({
 
 function ShapeButton({
   shape,
+  selected = false,
   renderedSize,
   disabled,
   readOnly,
@@ -352,6 +354,7 @@ function ShapeButton({
   onClick
 }: {
   shape: FloorplanShape;
+  selected?: boolean;
   renderedSize: RenderedSize;
   disabled: boolean;
   readOnly?: boolean | undefined;
@@ -364,24 +367,27 @@ function ShapeButton({
       component="button"
       type="button"
       aria-label={`${readOnly ? 'Seleccionar' : 'Editar'} ${kind.toLowerCase()} ${shape.name}`}
+      aria-pressed={selected}
       disabled={disabled}
       onClick={onClick}
       sx={{
         ...relativeRectStyles(projectAspectAwareRect(shape, renderedSize, hasEqualPhysicalSides(shape.geometry))),
         position: 'absolute',
         p: 0,
-        border: 2,
+        border: selected ? 3 : 2,
         borderStyle: 'solid',
-        borderColor: shape.kind === 'TABLE' ? 'primary.dark' : 'warning.dark',
+        borderColor: selected ? 'warning.main' : shape.kind === 'TABLE' ? 'primary.dark' : 'warning.dark',
         bgcolor: 'transparent',
+        boxShadow: selected ? '0 0 0 3px rgba(245, 158, 11, 0.4), 0 0 14px rgba(245, 158, 11, 0.6)' : undefined,
         transform: `rotate(${shape.rotation}deg)`,
         transformOrigin: 'center',
         cursor: disabled ? 'default' : 'pointer',
         overflow: 'visible',
+        zIndex: selected ? 2 : 1,
         '&:focus-visible': { outline: '3px solid', outlineColor: 'warning.main', outlineOffset: 3 }
       }}
     >
-      <ShapeSurface shape={shape} selected={false} showSeats={showSeats} colorKey={shape.id} />
+      <ShapeSurface shape={shape} selected={selected} showSeats={showSeats} colorKey={shape.id} />
     </Box>
   );
 }

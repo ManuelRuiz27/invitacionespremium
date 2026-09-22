@@ -143,6 +143,7 @@ export function SeatingWorkspace({ apiClient, event }: { apiClient: ApiClient; e
     if (!floorplan || !selectedTableId) return;
     if (!floorplan.shapes.some((shape) => shape.id === selectedTableId && shape.kind === 'TABLE')) {
       setSelectedTableId(undefined);
+      setSelectedSeatId(undefined);
       setScope('UNASSIGNED');
     }
   }, [floorplan, selectedTableId]);
@@ -229,6 +230,9 @@ export function SeatingWorkspace({ apiClient, event }: { apiClient: ApiClient; e
                   );
       updateFloorplanFromMutation(result);
       setSelectedIds(new Set());
+      if (intent.kind === 'SEAT') {
+        setSelectedSeatId(undefined);
+      }
       setUncertainIntent(undefined);
       setFeedback('Cambio guardado. Actualizando la distribución…');
       const refresh = await seatingQuery.refetch();
@@ -273,9 +277,15 @@ export function SeatingWorkspace({ apiClient, event }: { apiClient: ApiClient; e
     return <Alert severity="error">No pudimos cargar la distribución. Inténtalo nuevamente.</Alert>;
   }
 
+  const clearSelection = () => {
+    setSelectedTableId(undefined);
+    setSelectedSeatId(undefined);
+  };
+
   const selectTable = (shape: FloorplanShape) => {
     if (shape.kind !== 'TABLE') return;
     setSelectedTableId(shape.id);
+    setSelectedSeatId(undefined);
     setScope('UNASSIGNED');
   };
   const panel = selectedTable ? (
@@ -295,7 +305,7 @@ export function SeatingWorkspace({ apiClient, event }: { apiClient: ApiClient; e
         mutable={mutable}
         {...(feedback ? { feedback } : {})}
         uncertain={Boolean(uncertainIntent)}
-        onClose={() => setSelectedTableId(undefined)}
+        onClose={clearSelection}
         onScopeChange={setScope}
         onSearchChange={setSearch}
         onGroupChange={setGroupId}
@@ -343,7 +353,7 @@ export function SeatingWorkspace({ apiClient, event }: { apiClient: ApiClient; e
         onRefresh={() => void Promise.all([floorplanQuery.refetch(), seatingQuery.refetch()])}
       />
     ) : (
-      <PhysicalTablePanel table={selectedTable} onClose={() => setSelectedTableId(undefined)} />
+      <PhysicalTablePanel table={selectedTable} onClose={clearSelection} />
     )
   ) : null;
 
@@ -375,10 +385,10 @@ export function SeatingWorkspace({ apiClient, event }: { apiClient: ApiClient; e
             onSelect={selectTable}
             onSeatSelect={(seatId) => {
               const seat = (floorplan.seats ?? []).find((candidate) => candidate.id === seatId);
-              if (!seat || seat.isBlocked || seat.occupied) return;
+              if (!seat || seat.isBlocked) return;
               setSelectedSeatId(seatId);
               setSelectedTableId(seat.floorplanShapeId);
-              setScope('UNASSIGNED');
+              setScope(seat.occupied ? 'TABLE' : 'UNASSIGNED');
             }}
             onDraftChange={() => undefined}
           />
@@ -394,7 +404,7 @@ export function SeatingWorkspace({ apiClient, event }: { apiClient: ApiClient; e
           data-testid={mobile ? 'seating-mobile-drawer' : 'seating-tablet-drawer'}
           anchor={mobile ? 'bottom' : 'right'}
           open={Boolean(panel)}
-          onClose={() => setSelectedTableId(undefined)}
+          onClose={clearSelection}
           slotProps={{
             paper: {
               sx: mobile ? { maxHeight: '88dvh', borderRadius: '20px 20px 0 0' } : { width: 'min(420px, 92vw)' }

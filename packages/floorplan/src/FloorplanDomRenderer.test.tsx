@@ -419,4 +419,37 @@ describe('FloorplanDomRenderer', () => {
     expect(onSeatSelect).toHaveBeenNthCalledWith(3, 'seat-1', { additive: true });
     expect(onSeatSelect).toHaveBeenNthCalledWith(4, 'seat-1', { additive: true });
   });
+
+  it('actualiza dinámicamente aria-pressed y selección en ShapeButton al cambiar selectedId', () => {
+    const table2 = { ...table, id: 'table-2', name: 'Mesa 2' };
+    const { rerender } = render(
+      <FloorplanDomRenderer
+        floorplan={{ ...floorplan, shapes: [table, table2] }}
+        imageUrl="blob:raster"
+        selectedId="table-1"
+        disabled={false}
+        showSeats={false}
+        snap={false}
+        onSelect={vi.fn()}
+        onDraftChange={vi.fn()}
+      />
+    );
+    expect(screen.getByRole('button', { name: 'Editar mesa Mesa 1' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Editar mesa Mesa 2' })).toHaveAttribute('aria-pressed', 'false');
+
+    rerender(
+      <FloorplanDomRenderer
+        floorplan={{ ...floorplan, shapes: [table, table2] }}
+        imageUrl="blob:raster"
+        selectedId="table-2"
+        disabled={false}
+        showSeats={false}
+        snap={false}
+        onSelect={vi.fn()}
+        onDraftChange={vi.fn()}
+      />
+    );
+    expect(screen.getByRole('button', { name: 'Editar mesa Mesa 1' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: 'Editar mesa Mesa 2' })).toHaveAttribute('aria-pressed', 'true');
+  });
 });
