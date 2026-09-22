@@ -12,6 +12,8 @@ import { isUncertainNetworkResult, publicErrorMessage } from '../errors/public-e
 import { isAbortError, usePublicOperationScope } from '../operations/usePublicOperationScope';
 import { albumTokenFromContentPath } from '../routing/public-content-path';
 import { InvitationRenderer } from './InvitationRenderer';
+import { CalendarAction } from './calendar/CalendarAction';
+import { toCalendarEventData } from './calendar/calendar';
 import { invitationStatusLabel, nominalIntentMatches } from './invitation-state';
 import { RsvpDialog } from './RsvpDialog';
 
@@ -178,6 +180,7 @@ function PublicInvitationTokenPage({ apiClient, invitationToken }: { apiClient: 
     view.album?.state === 'AVAILABLE' && view.album.contentPath
       ? albumTokenFromContentPath(view.album.contentPath)
       : null;
+  const calendarEvent = response === 'CONFIRMED' ? toCalendarEventData(view.event) : null;
   return (
     <PublicLayout>
       <Stack spacing={{ xs: 3, md: 5 }}>
@@ -222,6 +225,14 @@ function PublicInvitationTokenPage({ apiClient, invitationToken }: { apiClient: 
             })
           }
         />
+        {response === 'CONFIRMED' ? (
+          <Alert severity="success" icon={false}>
+            <Stack spacing={1.5} sx={{ alignItems: 'flex-start' }}>
+              <Typography sx={{ fontWeight: 700 }}>✓ Tu asistencia está confirmada</Typography>
+              {calendarEvent ? <CalendarAction event={calendarEvent} /> : null}
+            </Stack>
+          </Alert>
+        ) : null}
         {!view.confirmation?.open ? (
           <Alert severity="info">La confirmación de asistencia ya fue cerrada. Contacta al organizador.</Alert>
         ) : null}

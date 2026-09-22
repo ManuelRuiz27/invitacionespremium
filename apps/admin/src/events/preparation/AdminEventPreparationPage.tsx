@@ -541,10 +541,17 @@ function EventDataSection({ apiClient, event }: { apiClient: ApiClient; event: A
     setBusy(true);
     setMessage(undefined);
     try {
+      const start = draft.eventDateTime ? new Date(draft.eventDateTime) : null;
+      const end = draft.eventEndDateTime ? new Date(draft.eventEndDateTime) : null;
+      if (end && (!start || end.getTime() <= start.getTime())) {
+        setMessage('La fecha y hora de finalización debe ser posterior al inicio.');
+        return;
+      }
       const updated = await apiClient.adminEventPreparation.updateEvent(event.clientId, event.id, {
         name: draft.name.trim() || null,
         socialType: draft.socialType ? (draft.socialType as AdminEvent['socialType']) : null,
-        eventDateTime: draft.eventDateTime ? new Date(draft.eventDateTime).toISOString() : null,
+        eventDateTime: start?.toISOString() ?? null,
+        eventEndDateTime: end?.toISOString() ?? null,
         timeZone: draft.timeZone.trim() || null,
         capacity: draft.capacity ? Number(draft.capacity) : null,
         confirmationEnabled: draft.confirmationEnabled,
@@ -595,6 +602,13 @@ function EventDataSection({ apiClient, event }: { apiClient: ApiClient; event: A
             type="datetime-local"
             value={draft.eventDateTime}
             onChange={(e) => set('eventDateTime', e.target.value)}
+            slotProps={{ inputLabel: { shrink: true } }}
+          />
+          <TextField
+            label="Fecha y hora de finalización"
+            type="datetime-local"
+            value={draft.eventEndDateTime}
+            onChange={(e) => set('eventEndDateTime', e.target.value)}
             slotProps={{ inputLabel: { shrink: true } }}
           />
           <TextField label="Zona horaria" value={draft.timeZone} onChange={(e) => set('timeZone', e.target.value)} />
@@ -1082,6 +1096,7 @@ function eventDraft(event: AdminEvent) {
     name: event.name ?? '',
     socialType: event.socialType ?? '',
     eventDateTime: event.eventDateTime?.slice(0, 16) ?? '',
+    eventEndDateTime: event.eventEndDateTime?.slice(0, 16) ?? '',
     timeZone: event.timeZone ?? '',
     capacity: event.capacity?.toString() ?? '',
     confirmationEnabled: event.confirmationEnabled,
