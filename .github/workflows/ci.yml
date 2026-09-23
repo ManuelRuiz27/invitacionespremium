@@ -32,6 +32,8 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+      - name: Build Client workspace dependencies
+        run: pnpm --filter '@invitaciones/client^...' build
       - run: pnpm exec playwright install --with-deps chromium webkit
       - run: pnpm exec playwright test -c playwright.flipbook.config.ts
       - name: Upload Flipbook visual evidence
