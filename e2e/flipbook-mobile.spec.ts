@@ -164,17 +164,6 @@ test('physical curl, touch navigation, concurrent input and vertical scroll', as
   await next(page).click();
   await visible(page, '1');
   await next(page).click();
-  await expect(reader(page)).not.toHaveAttribute('data-transition', 'idle');
-  await page.waitForTimeout(100);
-  expect(
-    await page
-      .locator('.stf__item')
-      .evaluateAll((leaves) => leaves.some((leaf) => leaf.getAttribute('style')?.includes('clip-path')))
-  ).toBe(true);
-  await reader(page).evaluate((element) => {
-    element.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
-    element.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
-  });
   await visible(page, '2');
   await swipe(page, browserName, -180);
   await visible(page, '3');
@@ -232,6 +221,15 @@ test('visual evidence at a physical curl frame', async ({ page }, info) => {
   await next(page).click({ force: true });
   await page.clock.runFor(160);
   await expect(reader(page)).not.toHaveAttribute('data-transition', 'idle');
+  expect(
+    await page
+      .locator('.stf__item')
+      .evaluateAll((leaves) => leaves.some((leaf) => leaf.getAttribute('style')?.includes('clip-path')))
+  ).toBe(true);
+  await reader(page).evaluate((element) => {
+    element.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    element.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+  });
   await shot(page, info, 'mobile-390-turning');
   await page.clock.resume();
   await visible(page, '2');
