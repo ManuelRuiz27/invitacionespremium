@@ -8,7 +8,6 @@ import QrCodeScannerRounded from '@mui/icons-material/QrCodeScannerRounded';
 import SearchRounded from '@mui/icons-material/SearchRounded';
 import { BrandLockup, ErrorState, LoadingState, StatusChip } from '@invitaciones/ui';
 
-
 import { CameraReader } from '../components/CameraReader';
 import { ScanResultPanel, type ScannerOperationalResult } from '../components/ScanResultPanel';
 import { ScannerFloorplan } from '../components/ScannerFloorplan';

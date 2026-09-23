@@ -157,7 +157,8 @@ export function LandingProductProof() {
                   <Typography
                     sx={{
                       ...landingTokens.typography.eyebrow,
-                      color: active === index ? landingTokens.colors.accent.primary : landingTokens.colors.base.textMuted
+                      color:
+                        active === index ? landingTokens.colors.accent.primary : landingTokens.colors.base.textMuted
                     }}
                   >
                     {scene.number}

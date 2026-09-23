@@ -47,7 +47,7 @@ await page.waitForTimeout(2000); // página 1 visible
 
 // Algunos flipbooks muestran primero "Abrir invitación" — hacer clic si existe
 const openBtn = page.getByRole('button', { name: /abrir invitaci[oó]n/i });
-if (await openBtn.count() > 0) {
+if ((await openBtn.count()) > 0) {
   console.log('  → Clicking "Abrir invitación"…');
   await openBtn.last().click();
   await page.waitForTimeout(1800);
@@ -55,7 +55,7 @@ if (await openBtn.count() > 0) {
 
 // También buscar el link "Abrir invitación" (puede ser un enlace)
 const openLink = page.getByRole('link', { name: /abrir invitaci[oó]n/i });
-if (await openLink.count() > 0) {
+if ((await openLink.count()) > 0) {
   console.log('  → Clicking "Abrir invitación" link…');
   await openLink.last().click();
   await page.waitForTimeout(1800);
@@ -74,7 +74,7 @@ if (nextCount > 0) {
 
   // Navegar a página 3
   const nextBtn2 = page.getByRole('button', { name: /siguiente/i });
-  if (await nextBtn2.count() > 0) {
+  if ((await nextBtn2.count()) > 0) {
     console.log('  → Clicking to page 3…');
     await nextBtn2.last().click();
     await page.waitForTimeout(2500); // mostrar página 3 durante 2.5s
@@ -88,7 +88,7 @@ if (nextCount > 0) {
     await altNext.last().click();
     await page.waitForTimeout(2500);
     const altNext2 = page.locator('button').filter({ hasText: 'Siguiente' });
-    if (await altNext2.count() > 0) {
+    if ((await altNext2.count()) > 0) {
       await altNext2.last().click();
       await page.waitForTimeout(2500);
     }
@@ -97,7 +97,6 @@ if (nextCount > 0) {
     await page.waitForTimeout(3000);
   }
 }
-
 
 // Obtener referencia al video antes de cerrar
 const video = page.video();

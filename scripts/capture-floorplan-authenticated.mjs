@@ -26,7 +26,7 @@ const browser = await chromium.launch({ headless: true });
 try {
   const ctx = await browser.newContext({
     viewport: { width: 1440, height: 900 },
-    deviceScaleFactor: 1.5,
+    deviceScaleFactor: 1.5
   });
   const page = await ctx.newPage();
   page.setDefaultTimeout(30_000);
@@ -44,7 +44,7 @@ try {
   // 2) Navegar al croquis de mesas del evento de referencia
   console.log('Navigating to floorplan…');
   await page.goto(`${CLIENT_BASE}/eventos/${EVENT_ID}?seccion=mesas`, { waitUntil: 'networkidle' });
-  
+
   // Esperar que cargue el Konva canvas
   try {
     await page.getByLabel('Resumen de la distribución').waitFor({ timeout: 20_000 });
@@ -63,7 +63,7 @@ try {
   const img = sharp(raw).rotate();
   await Promise.all([
     img.clone().webp({ quality: 82, smartSubsample: true }).toFile(join(assetDir, 'floorplan-live-desktop.webp')),
-    img.clone().avif({ quality: 58, effort: 5 }).toFile(join(assetDir, 'floorplan-live-desktop.avif')),
+    img.clone().avif({ quality: 58, effort: 5 }).toFile(join(assetDir, 'floorplan-live-desktop.avif'))
   ]);
   console.log('  ✓ Exported floorplan-live-desktop.avif/.webp');
 
@@ -79,8 +79,11 @@ try {
       await page.screenshot({ path: raw2, fullPage: false, animations: 'disabled' });
       const img2 = sharp(raw2).rotate();
       await Promise.all([
-        img2.clone().webp({ quality: 82, smartSubsample: true }).toFile(join(assetDir, 'floorplan-live-desktop-selected.webp')),
-        img2.clone().avif({ quality: 58, effort: 5 }).toFile(join(assetDir, 'floorplan-live-desktop-selected.avif')),
+        img2
+          .clone()
+          .webp({ quality: 82, smartSubsample: true })
+          .toFile(join(assetDir, 'floorplan-live-desktop-selected.webp')),
+        img2.clone().avif({ quality: 58, effort: 5 }).toFile(join(assetDir, 'floorplan-live-desktop-selected.avif'))
       ]);
       console.log('  ✓ Exported floorplan-live-desktop-selected.avif/.webp');
     }

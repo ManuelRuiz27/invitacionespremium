@@ -15,8 +15,7 @@ const assetDir = join(root, 'apps', 'landing', 'src', 'assets', 'product-proof')
 await mkdir(rawDir, { recursive: true });
 await mkdir(assetDir, { recursive: true });
 
-const FLOORPLAN_URL =
-  'http://localhost:5173/eventos/70496d81-3296-4fa7-8eb8-fd6aa4b52f5d?seccion=mesas';
+const FLOORPLAN_URL = 'http://localhost:5173/eventos/70496d81-3296-4fa7-8eb8-fd6aa4b52f5d?seccion=mesas';
 const INVITATION_URL =
   'http://localhost:5173/invitacion/ip1.35fc7108-f724-46cf-90fd-fbd5f47f8a5f.deb5a0e4a320340466559163650a21c2b791e1ed8a5adcbb07f64c2ad3c5f772.lGZhUWHGh7ifz2_75lHz3sufG1iMJNEY6wvirhVw6ZU';
 
@@ -28,7 +27,7 @@ try {
   {
     const ctx = await browser.newContext({
       viewport: { width: 1440, height: 900 },
-      deviceScaleFactor: 1.5,
+      deviceScaleFactor: 1.5
     });
     const page = await ctx.newPage();
     page.setDefaultTimeout(30_000);
@@ -50,7 +49,7 @@ try {
   {
     const ctx = await browser.newContext({
       viewport: { width: 390, height: 844 },
-      deviceScaleFactor: 2,
+      deviceScaleFactor: 2
     });
     const page = await ctx.newPage();
     page.setDefaultTimeout(30_000);
@@ -76,7 +75,13 @@ async function shot(page, name, rawDir, assetDir) {
   await page.screenshot({ path: raw, fullPage: false, animations: 'disabled' });
   const image = sharp(raw).rotate();
   await Promise.all([
-    image.clone().webp({ quality: 82, smartSubsample: true }).toFile(join(assetDir, `${name}.webp`)),
-    image.clone().avif({ quality: 58, effort: 5 }).toFile(join(assetDir, `${name}.avif`)),
+    image
+      .clone()
+      .webp({ quality: 82, smartSubsample: true })
+      .toFile(join(assetDir, `${name}.webp`)),
+    image
+      .clone()
+      .avif({ quality: 58, effort: 5 })
+      .toFile(join(assetDir, `${name}.avif`))
   ]);
 }
