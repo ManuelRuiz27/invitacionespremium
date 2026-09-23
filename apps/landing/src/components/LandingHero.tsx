@@ -144,6 +144,7 @@ export function LandingHero({ config }: LandingHeroProps) {
                   style={{
                     width: '100%',
                     height: 'auto',
+                    aspectRatio: '390 / 844',
                     display: 'block',
                     objectFit: 'cover'
                   }}

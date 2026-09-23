@@ -18,18 +18,29 @@ export function ProductProofPicture({
   imageStyle,
   ...props
 }: ProductProofPictureProps) {
+  const isAvif = avif.endsWith('.avif');
+  const isWebp = webp.endsWith('.webp') || avif.endsWith('.webp');
+  const webpSrc = webp.endsWith('.webp') ? webp : avif.endsWith('.webp') ? avif : '';
+  const fallbackSrc = webp || avif;
+
   return (
     <Box component="picture" {...props}>
-      <source srcSet={avif} type="image/avif" />
-      <source srcSet={webp} type="image/webp" />
+      {isAvif ? <source srcSet={avif} type="image/avif" /> : null}
+      {isWebp && webpSrc ? <source srcSet={webpSrc} type="image/webp" /> : null}
       <img
-        src={webp}
+        src={fallbackSrc}
         alt={alt}
         width={width}
         height={height}
         loading="lazy"
         decoding="async"
-        style={{ display: 'block', width: '100%', height: 'auto', ...imageStyle }}
+        style={{
+          display: 'block',
+          width: '100%',
+          height: 'auto',
+          aspectRatio: `${width} / ${height}`,
+          ...imageStyle
+        }}
       />
     </Box>
   );

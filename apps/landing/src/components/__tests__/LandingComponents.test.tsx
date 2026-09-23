@@ -58,7 +58,7 @@ describe('M01 Managed landing presentation', () => {
     for (const label of [
       'Reciben su invitación',
       'Confirman su asistencia',
-      'Organizas a tus invitados',
+      'Organizas el croquis de mesas',
       'Cada invitado recibe su acceso',
       'Tu equipo recibe a cada persona'
     ])

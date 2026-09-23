@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router-dom';
 import type { ApiClient } from '@invitaciones/api-client';
 import type { ScannerRealtimeConfig } from './env';
 import { ScannerSessionPage } from './pages/ScannerSessionPage';
+import { ScannerWelcomePage } from './pages/ScannerWelcomePage';
 
 export interface RouterDependencies {
   apiClient: ApiClient;
@@ -22,10 +23,12 @@ export function createScannerRouter(dependencies: RouterDependencies) {
       )
     },
     {
+      path: '/',
+      element: <ScannerWelcomePage />
+    },
+    {
       path: '*',
-      element: (
-        <div style={{ padding: '2rem', textAlign: 'center' }}>Escanea un código QR Staff válido para iniciar.</div>
-      )
+      element: <ScannerWelcomePage />
     }
   ]);
 }

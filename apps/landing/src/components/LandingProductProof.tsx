@@ -1,4 +1,5 @@
 import invitationAnimatedWebp from '../assets/product-proof/invitation-demo-animated.webp';
+import invitationAnimatedGif from '../assets/product-proof/invitation-demo-animated.gif';
 import rsvpAvif from '../assets/product-proof/rsvp-public-mobile.avif';
 import rsvpWebp from '../assets/product-proof/rsvp-public-mobile.webp';
 import distributionAvif from '../assets/product-proof/invitation-distribution-desktop.avif';
@@ -33,7 +34,7 @@ const scenes: readonly ProofScene[] = [
     title: 'Toda la información del evento en una experiencia clara',
     description: 'Una Invitación Digital o Invitación Premium preparada para cada invitado.',
     avif: invitationAnimatedWebp,
-    webp: invitationAnimatedWebp,
+    webp: invitationAnimatedGif,
     alt: 'Invitación Premium real — Flipbook digital interactivo de Boda de Prueba con animación de páginas',
     width: 390,
     height: 844,

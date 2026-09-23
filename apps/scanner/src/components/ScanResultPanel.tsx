@@ -128,7 +128,11 @@ export function ScanResultPanel({
                     size="large"
                   />
                 }
-                label={`${assistant.name}${assistant.table ? ` · Mesa ${assistant.table.name}` : ''}${assistant.seat ? ` · Lugar ${assistant.seat.label}` : ''}`}
+                label={`${assistant.name}${
+                  assistant.table
+                    ? ` · ${assistant.table.name.toLowerCase().startsWith('mesa') ? assistant.table.name : `Mesa ${assistant.table.name}`}`
+                    : ''
+                }${assistant.seat ? ` · Lugar ${assistant.seat.label}` : ''}`}
                 sx={{
                   minHeight: 52,
                   py: 0.5,

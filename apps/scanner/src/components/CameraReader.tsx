@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import jsQR from 'jsqr';
-import { Alert, Box } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 
 export interface CameraReaderProps {
   onScan: (data: string) => void;
@@ -91,7 +91,57 @@ export function CameraReader({ onScan, paused = false }: CameraReaderProps) {
     return stop;
   }, []);
 
-  if (error) return <Alert severity="error">{error}</Alert>;
+  if (error) {
+    return (
+      <Box
+        sx={{
+          position: 'relative',
+          width: '100%',
+          maxWidth: 520,
+          mx: 'auto',
+          overflow: 'hidden',
+          borderRadius: 3,
+          aspectRatio: { xs: '3/4', sm: '4/5' },
+          minHeight: { xs: 340, sm: 420 },
+          bgcolor: '#14161c',
+          color: '#ffffff',
+          boxShadow: (theme) => theme.shadows[4],
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          p: 3,
+          textAlign: 'center'
+        }}
+      >
+        <Box
+          sx={{
+            width: 56,
+            height: 56,
+            borderRadius: '50%',
+            bgcolor: 'rgba(255, 255, 255, 0.08)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            mb: 2
+          }}
+        >
+          <Box component="span" sx={{ fontSize: 28 }}>
+            📷
+          </Box>
+        </Box>
+        <Typography variant="h6" sx={{ color: '#ffffff', mb: 1, fontWeight: 600 }}>
+          Cámara no disponible
+        </Typography>
+        <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)', maxWidth: 280, mb: 2.5 }}>
+          {error}
+        </Typography>
+        <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+          Puedes usar la pestaña <strong>Buscar</strong> abajo para registrar asistentes por nombre.
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box

@@ -234,7 +234,11 @@ export function ScannerFloorplan({
                 }}
               >
                 <LocationOnRounded sx={{ fontSize: 18, color: 'warning.main' }} />
-                <span>Mesa {highlightedTable.name}</span>
+                <span>
+                  {highlightedTable.name.toLowerCase().startsWith('mesa')
+                    ? highlightedTable.name
+                    : `Mesa ${highlightedTable.name}`}
+                </span>
               </Box>
               <Box
                 sx={{
