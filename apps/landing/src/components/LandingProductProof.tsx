@@ -1,11 +1,11 @@
-import flipbookAvif from '../assets/product-proof/flipbook-public-mobile.avif';
-import flipbookWebp from '../assets/product-proof/flipbook-public-mobile.webp';
+import invitationLiveAvif from '../assets/product-proof/invitation-live-mobile.avif';
+import invitationLiveWebp from '../assets/product-proof/invitation-live-mobile.webp';
 import rsvpAvif from '../assets/product-proof/rsvp-public-mobile.avif';
 import rsvpWebp from '../assets/product-proof/rsvp-public-mobile.webp';
 import distributionAvif from '../assets/product-proof/invitation-distribution-desktop.avif';
 import distributionWebp from '../assets/product-proof/invitation-distribution-desktop.webp';
-import seatingAvif from '../assets/product-proof/seating-desktop.avif';
-import seatingWebp from '../assets/product-proof/seating-desktop.webp';
+import floorplanAvif from '../assets/product-proof/floorplan-live-desktop.avif';
+import floorplanWebp from '../assets/product-proof/floorplan-live-desktop.webp';
 import scannerAvif from '../assets/product-proof/scanner-result-mobile.avif';
 import scannerWebp from '../assets/product-proof/scanner-result-mobile.webp';
 import { landingTokens } from '../theme/landing-theme';
@@ -20,9 +20,9 @@ const scenes = [
     label: 'Reciben su invitación',
     title: 'Toda la información del evento en una experiencia clara',
     description: 'Una Invitación Digital o Invitación Premium preparada para cada invitado.',
-    avif: flipbookAvif,
-    webp: flipbookWebp,
-    alt: 'Invitación Premium real de un evento de demostración',
+    avif: invitationLiveAvif,
+    webp: invitationLiveWebp,
+    alt: 'Invitación Premium real — Flipbook digital con diseño de boda',
     width: 780,
     height: 1688,
     mobile: true
@@ -41,15 +41,15 @@ const scenes = [
   },
   {
     number: '03',
-    label: 'Organizas a tus invitados',
-    title: 'Una vista clara para consultar asistencia',
+    label: 'Organizas el croquis de mesas',
+    title: 'Distribuye a tus invitados en el plano real del salón',
     description:
-      'Consulta invitaciones individuales, confirmaciones y la información que necesitas para organizar las mesas.',
-    avif: seatingAvif,
-    webp: seatingWebp,
-    alt: 'Vista real para organizar invitados y mesas',
+      'El Croquis de Mesas refleja la distribución del espacio. Asigna asistentes a cada lugar directamente desde el mapa del evento.',
+    avif: floorplanAvif,
+    webp: floorplanWebp,
+    alt: 'Croquis de mesas real del evento — vista del plano con mesas asignadas',
     width: 2160,
-    height: 1500,
+    height: 1350,
     mobile: false
   },
   {
@@ -101,7 +101,7 @@ export function LandingProductProof() {
       id="producto"
       component="section"
       aria-labelledby="landing-product-proof-heading"
-      sx={{ py: landingTokens.spacing.sectionY, bgcolor: landingTokens.colors.light.background }}
+      sx={{ py: landingTokens.spacing.sectionY, bgcolor: landingTokens.colors.base.background }}
     >
       <LandingContainer>
         <LandingSectionIntro
@@ -141,7 +141,7 @@ export function LandingProductProof() {
                   <Typography
                     sx={{
                       ...landingTokens.typography.eyebrow,
-                      color: active === index ? landingTokens.colors.light.accent : landingTokens.colors.light.textMuted
+                      color: active === index ? landingTokens.colors.accent.primary : landingTokens.colors.base.textMuted
                     }}
                   >
                     {scene.number}
@@ -156,7 +156,7 @@ export function LandingProductProof() {
                     <Typography sx={{ ...landingTokens.typography.headline, fontSize: '1rem', mb: 1 }}>
                       {scene.title}
                     </Typography>
-                    <Typography sx={{ ...landingTokens.typography.body, color: landingTokens.colors.light.textMuted }}>
+                    <Typography sx={{ ...landingTokens.typography.body, color: landingTokens.colors.base.textMuted }}>
                       {scene.description}
                     </Typography>
                     <Button
