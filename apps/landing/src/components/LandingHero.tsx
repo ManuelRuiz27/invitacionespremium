@@ -1,7 +1,7 @@
+import invitationVideoWebm from '../assets/product-proof/invitation-demo.webm';
 import invitationAnimatedWebp from '../assets/product-proof/invitation-demo-animated.webp';
 import invitationAnimatedGif from '../assets/product-proof/invitation-demo-animated.gif';
 import { getLandingConfig, type LandingConfig } from '../config/landing-config';
-
 
 import { scrollToLandingSection } from '../navigation';
 import { landingTokens } from '../theme/landing-theme';
@@ -47,25 +47,24 @@ export function LandingHero({ config }: LandingHeroProps) {
 
             <Typography
               component="h1"
+              variant="h1"
               sx={{
                 ...landingTokens.typography.display,
-                fontSize: { xs: '2.15rem', sm: '3.1rem', md: '3.8rem', lg: '4.2rem' },
-                maxWidth: 720,
-                textWrap: 'balance',
-                lineHeight: 1.1,
-                color: landingTokens.colors.base.text
+                color: landingTokens.colors.base.text,
+                maxWidth: { lg: '14ch' }
               }}
             >
               {content.hero.title}
             </Typography>
 
             <Typography
+              variant="body1"
               sx={{
                 ...landingTokens.typography.body,
                 color: landingTokens.colors.base.textMuted,
-                fontSize: { xs: '1.02rem', sm: '1.12rem', md: '1.2rem' },
-                maxWidth: 580,
-                lineHeight: 1.65
+                maxWidth: { sm: 540 },
+                fontSize: { xs: '1.05rem', sm: '1.15rem' },
+                lineHeight: 1.6
               }}
             >
               {content.hero.subtitle}
@@ -132,27 +131,41 @@ export function LandingHero({ config }: LandingHeroProps) {
                 }
               }}
             >
-              <picture>
-                <source srcSet={invitationAnimatedWebp} type="image/webp" />
-                <img
-                  src={invitationAnimatedGif}
-                  alt="Invitación Premium real interactiva — Boda de Prueba con animación de páginas"
-                  width={390}
-                  height={844}
-                  loading="eager"
-                  decoding="async"
-                  style={{
-                    width: '100%',
-                    height: 'auto',
-                    aspectRatio: '390 / 844',
-                    display: 'block',
-                    objectFit: 'cover'
-                  }}
-                />
-              </picture>
+              <video
+                autoPlay
+                loop
+                muted
+                playsInline
+                aria-label="Invitación Premium real interactiva con efecto magazine — Boda de Prueba"
+                style={{
+                  width: '100%',
+                  height: 'auto',
+                  aspectRatio: '390 / 844',
+                  display: 'block',
+                  objectFit: 'cover'
+                }}
+              >
+                <source src={invitationVideoWebm} type="video/webm" />
+                <picture>
+                  <source srcSet={invitationAnimatedWebp} type="image/webp" />
+                  <img
+                    src={invitationAnimatedGif}
+                    alt="Invitación Premium real interactiva — Boda de Prueba con animación de páginas"
+                    width={390}
+                    height={844}
+                    loading="eager"
+                    decoding="async"
+                    style={{
+                      width: '100%',
+                      height: 'auto',
+                      aspectRatio: '390 / 844',
+                      display: 'block',
+                      objectFit: 'cover'
+                    }}
+                  />
+                </picture>
+              </video>
             </Box>
-
-
 
             <Typography
               variant="caption"
