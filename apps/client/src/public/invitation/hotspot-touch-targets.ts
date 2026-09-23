@@ -26,9 +26,13 @@ export function hotspotTouchInsets(rects: Rect[], size: { width: number; height:
     };
   });
   return expanded.map((rect, index) => {
-    const overlaps = expanded.some((other, otherIndex) =>
-      index !== otherIndex && rect.x < other.x + other.width && rect.x + rect.width > other.x &&
-      rect.y < other.y + other.height && rect.y + rect.height > other.y
+    const overlaps = expanded.some(
+      (other, otherIndex) =>
+        index !== otherIndex &&
+        rect.x < other.x + other.width &&
+        rect.x + rect.width > other.x &&
+        rect.y < other.y + other.height &&
+        rect.y + rect.height > other.y
     );
     if (overlaps) return '0px';
     const source = original[index]!;

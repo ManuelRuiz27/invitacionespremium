@@ -35,9 +35,7 @@ export function createClientMemoryRouter(dependencies: RouterDependencies, initi
 }
 
 function localFixtureRoutesEnabled(): boolean {
-  if (import.meta.env.DEV) return true;
-  if (typeof window === 'undefined') return false;
-  return ['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(window.location.hostname);
+  return import.meta.env.DEV;
 }
 
 function createRoutes(dependencies: RouterDependencies): RouteObject[] {

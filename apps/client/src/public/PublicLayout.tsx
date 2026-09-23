@@ -2,7 +2,15 @@ import type { ReactNode } from 'react';
 import { Box, Container, Typography } from '@mui/material';
 import './PublicLayout.css';
 
-export function PublicLayout({ children, tone = 'light', immersiveReader = false }: { children: ReactNode; tone?: 'light' | 'dark'; immersiveReader?: boolean }) {
+export function PublicLayout({
+  children,
+  tone = 'light',
+  immersiveReader = false
+}: {
+  children: ReactNode;
+  tone?: 'light' | 'dark';
+  immersiveReader?: boolean;
+}) {
   return (
     <Box
       className={immersiveReader ? 'public-layout-immersive' : undefined}

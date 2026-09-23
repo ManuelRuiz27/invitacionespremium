@@ -27,7 +27,13 @@ export function PublicInvitationPage({ apiClient }: { apiClient: ApiClient }) {
   return <PublicInvitationTokenPage key={invitationToken} apiClient={apiClient} invitationToken={invitationToken} />;
 }
 
-export function PublicInvitationTokenPage({ apiClient, invitationToken }: { apiClient: ApiClient; invitationToken: string }) {
+export function PublicInvitationTokenPage({
+  apiClient,
+  invitationToken
+}: {
+  apiClient: ApiClient;
+  invitationToken: string;
+}) {
   const [state, setState] = useState<LoadState>({ kind: 'loading', token: invitationToken });
   const [rsvpOpen, setRsvpOpen] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);

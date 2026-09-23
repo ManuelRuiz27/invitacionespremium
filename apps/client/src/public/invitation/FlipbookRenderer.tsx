@@ -42,6 +42,7 @@ export function FlipbookRenderer({
   const focalPageRef = useRef(0);
   const orientationRef = useRef<BookSnapshot['orientation']>('portrait');
   const turningRef = useRef(false);
+  const touchRef = useRef<{ id: number; x: number; y: number; time: number; scrolling: boolean } | null>(null);
   const introTimerRef = useRef<number | null>(null);
   const [snapshot, setSnapshot] = useState<BookSnapshot>(initialSnapshot);
   const [transitionState, setTransitionState] = useState<'idle' | 'turning' | 'settling'>('idle');
@@ -134,11 +135,14 @@ export function FlipbookRenderer({
       return;
     }
     setIntroState('lifting');
-    introTimerRef.current = window.setTimeout(() => {
-      introTimerRef.current = null;
-      setIntroState('opening');
-      turnPage('next');
-    }, mobileReader ? 180 : 560);
+    introTimerRef.current = window.setTimeout(
+      () => {
+        introTimerRef.current = null;
+        setIntroState('opening');
+        turnPage('next');
+      },
+      mobileReader ? 180 : 560
+    );
   }, [coverCanOpen, mobileReader, reducedMotion, turnPage]);
 
   const navigate = useCallback(
@@ -163,7 +167,62 @@ export function FlipbookRenderer({
       data-transition={transitionState}
       data-visible-pages={visiblePageKey}
       onPointerDownCapture={(event) => {
-        if (turningRef.current || introTimerRef.current !== null) event.stopPropagation();
+        if (turningRef.current || introTimerRef.current !== null) {
+          event.stopPropagation();
+          return;
+        }
+        if (!mobileReader || event.pointerType !== 'touch' || !event.isPrimary || !(event.target instanceof Element))
+          return;
+        if (
+          !event.target.closest('.stf__block') ||
+          event.target.closest('button, a, input, select, textarea, [role="button"]')
+        )
+          return;
+        touchRef.current = {
+          id: event.pointerId,
+          x: event.clientX,
+          y: event.clientY,
+          time: event.timeStamp,
+          scrolling: false
+        };
+      }}
+      onPointerMoveCapture={(event) => {
+        const touch = touchRef.current;
+        if (!touch || touch.id !== event.pointerId) return;
+        const dx = Math.abs(event.clientX - touch.x);
+        const dy = Math.abs(event.clientY - touch.y);
+        if (dy > 10 && dy > dx) touch.scrolling = true;
+      }}
+      onPointerCancelCapture={() => {
+        touchRef.current = null;
+      }}
+      onPointerUpCapture={(event) => {
+        const touch = touchRef.current;
+        if (!touch || touch.id !== event.pointerId) return;
+        touchRef.current = null;
+        const dx = event.clientX - touch.x;
+        const dy = Math.abs(event.clientY - touch.y);
+        if (touch.scrolling || Math.abs(dx) < 40 || Math.abs(dx) <= dy * 1.5 || event.timeStamp - touch.time > 1000)
+          return;
+        const book = bookRef.current?.pageFlip();
+        if (!book || (book.getState() !== 'read' && book.getState() !== 'user_fold')) return;
+        // Keep core's finger-following fold and pan-y scrolling. On release,
+        // commit the intentional swipe through the same engine, without its
+        // fixed 250ms cutoff making ordinary slower swipes snap back.
+        event.preventDefault();
+        event.stopPropagation();
+        // End the engine's captured drag before requesting the turn. Otherwise
+        // native touch pointerleave can abandon the new animation on release.
+        event.target.dispatchEvent(
+          new PointerEvent('pointercancel', {
+            bubbles: true,
+            pointerId: event.pointerId,
+            pointerType: 'touch',
+            isPrimary: true
+          })
+        );
+        turningRef.current = false;
+        turnPage(dx < 0 ? 'next' : 'prev');
       }}
       data-reduced-motion={reducedMotion || undefined}
       onKeyDown={(event) => {
@@ -280,7 +339,12 @@ export function FlipbookRenderer({
           </HTMLFlipBook>
         </Box>
       </Box>
-      <Stack className="flipbook-controls" direction="row" spacing={2} sx={{ mt: 2, justifyContent: 'center', alignItems: 'center' }}>
+      <Stack
+        className="flipbook-controls"
+        direction="row"
+        spacing={2}
+        sx={{ mt: 2, justifyContent: 'center', alignItems: 'center' }}
+      >
         <Button
           aria-label="Anterior"
           disabled={!canGoPrevious || transitionState !== 'idle' || isOpening}
@@ -291,8 +355,12 @@ export function FlipbookRenderer({
           <span className="flipbook-desktop-control">Anterior</span>
         </Button>
         <Typography aria-live="polite" aria-atomic="true">
-          <span className="flipbook-desktop-control">Página {progress} de {pages.length}</span>
-          <span className="flipbook-mobile-control" aria-hidden="true">{progress} / {pages.length}</span>
+          <span className="flipbook-desktop-control">
+            Página {progress} de {pages.length}
+          </span>
+          <span className="flipbook-mobile-control" aria-hidden="true">
+            {progress} / {pages.length}
+          </span>
         </Typography>
         <Button
           aria-label={snapshot.page === 0 ? 'Abrir invitación' : 'Siguiente'}

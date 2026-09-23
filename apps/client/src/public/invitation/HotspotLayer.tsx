@@ -51,54 +51,53 @@ export function HotspotLayer({
   return (
     <Box aria-hidden={disabled || undefined} sx={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
       {ordered.map((hotspot, index) => {
-          const href = safeHttpsUrl(hotspot.destination);
-          const common = {
-            'aria-label':
-              hotspot.action === 'RSVP' && rsvpConfirmed ? 'Modificar acompañantes' : labels[hotspot.action],
-            className: 'invitation-hotspot',
-            sx: {
-              position: 'absolute',
-              ...relativeRectStyles(hotspot),
-              minWidth: surfaceSize ? 0 : 44,
-              minHeight: surfaceSize ? 0 : 44,
-              ...(hitInsets ? { '&::after': { content: '""', position: 'absolute', inset: hitInsets[index] } } : {}),
-              pointerEvents: disabled ? 'none' : 'auto'
-            }
-          } as const;
-          if (['LOCATION', 'GIFT_REGISTRY', 'EXTERNAL_LINK'].includes(hotspot.action)) {
-            return href ? (
-              <Box
-                key={hotspot.id}
-                component="a"
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer"
-                referrerPolicy="no-referrer"
-                aria-disabled={disabled || undefined}
-                tabIndex={disabled ? -1 : undefined}
-                onClick={preventDisabledNavigation}
-                onKeyDown={preventDisabledNavigation}
-                {...common}
-              />
-            ) : null;
+        const href = safeHttpsUrl(hotspot.destination);
+        const common = {
+          'aria-label': hotspot.action === 'RSVP' && rsvpConfirmed ? 'Modificar acompañantes' : labels[hotspot.action],
+          className: 'invitation-hotspot',
+          sx: {
+            position: 'absolute',
+            ...relativeRectStyles(hotspot),
+            minWidth: surfaceSize ? 0 : 44,
+            minHeight: surfaceSize ? 0 : 44,
+            ...(hitInsets ? { '&::after': { content: '""', position: 'absolute', inset: hitInsets[index] } } : {}),
+            pointerEvents: disabled ? 'none' : 'auto'
           }
-          if (hotspot.action === 'QR_AREA') {
-            return (
-              <QrHotspot
-                key={`${hotspot.id}:${token}:${qrAvailable}`}
-                apiClient={apiClient}
-                token={token}
-                available={qrAvailable}
-                disabled={disabled}
-                onUnavailable={onUnavailableQr}
-                sx={common.sx}
-              />
-            );
-          }
+        } as const;
+        if (['LOCATION', 'GIFT_REGISTRY', 'EXTERNAL_LINK'].includes(hotspot.action)) {
+          return href ? (
+            <Box
+              key={hotspot.id}
+              component="a"
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              referrerPolicy="no-referrer"
+              aria-disabled={disabled || undefined}
+              tabIndex={disabled ? -1 : undefined}
+              onClick={preventDisabledNavigation}
+              onKeyDown={preventDisabledNavigation}
+              {...common}
+            />
+          ) : null;
+        }
+        if (hotspot.action === 'QR_AREA') {
           return (
-            <Box component="button" type="button" key={hotspot.id} disabled={disabled} onClick={onRsvp} {...common} />
+            <QrHotspot
+              key={`${hotspot.id}:${token}:${qrAvailable}`}
+              apiClient={apiClient}
+              token={token}
+              available={qrAvailable}
+              disabled={disabled}
+              onUnavailable={onUnavailableQr}
+              sx={common.sx}
+            />
           );
-        })}
+        }
+        return (
+          <Box component="button" type="button" key={hotspot.id} disabled={disabled} onClick={onRsvp} {...common} />
+        );
+      })}
     </Box>
   );
 }

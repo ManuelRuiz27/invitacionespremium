@@ -133,7 +133,17 @@
   /* CSS supplies the physical box. Core's existing ResizeObserver fits the
      leaf to both axes; no second measurement loop or viewport-sized remount. */
   .flipbook-reader .flipbook-volume[data-intro] {
-    width: min(100%, 480px, calc((100dvh - var(--reader-safe-top) - var(--reader-safe-bottom) - var(--reader-chrome) - var(--reader-animation-space)) * 480 / 680));
+    width: min(
+      100%,
+      480px,
+      calc(
+        (
+            100dvh - var(--reader-safe-top) - var(--reader-safe-bottom) - var(--reader-chrome) -
+              var(--reader-animation-space)
+          ) *
+          480 / 680
+      )
+    );
     aspect-ratio: 480 / 680;
     max-height: 100%;
     transform: none;

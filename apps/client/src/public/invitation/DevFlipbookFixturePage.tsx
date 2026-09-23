@@ -6,7 +6,10 @@ const token = 'flipbook-magazine-local-fixture';
 const params = new URLSearchParams(window.location.search);
 const requestedCount = Number(params.get('pages') ?? 6);
 const pageCount = [1, 2, 3, 4, 5, 6, 10].includes(requestedCount) ? requestedCount : 6;
-const assetIds = Array.from({ length: pageCount }, (_, index) => `5c643f2f-7247-42a3-8348-${String(index + 1).padStart(12, '0')}`);
+const assetIds = Array.from(
+  { length: pageCount },
+  (_, index) => `5c643f2f-7247-42a3-8348-${String(index + 1).padStart(12, '0')}`
+);
 
 const fixtureApiClient = {
   publicInvitation: {
@@ -30,8 +33,18 @@ const fixtureApiClient = {
 const fixtureView = {
   status: 'AVAILABLE',
   designType: 'FLIPBOOK',
-  event: { name: 'Ana & Luis', eventDateTime: '2026-09-14T23:30:00Z', timeZone: 'America/Mexico_City' },
-  invitation: { id: 'fixture-invitation', mode: 'INDIVIDUAL', responseStatus: 'CONFIRMED', additionalAssistantLimit: 0 },
+  event: {
+    name: 'Ana & Luis',
+    eventDateTime: '2026-09-14T23:30:00Z',
+    eventEndDateTime: '2026-09-15T05:30:00Z',
+    timeZone: 'America/Mexico_City'
+  },
+  invitation: {
+    id: 'fixture-invitation',
+    mode: 'INDIVIDUAL',
+    responseStatus: 'CONFIRMED',
+    additionalAssistantLimit: 0
+  },
   assistants: [{ id: 'fixture-primary', name: 'Invitado de prueba', isPrimary: true, responseStatus: 'CONFIRMED' }],
   confirmation: { open: true },
   qr: { available: true },
@@ -86,7 +99,11 @@ export function DevFlipbookFixturePage() {
       <Box component="aside" sx={{ p: 2 }} aria-label="Opciones del fixture">
         <Typography>Demo local · sin API ni storage. Confirmación disponible para inspección, sin guardar.</Typography>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, my: 2 }}>
-          {[1, 2, 3, 4, 5, 6, 10].map((count) => <a key={count} href={`?pages=${count}`}>{count} páginas</a>)}
+          {[1, 2, 3, 4, 5, 6, 10].map((count) => (
+            <a key={count} href={`?pages=${count}`}>
+              {count} páginas
+            </a>
+          ))}
           <a href="?pages=6&mixed">Proporciones diferentes</a>
           <a href="?pages=6&slow">Asset lento</a>
         </Box>
