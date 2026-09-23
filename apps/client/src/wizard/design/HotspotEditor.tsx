@@ -114,6 +114,7 @@ export function HotspotEditor({
   const [preciseControlsOpen, setPreciseControlsOpen] = useState(false);
   const [confirmedMessage, setConfirmedMessage] = useState<string>();
   const [viewport, setViewport] = useState({ zoom: 1, x: 0, y: 0 });
+  const [imageRatio, setImageRatio] = useState(1);
   const [targetPageId, setTargetPageId] = useState(pageId);
   const selected = visible.find((item) => item.id === selectedId);
   const editing = mode === 'creating' || mode === 'editing';
@@ -207,6 +208,10 @@ export function HotspotEditor({
     setConfirmedMessage(undefined);
     setTargetPageId(pageId);
   }, [ownerType, pageId, pagePosition]);
+
+  useEffect(() => {
+    setViewport({ zoom: 1, x: 0, y: 0 });
+  }, [previewUrl]);
 
   const cancel = () => {
     setMode('idle');
@@ -359,9 +364,14 @@ export function HotspotEditor({
       aria-labelledby="invitation-actions-title"
       sx={{
         display: 'grid',
-        gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1fr) minmax(280px, 340px)' },
-        gap: 1.5,
-        alignItems: 'start'
+        gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1fr) 240px', xl: 'minmax(0, 1fr) 280px' },
+        gridTemplateRows: 'auto 1fr',
+        gap: { xs: 2, lg: 2.5 },
+        alignItems: 'start',
+        minWidth: 0,
+        height: '100%',
+        viewTimelineName: '--invitation-workspace',
+        viewTimelineAxis: 'block'
       }}
     >
       <Stack spacing={0.5} sx={{ gridColumn: '1 / -1' }}>
@@ -378,8 +388,44 @@ export function HotspotEditor({
         </Typography>
       </Stack>
 
-      <Box sx={{ gridColumn: { lg: 1 }, gridRow: { lg: '2 / span 8' }, minWidth: 0 }}>
-        <Stack direction="row" spacing={0.5} sx={{ justifyContent: 'flex-end', mb: 0.75 }}>
+      <Box
+        data-testid="invitation-preview-stage"
+        sx={{
+          gridColumn: { lg: 1 },
+          gridRow: { lg: 2 },
+          minWidth: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          position: { xs: 'relative', lg: 'sticky' },
+          top: { lg: 24 },
+          isolation: 'isolate',
+          '--preview-height': { xs: 'max(160px, calc(100svh - 200px))', md: 'max(160px, calc(100svh - 120px))' },
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            inset: '8% -8px 12%',
+            zIndex: -1,
+            borderRadius: '50%',
+            background: 'radial-gradient(ellipse, rgba(172,140,90,.16), transparent 70%)',
+            pointerEvents: 'none'
+          },
+          '@supports (animation-timeline: view())': {
+            '@media (prefers-reduced-motion: no-preference)': {
+              '&::before': {
+                animation: 'invitation-depth linear both',
+                animationTimeline: '--invitation-workspace',
+                animationRange: 'entry 0% exit 100%'
+              }
+            }
+          },
+          '@keyframes invitation-depth': {
+            from: { transform: 'translateY(-36px) scale(.94)' },
+            to: { transform: 'translateY(36px) scale(1.06)' }
+          },
+          '@media (prefers-reduced-motion: reduce)': { position: 'relative', top: 0 }
+        }}
+      >
+        <Stack direction="row" spacing={0.5} sx={{ justifyContent: 'center', mt: 1, order: 1 }}>
           <Button
             aria-label="Alejar vista previa"
             disabled={viewport.zoom <= 1}
@@ -419,10 +465,6 @@ export function HotspotEditor({
           onBlur={() => {
             spacePressedRef.current = false;
           }}
-          onWheel={(event) => {
-            event.preventDefault();
-            updateZoom(viewport.zoom * (event.deltaY < 0 ? 1.12 : 0.89), event.clientX, event.clientY);
-          }}
           onPointerDownCapture={handleViewportPointerDown}
           onPointerMoveCapture={handleViewportPointerMove}
           onPointerUpCapture={finishViewportPointer}
@@ -430,11 +472,13 @@ export function HotspotEditor({
           sx={{
             position: 'relative',
             width: '100%',
-            maxHeight: '72vh',
+            maxWidth: `calc(var(--preview-height) * ${imageRatio})`,
+            mx: 'auto',
             bgcolor: 'grey.100',
             overflow: 'hidden',
             outline: '1px solid',
             outlineColor: 'divider',
+            boxShadow: '0 18px 45px -24px rgba(45,35,24,.4)',
             lineHeight: 0,
             touchAction: 'pan-y',
             cursor: spacePressedRef.current ? 'grab' : 'default',
@@ -454,9 +498,13 @@ export function HotspotEditor({
               <Box
                 component="img"
                 src={previewUrl}
-                alt=""
+                alt="Diseño completo de la invitación"
                 draggable={false}
-                sx={{ display: 'block', width: '100%', height: 'auto' }}
+                onLoad={(event) => {
+                  const { naturalWidth, naturalHeight } = event.currentTarget;
+                  if (naturalWidth && naturalHeight) setImageRatio(naturalWidth / naturalHeight);
+                }}
+                sx={{ display: 'block', width: '100%', height: 'auto', objectFit: 'contain' }}
               />
             ) : null}
 
@@ -535,251 +583,236 @@ export function HotspotEditor({
         </Box>
       </Box>
 
-      <Stack spacing={1} component="section" aria-labelledby="configured-actions-title" sx={{ gridColumn: { lg: 2 } }}>
-        <Typography component="h4" variant="h6" id="configured-actions-title">
-          Acciones configuradas
-        </Typography>
-        <Box component="ul" sx={{ m: 0, pl: 2.5, columns: { sm: 2 } }}>
-          {actions.map((action) => {
-            const configured = visible.some((item) => item.action === action.value);
-            return (
-              <Typography component="li" key={action.value} color={configured ? 'text.primary' : 'text.secondary'}>
-                <Box component="span" aria-hidden="true" sx={{ display: 'inline-block', width: 22 }}>
-                  {configured ? '✓' : '○'}
-                </Box>
-                {action.label}
-              </Typography>
-            );
-          })}
-        </Box>
-      </Stack>
+      <Stack spacing={1.5} sx={{ gridColumn: { lg: 2 }, gridRow: { lg: 2 }, minWidth: 0 }}>
+        {confirmedMessage ? (
+          <Alert severity="warning" aria-live="polite" sx={{ gridColumn: { lg: 2 } }}>
+            {confirmedMessage}
+          </Alert>
+        ) : null}
 
-      {confirmedMessage ? (
-        <Alert severity="warning" aria-live="polite" sx={{ gridColumn: { lg: 2 } }}>
-          {confirmedMessage}
-        </Alert>
-      ) : null}
-
-      {mode === 'idle' && !disabled && availableActions.length ? (
-        <Button
-          variant="contained"
-          sx={{ alignSelf: 'flex-start', gridColumn: { lg: 2 }, minHeight: 44 }}
-          onClick={() => setMode('choosing')}
-        >
-          Agregar acción
-        </Button>
-      ) : null}
-
-      {mode === 'idle' && !disabled && ownerType === 'FLIPBOOK_PAGE' && !availableActions.length ? (
-        <Typography color="text.secondary" sx={{ gridColumn: { lg: 2 } }}>
-          Esta página no admite acciones adicionales.
-        </Typography>
-      ) : null}
-
-      {mode === 'choosing' ? (
-        <Stack
-          spacing={1.5}
-          component="section"
-          aria-labelledby="choose-action-title"
-          sx={{
-            gridColumn: { lg: 2 },
-            position: { xs: 'sticky', lg: 'static' },
-            bottom: { xs: 8, lg: 'auto' },
-            zIndex: { xs: 4, lg: 'auto' },
-            p: 1.5,
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: { xs: '20px 20px 8px 8px', lg: 2 },
-            bgcolor: 'background.paper',
-            boxShadow: { xs: 8, lg: 1 }
-          }}
-        >
-          <Typography component="h4" variant="h6" id="choose-action-title">
-            ¿Qué quieres que puedan hacer tus invitados?
-          </Typography>
-          <Stack spacing={1}>
-            {availableActions.map((action) => (
-              <Button
-                key={action.value}
-                variant="outlined"
-                onClick={() => startCreating(action.value)}
-                sx={{ justifyContent: 'flex-start', textAlign: 'left', py: 1.25 }}
-              >
-                <Box>
-                  <Typography component="span" sx={{ display: 'block', fontWeight: 700 }}>
-                    {action.label}
-                  </Typography>
-                  <Typography component="span" variant="body2" color="text.secondary">
-                    {action.description}
-                  </Typography>
-                </Box>
-              </Button>
-            ))}
-          </Stack>
-          <Button sx={{ alignSelf: 'flex-start' }} onClick={cancel}>
-            Cancelar
-          </Button>
-        </Stack>
-      ) : null}
-
-      {editing ? (
-        <Stack
-          spacing={2}
-          component="section"
-          aria-labelledby="edit-action-title"
-          sx={{
-            gridColumn: { lg: 2 },
-            position: { xs: 'sticky', lg: 'static' },
-            bottom: { xs: 8, lg: 'auto' },
-            zIndex: { xs: 4, lg: 'auto' },
-            p: 1.5,
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: { xs: '20px 20px 8px 8px', lg: 2 },
-            bgcolor: 'background.paper',
-            boxShadow: { xs: 8, lg: 1 },
-            maxHeight: { lg: '72vh' },
-            overflow: { lg: 'auto' }
-          }}
-        >
-          <Stack spacing={0.5}>
-            <Typography component="h4" variant="h6" id="edit-action-title">
-              {mode === 'creating' ? `Agregar: ${currentAction.label}` : `Editar: ${currentAction.label}`}
-            </Typography>
-            <Typography color="text.secondary" aria-live="polite">
-              Coloca esta área sobre el botón, texto o elemento de tu diseño que quieres hacer interactivo.
-            </Typography>
-          </Stack>
-
+        {mode === 'idle' && !disabled && availableActions.length ? (
           <Button
-            aria-expanded={preciseControlsOpen}
-            aria-controls="hotspot-precise-controls"
-            onClick={() => setPreciseControlsOpen((current) => !current)}
-            sx={{ alignSelf: 'flex-start', minHeight: 44 }}
+            variant="contained"
+            sx={{ alignSelf: 'flex-start', gridColumn: { lg: 2 }, minHeight: 44 }}
+            onClick={() => setMode('choosing')}
           >
-            Ajustes precisos
+            Agregar acción
           </Button>
-          <Collapse in={preciseControlsOpen}>
-            <Stack id="hotspot-precise-controls" spacing={2}>
-              <Stack spacing={1}>
-                <Typography variant="subtitle2">Ajustar posición</Typography>
-                <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap' }}>
-                  <Button
-                    disabled={interactionDisabled}
-                    variant="outlined"
-                    onClick={() => adjust('y', -adjustmentStep)}
-                  >
-                    Mover arriba
-                  </Button>
-                  <Button disabled={interactionDisabled} variant="outlined" onClick={() => adjust('y', adjustmentStep)}>
-                    Mover abajo
-                  </Button>
-                  <Button
-                    disabled={interactionDisabled}
-                    variant="outlined"
-                    onClick={() => adjust('x', -adjustmentStep)}
-                  >
-                    Mover a la izquierda
-                  </Button>
-                  <Button disabled={interactionDisabled} variant="outlined" onClick={() => adjust('x', adjustmentStep)}>
-                    Mover a la derecha
-                  </Button>
-                </Stack>
-              </Stack>
+        ) : null}
 
-              <Stack spacing={1}>
-                <Typography variant="subtitle2">Ajustar tamaño</Typography>
-                <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap' }}>
-                  <Button
-                    disabled={interactionDisabled}
-                    variant="outlined"
-                    onClick={() => adjust('width', adjustmentStep)}
-                  >
-                    Hacer más ancho
-                  </Button>
-                  <Button
-                    disabled={interactionDisabled}
-                    variant="outlined"
-                    onClick={() => adjust('width', -adjustmentStep)}
-                  >
-                    Hacer más angosto
-                  </Button>
-                  <Button
-                    disabled={interactionDisabled}
-                    variant="outlined"
-                    onClick={() => adjust('height', adjustmentStep)}
-                  >
-                    Hacer más alto
-                  </Button>
-                  <Button
-                    disabled={interactionDisabled}
-                    variant="outlined"
-                    onClick={() => adjust('height', -adjustmentStep)}
-                  >
-                    Hacer más bajo
-                  </Button>
-                </Stack>
-              </Stack>
-            </Stack>
-          </Collapse>
+        {mode === 'idle' && !disabled && ownerType === 'FLIPBOOK_PAGE' && !availableActions.length ? (
+          <Typography color="text.secondary" sx={{ gridColumn: { lg: 2 } }}>
+            Esta página no admite acciones adicionales.
+          </Typography>
+        ) : null}
 
-          {draft.action === 'EXTERNAL_LINK' ? (
-            <TextField
-              type="url"
-              disabled={interactionDisabled}
-              label="Enlace"
-              value={draft.url}
-              error={urlTouched && !externalUrlValid}
-              helperText={
-                urlTouched && !externalUrlValid
-                  ? 'Ingresa un enlace web válido.'
-                  : 'Pega el enlace que quieres abrir desde la invitación.'
-              }
-              onBlur={() => setUrlTouched(true)}
-              onChange={(event) => setDraft((current) => ({ ...current, url: event.target.value }))}
-            />
-          ) : null}
-          {selected && ownerType === 'FLIPBOOK_PAGE' && pages ? (
-            <TextField
-              select
-              disabled={interactionDisabled}
-              label="Mover a página"
-              value={targetPageId ?? pageId ?? ''}
-              onChange={(event) => setTargetPageId(event.target.value)}
-            >
-              {pages.map((page) => (
-                <MenuItem key={page.id} value={page.id}>
-                  Página ${page.position}
-                </MenuItem>
+        {mode === 'choosing' ? (
+          <Stack
+            spacing={1.5}
+            component="section"
+            aria-labelledby="choose-action-title"
+            sx={{
+              p: 1.5,
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 2,
+              bgcolor: 'background.paper',
+              boxShadow: 1
+            }}
+          >
+            <Typography component="h4" variant="h6" id="choose-action-title">
+              ¿Qué quieres que puedan hacer tus invitados?
+            </Typography>
+            <Stack spacing={1}>
+              {availableActions.map((action) => (
+                <Button
+                  key={action.value}
+                  variant="outlined"
+                  onClick={() => startCreating(action.value)}
+                  sx={{ justifyContent: 'flex-start', textAlign: 'left', py: 1.25 }}
+                >
+                  <Box>
+                    <Typography component="span" sx={{ display: 'block', fontWeight: 700 }}>
+                      {action.label}
+                    </Typography>
+                    <Typography component="span" variant="body2" color="text.secondary">
+                      {action.description}
+                    </Typography>
+                  </Box>
+                </Button>
               ))}
-            </TextField>
-          ) : null}
-
-          <FormHelperText>
-            También puedes arrastrar el área o usar el control de su esquina para cambiar el tamaño.
-          </FormHelperText>
-
-          {mutationMessage ? (
-            <Alert severity="error" aria-live="assertive">
-              {mutationMessage}
-            </Alert>
-          ) : null}
-
-          <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap' }}>
-            <Button variant="contained" disabled={interactionDisabled || !externalUrlValid} onClick={() => void save()}>
-              {mutation === 'saving' ? 'Guardando…' : mode === 'creating' ? 'Guardar acción' : 'Guardar cambios'}
-            </Button>
-            {selected ? (
-              <Button color="error" disabled={interactionDisabled} onClick={() => void remove()}>
-                {mutation === 'deleting' ? 'Eliminando…' : 'Eliminar acción'}
-              </Button>
-            ) : null}
-            <Button disabled={interactionDisabled} onClick={cancel}>
+            </Stack>
+            <Button sx={{ alignSelf: 'flex-start' }} onClick={cancel}>
               Cancelar
             </Button>
           </Stack>
-        </Stack>
-      ) : null}
+        ) : null}
+
+        {editing ? (
+          <Stack
+            spacing={2}
+            component="section"
+            aria-labelledby="edit-action-title"
+            sx={{
+              p: 1.5,
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 2,
+              bgcolor: 'background.paper',
+              boxShadow: 1
+            }}
+          >
+            <Stack spacing={0.5}>
+              <Typography component="h4" variant="h6" id="edit-action-title">
+                {mode === 'creating' ? `Agregar: ${currentAction.label}` : `Editar: ${currentAction.label}`}
+              </Typography>
+              <Typography color="text.secondary" aria-live="polite">
+                Coloca esta área sobre el botón, texto o elemento de tu diseño que quieres hacer interactivo.
+              </Typography>
+            </Stack>
+
+            <Button
+              aria-expanded={preciseControlsOpen}
+              aria-controls="hotspot-precise-controls"
+              onClick={() => setPreciseControlsOpen((current) => !current)}
+              sx={{ alignSelf: 'flex-start', minHeight: 44 }}
+            >
+              Ajustes precisos
+            </Button>
+            <Collapse in={preciseControlsOpen}>
+              <Stack id="hotspot-precise-controls" spacing={2}>
+                <Stack spacing={1}>
+                  <Typography variant="subtitle2">Ajustar posición</Typography>
+                  <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap' }}>
+                    <Button
+                      disabled={interactionDisabled}
+                      variant="outlined"
+                      onClick={() => adjust('y', -adjustmentStep)}
+                    >
+                      Mover arriba
+                    </Button>
+                    <Button
+                      disabled={interactionDisabled}
+                      variant="outlined"
+                      onClick={() => adjust('y', adjustmentStep)}
+                    >
+                      Mover abajo
+                    </Button>
+                    <Button
+                      disabled={interactionDisabled}
+                      variant="outlined"
+                      onClick={() => adjust('x', -adjustmentStep)}
+                    >
+                      Mover a la izquierda
+                    </Button>
+                    <Button
+                      disabled={interactionDisabled}
+                      variant="outlined"
+                      onClick={() => adjust('x', adjustmentStep)}
+                    >
+                      Mover a la derecha
+                    </Button>
+                  </Stack>
+                </Stack>
+
+                <Stack spacing={1}>
+                  <Typography variant="subtitle2">Ajustar tamaño</Typography>
+                  <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap' }}>
+                    <Button
+                      disabled={interactionDisabled}
+                      variant="outlined"
+                      onClick={() => adjust('width', adjustmentStep)}
+                    >
+                      Hacer más ancho
+                    </Button>
+                    <Button
+                      disabled={interactionDisabled}
+                      variant="outlined"
+                      onClick={() => adjust('width', -adjustmentStep)}
+                    >
+                      Hacer más angosto
+                    </Button>
+                    <Button
+                      disabled={interactionDisabled}
+                      variant="outlined"
+                      onClick={() => adjust('height', adjustmentStep)}
+                    >
+                      Hacer más alto
+                    </Button>
+                    <Button
+                      disabled={interactionDisabled}
+                      variant="outlined"
+                      onClick={() => adjust('height', -adjustmentStep)}
+                    >
+                      Hacer más bajo
+                    </Button>
+                  </Stack>
+                </Stack>
+              </Stack>
+            </Collapse>
+
+            {draft.action === 'EXTERNAL_LINK' ? (
+              <TextField
+                type="url"
+                disabled={interactionDisabled}
+                label="Enlace"
+                value={draft.url}
+                error={urlTouched && !externalUrlValid}
+                helperText={
+                  urlTouched && !externalUrlValid
+                    ? 'Ingresa un enlace web válido.'
+                    : 'Pega el enlace que quieres abrir desde la invitación.'
+                }
+                onBlur={() => setUrlTouched(true)}
+                onChange={(event) => setDraft((current) => ({ ...current, url: event.target.value }))}
+              />
+            ) : null}
+            {selected && ownerType === 'FLIPBOOK_PAGE' && pages ? (
+              <TextField
+                select
+                disabled={interactionDisabled}
+                label="Mover a página"
+                value={targetPageId ?? pageId ?? ''}
+                onChange={(event) => setTargetPageId(event.target.value)}
+              >
+                {pages.map((page) => (
+                  <MenuItem key={page.id} value={page.id}>
+                    Página ${page.position}
+                  </MenuItem>
+                ))}
+              </TextField>
+            ) : null}
+
+            <FormHelperText>
+              También puedes arrastrar el área o usar el control de su esquina para cambiar el tamaño.
+            </FormHelperText>
+
+            {mutationMessage ? (
+              <Alert severity="error" aria-live="assertive">
+                {mutationMessage}
+              </Alert>
+            ) : null}
+
+            <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap' }}>
+              <Button
+                variant="contained"
+                disabled={interactionDisabled || !externalUrlValid}
+                onClick={() => void save()}
+              >
+                {mutation === 'saving' ? 'Guardando…' : mode === 'creating' ? 'Guardar acción' : 'Guardar cambios'}
+              </Button>
+              {selected ? (
+                <Button color="error" disabled={interactionDisabled} onClick={() => void remove()}>
+                  {mutation === 'deleting' ? 'Eliminando…' : 'Eliminar acción'}
+                </Button>
+              ) : null}
+              <Button disabled={interactionDisabled} onClick={cancel}>
+                Cancelar
+              </Button>
+            </Stack>
+          </Stack>
+        ) : null}
+      </Stack>
     </Box>
   );
 }

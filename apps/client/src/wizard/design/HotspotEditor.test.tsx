@@ -248,7 +248,7 @@ describe('HotspotEditor as invitation actions', () => {
     expect(mover).toHaveStyle({ touchAction: 'none' });
   });
 
-  it('zooms with wheel and pans with Space plus drag without persisting the viewport', async () => {
+  it('leaves wheel scrolling available and zooms with controls without persisting the viewport', async () => {
     const { api } = renderEditor({ hotspots: [existingAction] });
     const canvas = screen.getByLabelText('Vista previa interactiva de la invitación');
     const viewport = canvas.parentElement!;
@@ -264,7 +264,9 @@ describe('HotspotEditor as invitation actions', () => {
       toJSON: () => ({})
     });
     fireEvent.wheel(viewport, { deltaY: -100, clientX: 400, clientY: 300 });
-    expect(screen.getByRole('button', { name: 'Ajustar vista previa' })).toHaveTextContent('112%');
+    expect(screen.getByRole('button', { name: 'Ajustar vista previa' })).toHaveTextContent('100%');
+    await userEvent.click(screen.getByRole('button', { name: 'Acercar vista previa' }));
+    expect(screen.getByRole('button', { name: 'Ajustar vista previa' })).toHaveTextContent('125%');
     fireEvent.keyDown(viewport, { code: 'Space' });
     fireEvent.pointerDown(viewport, { pointerId: 21, pointerType: 'mouse', clientX: 300, clientY: 220 });
     fireEvent.pointerMove(viewport, { pointerId: 21, pointerType: 'mouse', clientX: 360, clientY: 260 });
@@ -558,9 +560,10 @@ describe('HotspotEditor as invitation actions', () => {
     expect(onChanged).toHaveBeenCalledTimes(1);
   });
 
-  it('respects read-only mode while retaining the configured-action summary', () => {
+  it('respects read-only mode and omits the redundant configured-action summary', () => {
     renderEditor({ hotspots: [existingAction], disabled: true });
-    expect(screen.getAllByText('Confirmar asistencia')).toHaveLength(2);
+    expect(screen.getAllByText('Confirmar asistencia')).toHaveLength(1);
+    expect(screen.queryByText('Acciones configuradas')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Agregar acción' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Editar acción Confirmar asistencia' })).toBeDisabled();
   });

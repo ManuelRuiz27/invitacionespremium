@@ -193,8 +193,11 @@ Crear, editar y eliminar una acción bloquea envíos repetidos mientras la mutac
 traduce a lenguaje natural dentro del editor y conserva selección, geometría y enlace para reintentar; el editor
 solo abandona el borrador después del éxito autoritativo y su posterior actualización de lectura.
 
-Cada área comunica su acción y la seleccionada se diferencia sin depender solo del color. El resumen
-**Acciones configuradas** se deriva exclusivamente de los Hotspots autoritativos. En Flipbook se identifica
+Cada área comunica su acción y la seleccionada se diferencia sin depender solo del color. La imagen se muestra
+completa al ajustar la vista, con los controles alineados a su borde superior en escritorio, sin un resumen
+redundante de **Acciones configuradas**. El desplazamiento conserva la imagen como protagonista mediante una
+vista adherente y profundidad suave, desactivadas con movimiento reducido. La rueda desplaza la página; los
+controles de zoom y los gestos táctiles permiten ampliar el diseño. En Flipbook se identifica
 la portada o número visible de página sobre la que se trabaja, sin mostrar IDs. Los blockers de readiness se
 traducen a instrucciones naturales y nunca se muestran como códigos.
 

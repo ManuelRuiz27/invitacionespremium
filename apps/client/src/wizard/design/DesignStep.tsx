@@ -376,8 +376,14 @@ export function DesignStep({
       {service?.code === 'FLYER' ? (
         <Stack spacing={2}>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
-            <AssetPreview apiClient={apiClient} eventId={event.id} assetId={flyerInitial} label="Imagen principal" />
-            <AssetPreview apiClient={apiClient} eventId={event.id} assetId={flyerQr} label="Imagen con QR" />
+            <AssetPreview
+              compact
+              apiClient={apiClient}
+              eventId={event.id}
+              assetId={flyerInitial}
+              label="Imagen principal"
+            />
+            <AssetPreview compact apiClient={apiClient} eventId={event.id} assetId={flyerQr} label="Imagen con QR" />
           </Stack>
           <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap' }}>
             <UploadButton
@@ -409,8 +415,8 @@ export function DesignStep({
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: { xs: '1fr', lg: '236px minmax(0, 1fr)' },
-              gap: 1.5,
+              gridTemplateColumns: { xs: 'minmax(0, 1fr)', xl: '172px minmax(0, 1fr)' },
+              gap: 2.5,
               minHeight: 560
             }}
           >
@@ -552,10 +558,12 @@ function PageRail({
       aria-label="Páginas del Flipbook"
       sx={{
         display: 'flex',
-        flexDirection: { xs: 'row', lg: 'column' },
+        flexDirection: { xs: 'row', xl: 'column' },
         gap: 1,
         overflow: 'auto',
-        pb: { xs: 1, lg: 0 }
+        pb: { xs: 1, xl: 0 },
+        alignSelf: 'start',
+        minWidth: 0
       }}
     >
       {design.pages.map((page, index) => {
@@ -569,7 +577,8 @@ function PageRail({
             onDragOver={(event) => event.preventDefault()}
             onDrop={() => dropOn(page.id)}
             sx={{
-              minWidth: { xs: 236, lg: 0 },
+              minWidth: { xs: 172, xl: 0 },
+              flexShrink: 0,
               border: '1px solid',
               borderColor: selected ? 'primary.main' : 'divider',
               borderRadius: 2,
@@ -596,7 +605,7 @@ function PageRail({
             />
             <Stack
               direction="row"
-              sx={{ justifyContent: 'space-between' }}
+              sx={{ justifyContent: 'space-between', flexWrap: 'wrap' }}
               aria-label={`Orden y opciones de Página ${index + 1}`}
             >
               <Button
