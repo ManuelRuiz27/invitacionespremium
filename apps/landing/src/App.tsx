@@ -4,13 +4,11 @@ import { LandingFooter } from './components/LandingFooter';
 import { LandingHeader } from './components/LandingHeader';
 import { LandingHero } from './components/LandingHero';
 import { LandingHowItWorks } from './components/LandingHowItWorks';
-import { LandingInvitationAnimation } from './components/LandingInvitationAnimation';
 import { LandingPlanners } from './components/LandingPlanners';
 import { LandingProductProof } from './components/LandingProductProof';
 import { LandingServices } from './components/LandingServices';
 import { Box } from '@mui/material';
 import { lazy, Suspense, useState } from 'react';
-
 
 const CommercialLeadModal = lazy(() =>
   import('./components/CommercialLeadModal').then((module) => ({ default: module.CommercialLeadModal }))
@@ -25,8 +23,8 @@ export function App() {
       <LandingHeader onOpenCommercial={openCommercial} />
       <Box component="main" id="main-content" tabIndex={-1} sx={{ flexGrow: 1, outline: 'none' }}>
         <LandingHero />
-        <LandingInvitationAnimation />
         <LandingProductProof />
+
         <LandingHowItWorks />
         <LandingServices />
         <LandingPlanners onOpenCommercial={openCommercial} />

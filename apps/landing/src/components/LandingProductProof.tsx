@@ -1,3 +1,4 @@
+import invitationVideoWebm from '../assets/product-proof/invitation-demo.webm';
 import invitationLiveAvif from '../assets/product-proof/invitation-live-mobile.avif';
 import invitationLiveWebp from '../assets/product-proof/invitation-live-mobile.webp';
 import rsvpAvif from '../assets/product-proof/rsvp-public-mobile.avif';
@@ -14,7 +15,21 @@ import { LandingContainer, LandingSectionIntro } from './primitives';
 import { Box, Button, Typography } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
 
-const scenes = [
+interface ProofScene {
+  number: string;
+  label: string;
+  title: string;
+  description: string;
+  avif: string;
+  webp: string;
+  video?: string;
+  alt: string;
+  width: number;
+  height: number;
+  mobile: boolean;
+}
+
+const scenes: readonly ProofScene[] = [
   {
     number: '01',
     label: 'Reciben su invitación',
@@ -22,7 +37,8 @@ const scenes = [
     description: 'Una Invitación Digital o Invitación Premium preparada para cada invitado.',
     avif: invitationLiveAvif,
     webp: invitationLiveWebp,
-    alt: 'Invitación Premium real — Flipbook digital con diseño de boda',
+    video: invitationVideoWebm,
+    alt: 'Invitación Premium real — Flipbook digital interactivo de Boda de Prueba',
     width: 780,
     height: 1688,
     mobile: true
@@ -44,10 +60,10 @@ const scenes = [
     label: 'Organizas el croquis de mesas',
     title: 'Distribuye a tus invitados en el plano real del salón',
     description:
-      'El Croquis de Mesas refleja la distribución del espacio. Asigna asistentes a cada lugar directamente desde el mapa del evento.',
+      'El Croquis de Mesas refleja la distribución del espacio en BOda Flyer. Asigna asistentes a cada lugar directamente desde el mapa del evento.',
     avif: floorplanAvif,
     webp: floorplanWebp,
-    alt: 'Croquis de mesas real del evento — vista del plano con mesas asignadas',
+    alt: 'Croquis de mesas real del evento BOda Flyer — plano con mesas asignadas',
     width: 2160,
     height: 1350,
     mobile: false
@@ -59,7 +75,7 @@ const scenes = [
     description: 'Organiza las mesas y conserva cada acceso listo para compartir desde el evento activo.',
     avif: distributionAvif,
     webp: distributionWebp,
-    alt: 'Vista real de invitaciones y accesos individuales',
+    alt: 'Vista real de invitaciones y accesos individuales del evento BOda Flyer',
     width: 2160,
     height: 1500,
     mobile: false
@@ -76,7 +92,7 @@ const scenes = [
     height: 1688,
     mobile: true
   }
-] as const;
+];
 
 export function LandingProductProof() {
   const [active, setActive] = useState(0);
@@ -95,7 +111,7 @@ export function LandingProductProof() {
     refs.current.forEach((element) => element && observer.observe(element));
     return () => observer.disconnect();
   }, []);
-  const activeScene = scenes[active] ?? scenes[0];
+  const activeScene: ProofScene = scenes[active] ?? scenes[0]!;
   return (
     <Box
       id="producto"
@@ -174,22 +190,46 @@ export function LandingProductProof() {
                     </Button>
                   </Box>
                 </Box>
-                <ProductProofPicture
-                  avif={scene.avif}
-                  webp={scene.webp}
-                  alt={scene.alt}
-                  width={scene.width}
-                  height={scene.height}
-                  sx={{
-                    display: { xs: 'block', md: 'none' },
-                    mt: 4,
-                    width: scene.mobile ? '72%' : '100%',
-                    mx: 'auto',
-                    border: landingTokens.borders.hairlineLight,
-                    boxShadow: landingTokens.shadows.elevated
-                  }}
-                  imageStyle={{ maxHeight: 650, objectFit: 'cover', objectPosition: 'top' }}
-                />
+                {scene.video ? (
+                  <Box
+                    component="video"
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    poster={scene.webp}
+                    sx={{
+                      display: { xs: 'block', md: 'none' },
+                      mt: 4,
+                      width: scene.mobile ? '72%' : '100%',
+                      maxHeight: 650,
+                      objectFit: 'cover',
+                      objectPosition: 'top',
+                      mx: 'auto',
+                      border: landingTokens.borders.hairlineLight,
+                      boxShadow: landingTokens.shadows.elevated
+                    }}
+                  >
+                    <source src={scene.video} type="video/webm" />
+                  </Box>
+                ) : (
+                  <ProductProofPicture
+                    avif={scene.avif}
+                    webp={scene.webp}
+                    alt={scene.alt}
+                    width={scene.width}
+                    height={scene.height}
+                    sx={{
+                      display: { xs: 'block', md: 'none' },
+                      mt: 4,
+                      width: scene.mobile ? '72%' : '100%',
+                      mx: 'auto',
+                      border: landingTokens.borders.hairlineLight,
+                      boxShadow: landingTokens.shadows.elevated
+                    }}
+                    imageStyle={{ maxHeight: 650, objectFit: 'cover', objectPosition: 'top' }}
+                  />
+                )}
               </Box>
             ))}
           </Box>
@@ -207,26 +247,53 @@ export function LandingProductProof() {
               border: landingTokens.borders.hairlineLight
             }}
           >
-            <ProductProofPicture
-              key={activeScene.number}
-              avif={activeScene.avif}
-              webp={activeScene.webp}
-              alt={activeScene.alt}
-              width={activeScene.width}
-              height={activeScene.height}
-              sx={{
-                width: activeScene.mobile ? '46%' : '92%',
-                border: landingTokens.borders.hairlineLight,
-                boxShadow: landingTokens.shadows.productLayer,
-                animation: 'proofReveal .45s ease both',
-                '@keyframes proofReveal': {
-                  from: { opacity: 0, transform: 'translateY(14px)' },
-                  to: { opacity: 1, transform: 'translateY(0)' }
-                },
-                '@media (prefers-reduced-motion: reduce)': { animation: 'none' }
-              }}
-              imageStyle={{ maxHeight: '78vh', objectFit: 'contain' }}
-            />
+            {activeScene.video ? (
+              <Box
+                key={activeScene.number}
+                component="video"
+                autoPlay
+                loop
+                muted
+                playsInline
+                poster={activeScene.webp}
+                sx={{
+                  width: activeScene.mobile ? '46%' : '92%',
+                  maxHeight: '78vh',
+                  objectFit: 'contain',
+                  border: landingTokens.borders.hairlineLight,
+                  boxShadow: landingTokens.shadows.productLayer,
+                  animation: 'proofReveal .45s ease both',
+                  '@keyframes proofReveal': {
+                    from: { opacity: 0, transform: 'translateY(14px)' },
+                    to: { opacity: 1, transform: 'translateY(0)' }
+                  },
+                  '@media (prefers-reduced-motion: reduce)': { animation: 'none' }
+                }}
+              >
+                <source src={activeScene.video} type="video/webm" />
+              </Box>
+            ) : (
+              <ProductProofPicture
+                key={activeScene.number}
+                avif={activeScene.avif}
+                webp={activeScene.webp}
+                alt={activeScene.alt}
+                width={activeScene.width}
+                height={activeScene.height}
+                sx={{
+                  width: activeScene.mobile ? '46%' : '92%',
+                  border: landingTokens.borders.hairlineLight,
+                  boxShadow: landingTokens.shadows.productLayer,
+                  animation: 'proofReveal .45s ease both',
+                  '@keyframes proofReveal': {
+                    from: { opacity: 0, transform: 'translateY(14px)' },
+                    to: { opacity: 1, transform: 'translateY(0)' }
+                  },
+                  '@media (prefers-reduced-motion: reduce)': { animation: 'none' }
+                }}
+                imageStyle={{ maxHeight: '78vh', objectFit: 'contain' }}
+              />
+            )}
           </Box>
         </Box>
       </LandingContainer>

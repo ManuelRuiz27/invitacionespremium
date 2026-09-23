@@ -1,6 +1,8 @@
+import invitationVideoWebm from '../assets/product-proof/invitation-demo.webm';
 import flipbookAvif from '../assets/product-proof/flipbook-public-mobile.avif';
 import flipbookWebp from '../assets/product-proof/flipbook-public-mobile.webp';
 import { getLandingConfig, type LandingConfig } from '../config/landing-config';
+
 import { scrollToLandingSection } from '../navigation';
 import { landingTokens } from '../theme/landing-theme';
 import { ProductProofPicture } from './ProductProofPicture';
@@ -114,7 +116,7 @@ export function LandingHero({ config }: LandingHeroProps) {
             }}
           >
             <Box
-              aria-label="Invitación Premium real de demostración"
+              aria-label="Invitación Premium real de demostración — Boda de Prueba"
               sx={{
                 width: '100%',
                 maxWidth: { xs: 250, sm: 290, md: 320, lg: 340 },
@@ -130,20 +132,38 @@ export function LandingHero({ config }: LandingHeroProps) {
                 }
               }}
             >
-              <ProductProofPicture
-                avif={flipbookAvif}
-                webp={flipbookWebp}
-                alt="Invitación Premium real en experiencia móvil"
-                width={780}
-                height={1688}
-                imageStyle={{
+              <Box
+                component="video"
+                autoPlay
+                loop
+                muted
+                playsInline
+                poster={flipbookWebp}
+                aria-label="Demostración de Invitación Digital — Boda de Prueba"
+                sx={{
                   width: '100%',
                   height: 'auto',
                   display: 'block',
                   objectFit: 'cover'
                 }}
-              />
+              >
+                <source src={invitationVideoWebm} type="video/webm" />
+                <ProductProofPicture
+                  avif={flipbookAvif}
+                  webp={flipbookWebp}
+                  alt="Invitación Premium real en experiencia móvil"
+                  width={780}
+                  height={1688}
+                  imageStyle={{
+                    width: '100%',
+                    height: 'auto',
+                    display: 'block',
+                    objectFit: 'cover'
+                  }}
+                />
+              </Box>
             </Box>
+
 
             <Typography
               variant="caption"
