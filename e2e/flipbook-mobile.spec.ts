@@ -235,6 +235,71 @@ test('visual evidence at a physical curl frame', async ({ page }, info) => {
   await visible(page, '2');
 });
 
+test('automatic reading settles with a left fold and stops after manual input', async ({ page }, info) => {
+  await page.clock.install({ time: new Date('2026-09-23T12:00:00Z') });
+  await open(page, '?pages=4');
+  await page.clock.runFor(2200);
+  await visible(page, '0');
+  await page.clock.runFor(1100);
+  await visible(page, '1');
+  const folded = page.locator('[data-flipbook-page-id="fixture-page-2"]');
+  await expect(folded).toHaveAttribute('data-folded', 'true');
+  expect(await folded.evaluate((element) => getComputedStyle(element, '::after').content)).not.toBe('none');
+  await shot(page, info, 'mobile-390-folded-left');
+  await next(page).click();
+  await visible(page, '2');
+  await page.clock.runFor(10_000);
+  await visible(page, '2');
+});
+
+test('automatic reading reaches the back cover and respects reduced motion', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-09-23T12:00:00Z') });
+  await open(page, '?pages=3');
+  await page.clock.runFor(3_300);
+  await visible(page, '1');
+  await page.clock.runFor(4_000);
+  await visible(page, '2');
+  await page.clock.runFor(8_000);
+  await visible(page, '2');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.reload();
+  await expect(reader(page)).toHaveAttribute('data-transition', 'idle');
+  await page.clock.runFor(10_000);
+  await visible(page, '0');
+});
+
+test('automatic reading can be paused and resumed explicitly', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-09-23T12:00:00Z') });
+  await open(page, '?pages=3');
+  await page.getByRole('button', { name: 'Pausar animación automática' }).click();
+  await page.clock.runFor(10_000);
+  await visible(page, '0');
+  await page.getByRole('button', { name: 'Reanudar animación automática' }).click();
+  await page.clock.runFor(3_300);
+  await visible(page, '1');
+});
+
+test('automatic page turns in real time with video evidence', async ({ browser, browserName }, info) => {
+  const context = await browser.newContext({
+    baseURL: 'http://127.0.0.1:5183',
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+    recordVideo: { dir: info.outputDir, size: { width: 390, height: 844 } }
+  });
+  const page = await context.newPage();
+  try {
+    await open(page, '?pages=3');
+    await expect(reader(page)).toHaveAttribute('data-visible-pages', '2', { timeout: 15_000 });
+    await expect(reader(page)).toHaveAttribute('data-transition', 'idle');
+  } finally {
+    const video = page.video();
+    await context.close();
+    if (video)
+      await info.attach(`automatic-reader-${browserName}`, { path: await video.path(), contentType: 'video/webm' });
+  }
+});
+
 test('hotspots keep their own leaf, actions and focus guards', async ({ page }, info) => {
   await open(page);
   await page.getByRole('button', { name: 'Modificar acompañantes' }).tap();

@@ -18,6 +18,8 @@ Implementación y QA: 2026-09-23. Ámbito: Client público, fixture DEV y verifi
 - La hoja móvil pierde inclinación y pila decorativa. Stage permite curl y sombra; el límite exterior del reader contiene overflow. Desktop conserva su presentación.
 - Reader primero visualmente en móvil; confirmación, CalendarAction, alerts, álbum y resto del documento siguen accesibles mediante scroll.
 - Controles 48×48, contador accesible y apertura `closed → lifting → opening → open`. Giro móvil 450 ms, desktop 720 ms, reduced motion sin animación.
+- Avance automático desde portada hasta contraportada: portada visible 2.4 s; cada vista interior permanece 3.2 s antes del giro físico del mismo engine. Se pausa fuera del viewport o con el documento oculto; la primera interacción manual lo detiene para permitir lectura, hotspots y navegación. Un control permite pausar o reanudar explícitamente. Con movimiento reducido no se inicia automáticamente.
+- La primera hoja visible después de cada paginación conserva un pliegue superficial en el borde izquierdo al asentarse. Es una capa CSS sin pointer events sobre la hoja real; desaparece durante el giro y no altera el asset ni las coordenadas de Hotspots.
 - Gestos horizontales intencionales de hasta 1 s finalizan por la API de navegación compartida. Se cancela primero el drag capturado mediante PointerEvent estándar para que pointerleave no abandone el nuevo giro. Se conservan el seguimiento físico del dedo, pan vertical, precedencia de elementos interactivos y bloqueo de entradas concurrentes.
 - Se conserva la hoja real focal al alternar portrait/spread/portrait. No se remonta el libro al cambiar reduced motion.
 - Hit targets de hotspots ampliados sólo en presentación, limitados al asset y sin invadir otro target. Coordenadas, pageId/flipbookPageId y acciones no cambian. `object-fit:contain` permanece.
@@ -34,7 +36,7 @@ pnpm exec playwright install chromium webkit
 pnpm exec playwright test -c playwright.flipbook.config.ts
 ```
 
-La suite contiene 46 casos (23 por motor): 320×568, 360×800, 375×667, 390×844, 393×852, 412×915, 430×932; tablet 768×1024 y 1024×768; desktop 1440×1000. Verifica bounds, ratio, hoja única estable, overflow, controles, 1–10 páginas, portada/contraportada, curl real, swipe en ambos sentidos rápido/lento, spam, scroll vertical, orientación, reduced motion, preload adyacente, assets lentos y proporciones mixtas, safe areas y acceso al documento posterior. RSVP, QR, ubicación, regalos y enlace externo conservan página y bloqueo durante animación.
+La suite contiene 54 casos (27 por motor): 320×568, 360×800, 375×667, 390×844, 393×852, 412×915, 430×932; tablet 768×1024 y 1024×768; desktop 1440×1000. Verifica bounds, ratio, hoja única estable, overflow, controles, 1–10 páginas, portada/contraportada, curl real, swipe en ambos sentidos rápido/lento, spam, scroll vertical, orientación, reduced motion, precarga adyacente, assets lentos y proporciones mixtas, safe areas y acceso al documento posterior. Los casos nuevos cubren avance automático, pliegue asentado, fin en contraportada, pausa/reanudación, cancelación por navegación manual y un recorrido grabado en tiempo real. RSVP, QR, ubicación, regalos y enlace externo conservan página y bloqueo durante animación.
 
 Evidencia en el mecanismo Playwright del proyecto: `test-results/ui03b/` y `playwright-report/ui03b/`. CI publica ambos como artefacto **ui03b-flipbook-evidence** durante 14 días. Capturas obligatorias, por motor:
 
@@ -46,6 +48,8 @@ Evidencia en el mecanismo Playwright del proyecto: `test-results/ui03b/` y `play
 - `mobile-430.png`
 - `desktop-cover.png`
 - `desktop-spread.png`
+- `mobile-390-folded-left.png` (evidencia adicional del avance automático y del pliegue asentado)
+- `automatic-reader-chromium.webm` / `automatic-reader-webkit.webm` (video real del recorrido automático)
 
 El frame de curl usa reloj controlado para capturar una animación física reproducible. El resto de navegación y gestos se ejecuta con tiempo real.
 

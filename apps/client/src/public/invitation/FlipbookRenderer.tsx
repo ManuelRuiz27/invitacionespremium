@@ -4,6 +4,8 @@ import HTMLFlipBook, { type BookSnapshot, type FlipBookHandle } from '@gullabs/r
 import { Box, Button, Stack, Typography, useMediaQuery } from '@mui/material';
 import ChevronLeft from '@mui/icons-material/ChevronLeft';
 import ChevronRight from '@mui/icons-material/ChevronRight';
+import Pause from '@mui/icons-material/Pause';
+import PlayArrow from '@mui/icons-material/PlayArrow';
 import { FlipbookPage } from './FlipbookPage';
 import { useReducedMotion } from '../useReducedMotion';
 import './FlipbookRenderer.css';
@@ -39,6 +41,7 @@ export function FlipbookRenderer({
   // the same single-leaf shell; the engine still decides orientation from its host.
   const mobileReader = useMediaQuery('(max-width: 767px), (pointer: coarse) and (max-height: 500px)');
   const bookRef = useRef<FlipBookHandle | null>(null);
+  const readerRef = useRef<HTMLDivElement | null>(null);
   const focalPageRef = useRef(0);
   const orientationRef = useRef<BookSnapshot['orientation']>('portrait');
   const turningRef = useRef(false);
@@ -48,6 +51,9 @@ export function FlipbookRenderer({
   const [transitionState, setTransitionState] = useState<'idle' | 'turning' | 'settling'>('idle');
   const [introState, setIntroState] = useState<'closed' | 'lifting' | 'opening' | 'open'>('closed');
   const [preloadedPageIndexes, setPreloadedPageIndexes] = useState<Set<number>>(() => new Set([0]));
+  const [autoActive, setAutoActive] = useState(true);
+  const [readerVisible, setReaderVisible] = useState(false);
+  const [documentVisible, setDocumentVisible] = useState(() => !document.hidden);
   const bookKey = `${token}:${pages.map((page) => page.id).join(':')}`;
   const visiblePageIndexes = snapshot.visiblePages.filter((pageIndex) => pageIndex >= 0 && pageIndex < pages.length);
   const visiblePageKey = visiblePageIndexes.join(',');
@@ -65,7 +71,28 @@ export function FlipbookRenderer({
     introTimerRef.current = null;
     setTransitionState('idle');
     setIntroState('closed');
+    setAutoActive(true);
   }, [bookKey]);
+
+  useEffect(() => {
+    const reader = readerRef.current;
+    if (!reader) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      setReaderVisible(true);
+      return;
+    }
+    const observer = new IntersectionObserver(([entry]) => setReaderVisible((entry?.intersectionRatio ?? 0) >= 0.6), {
+      threshold: [0, 0.6, 1]
+    });
+    observer.observe(reader);
+    return () => observer.disconnect();
+  }, [bookKey]);
+
+  useEffect(() => {
+    const syncVisibility = () => setDocumentVisible(!document.hidden);
+    document.addEventListener('visibilitychange', syncVisibility);
+    return () => document.removeEventListener('visibilitychange', syncVisibility);
+  }, []);
 
   useEffect(
     () => () => {
@@ -127,26 +154,31 @@ export function FlipbookRenderer({
     [reducedMotion]
   );
 
-  const openCover = useCallback(() => {
-    if (!coverCanOpen || turningRef.current || introTimerRef.current !== null) return;
-    if (reducedMotion) {
-      setIntroState('opening');
-      turnPage('next');
-      return;
-    }
-    setIntroState('lifting');
-    introTimerRef.current = window.setTimeout(
-      () => {
-        introTimerRef.current = null;
+  const openCover = useCallback(
+    (automated = false) => {
+      if (!automated) setAutoActive(false);
+      if (!coverCanOpen || turningRef.current || introTimerRef.current !== null) return;
+      if (reducedMotion) {
         setIntroState('opening');
         turnPage('next');
-      },
-      mobileReader ? 180 : 560
-    );
-  }, [coverCanOpen, mobileReader, reducedMotion, turnPage]);
+        return;
+      }
+      setIntroState('lifting');
+      introTimerRef.current = window.setTimeout(
+        () => {
+          introTimerRef.current = null;
+          setIntroState('opening');
+          turnPage('next');
+        },
+        mobileReader ? 180 : 560
+      );
+    },
+    [coverCanOpen, mobileReader, reducedMotion, turnPage]
+  );
 
   const navigate = useCallback(
     (direction: 'next' | 'prev') => {
+      setAutoActive(false);
       if (direction === 'next' && snapshot.page === 0) {
         openCover();
         return;
@@ -156,17 +188,57 @@ export function FlipbookRenderer({
     [openCover, snapshot.page, turnPage]
   );
 
+  useEffect(() => {
+    if (
+      !autoActive ||
+      !readerVisible ||
+      !documentVisible ||
+      reducedMotion ||
+      transitionState !== 'idle' ||
+      isOpening ||
+      !snapshot.pageCount ||
+      !canGoNext
+    )
+      return;
+    const timer = window.setTimeout(
+      () => {
+        if (turningRef.current) return;
+        if (snapshot.page === 0) openCover(true);
+        else turnPage('next');
+      },
+      snapshot.page === 0 ? 2400 : 3200
+    );
+    return () => window.clearTimeout(timer);
+  }, [
+    autoActive,
+    readerVisible,
+    documentVisible,
+    reducedMotion,
+    transitionState,
+    isOpening,
+    snapshot.page,
+    snapshot.pageCount,
+    canGoNext,
+    openCover,
+    turnPage
+  ]);
+
   if (!pages.length) return <Typography>No pudimos cargar este contenido.</Typography>;
   const progress = visiblePageIndexes.map((pageIndex) => pageIndex + 1).join('–') || '1';
 
   return (
     <Box
+      ref={readerRef}
       className="flipbook-reader"
       tabIndex={0}
       aria-label="Invitación en páginas"
       data-transition={transitionState}
       data-visible-pages={visiblePageKey}
+      onFocusCapture={(event) => {
+        if (!(event.target instanceof Element) || !event.target.closest('[data-auto-control]')) setAutoActive(false);
+      }}
       onPointerDownCapture={(event) => {
+        if (!(event.target instanceof Element) || !event.target.closest('[data-auto-control]')) setAutoActive(false);
         if (turningRef.current || introTimerRef.current !== null) {
           event.stopPropagation();
           return;
@@ -226,6 +298,7 @@ export function FlipbookRenderer({
       }}
       data-reduced-motion={reducedMotion || undefined}
       onKeyDown={(event) => {
+        if (!(event.target instanceof Element) || !event.target.closest('[data-auto-control]')) setAutoActive(false);
         if ((event.key === 'Enter' || event.key === ' ') && event.target === event.currentTarget && coverCanOpen) {
           event.preventDefault();
           openCover();
@@ -328,6 +401,7 @@ export function FlipbookRenderer({
                 pageCount={pages.length}
                 hotspots={(view.design?.hotspots ?? []).filter((hotspot) => hotspot.flipbookPageId === page.id)}
                 visible={visiblePageIndexes.includes(pageIndex)}
+                folded={snapshot.page > 0 && pageIndex === visiblePageIndexes[0]}
                 interactive={transitionState === 'idle' && !isOpening}
                 shouldLoad={preloadedPageIndexes.has(pageIndex)}
                 onRsvp={onRsvp}
@@ -362,6 +436,17 @@ export function FlipbookRenderer({
             {progress} / {pages.length}
           </span>
         </Typography>
+        {pages.length > 1 && !reducedMotion && (
+          <Button
+            data-auto-control
+            aria-label={autoActive ? 'Pausar animación automática' : 'Reanudar animación automática'}
+            disabled={!canGoNext || transitionState !== 'idle' || isOpening}
+            onClick={() => setAutoActive((current) => !current)}
+            sx={{ minWidth: 44, minHeight: 44 }}
+          >
+            {autoActive ? <Pause /> : <PlayArrow />}
+          </Button>
+        )}
         <Button
           aria-label={snapshot.page === 0 ? 'Abrir invitación' : 'Siguiente'}
           disabled={!canGoNext || (snapshot.page === 0 && !coverCanOpen) || transitionState !== 'idle' || isOpening}
