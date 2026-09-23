@@ -1,6 +1,4 @@
-import invitationVideoWebm from '../assets/product-proof/invitation-demo.webm';
-import invitationLiveAvif from '../assets/product-proof/invitation-live-mobile.avif';
-import invitationLiveWebp from '../assets/product-proof/invitation-live-mobile.webp';
+import invitationAnimatedWebp from '../assets/product-proof/invitation-demo-animated.webp';
 import rsvpAvif from '../assets/product-proof/rsvp-public-mobile.avif';
 import rsvpWebp from '../assets/product-proof/rsvp-public-mobile.webp';
 import distributionAvif from '../assets/product-proof/invitation-distribution-desktop.avif';
@@ -22,7 +20,6 @@ interface ProofScene {
   description: string;
   avif: string;
   webp: string;
-  video?: string;
   alt: string;
   width: number;
   height: number;
@@ -35,12 +32,11 @@ const scenes: readonly ProofScene[] = [
     label: 'Reciben su invitación',
     title: 'Toda la información del evento en una experiencia clara',
     description: 'Una Invitación Digital o Invitación Premium preparada para cada invitado.',
-    avif: invitationLiveAvif,
-    webp: invitationLiveWebp,
-    video: invitationVideoWebm,
-    alt: 'Invitación Premium real — Flipbook digital interactivo de Boda de Prueba',
-    width: 780,
-    height: 1688,
+    avif: invitationAnimatedWebp,
+    webp: invitationAnimatedWebp,
+    alt: 'Invitación Premium real — Flipbook digital interactivo de Boda de Prueba con animación de páginas',
+    width: 390,
+    height: 844,
     mobile: true
   },
   {
@@ -87,7 +83,7 @@ const scenes: readonly ProofScene[] = [
     description: 'El equipo de recepción consulta la invitación y registra la entrada.',
     avif: scannerAvif,
     webp: scannerWebp,
-    alt: 'Control de acceso real mostrando asistentes pendientes',
+    alt: 'Control de acceso real mostrando asistentes pendientes y croquis asignado',
     width: 780,
     height: 1688,
     mobile: true
@@ -190,46 +186,22 @@ export function LandingProductProof() {
                     </Button>
                   </Box>
                 </Box>
-                {scene.video ? (
-                  <Box
-                    component="video"
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                    poster={scene.webp}
-                    sx={{
-                      display: { xs: 'block', md: 'none' },
-                      mt: 4,
-                      width: scene.mobile ? '72%' : '100%',
-                      maxHeight: 650,
-                      objectFit: 'cover',
-                      objectPosition: 'top',
-                      mx: 'auto',
-                      border: landingTokens.borders.hairlineLight,
-                      boxShadow: landingTokens.shadows.elevated
-                    }}
-                  >
-                    <source src={scene.video} type="video/webm" />
-                  </Box>
-                ) : (
-                  <ProductProofPicture
-                    avif={scene.avif}
-                    webp={scene.webp}
-                    alt={scene.alt}
-                    width={scene.width}
-                    height={scene.height}
-                    sx={{
-                      display: { xs: 'block', md: 'none' },
-                      mt: 4,
-                      width: scene.mobile ? '72%' : '100%',
-                      mx: 'auto',
-                      border: landingTokens.borders.hairlineLight,
-                      boxShadow: landingTokens.shadows.elevated
-                    }}
-                    imageStyle={{ maxHeight: 650, objectFit: 'cover', objectPosition: 'top' }}
-                  />
-                )}
+                <ProductProofPicture
+                  avif={scene.avif}
+                  webp={scene.webp}
+                  alt={scene.alt}
+                  width={scene.width}
+                  height={scene.height}
+                  sx={{
+                    display: { xs: 'block', md: 'none' },
+                    mt: 4,
+                    width: scene.mobile ? '72%' : '100%',
+                    mx: 'auto',
+                    border: landingTokens.borders.hairlineLight,
+                    boxShadow: landingTokens.shadows.elevated
+                  }}
+                  imageStyle={{ maxHeight: 650, objectFit: 'cover', objectPosition: 'top' }}
+                />
               </Box>
             ))}
           </Box>
@@ -247,53 +219,26 @@ export function LandingProductProof() {
               border: landingTokens.borders.hairlineLight
             }}
           >
-            {activeScene.video ? (
-              <Box
-                key={activeScene.number}
-                component="video"
-                autoPlay
-                loop
-                muted
-                playsInline
-                poster={activeScene.webp}
-                sx={{
-                  width: activeScene.mobile ? '46%' : '92%',
-                  maxHeight: '78vh',
-                  objectFit: 'contain',
-                  border: landingTokens.borders.hairlineLight,
-                  boxShadow: landingTokens.shadows.productLayer,
-                  animation: 'proofReveal .45s ease both',
-                  '@keyframes proofReveal': {
-                    from: { opacity: 0, transform: 'translateY(14px)' },
-                    to: { opacity: 1, transform: 'translateY(0)' }
-                  },
-                  '@media (prefers-reduced-motion: reduce)': { animation: 'none' }
-                }}
-              >
-                <source src={activeScene.video} type="video/webm" />
-              </Box>
-            ) : (
-              <ProductProofPicture
-                key={activeScene.number}
-                avif={activeScene.avif}
-                webp={activeScene.webp}
-                alt={activeScene.alt}
-                width={activeScene.width}
-                height={activeScene.height}
-                sx={{
-                  width: activeScene.mobile ? '46%' : '92%',
-                  border: landingTokens.borders.hairlineLight,
-                  boxShadow: landingTokens.shadows.productLayer,
-                  animation: 'proofReveal .45s ease both',
-                  '@keyframes proofReveal': {
-                    from: { opacity: 0, transform: 'translateY(14px)' },
-                    to: { opacity: 1, transform: 'translateY(0)' }
-                  },
-                  '@media (prefers-reduced-motion: reduce)': { animation: 'none' }
-                }}
-                imageStyle={{ maxHeight: '78vh', objectFit: 'contain' }}
-              />
-            )}
+            <ProductProofPicture
+              key={activeScene.number}
+              avif={activeScene.avif}
+              webp={activeScene.webp}
+              alt={activeScene.alt}
+              width={activeScene.width}
+              height={activeScene.height}
+              sx={{
+                width: activeScene.mobile ? '46%' : '92%',
+                border: landingTokens.borders.hairlineLight,
+                boxShadow: landingTokens.shadows.productLayer,
+                animation: 'proofReveal .45s ease both',
+                '@keyframes proofReveal': {
+                  from: { opacity: 0, transform: 'translateY(14px)' },
+                  to: { opacity: 1, transform: 'translateY(0)' }
+                },
+                '@media (prefers-reduced-motion: reduce)': { animation: 'none' }
+              }}
+              imageStyle={{ maxHeight: '78vh', objectFit: 'contain' }}
+            />
           </Box>
         </Box>
       </LandingContainer>

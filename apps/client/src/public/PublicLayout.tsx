@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react';
 import { Box, Container, Typography } from '@mui/material';
+import './PublicLayout.css';
 
-export function PublicLayout({ children, tone = 'light' }: { children: ReactNode; tone?: 'light' | 'dark' }) {
+export function PublicLayout({ children, tone = 'light', immersiveReader = false }: { children: ReactNode; tone?: 'light' | 'dark'; immersiveReader?: boolean }) {
   return (
     <Box
+      className={immersiveReader ? 'public-layout-immersive' : undefined}
       sx={{
         minHeight: '100svh',
         color: tone === 'dark' ? '#f8f3e8' : 'text.primary',
@@ -20,6 +22,7 @@ export function PublicLayout({ children, tone = 'light' }: { children: ReactNode
         sx={{ minHeight: '100svh', px: { xs: 2, sm: 4 }, py: { xs: 3, md: 6 } }}
       >
         <Typography
+          className="public-layout-brand"
           component="p"
           sx={{
             mb: 3,

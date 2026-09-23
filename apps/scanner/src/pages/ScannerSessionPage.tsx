@@ -6,7 +6,9 @@ import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
 import MapRounded from '@mui/icons-material/MapRounded';
 import QrCodeScannerRounded from '@mui/icons-material/QrCodeScannerRounded';
 import SearchRounded from '@mui/icons-material/SearchRounded';
-import { ErrorState, LoadingState, StatusChip } from '@invitaciones/ui';
+import { BrandLockup, ErrorState, LoadingState, StatusChip } from '@invitaciones/ui';
+
+
 import { CameraReader } from '../components/CameraReader';
 import { ScanResultPanel, type ScannerOperationalResult } from '../components/ScanResultPanel';
 import { ScannerFloorplan } from '../components/ScannerFloorplan';
@@ -180,9 +182,29 @@ export function ScannerSessionPage({
   );
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', pt: { xs: 1.5, sm: 2 }, pb: 12 }}>
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', pb: 12 }}>
+      {/* Brand Header */}
+      <Box
+        component="header"
+        sx={{
+          py: 1.5,
+          px: { xs: 2, sm: 3 },
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+          bgcolor: 'background.paper',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          mb: { xs: 2, sm: 2.5 }
+        }}
+      >
+        <BrandLockup size="small" />
+        <StatusChip label="Control de Acceso" tone="neutral" />
+      </Box>
+
       <Container maxWidth="sm">
         {/* Pestaña 0: Scanner */}
+
         {currentTab === 0 ? (
           <Box role="tabpanel" id="scanner-panel-camera" aria-labelledby="scanner-tab-camera">
             {confirmation ? (

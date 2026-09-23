@@ -1,12 +1,12 @@
-import invitationVideoWebm from '../assets/product-proof/invitation-demo.webm';
-import flipbookAvif from '../assets/product-proof/flipbook-public-mobile.avif';
-import flipbookWebp from '../assets/product-proof/flipbook-public-mobile.webp';
+import invitationAnimatedWebp from '../assets/product-proof/invitation-demo-animated.webp';
+import invitationAnimatedGif from '../assets/product-proof/invitation-demo-animated.gif';
 import { getLandingConfig, type LandingConfig } from '../config/landing-config';
+
 
 import { scrollToLandingSection } from '../navigation';
 import { landingTokens } from '../theme/landing-theme';
-import { ProductProofPicture } from './ProductProofPicture';
 import { LandingActionGroup, LandingContainer, LandingEyebrow } from './primitives';
+
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { Box, Button, Stack, Typography } from '@mui/material';
@@ -116,7 +116,7 @@ export function LandingHero({ config }: LandingHeroProps) {
             }}
           >
             <Box
-              aria-label="Invitación Premium real de demostración — Boda de Prueba"
+              aria-label="Invitación Premium real interactiva — Boda de Prueba"
               sx={{
                 width: '100%',
                 maxWidth: { xs: 250, sm: 290, md: 320, lg: 340 },
@@ -132,37 +132,25 @@ export function LandingHero({ config }: LandingHeroProps) {
                 }
               }}
             >
-              <Box
-                component="video"
-                autoPlay
-                loop
-                muted
-                playsInline
-                poster={flipbookWebp}
-                aria-label="Demostración de Invitación Digital — Boda de Prueba"
-                sx={{
-                  width: '100%',
-                  height: 'auto',
-                  display: 'block',
-                  objectFit: 'cover'
-                }}
-              >
-                <source src={invitationVideoWebm} type="video/webm" />
-                <ProductProofPicture
-                  avif={flipbookAvif}
-                  webp={flipbookWebp}
-                  alt="Invitación Premium real en experiencia móvil"
-                  width={780}
-                  height={1688}
-                  imageStyle={{
+              <picture>
+                <source srcSet={invitationAnimatedWebp} type="image/webp" />
+                <img
+                  src={invitationAnimatedGif}
+                  alt="Invitación Premium real interactiva — Boda de Prueba con animación de páginas"
+                  width={390}
+                  height={844}
+                  loading="eager"
+                  decoding="async"
+                  style={{
                     width: '100%',
                     height: 'auto',
                     display: 'block',
                     objectFit: 'cover'
                   }}
                 />
-              </Box>
+              </picture>
             </Box>
+
 
 
             <Typography

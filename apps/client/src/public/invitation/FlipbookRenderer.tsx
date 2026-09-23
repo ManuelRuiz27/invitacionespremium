@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ApiClient, PublicInvitationView } from '@invitaciones/api-client';
 import HTMLFlipBook, { type BookSnapshot, type FlipBookHandle } from '@gullabs/react-flipbook';
-import { Box, Button, Stack, Typography } from '@mui/material';
+import { Box, Button, Stack, Typography, useMediaQuery } from '@mui/material';
+import ChevronLeft from '@mui/icons-material/ChevronLeft';
+import ChevronRight from '@mui/icons-material/ChevronRight';
 import { FlipbookPage } from './FlipbookPage';
 import { useReducedMotion } from '../useReducedMotion';
 import './FlipbookRenderer.css';
@@ -33,14 +35,19 @@ export function FlipbookRenderer({
     [view.design?.pages]
   );
   const reducedMotion = useReducedMotion();
+  // Matches the existing 767px reader breakpoint. Short touch landscapes keep
+  // the same single-leaf shell; the engine still decides orientation from its host.
+  const mobileReader = useMediaQuery('(max-width: 767px), (pointer: coarse) and (max-height: 500px)');
   const bookRef = useRef<FlipBookHandle | null>(null);
+  const focalPageRef = useRef(0);
+  const orientationRef = useRef<BookSnapshot['orientation']>('portrait');
   const turningRef = useRef(false);
   const introTimerRef = useRef<number | null>(null);
   const [snapshot, setSnapshot] = useState<BookSnapshot>(initialSnapshot);
   const [transitionState, setTransitionState] = useState<'idle' | 'turning' | 'settling'>('idle');
   const [introState, setIntroState] = useState<'closed' | 'lifting' | 'opening' | 'open'>('closed');
   const [preloadedPageIndexes, setPreloadedPageIndexes] = useState<Set<number>>(() => new Set([0]));
-  const bookKey = `${token}:${pages.map((page) => page.id).join(':')}:${reducedMotion}`;
+  const bookKey = `${token}:${pages.map((page) => page.id).join(':')}`;
   const visiblePageIndexes = snapshot.visiblePages.filter((pageIndex) => pageIndex >= 0 && pageIndex < pages.length);
   const visiblePageKey = visiblePageIndexes.join(',');
   const canGoPrevious = snapshot.page > 0;
@@ -52,6 +59,7 @@ export function FlipbookRenderer({
     setSnapshot(initialSnapshot);
     setPreloadedPageIndexes(new Set([0]));
     turningRef.current = false;
+    focalPageRef.current = 0;
     if (introTimerRef.current !== null) window.clearTimeout(introTimerRef.current);
     introTimerRef.current = null;
     setTransitionState('idle');
@@ -77,12 +85,22 @@ export function FlipbookRenderer({
   }, [pages.length, visiblePageKey]);
 
   const syncSnapshot = useCallback((next: BookSnapshot) => {
+    // Core exposes a spread head, not the last real leaf read in portrait.
+    // Resize can emit `flip` before `changeOrientation`; retain that leaf until
+    // the orientation callback restores it through the public instant API.
+    if (next.orientation === orientationRef.current && !next.visiblePages.includes(focalPageRef.current)) {
+      focalPageRef.current = next.page;
+    }
     setSnapshot(next);
     setIntroState(next.page === 0 ? 'closed' : 'open');
   }, []);
   const syncOrientation = useCallback(() => {
     const book = bookRef.current?.pageFlip();
-    if (!book) return;
+    if (!book || book.getPageCount() === 0) return;
+    orientationRef.current = book.getOrientation();
+    if (book.getOrientation() === 'portrait' && book.getCurrentPageIndex() !== focalPageRef.current) {
+      bookRef.current?.turnToPage(focalPageRef.current);
+    }
     syncSnapshot({
       page: book.getCurrentPageIndex(),
       pageCount: book.getPageCount(),
@@ -120,8 +138,8 @@ export function FlipbookRenderer({
       introTimerRef.current = null;
       setIntroState('opening');
       turnPage('next');
-    }, 560);
-  }, [coverCanOpen, reducedMotion, turnPage]);
+    }, mobileReader ? 180 : 560);
+  }, [coverCanOpen, mobileReader, reducedMotion, turnPage]);
 
   const navigate = useCallback(
     (direction: 'next' | 'prev') => {
@@ -139,8 +157,14 @@ export function FlipbookRenderer({
 
   return (
     <Box
+      className="flipbook-reader"
       tabIndex={0}
       aria-label="Invitación en páginas"
+      data-transition={transitionState}
+      data-visible-pages={visiblePageKey}
+      onPointerDownCapture={(event) => {
+        if (turningRef.current || introTimerRef.current !== null) event.stopPropagation();
+      }}
       data-reduced-motion={reducedMotion || undefined}
       onKeyDown={(event) => {
         if ((event.key === 'Enter' || event.key === ' ') && event.target === event.currentTarget && coverCanOpen) {
@@ -166,7 +190,6 @@ export function FlipbookRenderer({
         sx={{
           py: { xs: 4, md: 7 },
           px: { xs: 1, md: 4 },
-          overflow: 'hidden',
           bgcolor: '#201d18',
           backgroundImage: 'radial-gradient(ellipse at 50% 34%, rgba(226,196,147,.2), transparent 65%)',
           boxShadow: '0 28px 90px rgba(30,23,12,.28)',
@@ -197,7 +220,7 @@ export function FlipbookRenderer({
             sizing="responsive"
             minWidth={280}
             maxWidth={480}
-            minHeight={396}
+            minHeight={1}
             maxHeight={680}
             autoSize
             initialPage={0}
@@ -205,7 +228,7 @@ export function FlipbookRenderer({
             pageTransition={reducedMotion ? 'instant' : 'animate'}
             hardCovers
             usePortrait
-            flippingTime={reducedMotion ? 0 : 720}
+            flippingTime={reducedMotion ? 0 : mobileReader ? 450 : 720}
             respectReducedMotion
             drawShadow
             maxShadowOpacity={0.48}
@@ -220,7 +243,10 @@ export function FlipbookRenderer({
             liveRegion={false}
             aria-label="Invitación en formato revista"
             roleDescription="Libro de invitación"
-            onReady={syncSnapshot}
+            onReady={(next) => {
+              orientationRef.current = next.orientation;
+              syncSnapshot(next);
+            }}
             onPageChange={syncSnapshot}
             onChangeOrientation={syncOrientation}
             onChangeState={({ state }) => {
@@ -228,6 +254,7 @@ export function FlipbookRenderer({
                 turningRef.current = false;
                 setTransitionState('idle');
               } else {
+                turningRef.current = true;
                 setTransitionState((current) => (current === 'turning' ? 'settling' : 'turning'));
               }
             }}
@@ -253,23 +280,28 @@ export function FlipbookRenderer({
           </HTMLFlipBook>
         </Box>
       </Box>
-      <Stack direction="row" spacing={2} sx={{ mt: 2, justifyContent: 'center', alignItems: 'center' }}>
+      <Stack className="flipbook-controls" direction="row" spacing={2} sx={{ mt: 2, justifyContent: 'center', alignItems: 'center' }}>
         <Button
+          aria-label="Anterior"
           disabled={!canGoPrevious || transitionState !== 'idle' || isOpening}
           onClick={() => navigate('prev')}
           sx={{ minWidth: 44, minHeight: 44 }}
         >
-          Anterior
+          <ChevronLeft className="flipbook-mobile-control" />
+          <span className="flipbook-desktop-control">Anterior</span>
         </Button>
-        <Typography aria-live="polite">
-          Página {progress} de {pages.length}
+        <Typography aria-live="polite" aria-atomic="true">
+          <span className="flipbook-desktop-control">Página {progress} de {pages.length}</span>
+          <span className="flipbook-mobile-control" aria-hidden="true">{progress} / {pages.length}</span>
         </Typography>
         <Button
+          aria-label={snapshot.page === 0 ? 'Abrir invitación' : 'Siguiente'}
           disabled={!canGoNext || (snapshot.page === 0 && !coverCanOpen) || transitionState !== 'idle' || isOpening}
           onClick={() => navigate('next')}
           sx={{ minWidth: 44, minHeight: 44 }}
         >
-          {snapshot.page === 0 ? 'Abrir invitación' : 'Siguiente'}
+          <span className="flipbook-desktop-control">{snapshot.page === 0 ? 'Abrir invitación' : 'Siguiente'}</span>
+          <ChevronRight className="flipbook-mobile-control" />
         </Button>
       </Stack>
     </Box>

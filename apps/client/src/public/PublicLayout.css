@@ -1,0 +1,25 @@
+@media (max-width: 767px), (pointer: coarse) and (max-height: 500px) {
+  .public-layout-immersive > main {
+    padding: 0 0 24px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .public-layout-immersive .public-layout-brand {
+    order: 1;
+    margin: 32px 16px 0;
+  }
+
+  .public-layout-immersive .public-invitation-content {
+    gap: 24px;
+  }
+
+  .public-layout-immersive .public-invitation-content > * {
+    margin: 0 16px;
+  }
+
+  .public-layout-immersive .public-invitation-content > .flipbook-reader {
+    order: -1;
+    margin: 0;
+  }
+}

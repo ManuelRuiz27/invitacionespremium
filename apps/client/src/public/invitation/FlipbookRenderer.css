@@ -5,6 +5,11 @@
   align-items: center;
   isolation: isolate;
   perspective: 1600px;
+  overflow: hidden;
+}
+
+.flipbook-mobile-control {
+  display: none;
 }
 
 .flipbook-stage::after {
@@ -94,27 +99,103 @@
   cursor: pointer;
 }
 
-@media (max-width: 767px) {
-  .flipbook-volume[data-cover='landscape'],
-  .flipbook-volume[data-intro='closed'] {
-    transform: translateY(15px) rotateX(0deg) rotateZ(0deg) scale(0.97);
+@media (max-width: 767px), (pointer: coarse) and (max-height: 500px) {
+  .flipbook-reader {
+    --reader-safe-top: env(safe-area-inset-top, 0px);
+    --reader-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --reader-chrome: 56px;
+    --reader-animation-space: 48px;
+    box-sizing: border-box;
+    height: 100vh;
+    height: 100dvh;
+    padding-top: var(--reader-safe-top);
+    padding-bottom: var(--reader-safe-bottom);
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) var(--reader-chrome);
+    background: #201d18;
+    color: #f8f3e8;
+    overflow: clip;
   }
 
-  .flipbook-volume[data-intro='lifting'] {
-    transform: translateY(-13px) rotateX(5deg) rotateZ(-0.7deg) scale(1.01);
+  .flipbook-reader .flipbook-stage {
+    min-height: 0;
+    padding: 24px max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px));
+    overflow: visible;
+    box-shadow: none;
+    perspective: 1600px;
   }
 
-  .flipbook-volume[data-intro='opening'] {
-    transform: translateY(-12px) rotateX(5deg) rotateZ(-0.7deg);
+  .flipbook-stage::after,
+  .flipbook-volume::before {
+    display: none;
   }
 
-  .flipbook-volume[data-cover='landscape']::before {
-    left: 0;
+  /* CSS supplies the physical box. Core's existing ResizeObserver fits the
+     leaf to both axes; no second measurement loop or viewport-sized remount. */
+  .flipbook-reader .flipbook-volume[data-intro] {
+    width: min(100%, 480px, calc((100dvh - var(--reader-safe-top) - var(--reader-safe-bottom) - var(--reader-chrome) - var(--reader-animation-space)) * 480 / 680));
+    aspect-ratio: 480 / 680;
+    max-height: 100%;
+    transform: none;
+    transition: transform 180ms ease-out;
+  }
+
+  .flipbook-reader .flipbook-volume[data-orientation][data-intro='lifting'] {
+    transform: translateY(-4px);
+  }
+
+  .flipbook-reader .flipbook-magazine-engine.stf__parent {
+    height: 100%;
+    min-height: 0 !important;
+    filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.32));
+  }
+
+  .flipbook-reader .stf__wrapper {
+    height: 100%;
+    padding-bottom: 0 !important;
+  }
+
+  .flipbook-reader .flipbook-controls {
+    margin: 0;
+    padding: 0 max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px));
+    justify-content: space-between;
+    z-index: 2;
+  }
+
+  .flipbook-controls .MuiButton-root {
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    color: #f8f3e8;
+  }
+
+  .flipbook-controls .MuiButton-root.Mui-disabled {
+    color: rgba(248, 243, 232, 0.35);
+  }
+
+  .flipbook-controls .MuiButton-root:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: -3px;
+  }
+
+  .flipbook-mobile-control {
+    display: inline-block;
+  }
+
+  .flipbook-desktop-control {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .flipbook-volume,
+  .flipbook-reader .flipbook-volume,
   .flipbook-volume::before {
     transition: none;
   }

@@ -1,21 +1,16 @@
-import { useState } from 'react';
 import type { ApiClient, PublicInvitationView } from '@invitaciones/api-client';
-import { Alert, Stack, Typography } from '@mui/material';
-import { PublicLayout } from '../PublicLayout';
-import { FlipbookRenderer } from './FlipbookRenderer';
+import { Box, Typography } from '@mui/material';
+import { PublicInvitationTokenPage } from './PublicInvitationPage';
 
 const token = 'flipbook-magazine-local-fixture';
-const assetIds = [
-  '5c643f2f-7247-42a3-8348-000000000001',
-  '5c643f2f-7247-42a3-8348-000000000002',
-  '5c643f2f-7247-42a3-8348-000000000003',
-  '5c643f2f-7247-42a3-8348-000000000004',
-  '5c643f2f-7247-42a3-8348-000000000005',
-  '5c643f2f-7247-42a3-8348-000000000006'
-];
+const params = new URLSearchParams(window.location.search);
+const requestedCount = Number(params.get('pages') ?? 6);
+const pageCount = [1, 2, 3, 4, 5, 6, 10].includes(requestedCount) ? requestedCount : 6;
+const assetIds = Array.from({ length: pageCount }, (_, index) => `5c643f2f-7247-42a3-8348-${String(index + 1).padStart(12, '0')}`);
 
 const fixtureApiClient = {
   publicInvitation: {
+    resolve: async () => fixtureView,
     qr: async () =>
       new Blob(
         [
@@ -26,6 +21,7 @@ const fixtureApiClient = {
     asset: async (_token: string, assetId: string) => {
       const page = assetIds.indexOf(assetId) + 1;
       if (page < 1) throw new Error('Fixture asset not found');
+      if (params.has('slow') && page === 2) await new Promise((resolve) => window.setTimeout(resolve, 1800));
       return new Blob([fixturePageSvg(page)], { type: 'image/svg+xml' });
     }
   }
@@ -34,6 +30,10 @@ const fixtureApiClient = {
 const fixtureView = {
   status: 'AVAILABLE',
   designType: 'FLIPBOOK',
+  event: { name: 'Ana & Luis', eventDateTime: '2026-09-14T23:30:00Z', timeZone: 'America/Mexico_City' },
+  invitation: { id: 'fixture-invitation', mode: 'INDIVIDUAL', responseStatus: 'CONFIRMED', additionalAssistantLimit: 0 },
+  assistants: [{ id: 'fixture-primary', name: 'Invitado de prueba', isPrimary: true, responseStatus: 'CONFIRMED' }],
+  confirmation: { open: true },
   qr: { available: true },
   design: {
     type: 'FLIPBOOK',
@@ -44,7 +44,7 @@ const fixtureView = {
     })),
     hotspots: [
       fixtureHotspot('fixture-rsvp', 'RSVP', 'fixture-page-1', 0.16, 0.73, 0.36, 0.1),
-      fixtureHotspot('fixture-qr', 'QR_AREA', 'fixture-page-3', 0.31, 0.59, 0.34, 0.13),
+      fixtureHotspot('fixture-qr', 'QR_AREA', 'fixture-page-3', 370 / 1120, 650 / 1520, 380 / 1120, 380 / 1520),
       fixtureHotspot(
         'fixture-location',
         'LOCATION',
@@ -75,37 +75,23 @@ const fixtureView = {
         0.08,
         'https://example.com/nuestra-historia'
       )
-    ]
+    ].filter((hotspot) => Number(hotspot.flipbookPageId.split('-').at(-1)) <= pageCount)
   }
 } as unknown as PublicInvitationView;
 
 export function DevFlipbookFixturePage() {
-  const [notice, setNotice] = useState<string>();
   return (
-    <PublicLayout>
-      <Stack spacing={3}>
-        <Stack spacing={0.5}>
-          <Typography component="h1" variant="h2">
-            Flipbook Magazine · demo local
-          </Typography>
-          <Typography color="text.secondary">
-            Seis páginas gráficas autocontenidas. No requiere API, storage ni backend para probar el giro y las
-            acciones.
-          </Typography>
-        </Stack>
-        <Alert severity="success">
-          Fixture visual cargado: portada, historia, RSVP/QR, ubicación, regalos y contraportada.
-        </Alert>
-        {notice ? <Alert severity="info">{notice}</Alert> : null}
-        <FlipbookRenderer
-          apiClient={fixtureApiClient}
-          token={token}
-          view={fixtureView}
-          onRsvp={() => setNotice('Confirmar asistencia: hotspot funcional.')}
-          onUnavailableQr={() => setNotice('El QR no está disponible.')}
-        />
-      </Stack>
-    </PublicLayout>
+    <>
+      <PublicInvitationTokenPage apiClient={fixtureApiClient} invitationToken={token} />
+      <Box component="aside" sx={{ p: 2 }} aria-label="Opciones del fixture">
+        <Typography>Demo local · sin API ni storage. Confirmación disponible para inspección, sin guardar.</Typography>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, my: 2 }}>
+          {[1, 2, 3, 4, 5, 6, 10].map((count) => <a key={count} href={`?pages=${count}`}>{count} páginas</a>)}
+          <a href="?pages=6&mixed">Proporciones diferentes</a>
+          <a href="?pages=6&slow">Asset lento</a>
+        </Box>
+      </Box>
+    </>
   );
 }
 
@@ -176,9 +162,11 @@ function fixturePageSvg(page: number): string {
      <path d="M380 710 H740" class="rule"/>
      <text x="560" y="805" text-anchor="middle" class="body">Ana &amp; Luis · 14.09.2026</text>
      <text x="560" y="1000" text-anchor="middle" class="hint">InvitacionesPremium · Flipbook Magazine</text>`
-  ][page - 1];
+  ][page === pageCount && pageCount > 1 ? 5 : (page - 1) % 5];
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="1520" viewBox="0 0 1120 1520">
+  const assetWidth = params.has('mixed') && page === 2 ? 1520 : 1120;
+  const assetHeight = params.has('mixed') ? (page === 2 ? 1120 : page === 3 ? 2800 : 1520) : 1520;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${assetWidth}" height="${assetHeight}" viewBox="0 0 1120 1520">
   <defs>
     <linearGradient id="paper" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fffaf3"/><stop offset="1" stop-color="#eee2d2"/></linearGradient>
     <style>
@@ -192,7 +180,8 @@ function fixturePageSvg(page: number): string {
     <path d="M1055 1275 C1005 1360 960 1405 860 1435 M1025 1315 C975 1305 935 1320 905 1360 M980 1370 C995 1405 990 1430 970 1455"/>
   </g>
   ${pageContent ?? ''}
-  <text x="1000" y="1430" text-anchor="end" class="caption">${page} / 6</text>
+  ${page === 1 ? '<rect x="179" y="1110" width="403" height="152" rx="16" fill="#e1d0b6"/><text x="200" y="1195" class="caption">Confirmar asistencia</text>' : ''}
+  <text x="1000" y="1430" text-anchor="end" class="caption">${page} / ${pageCount}</text>
 </svg>`;
 }
 

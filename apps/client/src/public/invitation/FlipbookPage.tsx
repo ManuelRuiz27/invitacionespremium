@@ -92,6 +92,10 @@ export const FlipbookPage = forwardRef<HTMLDivElement, FlipbookPageProps>(functi
               onUnavailableQr={onUnavailableQr}
               qrAvailable={qrAvailable}
               disabled={disabled}
+              surfaceSize={{
+                width: pageSize.width * parseFloat(imageRect.width) / 100,
+                height: pageSize.height * parseFloat(imageRect.height) / 100
+              }}
             />
           </Box>
         </Box>

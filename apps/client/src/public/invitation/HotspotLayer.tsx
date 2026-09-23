@@ -4,6 +4,7 @@ import { Box } from '@mui/material';
 import { relativeRectStyles } from '../../shared/relative-rect';
 import { safeHttpsUrl } from '../routing/public-content-path';
 import { QrHotspot } from './QrHotspot';
+import { hotspotTouchInsets } from './hotspot-touch-targets';
 import './HotspotLayer.css';
 
 type Hotspot = NonNullable<PublicInvitationView['design']>['hotspots'][number];
@@ -25,6 +26,7 @@ interface HotspotLayerProps {
   qrAvailable: boolean;
   rsvpConfirmed?: boolean;
   disabled?: boolean;
+  surfaceSize?: { width: number; height: number };
 }
 
 export function HotspotLayer({
@@ -35,7 +37,8 @@ export function HotspotLayer({
   onUnavailableQr,
   qrAvailable,
   rsvpConfirmed = false,
-  disabled = false
+  disabled = false,
+  surfaceSize
 }: HotspotLayerProps) {
   const preventDisabledNavigation = (event: SyntheticEvent) => {
     if (!disabled) return;
@@ -43,11 +46,11 @@ export function HotspotLayer({
     event.stopPropagation();
   };
 
+  const ordered = [...hotspots].sort((a, b) => a.priority - b.priority);
+  const hitInsets = surfaceSize ? hotspotTouchInsets(ordered, surfaceSize) : null;
   return (
     <Box aria-hidden={disabled || undefined} sx={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-      {[...hotspots]
-        .sort((a, b) => a.priority - b.priority)
-        .map((hotspot) => {
+      {ordered.map((hotspot, index) => {
           const href = safeHttpsUrl(hotspot.destination);
           const common = {
             'aria-label':
@@ -56,8 +59,9 @@ export function HotspotLayer({
             sx: {
               position: 'absolute',
               ...relativeRectStyles(hotspot),
-              minWidth: 44,
-              minHeight: 44,
+              minWidth: surfaceSize ? 0 : 44,
+              minHeight: surfaceSize ? 0 : 44,
+              ...(hitInsets ? { '&::after': { content: '""', position: 'absolute', inset: hitInsets[index] } } : {}),
               pointerEvents: disabled ? 'none' : 'auto'
             }
           } as const;

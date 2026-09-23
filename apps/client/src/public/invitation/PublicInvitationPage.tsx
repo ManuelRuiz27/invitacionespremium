@@ -27,7 +27,7 @@ export function PublicInvitationPage({ apiClient }: { apiClient: ApiClient }) {
   return <PublicInvitationTokenPage key={invitationToken} apiClient={apiClient} invitationToken={invitationToken} />;
 }
 
-function PublicInvitationTokenPage({ apiClient, invitationToken }: { apiClient: ApiClient; invitationToken: string }) {
+export function PublicInvitationTokenPage({ apiClient, invitationToken }: { apiClient: ApiClient; invitationToken: string }) {
   const [state, setState] = useState<LoadState>({ kind: 'loading', token: invitationToken });
   const [rsvpOpen, setRsvpOpen] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -182,8 +182,8 @@ function PublicInvitationTokenPage({ apiClient, invitationToken }: { apiClient: 
       : null;
   const calendarEvent = response === 'CONFIRMED' ? toCalendarEventData(view.event) : null;
   return (
-    <PublicLayout>
-      <Stack spacing={{ xs: 3, md: 5 }}>
+    <PublicLayout immersiveReader={view.design?.type === 'FLIPBOOK'}>
+      <Stack className="public-invitation-content" spacing={{ xs: 3, md: 5 }}>
         <Box component="header" sx={{ display: 'grid', gap: 1, maxWidth: 760 }}>
           <Typography component="h1" variant="h1" sx={{ fontFamily: 'Georgia, serif' }}>
             {view.event?.name}
