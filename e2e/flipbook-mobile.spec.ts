@@ -58,11 +58,16 @@ async function fits(page: Page) {
   await expect
     .poll(async () => {
       const geometry = await readGeometry();
+      const expectedWidth = Math.min(geometry.viewportWidth - 32, ((geometry.viewportHeight - 104) * 480) / 680) - 2;
       return (
         Math.abs(geometry.readerHeight - geometry.viewportHeight) <= 1 &&
+        geometry.x >= 0 &&
+        geometry.y >= 0 &&
         geometry.right <= geometry.viewportWidth + 1 &&
         geometry.bottom <= geometry.controlsTop &&
         geometry.controlsBottom <= geometry.viewportHeight + 1 &&
+        geometry.width >= expectedWidth &&
+        Math.abs(geometry.width / geometry.height - 480 / 680) < 0.01 &&
         geometry.shown === 1
       );
     })
