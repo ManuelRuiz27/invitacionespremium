@@ -4,8 +4,14 @@ const reader = (page: Page) => page.locator('.flipbook-reader');
 const next = (page: Page) => page.locator('.flipbook-controls button').last();
 const previous = (page: Page) => page.locator('.flipbook-controls button').first();
 
-async function open(page: Page, query = '') {
+async function open(page: Page, query = '', autoplay = false) {
   await page.goto(`/__dev/flipbook-magazine${query}`);
+  await reader(page).waitFor();
+  const pause = page.getByRole('button', { name: 'Pausar animación automática' });
+  if (!autoplay && (await pause.count())) {
+    await expect(pause).toBeEnabled();
+    await pause.click();
+  }
   await page.locator('.stf__item.--shown img').first().waitFor();
   await page.evaluate(() => document.fonts.ready);
   await expect(reader(page)).toHaveAttribute('data-transition', 'idle');
@@ -237,7 +243,7 @@ test('visual evidence at a physical curl frame', async ({ page }, info) => {
 
 test('automatic reading settles with a left fold and stops after manual input', async ({ page }, info) => {
   await page.clock.install({ time: new Date('2026-09-23T12:00:00Z') });
-  await open(page, '?pages=4');
+  await open(page, '?pages=4', true);
   await page.clock.runFor(2200);
   await visible(page, '0');
   await page.clock.runFor(1100);
@@ -254,7 +260,7 @@ test('automatic reading settles with a left fold and stops after manual input', 
 
 test('automatic reading reaches the back cover and respects reduced motion', async ({ page }) => {
   await page.clock.install({ time: new Date('2026-09-23T12:00:00Z') });
-  await open(page, '?pages=3');
+  await open(page, '?pages=3', true);
   await page.clock.runFor(3_300);
   await visible(page, '1');
   await page.clock.runFor(4_000);
@@ -270,7 +276,7 @@ test('automatic reading reaches the back cover and respects reduced motion', asy
 
 test('automatic reading can be paused and resumed explicitly', async ({ page }) => {
   await page.clock.install({ time: new Date('2026-09-23T12:00:00Z') });
-  await open(page, '?pages=3');
+  await open(page, '?pages=3', true);
   await page.getByRole('button', { name: 'Pausar animación automática' }).click();
   await page.clock.runFor(10_000);
   await visible(page, '0');
@@ -289,7 +295,7 @@ test('automatic page turns in real time with video evidence', async ({ browser, 
   });
   const page = await context.newPage();
   try {
-    await open(page, '?pages=3');
+    await open(page, '?pages=3', true);
     await expect(reader(page)).toHaveAttribute('data-visible-pages', '2', { timeout: 15_000 });
     await expect(reader(page)).toHaveAttribute('data-transition', 'idle');
   } finally {
