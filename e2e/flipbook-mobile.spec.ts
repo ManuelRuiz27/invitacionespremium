@@ -33,27 +33,41 @@ async function shot(page: Page, info: TestInfo, name: string) {
 }
 
 async function fits(page: Page) {
-  const geometry = await page.evaluate(() => {
-    const root = document.querySelector('.flipbook-reader')!;
-    const leaf = root.querySelector('[data-flipbook-page-id]:not([aria-hidden="true"])')!;
-    const rect = leaf.getBoundingClientRect();
-    const controls = root.querySelector('.flipbook-controls')!.getBoundingClientRect();
-    return {
-      viewportWidth: innerWidth,
-      viewportHeight: innerHeight,
-      documentWidth: document.documentElement.scrollWidth,
-      readerHeight: root.getBoundingClientRect().height,
-      x: rect.x,
-      y: rect.y,
-      right: rect.right,
-      bottom: rect.bottom,
-      width: rect.width,
-      height: rect.height,
-      controlsTop: controls.top,
-      controlsBottom: controls.bottom,
-      shown: root.querySelectorAll('.stf__item.--shown').length
-    };
-  });
+  const readGeometry = () =>
+    page.evaluate(() => {
+      const root = document.querySelector('.flipbook-reader')!;
+      const leaf = root.querySelector('[data-flipbook-page-id]:not([aria-hidden="true"])')!;
+      const rect = leaf.getBoundingClientRect();
+      const controls = root.querySelector('.flipbook-controls')!.getBoundingClientRect();
+      return {
+        viewportWidth: innerWidth,
+        viewportHeight: innerHeight,
+        documentWidth: document.documentElement.scrollWidth,
+        readerHeight: root.getBoundingClientRect().height,
+        x: rect.x,
+        y: rect.y,
+        right: rect.right,
+        bottom: rect.bottom,
+        width: rect.width,
+        height: rect.height,
+        controlsTop: controls.top,
+        controlsBottom: controls.bottom,
+        shown: root.querySelectorAll('.stf__item.--shown').length
+      };
+    });
+  await expect
+    .poll(async () => {
+      const geometry = await readGeometry();
+      return (
+        Math.abs(geometry.readerHeight - geometry.viewportHeight) <= 1 &&
+        geometry.right <= geometry.viewportWidth + 1 &&
+        geometry.bottom <= geometry.controlsTop &&
+        geometry.controlsBottom <= geometry.viewportHeight + 1 &&
+        geometry.shown === 1
+      );
+    })
+    .toBe(true);
+  const geometry = await readGeometry();
   expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewportWidth);
   expect(geometry.readerHeight).toBeCloseTo(geometry.viewportHeight, 0);
   expect(geometry.x).toBeGreaterThanOrEqual(0);
