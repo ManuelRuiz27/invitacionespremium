@@ -95,6 +95,27 @@
   filter: drop-shadow(0 12px 16px rgba(0, 0, 0, 0.25));
 }
 
+/* Keep a paper edge behind the moving leaves, including the single-page
+   mobile reader. Anchor it to the engine's actual book bounds. */
+.flipbook-volume:is([data-intro='opening'], [data-intro='open']) .flipbook-magazine-engine.stf__parent::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: 3px;
+  bottom: -3px;
+  left: -9px;
+  width: 12px;
+  border: 1px solid rgba(255, 250, 239, 0.55);
+  border-radius: 4px 0 0 5px;
+  background:
+    linear-gradient(90deg, rgba(80, 59, 38, 0.3), transparent 40%, rgba(70, 48, 29, 0.3)),
+    repeating-linear-gradient(90deg, #e8decd 0, #e8decd 1px, #b6a58c 1px, #b6a58c 2px, #fff8ec 2px, #fff8ec 3px);
+  box-shadow:
+    -2px 1px 0 #8e7558,
+    -5px 5px 10px rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+}
+
 /* The settled left leaf retains a shallow paper curl. It belongs to the
    physical page, so portrait and desktop spreads share the same treatment. */
 .flipbook-reader[data-transition='idle'] [data-flipbook-page-id][data-folded='true']::after {
@@ -104,14 +125,15 @@
   top: 0;
   bottom: 0;
   left: 0;
-  width: clamp(14px, 8%, 40px);
+  width: clamp(10px, 4%, 22px);
+  border-left: 1px solid rgba(255, 250, 239, 0.7);
   background: linear-gradient(
     90deg,
-    rgba(58, 44, 28, 0.3) 0%,
-    #dfd0bc 12%,
-    #fffaf0 36%,
-    #b9a791 68%,
-    rgba(255, 251, 243, 0.15) 100%
+    rgba(72, 51, 30, 0.42) 0%,
+    rgba(223, 208, 188, 0.8) 12%,
+    rgba(255, 250, 240, 0.75) 30%,
+    rgba(104, 79, 48, 0.24) 62%,
+    rgba(104, 79, 48, 0) 100%
   );
   clip-path: polygon(0 0, 100% 0, 70% 48%, 100% 100%, 0 100%);
   transform: perspective(240px) rotateY(-18deg);
