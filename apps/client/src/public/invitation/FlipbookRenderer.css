@@ -211,6 +211,41 @@
     padding-bottom: 0 !important;
   }
 
+  /* A visible rolled leaf gives the single-page reader the same physical
+     depth as an open book. Both layers stay inside the page and ignore taps. */
+  .flipbook-reader[data-transition='idle'] [data-flipbook-page-id][data-folded='true']::before {
+    content: '';
+    position: absolute;
+    z-index: 2;
+    inset: 2px auto 2px 0;
+    width: clamp(36px, 12%, 52px);
+    border-radius: 0 100% 100% 0 / 0 6% 6% 0;
+    background: linear-gradient(90deg, rgba(48, 33, 18, 0.48) 35%, rgba(48, 33, 18, 0.18) 72%, transparent);
+    filter: blur(2px);
+    pointer-events: none;
+  }
+
+  .flipbook-reader[data-transition='idle'] [data-flipbook-page-id][data-folded='true']::after {
+    top: 1px;
+    bottom: 1px;
+    width: clamp(26px, 8.5%, 38px);
+    border-left: 1px solid #fffaf0;
+    border-radius: 0 100% 100% 0 / 0 6% 6% 0;
+    background: linear-gradient(
+      90deg,
+      #8c775d 0%,
+      #d4c4ab 12%,
+      #fffaf0 38%,
+      #f7eddb 55%,
+      #d8c7ab 78%,
+      #998062 96%,
+      #786047 100%
+    );
+    box-shadow: inset -1px 0 1px rgba(255, 250, 239, 0.6);
+    clip-path: none;
+    transform: none;
+  }
+
   .flipbook-reader .flipbook-controls {
     margin: 0;
     padding: 0 max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px));
