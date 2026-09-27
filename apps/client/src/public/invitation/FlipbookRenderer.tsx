@@ -184,8 +184,8 @@ export function FlipbookRenderer({
             introTimerRef.current = null;
             updateIntroState('opening');
             turnPage('next');
-          }, 180);
-        }, 220);
+          }, 220);
+        }, 260);
         return;
       }
       updateIntroState('lifting');
@@ -383,7 +383,7 @@ export function FlipbookRenderer({
             pageTransition={reducedMotion ? 'instant' : 'animate'}
             hardCovers
             usePortrait
-            flippingTime={reducedMotion ? 0 : mobileReader ? 450 : 720}
+            flippingTime={reducedMotion ? 0 : mobileReader ? 520 : 720}
             respectReducedMotion
             drawShadow
             maxShadowOpacity={0.48}
@@ -416,7 +416,7 @@ export function FlipbookRenderer({
                     introTimerRef.current = window.setTimeout(() => {
                       introTimerRef.current = null;
                       updateIntroState('open');
-                    }, 220);
+                    }, 280);
                   }
                 }
               } else {
