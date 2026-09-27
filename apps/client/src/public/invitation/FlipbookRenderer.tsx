@@ -48,12 +48,15 @@ export function FlipbookRenderer({
   const turningRef = useRef(false);
   const touchRef = useRef<{ id: number; x: number; y: number; time: number; scrolling: boolean } | null>(null);
   const introTimerRef = useRef<number | null>(null);
+  const mobileControlsTimerRef = useRef<number | null>(null);
   const introStateRef = useRef<IntroState>('closed');
   const [snapshot, setSnapshot] = useState<BookSnapshot>(initialSnapshot);
   const [transitionState, setTransitionState] = useState<'idle' | 'turning' | 'settling'>('idle');
   const [introState, setIntroState] = useState<IntroState>('closed');
   const [preloadedPageIndexes, setPreloadedPageIndexes] = useState<Set<number>>(() => new Set([0]));
   const [autoActive, setAutoActive] = useState(true);
+  const [mobileControlsVisible, setMobileControlsVisible] = useState(false);
+  const [turnDirection, setTurnDirection] = useState<'next' | 'prev'>('next');
   const [readerVisible, setReaderVisible] = useState(false);
   const [documentVisible, setDocumentVisible] = useState(() => !document.hidden);
   const bookKey = `${token}:${pages.map((page) => page.id).join(':')}`;
@@ -69,6 +72,14 @@ export function FlipbookRenderer({
     introStateRef.current = next;
     setIntroState(next);
   }, []);
+  const revealMobileControls = useCallback(() => {
+    setMobileControlsVisible(true);
+    if (mobileControlsTimerRef.current !== null) window.clearTimeout(mobileControlsTimerRef.current);
+    mobileControlsTimerRef.current = window.setTimeout(() => {
+      mobileControlsTimerRef.current = null;
+      setMobileControlsVisible(false);
+    }, 2500);
+  }, []);
 
   useLayoutEffect(() => {
     setSnapshot(initialSnapshot);
@@ -77,10 +88,14 @@ export function FlipbookRenderer({
     focalPageRef.current = 0;
     if (introTimerRef.current !== null) window.clearTimeout(introTimerRef.current);
     introTimerRef.current = null;
+    if (mobileControlsTimerRef.current !== null) window.clearTimeout(mobileControlsTimerRef.current);
+    mobileControlsTimerRef.current = null;
     setTransitionState('idle');
     introStateRef.current = 'closed';
     setIntroState('closed');
     setAutoActive(true);
+    setMobileControlsVisible(false);
+    setTurnDirection('next');
   }, [bookKey]);
 
   useEffect(() => {
@@ -106,6 +121,7 @@ export function FlipbookRenderer({
   useEffect(
     () => () => {
       if (introTimerRef.current !== null) window.clearTimeout(introTimerRef.current);
+      if (mobileControlsTimerRef.current !== null) window.clearTimeout(mobileControlsTimerRef.current);
     },
     []
   );
@@ -157,8 +173,9 @@ export function FlipbookRenderer({
       if (!book) return;
 
       turningRef.current = true;
+      setTurnDirection(direction);
       setTransitionState(reducedMotion ? 'settling' : 'turning');
-      const moved = direction === 'next' ? book.flipNext() : book.flipPrev();
+      const moved = direction === 'next' ? book.flipNext() : book.flipPrev('bottom');
       if (!moved) {
         turningRef.current = false;
         setTransitionState('idle');
@@ -201,13 +218,14 @@ export function FlipbookRenderer({
   const navigate = useCallback(
     (direction: 'next' | 'prev') => {
       setAutoActive(false);
+      revealMobileControls();
       if (direction === 'next' && snapshot.page === 0) {
         openCover();
         return;
       }
       turnPage(direction);
     },
-    [openCover, snapshot.page, turnPage]
+    [openCover, revealMobileControls, snapshot.page, turnPage]
   );
 
   useEffect(() => {
@@ -256,10 +274,13 @@ export function FlipbookRenderer({
       aria-label="Invitación en páginas"
       data-transition={transitionState}
       data-visible-pages={visiblePageKey}
+      data-mobile-controls={mobileControlsVisible || undefined}
       onFocusCapture={(event) => {
+        revealMobileControls();
         if (!(event.target instanceof Element) || !event.target.closest('[data-auto-control]')) setAutoActive(false);
       }}
       onPointerDownCapture={(event) => {
+        revealMobileControls();
         if (!(event.target instanceof Element) || !event.target.closest('[data-auto-control]')) setAutoActive(false);
         if (turningRef.current || introTimerRef.current !== null) {
           event.stopPropagation();
@@ -320,6 +341,7 @@ export function FlipbookRenderer({
       }}
       data-reduced-motion={reducedMotion || undefined}
       onKeyDown={(event) => {
+        revealMobileControls();
         if (!(event.target instanceof Element) || !event.target.closest('[data-auto-control]')) setAutoActive(false);
         if ((event.key === 'Enter' || event.key === ' ') && event.target === event.currentTarget && coverCanOpen) {
           event.preventDefault();
@@ -360,6 +382,7 @@ export function FlipbookRenderer({
           data-cover={snapshot.page === 0 && snapshot.orientation === 'landscape' ? 'landscape' : 'none'}
           data-can-open={coverCanOpen ? 'true' : undefined}
           data-mobile-spine={showMobileSpine || undefined}
+          data-turn-direction={turnDirection}
           onClick={(event) => {
             if (snapshot.page !== 0 || !(event.target instanceof Element)) return;
             if (event.target.closest('button, a, input, select, textarea, [role="button"]')) return;
@@ -386,7 +409,7 @@ export function FlipbookRenderer({
             flippingTime={reducedMotion ? 0 : mobileReader ? 520 : 720}
             respectReducedMotion
             drawShadow
-            maxShadowOpacity={0.48}
+            maxShadowOpacity={mobileReader ? 0.56 : 0.48}
             pageBackground="#f3eee6"
             flipOnClick="never"
             respectInteractiveContent

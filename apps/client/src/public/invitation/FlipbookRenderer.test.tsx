@@ -73,6 +73,7 @@ function setViewport(width: number) {
 
 afterEach(() => {
   delete (globalThis as typeof globalThis & { __flipbookMockAsync?: boolean }).__flipbookMockAsync;
+  vi.useRealTimers();
   setViewport(1024);
 });
 
@@ -174,6 +175,33 @@ describe('FlipbookRenderer physical leaves', () => {
       container.querySelector('.flipbook-reader')?.getAttribute('data-transition')
     );
     expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-mobile-spine', 'true');
+  });
+
+  it('uses the lower corner for physical mobile reversal', async () => {
+    setViewport(390);
+    const { container } = renderFlipbook();
+    await screen.findByText('1 / 6');
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir invitación' }));
+    await screen.findByText('2 / 6');
+    await waitFor(() => expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-intro', 'open'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Anterior' }));
+    expect(screen.getByTestId('flipbook-engine-mock')).toHaveAttribute('data-last-turn-direction', 'prev');
+    expect(screen.getByTestId('flipbook-engine-mock')).toHaveAttribute('data-last-turn-corner', 'bottom');
+  });
+
+  it('reveals mobile controls on touch, then hides them after inactivity', async () => {
+    setViewport(390);
+    const { container } = renderFlipbook();
+    await screen.findByText('1 / 6');
+    const reader = container.querySelector('.flipbook-reader');
+    expect(reader).not.toHaveAttribute('data-mobile-controls');
+
+    vi.useFakeTimers();
+    fireEvent.pointerDown(screen.getByTestId('flipbook-engine-mock'), { pointerType: 'touch', isPrimary: true });
+    expect(reader).toHaveAttribute('data-mobile-controls', 'true');
+    act(() => vi.advanceTimersByTime(2500));
+    expect(reader).not.toHaveAttribute('data-mobile-controls');
   });
 
   it('blocks external links and RSVP while the engine reports an in-flight turn', async () => {

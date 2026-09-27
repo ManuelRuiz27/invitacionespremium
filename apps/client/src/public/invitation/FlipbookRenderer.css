@@ -149,23 +149,26 @@
   .flipbook-reader {
     --reader-safe-top: env(safe-area-inset-top, 0px);
     --reader-safe-bottom: env(safe-area-inset-bottom, 0px);
-    --reader-chrome: 56px;
+    --reader-chrome: 64px;
     --reader-animation-space: 48px;
     box-sizing: border-box;
     height: 100vh;
     height: 100dvh;
     padding-top: var(--reader-safe-top);
     padding-bottom: var(--reader-safe-bottom);
-    display: grid;
-    grid-template-rows: minmax(0, 1fr) var(--reader-chrome);
+    position: relative;
+    display: block;
     background: #201d18;
     color: #f8f3e8;
     overflow: clip;
   }
 
   .flipbook-reader .flipbook-stage {
+    box-sizing: border-box;
+    height: 100%;
     min-height: 0;
-    padding: 24px max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px));
+    padding: 24px max(16px, env(safe-area-inset-right, 0px)) calc(24px + var(--reader-chrome))
+      max(16px, env(safe-area-inset-left, 0px));
     overflow: visible;
     box-shadow: none;
     perspective: 1600px;
@@ -262,6 +265,16 @@
     transform: scaleX(0.97);
   }
 
+  .flipbook-reader[data-transition='turning'] .flipbook-volume::after {
+    opacity: 0.46;
+    transform: scaleX(1.08);
+  }
+
+  .flipbook-reader[data-transition='settling'] .flipbook-volume::after {
+    opacity: 0.39;
+    transform: scaleX(1);
+  }
+
   /* Anchor the spine to the book shell rather than a leaf, so it remains
      visible behind the engine throughout both turning and settling. */
   .flipbook-reader .flipbook-volume[data-mobile-spine='true']::before {
@@ -279,6 +292,25 @@
       repeating-linear-gradient(90deg, #e8decd 0, #e8decd 1px, #b6a58c 1px, #b6a58c 2px, #fff8ec 2px, #fff8ec 3px);
     box-shadow: -3px 3px 8px rgba(0, 0, 0, 0.32);
     transform: none;
+    transition:
+      width 180ms ease-out,
+      box-shadow 180ms ease-out;
+  }
+
+  .flipbook-reader[data-transition='turning']
+    .flipbook-volume[data-turn-direction='next'][data-mobile-spine='true']::before {
+    width: clamp(22px, 7.5%, 34px);
+    box-shadow:
+      -4px 3px 10px rgba(0, 0, 0, 0.38),
+      inset -2px 0 3px rgba(72, 51, 30, 0.22);
+  }
+
+  .flipbook-reader[data-transition='turning']
+    .flipbook-volume[data-turn-direction='prev'][data-mobile-spine='true']::before {
+    width: clamp(16px, 5%, 24px);
+    box-shadow:
+      -2px 2px 6px rgba(0, 0, 0, 0.24),
+      inset -1px 0 2px rgba(72, 51, 30, 0.14);
   }
 
   .flipbook-reader .flipbook-magazine-engine.stf__parent {
@@ -328,10 +360,31 @@
   }
 
   .flipbook-reader .flipbook-controls {
-    margin: 0;
+    position: absolute;
+    right: 0;
+    bottom: var(--reader-safe-bottom);
+    left: 0;
+    height: var(--reader-chrome);
+    margin: 0 !important;
     padding: 0 max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px));
     justify-content: space-between;
-    z-index: 2;
+    z-index: 3;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(12px);
+    transition:
+      opacity 160ms ease-out,
+      transform 180ms ease-out,
+      visibility 0s linear 180ms;
+  }
+
+  .flipbook-reader[data-mobile-controls='true'] .flipbook-controls {
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+    transition-delay: 0s;
   }
 
   .flipbook-controls .MuiButton-root {
