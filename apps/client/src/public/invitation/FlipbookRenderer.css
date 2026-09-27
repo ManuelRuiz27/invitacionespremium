@@ -268,30 +268,6 @@
     transform: scaleX(1);
   }
 
-  /* During the curl, the engine still owns the leaf geometry. This overlay
-     only supplies the localized occlusion that a lifting paper corner casts. */
-  .flipbook-reader[data-transition='turning'] .flipbook-magazine-engine.stf__parent::before {
-    content: '';
-    position: absolute;
-    z-index: 3;
-    inset: 0;
-    pointer-events: none;
-    mix-blend-mode: multiply;
-    opacity: 0.42;
-  }
-
-  .flipbook-reader[data-transition='turning']
-    .flipbook-volume[data-turn-direction='next']
-    .flipbook-magazine-engine.stf__parent::before {
-    background: radial-gradient(ellipse 68% 42% at 100% 76%, rgba(57, 38, 20, 0.46), transparent 72%);
-  }
-
-  .flipbook-reader[data-transition='turning']
-    .flipbook-volume[data-turn-direction='prev']
-    .flipbook-magazine-engine.stf__parent::before {
-    background: radial-gradient(ellipse 60% 38% at 0 88%, rgba(57, 38, 20, 0.38), transparent 72%);
-  }
-
   /* Anchor the spine to the book shell rather than a leaf, so it remains
      visible behind the engine throughout both turning and settling. */
   .flipbook-reader .flipbook-volume[data-mobile-spine='true']::before {
