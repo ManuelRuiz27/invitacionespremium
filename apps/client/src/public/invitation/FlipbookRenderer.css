@@ -278,13 +278,15 @@
   /* Anchor the spine to the book shell rather than a leaf, so it remains
      visible behind the engine throughout both turning and settling. */
   .flipbook-reader .flipbook-volume[data-mobile-spine='true']::before {
+    --mobile-spine-width: clamp(18px, 6%, 28px);
+
     display: block;
     z-index: 0;
     top: 2px;
     right: auto;
     bottom: 2px;
     left: -7px;
-    width: clamp(18px, 6%, 28px);
+    width: var(--mobile-spine-width);
     border: 1px solid rgba(255, 250, 239, 0.72);
     border-radius: 5px 0 0 6px;
     background:
@@ -295,6 +297,18 @@
     transition:
       width 180ms ease-out,
       box-shadow 180ms ease-out;
+  }
+
+  .flipbook-reader .flipbook-volume[data-page-stack='thin'][data-mobile-spine='true']::before {
+    --mobile-spine-width: clamp(15px, 4.8%, 22px);
+  }
+
+  .flipbook-reader .flipbook-volume[data-page-stack='medium'][data-mobile-spine='true']::before {
+    --mobile-spine-width: clamp(19px, 6.5%, 30px);
+  }
+
+  .flipbook-reader .flipbook-volume[data-page-stack='thick'][data-mobile-spine='true']::before {
+    --mobile-spine-width: clamp(23px, 8%, 36px);
   }
 
   .flipbook-reader[data-transition='turning']
@@ -311,6 +325,26 @@
     box-shadow:
       -2px 2px 6px rgba(0, 0, 0, 0.24),
       inset -1px 0 2px rgba(72, 51, 30, 0.14);
+  }
+
+  /* The engine's paper edge sits behind the active leaf. Varying it with the
+     accumulated stack makes page two and the final leaves read as one bound volume. */
+  .flipbook-reader .flipbook-volume[data-page-stack='thin'] .flipbook-magazine-engine.stf__parent::after {
+    left: -7px;
+    width: 9px;
+  }
+
+  .flipbook-reader .flipbook-volume[data-page-stack='medium'] .flipbook-magazine-engine.stf__parent::after {
+    left: -10px;
+    width: 14px;
+  }
+
+  .flipbook-reader .flipbook-volume[data-page-stack='thick'] .flipbook-magazine-engine.stf__parent::after {
+    left: -14px;
+    width: 19px;
+    box-shadow:
+      -3px 1px 0 #8e7558,
+      -7px 6px 12px rgba(0, 0, 0, 0.3);
   }
 
   .flipbook-reader .flipbook-magazine-engine.stf__parent {

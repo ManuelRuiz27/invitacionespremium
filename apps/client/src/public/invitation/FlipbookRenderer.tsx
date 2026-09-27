@@ -68,6 +68,14 @@ export function FlipbookRenderer({
   const isOpening = ['overview', 'lifting', 'opening', 'reframing'].includes(introState);
   const showMobileSpine =
     snapshot.page > 0 || transitionState !== 'idle' || introState === 'opening' || introState === 'reframing';
+  const pageStack =
+    snapshot.page === 0 || snapshot.pageCount < 2
+      ? 'cover'
+      : snapshot.page / (snapshot.pageCount - 1) < 1 / 3
+        ? 'thin'
+        : snapshot.page / (snapshot.pageCount - 1) < 2 / 3
+          ? 'medium'
+          : 'thick';
   const updateIntroState = useCallback((next: IntroState) => {
     introStateRef.current = next;
     setIntroState(next);
@@ -383,6 +391,7 @@ export function FlipbookRenderer({
           data-can-open={coverCanOpen ? 'true' : undefined}
           data-mobile-spine={showMobileSpine || undefined}
           data-turn-direction={turnDirection}
+          data-page-stack={pageStack}
           onClick={(event) => {
             if (snapshot.page !== 0 || !(event.target instanceof Element)) return;
             if (event.target.closest('button, a, input, select, textarea, [role="button"]')) return;

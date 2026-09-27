@@ -177,6 +177,28 @@ describe('FlipbookRenderer physical leaves', () => {
     expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-mobile-spine', 'true');
   });
 
+  it('grows the mobile page stack as the reader advances', async () => {
+    setViewport(390);
+    const { container } = renderFlipbook();
+    await screen.findByText('1 / 6');
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir invitación' }));
+    await screen.findByText('2 / 6');
+    await waitFor(() => expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-intro', 'open'));
+    expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-page-stack', 'thin');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
+    expect(screen.getByText('3 / 6')).toBeVisible();
+    expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-page-stack', 'medium');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
+    expect(screen.getByText('4 / 6')).toBeVisible();
+    expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-page-stack', 'medium');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
+    expect(screen.getByText('5 / 6')).toBeVisible();
+    expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-page-stack', 'thick');
+  });
+
   it('uses the lower corner for physical mobile reversal', async () => {
     setViewport(390);
     const { container } = renderFlipbook();
