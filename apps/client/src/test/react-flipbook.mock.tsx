@@ -18,8 +18,8 @@ export interface BookSnapshot {
 
 export interface FlipBookHandle {
   pageFlip: () => null;
-  flipNext: () => boolean;
-  flipPrev: () => boolean;
+  flipNext: (corner?: 'top' | 'bottom') => boolean;
+  flipPrev: (corner?: 'top' | 'bottom') => boolean;
   turnToPage: (page: number) => boolean;
   flipToPage: (page: number) => boolean;
 }
@@ -123,6 +123,9 @@ const HTMLFlipBook = forwardRef<FlipBookHandle, Props>(function HTMLFlipBook(
   const [orientation, setOrientation] = useState(currentOrientation);
   const [page, setPage] = useState(initialPage);
   const [lastTurnLeaf, setLastTurnLeaf] = useState<number | null>(null);
+  const [lastTurn, setLastTurn] = useState<{ direction: 'next' | 'prev' | 'to'; corner?: 'top' | 'bottom' } | null>(
+    null
+  );
   const visiblePages = useMemo(() => {
     const currentSpread = spreads(pages.length, orientation, hardCovers).find((spread) => spread.includes(page));
     return currentSpread ?? [0];
@@ -138,7 +141,7 @@ const HTMLFlipBook = forwardRef<FlipBookHandle, Props>(function HTMLFlipBook(
       visiblePages: currentSpread
     };
   };
-  const move = (direction: 'next' | 'prev' | 'to', target?: number) => {
+  const move = (direction: 'next' | 'prev' | 'to', target?: number, corner?: 'top' | 'bottom') => {
     const model = spreads(pages.length, orientation, hardCovers);
     const currentSpreadIndex = model.findIndex((spread) => spread.includes(page));
     const nextSpread =
@@ -153,6 +156,7 @@ const HTMLFlipBook = forwardRef<FlipBookHandle, Props>(function HTMLFlipBook(
       onChangeState?.({ state: 'read' });
     };
     setLastTurnLeaf(nextPage);
+    setLastTurn({ direction, ...(corner ? { corner } : {}) });
     onChangeState?.({ state: 'flipping' });
     if ((globalThis as typeof globalThis & { __flipbookMockAsync?: boolean }).__flipbookMockAsync)
       window.setTimeout(commit, 0);
@@ -162,8 +166,8 @@ const HTMLFlipBook = forwardRef<FlipBookHandle, Props>(function HTMLFlipBook(
 
   useImperativeHandle(ref, () => ({
     pageFlip: () => null,
-    flipNext: () => move('next'),
-    flipPrev: () => move('prev'),
+    flipNext: (corner) => move('next', undefined, corner),
+    flipPrev: (corner) => move('prev', undefined, corner),
     turnToPage: (target) => move('to', target),
     flipToPage: (target) => move('to', target)
   }));
@@ -197,6 +201,8 @@ const HTMLFlipBook = forwardRef<FlipBookHandle, Props>(function HTMLFlipBook(
       data-testid="flipbook-engine-mock"
       data-orientation={orientation}
       data-last-turn-leaf={lastTurnLeaf ?? undefined}
+      data-last-turn-direction={lastTurn?.direction}
+      data-last-turn-corner={lastTurn?.corner}
     >
       {pages.map((child, index) => (
         <div key={index} hidden={!visiblePages.includes(index)} data-leaf-index={index}>
