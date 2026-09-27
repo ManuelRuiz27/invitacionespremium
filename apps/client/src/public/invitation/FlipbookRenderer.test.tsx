@@ -151,6 +151,7 @@ describe('FlipbookRenderer physical leaves', () => {
     setViewport(390);
     const { container } = renderFlipbook();
     await screen.findByText('1 / 6');
+    expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-page-stack', 'cover');
 
     fireEvent.click(screen.getByRole('button', { name: 'Abrir invitación' }));
     const volume = container.querySelector('.flipbook-volume');
