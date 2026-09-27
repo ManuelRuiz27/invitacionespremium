@@ -11,7 +11,9 @@ import { useReducedMotion } from '../useReducedMotion';
 import './FlipbookRenderer.css';
 
 const initialSnapshot: BookSnapshot = { page: 0, pageCount: 0, orientation: 'portrait', visiblePages: [0] };
-type IntroState = 'closed' | 'overview' | 'lifting' | 'opening' | 'reframing' | 'open';
+const MOBILE_INTRO_FLIP_DELAY_MS = 390;
+const MOBILE_INTRO_DURATION_MS = 1200;
+type IntroState = 'closed' | 'lifting' | 'opening' | 'open';
 
 function preloadPageIndexes(pageCount: number, visiblePages: number[]): Set<number> {
   if (pageCount <= 0 || visiblePages.length === 0) return new Set();
@@ -49,6 +51,9 @@ export function FlipbookRenderer({
   const turnCommittedRef = useRef(false);
   const touchRef = useRef<{ id: number; x: number; y: number; time: number; scrolling: boolean } | null>(null);
   const introTimerRef = useRef<number | null>(null);
+  const introCameraTimerRef = useRef<number | null>(null);
+  const introCameraReadyRef = useRef(false);
+  const introTurnReadyRef = useRef(false);
   const mobileControlsTimerRef = useRef<number | null>(null);
   const introStateRef = useRef<IntroState>('closed');
   const [snapshot, setSnapshot] = useState<BookSnapshot>(initialSnapshot);
@@ -66,9 +71,8 @@ export function FlipbookRenderer({
   const canGoPrevious = snapshot.page > 0;
   const canGoNext = visiblePageIndexes.at(-1) !== pages.length - 1;
   const coverCanOpen = snapshot.page === 0 && snapshot.pageCount > 0 && pages.length > 1;
-  const isOpening = ['overview', 'lifting', 'opening', 'reframing'].includes(introState);
-  const showMobileSpine =
-    snapshot.page > 0 || transitionState !== 'idle' || introState === 'opening' || introState === 'reframing';
+  const isOpening = introState === 'lifting' || introState === 'opening';
+  const showMobileSpine = snapshot.page > 0 || transitionState !== 'idle' || introState === 'opening';
   const pageStack =
     snapshot.page === 0 || snapshot.pageCount < 2
       ? 'cover'
@@ -81,6 +85,15 @@ export function FlipbookRenderer({
     introStateRef.current = next;
     setIntroState(next);
   }, []);
+  const finishMobileIntro = useCallback(() => {
+    if (
+      introStateRef.current === 'opening' &&
+      introCameraReadyRef.current &&
+      introTurnReadyRef.current
+    ) {
+      updateIntroState('open');
+    }
+  }, [updateIntroState]);
   const revealMobileControls = useCallback(() => {
     setMobileControlsVisible(true);
     if (mobileControlsTimerRef.current !== null) window.clearTimeout(mobileControlsTimerRef.current);
@@ -98,6 +111,10 @@ export function FlipbookRenderer({
     focalPageRef.current = 0;
     if (introTimerRef.current !== null) window.clearTimeout(introTimerRef.current);
     introTimerRef.current = null;
+    if (introCameraTimerRef.current !== null) window.clearTimeout(introCameraTimerRef.current);
+    introCameraTimerRef.current = null;
+    introCameraReadyRef.current = false;
+    introTurnReadyRef.current = false;
     if (mobileControlsTimerRef.current !== null) window.clearTimeout(mobileControlsTimerRef.current);
     mobileControlsTimerRef.current = null;
     setTransitionState('idle');
@@ -131,6 +148,7 @@ export function FlipbookRenderer({
   useEffect(
     () => () => {
       if (introTimerRef.current !== null) window.clearTimeout(introTimerRef.current);
+      if (introCameraTimerRef.current !== null) window.clearTimeout(introCameraTimerRef.current);
       if (mobileControlsTimerRef.current !== null) window.clearTimeout(mobileControlsTimerRef.current);
     },
     []
@@ -218,15 +236,18 @@ export function FlipbookRenderer({
         return;
       }
       if (mobileReader) {
-        updateIntroState('overview');
+        introCameraReadyRef.current = false;
+        introTurnReadyRef.current = false;
+        updateIntroState('opening');
         introTimerRef.current = window.setTimeout(() => {
-          updateIntroState('lifting');
-          introTimerRef.current = window.setTimeout(() => {
-            introTimerRef.current = null;
-            updateIntroState('opening');
-            turnPage('next');
-          }, 220);
-        }, 260);
+          introTimerRef.current = null;
+          turnPage('next');
+        }, MOBILE_INTRO_FLIP_DELAY_MS);
+        introCameraTimerRef.current = window.setTimeout(() => {
+          introCameraTimerRef.current = null;
+          introCameraReadyRef.current = true;
+          finishMobileIntro();
+        }, MOBILE_INTRO_DURATION_MS);
         return;
       }
       updateIntroState('lifting');
@@ -236,7 +257,7 @@ export function FlipbookRenderer({
         turnPage('next');
       }, 560);
     },
-    [coverCanOpen, mobileReader, reducedMotion, turnPage, updateIntroState]
+    [coverCanOpen, finishMobileIntro, mobileReader, reducedMotion, turnPage, updateIntroState]
   );
 
   const navigate = useCallback(
@@ -462,11 +483,8 @@ export function FlipbookRenderer({
                   if (reducedMotion || !mobileReader) {
                     updateIntroState('open');
                   } else {
-                    updateIntroState('reframing');
-                    introTimerRef.current = window.setTimeout(() => {
-                      introTimerRef.current = null;
-                      updateIntroState('open');
-                    }, 280);
+                    introTurnReadyRef.current = true;
+                    finishMobileIntro();
                   }
                 }
               } else {

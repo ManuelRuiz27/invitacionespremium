@@ -67,6 +67,20 @@ function renderFlipbook(pageCount = 6) {
 function setViewport(width: number) {
   act(() => {
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: width });
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: (query: string) => ({
+        matches: query.includes('max-width: 767px') ? width <= 767 : false,
+        media: query,
+        onchange: null,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        dispatchEvent: () => false
+      })
+    });
     window.dispatchEvent(new Event('resize'));
   });
 }
@@ -131,7 +145,7 @@ describe('FlipbookRenderer physical leaves', () => {
 
   it('uses one physical leaf in portrait and leaves the fourth page as the N=4 closing leaf', async () => {
     setViewport(390);
-    renderFlipbook(4);
+    const { container } = renderFlipbook(4);
     await screen.findByText('Página 1 de 4');
     const engine = screen.getByTestId('flipbook-engine-mock');
     expect(engine).toHaveAttribute('data-orientation', 'portrait');
@@ -139,6 +153,9 @@ describe('FlipbookRenderer physical leaves', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Abrir invitación' }));
     await screen.findByText('Página 2 de 4');
+    await waitFor(() =>
+      expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-intro', 'open')
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
     expect(screen.getByText('Página 4 de 4')).toBeVisible();
@@ -148,7 +165,7 @@ describe('FlipbookRenderer physical leaves', () => {
     expect(screen.getByText('Página 4 de 4')).toBeVisible();
   });
 
-  it('stages the mobile opening from an overview and reframes after reaching page two', async () => {
+  it('keeps the mobile opening on one camera trajectory through page two', async () => {
     setViewport(390);
     const { container } = renderFlipbook();
     await screen.findByText('1 / 6');
@@ -156,11 +173,11 @@ describe('FlipbookRenderer physical leaves', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Abrir invitación' }));
     const volume = container.querySelector('.flipbook-volume');
-    expect(['overview', 'lifting']).toContain(volume?.getAttribute('data-intro'));
-    await waitFor(() => expect(volume).toHaveAttribute('data-intro', 'lifting'), { timeout: 1000 });
+    expect(volume).toHaveAttribute('data-intro', 'opening');
     await screen.findByText('2 / 6');
+    expect(volume).toHaveAttribute('data-intro', 'opening');
     expect(volume).toHaveAttribute('data-mobile-spine', 'true');
-    await waitFor(() => expect(volume).toHaveAttribute('data-intro', 'open'), { timeout: 1000 });
+    await waitFor(() => expect(volume).toHaveAttribute('data-intro', 'open'), { timeout: 1600 });
   });
 
   it('tracks turning, page landing and rest without alternating engine states', async () => {
