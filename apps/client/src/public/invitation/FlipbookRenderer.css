@@ -179,6 +179,39 @@
     display: none;
   }
 
+  /* A restrained pool of warm light moves with the camera rather than adding
+     a separate visual object. It gives the real cover depth before the curl starts. */
+  .flipbook-reader .flipbook-stage::before {
+    content: '';
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 56% 44% at 50% 46%, rgba(245, 213, 163, 0.2), transparent 72%),
+      radial-gradient(ellipse 82% 70% at 50% 120%, rgba(0, 0, 0, 0.24), transparent 70%);
+    opacity: 0.44;
+    pointer-events: none;
+    transform: scale(1);
+    transition:
+      opacity 280ms cubic-bezier(0.22, 1, 0.36, 1),
+      transform 360ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .flipbook-reader[data-intro='overview'] .flipbook-stage::before {
+    opacity: 0.24;
+    transform: scale(0.9);
+  }
+
+  .flipbook-reader:is([data-intro='lifting'], [data-intro='opening']) .flipbook-stage::before {
+    opacity: 0.66;
+    transform: scale(1.08);
+  }
+
+  .flipbook-reader[data-intro='reframing'] .flipbook-stage::before {
+    opacity: 0.5;
+    transform: scale(1.02);
+  }
+
   /* CSS supplies the physical box. Core's existing ResizeObserver fits the
      leaf to both axes; no second measurement loop or viewport-sized remount. */
   .flipbook-reader .flipbook-volume[data-intro] {
@@ -206,7 +239,7 @@
   }
 
   .flipbook-reader .flipbook-volume[data-orientation][data-intro='lifting'] {
-    transform: translateY(-8px) rotateX(4deg) scale(0.9);
+    transform: translateY(-10px) rotateX(5deg) rotateZ(-0.55deg) scale(0.91);
     transition-duration: 220ms;
     transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
   }
@@ -219,12 +252,12 @@
   }
 
   .flipbook-reader .flipbook-volume[data-orientation][data-intro='opening'] {
-    transform: translateY(-8px) rotateX(4deg) scale(0.9);
+    transform: translateY(-10px) rotateX(5deg) rotateZ(-0.55deg) scale(0.91);
     transition-duration: 160ms;
   }
 
   .flipbook-reader .flipbook-volume[data-orientation][data-intro='reframing'] {
-    transform: translateY(-2px) rotateX(1deg) scale(0.97);
+    transform: translateY(-2px) rotateX(1deg) rotateZ(-0.1deg) scale(0.975);
     transition-duration: 280ms;
     transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
   }
@@ -399,6 +432,15 @@
     height: 100%;
     min-height: 0 !important;
     filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.32));
+    transition: filter 220ms ease-out;
+  }
+
+  .flipbook-reader[data-intro='overview'] .flipbook-magazine-engine.stf__parent {
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.24)) brightness(0.96) saturate(0.94);
+  }
+
+  .flipbook-reader:is([data-intro='lifting'], [data-intro='opening']) .flipbook-magazine-engine.stf__parent {
+    filter: drop-shadow(0 12px 16px rgba(0, 0, 0, 0.4)) brightness(1.02) saturate(1.02);
   }
 
   .flipbook-reader .stf__wrapper {
@@ -503,7 +545,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .flipbook-reader .flipbook-volume,
-  .flipbook-volume::before {
+  .flipbook-volume::before,
+  .flipbook-reader .flipbook-stage::before,
+  .flipbook-reader .flipbook-magazine-engine.stf__parent {
     transition: none;
   }
 }

@@ -281,6 +281,7 @@ export function FlipbookRenderer({
       tabIndex={0}
       aria-label="Invitación en páginas"
       data-transition={transitionState}
+      data-intro={introState}
       data-visible-pages={visiblePageKey}
       data-mobile-controls={mobileControlsVisible || undefined}
       onFocusCapture={(event) => {
