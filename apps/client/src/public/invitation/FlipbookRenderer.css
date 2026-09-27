@@ -197,7 +197,40 @@
   }
 
   .flipbook-reader .flipbook-volume[data-orientation][data-intro='lifting'] {
-    transform: translateY(-4px);
+    transform: translateY(-6px) scale(0.84);
+  }
+
+  /* The compact overview lets the full opening read before returning to the
+     normal reading scale once the second page has settled. */
+  .flipbook-reader .flipbook-volume[data-orientation][data-intro='overview'] {
+    transform: translateY(8px) scale(0.82);
+  }
+
+  .flipbook-reader .flipbook-volume[data-orientation][data-intro='opening'] {
+    transform: translateY(-6px) scale(0.84);
+  }
+
+  .flipbook-reader .flipbook-volume[data-orientation][data-intro='reframing'] {
+    transform: translateY(-2px) scale(0.96);
+  }
+
+  /* Anchor the spine to the book shell rather than a leaf, so it remains
+     visible behind the engine throughout both turning and settling. */
+  .flipbook-reader .flipbook-volume[data-mobile-spine='true']::before {
+    display: block;
+    z-index: 0;
+    top: 2px;
+    right: auto;
+    bottom: 2px;
+    left: -7px;
+    width: clamp(18px, 6%, 28px);
+    border: 1px solid rgba(255, 250, 239, 0.72);
+    border-radius: 5px 0 0 6px;
+    background:
+      linear-gradient(90deg, rgba(77, 55, 32, 0.52), rgba(216, 197, 171, 0.5) 48%, transparent),
+      repeating-linear-gradient(90deg, #e8decd 0, #e8decd 1px, #b6a58c 1px, #b6a58c 2px, #fff8ec 2px, #fff8ec 3px);
+    box-shadow: -3px 3px 8px rgba(0, 0, 0, 0.32);
+    transform: none;
   }
 
   .flipbook-reader .flipbook-magazine-engine.stf__parent {

@@ -146,6 +146,36 @@ describe('FlipbookRenderer physical leaves', () => {
     expect(screen.getByText('Página 4 de 4')).toBeVisible();
   });
 
+  it('stages the mobile opening from an overview and reframes after reaching page two', async () => {
+    setViewport(390);
+    const { container } = renderFlipbook();
+    await screen.findByText('1 / 6');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir invitación' }));
+    const volume = container.querySelector('.flipbook-volume');
+    expect(['overview', 'lifting']).toContain(volume?.getAttribute('data-intro'));
+    await waitFor(() => expect(volume).toHaveAttribute('data-intro', 'lifting'), { timeout: 1000 });
+    await screen.findByText('2 / 6');
+    expect(volume).toHaveAttribute('data-mobile-spine', 'true');
+    await waitFor(() => expect(volume).toHaveAttribute('data-intro', 'open'), { timeout: 1000 });
+  });
+
+  it('retains the mobile spine while the engine is turning', async () => {
+    setViewport(390);
+    (globalThis as typeof globalThis & { __flipbookMockAsync?: boolean }).__flipbookMockAsync = true;
+    const { container } = renderFlipbook();
+    await screen.findByText('1 / 6');
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir invitación' }));
+    await screen.findByText('2 / 6');
+    await waitFor(() => expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-intro', 'open'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
+    expect(['turning', 'settling']).toContain(
+      container.querySelector('.flipbook-reader')?.getAttribute('data-transition')
+    );
+    expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-mobile-spine', 'true');
+  });
+
   it('blocks external links and RSVP while the engine reports an in-flight turn', async () => {
     setViewport(1200);
     (globalThis as typeof globalThis & { __flipbookMockAsync?: boolean }).__flipbookMockAsync = true;
