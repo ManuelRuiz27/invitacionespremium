@@ -73,6 +73,7 @@ function setViewport(width: number) {
 
 afterEach(() => {
   delete (globalThis as typeof globalThis & { __flipbookMockAsync?: boolean }).__flipbookMockAsync;
+  delete (globalThis as typeof globalThis & { __flipbookMockReadDelayMs?: number }).__flipbookMockReadDelayMs;
   vi.useRealTimers();
   setViewport(1024);
 });
@@ -162,7 +163,7 @@ describe('FlipbookRenderer physical leaves', () => {
     await waitFor(() => expect(volume).toHaveAttribute('data-intro', 'open'), { timeout: 1000 });
   });
 
-  it('retains the mobile spine while the engine is turning', async () => {
+  it('tracks turning, page landing and rest without alternating engine states', async () => {
     setViewport(390);
     (globalThis as typeof globalThis & { __flipbookMockAsync?: boolean }).__flipbookMockAsync = true;
     const { container } = renderFlipbook();
@@ -171,11 +172,16 @@ describe('FlipbookRenderer physical leaves', () => {
     await screen.findByText('2 / 6');
     await waitFor(() => expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-intro', 'open'));
 
+    (globalThis as typeof globalThis & { __flipbookMockReadDelayMs?: number }).__flipbookMockReadDelayMs = 80;
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
-    expect(['turning', 'settling']).toContain(
-      container.querySelector('.flipbook-reader')?.getAttribute('data-transition')
-    );
+    expect(container.querySelector('.flipbook-reader')).toHaveAttribute('data-transition', 'turning');
     expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-mobile-spine', 'true');
+    await screen.findByText('3 / 6');
+    expect(container.querySelector('.flipbook-reader')).toHaveAttribute('data-transition', 'settling');
+    expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-mobile-spine', 'true');
+    await waitFor(() =>
+      expect(container.querySelector('.flipbook-reader')).toHaveAttribute('data-transition', 'idle')
+    );
   });
 
   it('grows the mobile page stack as the reader advances', async () => {

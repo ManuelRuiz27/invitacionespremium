@@ -46,6 +46,7 @@ export function FlipbookRenderer({
   const focalPageRef = useRef(0);
   const orientationRef = useRef<BookSnapshot['orientation']>('portrait');
   const turningRef = useRef(false);
+  const turnCommittedRef = useRef(false);
   const touchRef = useRef<{ id: number; x: number; y: number; time: number; scrolling: boolean } | null>(null);
   const introTimerRef = useRef<number | null>(null);
   const mobileControlsTimerRef = useRef<number | null>(null);
@@ -93,6 +94,7 @@ export function FlipbookRenderer({
     setSnapshot(initialSnapshot);
     setPreloadedPageIndexes(new Set([0]));
     turningRef.current = false;
+    turnCommittedRef.current = false;
     focalPageRef.current = 0;
     if (introTimerRef.current !== null) window.clearTimeout(introTimerRef.current);
     introTimerRef.current = null;
@@ -159,6 +161,18 @@ export function FlipbookRenderer({
     },
     [updateIntroState]
   );
+  const syncPageChange = useCallback(
+    (next: BookSnapshot) => {
+      syncSnapshot(next);
+      if (!turningRef.current) return;
+
+      // The engine commits the new leaf before it reports READ. That commit is
+      // the physical landing point; keep it distinct from the moving curl.
+      turnCommittedRef.current = true;
+      setTransitionState('settling');
+    },
+    [syncSnapshot]
+  );
   const syncOrientation = useCallback(() => {
     const book = bookRef.current?.pageFlip();
     if (!book || book.getPageCount() === 0) return;
@@ -181,15 +195,17 @@ export function FlipbookRenderer({
       if (!book) return;
 
       turningRef.current = true;
+      turnCommittedRef.current = false;
       setTurnDirection(direction);
-      setTransitionState(reducedMotion ? 'settling' : 'turning');
+      setTransitionState('turning');
       const moved = direction === 'next' ? book.flipNext() : book.flipPrev('bottom');
       if (!moved) {
         turningRef.current = false;
+        turnCommittedRef.current = false;
         setTransitionState('idle');
       }
     },
-    [reducedMotion]
+    []
   );
 
   const openCover = useCallback(
@@ -435,11 +451,12 @@ export function FlipbookRenderer({
               orientationRef.current = next.orientation;
               syncSnapshot(next);
             }}
-            onPageChange={syncSnapshot}
+            onPageChange={syncPageChange}
             onChangeOrientation={syncOrientation}
             onChangeState={({ state }) => {
               if (state === 'read') {
                 turningRef.current = false;
+                turnCommittedRef.current = false;
                 setTransitionState('idle');
                 if (introStateRef.current === 'opening') {
                   if (reducedMotion || !mobileReader) {
@@ -453,8 +470,12 @@ export function FlipbookRenderer({
                   }
                 }
               } else {
+                if (!turningRef.current) turnCommittedRef.current = false;
                 turningRef.current = true;
-                setTransitionState((current) => (current === 'turning' ? 'settling' : 'turning'));
+                // FOLD_CORNER, USER_FOLD and FLIPPING are all moving-paper
+                // phases. Repeated engine events are idempotent and cannot
+                // fabricate a landing before the page index actually commits.
+                if (!turnCommittedRef.current) setTransitionState('turning');
               }
             }}
           >
