@@ -206,6 +206,8 @@
     --flipbook-remaining-depth: 7px;
     --flipbook-accumulated-scale: 0.142857;
     --flipbook-remaining-scale: 1;
+    --flipbook-contact-shadow-opacity: 0.24;
+    --flipbook-contact-shadow-scale: 0.96;
 
     width: min(
       100%,
@@ -247,30 +249,18 @@
     right: 12%;
     bottom: -14px;
     left: 12%;
-    height: 20px;
+    height: 16px;
     border-radius: 50%;
     background: rgba(0, 0, 0, 0.48);
-    filter: blur(12px);
-    opacity: 0.34;
+    filter: blur(13px);
+    opacity: var(--flipbook-contact-shadow-opacity);
     pointer-events: none;
-    transform: scaleX(0.94);
-    transition:
-      opacity 180ms ease-out,
-      transform 180ms ease-out;
+    transform: scaleX(var(--flipbook-contact-shadow-scale));
+    transition: none;
   }
 
   .flipbook-reader .flipbook-volume[data-intro='opening']::after {
     animation: flipbook-mobile-camera-shadow 1200ms linear both;
-  }
-
-  .flipbook-reader[data-transition='turning'] .flipbook-volume::after {
-    opacity: 0.46;
-    transform: scaleX(1.08);
-  }
-
-  .flipbook-reader[data-transition='settling'] .flipbook-volume::after {
-    opacity: 0.39;
-    transform: scaleX(1);
   }
 
   /* One restrained binding belongs to the shell, never to an individual
@@ -290,7 +280,7 @@
     border-radius: 3px 0 0 4px;
     background: linear-gradient(90deg, #725a41 0%, #bca789 34%, #eee4d3 66%, #9b8265 100%);
     box-shadow:
-      -2px 2px 5px rgba(0, 0, 0, 0.26),
+      -2px 2px 5px rgba(0, 0, 0, 0.2),
       inset 1px 0 rgba(255, 250, 239, 0.24);
     transform: none;
     transition: none;
@@ -299,7 +289,7 @@
   .flipbook-reader .flipbook-magazine-engine.stf__parent {
     height: 100%;
     min-height: 0 !important;
-    filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.32));
+    filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.24));
     transition: filter 180ms ease-out;
   }
 
@@ -335,7 +325,7 @@
     height: 7px;
     border-bottom: 1px solid rgba(104, 79, 48, 0.34);
     background: repeating-linear-gradient(to bottom, #f8f2e7 0, #f8f2e7 1px, #d7c9b5 1px, #eee5d8 2px);
-    box-shadow: 0 2px 3px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 3px rgba(0, 0, 0, 0.14);
     pointer-events: none;
     transform-origin: top;
     transition: transform 120ms linear;

@@ -170,6 +170,12 @@ describe('FlipbookRenderer physical leaves', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Abrir invitación' }));
     const volume = container.querySelector('.flipbook-volume');
+    const engine = screen.getByTestId('flipbook-engine-mock');
+    expect(engine).toHaveAttribute('data-hard-covers', 'true');
+    expect(engine).toHaveAttribute('data-flipping-time', '680');
+    expect(engine).toHaveAttribute('data-max-shadow-opacity', '0.3');
+    expect(screen.getByLabelText('Página 1 de 6')).toHaveAttribute('data-density', 'hard');
+    expect(screen.getByLabelText('Página 2 de 6')).not.toHaveAttribute('data-density');
     expect(volume).toHaveAttribute('data-intro', 'opening');
     await screen.findByText('2 / 6');
     expect(volume).toHaveAttribute('data-intro', 'opening');
@@ -216,9 +222,13 @@ describe('FlipbookRenderer physical leaves', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
     expect(volume.style.getPropertyValue('--flipbook-accumulated-depth')).toBe('2.8px');
     expect(volume.style.getPropertyValue('--flipbook-remaining-depth')).toBe('5.2px');
+    expect(volume.style.getPropertyValue('--flipbook-contact-shadow-opacity')).toBe('0.280');
+    expect(volume.style.getPropertyValue('--flipbook-contact-shadow-scale')).toBe('1.000');
     await screen.findByText('3 / 6');
     expect(volume.style.getPropertyValue('--flipbook-accumulated-depth')).toBe('3.4px');
     expect(volume.style.getPropertyValue('--flipbook-remaining-depth')).toBe('4.6px');
+    expect(volume.style.getPropertyValue('--flipbook-contact-shadow-opacity')).toBe('0.240');
+    expect(volume.style.getPropertyValue('--flipbook-contact-shadow-scale')).toBe('0.960');
     expect(volume).toHaveAttribute('data-mobile-spine', 'true');
 
     (globalThis as typeof globalThis & { __flipbookMockAsync?: boolean }).__flipbookMockAsync = false;

@@ -13,6 +13,8 @@ import './FlipbookRenderer.css';
 const initialSnapshot: BookSnapshot = { page: 0, pageCount: 0, orientation: 'portrait', visiblePages: [0] };
 const MOBILE_INTRO_FLIP_DELAY_MS = 390;
 const MOBILE_INTRO_DURATION_MS = 1200;
+const MOBILE_PAGE_FLIP_DURATION_MS = 680;
+const MOBILE_PAGE_SHADOW_OPACITY = 0.3;
 const MIN_PAGE_STACK_DEPTH_PX = 1;
 const MAX_PAGE_STACK_DEPTH_PX = 7;
 const CONTINUOUS_DRAG_SWIPE_DISTANCE_PX = 10_000;
@@ -101,6 +103,17 @@ export function FlipbookRenderer({
     volume.style.setProperty('--flipbook-accumulated-scale', depth.accumulatedScale);
     volume.style.setProperty('--flipbook-remaining-scale', depth.remainingScale);
   }, []);
+  const setTurnOptics = useCallback((progress: number) => {
+    const volume = volumeRef.current;
+    if (!volume) return;
+    const clamped = Math.min(1, Math.max(0, progress));
+    // A physical sheet lifts the contact shadow most at mid-turn and lays it
+    // back down at either end. Deriving this from the engine's real fold
+    // progress avoids the lighting jump produced by turning/settling classes.
+    const lift = Math.sin(Math.PI * clamped);
+    volume.style.setProperty('--flipbook-contact-shadow-opacity', (0.24 + 0.04 * lift).toFixed(3));
+    volume.style.setProperty('--flipbook-contact-shadow-scale', (0.96 + 0.04 * lift).toFixed(3));
+  }, []);
   const updateIntroState = useCallback((next: IntroState) => {
     introStateRef.current = next;
     setIntroState(next);
@@ -143,7 +156,8 @@ export function FlipbookRenderer({
 
   useLayoutEffect(() => {
     setPageStackDepth(snapshot.page, snapshot.pageCount);
-  }, [setPageStackDepth, snapshot.page, snapshot.pageCount]);
+    setTurnOptics(0);
+  }, [setPageStackDepth, setTurnOptics, snapshot.page, snapshot.pageCount]);
 
   useEffect(() => {
     const reader = readerRef.current;
@@ -206,8 +220,9 @@ export function FlipbookRenderer({
       const current = snapshotRef.current;
       const signedProgress = direction === 'next' ? progress : -progress;
       setPageStackDepth(current.page + signedProgress, current.pageCount);
+      setTurnOptics(progress);
     },
-    [setPageStackDepth]
+    [setPageStackDepth, setTurnOptics]
   );
   const syncPageChange = useCallback(
     (next: BookSnapshot) => {
@@ -426,10 +441,10 @@ export function FlipbookRenderer({
             pageTransition={reducedMotion ? 'instant' : 'animate'}
             hardCovers
             usePortrait
-            flippingTime={reducedMotion ? 0 : mobileReader ? 520 : 720}
+            flippingTime={reducedMotion ? 0 : mobileReader ? MOBILE_PAGE_FLIP_DURATION_MS : 720}
             respectReducedMotion
             drawShadow
-            maxShadowOpacity={mobileReader ? 0.56 : 0.48}
+            maxShadowOpacity={mobileReader ? MOBILE_PAGE_SHADOW_OPACITY : 0.48}
             pageBackground="#f3eee6"
             flipOnClick="never"
             respectInteractiveContent
@@ -455,6 +470,7 @@ export function FlipbookRenderer({
               if (state === 'read') {
                 const current = snapshotRef.current;
                 setPageStackDepth(current.page, current.pageCount);
+                setTurnOptics(0);
                 turningRef.current = false;
                 turnCommittedRef.current = false;
                 setTransitionState('idle');
