@@ -33,6 +33,7 @@ interface Props extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
   onLoaded?: (snapshot: BookSnapshot) => void;
   onPageChange?: (snapshot: BookSnapshot) => void;
   onChangeState?: (info: { state: 'fold_corner' | 'user_fold' | 'flipping' | 'read' }) => void;
+  onTurnProgress?: (info: { progress: number; direction: 'next' | 'prev' }) => void;
   onChangeOrientation?: (info: { orientation: 'portrait' | 'landscape' }) => void;
   width?: number;
   height?: number;
@@ -89,6 +90,7 @@ const HTMLFlipBook = forwardRef<FlipBookHandle, Props>(function HTMLFlipBook(
     onLoaded,
     onPageChange,
     onChangeState,
+    onTurnProgress,
     onChangeOrientation,
     width: _width,
     height: _height,
@@ -159,6 +161,7 @@ const HTMLFlipBook = forwardRef<FlipBookHandle, Props>(function HTMLFlipBook(
     setLastTurnLeaf(nextPage);
     if (direction !== 'to') setLastTurn(corner ? { direction, corner } : { direction });
     onChangeState?.({ state: 'flipping' });
+    if (direction !== 'to') onTurnProgress?.({ progress: 0.5, direction });
     if ((globalThis as typeof globalThis & { __flipbookMockAsync?: boolean }).__flipbookMockAsync)
       window.setTimeout(commit, 0);
     else commit();

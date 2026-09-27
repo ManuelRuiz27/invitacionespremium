@@ -13,6 +13,8 @@ import './FlipbookRenderer.css';
 const initialSnapshot: BookSnapshot = { page: 0, pageCount: 0, orientation: 'portrait', visiblePages: [0] };
 const MOBILE_INTRO_FLIP_DELAY_MS = 390;
 const MOBILE_INTRO_DURATION_MS = 1200;
+const MIN_PAGE_STACK_DEPTH_PX = 1;
+const MAX_PAGE_STACK_DEPTH_PX = 7;
 type IntroState = 'closed' | 'lifting' | 'opening' | 'open';
 
 function preloadPageIndexes(pageCount: number, visiblePages: number[]): Set<number> {
@@ -20,6 +22,22 @@ function preloadPageIndexes(pageCount: number, visiblePages: number[]): Set<numb
   const first = Math.max(0, visiblePages[0]! - 1);
   const last = Math.min(pageCount - 1, visiblePages[visiblePages.length - 1]! + 1);
   return new Set(Array.from({ length: last - first + 1 }, (_, index) => first + index));
+}
+
+function pageStackDepth(pagePosition: number, pageCount: number) {
+  if (pageCount <= 1)
+    return { accumulated: '1px', remaining: '1px', accumulatedScale: '0.142857', remainingScale: '0.142857' };
+  const progress = Math.min(1, Math.max(0, pagePosition / (pageCount - 1)));
+  const depthRange = MAX_PAGE_STACK_DEPTH_PX - MIN_PAGE_STACK_DEPTH_PX;
+  const formatDepth = (value: number) => `${Number(value.toFixed(3))}px`;
+  const accumulated = MIN_PAGE_STACK_DEPTH_PX + depthRange * progress;
+  const remaining = MIN_PAGE_STACK_DEPTH_PX + depthRange * (1 - progress);
+  return {
+    accumulated: formatDepth(accumulated),
+    remaining: formatDepth(remaining),
+    accumulatedScale: (accumulated / MAX_PAGE_STACK_DEPTH_PX).toFixed(6),
+    remainingScale: (remaining / MAX_PAGE_STACK_DEPTH_PX).toFixed(6)
+  };
 }
 
 export function FlipbookRenderer({
@@ -45,6 +63,8 @@ export function FlipbookRenderer({
   const mobileReader = useMediaQuery('(max-width: 767px), (pointer: coarse) and (max-height: 500px)');
   const bookRef = useRef<FlipBookHandle | null>(null);
   const readerRef = useRef<HTMLDivElement | null>(null);
+  const volumeRef = useRef<HTMLDivElement | null>(null);
+  const snapshotRef = useRef<BookSnapshot>(initialSnapshot);
   const focalPageRef = useRef(0);
   const orientationRef = useRef<BookSnapshot['orientation']>('portrait');
   const turningRef = useRef(false);
@@ -72,6 +92,15 @@ export function FlipbookRenderer({
   const coverCanOpen = snapshot.page === 0 && snapshot.pageCount > 0 && pages.length > 1;
   const isOpening = introState === 'lifting' || introState === 'opening';
   const showMobileSpine = snapshot.page > 0 || transitionState !== 'idle' || introState === 'opening';
+  const setPageStackDepth = useCallback((pagePosition: number, pageCount: number) => {
+    const volume = volumeRef.current;
+    if (!volume) return;
+    const depth = pageStackDepth(pagePosition, pageCount);
+    volume.style.setProperty('--flipbook-accumulated-depth', depth.accumulated);
+    volume.style.setProperty('--flipbook-remaining-depth', depth.remaining);
+    volume.style.setProperty('--flipbook-accumulated-scale', depth.accumulatedScale);
+    volume.style.setProperty('--flipbook-remaining-scale', depth.remainingScale);
+  }, []);
   const updateIntroState = useCallback((next: IntroState) => {
     introStateRef.current = next;
     setIntroState(next);
@@ -92,6 +121,7 @@ export function FlipbookRenderer({
 
   useLayoutEffect(() => {
     setSnapshot(initialSnapshot);
+    snapshotRef.current = initialSnapshot;
     setPreloadedPageIndexes(new Set([0]));
     turningRef.current = false;
     turnCommittedRef.current = false;
@@ -110,6 +140,10 @@ export function FlipbookRenderer({
     setAutoActive(true);
     setMobileControlsVisible(false);
   }, [bookKey]);
+
+  useLayoutEffect(() => {
+    setPageStackDepth(snapshot.page, snapshot.pageCount);
+  }, [setPageStackDepth, snapshot.page, snapshot.pageCount]);
 
   useEffect(() => {
     const reader = readerRef.current;
@@ -159,11 +193,21 @@ export function FlipbookRenderer({
       if (next.orientation === orientationRef.current && !next.visiblePages.includes(focalPageRef.current)) {
         focalPageRef.current = next.page;
       }
+      snapshotRef.current = next;
+      setPageStackDepth(next.page, next.pageCount);
       setSnapshot(next);
       if (next.page === 0) updateIntroState('closed');
       else if (introStateRef.current === 'closed') updateIntroState('open');
     },
-    [updateIntroState]
+    [setPageStackDepth, updateIntroState]
+  );
+  const syncTurnProgress = useCallback(
+    ({ progress, direction }: { progress: number; direction: 'next' | 'prev' }) => {
+      const current = snapshotRef.current;
+      const signedProgress = direction === 'next' ? progress : -progress;
+      setPageStackDepth(current.page + signedProgress, current.pageCount);
+    },
+    [setPageStackDepth]
   );
   const syncPageChange = useCallback(
     (next: BookSnapshot) => {
@@ -404,6 +448,7 @@ export function FlipbookRenderer({
         }}
       >
         <Box
+          ref={volumeRef}
           className="flipbook-volume"
           data-intro={introState}
           data-orientation={snapshot.orientation}
@@ -454,8 +499,11 @@ export function FlipbookRenderer({
             }}
             onPageChange={syncPageChange}
             onChangeOrientation={syncOrientation}
+            onTurnProgress={syncTurnProgress}
             onChangeState={({ state }) => {
               if (state === 'read') {
+                const current = snapshotRef.current;
+                setPageStackDepth(current.page, current.pageCount);
                 turningRef.current = false;
                 turnCommittedRef.current = false;
                 setTransitionState('idle');

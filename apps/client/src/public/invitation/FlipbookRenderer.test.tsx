@@ -196,27 +196,42 @@ describe('FlipbookRenderer physical leaves', () => {
     await waitFor(() => expect(container.querySelector('.flipbook-reader')).toHaveAttribute('data-transition', 'idle'));
   });
 
-  it('keeps one stable mobile binding as the reader advances', async () => {
+  it('transfers mobile page depth continuously as the reader advances', async () => {
     setViewport(390);
     const { container } = renderFlipbook();
     await screen.findByText('1 / 6');
+    const volume = container.querySelector('.flipbook-volume') as HTMLElement;
+    expect(volume.style.getPropertyValue('--flipbook-accumulated-depth')).toBe('1px');
+    expect(volume.style.getPropertyValue('--flipbook-remaining-depth')).toBe('7px');
+
     fireEvent.click(screen.getByRole('button', { name: 'Abrir invitación' }));
     await screen.findByText('2 / 6');
     await waitFor(() => expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-intro', 'open'));
-    const volume = container.querySelector('.flipbook-volume');
     expect(volume).toHaveAttribute('data-mobile-spine', 'true');
     expect(volume).not.toHaveAttribute('data-page-stack');
+    expect(volume.style.getPropertyValue('--flipbook-accumulated-depth')).toBe('2.2px');
+    expect(volume.style.getPropertyValue('--flipbook-remaining-depth')).toBe('5.8px');
 
+    (globalThis as typeof globalThis & { __flipbookMockAsync?: boolean }).__flipbookMockAsync = true;
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
-    expect(screen.getByText('3 / 6')).toBeVisible();
+    expect(volume.style.getPropertyValue('--flipbook-accumulated-depth')).toBe('2.8px');
+    expect(volume.style.getPropertyValue('--flipbook-remaining-depth')).toBe('5.2px');
+    await screen.findByText('3 / 6');
+    expect(volume.style.getPropertyValue('--flipbook-accumulated-depth')).toBe('3.4px');
+    expect(volume.style.getPropertyValue('--flipbook-remaining-depth')).toBe('4.6px');
     expect(volume).toHaveAttribute('data-mobile-spine', 'true');
 
+    (globalThis as typeof globalThis & { __flipbookMockAsync?: boolean }).__flipbookMockAsync = false;
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
     expect(screen.getByText('4 / 6')).toBeVisible();
+    expect(volume.style.getPropertyValue('--flipbook-accumulated-depth')).toBe('4.6px');
+    expect(volume.style.getPropertyValue('--flipbook-remaining-depth')).toBe('3.4px');
     expect(volume).toHaveAttribute('data-mobile-spine', 'true');
 
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
     expect(screen.getByText('5 / 6')).toBeVisible();
+    expect(volume.style.getPropertyValue('--flipbook-accumulated-depth')).toBe('5.8px');
+    expect(volume.style.getPropertyValue('--flipbook-remaining-depth')).toBe('2.2px');
     expect(volume).toHaveAttribute('data-mobile-spine', 'true');
   });
 
@@ -228,9 +243,16 @@ describe('FlipbookRenderer physical leaves', () => {
     await screen.findByText('2 / 6');
     await waitFor(() => expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-intro', 'open'));
 
+    const volume = container.querySelector('.flipbook-volume') as HTMLElement;
+    (globalThis as typeof globalThis & { __flipbookMockAsync?: boolean }).__flipbookMockAsync = true;
     fireEvent.click(screen.getByRole('button', { name: 'Anterior' }));
     expect(screen.getByTestId('flipbook-engine-mock')).toHaveAttribute('data-last-turn-direction', 'prev');
     expect(screen.getByTestId('flipbook-engine-mock')).toHaveAttribute('data-last-turn-corner', 'bottom');
+    expect(volume.style.getPropertyValue('--flipbook-accumulated-depth')).toBe('1.6px');
+    expect(volume.style.getPropertyValue('--flipbook-remaining-depth')).toBe('6.4px');
+    await screen.findByText('1 / 6');
+    expect(volume.style.getPropertyValue('--flipbook-accumulated-depth')).toBe('1px');
+    expect(volume.style.getPropertyValue('--flipbook-remaining-depth')).toBe('7px');
   });
 
   it('reveals mobile controls on touch, then hides them after inactivity', async () => {
