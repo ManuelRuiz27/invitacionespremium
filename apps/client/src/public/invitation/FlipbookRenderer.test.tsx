@@ -153,9 +153,7 @@ describe('FlipbookRenderer physical leaves', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Abrir invitación' }));
     await screen.findByText('Página 2 de 4');
-    await waitFor(() =>
-      expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-intro', 'open')
-    );
+    await waitFor(() => expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-intro', 'open'));
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
     expect(screen.getByText('Página 4 de 4')).toBeVisible();
@@ -169,7 +167,6 @@ describe('FlipbookRenderer physical leaves', () => {
     setViewport(390);
     const { container } = renderFlipbook();
     await screen.findByText('1 / 6');
-    expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-page-stack', 'cover');
 
     fireEvent.click(screen.getByRole('button', { name: 'Abrir invitación' }));
     const volume = container.querySelector('.flipbook-volume');
@@ -196,31 +193,31 @@ describe('FlipbookRenderer physical leaves', () => {
     await screen.findByText('3 / 6');
     expect(container.querySelector('.flipbook-reader')).toHaveAttribute('data-transition', 'settling');
     expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-mobile-spine', 'true');
-    await waitFor(() =>
-      expect(container.querySelector('.flipbook-reader')).toHaveAttribute('data-transition', 'idle')
-    );
+    await waitFor(() => expect(container.querySelector('.flipbook-reader')).toHaveAttribute('data-transition', 'idle'));
   });
 
-  it('grows the mobile page stack as the reader advances', async () => {
+  it('keeps one stable mobile binding as the reader advances', async () => {
     setViewport(390);
     const { container } = renderFlipbook();
     await screen.findByText('1 / 6');
     fireEvent.click(screen.getByRole('button', { name: 'Abrir invitación' }));
     await screen.findByText('2 / 6');
     await waitFor(() => expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-intro', 'open'));
-    expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-page-stack', 'thin');
+    const volume = container.querySelector('.flipbook-volume');
+    expect(volume).toHaveAttribute('data-mobile-spine', 'true');
+    expect(volume).not.toHaveAttribute('data-page-stack');
 
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
     expect(screen.getByText('3 / 6')).toBeVisible();
-    expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-page-stack', 'medium');
+    expect(volume).toHaveAttribute('data-mobile-spine', 'true');
 
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
     expect(screen.getByText('4 / 6')).toBeVisible();
-    expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-page-stack', 'medium');
+    expect(volume).toHaveAttribute('data-mobile-spine', 'true');
 
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
     expect(screen.getByText('5 / 6')).toBeVisible();
-    expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-page-stack', 'thick');
+    expect(volume).toHaveAttribute('data-mobile-spine', 'true');
   });
 
   it('uses the lower corner for physical mobile reversal', async () => {

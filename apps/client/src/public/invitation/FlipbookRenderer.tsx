@@ -62,7 +62,6 @@ export function FlipbookRenderer({
   const [preloadedPageIndexes, setPreloadedPageIndexes] = useState<Set<number>>(() => new Set([0]));
   const [autoActive, setAutoActive] = useState(true);
   const [mobileControlsVisible, setMobileControlsVisible] = useState(false);
-  const [turnDirection, setTurnDirection] = useState<'next' | 'prev'>('next');
   const [readerVisible, setReaderVisible] = useState(false);
   const [documentVisible, setDocumentVisible] = useState(() => !document.hidden);
   const bookKey = `${token}:${pages.map((page) => page.id).join(':')}`;
@@ -73,24 +72,12 @@ export function FlipbookRenderer({
   const coverCanOpen = snapshot.page === 0 && snapshot.pageCount > 0 && pages.length > 1;
   const isOpening = introState === 'lifting' || introState === 'opening';
   const showMobileSpine = snapshot.page > 0 || transitionState !== 'idle' || introState === 'opening';
-  const pageStack =
-    snapshot.page === 0 || snapshot.pageCount < 2
-      ? 'cover'
-      : snapshot.page / (snapshot.pageCount - 1) < 1 / 3
-        ? 'thin'
-        : snapshot.page / (snapshot.pageCount - 1) < 2 / 3
-          ? 'medium'
-          : 'thick';
   const updateIntroState = useCallback((next: IntroState) => {
     introStateRef.current = next;
     setIntroState(next);
   }, []);
   const finishMobileIntro = useCallback(() => {
-    if (
-      introStateRef.current === 'opening' &&
-      introCameraReadyRef.current &&
-      introTurnReadyRef.current
-    ) {
+    if (introStateRef.current === 'opening' && introCameraReadyRef.current && introTurnReadyRef.current) {
       updateIntroState('open');
     }
   }, [updateIntroState]);
@@ -122,7 +109,6 @@ export function FlipbookRenderer({
     setIntroState('closed');
     setAutoActive(true);
     setMobileControlsVisible(false);
-    setTurnDirection('next');
   }, [bookKey]);
 
   useEffect(() => {
@@ -206,25 +192,21 @@ export function FlipbookRenderer({
     });
   }, [syncSnapshot]);
 
-  const turnPage = useCallback(
-    (direction: 'next' | 'prev') => {
-      if (turningRef.current) return;
-      const book = bookRef.current;
-      if (!book) return;
+  const turnPage = useCallback((direction: 'next' | 'prev') => {
+    if (turningRef.current) return;
+    const book = bookRef.current;
+    if (!book) return;
 
-      turningRef.current = true;
+    turningRef.current = true;
+    turnCommittedRef.current = false;
+    setTransitionState('turning');
+    const moved = direction === 'next' ? book.flipNext() : book.flipPrev('bottom');
+    if (!moved) {
+      turningRef.current = false;
       turnCommittedRef.current = false;
-      setTurnDirection(direction);
-      setTransitionState('turning');
-      const moved = direction === 'next' ? book.flipNext() : book.flipPrev('bottom');
-      if (!moved) {
-        turningRef.current = false;
-        turnCommittedRef.current = false;
-        setTransitionState('idle');
-      }
-    },
-    []
-  );
+      setTransitionState('idle');
+    }
+  }, []);
 
   const openCover = useCallback(
     (automated = false) => {
@@ -428,8 +410,6 @@ export function FlipbookRenderer({
           data-cover={snapshot.page === 0 && snapshot.orientation === 'landscape' ? 'landscape' : 'none'}
           data-can-open={coverCanOpen ? 'true' : undefined}
           data-mobile-spine={showMobileSpine || undefined}
-          data-turn-direction={turnDirection}
-          data-page-stack={pageStack}
           onClick={(event) => {
             if (snapshot.page !== 0 || !(event.target instanceof Element)) return;
             if (event.target.closest('button, a, input, select, textarea, [role="button"]')) return;

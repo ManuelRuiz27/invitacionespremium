@@ -268,100 +268,27 @@
     transform: scaleX(1);
   }
 
-  /* Anchor the spine to the book shell rather than a leaf, so it remains
-     visible behind the engine throughout both turning and settling. */
+  /* One restrained binding belongs to the shell, never to an individual
+     leaf. It stays fixed behind the engine while every page passes above it. */
   .flipbook-reader .flipbook-volume[data-mobile-spine='true']::before {
-    --mobile-spine-width: clamp(18px, 6%, 28px);
+    --mobile-spine-width: clamp(8px, 2.5%, 12px);
 
     display: block;
     z-index: 0;
-    top: 2px;
+    top: 3px;
     right: auto;
-    bottom: 2px;
-    left: -7px;
+    bottom: 3px;
+    left: -5px;
     width: var(--mobile-spine-width);
-    border: 1px solid rgba(255, 250, 239, 0.72);
-    border-radius: 5px 0 0 6px;
-    background:
-      linear-gradient(90deg, rgba(77, 55, 32, 0.52), rgba(216, 197, 171, 0.5) 48%, transparent),
-      repeating-linear-gradient(90deg, #e8decd 0, #e8decd 1px, #b6a58c 1px, #b6a58c 2px, #fff8ec 2px, #fff8ec 3px);
-    box-shadow: -3px 3px 8px rgba(0, 0, 0, 0.32);
+    border: 1px solid rgba(255, 250, 239, 0.52);
+    border-right: 0;
+    border-radius: 3px 0 0 4px;
+    background: linear-gradient(90deg, #725a41 0%, #bca789 34%, #eee4d3 66%, #9b8265 100%);
+    box-shadow:
+      -2px 2px 5px rgba(0, 0, 0, 0.26),
+      inset 1px 0 rgba(255, 250, 239, 0.24);
     transform: none;
-    transition:
-      width 180ms ease-out,
-      box-shadow 180ms ease-out;
-  }
-
-  .flipbook-reader .flipbook-volume[data-page-stack='thin'][data-mobile-spine='true']::before {
-    --mobile-spine-width: clamp(15px, 4.8%, 22px);
-  }
-
-  .flipbook-reader .flipbook-volume[data-page-stack='cover'][data-mobile-spine='true']::before {
-    --mobile-spine-width: clamp(22px, 7.4%, 34px);
-
-    border-color: rgba(255, 250, 239, 0.82);
-    background:
-      linear-gradient(90deg, rgba(57, 38, 20, 0.72), rgba(181, 147, 103, 0.48) 44%, transparent),
-      repeating-linear-gradient(90deg, #d9c6a8 0, #d9c6a8 2px, #907454 2px, #907454 3px, #fff8ec 3px, #fff8ec 4px);
-    box-shadow:
-      -4px 4px 11px rgba(0, 0, 0, 0.38),
-      inset -2px 0 3px rgba(57, 38, 20, 0.32);
-  }
-
-  .flipbook-reader .flipbook-volume[data-page-stack='medium'][data-mobile-spine='true']::before {
-    --mobile-spine-width: clamp(19px, 6.5%, 30px);
-  }
-
-  .flipbook-reader .flipbook-volume[data-page-stack='thick'][data-mobile-spine='true']::before {
-    --mobile-spine-width: clamp(23px, 8%, 36px);
-  }
-
-  .flipbook-reader[data-transition='turning']
-    .flipbook-volume[data-turn-direction='next'][data-mobile-spine='true']::before {
-    width: clamp(22px, 7.5%, 34px);
-    box-shadow:
-      -4px 3px 10px rgba(0, 0, 0, 0.38),
-      inset -2px 0 3px rgba(72, 51, 30, 0.22);
-  }
-
-  .flipbook-reader[data-transition='turning']
-    .flipbook-volume[data-turn-direction='prev'][data-mobile-spine='true']::before {
-    width: clamp(16px, 5%, 24px);
-    box-shadow:
-      -2px 2px 6px rgba(0, 0, 0, 0.24),
-      inset -1px 0 2px rgba(72, 51, 30, 0.14);
-  }
-
-  /* The engine's paper edge sits behind the active leaf. Varying it with the
-     accumulated stack makes page two and the final leaves read as one bound volume. */
-  .flipbook-reader .flipbook-volume[data-page-stack='thin'] .flipbook-magazine-engine.stf__parent::after {
-    left: -7px;
-    width: 9px;
-  }
-
-  .flipbook-reader .flipbook-volume[data-page-stack='cover'] .flipbook-magazine-engine.stf__parent::after {
-    left: -12px;
-    width: 17px;
-    border-color: rgba(255, 250, 239, 0.78);
-    background:
-      linear-gradient(90deg, rgba(57, 38, 20, 0.5), transparent 48%, rgba(70, 48, 29, 0.36)),
-      repeating-linear-gradient(90deg, #d9c6a8 0, #d9c6a8 2px, #907454 2px, #907454 3px, #fff8ec 3px, #fff8ec 4px);
-    box-shadow:
-      -3px 2px 0 #7d6041,
-      -6px 5px 12px rgba(0, 0, 0, 0.3);
-  }
-
-  .flipbook-reader .flipbook-volume[data-page-stack='medium'] .flipbook-magazine-engine.stf__parent::after {
-    left: -10px;
-    width: 14px;
-  }
-
-  .flipbook-reader .flipbook-volume[data-page-stack='thick'] .flipbook-magazine-engine.stf__parent::after {
-    left: -14px;
-    width: 19px;
-    box-shadow:
-      -3px 1px 0 #8e7558,
-      -7px 6px 12px rgba(0, 0, 0, 0.3);
+    transition: none;
   }
 
   .flipbook-reader .flipbook-magazine-engine.stf__parent {
@@ -369,6 +296,12 @@
     min-height: 0 !important;
     filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.32));
     transition: filter 180ms ease-out;
+  }
+
+  /* Desktop keeps its paper edge; portrait mobile uses only the shell-bound
+     spine above so duplicate edges cannot overlap or disappear mid-turn. */
+  .flipbook-reader .flipbook-magazine-engine.stf__parent::after {
+    display: none;
   }
 
   /* Lighting follows only the hard cover while the engine rotates that leaf.
@@ -382,39 +315,10 @@
     padding-bottom: 0 !important;
   }
 
-  /* A visible rolled leaf gives the single-page reader the same physical
-     depth as an open book. Both layers stay inside the page and ignore taps. */
-  .flipbook-reader[data-transition='idle'] [data-flipbook-page-id][data-folded='true']::before {
-    content: '';
-    position: absolute;
-    z-index: 2;
-    inset: 2px auto 2px 0;
-    width: clamp(36px, 12%, 52px);
-    border-radius: 0 100% 100% 0 / 0 6% 6% 0;
-    background: linear-gradient(90deg, rgba(48, 33, 18, 0.48) 35%, rgba(48, 33, 18, 0.18) 72%, transparent);
-    filter: blur(2px);
-    pointer-events: none;
-  }
-
+  /* The fixed binding replaces the former leaf-local rolled edge. The page
+     keeps the engine's own background layer but no idle-only spine overlay. */
   .flipbook-reader[data-transition='idle'] [data-flipbook-page-id][data-folded='true']::after {
-    top: 1px;
-    bottom: 1px;
-    width: clamp(26px, 8.5%, 38px);
-    border-left: 1px solid #fffaf0;
-    border-radius: 0 100% 100% 0 / 0 6% 6% 0;
-    background: linear-gradient(
-      90deg,
-      #8c775d 0%,
-      #d4c4ab 12%,
-      #fffaf0 38%,
-      #f7eddb 55%,
-      #d8c7ab 78%,
-      #998062 96%,
-      #786047 100%
-    );
-    box-shadow: inset -1px 0 1px rgba(255, 250, 239, 0.6);
-    clip-path: none;
-    transform: none;
+    content: none;
   }
 
   .flipbook-reader .flipbook-controls {
