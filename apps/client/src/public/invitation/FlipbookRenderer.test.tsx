@@ -255,6 +255,46 @@ describe('FlipbookRenderer physical leaves', () => {
     expect(volume.style.getPropertyValue('--flipbook-remaining-depth')).toBe('7px');
   });
 
+  it('leaves touch release on the live fold instead of cancelling and restarting the turn', async () => {
+    setViewport(390);
+    const { container } = renderFlipbook();
+    await screen.findByText('1 / 6');
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir invitación' }));
+    await screen.findByText('2 / 6');
+    await waitFor(() => expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-intro', 'open'));
+
+    const engine = screen.getByTestId('flipbook-engine-mock');
+    const foldSurface = container.querySelector('.stf__block') as HTMLElement;
+    const cancelled = vi.fn();
+    foldSurface.addEventListener('pointercancel', cancelled);
+
+    fireEvent.pointerDown(foldSurface, {
+      pointerId: 7,
+      pointerType: 'touch',
+      isPrimary: true,
+      clientX: 350,
+      clientY: 500
+    });
+    fireEvent.pointerMove(foldSurface, {
+      pointerId: 7,
+      pointerType: 'touch',
+      isPrimary: true,
+      clientX: 220,
+      clientY: 500
+    });
+    fireEvent.pointerUp(foldSurface, {
+      pointerId: 7,
+      pointerType: 'touch',
+      isPrimary: true,
+      clientX: 80,
+      clientY: 500
+    });
+
+    expect(cancelled).not.toHaveBeenCalled();
+    expect(engine).toHaveAttribute('data-swipe-distance', '10000');
+    expect(screen.getByText('2 / 6')).toBeVisible();
+  });
+
   it('reveals mobile controls on touch, then hides them after inactivity', async () => {
     setViewport(390);
     const { container } = renderFlipbook();

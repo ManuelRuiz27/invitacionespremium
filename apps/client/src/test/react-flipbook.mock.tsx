@@ -201,9 +201,11 @@ const HTMLFlipBook = forwardRef<FlipBookHandle, Props>(function HTMLFlipBook(
   return (
     <div
       {...props}
+      className={[props.className, 'stf__block'].filter(Boolean).join(' ')}
       aria-label={ariaLabel as string | undefined}
       data-testid="flipbook-engine-mock"
       data-orientation={orientation}
+      data-swipe-distance={_swipeDistance}
       data-last-turn-leaf={lastTurnLeaf ?? undefined}
       data-last-turn-direction={lastTurn?.direction}
       data-last-turn-corner={lastTurn?.corner}
