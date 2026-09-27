@@ -95,10 +95,6 @@
   filter: drop-shadow(0 12px 16px rgba(0, 0, 0, 0.25));
 }
 
-.flipbook-mobile-spine {
-  display: none;
-}
-
 /* Keep a paper edge behind the moving leaves, including the single-page
    mobile reader. Anchor it to the engine's actual book bounds. */
 .flipbook-volume:is([data-intro='opening'], [data-intro='open']) .flipbook-magazine-engine.stf__parent::after {
@@ -200,46 +196,14 @@
     transition: transform 180ms ease-out;
   }
 
-  /* Pull the camera back before opening so the guest can see the physical
-     action, then settle the reader at its normal reading scale on page two. */
-  .flipbook-reader .flipbook-volume[data-orientation][data-intro='overview'] {
-    transform: translateY(8px) scale(0.82);
-  }
-
   .flipbook-reader .flipbook-volume[data-orientation][data-intro='lifting'] {
-    transform: translateY(-6px) scale(0.84);
-  }
-
-  .flipbook-reader .flipbook-volume[data-orientation][data-intro='opening'] {
-    transform: translateY(-6px) scale(0.84);
-  }
-
-  .flipbook-reader .flipbook-volume[data-orientation][data-intro='reframing'] {
-    transform: translateY(-2px) scale(0.96);
+    transform: translateY(-4px);
   }
 
   .flipbook-reader .flipbook-magazine-engine.stf__parent {
     height: 100%;
     min-height: 0 !important;
     filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.32));
-  }
-
-  /* This decorative spine is owned by the volume, not by a transient leaf.
-     It therefore stays anchored while the engine moves a page in either direction. */
-  .flipbook-reader .flipbook-volume[data-mobile-spine='true'] .flipbook-mobile-spine {
-    position: absolute;
-    z-index: 0;
-    top: 2px;
-    bottom: 2px;
-    left: -7px;
-    width: clamp(18px, 6%, 28px);
-    border: 1px solid rgba(255, 250, 239, 0.72);
-    border-radius: 5px 0 0 6px;
-    background:
-      linear-gradient(90deg, rgba(77, 55, 32, 0.52), rgba(216, 197, 171, 0.5) 48%, transparent),
-      repeating-linear-gradient(90deg, #e8decd 0, #e8decd 1px, #b6a58c 1px, #b6a58c 2px, #fff8ec 2px, #fff8ec 3px);
-    box-shadow: -3px 3px 8px rgba(0, 0, 0, 0.32);
-    pointer-events: none;
   }
 
   .flipbook-reader .stf__wrapper {

@@ -146,43 +146,6 @@ describe('FlipbookRenderer physical leaves', () => {
     expect(screen.getByText('Página 4 de 4')).toBeVisible();
   });
 
-  it('stages the mobile opening from an overview and reframes after reaching page two', async () => {
-    setViewport(390);
-    const { container } = renderFlipbook();
-    await screen.findByText('1 / 6');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Abrir invitación' }));
-    const volume = container.querySelector('.flipbook-volume');
-    expect(['overview', 'lifting']).toContain(volume?.getAttribute('data-intro'));
-
-    await waitFor(() => expect(volume).toHaveAttribute('data-intro', 'lifting'), { timeout: 1000 });
-    await screen.findByText('2 / 6');
-    expect(['reframing', 'open']).toContain(volume?.getAttribute('data-intro'));
-    expect(volume).toHaveAttribute('data-mobile-spine', 'true');
-    expect(container.querySelector('.flipbook-mobile-spine')).toBeVisible();
-    await waitFor(() => expect(volume).toHaveAttribute('data-intro', 'open'), { timeout: 1000 });
-  });
-
-  it('keeps the mobile spine in place and returns from the bottom corner', async () => {
-    setViewport(390);
-    (globalThis as typeof globalThis & { __flipbookMockAsync?: boolean }).__flipbookMockAsync = true;
-    const { container } = renderFlipbook();
-    await screen.findByText('1 / 6');
-    fireEvent.click(screen.getByRole('button', { name: 'Abrir invitación' }));
-    await screen.findByText('2 / 6');
-    await waitFor(() => expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-intro', 'open'));
-
-    fireEvent.click(screen.getByRole('button', { name: 'Anterior' }));
-    const engine = screen.getByTestId('flipbook-engine-mock');
-    expect(engine).toHaveAttribute('data-last-turn-direction', 'prev');
-    expect(engine).toHaveAttribute('data-last-turn-corner', 'bottom');
-    expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-mobile-spine', 'true');
-    expect(container.querySelector('.flipbook-mobile-spine')).toBeVisible();
-
-    await screen.findByText('1 / 6');
-    expect(container.querySelector('.flipbook-volume')).not.toHaveAttribute('data-mobile-spine');
-  });
-
   it('blocks external links and RSVP while the engine reports an in-flight turn', async () => {
     setViewport(1200);
     (globalThis as typeof globalThis & { __flipbookMockAsync?: boolean }).__flipbookMockAsync = true;

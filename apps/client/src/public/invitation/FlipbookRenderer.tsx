@@ -11,7 +11,6 @@ import { useReducedMotion } from '../useReducedMotion';
 import './FlipbookRenderer.css';
 
 const initialSnapshot: BookSnapshot = { page: 0, pageCount: 0, orientation: 'portrait', visiblePages: [0] };
-type IntroState = 'closed' | 'overview' | 'lifting' | 'opening' | 'reframing' | 'open';
 
 function preloadPageIndexes(pageCount: number, visiblePages: number[]): Set<number> {
   if (pageCount <= 0 || visiblePages.length === 0) return new Set();
@@ -48,10 +47,9 @@ export function FlipbookRenderer({
   const turningRef = useRef(false);
   const touchRef = useRef<{ id: number; x: number; y: number; time: number; scrolling: boolean } | null>(null);
   const introTimerRef = useRef<number | null>(null);
-  const introStateRef = useRef<IntroState>('closed');
   const [snapshot, setSnapshot] = useState<BookSnapshot>(initialSnapshot);
   const [transitionState, setTransitionState] = useState<'idle' | 'turning' | 'settling'>('idle');
-  const [introState, setIntroState] = useState<IntroState>('closed');
+  const [introState, setIntroState] = useState<'closed' | 'lifting' | 'opening' | 'open'>('closed');
   const [preloadedPageIndexes, setPreloadedPageIndexes] = useState<Set<number>>(() => new Set([0]));
   const [autoActive, setAutoActive] = useState(true);
   const [readerVisible, setReaderVisible] = useState(false);
@@ -62,14 +60,7 @@ export function FlipbookRenderer({
   const canGoPrevious = snapshot.page > 0;
   const canGoNext = visiblePageIndexes.at(-1) !== pages.length - 1;
   const coverCanOpen = snapshot.page === 0 && snapshot.pageCount > 0 && pages.length > 1;
-  const isOpening =
-    introState === 'overview' || introState === 'lifting' || introState === 'opening' || introState === 'reframing';
-  const showMobileSpine = snapshot.page > 0 || introState === 'opening' || introState === 'reframing';
-
-  const updateIntroState = useCallback((next: IntroState) => {
-    introStateRef.current = next;
-    setIntroState(next);
-  }, []);
+  const isOpening = introState === 'lifting' || introState === 'opening';
 
   useLayoutEffect(() => {
     setSnapshot(initialSnapshot);
@@ -79,9 +70,9 @@ export function FlipbookRenderer({
     if (introTimerRef.current !== null) window.clearTimeout(introTimerRef.current);
     introTimerRef.current = null;
     setTransitionState('idle');
-    updateIntroState('closed');
+    setIntroState('closed');
     setAutoActive(true);
-  }, [bookKey, updateIntroState]);
+  }, [bookKey]);
 
   useEffect(() => {
     const reader = readerRef.current;
@@ -121,20 +112,16 @@ export function FlipbookRenderer({
     return () => window.clearTimeout(preload);
   }, [pages.length, visiblePageKey]);
 
-  const syncSnapshot = useCallback(
-    (next: BookSnapshot) => {
-      // Core exposes a spread head, not the last real leaf read in portrait.
-      // Resize can emit `flip` before `changeOrientation`; retain that leaf until
-      // the orientation callback restores it through the public instant API.
-      if (next.orientation === orientationRef.current && !next.visiblePages.includes(focalPageRef.current)) {
-        focalPageRef.current = next.page;
-      }
-      setSnapshot(next);
-      if (next.page === 0) updateIntroState('closed');
-      else if (introStateRef.current === 'closed') updateIntroState('open');
-    },
-    [updateIntroState]
-  );
+  const syncSnapshot = useCallback((next: BookSnapshot) => {
+    // Core exposes a spread head, not the last real leaf read in portrait.
+    // Resize can emit `flip` before `changeOrientation`; retain that leaf until
+    // the orientation callback restores it through the public instant API.
+    if (next.orientation === orientationRef.current && !next.visiblePages.includes(focalPageRef.current)) {
+      focalPageRef.current = next.page;
+    }
+    setSnapshot(next);
+    setIntroState(next.page === 0 ? 'closed' : 'open');
+  }, []);
   const syncOrientation = useCallback(() => {
     const book = bookRef.current?.pageFlip();
     if (!book || book.getPageCount() === 0) return;
@@ -158,7 +145,7 @@ export function FlipbookRenderer({
 
       turningRef.current = true;
       setTransitionState(reducedMotion ? 'settling' : 'turning');
-      const moved = direction === 'next' ? book.flipNext() : book.flipPrev('bottom');
+      const moved = direction === 'next' ? book.flipNext() : book.flipPrev();
       if (!moved) {
         turningRef.current = false;
         setTransitionState('idle');
@@ -172,30 +159,21 @@ export function FlipbookRenderer({
       if (!automated) setAutoActive(false);
       if (!coverCanOpen || turningRef.current || introTimerRef.current !== null) return;
       if (reducedMotion) {
-        updateIntroState('opening');
+        setIntroState('opening');
         turnPage('next');
         return;
       }
-      if (mobileReader) {
-        updateIntroState('overview');
-        introTimerRef.current = window.setTimeout(() => {
-          updateIntroState('lifting');
-          introTimerRef.current = window.setTimeout(() => {
-            introTimerRef.current = null;
-            updateIntroState('opening');
-            turnPage('next');
-          }, 180);
-        }, 220);
-        return;
-      }
-      updateIntroState('lifting');
-      introTimerRef.current = window.setTimeout(() => {
-        introTimerRef.current = null;
-        updateIntroState('opening');
-        turnPage('next');
-      }, 560);
+      setIntroState('lifting');
+      introTimerRef.current = window.setTimeout(
+        () => {
+          introTimerRef.current = null;
+          setIntroState('opening');
+          turnPage('next');
+        },
+        mobileReader ? 180 : 560
+      );
     },
-    [coverCanOpen, mobileReader, reducedMotion, turnPage, updateIntroState]
+    [coverCanOpen, mobileReader, reducedMotion, turnPage]
   );
 
   const navigate = useCallback(
@@ -359,14 +337,12 @@ export function FlipbookRenderer({
           data-orientation={snapshot.orientation}
           data-cover={snapshot.page === 0 && snapshot.orientation === 'landscape' ? 'landscape' : 'none'}
           data-can-open={coverCanOpen ? 'true' : undefined}
-          data-mobile-spine={showMobileSpine || undefined}
           onClick={(event) => {
             if (snapshot.page !== 0 || !(event.target instanceof Element)) return;
             if (event.target.closest('button, a, input, select, textarea, [role="button"]')) return;
             openCover();
           }}
         >
-          <Box className="flipbook-mobile-spine" aria-hidden="true" />
           <HTMLFlipBook
             key={bookKey}
             ref={bookRef}
@@ -409,17 +385,6 @@ export function FlipbookRenderer({
               if (state === 'read') {
                 turningRef.current = false;
                 setTransitionState('idle');
-                if (introStateRef.current === 'opening') {
-                  if (reducedMotion || !mobileReader) {
-                    updateIntroState('open');
-                  } else {
-                    updateIntroState('reframing');
-                    introTimerRef.current = window.setTimeout(() => {
-                      introTimerRef.current = null;
-                      updateIntroState('open');
-                    }, 220);
-                  }
-                }
               } else {
                 turningRef.current = true;
                 setTransitionState((current) => (current === 'turning' ? 'settling' : 'turning'));
