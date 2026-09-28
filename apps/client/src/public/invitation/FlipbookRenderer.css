@@ -222,7 +222,10 @@
     );
     aspect-ratio: 480 / 680;
     max-height: 100%;
-    transform: none;
+    /* Keep enough negative space for the cover and sheet trajectories to be
+       perceived as one object. The engine still receives the full physical
+       host size, so hit testing and page geometry retain their precision. */
+    transform: scale(0.9);
     transform-origin: 50% 50%;
     transition: none;
     will-change: transform;
@@ -415,43 +418,43 @@
 
 @keyframes flipbook-mobile-camera-open {
   0% {
-    transform: scale(1);
+    transform: scale(0.9);
   }
   8% {
-    transform: scale(0.946);
+    transform: scale(0.851);
   }
   14% {
-    transform: scale(0.904);
+    transform: scale(0.814);
   }
   19% {
-    transform: scale(0.878);
+    transform: scale(0.79);
   }
   21% {
-    transform: scale(0.87);
+    transform: scale(0.783);
   }
   23% {
-    transform: scale(0.872);
+    transform: scale(0.785);
   }
   29% {
-    transform: scale(0.886);
+    transform: scale(0.797);
   }
   36% {
-    transform: scale(0.91);
+    transform: scale(0.819);
   }
   48% {
-    transform: scale(0.932);
+    transform: scale(0.839);
   }
   64% {
-    transform: scale(0.958);
+    transform: scale(0.862);
   }
   78% {
-    transform: scale(0.98);
+    transform: scale(0.882);
   }
   90% {
-    transform: scale(0.994);
+    transform: scale(0.895);
   }
   100% {
-    transform: scale(1);
+    transform: scale(0.9);
   }
 }
 
