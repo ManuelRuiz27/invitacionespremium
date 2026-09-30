@@ -8,7 +8,7 @@ overrides:
   brace-expansion@2.1.4: 2.1.3
 
 patchedDependencies:
-  '@gullabs/flipbook-core@3.1.0': 936e455f7514d2feccf51bfce8ed98e298e1e82db17c5548f5c344b0b4f899b9
+  '@gullabs/flipbook-core@3.1.0': 3673de1e5f99681fad487c95cc893e17422ad925b02766b9f86fe98f103d9c38
 
 importers:
 
@@ -5362,11 +5362,11 @@ snapshots:
     optionalDependencies:
       '@noble/hashes': 1.8.0
 
-  '@gullabs/flipbook-core@3.1.0(patch_hash=936e455f7514d2feccf51bfce8ed98e298e1e82db17c5548f5c344b0b4f899b9)': {}
+  '@gullabs/flipbook-core@3.1.0(patch_hash=3673de1e5f99681fad487c95cc893e17422ad925b02766b9f86fe98f103d9c38)': {}
 
   '@gullabs/react-flipbook@3.1.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
-      '@gullabs/flipbook-core': 3.1.0(patch_hash=936e455f7514d2feccf51bfce8ed98e298e1e82db17c5548f5c344b0b4f899b9)
+      '@gullabs/flipbook-core': 3.1.0(patch_hash=3673de1e5f99681fad487c95cc893e17422ad925b02766b9f86fe98f103d9c38)
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
 

@@ -68,6 +68,7 @@ export const FlipbookPage = forwardRef<HTMLDivElement, FlipbookPageProps>(functi
     <div
       ref={setRefs}
       data-flipbook-page-id={page.id}
+      data-stf-soft-mesh="true"
       data-folded={folded || undefined}
       data-density={pageNumber === 1 ? 'hard' : undefined}
       aria-label={`Página ${pageNumber} de ${pageCount}`}

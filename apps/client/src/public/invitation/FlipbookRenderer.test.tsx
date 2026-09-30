@@ -127,6 +127,7 @@ describe('FlipbookRenderer physical leaves', () => {
     expect(engine).toHaveAttribute('data-orientation', 'landscape');
     expect(engine.querySelectorAll(':scope > [data-leaf-index]')).toHaveLength(6);
     expect(engine.querySelectorAll('[data-flipbook-page-id]')).toHaveLength(6);
+    expect(engine.querySelectorAll('[data-stf-soft-mesh="true"]')).toHaveLength(6);
     expect(screen.getByLabelText('Página 1 de 6')).toBeVisible();
 
     fireEvent.click(screen.getByRole('button', { name: 'Abrir invitación' }));
