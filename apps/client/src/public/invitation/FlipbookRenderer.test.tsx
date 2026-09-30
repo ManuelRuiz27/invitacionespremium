@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ApiClient, PublicInvitationView } from '@invitaciones/api-client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FlipbookRenderer } from './FlipbookRenderer';
@@ -39,6 +39,10 @@ function fixture(pageCount: number): PublicInvitationView {
 }
 
 function setMedia({ spread = false, reducedMotion = true } = {}) {
+  Object.defineProperties(window, {
+    innerHeight: { configurable: true, value: spread ? 768 : 844 },
+    innerWidth: { configurable: true, value: spread ? 1024 : 390 }
+  });
   Object.defineProperty(window, 'matchMedia', {
     configurable: true,
     writable: true,
@@ -117,6 +121,22 @@ describe('FlipbookRenderer', () => {
     await act(async () => undefined);
     fireEvent.click(container.querySelector('.flipbook-volume')!);
     expect(reader).toHaveAttribute('data-visible-pages', '1,2');
+  });
+
+  it('rebuilds the visual spread after a resize without losing the focal leaf', async () => {
+    setMedia();
+    const { container } = renderFlipbook();
+    const reader = container.querySelector('.flipbook-reader')!;
+
+    await act(async () => undefined);
+    fireEvent.click(screen.getByRole('button', { name: /abrir invit/i }));
+    expect(reader).toHaveAttribute('data-visible-pages', '1');
+
+    setMedia({ spread: true });
+    await act(async () => window.dispatchEvent(new Event('resize')));
+
+    expect(container.querySelector('.flip-engine')).toHaveAttribute('data-layout', 'spread');
+    await waitFor(() => expect(reader).toHaveAttribute('data-visible-pages', '1,2'));
   });
 
   it('keeps visible hotspots interactive while the reader is settled', async () => {

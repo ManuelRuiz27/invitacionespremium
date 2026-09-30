@@ -6,7 +6,8 @@ import ChevronRight from '@mui/icons-material/ChevronRight';
 import Pause from '@mui/icons-material/Pause';
 import PlayArrow from '@mui/icons-material/PlayArrow';
 import { FlipEngine, type FlipEngineHandle } from './flip-engine/FlipEngine';
-import type { BookSnapshot, FlipEnginePhase, FlipLayout } from './flip-engine/types';
+import { useResponsiveLayout } from './flip-engine/responsive-layout';
+import type { BookSnapshot, FlipEnginePhase } from './flip-engine/types';
 import { FlipbookPage } from './FlipbookPage';
 import { useReducedMotion } from '../useReducedMotion';
 import './FlipbookRenderer.css';
@@ -57,11 +58,10 @@ export function FlipbookRenderer({
     [view.design?.pages]
   );
   const reducedMotion = useReducedMotion();
-  const canUseSpread = useMediaQuery('(orientation: landscape) and (min-width: 900px)');
   const mobileReader = useMediaQuery('(orientation: portrait), (max-width: 639px)');
-  const layout: FlipLayout = canUseSpread ? 'spread' : 'single';
   const engineRef = useRef<FlipEngineHandle | null>(null);
   const readerRef = useRef<HTMLDivElement | null>(null);
+  const { layout } = useResponsiveLayout(readerRef);
   const volumeRef = useRef<HTMLDivElement | null>(null);
   const snapshotRef = useRef<BookSnapshot>(initialSnapshot);
   const controlsTimerRef = useRef<number | null>(null);
@@ -267,6 +267,7 @@ export function FlipbookRenderer({
           className="flipbook-volume"
           data-intro={introState}
           data-orientation={snapshot.orientation}
+          data-layout={layout}
           data-cover="none"
           data-can-open={coverCanOpen ? 'true' : undefined}
           data-flip-engine

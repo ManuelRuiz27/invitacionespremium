@@ -103,8 +103,8 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
       onChangeState?.('idle');
     }
     const next = stateRef.current.setLayout(layout);
-    setSnapshot(next);
-  }, [layout, onChangeState]);
+    emitSnapshot(next);
+  }, [emitSnapshot, layout, onChangeState]);
 
   useEffect(
     () => () => {
