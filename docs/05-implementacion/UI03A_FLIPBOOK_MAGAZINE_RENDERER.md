@@ -29,10 +29,10 @@ Heyzine Magazine es sólo benchmark de interacción; no copiar código, branding
 
 Implementación vigente:
 
-- `@gullabs/react-flipbook@3.1.0` como wrapper React;
-- cada `FlipbookPage` real es un child directo del engine;
-- `@gullabs/flipbook-core` controla orientation, `visiblePages`, spreads y giro;
-- `hardCovers` representa primera y última hoja como cubiertas físicas;
+- `FlipEngine` propio en `apps/client/src/public/invitation/flip-engine`;
+- cada `FlipbookPage` real es una hoja individual del engine;
+- `BookState` controla orientation y `visiblePages`; `PageTurnController` controla el giro;
+- primera y última hoja se proyectan como cubiertas físicas;
 - `HotspotLayer` sigue filtrado por `flipbookPageId`;
 - desktop usa landscape cuando hay ancho suficiente;
 - mobile usa portrait/single leaf;
@@ -43,9 +43,7 @@ La implementación anterior que preagrupaba `[2,3]` dentro de un único child de
 
 ## 4. Semántica física normativa
 
-No construir spreads manualmente.
-
-El engine recibe:
+`BookState` construye los spreads a partir de hojas individuales. El engine recibe:
 
 ```text
 page 1
@@ -111,7 +109,7 @@ Conservar:
 - `Página X de N` o rango visible;
 - preservación de página focal al cambiar orientation.
 
-El engine es autoridad de `visiblePages`; no duplicar su modelo de spreads en helpers paralelos.
+`BookState` es autoridad de `visiblePages`; no duplicar su modelo de spreads en helpers paralelos.
 
 ## 8. Assets y rendimiento
 
@@ -125,12 +123,7 @@ El warning de Vite por chunk >500 kB no bloquea este ticket. Lazy-loading del en
 
 ## 9. Dependencias/licencias
 
-Aprobadas:
-
-- `@gullabs/react-flipbook@3.1.0` — MIT;
-- `@gullabs/flipbook-core@3.1.0` — MPL-2.0.
-
-`THIRD_PARTY_NOTICES.md` debe mantenerse con el source upstream y licencia del core.
+`FlipEngine` no requiere una dependencia de runtime de terceros ni un aviso de licencia específico.
 
 ## 10. Fixture DEV
 

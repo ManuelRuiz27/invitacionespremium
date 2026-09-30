@@ -149,6 +149,79 @@
   cursor: pointer;
 }
 
+/* The public reader owns the page geometry. The legacy class names remain on
+   the host only so existing decorative rules continue to apply while the
+   third-party engine is removed. */
+.flipbook-volume[data-flip-engine] .flip-engine {
+  position: relative;
+  display: block;
+  width: 100%;
+  max-width: 960px;
+  aspect-ratio: 960 / 680;
+  overflow: visible;
+  isolation: isolate;
+  perspective: 1600px;
+  transform-style: preserve-3d;
+}
+
+.flipbook-volume[data-flip-engine] .flip-engine[data-layout='single'] {
+  max-width: 480px;
+  aspect-ratio: 480 / 680;
+}
+
+.flipbook-volume[data-flip-engine] .flip-engine-page {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  overflow: hidden;
+  background: #f3eee6;
+  box-shadow: inset 0 0 0 1px rgba(95, 70, 43, 0.14);
+  transform-style: preserve-3d;
+}
+
+.flipbook-volume[data-flip-engine] .flip-engine-page > [data-flipbook-page-id] {
+  width: 100%;
+  height: 100%;
+}
+
+.flipbook-volume[data-flip-engine] .flip-engine-page.flip-engine-moving {
+  will-change: clip-path, opacity, transform;
+}
+
+.flipbook-volume[data-flip-engine] .flip-engine-page.flip-engine-moving::after {
+  content: '';
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  opacity: var(--flip-engine-fold-opacity, 0);
+  background: linear-gradient(90deg, rgba(52, 35, 19, 0.42), transparent 42%, rgba(255, 248, 235, 0.2));
+  pointer-events: none;
+}
+
+.flipbook-volume[data-flip-engine] .flip-engine-spine {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  background: linear-gradient(90deg, rgba(61, 42, 25, 0.35), rgba(255, 249, 239, 0.42));
+  box-shadow: 0 0 8px rgba(42, 26, 12, 0.25);
+  pointer-events: none;
+}
+
+.flipbook-volume[data-flip-engine] .flip-engine[data-layout='single'] .flip-engine-spine {
+  display: none;
+}
+
+.flipbook-volume[data-flip-engine][data-intro='closed'] {
+  transform: translateY(15px) rotateX(0deg) rotateZ(0deg) scale(0.97);
+}
+
+.flipbook-volume[data-flip-engine][data-intro='opening'] {
+  transform: translateY(-17px) rotateX(8deg) rotateZ(-1.5deg);
+}
+
 @media (max-width: 1023px), (pointer: coarse) and (max-height: 500px) {
   .flipbook-reader-title {
     position: absolute;

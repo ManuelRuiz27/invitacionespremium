@@ -16,6 +16,3 @@ minimumReleaseAgeExclude:
   - prettier@3.9.6
   - react-dom@19.2.8
   - react@19.2.8
-
-patchedDependencies:
-  '@gullabs/flipbook-core@3.1.0': patches/@gullabs__flipbook-core@3.1.0.patch

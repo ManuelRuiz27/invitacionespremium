@@ -2,6 +2,8 @@
 
 Implementación y QA: 2026-09-23. Ámbito: Client público, fixture DEV y verificación del navegador. Sin cambios de dominio, API, persistencia ni dependencias del engine.
 
+> **Vigencia:** desde la Fase 1, el runtime usa `FlipEngine` propio. Las referencias posteriores a `@gullabs/flipbook-core`, `HTMLFlipBook`, `hardCovers` y `allowTouchScroll` documentan el baseline de UI-03B y quedan sustituidas por `BookState`, `PageTurnController` y la superficie Pointer Events de `FlipEngine`. El contrato vigente es `docs/04-tecnico/FLIPBOOK_MAGAZINE_CONTRACT.md`.
+
 ## Archaeology
 
 - El shell público consumía ancho y altura con encabezado, márgenes y controles. En 390×844 la portada terminaba aproximadamente en y=855, antes de los controles.

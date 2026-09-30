@@ -248,7 +248,7 @@ test('visual evidence at a physical curl frame', async ({ page }, info) => {
   await expect(reader(page)).not.toHaveAttribute('data-transition', 'idle');
   expect(
     await page
-      .locator('.stf__item')
+      .locator('[data-flip-engine-role="moving"]')
       .evaluateAll((leaves) => leaves.some((leaf) => leaf.getAttribute('style')?.includes('clip-path')))
   ).toBe(true);
   await reader(page).evaluate((element) => {
