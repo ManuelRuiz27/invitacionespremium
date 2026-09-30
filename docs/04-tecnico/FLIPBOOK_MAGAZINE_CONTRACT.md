@@ -88,7 +88,7 @@ El cambio de página debe comunicar una hoja física mediante como mínimo:
 
 Avanzar gira de derecha a izquierda; retroceder invierte el movimiento.
 
-Implementación aprobada actualmente: `FlipEngine` propio en `apps/client/src/public/invitation/flip-engine`. `BookState` es autoridad de `visiblePages` y orientation; `PageTurnController` es autoridad de los estados de giro; `PageRenderer` y `LightingRenderer` derivan caras, pliegue y luz de la geometría continua; `ResponsiveLayout` elige single/spread con viewport, `ResizeObserver` y `visualViewport`. Cada `FlipbookPage` real sigue siendo una hoja individual del engine; nunca un spread preagrupado.
+Implementación aprobada actualmente: `FlipEngine` propio en `apps/client/src/public/invitation/flip-engine`. `BookState` es autoridad de `visiblePages` y orientation; `PageTurnController` es autoridad de los estados de giro; `GestureController` clasifica el pointer como scroll vertical, arrastre horizontal o tap lateral antes de iniciar el giro; `PageRenderer` y `LightingRenderer` derivan caras, pliegue y luz de la geometría continua; `ResponsiveLayout` elige single/spread con viewport, `ResizeObserver` y `visualViewport`. Cada `FlipbookPage` real sigue siendo una hoja individual del engine; nunca un spread preagrupado.
 
 Primera y última hoja son cubiertas físicas. `BookState` calcula los spreads sin páginas dummy ni assets duplicados.
 

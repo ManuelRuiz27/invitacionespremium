@@ -9,6 +9,7 @@ import {
   type ReactNode
 } from 'react';
 import { BookState } from './book-state';
+import { GestureController } from './gesture-controller';
 import { pageTurnGeometry } from './page-geometry';
 import { PageRenderer } from './page-renderer';
 import { PageTurnController } from './page-turn-controller';
@@ -66,12 +67,14 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
 ) {
   const stateRef = useRef(new BookState(pageCount, layout));
   const controllerRef = useRef(new PageTurnController());
+  const gestureRef = useRef(new GestureController());
   const rootRef = useRef<HTMLDivElement | null>(null);
   const movingRef = useRef<HTMLDivElement | null>(null);
   const activeTurnRef = useRef<ActiveTurn | null>(null);
   const frameRef = useRef<number | null>(null);
   const originYRef = useRef(0);
   const pointerIdRef = useRef<number | null>(null);
+  const suppressClickRef = useRef(false);
   const [snapshot, setSnapshot] = useState<BookSnapshot>(() => stateRef.current.snapshot());
   const [activeTurn, setActiveTurn] = useState<ActiveTurn | null>(null);
 
@@ -84,6 +87,7 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
   );
 
   useEffect(() => {
+    gestureRef.current.reset();
     const state = new BookState(pageCount, layout, snapshot.page);
     stateRef.current = state;
     const next = state.snapshot();
@@ -98,6 +102,7 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
       if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
       frameRef.current = null;
       controllerRef.current.reset();
+      gestureRef.current.reset();
       activeTurnRef.current = null;
       setActiveTurn(null);
       onChangeState?.('idle');
@@ -248,8 +253,6 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
     [emitSnapshot, programmaticTurn]
   );
 
-  const pointerDirection = (x: number, width: number): FlipDirection => (x >= width / 2 ? 'next' : 'prev');
-
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     if (event.target instanceof Element && event.target.closest('button, a, input, select, textarea, [role="button"]'))
@@ -257,11 +260,10 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
     const root = rootRef.current;
     if (!root || activeTurnRef.current) return;
     const box = root.getBoundingClientRect();
-    const direction = pointerDirection(event.clientX - box.left, box.width);
     const point = { x: event.clientX - box.left, y: event.clientY - box.top, at: now() };
-    if (!begin(direction, point)) return;
     pointerIdRef.current = event.pointerId;
-    root.setPointerCapture?.(event.pointerId);
+    suppressClickRef.current = false;
+    gestureRef.current.start(point);
   };
 
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -269,7 +271,17 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
     const root = rootRef.current;
     if (!root) return;
     const box = root.getBoundingClientRect();
-    const turn = controllerRef.current.move({ x: event.clientX - box.left, y: event.clientY - box.top, at: now() });
+    const point = { x: event.clientX - box.left, y: event.clientY - box.top, at: now() };
+    const gesture = gestureRef.current.move(point);
+    if (gesture.intent !== 'undecided') suppressClickRef.current = true;
+    if (gesture.intent !== 'turn' || !gesture.direction) return;
+    if (!activeTurnRef.current && !begin(gesture.direction, point)) {
+      gestureRef.current.reset();
+      pointerIdRef.current = null;
+      return;
+    }
+    root.setPointerCapture?.(event.pointerId);
+    const turn = controllerRef.current.move(point);
     applyVisualState(turn);
     if (turn.phase === 'dragging') event.preventDefault();
   };
@@ -282,6 +294,23 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
       root?.releasePointerCapture?.(event.pointerId);
     } catch {
       // Browsers may release capture before pointercancel reaches React.
+    }
+    const box = root?.getBoundingClientRect();
+    const point = {
+      x: event.clientX - (box?.left ?? 0),
+      y: event.clientY - (box?.top ?? 0),
+      at: now()
+    };
+    const gesture = cancelled ? null : gestureRef.current.finish(point, box?.width ?? 1);
+    gestureRef.current.reset();
+    if (gesture?.intent !== 'undecided') suppressClickRef.current = true;
+    if (!activeTurnRef.current) {
+      if (!cancelled && gesture?.intent === 'turn' && gesture.direction) {
+        programmaticTurn(gesture.direction);
+        return;
+      }
+      if (!cancelled && gesture?.tapDirection) programmaticTurn(gesture.tapDirection);
+      return;
     }
     if (!cancelled && controllerRef.current.current.progress < 0.01) {
       controllerRef.current.reset();
@@ -308,6 +337,12 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={(event) => releasePointer(event, false)}
+      onClick={(event) => {
+        if (!suppressClickRef.current) return;
+        event.preventDefault();
+        event.stopPropagation();
+        suppressClickRef.current = false;
+      }}
       style={{ touchAction: 'pan-y' }}
     >
       <div className="flip-engine-spine" aria-hidden="true" />
