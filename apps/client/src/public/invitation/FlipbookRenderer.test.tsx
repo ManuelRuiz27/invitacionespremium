@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ApiClient, PublicInvitationView } from '@invitaciones/api-client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { FlipbookRenderer } from './FlipbookRenderer';
+import { FlipbookRenderer, preloadPageIndexes } from './FlipbookRenderer';
 
 const token = 'flipbook-renderer-test';
 
@@ -82,6 +82,12 @@ function renderFlipbook(pageCount = 6, onRsvp = vi.fn()) {
 afterEach(() => setMedia({ spread: false, reducedMotion: false }));
 
 describe('FlipbookRenderer', () => {
+  it('keeps only visible pages and immediate neighbors in the asset window', () => {
+    expect(preloadPageIndexes(10, [0])).toEqual(new Set([0, 1]));
+    expect(preloadPageIndexes(10, [4])).toEqual(new Set([3, 4, 5]));
+    expect(preloadPageIndexes(10, [4, 5])).toEqual(new Set([3, 4, 5, 6]));
+  });
+
   it('renders persisted pages through the local engine and keeps the public asset contract', () => {
     setMedia({ spread: true });
     const { container } = renderFlipbook();
@@ -96,6 +102,7 @@ describe('FlipbookRenderer', () => {
       'page-1'
     );
     expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-flip-engine');
+    expect(screen.getByRole('group', { name: /1 de 6/ })).toBeVisible();
   });
 
   it('opens the cover and moves through reader spreads without changing the backend payload', async () => {

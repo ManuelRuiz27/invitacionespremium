@@ -17,11 +17,15 @@ const MIN_PAGE_STACK_DEPTH_PX = 1;
 const MAX_PAGE_STACK_DEPTH_PX = 7;
 type IntroState = 'closed' | 'opening' | 'open';
 
-function preloadPageIndexes(pageCount: number, visiblePages: number[]): Set<number> {
+export function preloadPageIndexes(pageCount: number, visiblePages: number[]): Set<number> {
   if (pageCount <= 0 || visiblePages.length === 0) return new Set();
   const first = Math.max(0, visiblePages[0]! - 1);
   const last = Math.min(pageCount - 1, visiblePages[visiblePages.length - 1]! + 1);
   return new Set(Array.from({ length: last - first + 1 }, (_, index) => first + index));
+}
+
+function samePageIndexes(left: Set<number>, right: Set<number>): boolean {
+  return left.size === right.size && [...left].every((index) => right.has(index));
 }
 
 function pageStackDepth(pagePosition: number, pageCount: number) {
@@ -73,6 +77,7 @@ export function FlipbookRenderer({
   const [mobileControlsVisible, setMobileControlsVisible] = useState(false);
   const [readerVisible, setReaderVisible] = useState(false);
   const [documentVisible, setDocumentVisible] = useState(() => !document.hidden);
+  const [initialPageReady, setInitialPageReady] = useState(false);
   const bookKey = `${token}:${pages.map((page) => page.id).join(':')}`;
   const visiblePageIndexes = snapshot.visiblePages.filter((pageIndex) => pageIndex >= 0 && pageIndex < pages.length);
   const visiblePageKey = visiblePageIndexes.join(',');
@@ -109,6 +114,13 @@ export function FlipbookRenderer({
     }, 2500);
   }, []);
 
+  const markInitialPageReady = useCallback(
+    (pageId: string) => {
+      if (pageId === pages[0]?.id) setInitialPageReady(true);
+    },
+    [pages]
+  );
+
   const syncSnapshot = useCallback(
     (next: BookSnapshot) => {
       snapshotRef.current = next;
@@ -127,6 +139,7 @@ export function FlipbookRenderer({
     setPhase('idle');
     setIntroState('closed');
     setAutoActive(true);
+    setInitialPageReady(false);
     setMobileControlsVisible(false);
     if (controlsTimerRef.current !== null) window.clearTimeout(controlsTimerRef.current);
     controlsTimerRef.current = null;
@@ -160,14 +173,8 @@ export function FlipbookRenderer({
   }, []);
 
   useEffect(() => {
-    const preload = window.setTimeout(() => {
-      setPreloadedPageIndexes((current) => {
-        const next = new Set(current);
-        for (const pageIndex of preloadPageIndexes(pages.length, visiblePageIndexes)) next.add(pageIndex);
-        return next.size === current.size ? current : next;
-      });
-    }, 0);
-    return () => window.clearTimeout(preload);
+    const next = preloadPageIndexes(pages.length, visiblePageIndexes);
+    setPreloadedPageIndexes((current) => (samePageIndexes(current, next) ? current : next));
   }, [pages.length, visiblePageKey]);
 
   const navigate = useCallback(
@@ -183,6 +190,7 @@ export function FlipbookRenderer({
   useEffect(() => {
     if (
       !autoActive ||
+      !initialPageReady ||
       !readerVisible ||
       !documentVisible ||
       reducedMotion ||
@@ -197,6 +205,7 @@ export function FlipbookRenderer({
     autoActive,
     canGoNext,
     documentVisible,
+    initialPageReady,
     isTurning,
     navigate,
     readerVisible,
@@ -311,6 +320,7 @@ export function FlipbookRenderer({
                   rsvpConfirmed={view.invitation?.responseStatus === 'CONFIRMED'}
                   onUnavailableQr={onUnavailableQr}
                   qrAvailable={view.qr?.available === true}
+                  onPageReady={markInitialPageReady}
                 />
               );
             }}

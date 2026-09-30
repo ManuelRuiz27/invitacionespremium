@@ -54,6 +54,32 @@ describe('FlipEngine gestures', () => {
     expect(onChangeState).toHaveBeenCalledWith('dragging');
   });
 
+  it('resolves a manual turn immediately when reduced motion is requested', () => {
+    const { engine, onPageChange } = renderEngine();
+
+    fireEvent.pointerDown(engine, { pointerId: 8, pointerType: 'touch', clientX: 420, clientY: 250 });
+    fireEvent.pointerMove(engine, { pointerId: 8, pointerType: 'touch', clientX: 350, clientY: 250 });
+    fireEvent.pointerMove(engine, { pointerId: 8, pointerType: 'touch', clientX: 100, clientY: 250 });
+    fireEvent.pointerUp(engine, { pointerId: 8, pointerType: 'touch', clientX: 100, clientY: 250 });
+
+    expect(onPageChange).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1, visiblePages: [1] }));
+    expect(engine).toHaveAttribute('data-phase', 'idle');
+  });
+
+  it('clears a partially dragged leaf when the browser loses focus', () => {
+    const { engine, onChangeState } = renderEngine();
+
+    fireEvent.pointerDown(engine, { pointerId: 9, pointerType: 'touch', clientX: 420, clientY: 250 });
+    fireEvent.pointerMove(engine, { pointerId: 9, pointerType: 'touch', clientX: 300, clientY: 250 });
+    fireEvent.pointerMove(engine, { pointerId: 9, pointerType: 'touch', clientX: 180, clientY: 250 });
+    expect((engine.querySelector('.flip-engine-moving') as HTMLDivElement).style.transform).not.toBe('');
+
+    fireEvent.blur(window);
+
+    expect(engine.querySelector('.flip-engine-moving')).toBeNull();
+    expect(onChangeState).toHaveBeenLastCalledWith('idle');
+  });
+
   it('routes a lateral tap through the engine navigation path', () => {
     const { engine, onPageChange } = renderEngine();
 

@@ -13,7 +13,7 @@ describe('PageRenderer', () => {
         layout="spread"
         movingRef={movingRef}
         pageCount={6}
-        renderPage={({ index }) => <div data-test-page={index} />}
+        renderPage={({ index, shouldLoad }) => <div data-load={shouldLoad || undefined} data-test-page={index} />}
         targetSpread={[3, 4]}
       />
     );
@@ -26,5 +26,6 @@ describe('PageRenderer', () => {
       'data-flip-engine-role',
       'reveal'
     );
+    expect(container.querySelectorAll('[data-load="true"]')).toHaveLength(5);
   });
 });

@@ -100,6 +100,27 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
 
   const resetZoom = useCallback(() => applyZoom(zoomRef.current.reset()), [applyZoom]);
 
+  const clearVisualState = useCallback(() => {
+    const root = rootRef.current;
+    const moving = movingRef.current;
+    if (root) {
+      root.dataset.phase = 'idle';
+      root.style.removeProperty('--flip-engine-back-opacity');
+      root.style.removeProperty('--flip-engine-curvature');
+      root.style.removeProperty('--flip-engine-front-opacity');
+      root.style.removeProperty('--flip-engine-progress');
+      root.style.removeProperty('--flip-engine-projection-opacity');
+      root.style.removeProperty('--flip-engine-shadow');
+    }
+    if (moving) {
+      moving.style.removeProperty('clip-path');
+      moving.style.removeProperty('opacity');
+      moving.style.removeProperty('transform');
+      moving.style.removeProperty('transform-origin');
+      moving.style.removeProperty('--flip-engine-fold-opacity');
+    }
+  }, []);
+
   useEffect(() => {
     gestureRef.current.reset();
     resetZoom();
@@ -119,13 +140,14 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
       frameRef.current = null;
       controllerRef.current.reset();
       gestureRef.current.reset();
+      clearVisualState();
       activeTurnRef.current = null;
       setActiveTurn(null);
       onChangeState?.('idle');
     }
     const next = stateRef.current.setLayout(layout);
     emitSnapshot(next);
-  }, [emitSnapshot, layout, onChangeState, resetZoom]);
+  }, [clearVisualState, emitSnapshot, layout, onChangeState, resetZoom]);
 
   useEffect(
     () => () => {
@@ -173,18 +195,9 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
       activeTurnRef.current = null;
       setActiveTurn(null);
       onChangeState?.('idle');
-      const root = rootRef.current;
-      if (root) {
-        root.dataset.phase = 'idle';
-        root.style.removeProperty('--flip-engine-back-opacity');
-        root.style.removeProperty('--flip-engine-curvature');
-        root.style.removeProperty('--flip-engine-front-opacity');
-        root.style.removeProperty('--flip-engine-progress');
-        root.style.removeProperty('--flip-engine-projection-opacity');
-        root.style.removeProperty('--flip-engine-shadow');
-      }
+      clearVisualState();
     },
-    [emitSnapshot, onChangeState]
+    [clearVisualState, emitSnapshot, onChangeState]
   );
 
   const abortActiveTurn = useCallback(() => {
@@ -394,9 +407,28 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
     }
     const turn = cancelled ? controllerRef.current.cancel(now()) : controllerRef.current.release(now());
     if (turn.phase === 'idle') return;
+    if (reducedMotion) {
+      applyVisualState({ ...turn, progress: turn.phase === 'completing' ? 1 : 0, velocity: 0 });
+      controllerRef.current.reset();
+      finishTurn(turn.phase === 'completing');
+      return;
+    }
     onChangeState?.(turn.phase);
     settle();
   };
+
+  useEffect(() => {
+    const cancelInterruptedTurn = () => abortActiveTurn();
+    const cancelOnHidden = () => {
+      if (document.hidden) cancelInterruptedTurn();
+    };
+    window.addEventListener('blur', cancelInterruptedTurn);
+    document.addEventListener('visibilitychange', cancelOnHidden);
+    return () => {
+      window.removeEventListener('blur', cancelInterruptedTurn);
+      document.removeEventListener('visibilitychange', cancelOnHidden);
+    };
+  }, [abortActiveTurn]);
 
   const currentSpread = snapshot.visiblePages;
   const targetSpread = activeTurn ? stateRef.current.targetSpread(activeTurn.direction) : null;
