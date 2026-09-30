@@ -164,6 +164,13 @@
   transform-style: preserve-3d;
 }
 
+.flipbook-volume[data-flip-engine] .flip-engine[data-zoomed='true'] {
+  transform: translate3d(var(--flip-engine-zoom-x), var(--flip-engine-zoom-y), 0) scale(var(--flip-engine-zoom));
+  transform-origin: center;
+  transition: transform 140ms ease-out;
+  will-change: transform;
+}
+
 .flipbook-volume[data-flip-engine] .flip-engine[data-layout='single'] {
   max-width: 480px;
   aspect-ratio: 480 / 680;

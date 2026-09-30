@@ -1,12 +1,15 @@
 import { fireEvent, render } from '@testing-library/react';
+import { createRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { FlipEngine } from './FlipEngine';
+import { FlipEngine, type FlipEngineHandle } from './FlipEngine';
 
 function renderEngine() {
   const onChangeState = vi.fn();
   const onPageChange = vi.fn();
+  const ref = createRef<FlipEngineHandle>();
   const rendered = render(
     <FlipEngine
+      ref={ref}
       layout="single"
       pageCount={3}
       reducedMotion
@@ -27,7 +30,7 @@ function renderEngine() {
     y: 0,
     toJSON: () => ({})
   });
-  return { engine, onChangeState, onPageChange };
+  return { engine, onChangeState, onPageChange, ref };
 }
 
 describe('FlipEngine gestures', () => {
@@ -66,6 +69,21 @@ describe('FlipEngine gestures', () => {
     fireEvent.pointerDown(engine, { pointerId: 4, pointerType: 'touch', clientX: 420, clientY: 250 });
     fireEvent.pointerUp(engine, { pointerId: 4, pointerType: 'touch', clientX: 320, clientY: 255 });
 
+    expect(onPageChange).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1, visiblePages: [1] }));
+  });
+
+  it('zooms on a central double tap and resets before navigation', () => {
+    const { engine, onPageChange, ref } = renderEngine();
+
+    fireEvent.pointerDown(engine, { pointerId: 5, pointerType: 'touch', clientX: 240, clientY: 340 });
+    fireEvent.pointerUp(engine, { pointerId: 5, pointerType: 'touch', clientX: 240, clientY: 340 });
+    fireEvent.pointerDown(engine, { pointerId: 6, pointerType: 'touch', clientX: 240, clientY: 340 });
+    fireEvent.pointerUp(engine, { pointerId: 6, pointerType: 'touch', clientX: 240, clientY: 340 });
+
+    expect(engine).toHaveAttribute('data-zoomed', 'true');
+    expect(ref.current?.flipNext()).toBe(true);
+
+    expect(engine).not.toHaveAttribute('data-zoomed');
     expect(onPageChange).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1, visiblePages: [1] }));
   });
 });

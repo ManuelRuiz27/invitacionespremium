@@ -13,6 +13,7 @@ import { GestureController } from './gesture-controller';
 import { pageTurnGeometry } from './page-geometry';
 import { PageRenderer } from './page-renderer';
 import { PageTurnController } from './page-turn-controller';
+import { ZoomController, type ZoomSnapshot } from './zoom-controller';
 import type {
   BookSnapshot,
   FlipDirection,
@@ -68,6 +69,7 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
   const stateRef = useRef(new BookState(pageCount, layout));
   const controllerRef = useRef(new PageTurnController());
   const gestureRef = useRef(new GestureController());
+  const zoomRef = useRef(new ZoomController());
   const rootRef = useRef<HTMLDivElement | null>(null);
   const movingRef = useRef<HTMLDivElement | null>(null);
   const activeTurnRef = useRef<ActiveTurn | null>(null);
@@ -86,8 +88,21 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
     [onPageChange]
   );
 
+  const applyZoom = useCallback((next: ZoomSnapshot) => {
+    const root = rootRef.current;
+    if (!root) return;
+    if (next.scale > 1) root.dataset.zoomed = 'true';
+    else delete root.dataset.zoomed;
+    root.style.setProperty('--flip-engine-zoom', next.scale.toFixed(3));
+    root.style.setProperty('--flip-engine-zoom-x', `${next.x.toFixed(2)}px`);
+    root.style.setProperty('--flip-engine-zoom-y', `${next.y.toFixed(2)}px`);
+  }, []);
+
+  const resetZoom = useCallback(() => applyZoom(zoomRef.current.reset()), [applyZoom]);
+
   useEffect(() => {
     gestureRef.current.reset();
+    resetZoom();
     const state = new BookState(pageCount, layout, snapshot.page);
     stateRef.current = state;
     const next = state.snapshot();
@@ -95,9 +110,10 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
     onReady?.(next);
     // The document identity changes when its ordered public page ids change.
     // A fresh state is required; carrying a prior turn would mix assets/tokens.
-  }, [pageCount]);
+  }, [pageCount, resetZoom]);
 
   useEffect(() => {
+    resetZoom();
     if (activeTurnRef.current) {
       if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
       frameRef.current = null;
@@ -109,7 +125,7 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
     }
     const next = stateRef.current.setLayout(layout);
     emitSnapshot(next);
-  }, [emitSnapshot, layout, onChangeState]);
+  }, [emitSnapshot, layout, onChangeState, resetZoom]);
 
   useEffect(
     () => () => {
@@ -171,6 +187,14 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
     [emitSnapshot, onChangeState]
   );
 
+  const abortActiveTurn = useCallback(() => {
+    if (!activeTurnRef.current) return;
+    if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+    frameRef.current = null;
+    controllerRef.current.reset();
+    finishTurn(false);
+  }, [finishTurn]);
+
   const settle = useCallback(() => {
     const tick = () => {
       const result = controllerRef.current.advance(now());
@@ -190,6 +214,7 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
       if (!stateRef.current.canTurn(direction) || activeTurnRef.current) return false;
       const root = rootRef.current;
       if (!root) return false;
+      resetZoom();
       const box = root.getBoundingClientRect();
       const bounds = { width: Math.max(1, box.width / (layout === 'spread' ? 2 : 1)), height: Math.max(1, box.height) };
       const started = programmatic
@@ -213,7 +238,7 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
       onChangeState?.('dragging');
       return true;
     },
-    [layout, onChangeState]
+    [layout, onChangeState, resetZoom]
   );
 
   const programmaticTurn = useCallback(
@@ -246,11 +271,12 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
         if (activeTurnRef.current) return false;
         const next = stateRef.current.goTo(page);
         if (!next) return false;
+        resetZoom();
         emitSnapshot(next);
         return true;
       }
     }),
-    [emitSnapshot, programmaticTurn]
+    [emitSnapshot, programmaticTurn, resetZoom]
   );
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -258,20 +284,45 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
     if (event.target instanceof Element && event.target.closest('button, a, input, select, textarea, [role="button"]'))
       return;
     const root = rootRef.current;
-    if (!root || activeTurnRef.current) return;
+    if (!root || (activeTurnRef.current && event.pointerType !== 'touch')) return;
     const box = root.getBoundingClientRect();
     const point = { x: event.clientX - box.left, y: event.clientY - box.top, at: now() };
+    const bounds = { width: Math.max(1, box.width), height: Math.max(1, box.height) };
+    if (event.pointerType === 'touch') {
+      zoomRef.current.addPointer(event.pointerId, point, bounds);
+      if (zoomRef.current.isHandling(event.pointerId)) {
+        abortActiveTurn();
+        if (pointerIdRef.current !== null) root.setPointerCapture?.(pointerIdRef.current);
+        root.setPointerCapture?.(event.pointerId);
+        pointerIdRef.current = null;
+        gestureRef.current.reset();
+        suppressClickRef.current = true;
+        applyZoom(zoomRef.current.current);
+        event.preventDefault();
+        return;
+      }
+    }
     pointerIdRef.current = event.pointerId;
     suppressClickRef.current = false;
     gestureRef.current.start(point);
   };
 
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (pointerIdRef.current !== event.pointerId) return;
     const root = rootRef.current;
     if (!root) return;
     const box = root.getBoundingClientRect();
     const point = { x: event.clientX - box.left, y: event.clientY - box.top, at: now() };
+    const zoom = zoomRef.current.movePointer(event.pointerId, point, {
+      width: Math.max(1, box.width),
+      height: Math.max(1, box.height)
+    });
+    if (zoom.handled) {
+      suppressClickRef.current = true;
+      applyZoom(zoom.snapshot);
+      event.preventDefault();
+      return;
+    }
+    if (pointerIdRef.current !== event.pointerId) return;
     const gesture = gestureRef.current.move(point);
     if (gesture.intent !== 'undecided') suppressClickRef.current = true;
     if (gesture.intent !== 'turn' || !gesture.direction) return;
@@ -287,22 +338,46 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
   };
 
   const releasePointer = (event: ReactPointerEvent<HTMLDivElement>, cancelled: boolean) => {
-    if (pointerIdRef.current !== event.pointerId) return;
-    pointerIdRef.current = null;
     const root = rootRef.current;
-    try {
-      root?.releasePointerCapture?.(event.pointerId);
-    } catch {
-      // Browsers may release capture before pointercancel reaches React.
-    }
     const box = root?.getBoundingClientRect();
+    const bounds = { width: Math.max(1, box?.width ?? 1), height: Math.max(1, box?.height ?? 1) };
     const point = {
       x: event.clientX - (box?.left ?? 0),
       y: event.clientY - (box?.top ?? 0),
       at: now()
     };
+    if (zoomRef.current.isHandling(event.pointerId)) {
+      if (pointerIdRef.current === event.pointerId) pointerIdRef.current = null;
+      try {
+        root?.releasePointerCapture?.(event.pointerId);
+      } catch {
+        // Browsers may release capture before pointercancel reaches React.
+      }
+      gestureRef.current.reset();
+      suppressClickRef.current = true;
+      applyZoom(zoomRef.current.removePointer(event.pointerId, bounds));
+      return;
+    }
+    if (pointerIdRef.current !== event.pointerId) return;
+    pointerIdRef.current = null;
+    try {
+      root?.releasePointerCapture?.(event.pointerId);
+    } catch {
+      // Browsers may release capture before pointercancel reaches React.
+    }
     const gesture = cancelled ? null : gestureRef.current.finish(point, box?.width ?? 1);
     gestureRef.current.reset();
+    const doubleTap =
+      !cancelled && event.pointerType === 'touch' && !gesture?.tapDirection
+        ? zoomRef.current.registerTap(point, bounds)
+        : null;
+    const zoom = zoomRef.current.removePointer(event.pointerId, bounds);
+    if (doubleTap) {
+      suppressClickRef.current = true;
+      applyZoom(doubleTap);
+      return;
+    }
+    applyZoom(zoom);
     if (gesture?.intent !== 'undecided') suppressClickRef.current = true;
     if (!activeTurnRef.current) {
       if (!cancelled && gesture?.intent === 'turn' && gesture.direction) {
