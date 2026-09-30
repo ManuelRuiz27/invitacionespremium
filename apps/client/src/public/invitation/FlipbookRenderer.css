@@ -176,10 +176,40 @@
   overflow: hidden;
   background: #f3eee6;
   box-shadow: inset 0 0 0 1px rgba(95, 70, 43, 0.14);
+  perspective: 1600px;
   transform-style: preserve-3d;
 }
 
-.flipbook-volume[data-flip-engine] .flip-engine-page > [data-flipbook-page-id] {
+.flipbook-volume[data-flip-engine] .flip-engine-page-face {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform-style: preserve-3d;
+}
+
+.flipbook-volume[data-flip-engine] .flip-engine-page-front {
+  opacity: var(--flip-engine-front-opacity, 1);
+}
+
+.flipbook-volume[data-flip-engine] .flip-engine-page-back {
+  opacity: var(--flip-engine-back-opacity, 0);
+  background:
+    linear-gradient(
+      90deg,
+      rgba(68, 44, 25, 0.25),
+      transparent 18%,
+      rgba(255, 250, 239, 0.45) 52%,
+      rgba(56, 36, 19, 0.3)
+    ),
+    repeating-linear-gradient(0deg, #eee5d8 0, #eee5d8 2px, #ded0bf 3px, #f7f0e6 4px);
+  box-shadow: inset 0 0 24px rgba(73, 50, 29, 0.35);
+  pointer-events: none;
+  transform: rotateY(180deg);
+}
+
+.flipbook-volume[data-flip-engine] .flip-engine-page-front > [data-flipbook-page-id] {
   width: 100%;
   height: 100%;
 }
@@ -188,14 +218,39 @@
   will-change: clip-path, opacity, transform;
 }
 
-.flipbook-volume[data-flip-engine] .flip-engine-page.flip-engine-moving::after {
-  content: '';
+.flipbook-volume[data-flip-engine] .flip-engine-lighting {
   position: absolute;
   z-index: 3;
   inset: 0;
-  opacity: var(--flip-engine-fold-opacity, 0);
-  background: linear-gradient(90deg, rgba(52, 35, 19, 0.42), transparent 42%, rgba(255, 248, 235, 0.2));
   pointer-events: none;
+}
+
+.flipbook-volume[data-flip-engine] .flip-engine-projection-shadow,
+.flipbook-volume[data-flip-engine] .flip-engine-fold-light {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.flipbook-volume[data-flip-engine] .flip-engine-projection-shadow {
+  opacity: var(--flip-engine-projection-opacity, 0);
+  background: radial-gradient(ellipse at 4% 50%, rgba(26, 15, 8, 0.52), transparent 57%);
+  filter: blur(calc(2px + 7px * var(--flip-engine-curvature, 0)));
+  transform: scaleX(calc(0.78 + 0.22 * var(--flip-engine-curvature, 0)));
+}
+
+.flipbook-volume[data-flip-engine] [data-turn-direction='prev'] .flip-engine-projection-shadow {
+  background: radial-gradient(ellipse at 96% 50%, rgba(26, 15, 8, 0.52), transparent 57%);
+}
+
+.flipbook-volume[data-flip-engine] .flip-engine-fold-light {
+  opacity: var(--flip-engine-fold-opacity, 0);
+  background: linear-gradient(90deg, rgba(51, 31, 16, 0.46), transparent 42%, rgba(255, 249, 237, 0.3));
+  mix-blend-mode: multiply;
+}
+
+.flipbook-volume[data-flip-engine] [data-turn-direction='prev'] .flip-engine-fold-light {
+  background: linear-gradient(270deg, rgba(51, 31, 16, 0.46), transparent 42%, rgba(255, 249, 237, 0.3));
 }
 
 .flipbook-volume[data-flip-engine] .flip-engine-spine {

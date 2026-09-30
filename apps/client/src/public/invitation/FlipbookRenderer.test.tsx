@@ -85,6 +85,8 @@ describe('FlipbookRenderer', () => {
     const engine = container.querySelector('.flip-engine');
     expect(engine).toHaveAttribute('data-layout', 'spread');
     expect(container.querySelectorAll('[data-flipbook-page-id]')).toHaveLength(6);
+    expect(container.querySelectorAll('.flip-engine-page-front')).toHaveLength(6);
+    expect(container.querySelectorAll('.flip-engine-page-back')).toHaveLength(0);
     expect(container.querySelector('[data-flipbook-page-id="page-1"]')).toHaveAttribute(
       'data-flipbook-page-id',
       'page-1'

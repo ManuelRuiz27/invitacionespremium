@@ -3,25 +3,26 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
-  useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type PointerEvent as ReactPointerEvent,
   type ReactNode
 } from 'react';
 import { BookState } from './book-state';
 import { pageTurnGeometry } from './page-geometry';
+import { PageRenderer } from './page-renderer';
 import { PageTurnController } from './page-turn-controller';
-import type { BookSnapshot, FlipDirection, FlipEnginePhase, FlipLayout, PointerPoint, TurnSnapshot } from './types';
+import type {
+  BookSnapshot,
+  FlipDirection,
+  FlipEnginePhase,
+  FlipLayout,
+  PageRenderContext,
+  PointerPoint,
+  TurnSnapshot
+} from './types';
 
-export interface FlipEnginePageContext {
-  folded: boolean;
-  index: number;
-  interactive: boolean;
-  shouldLoad: boolean;
-  visible: boolean;
-}
+export type FlipEnginePageContext = PageRenderContext;
 
 export interface FlipEngineHandle {
   flipNext: () => boolean;
@@ -44,21 +45,10 @@ export interface FlipEngineProps {
   onTurnProgress?: (snapshot: { direction: FlipDirection; progress: number }) => void;
   pageCount: number;
   reducedMotion?: boolean;
-  renderPage: (context: FlipEnginePageContext) => ReactNode;
+  renderPage: (context: PageRenderContext) => ReactNode;
 }
 
 const now = () => (typeof performance === 'undefined' ? Date.now() : performance.now());
-
-function pageSide(index: number, spread: number[]): 'left' | 'right' | 'center' {
-  if (spread.length !== 2) return 'center';
-  return spread[0] === index ? 'left' : 'right';
-}
-
-function slotStyle(side: 'left' | 'right' | 'center', layout: FlipLayout): CSSProperties {
-  if (layout === 'single') return { left: '0', width: '100%' };
-  if (side === 'center') return { left: '25%', width: '50%' };
-  return { left: side === 'left' ? '0' : '50%', width: '50%' };
-}
 
 export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function FlipEngine(
   {
@@ -136,6 +126,10 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
       );
       root.dataset.phase = turn.phase;
       root.style.setProperty('--flip-engine-progress', String(Math.min(1, Math.max(0, turn.progress))));
+      root.style.setProperty('--flip-engine-back-opacity', geometry.backOpacity.toFixed(3));
+      root.style.setProperty('--flip-engine-curvature', geometry.curvature.toFixed(3));
+      root.style.setProperty('--flip-engine-front-opacity', geometry.frontOpacity.toFixed(3));
+      root.style.setProperty('--flip-engine-projection-opacity', geometry.projectionOpacity.toFixed(3));
       root.style.setProperty('--flip-engine-shadow', geometry.shadowOpacity.toFixed(3));
       moving.style.clipPath = geometry.clipPath;
       moving.style.opacity = '1';
@@ -161,7 +155,11 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
       const root = rootRef.current;
       if (root) {
         root.dataset.phase = 'idle';
+        root.style.removeProperty('--flip-engine-back-opacity');
+        root.style.removeProperty('--flip-engine-curvature');
+        root.style.removeProperty('--flip-engine-front-opacity');
         root.style.removeProperty('--flip-engine-progress');
+        root.style.removeProperty('--flip-engine-projection-opacity');
         root.style.removeProperty('--flip-engine-shadow');
       }
     },
@@ -297,24 +295,7 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
   };
 
   const currentSpread = snapshot.visiblePages;
-  const active = activeTurn;
-  const visibleIndexes = useMemo(() => {
-    const indexes = new Set(currentSpread);
-    if (active) {
-      indexes.add(active.source);
-      indexes.add(active.reveal);
-    }
-    return indexes;
-  }, [active, currentSpread]);
-  const preloadIndexes = useMemo(() => {
-    const indexes = new Set<number>();
-    for (const index of visibleIndexes) {
-      indexes.add(index);
-      if (index > 0) indexes.add(index - 1);
-      if (index < pageCount - 1) indexes.add(index + 1);
-    }
-    return indexes;
-  }, [pageCount, visibleIndexes]);
+  const targetSpread = activeTurn ? stateRef.current.targetSpread(activeTurn.direction) : null;
 
   return (
     <div
@@ -330,47 +311,15 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
       style={{ touchAction: 'pan-y' }}
     >
       <div className="flip-engine-spine" aria-hidden="true" />
-      {Array.from({ length: pageCount }, (_, index) => {
-        const isSource = active?.source === index;
-        const isReveal = active?.reveal === index;
-        const visible = visibleIndexes.has(index);
-        const spread =
-          isReveal && active ? (stateRef.current.targetSpread(active.direction) ?? currentSpread) : currentSpread;
-        const side = isSource
-          ? pageSide(index, currentSpread)
-          : isReveal
-            ? pageSide(index, spread)
-            : pageSide(index, currentSpread);
-        const style: CSSProperties = {
-          ...slotStyle(side, layout),
-          zIndex: isSource ? 4 : isReveal ? 2 : 1,
-          visibility: visible ? 'visible' : 'hidden'
-        };
-        return (
-          <div
-            key={index}
-            ref={isSource ? movingRef : undefined}
-            className={[
-              'flip-engine-page',
-              'stf__item',
-              visible ? '--shown' : undefined,
-              isSource ? 'flip-engine-moving' : undefined
-            ]
-              .filter(Boolean)
-              .join(' ')}
-            data-flip-engine-role={isSource ? 'moving' : isReveal ? 'reveal' : 'static'}
-            style={style}
-          >
-            {renderPage({
-              folded: !active && currentSpread.length === 2 && currentSpread[0] === index,
-              index,
-              interactive: !active,
-              shouldLoad: preloadIndexes.has(index),
-              visible
-            })}
-          </div>
-        );
-      })}
+      <PageRenderer
+        activeTurn={activeTurn}
+        currentSpread={currentSpread}
+        layout={layout}
+        movingRef={movingRef}
+        pageCount={pageCount}
+        renderPage={renderPage}
+        targetSpread={targetSpread}
+      />
     </div>
   );
 });

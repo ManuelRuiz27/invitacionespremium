@@ -30,3 +30,11 @@ export interface TurnBounds {
   width: number;
   height: number;
 }
+
+export interface PageRenderContext {
+  folded: boolean;
+  index: number;
+  interactive: boolean;
+  shouldLoad: boolean;
+  visible: boolean;
+}

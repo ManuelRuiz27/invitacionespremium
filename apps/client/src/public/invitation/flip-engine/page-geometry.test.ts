@@ -23,4 +23,41 @@ describe('page geometry', () => {
       )
     ).toMatchObject({ transformOrigin: '100% 50%' });
   });
+
+  it('derives curvature, lighting and the rear face from continuous turn progress', () => {
+    const midTurn = pageTurnGeometry(
+      { phase: 'dragging', direction: 'next', progress: 0.5, velocity: 0 },
+      { width: 480, height: 680 },
+      340
+    );
+
+    expect(midTurn.curvature).toBeCloseTo(1);
+    expect(midTurn.backOpacity).toBeGreaterThan(0);
+    expect(midTurn.foldOpacity).toBeGreaterThan(0.4);
+    expect(midTurn.projectionOpacity).toBeGreaterThan(0.4);
+    expect(midTurn.transform).toContain('rotateY(-98deg)');
+    expect(
+      pageTurnGeometry(
+        { phase: 'completing', direction: 'next', progress: 1, velocity: 0 },
+        { width: 480, height: 680 },
+        340
+      ).backOpacity
+    ).toBe(0);
+  });
+
+  it('changes the fold shape when the user grabs the top or bottom corner', () => {
+    const top = pageTurnGeometry(
+      { phase: 'dragging', direction: 'next', progress: 0.5, velocity: 0 },
+      { width: 480, height: 680 },
+      0
+    );
+    const bottom = pageTurnGeometry(
+      { phase: 'dragging', direction: 'next', progress: 0.5, velocity: 0 },
+      { width: 480, height: 680 },
+      680
+    );
+
+    expect(top.clipPath).not.toBe(bottom.clipPath);
+    expect(top.transform).not.toBe(bottom.transform);
+  });
 });

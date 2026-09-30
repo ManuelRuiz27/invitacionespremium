@@ -1,0 +1,30 @@
+import { render } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+import type { MutableRefObject } from 'react';
+import { PageRenderer } from './page-renderer';
+
+describe('PageRenderer', () => {
+  it('keeps every logical page independent while adding faces and lighting only to the moving leaf', () => {
+    const movingRef: MutableRefObject<HTMLDivElement | null> = { current: null };
+    const { container } = render(
+      <PageRenderer
+        activeTurn={{ direction: 'next', source: 2, reveal: 3 }}
+        currentSpread={[1, 2]}
+        layout="spread"
+        movingRef={movingRef}
+        pageCount={6}
+        renderPage={({ index }) => <div data-test-page={index} />}
+        targetSpread={[3, 4]}
+      />
+    );
+
+    expect(container.querySelectorAll('[data-test-page]')).toHaveLength(6);
+    expect(container.querySelector('[data-flip-engine-role="moving"]')).toHaveAttribute('data-turn-direction', 'next');
+    expect(container.querySelectorAll('.flip-engine-page-back')).toHaveLength(1);
+    expect(container.querySelectorAll('.flip-engine-lighting')).toHaveLength(1);
+    expect(container.querySelector('[data-test-page="3"]')?.parentElement?.parentElement).toHaveAttribute(
+      'data-flip-engine-role',
+      'reveal'
+    );
+  });
+});
