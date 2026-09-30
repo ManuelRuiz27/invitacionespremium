@@ -1,5 +1,4 @@
 import type { ApiClient, PublicInvitationView } from '@invitaciones/api-client';
-import { Box, Typography } from '@mui/material';
 import { PublicInvitationTokenPage } from './PublicInvitationPage';
 
 const token = 'flipbook-magazine-local-fixture';
@@ -93,23 +92,7 @@ const fixtureView = {
 } as unknown as PublicInvitationView;
 
 export function DevFlipbookFixturePage() {
-  return (
-    <>
-      <PublicInvitationTokenPage apiClient={fixtureApiClient} invitationToken={token} />
-      <Box component="aside" sx={{ p: 2 }} aria-label="Opciones del fixture">
-        <Typography>Demo local · sin API ni storage. Confirmación disponible para inspección, sin guardar.</Typography>
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, my: 2 }}>
-          {[1, 2, 3, 4, 5, 6, 10].map((count) => (
-            <a key={count} href={`?pages=${count}`}>
-              {count} páginas
-            </a>
-          ))}
-          <a href="?pages=6&mixed">Proporciones diferentes</a>
-          <a href="?pages=6&slow">Asset lento</a>
-        </Box>
-      </Box>
-    </>
-  );
+  return <PublicInvitationTokenPage apiClient={fixtureApiClient} invitationToken={token} />;
 }
 
 function fixtureHotspot(

@@ -63,7 +63,7 @@ export function FlipbookRenderer({
   const reducedMotion = useReducedMotion();
   // Matches the existing 767px reader breakpoint. Short touch landscapes keep
   // the same single-leaf shell; the engine still decides orientation from its host.
-  const mobileReader = useMediaQuery('(max-width: 767px), (pointer: coarse) and (max-height: 500px)');
+  const mobileReader = useMediaQuery('(max-width: 1023px), (pointer: coarse) and (max-height: 500px)');
   const bookRef = useRef<FlipBookHandle | null>(null);
   const readerRef = useRef<HTMLDivElement | null>(null);
   const volumeRef = useRef<HTMLDivElement | null>(null);

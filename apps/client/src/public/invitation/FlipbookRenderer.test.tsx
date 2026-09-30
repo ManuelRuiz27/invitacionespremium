@@ -71,7 +71,7 @@ function setViewport(width: number) {
       configurable: true,
       writable: true,
       value: (query: string) => ({
-        matches: query.includes('max-width: 767px') ? width <= 767 : false,
+        matches: query.includes('max-width: 1023px') ? width <= 1023 : false,
         media: query,
         onchange: null,
         addListener: () => undefined,

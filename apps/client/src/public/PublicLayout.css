@@ -1,4 +1,4 @@
-@media (max-width: 767px), (pointer: coarse) and (max-height: 500px) {
+@media (max-width: 1023px), (pointer: coarse) and (max-height: 500px) {
   .public-layout-immersive > main {
     height: 100svh;
     height: 100dvh;
