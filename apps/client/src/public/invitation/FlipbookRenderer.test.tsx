@@ -120,7 +120,7 @@ describe('FlipbookRenderer physical leaves', () => {
 
   it('passes each persisted page as a direct engine leaf and exposes the native desktop spreads', async () => {
     setViewport(1200);
-    renderFlipbook();
+    const { container } = renderFlipbook();
     await screen.findByText('Página 1 de 6');
 
     const engine = screen.getByTestId('flipbook-engine-mock');
@@ -128,6 +128,12 @@ describe('FlipbookRenderer physical leaves', () => {
     expect(engine.querySelectorAll(':scope > [data-leaf-index]')).toHaveLength(6);
     expect(engine.querySelectorAll('[data-flipbook-page-id]')).toHaveLength(6);
     expect(engine.querySelectorAll('[data-stf-soft-mesh="true"]')).toHaveLength(6);
+    expect(container.querySelector('.flipbook-stage')).toContainElement(
+      screen.getByRole('button', { name: 'Anterior' })
+    );
+    expect(container.querySelector('.flipbook-stage')).toContainElement(
+      screen.getByRole('button', { name: 'Abrir invitación' })
+    );
     expect(screen.getByLabelText('Página 1 de 6')).toBeVisible();
 
     fireEvent.click(screen.getByRole('button', { name: 'Abrir invitación' }));

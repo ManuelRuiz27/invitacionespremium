@@ -1,25 +1,32 @@
 @media (max-width: 767px), (pointer: coarse) and (max-height: 500px) {
   .public-layout-immersive > main {
-    padding: 0 0 24px;
-    display: flex;
-    flex-direction: column;
+    height: 100svh;
+    height: 100dvh;
+    min-height: 0;
+    padding: 0;
+    overflow: hidden;
   }
 
   .public-layout-immersive .public-layout-brand {
-    order: 1;
-    margin: 32px 16px 0;
+    display: none;
   }
 
   .public-layout-immersive .public-invitation-content {
-    gap: 24px;
+    display: block;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
   }
 
-  .public-layout-immersive .public-invitation-content > * {
-    margin: 0 16px;
+  /* On mobile, the book is the complete guest surface. Its own pages and
+     controls retain every available interaction; the surrounding invitation
+     metadata and secondary CTAs cannot become a competing scrollable UI. */
+  .public-layout-immersive .public-invitation-content > :not(.flipbook-reader) {
+    display: none;
   }
 
   .public-layout-immersive .public-invitation-content > .flipbook-reader {
-    order: -1;
     margin: 0;
+    height: 100%;
   }
 }

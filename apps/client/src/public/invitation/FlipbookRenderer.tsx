@@ -396,11 +396,15 @@ export function FlipbookRenderer({
         '&:focus-visible': { outline: '3px solid', outlineColor: 'primary.main', outlineOffset: 4 }
       }}
     >
+      <Typography component="h1" className="flipbook-reader-title" aria-hidden={!mobileReader || undefined}>
+        {view.event?.name ?? 'Invitación'}
+      </Typography>
       <Box
         className="flipbook-stage"
         sx={{
           py: { xs: 4, md: 7 },
           px: { xs: 1, md: 4 },
+          flexDirection: 'column',
           bgcolor: '#201d18',
           backgroundImage: 'radial-gradient(ellipse at 50% 34%, rgba(226,196,147,.2), transparent 65%)',
           boxShadow: '0 28px 90px rgba(30,23,12,.28)',
@@ -513,51 +517,51 @@ export function FlipbookRenderer({
             ))}
           </HTMLFlipBook>
         </Box>
-      </Box>
-      <Stack
-        className="flipbook-controls"
-        direction="row"
-        spacing={2}
-        sx={{ mt: 2, justifyContent: 'center', alignItems: 'center' }}
-      >
-        <Button
-          aria-label="Anterior"
-          disabled={!canGoPrevious || transitionState !== 'idle' || isOpening}
-          onClick={() => navigate('prev')}
-          sx={{ minWidth: 44, minHeight: 44 }}
+        <Stack
+          className="flipbook-controls"
+          direction="row"
+          spacing={2}
+          sx={{ mt: 2, justifyContent: 'center', alignItems: 'center' }}
         >
-          <ChevronLeft className="flipbook-mobile-control" />
-          <span className="flipbook-desktop-control">Anterior</span>
-        </Button>
-        <Typography aria-live="polite" aria-atomic="true">
-          <span className="flipbook-desktop-control">
-            Página {progress} de {pages.length}
-          </span>
-          <span className="flipbook-mobile-control" aria-hidden="true">
-            {progress} / {pages.length}
-          </span>
-        </Typography>
-        {pages.length > 1 && !reducedMotion && (
           <Button
-            data-auto-control
-            aria-label={autoActive ? 'Pausar animación automática' : 'Reanudar animación automática'}
-            disabled={!canGoNext || transitionState !== 'idle' || isOpening}
-            onClick={() => setAutoActive((current) => !current)}
+            aria-label="Anterior"
+            disabled={!canGoPrevious || transitionState !== 'idle' || isOpening}
+            onClick={() => navigate('prev')}
             sx={{ minWidth: 44, minHeight: 44 }}
           >
-            {autoActive ? <Pause /> : <PlayArrow />}
+            <ChevronLeft className="flipbook-mobile-control" />
+            <span className="flipbook-desktop-control">Anterior</span>
           </Button>
-        )}
-        <Button
-          aria-label={snapshot.page === 0 ? 'Abrir invitación' : 'Siguiente'}
-          disabled={!canGoNext || (snapshot.page === 0 && !coverCanOpen) || transitionState !== 'idle' || isOpening}
-          onClick={() => navigate('next')}
-          sx={{ minWidth: 44, minHeight: 44 }}
-        >
-          <span className="flipbook-desktop-control">{snapshot.page === 0 ? 'Abrir invitación' : 'Siguiente'}</span>
-          <ChevronRight className="flipbook-mobile-control" />
-        </Button>
-      </Stack>
+          <Typography aria-live="polite" aria-atomic="true">
+            <span className="flipbook-desktop-control">
+              Página {progress} de {pages.length}
+            </span>
+            <span className="flipbook-mobile-control" aria-hidden="true">
+              {progress} / {pages.length}
+            </span>
+          </Typography>
+          {pages.length > 1 && !reducedMotion && (
+            <Button
+              data-auto-control
+              aria-label={autoActive ? 'Pausar animación automática' : 'Reanudar animación automática'}
+              disabled={!canGoNext || transitionState !== 'idle' || isOpening}
+              onClick={() => setAutoActive((current) => !current)}
+              sx={{ minWidth: 44, minHeight: 44 }}
+            >
+              {autoActive ? <Pause /> : <PlayArrow />}
+            </Button>
+          )}
+          <Button
+            aria-label={snapshot.page === 0 ? 'Abrir invitación' : 'Siguiente'}
+            disabled={!canGoNext || (snapshot.page === 0 && !coverCanOpen) || transitionState !== 'idle' || isOpening}
+            onClick={() => navigate('next')}
+            sx={{ minWidth: 44, minHeight: 44 }}
+          >
+            <span className="flipbook-desktop-control">{snapshot.page === 0 ? 'Abrir invitación' : 'Siguiente'}</span>
+            <ChevronRight className="flipbook-mobile-control" />
+          </Button>
+        </Stack>
+      </Box>
     </Box>
   );
 }
