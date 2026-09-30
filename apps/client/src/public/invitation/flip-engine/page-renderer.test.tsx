@@ -19,6 +19,8 @@ describe('PageRenderer', () => {
     );
 
     expect(container.querySelectorAll('[data-test-page]')).toHaveLength(6);
+    expect(container.querySelectorAll('[data-flip-engine-visible="true"]')).toHaveLength(3);
+    expect(container.querySelector('.stf__item')).toBeNull();
     expect(container.querySelector('[data-flip-engine-role="moving"]')).toHaveAttribute('data-turn-direction', 'next');
     expect(container.querySelectorAll('.flip-engine-page-back')).toHaveLength(1);
     expect(container.querySelectorAll('.flip-engine-lighting')).toHaveLength(1);

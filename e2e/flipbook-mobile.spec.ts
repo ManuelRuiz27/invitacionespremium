@@ -15,7 +15,7 @@ async function open(page: Page, query = '', autoplay = false) {
     await pause.click({ force: true });
     await expect(page.locator('button[data-auto-control][aria-label^="Reanudar"]')).toBeAttached();
   }
-  await page.locator('.stf__item.--shown img').first().waitFor();
+  await page.locator('[data-flip-engine-visible="true"] img').first().waitFor();
   await page.evaluate(() => document.fonts.ready);
   await expect(reader(page)).toHaveAttribute('data-transition', 'idle');
 }
@@ -55,7 +55,7 @@ async function fits(page: Page) {
         height: rect.height,
         controlsTop: controls.top,
         controlsBottom: controls.bottom,
-        shown: root.querySelectorAll('.stf__item.--shown').length
+        shown: root.querySelectorAll('[data-flip-engine-visible="true"]').length
       };
     });
   await expect
@@ -370,14 +370,14 @@ test('contained mixed assets and adjacent slow load', async ({ page }) => {
   for (let index = 1; index <= 2; index++) {
     await next(page).click();
     await visible(page, String(index));
-    const image = page.locator(`.stf__item.--shown img`).first();
+    const image = page.locator('[data-flip-engine-visible="true"] img').first();
     await expect(image).toHaveCSS('object-fit', 'contain');
     await fits(page);
   }
   await open(page, '?pages=6&slow');
   await next(page).click();
   await visible(page, '1');
-  await expect(page.locator('.stf__item.--shown img')).toBeVisible();
+  await expect(page.locator('[data-flip-engine-visible="true"] img')).toBeVisible();
   await fits(page);
 });
 

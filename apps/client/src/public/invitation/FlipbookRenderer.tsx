@@ -290,7 +290,7 @@ export function FlipbookRenderer({
           <FlipEngine
             key={bookKey}
             ref={engineRef}
-            className="flipbook-magazine-engine stf__parent"
+            className="flipbook-magazine-engine"
             layout={layout}
             onChangeState={setPhase}
             onPageChange={syncSnapshot}

@@ -93,7 +93,7 @@
   left: 50%;
 }
 
-.flipbook-volume .flipbook-magazine-engine.stf__parent {
+.flipbook-volume .flipbook-magazine-engine {
   position: relative;
   z-index: 1;
   filter: drop-shadow(0 12px 16px rgba(0, 0, 0, 0.25));
@@ -101,7 +101,7 @@
 
 /* Keep a paper edge behind the moving leaves, including the single-page
    mobile reader. Anchor it to the engine's actual book bounds. */
-.flipbook-volume:is([data-intro='opening'], [data-intro='open']) .flipbook-magazine-engine.stf__parent::after {
+.flipbook-volume:is([data-intro='opening'], [data-intro='open']) .flipbook-magazine-engine::after {
   content: '';
   position: absolute;
   z-index: -1;
@@ -145,13 +145,11 @@
   pointer-events: none;
 }
 
-.flipbook-volume[data-can-open='true'][data-intro='closed'] .flipbook-magazine-engine.stf__parent {
+.flipbook-volume[data-can-open='true'][data-intro='closed'] .flipbook-magazine-engine {
   cursor: pointer;
 }
 
-/* The public reader owns the page geometry. The legacy class names remain on
-   the host only so existing decorative rules continue to apply while the
-   third-party engine is removed. */
+/* The public reader owns page geometry and all decorative layers. */
 .flipbook-volume[data-flip-engine] .flip-engine {
   position: relative;
   display: block;
@@ -439,7 +437,7 @@
     transition: none;
   }
 
-  .flipbook-reader .flipbook-magazine-engine.stf__parent {
+  .flipbook-reader .flipbook-magazine-engine {
     height: 100%;
     min-height: 0 !important;
     filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.24));
@@ -448,7 +446,7 @@
 
   /* Desktop keeps its paper edge; portrait mobile uses only the shell-bound
      spine above so duplicate edges cannot overlap or disappear mid-turn. */
-  .flipbook-reader .flipbook-magazine-engine.stf__parent::after {
+  .flipbook-reader .flipbook-magazine-engine::after {
     display: none;
   }
 
@@ -458,7 +456,7 @@
     animation: flipbook-mobile-cover-light 1200ms linear both;
   }
 
-  .flipbook-reader .stf__wrapper {
+  .flipbook-reader .flip-engine {
     position: relative;
     height: 100%;
     padding-bottom: 0 !important;
@@ -468,8 +466,8 @@
   /* Two paper blocks share the same one-to-seven-pixel depth range. Their scale is
      derived from the exact fractional leaf position, so every turn transfers
      thickness continuously instead of switching among named size buckets. */
-  .flipbook-reader .stf__wrapper::before,
-  .flipbook-reader .stf__wrapper::after {
+  .flipbook-reader .flip-engine::before,
+  .flipbook-reader .flip-engine::after {
     content: '';
     position: absolute;
     z-index: 0;
@@ -484,20 +482,16 @@
     transition: transform 120ms linear;
   }
 
-  .flipbook-reader .stf__wrapper::before {
+  .flipbook-reader .flip-engine::before {
     left: 2px;
     border-radius: 0 0 0 3px;
     transform: scaleY(var(--flipbook-accumulated-scale));
   }
 
-  .flipbook-reader .stf__wrapper::after {
+  .flipbook-reader .flip-engine::after {
     right: 2px;
     border-radius: 0 0 3px 0;
     transform: scaleY(var(--flipbook-remaining-scale));
-  }
-
-  .flipbook-reader .stf__block {
-    z-index: 1;
   }
 
   /* The fixed binding replaces the former leaf-local rolled edge. The page
@@ -691,9 +685,9 @@
   .flipbook-reader .flipbook-volume::after,
   .flipbook-volume::before,
   .flipbook-reader .flipbook-stage::before,
-  .flipbook-reader .flipbook-magazine-engine.stf__parent,
-  .flipbook-reader .stf__wrapper::before,
-  .flipbook-reader .stf__wrapper::after,
+  .flipbook-reader .flipbook-magazine-engine,
+  .flipbook-reader .flip-engine::before,
+  .flipbook-reader .flip-engine::after,
   .flipbook-reader [data-flipbook-page-id][data-density='hard'] {
     animation: none !important;
     transition: none;

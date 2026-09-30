@@ -73,13 +73,12 @@ export function PageRenderer({
         ref={isSource ? movingRef : undefined}
         className={[
           'flip-engine-page',
-          'stf__item',
-          visible ? '--shown' : undefined,
           isSource ? 'flip-engine-moving' : undefined
         ]
           .filter(Boolean)
           .join(' ')}
         data-flip-engine-role={isSource ? 'moving' : isReveal ? 'reveal' : 'static'}
+        data-flip-engine-visible={visible || undefined}
         data-turn-direction={isSource ? activeTurn.direction : undefined}
         style={style}
       >
