@@ -5,7 +5,7 @@ import { FlipbookRenderer, preloadPageIndexes } from './FlipbookRenderer';
 
 const token = 'flipbook-renderer-test';
 
-function fixture(pageCount: number): PublicInvitationView {
+function fixture(pageCount: number, invitationToken = token): PublicInvitationView {
   return {
     status: 'AVAILABLE',
     designType: 'FLIPBOOK',
@@ -17,7 +17,7 @@ function fixture(pageCount: number): PublicInvitationView {
         position: index + 1,
         asset: {
           id: `5c643f2f-7247-42a3-8348-${String(index + 1).padStart(12, '0')}`,
-          contentPath: `/api/v1/public/invitations/${token}/assets/5c643f2f-7247-42a3-8348-${String(index + 1).padStart(12, '0')}/content`
+          contentPath: `/api/v1/public/invitations/${invitationToken}/assets/5c643f2f-7247-42a3-8348-${String(index + 1).padStart(12, '0')}/content`
         }
       })),
       hotspots: [
@@ -61,17 +61,22 @@ function setMedia({ spread = false, reducedMotion = true } = {}) {
   });
 }
 
-function renderFlipbook(pageCount = 6, onRsvp = vi.fn()) {
-  const apiClient = {
+function renderFlipbook(
+  pageCount = 6,
+  onRsvp = vi.fn(),
+  invitationToken = token,
+  apiClient = {
     publicInvitation: { asset: vi.fn().mockResolvedValue(new Blob(['page'], { type: 'image/svg+xml' })) }
-  } as unknown as ApiClient;
+  } as unknown as ApiClient
+) {
   return {
+    apiClient,
     onRsvp,
     ...render(
       <FlipbookRenderer
         apiClient={apiClient}
-        token={token}
-        view={fixture(pageCount)}
+        token={invitationToken}
+        view={fixture(pageCount, invitationToken)}
         onRsvp={onRsvp}
         onUnavailableQr={vi.fn()}
       />
@@ -155,5 +160,51 @@ describe('FlipbookRenderer', () => {
     expect(rsvp).toBeEnabled();
     fireEvent.click(rsvp);
     expect(onRsvp).toHaveBeenCalledOnce();
+  });
+
+  it('keeps a failed page asset retryable through the public asset contract', async () => {
+    setMedia();
+    const apiClient = {
+      publicInvitation: {
+        asset: vi
+          .fn()
+          .mockRejectedValueOnce(new Error('temporary asset failure'))
+          .mockResolvedValue(new Blob(['page'], { type: 'image/svg+xml' }))
+      }
+    } as unknown as ApiClient;
+    renderFlipbook(1, vi.fn(), token, apiClient);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Reintentar' }));
+    await waitFor(() => expect(apiClient.publicInvitation.asset).toHaveBeenCalledTimes(2));
+  });
+
+  it('resets the local reader and reloads assets when the public token changes', async () => {
+    setMedia();
+    const { apiClient, container, onRsvp, rerender } = renderFlipbook(3);
+    const reader = container.querySelector('.flipbook-reader')!;
+    const nextToken = 'flipbook-renderer-next-token';
+
+    await act(async () => undefined);
+    fireEvent.click(screen.getByRole('button', { name: /abrir invit/i }));
+    expect(reader).toHaveAttribute('data-visible-pages', '1');
+
+    rerender(
+      <FlipbookRenderer
+        apiClient={apiClient}
+        token={nextToken}
+        view={fixture(3, nextToken)}
+        onRsvp={onRsvp}
+        onUnavailableQr={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(reader).toHaveAttribute('data-visible-pages', '0'));
+    await waitFor(() =>
+      expect(apiClient.publicInvitation.asset).toHaveBeenCalledWith(
+        nextToken,
+        expect.any(String),
+        expect.any(AbortSignal)
+      )
+    );
   });
 });

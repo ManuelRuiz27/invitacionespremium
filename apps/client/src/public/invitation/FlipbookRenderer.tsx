@@ -74,11 +74,13 @@ export function FlipbookRenderer({
   const [introState, setIntroState] = useState<IntroState>('closed');
   const [preloadedPageIndexes, setPreloadedPageIndexes] = useState<Set<number>>(() => new Set([0]));
   const [autoActive, setAutoActive] = useState(true);
+  const autoActiveRef = useRef(true);
   const [mobileControlsVisible, setMobileControlsVisible] = useState(false);
   const [readerVisible, setReaderVisible] = useState(false);
   const [documentVisible, setDocumentVisible] = useState(() => !document.hidden);
   const [initialPageReady, setInitialPageReady] = useState(false);
   const bookKey = `${token}:${pages.map((page) => page.id).join(':')}`;
+  const previousBookKeyRef = useRef(bookKey);
   const visiblePageIndexes = snapshot.visiblePages.filter((pageIndex) => pageIndex >= 0 && pageIndex < pages.length);
   const visiblePageKey = visiblePageIndexes.join(',');
   const canGoPrevious = snapshot.page > 0;
@@ -133,12 +135,15 @@ export function FlipbookRenderer({
   );
 
   useLayoutEffect(() => {
+    if (previousBookKeyRef.current === bookKey) return;
+    previousBookKeyRef.current = bookKey;
     setSnapshot(initialSnapshot);
     snapshotRef.current = initialSnapshot;
     setPreloadedPageIndexes(new Set([0]));
     setPhase('idle');
     setIntroState('closed');
     setAutoActive(true);
+    autoActiveRef.current = true;
     setInitialPageReady(false);
     setMobileControlsVisible(false);
     if (controlsTimerRef.current !== null) window.clearTimeout(controlsTimerRef.current);
@@ -179,7 +184,10 @@ export function FlipbookRenderer({
 
   const navigate = useCallback(
     (direction: 'next' | 'prev', automated = false) => {
-      if (!automated) setAutoActive(false);
+      if (!automated) {
+        autoActiveRef.current = false;
+        setAutoActive(false);
+      }
       revealMobileControls();
       if (direction === 'next' && snapshotRef.current.page === 0) setIntroState('opening');
       return direction === 'next' ? engineRef.current?.flipNext() === true : engineRef.current?.flipPrev() === true;
@@ -199,7 +207,12 @@ export function FlipbookRenderer({
       !canGoNext
     )
       return;
-    const timer = window.setTimeout(() => navigate('next', true), snapshot.page === 0 ? 2400 : 3200);
+    const timer = window.setTimeout(
+      () => {
+        if (autoActiveRef.current) navigate('next', true);
+      },
+      snapshot.page === 0 ? 2400 : 3200
+    );
     return () => window.clearTimeout(timer);
   }, [
     autoActive,
@@ -230,15 +243,24 @@ export function FlipbookRenderer({
       data-reduced-motion={reducedMotion || undefined}
       onFocusCapture={(event) => {
         revealMobileControls();
-        if (!(event.target instanceof Element) || !event.target.closest('[data-auto-control]')) setAutoActive(false);
+        if (!(event.target instanceof Element) || !event.target.closest('[data-auto-control]')) {
+          autoActiveRef.current = false;
+          setAutoActive(false);
+        }
       }}
       onPointerDownCapture={(event) => {
         revealMobileControls();
-        if (!(event.target instanceof Element) || !event.target.closest('[data-auto-control]')) setAutoActive(false);
+        if (!(event.target instanceof Element) || !event.target.closest('[data-auto-control]')) {
+          autoActiveRef.current = false;
+          setAutoActive(false);
+        }
       }}
       onKeyDown={(event) => {
         revealMobileControls();
-        if (!(event.target instanceof Element) || !event.target.closest('[data-auto-control]')) setAutoActive(false);
+        if (!(event.target instanceof Element) || !event.target.closest('[data-auto-control]')) {
+          autoActiveRef.current = false;
+          setAutoActive(false);
+        }
         if ((event.key === 'Enter' || event.key === ' ') && event.target === event.currentTarget && coverCanOpen) {
           event.preventDefault();
           navigate('next');
@@ -354,7 +376,11 @@ export function FlipbookRenderer({
               data-auto-control
               aria-label={autoActive ? 'Pausar animación automática' : 'Reanudar animación automática'}
               disabled={!canGoNext || isTurning}
-              onClick={() => setAutoActive((current) => !current)}
+              onClick={() => {
+                const next = !autoActive;
+                autoActiveRef.current = next;
+                setAutoActive(next);
+              }}
               sx={{ minWidth: 44, minHeight: 44 }}
             >
               {autoActive ? <Pause /> : <PlayArrow />}

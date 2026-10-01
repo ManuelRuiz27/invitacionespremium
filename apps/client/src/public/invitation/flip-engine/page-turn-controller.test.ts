@@ -16,6 +16,16 @@ describe('PageTurnController', () => {
     expect(controller.current.phase).toBe('idle');
   });
 
+  it('completes a short flick when its forward velocity is intentional', () => {
+    const controller = new PageTurnController();
+    controller.start('next', { x: 480, y: 340, at: 0 }, bounds);
+    const dragging = controller.move({ x: 440, y: 340, at: 20 });
+
+    expect(dragging.progress).toBeLessThan(0.5);
+    expect(dragging.velocity).toBeGreaterThanOrEqual(0.9);
+    expect(controller.release(25)).toMatchObject({ phase: 'completing', direction: 'next' });
+  });
+
   it('snaps back a partial or cancelled turn without committing it', () => {
     const controller = new PageTurnController();
     controller.start('prev', { x: 0, y: 340, at: 0 }, bounds);

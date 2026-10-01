@@ -344,7 +344,11 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
       pointerIdRef.current = null;
       return;
     }
-    root.setPointerCapture?.(event.pointerId);
+    try {
+      root.setPointerCapture?.(event.pointerId);
+    } catch {
+      // Synthetic or interrupted pointers may no longer be active in the host browser.
+    }
     const turn = controllerRef.current.move(point);
     applyVisualState(turn);
     if (turn.phase === 'dragging') event.preventDefault();

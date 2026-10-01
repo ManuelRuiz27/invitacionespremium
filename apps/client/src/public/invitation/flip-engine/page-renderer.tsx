@@ -71,12 +71,7 @@ export function PageRenderer({
       <div
         key={index}
         ref={isSource ? movingRef : undefined}
-        className={[
-          'flip-engine-page',
-          isSource ? 'flip-engine-moving' : undefined
-        ]
-          .filter(Boolean)
-          .join(' ')}
+        className={['flip-engine-page', isSource ? 'flip-engine-moving' : undefined].filter(Boolean).join(' ')}
         data-flip-engine-role={isSource ? 'moving' : isReveal ? 'reveal' : 'static'}
         data-flip-engine-visible={visible || undefined}
         data-turn-direction={isSource ? activeTurn.direction : undefined}
@@ -84,7 +79,7 @@ export function PageRenderer({
       >
         <div className="flip-engine-page-face flip-engine-page-front">
           {renderPage({
-            folded: !activeTurn && currentSpread.length === 2 && currentSpread[0] === index,
+            folded: !activeTurn && currentSpread[0] === index,
             index,
             interactive: !activeTurn,
             shouldLoad: preloadIndexes.has(index),
