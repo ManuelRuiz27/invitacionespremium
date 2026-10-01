@@ -3,7 +3,7 @@ import { createRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { FlipEngine, type FlipEngineHandle } from './FlipEngine';
 
-function renderEngine() {
+function renderEngine({ preserveZoom = false, reducedMotion = true } = {}) {
   const onChangeState = vi.fn();
   const onPageChange = vi.fn();
   const ref = createRef<FlipEngineHandle>();
@@ -12,7 +12,8 @@ function renderEngine() {
       ref={ref}
       layout="single"
       pageCount={3}
-      reducedMotion
+      preserveZoom={preserveZoom}
+      reducedMotion={reducedMotion}
       onChangeState={onChangeState}
       onPageChange={onPageChange}
       renderPage={({ index }) => <div>Página {index + 1}</div>}
@@ -111,5 +112,38 @@ describe('FlipEngine gestures', () => {
 
     expect(engine).not.toHaveAttribute('data-zoomed');
     expect(onPageChange).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1, visiblePages: [1] }));
+  });
+
+  it('keeps zoom through navigation only when preserveZoom is enabled', () => {
+    const { engine, ref } = renderEngine({ preserveZoom: true });
+
+    fireEvent.pointerDown(engine, { pointerId: 15, pointerType: 'touch', clientX: 240, clientY: 340 });
+    fireEvent.pointerUp(engine, { pointerId: 15, pointerType: 'touch', clientX: 240, clientY: 340 });
+    fireEvent.pointerDown(engine, { pointerId: 16, pointerType: 'touch', clientX: 240, clientY: 340 });
+    fireEvent.pointerUp(engine, { pointerId: 16, pointerType: 'touch', clientX: 240, clientY: 340 });
+
+    expect(engine).toHaveAttribute('data-zoomed', 'true');
+    expect(ref.current?.flipNext()).toBe(true);
+    expect(engine).toHaveAttribute('data-zoomed', 'true');
+  });
+
+  it('marks the cover as more rigid while it turns', () => {
+    const { engine } = renderEngine();
+
+    fireEvent.pointerDown(engine, { pointerId: 18, pointerType: 'touch', clientX: 420, clientY: 250 });
+    fireEvent.pointerMove(engine, { pointerId: 18, pointerType: 'touch', clientX: 300, clientY: 250 });
+
+    expect(engine.querySelector('.flip-engine-moving')).toHaveAttribute('data-cover-rigidity', 'true');
+  });
+
+  it('shows a corner hint only for a valid mouse turn direction', () => {
+    const { engine } = renderEngine({ reducedMotion: false });
+
+    fireEvent.pointerMove(engine, { pointerId: 19, pointerType: 'mouse', clientX: 470, clientY: 250, buttons: 0 });
+    expect(engine).toHaveAttribute('data-corner-hint', 'next');
+    expect(engine.querySelector('.flip-engine-page')).toHaveAttribute('data-corner-hint', 'next');
+
+    fireEvent.pointerLeave(engine);
+    expect(engine).not.toHaveAttribute('data-corner-hint');
   });
 });

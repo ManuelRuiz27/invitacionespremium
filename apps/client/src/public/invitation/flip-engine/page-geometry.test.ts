@@ -60,4 +60,22 @@ describe('page geometry', () => {
     expect(top.clipPath).not.toBe(bottom.clipPath);
     expect(top.transform).not.toBe(bottom.transform);
   });
+
+  it('keeps covers on the same turn path with less deformation', () => {
+    const leaf = pageTurnGeometry(
+      { phase: 'dragging', direction: 'next', progress: 0.5, velocity: 0 },
+      { width: 480, height: 680 },
+      340
+    );
+    const cover = pageTurnGeometry(
+      { phase: 'dragging', direction: 'next', progress: 0.5, velocity: 0 },
+      { width: 480, height: 680 },
+      340,
+      0.55
+    );
+
+    expect(cover.curvature).toBeLessThan(leaf.curvature);
+    expect(cover.clipPath).not.toBe(leaf.clipPath);
+    expect(cover.transform).toContain('rotateY(-94.4deg)');
+  });
 });

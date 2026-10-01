@@ -35,17 +35,20 @@ export interface FlipEngineHandle {
 interface ActiveTurn {
   direction: FlipDirection;
   reveal: number;
+  rigidity: number;
   source: number;
 }
 
 export interface FlipEngineProps {
   className?: string;
+  coverRigidity?: number;
   layout: FlipLayout;
   onChangeState?: (phase: FlipEnginePhase) => void;
   onPageChange?: (snapshot: BookSnapshot) => void;
   onReady?: (snapshot: BookSnapshot) => void;
   onTurnProgress?: (snapshot: { direction: FlipDirection; progress: number }) => void;
   pageCount: number;
+  preserveZoom?: boolean;
   reducedMotion?: boolean;
   renderPage: (context: PageRenderContext) => ReactNode;
 }
@@ -55,12 +58,14 @@ const now = () => (typeof performance === 'undefined' ? Date.now() : performance
 export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function FlipEngine(
   {
     className,
+    coverRigidity = 0.55,
     layout,
     onChangeState,
     onPageChange,
     onReady,
     onTurnProgress,
     pageCount,
+    preserveZoom = false,
     reducedMotion = false,
     renderPage
   },
@@ -79,6 +84,7 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
   const suppressClickRef = useRef(false);
   const [snapshot, setSnapshot] = useState<BookSnapshot>(() => stateRef.current.snapshot());
   const [activeTurn, setActiveTurn] = useState<ActiveTurn | null>(null);
+  const [hoverDirection, setHoverDirection] = useState<FlipDirection | null>(null);
 
   const emitSnapshot = useCallback(
     (next: BookSnapshot, changed = true) => {
@@ -165,7 +171,8 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
       const geometry = pageTurnGeometry(
         turn,
         { width: box.width / (layout === 'spread' ? 2 : 1), height: box.height },
-        originYRef.current
+        originYRef.current,
+        activeTurnRef.current?.rigidity
       );
       root.dataset.phase = turn.phase;
       root.style.setProperty('--flip-engine-progress', String(Math.min(1, Math.max(0, turn.progress))));
@@ -227,7 +234,7 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
       if (!stateRef.current.canTurn(direction) || activeTurnRef.current) return false;
       const root = rootRef.current;
       if (!root) return false;
-      resetZoom();
+      if (!preserveZoom) resetZoom();
       const box = root.getBoundingClientRect();
       const bounds = { width: Math.max(1, box.width / (layout === 'spread' ? 2 : 1)), height: Math.max(1, box.height) };
       const started = programmatic
@@ -243,6 +250,11 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
       const active = {
         direction,
         reveal: target[direction === 'next' ? 0 : target.length - 1]!,
+        rigidity:
+          current[direction === 'next' ? current.length - 1 : 0] === 0 ||
+          current[direction === 'next' ? current.length - 1 : 0] === pageCount - 1
+            ? coverRigidity
+            : 1,
         source: current[direction === 'next' ? current.length - 1 : 0]!
       };
       originYRef.current = point.y;
@@ -251,7 +263,7 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
       onChangeState?.('dragging');
       return true;
     },
-    [layout, onChangeState, resetZoom]
+    [coverRigidity, layout, onChangeState, pageCount, preserveZoom, resetZoom]
   );
 
   const programmaticTurn = useCallback(
@@ -284,15 +296,39 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
         if (activeTurnRef.current) return false;
         const next = stateRef.current.goTo(page);
         if (!next) return false;
-        resetZoom();
+        if (!preserveZoom) resetZoom();
         emitSnapshot(next);
         return true;
       }
     }),
-    [emitSnapshot, programmaticTurn, resetZoom]
+    [emitSnapshot, preserveZoom, programmaticTurn, resetZoom]
   );
 
+  const updateHoverHint = (event: ReactPointerEvent<HTMLDivElement>, root: HTMLDivElement) => {
+    if (
+      reducedMotion ||
+      event.pointerType !== 'mouse' ||
+      event.buttons ||
+      activeTurnRef.current ||
+      zoomRef.current.isZoomed
+    ) {
+      setHoverDirection(null);
+      return;
+    }
+    const box = root.getBoundingClientRect();
+    const x = event.clientX - box.left;
+    const edge = Math.max(32, Math.min(72, box.width * 0.18));
+    const direction =
+      x >= box.width - edge && stateRef.current.canTurn('next')
+        ? 'next'
+        : x <= edge && stateRef.current.canTurn('prev')
+          ? 'prev'
+          : null;
+    setHoverDirection((current) => (current === direction ? current : direction));
+  };
+
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    setHoverDirection(null);
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     if (event.target instanceof Element && event.target.closest('button, a, input, select, textarea, [role="button"]'))
       return;
@@ -323,6 +359,7 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     const root = rootRef.current;
     if (!root) return;
+    updateHoverHint(event, root);
     const box = root.getBoundingClientRect();
     const point = { x: event.clientX - box.left, y: event.clientY - box.top, at: now() };
     const zoom = zoomRef.current.movePointer(event.pointerId, point, {
@@ -442,11 +479,13 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
       ref={rootRef}
       className={['flip-engine', className].filter(Boolean).join(' ')}
       data-layout={layout}
+      data-corner-hint={hoverDirection ?? undefined}
       data-phase="idle"
       onPointerCancel={(event) => releasePointer(event, true)}
       onLostPointerCapture={(event) => releasePointer(event, true)}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
+      onPointerLeave={() => setHoverDirection(null)}
       onPointerUp={(event) => releasePointer(event, false)}
       onClick={(event) => {
         if (!suppressClickRef.current) return;
@@ -463,6 +502,7 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
         layout={layout}
         movingRef={movingRef}
         pageCount={pageCount}
+        hoverDirection={reducedMotion ? null : hoverDirection}
         renderPage={renderPage}
         targetSpread={targetSpread}
       />

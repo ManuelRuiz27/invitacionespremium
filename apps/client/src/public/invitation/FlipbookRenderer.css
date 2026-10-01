@@ -149,6 +149,44 @@
   cursor: pointer;
 }
 
+/* A hover only previews the valid page corner. It has no pointer target and
+   does not change reader state; the engine still owns all turn gestures. */
+@media (hover: hover) and (pointer: fine) {
+  .flipbook-volume[data-flip-engine] .flip-engine[data-corner-hint] {
+    cursor: pointer;
+  }
+
+  .flipbook-volume[data-flip-engine] .flip-engine-page[data-corner-hint] .flip-engine-page-front::after {
+    content: '';
+    position: absolute;
+    z-index: 4;
+    top: 0;
+    width: min(36%, 104px);
+    height: min(27%, 132px);
+    opacity: 0.82;
+    background: linear-gradient(135deg, rgba(255, 252, 244, 0.9), rgba(159, 128, 94, 0.28));
+    box-shadow: 0 7px 13px rgba(46, 30, 16, 0.27);
+    clip-path: polygon(0 0, 100% 0, 100% 100%);
+    pointer-events: none;
+    transform: perspective(300px) rotateY(-14deg);
+    transform-origin: right top;
+    transition:
+      opacity 120ms ease-out,
+      transform 150ms ease-out;
+  }
+
+  .flipbook-volume[data-flip-engine] .flip-engine-page[data-corner-hint='next'] .flip-engine-page-front::after {
+    right: 0;
+  }
+
+  .flipbook-volume[data-flip-engine] .flip-engine-page[data-corner-hint='prev'] .flip-engine-page-front::after {
+    left: 0;
+    clip-path: polygon(0 0, 100% 0, 0 100%);
+    transform: perspective(300px) rotateY(14deg);
+    transform-origin: left top;
+  }
+}
+
 /* The public reader owns page geometry and all decorative layers. */
 .flipbook-volume[data-flip-engine] .flip-engine {
   position: relative;
@@ -274,6 +312,52 @@
   display: none;
 }
 
+.flipbook-secondary-navigation {
+  position: absolute;
+  z-index: 4;
+  top: 16px;
+  right: 16px;
+}
+
+.flipbook-secondary-trigger {
+  min-width: auto !important;
+  padding: 6px 10px !important;
+  color: #f8f3e8 !important;
+  background: rgba(31, 25, 18, 0.68) !important;
+  border: 1px solid rgba(248, 243, 232, 0.42) !important;
+}
+
+.flipbook-page-index {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(34px, 1fr));
+  gap: 4px;
+  width: min(264px, calc(100vw - 32px));
+  max-height: min(300px, 55vh);
+  padding: 8px;
+  overflow-y: auto;
+  background: rgba(31, 25, 18, 0.94);
+  border: 1px solid rgba(248, 243, 232, 0.32);
+  border-radius: 4px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
+}
+
+.flipbook-page-index-item {
+  min-width: 34px !important;
+  min-height: 34px !important;
+  padding: 4px !important;
+  color: #f8f3e8 !important;
+  border: 1px solid rgba(248, 243, 232, 0.26) !important;
+}
+
+.flipbook-page-index-item[aria-current='page'] {
+  color: #211a12 !important;
+  background: #ecd5ae !important;
+  border-color: #f7ead3 !important;
+}
+
 .flipbook-volume[data-flip-engine][data-intro='closed'] {
   transform: translateY(15px) rotateX(0deg) rotateZ(0deg) scale(0.97);
 }
@@ -283,6 +367,9 @@
 }
 
 @media (max-width: 1023px), (pointer: coarse) and (max-height: 500px) {
+  .flipbook-secondary-navigation {
+    display: none;
+  }
   .flipbook-reader-title {
     position: absolute;
     width: 1px;
@@ -691,5 +778,9 @@
   .flipbook-reader [data-flipbook-page-id][data-density='hard'] {
     animation: none !important;
     transition: none;
+  }
+
+  .flipbook-volume[data-flip-engine] .flip-engine-page[data-corner-hint] .flip-engine-page-front::after {
+    display: none;
   }
 }

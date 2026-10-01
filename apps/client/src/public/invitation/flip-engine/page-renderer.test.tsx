@@ -8,11 +8,12 @@ describe('PageRenderer', () => {
     const movingRef: MutableRefObject<HTMLDivElement | null> = { current: null };
     const { container } = render(
       <PageRenderer
-        activeTurn={{ direction: 'next', source: 2, reveal: 3 }}
+        activeTurn={{ direction: 'next', source: 2, reveal: 3, rigidity: 1 }}
         currentSpread={[1, 2]}
         layout="spread"
         movingRef={movingRef}
         pageCount={6}
+        hoverDirection={null}
         renderPage={({ index, shouldLoad }) => <div data-load={shouldLoad || undefined} data-test-page={index} />}
         targetSpread={[3, 4]}
       />

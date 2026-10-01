@@ -49,13 +49,16 @@ export function FlipbookRenderer({
   token,
   view,
   onRsvp,
-  onUnavailableQr
+  onUnavailableQr,
+  preserveZoom = false
 }: {
   apiClient: ApiClient;
   token: string;
   view: PublicInvitationView;
   onRsvp: () => void;
   onUnavailableQr: () => void;
+  /** Keeps the reader zoom after a page change. The default restores fit-to-page. */
+  preserveZoom?: boolean;
 }) {
   const pages = useMemo(
     () => [...(view.design?.pages ?? [])].sort((a, b) => a.position - b.position),
@@ -79,6 +82,7 @@ export function FlipbookRenderer({
   const [readerVisible, setReaderVisible] = useState(false);
   const [documentVisible, setDocumentVisible] = useState(() => !document.hidden);
   const [initialPageReady, setInitialPageReady] = useState(false);
+  const [pageIndexOpen, setPageIndexOpen] = useState(false);
   const bookKey = `${token}:${pages.map((page) => page.id).join(':')}`;
   const previousBookKeyRef = useRef(bookKey);
   const visiblePageIndexes = snapshot.visiblePages.filter((pageIndex) => pageIndex >= 0 && pageIndex < pages.length);
@@ -146,6 +150,7 @@ export function FlipbookRenderer({
     autoActiveRef.current = true;
     setInitialPageReady(false);
     setMobileControlsVisible(false);
+    setPageIndexOpen(false);
     if (controlsTimerRef.current !== null) window.clearTimeout(controlsTimerRef.current);
     controlsTimerRef.current = null;
   }, [bookKey]);
@@ -191,6 +196,18 @@ export function FlipbookRenderer({
       revealMobileControls();
       if (direction === 'next' && snapshotRef.current.page === 0) setIntroState('opening');
       return direction === 'next' ? engineRef.current?.flipNext() === true : engineRef.current?.flipPrev() === true;
+    },
+    [revealMobileControls]
+  );
+
+  const goToPage = useCallback(
+    (page: number) => {
+      autoActiveRef.current = false;
+      setAutoActive(false);
+      revealMobileControls();
+      const changed = engineRef.current?.turnToPage(page) === true;
+      if (changed) setPageIndexOpen(false);
+      return changed;
     },
     [revealMobileControls]
   );
@@ -323,6 +340,7 @@ export function FlipbookRenderer({
               setTurnOptics(turnProgress);
             }}
             pageCount={pages.length}
+            preserveZoom={preserveZoom}
             reducedMotion={reducedMotion}
             renderPage={({ folded, index, interactive, shouldLoad, visible }) => {
               const page = pages[index]!;
@@ -396,6 +414,36 @@ export function FlipbookRenderer({
             <ChevronRight className="flipbook-mobile-control" />
           </Button>
         </Stack>
+        {pages.length > 1 && (
+          <Box className="flipbook-secondary-navigation">
+            <Button
+              aria-controls="flipbook-page-index"
+              aria-expanded={pageIndexOpen}
+              aria-label={pageIndexOpen ? 'Cerrar índice de páginas' : 'Abrir índice de páginas'}
+              className="flipbook-secondary-trigger"
+              onClick={() => setPageIndexOpen((open) => !open)}
+            >
+              Índice
+            </Button>
+            {pageIndexOpen && (
+              <Stack id="flipbook-page-index" className="flipbook-page-index" aria-label="Índice de páginas">
+                {pages.map((page, index) => (
+                  <Button
+                    key={page.id}
+                    aria-current={visiblePageIndexes.includes(index) ? 'page' : undefined}
+                    aria-label={`Ir a página ${index + 1}`}
+                    className="flipbook-page-index-item"
+                    data-page-index={index + 1}
+                    disabled={isTurning}
+                    onClick={() => goToPage(index)}
+                  >
+                    {index + 1}
+                  </Button>
+                ))}
+              </Stack>
+            )}
+          </Box>
+        )}
       </Box>
     </Box>
   );

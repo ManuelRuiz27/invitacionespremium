@@ -125,6 +125,20 @@ describe('FlipbookRenderer', () => {
     expect(reader).toHaveAttribute('data-visible-pages', '1,2');
   });
 
+  it('uses the secondary page index through the same engine navigation path', async () => {
+    setMedia({ spread: true });
+    const { container } = renderFlipbook();
+    const reader = container.querySelector('.flipbook-reader')!;
+
+    await act(async () => undefined);
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir índice de páginas' }));
+    expect(screen.getByLabelText('Índice de páginas')).toBeVisible();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ir a página 5' }));
+    expect(reader).toHaveAttribute('data-visible-pages', '3,4');
+    expect(screen.queryByLabelText('Índice de páginas')).not.toBeInTheDocument();
+  });
+
   it('opens the cover when the reader surface is clicked', async () => {
     setMedia({ spread: true });
     const { container } = renderFlipbook();

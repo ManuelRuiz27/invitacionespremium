@@ -27,18 +27,25 @@ export function turnProgress(
   return Math.min(1.12, 1 + (raw - 1) * 0.22);
 }
 
-export function pageTurnGeometry(snapshot: TurnSnapshot, bounds: TurnBounds, originY: number): PageTurnGeometry {
+export function pageTurnGeometry(
+  snapshot: TurnSnapshot,
+  bounds: TurnBounds,
+  originY: number,
+  rigidity = 1
+): PageTurnGeometry {
   const progress = clamp(snapshot.progress);
   const lift = Math.sin(Math.PI * progress);
+  const flex = clamp(rigidity, 0.35, 1);
+  const flexibleLift = lift * flex;
   const grip = clamp(originY / Math.max(1, bounds.height));
   const signed = snapshot.direction === 'prev' ? 1 : -1;
   const gripBias = grip - 0.5;
-  const translate = signed * bounds.width * progress * 0.045;
-  const rotate = signed * (180 * progress + 8 * lift);
-  const skew = signed * gripBias * 9 * lift;
-  const fold = clamp(100 - 25 * lift);
-  const topFold = clamp(fold + gripBias * 18 * lift);
-  const bottomFold = clamp(fold - gripBias * 18 * lift);
+  const translate = signed * bounds.width * progress * 0.045 * flex;
+  const rotate = signed * (180 * progress + 8 * flexibleLift);
+  const skew = signed * gripBias * 9 * flexibleLift;
+  const fold = clamp(100 - 25 * flexibleLift, 0, 100);
+  const topFold = clamp(fold + gripBias * 18 * flexibleLift, 0, 100);
+  const bottomFold = clamp(fold - gripBias * 18 * flexibleLift, 0, 100);
   const backReveal = clamp((progress - 0.4) / 0.24);
   const landingFade = clamp((progress - 0.78) / 0.22);
   const backOpacity = progress === 1 ? 0 : backReveal * (1 - landingFade);
@@ -46,12 +53,12 @@ export function pageTurnGeometry(snapshot: TurnSnapshot, bounds: TurnBounds, ori
   return {
     backOpacity,
     clipPath: `polygon(0 0, ${topFold}% 0, ${fold}% 50%, ${bottomFold}% 100%, 0 100%)`,
-    curvature: lift,
-    foldOpacity: 0.08 + lift * 0.46,
+    curvature: flexibleLift,
+    foldOpacity: 0.08 + flexibleLift * 0.46,
     frontOpacity: 1 - clamp((progress - 0.5) / 0.22),
-    projectionOpacity: 0.06 + lift * 0.42,
-    shadowOpacity: 0.06 + lift * 0.34,
-    transform: `translate3d(${translate}px, 0, ${8 * lift}px) rotateY(${rotate}deg) skewY(${skew}deg)`,
+    projectionOpacity: 0.06 + flexibleLift * 0.42,
+    shadowOpacity: 0.06 + flexibleLift * 0.34,
+    transform: `translate3d(${translate}px, 0, ${8 * flexibleLift}px) rotateY(${rotate}deg) skewY(${skew}deg)`,
     transformOrigin: snapshot.direction === 'prev' ? '100% 50%' : '0 50%'
   };
 }

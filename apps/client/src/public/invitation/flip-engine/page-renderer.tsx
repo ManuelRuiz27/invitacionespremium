@@ -5,6 +5,7 @@ import type { FlipDirection, FlipLayout, PageRenderContext } from './types';
 interface ActiveTurn {
   direction: FlipDirection;
   reveal: number;
+  rigidity: number;
   source: number;
 }
 
@@ -14,6 +15,7 @@ interface PageRendererProps {
   layout: FlipLayout;
   movingRef: MutableRefObject<HTMLDivElement | null>;
   pageCount: number;
+  hoverDirection: FlipDirection | null;
   renderPage: (context: PageRenderContext) => ReactNode;
   targetSpread: number[] | null;
 }
@@ -35,6 +37,7 @@ export function PageRenderer({
   layout,
   movingRef,
   pageCount,
+  hoverDirection,
   renderPage,
   targetSpread
 }: PageRendererProps) {
@@ -54,6 +57,7 @@ export function PageRenderer({
   return Array.from({ length: pageCount }, (_, index) => {
     const isSource = activeTurn?.source === index;
     const isReveal = activeTurn?.reveal === index;
+    const hasCornerHint = !activeTurn && hoverDirection && currentSpread.includes(index);
     const visible = visibleIndexes.has(index);
     const spread = isReveal && activeTurn ? (targetSpread ?? currentSpread) : currentSpread;
     const side = isSource
@@ -74,6 +78,8 @@ export function PageRenderer({
         className={['flip-engine-page', isSource ? 'flip-engine-moving' : undefined].filter(Boolean).join(' ')}
         data-flip-engine-role={isSource ? 'moving' : isReveal ? 'reveal' : 'static'}
         data-flip-engine-visible={visible || undefined}
+        data-corner-hint={hasCornerHint ? hoverDirection : undefined}
+        data-cover-rigidity={isSource && activeTurn.rigidity < 1 ? 'true' : undefined}
         data-turn-direction={isSource ? activeTurn.direction : undefined}
         style={style}
       >
