@@ -66,11 +66,18 @@
 5. Si el acceso es válido, muestra la invitación.
 6. Confirma asistencia o rechaza mientras la Confirmación esté abierta.
 7. Si confirma, registra nombres de acompañantes/familia nominal según aplique.
-8. Al confirmar, la vista obtiene un `contentPath` controlado y muestra el QR SVG generado bajo demanda.
-9. Puede abrir ese SVG en pantalla completa; el token QR permanece codificado y no se expone como texto.
-10. Puede modificar respuesta mientras la Confirmación de asistencia esté abierta.
-11. Después del evento, si su Invitación tuvo al menos un Asistente ingresado y el álbum está publicado, la experiencia puede mostrar un link de Álbum con token separado.
-12. El token de Invitación no sustituye al token de Álbum.
+8. Con Invitación `CONFIRMED` y Evento operativo puede pulsar “Agregar a mi calendario” para descargar
+   un `.ics` con datos públicos. La acción se mantiene al volver a abrir la Invitación; no se muestra
+   para pendientes, rechazados, cancelaciones ni Eventos finalizados/no disponibles.
+9. La vista obtiene un `contentPath` controlado y muestra el QR SVG generado bajo demanda.
+10. Puede abrir ese SVG en pantalla completa; el token QR permanece codificado y no se expone como texto.
+11. Puede modificar respuesta mientras la Confirmación de asistencia esté abierta.
+12. Después del evento, si su Invitación tuvo al menos un Asistente ingresado y el álbum está publicado, la experiencia puede mostrar un link de Álbum con token separado.
+13. El token de Invitación no sustituye al token de Álbum.
+
+Recorrido conceptual: Invitación → Confirmación → acompañantes → Agregar al calendario → QR.
+Agregar al calendario es opcional y nunca un requisito para obtener o visualizar el QR. Es una
+exportación puntual sin sincronización ni efectos en RSVP; omite la hora final cuando no exista una real.
 
 ## Flujo Staff por token
 

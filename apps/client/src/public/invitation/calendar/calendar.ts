@@ -5,42 +5,35 @@ type PublicEvent = NonNullable<PublicInvitationView['event']>;
 export interface CalendarEventData {
   name: string;
   eventDateTime: string;
-  eventEndDateTime: string;
+  eventEndDateTime: string | null;
   timeZone: string;
   locationUrl: string | null;
 }
 
 export function toCalendarEventData(event: PublicEvent | undefined): CalendarEventData | null {
-  if (!event?.eventEndDateTime) return null;
+  if (!event) return null;
   const start = new Date(event.eventDateTime);
-  const end = new Date(event.eventEndDateTime);
+  const end = event.eventEndDateTime ? new Date(event.eventEndDateTime) : null;
   if (
     !Number.isFinite(start.getTime()) ||
-    !Number.isFinite(end.getTime()) ||
-    end.getTime() <= start.getTime() ||
+    (end !== null && (!Number.isFinite(end.getTime()) || end.getTime() <= start.getTime())) ||
+    !event.name.trim() ||
     !event.timeZone.trim()
   ) {
+    return null;
+  }
+  try {
+    new Intl.DateTimeFormat('es-MX', { timeZone: event.timeZone });
+  } catch {
     return null;
   }
   return {
     name: event.name,
     eventDateTime: event.eventDateTime,
-    eventEndDateTime: event.eventEndDateTime,
+    eventEndDateTime: event.eventEndDateTime ?? null,
     timeZone: event.timeZone,
     locationUrl: event.locationUrl ?? null
   };
-}
-
-export function buildGoogleCalendarUrl(event: CalendarEventData): string {
-  const url = new URL('https://calendar.google.com/calendar/r/eventedit');
-  url.searchParams.set('action', 'TEMPLATE');
-  url.searchParams.set('text', event.name);
-  url.searchParams.set('dates', calendarUtc(event.eventDateTime) + '/' + calendarUtc(event.eventEndDateTime));
-  url.searchParams.set('stz', event.timeZone);
-  url.searchParams.set('etz', event.timeZone);
-  url.searchParams.set('details', 'Invitación del evento');
-  if (event.locationUrl) url.searchParams.set('location', event.locationUrl);
-  return url.toString();
 }
 
 export function buildIcsCalendar(event: CalendarEventData, now = new Date()): string {
@@ -55,15 +48,15 @@ export function buildIcsCalendar(event: CalendarEventData, now = new Date()): st
     'UID:' + calendarUid(event),
     'DTSTAMP:' + calendarUtc(now),
     'DTSTART:' + calendarUtc(event.eventDateTime),
-    'DTEND:' + calendarUtc(event.eventEndDateTime),
+    ...(event.eventEndDateTime ? ['DTEND:' + calendarUtc(event.eventEndDateTime)] : []),
     'SUMMARY:' + escapeIcs(event.name),
     'DESCRIPTION:Invitación del evento',
-    ...(event.locationUrl ? ['LOCATION:' + escapeIcs(event.locationUrl), 'URL:' + escapeIcs(event.locationUrl)] : []),
+    ...(event.locationUrl ? ['LOCATION:' + escapeIcs(event.locationUrl)] : []),
     'END:VEVENT',
     'END:VCALENDAR',
     ''
   ];
-  return lines.join('\r\n');
+  return lines.map(foldIcsLine).join('\r\n');
 }
 
 export function calendarFileName(name: string): string {
@@ -87,7 +80,28 @@ function calendarUtc(value: string | Date): string {
 }
 
 function escapeIcs(value: string): string {
-  return value.replace(/\\/gu, '\\\\').replace(/\r?\n/gu, '\\n').replace(/,/gu, '\\,').replace(/;/gu, '\\;');
+  return value
+    .replace(/\\/gu, '\\\\')
+    .replace(/\r\n|\r|\n/gu, '\\n')
+    .replace(/,/gu, '\\,')
+    .replace(/;/gu, '\\;');
+}
+
+// RFC 5545 folds content lines at 75 UTF-8 octets without splitting a code point.
+function foldIcsLine(value: string): string {
+  const encoder = new TextEncoder();
+  let result = '';
+  let octets = 0;
+  for (const char of value) {
+    const size = encoder.encode(char).length;
+    if (octets + size > 75) {
+      result += '\r\n ';
+      octets = 1;
+    }
+    result += char;
+    octets += size;
+  }
+  return result;
 }
 
 function calendarUid(event: CalendarEventData): string {

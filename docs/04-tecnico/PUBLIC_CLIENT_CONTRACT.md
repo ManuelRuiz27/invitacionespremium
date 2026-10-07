@@ -115,6 +115,26 @@ resolución autoritativa con el token, generación y `AbortSignal` originales. E
 según corresponda, muestra AVAILABLE sin Confirmación abierta, solo CANCELLED, CLOSED con su Álbum
 permitido o el estado no disponible ante `404`. No existe loop automático.
 
+## Exportación opcional de calendario
+
+La proyección `AVAILABLE` de una Invitación `CONFIRMED`, no cancelada, ofrece
+“Agregar a mi calendario” inmediatamente después de resolver la confirmación exitosa y al volver
+a abrirla. También está disponible con Confirmación cerrada; `PENDING`, `REJECTED`, `CANCELLED`,
+`CLOSED` y acceso no disponible no muestran esta acción.
+
+El Cliente genera y descarga directamente un `.ics` (`text/calendar;charset=utf-8`) con nombre
+sanitizado, sin selector ni modal. Reutiliza exclusivamente `event.name`, `eventDateTime`, `timeZone`
+y `locationUrl` pública cuando exista. `SUMMARY` contiene el nombre del Evento; `DTSTART` conserva
+el instante en UTC y `X-WR-TIMEZONE` conserva la zona IANA. No se inventa duración: si no existe
+`eventEndDateTime` real, se omite `DTEND`; si ya está presente y es válida, se exporta.
+El contenido usa CRLF, escaping de texto y plegado a 75 octetos UTF-8 conforme a RFC 5545.
+
+El UID es estable y se deriva únicamente del nombre y del instante públicos; no usa tokens ni IDs
+internos. El archivo no incluye URL de Invitación, QR, nonce, teléfonos, contacto, Cliente, finanzas
+ni datos nominales de Asistentes. No hay endpoint nuevo, persistencia, OAuth, sincronización,
+recordatorios, notificaciones ni tracking. Un fallo de exportación se muestra localmente y permite
+reintentar; nunca cambia el resultado de RSVP ni condiciona la obtención o visualización del QR.
+
 ## QR
 
 El botón “Ver mi QR” y el Hotspot operativo existen únicamente con `qr.available === true`. El SVG se
