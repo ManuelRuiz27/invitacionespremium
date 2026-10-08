@@ -40,25 +40,25 @@ export function pageTurnGeometry(
   const grip = clamp(originY / Math.max(1, bounds.height));
   const signed = snapshot.direction === 'prev' ? 1 : -1;
   const gripBias = grip - 0.5;
-  const translate = signed * bounds.width * progress * 0.045 * flex;
-  const rotate = signed * (180 * progress + 8 * flexibleLift);
-  const skew = signed * gripBias * 9 * flexibleLift;
-  const fold = clamp(100 - 25 * flexibleLift, 0, 100);
-  const topFold = clamp(fold + gripBias * 18 * flexibleLift, 0, 100);
-  const bottomFold = clamp(fold - gripBias * 18 * flexibleLift, 0, 100);
-  const backReveal = clamp((progress - 0.4) / 0.24);
-  const landingFade = clamp((progress - 0.78) / 0.22);
+  const translate = signed * bounds.width * progress * 0.065 * flex;
+  const rotate = signed * (180 * progress + 14 * flexibleLift);
+  const skew = signed * gripBias * 14 * flexibleLift;
+  const fold = clamp(100 - 38 * flexibleLift, 0, 100);
+  const topFold = clamp(fold + gripBias * 26 * flexibleLift, 0, 100);
+  const bottomFold = clamp(fold - gripBias * 26 * flexibleLift, 0, 100);
+  const backReveal = clamp((progress - 0.32) / 0.2);
+  const landingFade = clamp((progress - 0.86) / 0.14);
   const backOpacity = progress === 1 ? 0 : backReveal * (1 - landingFade);
 
   return {
     backOpacity,
     clipPath: `polygon(0 0, ${topFold}% 0, ${fold}% 50%, ${bottomFold}% 100%, 0 100%)`,
     curvature: flexibleLift,
-    foldOpacity: 0.08 + flexibleLift * 0.46,
-    frontOpacity: 1 - clamp((progress - 0.5) / 0.22),
-    projectionOpacity: 0.06 + flexibleLift * 0.42,
-    shadowOpacity: 0.06 + flexibleLift * 0.34,
-    transform: `translate3d(${translate}px, 0, ${8 * flexibleLift}px) rotateY(${rotate}deg) skewY(${skew}deg)`,
+    foldOpacity: 0.12 + flexibleLift * 0.62,
+    frontOpacity: 1 - clamp((progress - 0.58) / 0.2),
+    projectionOpacity: 0.12 + flexibleLift * 0.58,
+    shadowOpacity: 0.1 + flexibleLift * 0.48,
+    transform: `translate3d(${translate}px, 0, ${18 * flexibleLift}px) rotateY(${rotate}deg) skewY(${skew}deg)`,
     transformOrigin: snapshot.direction === 'prev' ? '100% 50%' : '0 50%'
   };
 }

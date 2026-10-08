@@ -35,7 +35,7 @@ describe('page geometry', () => {
     expect(midTurn.backOpacity).toBeGreaterThan(0);
     expect(midTurn.foldOpacity).toBeGreaterThan(0.4);
     expect(midTurn.projectionOpacity).toBeGreaterThan(0.4);
-    expect(midTurn.transform).toContain('rotateY(-98deg)');
+    expect(midTurn.transform).toContain('rotateY(-104deg)');
     expect(
       pageTurnGeometry(
         { phase: 'completing', direction: 'next', progress: 1, velocity: 0 },
@@ -76,6 +76,6 @@ describe('page geometry', () => {
 
     expect(cover.curvature).toBeLessThan(leaf.curvature);
     expect(cover.clipPath).not.toBe(leaf.clipPath);
-    expect(cover.transform).toContain('rotateY(-94.4deg)');
+    expect(cover.transform).toContain('rotateY(-97.7deg)');
   });
 });

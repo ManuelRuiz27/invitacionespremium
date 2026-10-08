@@ -31,7 +31,7 @@ describe('PageTurnController', () => {
     controller.startProgrammatic('next', bounds, 0);
 
     expect(controller.complete(0)).toMatchObject({ phase: 'completing', direction: 'next', progress: 0 });
-    expect(controller.advance(420)).toMatchObject({ complete: true, snapshot: { progress: 1 } });
+    expect(controller.advance(650)).toMatchObject({ complete: true, snapshot: { progress: 1 } });
   });
 
   it('snaps back a partial or cancelled turn without committing it', () => {
