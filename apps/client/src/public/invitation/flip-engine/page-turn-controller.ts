@@ -48,6 +48,11 @@ export class PageTurnController {
     return this.beginSettle(complete ? 1 : 0, at);
   }
 
+  complete(at: number): TurnSnapshot {
+    if (this.snapshot.phase !== 'dragging') return this.snapshot;
+    return this.beginSettle(1, at);
+  }
+
   cancel(at: number): TurnSnapshot {
     if (this.snapshot.phase === 'idle') return this.snapshot;
     return this.beginSettle(0, at);

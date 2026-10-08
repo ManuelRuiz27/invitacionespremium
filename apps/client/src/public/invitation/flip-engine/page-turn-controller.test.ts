@@ -26,6 +26,14 @@ describe('PageTurnController', () => {
     expect(controller.release(25)).toMatchObject({ phase: 'completing', direction: 'next' });
   });
 
+  it('settles a programmatic turn forward from its closed position', () => {
+    const controller = new PageTurnController();
+    controller.startProgrammatic('next', bounds, 0);
+
+    expect(controller.complete(0)).toMatchObject({ phase: 'completing', direction: 'next', progress: 0 });
+    expect(controller.advance(420)).toMatchObject({ complete: true, snapshot: { progress: 1 } });
+  });
+
   it('snaps back a partial or cancelled turn without committing it', () => {
     const controller = new PageTurnController();
     controller.start('prev', { x: 0, y: 340, at: 0 }, bounds);

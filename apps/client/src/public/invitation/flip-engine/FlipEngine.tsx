@@ -279,7 +279,7 @@ export const FlipEngine = forwardRef<FlipEngineHandle, FlipEngineProps>(function
         finishTurn(true);
         return true;
       }
-      controllerRef.current.release(point.at);
+      controllerRef.current.complete(point.at);
       onChangeState?.('completing');
       settle();
       return true;
