@@ -92,7 +92,17 @@ export function PageRenderer({
             visible
           })}
         </div>
-        {isSource && <div className="flip-engine-page-face flip-engine-page-back" aria-hidden="true" />}
+        {isSource && activeTurn && (
+          <div className="flip-engine-page-face flip-engine-page-back" aria-hidden="true">
+            {renderPage({
+              folded: false,
+              index: activeTurn.reveal,
+              interactive: false,
+              shouldLoad: true,
+              visible: true
+            })}
+          </div>
+        )}
         <LightingRenderer active={isSource} />
       </div>
     );
