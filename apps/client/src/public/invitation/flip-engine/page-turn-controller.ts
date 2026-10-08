@@ -86,7 +86,7 @@ export class PageTurnController {
     this.settleFrom = this.snapshot.progress;
     this.settleTo = target;
     this.settleStartedAt = at;
-    this.settleDuration = Math.max(180, Math.min(620, 220 + distance * 360));
+    this.settleDuration = Math.max(160, Math.min(460, 180 + distance * 280));
     this.snapshot = {
       ...this.snapshot,
       phase: target === 1 ? 'completing' : 'snapping_back'
