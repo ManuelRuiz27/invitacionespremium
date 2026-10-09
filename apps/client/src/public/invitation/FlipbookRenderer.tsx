@@ -87,6 +87,7 @@ export function FlipbookRenderer({
   const previousBookKeyRef = useRef(bookKey);
   const visiblePageIndexes = snapshot.visiblePages.filter((pageIndex) => pageIndex >= 0 && pageIndex < pages.length);
   const visiblePageKey = visiblePageIndexes.join(',');
+  const showingCover = snapshot.page === 0 && visiblePageIndexes.length === 1;
   const canGoPrevious = snapshot.page > 0;
   const canGoNext = visiblePageIndexes.at(-1) !== pages.length - 1;
   const coverCanOpen = snapshot.page === 0 && snapshot.pageCount > 0 && pages.length > 1;
@@ -316,7 +317,7 @@ export function FlipbookRenderer({
           data-intro={introState}
           data-orientation={snapshot.orientation}
           data-layout={layout}
-          data-cover="none"
+          data-cover={showingCover ? 'single' : 'spread'}
           data-can-open={coverCanOpen ? 'true' : undefined}
           data-flip-engine
           data-mobile-spine={showMobileSpine || undefined}

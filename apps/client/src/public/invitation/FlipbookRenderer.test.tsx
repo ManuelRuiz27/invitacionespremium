@@ -107,6 +107,7 @@ describe('FlipbookRenderer', () => {
       'page-1'
     );
     expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-flip-engine');
+    expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-cover', 'single');
     expect(screen.getByRole('group', { name: /1 de 6/ })).toBeVisible();
   });
 
@@ -117,8 +118,10 @@ describe('FlipbookRenderer', () => {
 
     await act(async () => undefined);
     expect(reader).toHaveAttribute('data-visible-pages', '0');
+    expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-cover', 'single');
     fireEvent.click(screen.getByRole('button', { name: /abrir invit/i }));
     expect(reader).toHaveAttribute('data-visible-pages', '1,2');
+    expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-cover', 'spread');
     fireEvent.click(screen.getByRole('button', { name: /siguiente/i }));
     expect(reader).toHaveAttribute('data-visible-pages', '3,4');
     fireEvent.click(screen.getByRole('button', { name: /anterior/i }));
