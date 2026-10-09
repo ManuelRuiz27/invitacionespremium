@@ -22,6 +22,23 @@ async function visible(page: Page, indexes: string) {
   await expect(reader(page)).toHaveAttribute('data-transition', 'idle');
 }
 
+async function binding(page: Page) {
+  return page.locator('.flipbook-magazine-engine').evaluate((engine) => {
+    const bounds = engine.getBoundingClientRect();
+    return ['::before', '::after'].map((pseudo) => {
+      const style = getComputedStyle(engine, pseudo);
+      return {
+        content: style.content,
+        top: bounds.top + parseFloat(style.top),
+        bottom: bounds.bottom - parseFloat(style.bottom),
+        left: bounds.left + parseFloat(style.left),
+        width: parseFloat(style.width),
+        pointerEvents: style.pointerEvents
+      };
+    });
+  });
+}
+
 async function shot(page: Page, info: TestInfo, name: string) {
   const path = info.outputPath(`${name}.png`);
   await page.screenshot({
@@ -184,6 +201,43 @@ for (const count of [1, 2, 3, 4, 5, 6, 10]) {
   });
 }
 
+for (const [width, height] of [
+  [320, 568],
+  [390, 844],
+  [430, 932]
+]) {
+  test(`portrait binding joins the physical leaf at ${width}x${height}`, async ({ page }, info) => {
+    await page.setViewportSize({ width: width!, height: height! });
+    for (const query of ['?pages=6', '?pages=6&mixed']) {
+      await open(page, query);
+      await next(page).click();
+      await visible(page, '1');
+      await fits(page);
+      const leaf = page.locator('.stf__item.--shown').first();
+      const bounds = (await leaf.boundingBox())!;
+      const [crease, edge] = await binding(page);
+      for (const layer of [crease!, edge!]) {
+        expect(layer.content).toBe('""');
+        expect(layer.pointerEvents).toBe('none');
+        expect(Math.abs(layer.top - bounds.y)).toBeLessThan(1);
+        expect(Math.abs(layer.bottom - bounds.y - bounds.height)).toBeLessThan(1);
+        expect(layer.width).toBeGreaterThanOrEqual(8);
+        expect(layer.width).toBeLessThanOrEqual(14);
+      }
+      expect(Math.abs(edge!.left + edge!.width - crease!.left)).toBeLessThan(1);
+      expect(Math.abs(crease!.left - bounds.x)).toBeLessThan(1);
+      await expect(leaf.locator('img')).toHaveCSS('object-fit', 'contain');
+      await shot(page, info, `binding-${width}-${query.includes('mixed') ? 'mixed' : 'interior'}`);
+      await next(page).click();
+      await visible(page, '2');
+      expect(await binding(page)).toEqual([crease, edge]);
+      await previous(page).click();
+      await visible(page, '1');
+      expect(await binding(page)).toEqual([crease, edge]);
+    }
+  });
+}
+
 test('physical curl, touch navigation, concurrent input and vertical scroll', async ({ page, browserName }) => {
   await open(page);
   await next(page).click();
@@ -243,9 +297,11 @@ test('visual evidence at a physical curl frame', async ({ page }, info) => {
   await next(page).click();
   await visible(page, '1');
   await page.clock.pauseAt(new Date('2026-09-23T12:05:00Z'));
+  const stationaryBinding = await binding(page);
   await next(page).click({ force: true });
   await page.clock.runFor(160);
   await expect(reader(page)).not.toHaveAttribute('data-transition', 'idle');
+  expect(await binding(page)).toEqual(stationaryBinding);
   expect(
     await page
       .locator('.stf__item')
@@ -269,7 +325,7 @@ test('automatic reading settles with a left fold and stops after manual input', 
   await visible(page, '1');
   const folded = page.locator('[data-flipbook-page-id="fixture-page-2"]');
   await expect(folded).toHaveAttribute('data-folded', 'true');
-  expect(await folded.evaluate((element) => getComputedStyle(element, '::after').content)).not.toBe('none');
+  expect((await binding(page)).every((layer) => layer.content === '""')).toBe(true);
   await shot(page, info, 'mobile-390-folded-left');
   await next(page).click();
   await visible(page, '2');
@@ -293,16 +349,14 @@ test('REQ-02 mobile taps preserve the settled curl without turning a page', asyn
     await page.touchscreen.tap(rect.x + rect.width * x!, rect.y + rect.height * y!);
     await visible(page, '1');
     await expect(folded).toHaveAttribute('data-folded', 'true');
-    for (const pseudo of ['::before', '::after']) {
-      expect(await folded.evaluate((element, pseudo) => getComputedStyle(element, pseudo).content, pseudo)).toBe('""');
-    }
+    expect((await binding(page)).every((layer) => layer.content === '""')).toBe(true);
   }
   await shot(page, info, 'req02-mobile-settled-curl');
   await next(page).click();
   await visible(page, '2');
   await previous(page).click();
   await visible(page, '1');
-  expect(await folded.evaluate((element) => getComputedStyle(element, '::after').content)).toBe('""');
+  expect((await binding(page)).every((layer) => layer.content === '""')).toBe(true);
 });
 
 test('automatic reading reaches the back cover and respects reduced motion', async ({ page }) => {
