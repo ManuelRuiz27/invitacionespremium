@@ -187,33 +187,15 @@ export function PublicInvitationTokenPage({
       ? albumTokenFromContentPath(view.album.contentPath)
       : null;
   const calendarEvent = response === 'CONFIRMED' ? toCalendarEventData(view.event) : null;
+  const isFlipbook = view.design?.type === 'FLIPBOOK';
   return (
-    <PublicLayout immersiveReader={view.design?.type === 'FLIPBOOK'}>
-      <Stack className="public-invitation-content" spacing={{ xs: 3, md: 5 }}>
-        <Box component="header" sx={{ display: 'grid', gap: 1, maxWidth: 760 }}>
-          <Typography component="h1" variant="h1" sx={{ fontFamily: 'Georgia, serif' }}>
-            {view.event?.name}
-          </Typography>
-          {view.event ? (
-            <Typography color="text.secondary">
-              {formatEventDate(view.event.eventDateTime, view.event.timeZone)}
-            </Typography>
-          ) : null}
-          <Chip
-            label={invitationStatusLabel[response]}
-            color={response === 'CONFIRMED' ? 'success' : 'default'}
-            sx={{ width: 'fit-content' }}
-          />
-        </Box>
-        {notice ? (
-          <Alert severity={notice.severity} aria-live="polite">
-            {notice.message}
-          </Alert>
-        ) : null}
-        <InvitationRenderer
+    <PublicLayout immersiveReader={isFlipbook} tone={isFlipbook ? 'dark' : 'light'}>
+      {isFlipbook ? (
+        <FlipbookOnly
           apiClient={apiClient}
-          token={invitationToken}
+          invitationToken={invitationToken}
           view={view}
+          notice={notice}
           onRsvp={() => {
             if (view.confirmation?.open) setRsvpOpen(invitationToken);
             else
@@ -231,24 +213,68 @@ export function PublicInvitationTokenPage({
             })
           }
         />
-        {response === 'CONFIRMED' ? (
-          <Alert severity="success" icon={false}>
-            <Stack spacing={1.5} sx={{ alignItems: 'flex-start' }}>
-              <Typography sx={{ fontWeight: 700 }}>✓ Tu asistencia está confirmada</Typography>
-              {calendarEvent ? <CalendarAction event={calendarEvent} /> : null}
-            </Stack>
-          </Alert>
-        ) : null}
-        {!view.confirmation?.open ? (
-          <Alert severity="info">La confirmación de asistencia ya fue cerrada. Contacta al organizador.</Alert>
-        ) : null}
-        {albumToken ? (
-          <Button component={Link} to={`/album/${encodeURIComponent(albumToken)}`} sx={{ width: 'fit-content' }}>
-            Abrir álbum
-          </Button>
-        ) : null}
-        {view.album?.state === 'RESTRICTED' ? <Typography>Álbum disponible solo para asistentes</Typography> : null}
-      </Stack>
+      ) : (
+        <Stack className="public-invitation-content" spacing={{ xs: 3, md: 5 }}>
+          <Box component="header" sx={{ display: 'grid', gap: 1, maxWidth: 760 }}>
+            <Typography component="h1" variant="h1" sx={{ fontFamily: 'Georgia, serif' }}>
+              {view.event?.name}
+            </Typography>
+            {view.event ? (
+              <Typography color="text.secondary">
+                {formatEventDate(view.event.eventDateTime, view.event.timeZone)}
+              </Typography>
+            ) : null}
+            <Chip
+              label={invitationStatusLabel[response]}
+              color={response === 'CONFIRMED' ? 'success' : 'default'}
+              sx={{ width: 'fit-content' }}
+            />
+          </Box>
+          {notice ? (
+            <Alert severity={notice.severity} aria-live="polite">
+              {notice.message}
+            </Alert>
+          ) : null}
+          <InvitationRenderer
+            apiClient={apiClient}
+            token={invitationToken}
+            view={view}
+            onRsvp={() => {
+              if (view.confirmation?.open) setRsvpOpen(invitationToken);
+              else
+                setNotice({
+                  severity: 'info',
+                  message: 'La confirmación de asistencia ya fue cerrada. Contacta al organizador.'
+                });
+            }}
+            onUnavailableQr={() =>
+              setNotice({
+                severity: 'info',
+                message: view.confirmation?.open
+                  ? 'Confirma tu asistencia para ver tu QR.'
+                  : 'El QR ya no está disponible.'
+              })
+            }
+          />
+          {response === 'CONFIRMED' ? (
+            <Alert severity="success" icon={false}>
+              <Stack spacing={1.5} sx={{ alignItems: 'flex-start' }}>
+                <Typography sx={{ fontWeight: 700 }}>✓ Tu asistencia está confirmada</Typography>
+                {calendarEvent ? <CalendarAction event={calendarEvent} /> : null}
+              </Stack>
+            </Alert>
+          ) : null}
+          {!view.confirmation?.open ? (
+            <Alert severity="info">La confirmación de asistencia ya fue cerrada. Contacta al organizador.</Alert>
+          ) : null}
+          {albumToken ? (
+            <Button component={Link} to={`/album/${encodeURIComponent(albumToken)}`} sx={{ width: 'fit-content' }}>
+              Abrir álbum
+            </Button>
+          ) : null}
+          {view.album?.state === 'RESTRICTED' ? <Typography>Álbum disponible solo para asistentes</Typography> : null}
+        </Stack>
+      )}
       <RsvpDialog
         open={rsvpOpen === invitationToken}
         view={view}
@@ -263,6 +289,42 @@ export function PublicInvitationTokenPage({
         onReject={() => void mutate('REJECTED')}
       />
     </PublicLayout>
+  );
+}
+
+function FlipbookOnly({
+  apiClient,
+  invitationToken,
+  view,
+  notice,
+  onRsvp,
+  onUnavailableQr
+}: {
+  apiClient: ApiClient;
+  invitationToken: string;
+  view: PublicInvitationView;
+  notice: { message: string; severity: 'success' | 'info' } | null;
+  onRsvp: () => void;
+  onUnavailableQr: () => void;
+}) {
+  return (
+    <Box className="public-invitation-flipbook-only">
+      <Typography component="h1" className="public-invitation-sr-only">
+        {view.event?.name ?? 'Evento'}
+      </Typography>
+      {notice ? (
+        <Alert className="public-invitation-flipbook-notice" severity={notice.severity} aria-live="polite">
+          {notice.message}
+        </Alert>
+      ) : null}
+      <InvitationRenderer
+        apiClient={apiClient}
+        token={invitationToken}
+        view={view}
+        onRsvp={onRsvp}
+        onUnavailableQr={onUnavailableQr}
+      />
+    </Box>
   );
 }
 

@@ -415,9 +415,11 @@ describe('public invitation', () => {
         ]
       }
     });
-    renderApp(publicApi(view), `/invitacion/${token}`);
+    const { container } = renderApp(publicApi(view), `/invitacion/${token}`);
     expect(await screen.findByText('Página 1 de 2')).toBeVisible();
     const link = screen.getByRole('link', { name: 'Ver ubicación' });
+    expect(screen.queryByText('InvitacionesPremium')).not.toBeInTheDocument();
+    expect(container.querySelector('.flipbook-controls')?.parentElement).toHaveClass('flipbook-stage');
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     expect(link).toHaveAttribute('referrerpolicy', 'no-referrer');
     fireEvent.keyDown(screen.getByLabelText('Invitación en páginas'), { key: 'ArrowRight' });

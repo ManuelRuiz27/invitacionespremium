@@ -26,22 +26,29 @@ export function PublicLayout({
     >
       <Container
         component="main"
-        maxWidth="lg"
-        sx={{ minHeight: '100svh', px: { xs: 2, sm: 4 }, py: { xs: 3, md: 6 } }}
+        maxWidth={immersiveReader ? false : 'lg'}
+        disableGutters={immersiveReader}
+        sx={{
+          minHeight: '100svh',
+          px: immersiveReader ? 0 : { xs: 2, sm: 4 },
+          py: immersiveReader ? 0 : { xs: 3, md: 6 }
+        }}
       >
-        <Typography
-          className="public-layout-brand"
-          component="p"
-          sx={{
-            mb: 3,
-            fontFamily: 'Georgia, serif',
-            fontSize: '.78rem',
-            letterSpacing: '.18em',
-            textTransform: 'uppercase'
-          }}
-        >
-          InvitacionesPremium
-        </Typography>
+        {!immersiveReader ? (
+          <Typography
+            className="public-layout-brand"
+            component="p"
+            sx={{
+              mb: 3,
+              fontFamily: 'Georgia, serif',
+              fontSize: '.78rem',
+              letterSpacing: '.18em',
+              textTransform: 'uppercase'
+            }}
+          >
+            InvitacionesPremium
+          </Typography>
+        ) : null}
         {children}
       </Container>
     </Box>

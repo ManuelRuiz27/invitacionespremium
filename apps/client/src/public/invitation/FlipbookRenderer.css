@@ -8,6 +8,30 @@
   overflow: hidden;
 }
 
+.public-invitation-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.public-invitation-flipbook-only {
+  min-height: 100svh;
+}
+
+.public-invitation-flipbook-notice {
+  position: fixed;
+  z-index: 4;
+  right: 16px;
+  bottom: 16px;
+  max-width: min(420px, calc(100vw - 32px));
+}
+
 .flipbook-mobile-control {
   display: none;
 }
@@ -157,16 +181,17 @@
     padding-top: var(--reader-safe-top);
     padding-bottom: var(--reader-safe-bottom);
     display: grid;
-    grid-template-rows: minmax(0, 1fr) var(--reader-chrome);
+    grid-template-rows: minmax(0, 1fr);
     background: #201d18;
     color: #f8f3e8;
     overflow: clip;
   }
 
   .flipbook-reader .flipbook-stage {
+    height: 100%;
     min-height: 0;
     padding: 24px max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px));
-    overflow: visible;
+    overflow: hidden;
     box-shadow: none;
     perspective: 1600px;
   }
@@ -247,7 +272,7 @@
   }
 
   .flipbook-reader .flipbook-controls {
-    margin: 0;
+    margin: auto 0 0;
     padding: 0 max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px));
     justify-content: space-between;
     z-index: 2;
