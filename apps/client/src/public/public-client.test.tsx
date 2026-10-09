@@ -423,8 +423,6 @@ describe('public invitation', () => {
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     expect(link).toHaveAttribute('referrerpolicy', 'no-referrer');
     fireEvent.keyDown(screen.getByLabelText('Invitación en páginas'), { key: 'ArrowRight' });
-    await waitFor(() => expect(screen.getByTestId('flipbook-engine-mock')).toHaveAttribute('data-last-turn-leaf', '1'));
-    fireEvent.keyDown(screen.getByLabelText('Invitación en páginas'), { key: 'ArrowRight' });
     expect(await screen.findByText('Página 2 de 2')).toBeVisible();
   });
 

@@ -16,23 +16,6 @@ function allPageIndexes(pageCount: number): Set<number> {
   return new Set(Array.from({ length: pageCount }, (_, index) => index));
 }
 
-function invitationPageIndexes(leafIndexes: number[], firstInvitationLeaf: number, pageCount: number): number[] {
-  return leafIndexes
-    .map((leafIndex) => leafIndex - firstInvitationLeaf)
-    .filter((pageIndex) => pageIndex >= 0 && pageIndex < pageCount);
-}
-
-function BookEndpaper({ position }: { position: 'front' | 'back' | 'back-cover' }) {
-  return (
-    <Box
-      aria-hidden="true"
-      className={`flipbook-endpaper flipbook-endpaper--${position}`}
-      data-flipbook-endpaper={position}
-      data-density={position === 'back-cover' ? 'hard' : undefined}
-    />
-  );
-}
-
 export function FlipbookRenderer({
   apiClient,
   token,
@@ -54,8 +37,6 @@ export function FlipbookRenderer({
   // Matches the existing 767px reader breakpoint. Short touch landscapes keep
   // the same single-leaf shell; the engine still decides orientation from its host.
   const mobileReader = useMediaQuery('(max-width: 767px), (pointer: coarse) and (max-height: 500px)');
-  const desktopEndpapers = !mobileReader;
-  const firstInvitationLeaf = desktopEndpapers ? 2 : 0;
   const bookRef = useRef<FlipBookHandle | null>(null);
   const readerRef = useRef<HTMLDivElement | null>(null);
   const focalPageRef = useRef(0);
@@ -70,17 +51,12 @@ export function FlipbookRenderer({
   const [autoActive, setAutoActive] = useState(true);
   const [readerVisible, setReaderVisible] = useState(false);
   const [documentVisible, setDocumentVisible] = useState(() => !document.hidden);
-  const contentKey = `${token}:${pages.map((page) => page.id).join(':')}`;
-  const bookKey = `${contentKey}:${desktopEndpapers ? 'with-endpapers' : 'pages-only'}`;
-  const visibleLeafIndexes = snapshot.visiblePages.filter(
-    (pageIndex) => pageIndex >= 0 && pageIndex < snapshot.pageCount
-  );
-  const visiblePageIndexes = invitationPageIndexes(visibleLeafIndexes, firstInvitationLeaf, pages.length);
+  const bookKey = `${token}:${pages.map((page) => page.id).join(':')}`;
+  const visiblePageIndexes = snapshot.visiblePages.filter((pageIndex) => pageIndex >= 0 && pageIndex < pages.length);
   const visiblePageKey = visiblePageIndexes.join(',');
   const canGoPrevious = snapshot.page > 0;
   const canGoNext = visiblePageIndexes.at(-1) !== pages.length - 1;
-  const coverCanOpen =
-    snapshot.page === 0 && snapshot.pageCount > 0 && (desktopEndpapers ? pages.length > 0 : pages.length > 1);
+  const coverCanOpen = snapshot.page === 0 && snapshot.pageCount > 0 && pages.length > 1;
   const isOpening = introState === 'lifting' || introState === 'opening';
 
   useLayoutEffect(() => {
@@ -93,7 +69,7 @@ export function FlipbookRenderer({
     setTransitionState('idle');
     setIntroState('closed');
     setAutoActive(true);
-  }, [bookKey, pages.length]);
+  }, [bookKey]);
 
   useEffect(() => {
     const reader = readerRef.current;
@@ -122,31 +98,22 @@ export function FlipbookRenderer({
     []
   );
 
-  const syncSnapshot = useCallback(
-    (next: BookSnapshot) => {
-      // Core exposes a spread head, not the last real leaf read in portrait.
-      // Resize can emit `flip` before `changeOrientation`; retain that leaf until
-      // the orientation callback restores it through the public instant API.
-      const nextVisiblePages = invitationPageIndexes(next.visiblePages, firstInvitationLeaf, pages.length);
-      if (
-        next.orientation === orientationRef.current &&
-        nextVisiblePages.length > 0 &&
-        !nextVisiblePages.includes(focalPageRef.current)
-      ) {
-        focalPageRef.current = nextVisiblePages[0]!;
-      }
-      setSnapshot(next);
-      setIntroState(next.page === 0 ? 'closed' : 'open');
-    },
-    [firstInvitationLeaf, pages.length]
-  );
+  const syncSnapshot = useCallback((next: BookSnapshot) => {
+    // Core exposes a spread head, not the last real leaf read in portrait.
+    // Resize can emit `flip` before `changeOrientation`; retain that leaf until
+    // the orientation callback restores it through the public instant API.
+    if (next.orientation === orientationRef.current && !next.visiblePages.includes(focalPageRef.current)) {
+      focalPageRef.current = next.page;
+    }
+    setSnapshot(next);
+    setIntroState(next.page === 0 ? 'closed' : 'open');
+  }, []);
   const syncOrientation = useCallback(() => {
     const book = bookRef.current?.pageFlip();
     if (!book || book.getPageCount() === 0) return;
     orientationRef.current = book.getOrientation();
-    const targetLeaf = firstInvitationLeaf + Math.min(focalPageRef.current, Math.max(0, pages.length - 1));
-    if (book.getOrientation() === 'portrait' && book.getCurrentPageIndex() !== targetLeaf) {
-      bookRef.current?.turnToPage(targetLeaf);
+    if (book.getOrientation() === 'portrait' && book.getCurrentPageIndex() !== focalPageRef.current) {
+      bookRef.current?.turnToPage(focalPageRef.current);
     }
     syncSnapshot({
       page: book.getCurrentPageIndex(),
@@ -154,7 +121,7 @@ export function FlipbookRenderer({
       orientation: book.getOrientation(),
       visiblePages: book.getVisiblePages()
     });
-  }, [firstInvitationLeaf, pages.length, syncSnapshot]);
+  }, [syncSnapshot]);
 
   const turnPage = useCallback(
     (direction: 'next' | 'prev') => {
@@ -389,8 +356,7 @@ export function FlipbookRenderer({
             respectInteractiveContent
             allowTouchScroll
             swipeDistance={40}
-            // Keep every leaf mounted: each invitation image is intentionally
-            // preloaded before the reader reaches its spread.
+            lazyRadius={1}
             useKeyboard={false}
             controls="none"
             liveRegion={false}
@@ -412,27 +378,6 @@ export function FlipbookRenderer({
               }
             }}
           >
-            {desktopEndpapers ? (
-              <FlipbookPage
-                key={`cover:${pages[0]!.id}`}
-                apiClient={apiClient}
-                token={token}
-                page={pages[0]!}
-                pageNumber={1}
-                pageCount={pages.length}
-                hotspots={(view.design?.hotspots ?? []).filter((hotspot) => hotspot.flipbookPageId === pages[0]!.id)}
-                visible={visibleLeafIndexes.includes(0)}
-                folded={false}
-                hard
-                interactive={transitionState === 'idle' && !isOpening}
-                shouldLoad={preloadedPageIndexes.has(0)}
-                onRsvp={onRsvp}
-                rsvpConfirmed={view.invitation?.responseStatus === 'CONFIRMED'}
-                onUnavailableQr={onUnavailableQr}
-                qrAvailable={view.qr?.available === true}
-              />
-            ) : null}
-            {desktopEndpapers ? <BookEndpaper position="front" /> : null}
             {pages.map((page, pageIndex) => (
               <FlipbookPage
                 key={page.id}
@@ -442,9 +387,8 @@ export function FlipbookRenderer({
                 pageNumber={pageIndex + 1}
                 pageCount={pages.length}
                 hotspots={(view.design?.hotspots ?? []).filter((hotspot) => hotspot.flipbookPageId === page.id)}
-                visible={visibleLeafIndexes.includes(firstInvitationLeaf + pageIndex)}
-                folded={snapshot.page > 0 && firstInvitationLeaf + pageIndex === visibleLeafIndexes[0]}
-                hard={false}
+                visible={visiblePageIndexes.includes(pageIndex)}
+                folded={snapshot.page > 0 && pageIndex === visiblePageIndexes[0]}
                 interactive={transitionState === 'idle' && !isOpening}
                 shouldLoad={preloadedPageIndexes.has(pageIndex)}
                 onRsvp={onRsvp}
@@ -453,8 +397,6 @@ export function FlipbookRenderer({
                 qrAvailable={view.qr?.available === true}
               />
             ))}
-            {desktopEndpapers ? <BookEndpaper position="back" /> : null}
-            {desktopEndpapers ? <BookEndpaper position="back-cover" /> : null}
           </HTMLFlipBook>
         </Box>
         <Stack

@@ -70,19 +70,6 @@ function renderFlipbook(pageCount = 6) {
 function setViewport(width: number) {
   act(() => {
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: width });
-    Object.defineProperty(window, 'matchMedia', {
-      configurable: true,
-      value: (query: string) => ({
-        matches: query.includes('max-width: 767px') && width <= 767,
-        media: query,
-        onchange: null,
-        addListener: () => undefined,
-        removeListener: () => undefined,
-        addEventListener: () => undefined,
-        removeEventListener: () => undefined,
-        dispatchEvent: () => false
-      })
-    });
     window.dispatchEvent(new Event('resize'));
   });
 }
@@ -93,9 +80,9 @@ afterEach(() => {
 });
 
 describe('FlipbookRenderer physical leaves', () => {
-  it('preloads every invitation page and the desktop cover before the guest opens the book', async () => {
+  it('preloads every page before the guest opens the cover', async () => {
     const { apiClient } = renderFlipbook(4);
-    await waitFor(() => expect(apiClient.publicInvitation.asset).toHaveBeenCalledTimes(5));
+    await waitFor(() => expect(apiClient.publicInvitation.asset).toHaveBeenCalledTimes(4));
   });
 
   it('waits for the guest, then replays the opening whenever the cover is opened again', async () => {
@@ -113,68 +100,57 @@ describe('FlipbookRenderer physical leaves', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Abrir invitación' }));
     expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-intro', 'lifting');
-    await waitFor(() => expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-intro', 'open'), {
-      timeout: 2000
-    });
-    expect(container.querySelector('[data-flipbook-endpaper="front"]')?.parentElement).not.toHaveAttribute('hidden');
+    await waitFor(() => expect(screen.getByText('Página 2–3 de 6')).toBeVisible(), { timeout: 2000 });
+    expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-intro', 'open');
     fireEvent.click(screen.getByRole('button', { name: 'Anterior' }));
     expect(screen.getByText('Página 1 de 6')).toBeVisible();
     expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-intro', 'closed');
-    fireEvent.click(container.querySelector('[data-leaf-index="0"] [data-flipbook-page-id]')!);
+    fireEvent.click(screen.getByLabelText('Página 1 de 6'));
     expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-intro', 'lifting');
-    await waitFor(() => expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-intro', 'open'), {
-      timeout: 2000
-    });
+    await waitFor(() => expect(screen.getByText('Página 2–3 de 6')).toBeVisible(), { timeout: 2000 });
   });
 
-  it('adds textured desktop endpapers around the persisted invitation leaves', async () => {
+  it('passes each persisted page as a direct engine leaf and exposes the native desktop spreads', async () => {
     setViewport(1200);
     renderFlipbook();
     await screen.findByText('Página 1 de 6');
 
     const engine = screen.getByTestId('flipbook-engine-mock');
     expect(engine).toHaveAttribute('data-orientation', 'landscape');
-    expect(engine.querySelectorAll(':scope > [data-leaf-index]')).toHaveLength(10);
-    expect(engine.querySelectorAll('[data-flipbook-page-id]')).toHaveLength(7);
-    expect(engine.querySelector('[data-flipbook-endpaper="front"]')).toBeInTheDocument();
-    expect(engine.querySelector('[data-flipbook-endpaper="back"]')).toBeInTheDocument();
-    expect(engine.querySelector('[data-leaf-index="0"] [data-flipbook-page-id="page-1"]')).toBeVisible();
+    expect(engine.querySelectorAll(':scope > [data-leaf-index]')).toHaveLength(6);
+    expect(engine.querySelectorAll('[data-flipbook-page-id]')).toHaveLength(6);
+    expect(screen.getByLabelText('Página 1 de 6')).toBeVisible();
 
     fireEvent.click(screen.getByRole('button', { name: 'Abrir invitación' }));
-    await waitFor(() => expect(engine).toHaveAttribute('data-last-turn-leaf', '1'));
+    await screen.findByText('Página 2–3 de 6');
     expect(engine).toHaveAttribute('data-last-turn-leaf', '1');
-    expect(engine.querySelector('[data-flipbook-endpaper="front"]')?.parentElement).not.toHaveAttribute('hidden');
-    expect(engine.querySelector('[data-leaf-index="2"] [data-flipbook-page-id="page-1"]')).toBeVisible();
+    expect(screen.getByLabelText('Página 2 de 6')).toBeVisible();
+    expect(screen.getByLabelText('Página 3 de 6')).toBeVisible();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
-    expect(screen.getByText('Página 2–3 de 6')).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
     expect(screen.getByText('Página 4–5 de 6')).toBeVisible();
     const location = await screen.findByRole('link', { name: 'Ver ubicación' });
     const external = await screen.findByRole('link', { name: 'Abrir enlace' });
     expect(screen.getByLabelText('Página 4 de 6')).toContainElement(location);
     expect(screen.getByLabelText('Página 5 de 6')).toContainElement(external);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
-    expect(screen.getByText('Página 6 de 6')).toBeVisible();
-    expect(engine.querySelector('[data-flipbook-endpaper="back"]')?.parentElement).not.toHaveAttribute('hidden');
-    expect(screen.getByRole('button', { name: 'Siguiente' })).toBeDisabled();
   });
 
-  it('keeps portrait readers free of the desktop endpaper leaves', async () => {
+  it('uses one physical leaf in portrait and leaves the fourth page as the N=4 closing leaf', async () => {
     setViewport(390);
     renderFlipbook(4);
     await screen.findByText('Página 1 de 4');
     const engine = screen.getByTestId('flipbook-engine-mock');
     expect(engine).toHaveAttribute('data-orientation', 'portrait');
-    expect(engine.querySelectorAll(':scope > [data-leaf-index]')).toHaveLength(4);
-    expect(engine.querySelector('[data-flipbook-endpaper]')).not.toBeInTheDocument();
     expect(engine.querySelectorAll(':scope > [data-leaf-index]:not([hidden])')).toHaveLength(1);
 
     fireEvent.click(screen.getByRole('button', { name: 'Abrir invitación' }));
     await screen.findByText('Página 2 de 4');
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
+    expect(screen.getByText('Página 4 de 4')).toBeVisible();
+
+    setViewport(1200);
+    expect(engine).toHaveAttribute('data-orientation', 'landscape');
     expect(screen.getByText('Página 4 de 4')).toBeVisible();
   });
 
@@ -204,8 +180,6 @@ describe('FlipbookRenderer physical leaves', () => {
     await act(async () => {
       await new Promise((resolve) => window.setTimeout(resolve, 580));
     });
-    await screen.findByText('Página 1 de 6');
-    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
     await screen.findByText('Página 2–3 de 6');
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
     const external = await screen.findByRole('link', { name: 'Abrir enlace' });
