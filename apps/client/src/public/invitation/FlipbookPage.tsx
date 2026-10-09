@@ -81,7 +81,7 @@ export const FlipbookPage = forwardRef<HTMLDivElement, FlipbookPageProps>(functi
             token={token}
             asset={page.asset}
             alt={`Página ${pageNumber} de la invitación`}
-            eager={visible}
+            eager
             fill
             onImageLoad={(image) => setImageSize({ width: image.naturalWidth, height: image.naturalHeight })}
           />
