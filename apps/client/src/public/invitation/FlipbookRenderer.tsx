@@ -54,6 +54,7 @@ export function FlipbookRenderer({
   const [transitionState, setTransitionState] = useState<'idle' | 'turning' | 'settling'>('idle');
   const [cornerPreview, setCornerPreview] = useState(false);
   const [introState, setIntroState] = useState<'closed' | 'lifting' | 'opening' | 'open'>('closed');
+  const [introStarted, setIntroStarted] = useState(false);
   const [preloadedPageIndexes, setPreloadedPageIndexes] = useState<Set<number>>(() =>
     nearbyPageIndexes([0], pages.length)
   );
@@ -78,6 +79,7 @@ export function FlipbookRenderer({
     setTransitionState('idle');
     setCornerPreview(false);
     setIntroState('closed');
+    setIntroStarted(false);
     setAutoActive(true);
   }, [bookKey]);
 
@@ -162,6 +164,7 @@ export function FlipbookRenderer({
     (automated = false) => {
       if (!automated) setAutoActive(false);
       if (!coverCanOpen || turningRef.current || introTimerRef.current !== null) return;
+      setIntroStarted(true);
       if (reducedMotion) {
         setIntroState('opening');
         turnPage('next');
@@ -340,6 +343,7 @@ export function FlipbookRenderer({
         <Box
           className="flipbook-volume"
           data-intro={introState}
+          data-intro-started={introStarted || undefined}
           data-orientation={snapshot.orientation}
           data-cover={snapshot.page === 0 && snapshot.orientation === 'landscape' ? 'landscape' : 'none'}
           data-can-open={coverCanOpen ? 'true' : undefined}

@@ -4,6 +4,40 @@ const reader = (page: Page) => page.locator('.flipbook-reader');
 const next = (page: Page) => page.locator('.flipbook-controls button').last();
 const previous = (page: Page) => page.locator('.flipbook-controls button').first();
 
+type InitialLeafFrame = { x: number; y: number; width: number; height: number };
+
+async function installInitialLeafCapture(page: Page) {
+  await page.addInitScript(() => {
+    const frames: InitialLeafFrame[] = [];
+    Object.assign(window, { __initialLeafFrames: frames });
+    const started = performance.now();
+    const sample = () => {
+      const volume = document.querySelector('.flipbook-volume');
+      const leaf = document.querySelector('.stf__item.--shown');
+      if (volume?.getAttribute('data-intro') === 'closed' && leaf) {
+        const { x, y, width, height } = leaf.getBoundingClientRect();
+        frames.push({ x, y, width, height });
+      }
+      if (performance.now() - started < 5000) requestAnimationFrame(sample);
+    };
+    requestAnimationFrame(sample);
+  });
+}
+
+async function captureInitialLeafFrames(page: Page, query: string): Promise<InitialLeafFrame[]> {
+  await open(page, query);
+  await page.evaluate(() => new Promise(requestAnimationFrame));
+  return page.evaluate(() => (window as Window & { __initialLeafFrames: InitialLeafFrame[] }).__initialLeafFrames);
+}
+
+function expectStableInitialLeaf(frames: InitialLeafFrame[]) {
+  expect(frames.length).toBeGreaterThan(0);
+  for (const axis of ['x', 'y', 'width', 'height'] as const) {
+    const values = frames.map((frame) => frame[axis]);
+    expect(Math.max(...values) - Math.min(...values), `${axis} shifted during initial presentation`).toBeLessThan(2);
+  }
+}
+
 async function open(page: Page, query = '', autoplay = false) {
   await page.goto(`/__dev/flipbook-magazine${query}`);
   await reader(page).waitFor();
@@ -150,6 +184,25 @@ async function swipe(page: Page, browserName: string, dx: number, dy = 0, stepDe
     );
   }
 }
+
+test('REQ-04 cover geometry stays fixed through initialization and full reload', async ({ page }) => {
+  await installInitialLeafCapture(page);
+  for (const [width, height, query] of [
+    [320, 568, '?pages=6'],
+    [390, 844, '?pages=6&slow=1'],
+    [768, 1024, '?pages=6'],
+    [1440, 1000, '?pages=6&slow=1']
+  ] as const) {
+    await page.setViewportSize({ width, height });
+    expectStableInitialLeaf(await captureInitialLeafFrames(page, query));
+    await page.reload();
+    await page.locator('.stf__item.--shown img').first().waitFor();
+    await page.evaluate(() => new Promise(requestAnimationFrame));
+    expectStableInitialLeaf(
+      await page.evaluate(() => (window as Window & { __initialLeafFrames: InitialLeafFrame[] }).__initialLeafFrames)
+    );
+  }
+});
 
 for (const [width, height] of [
   [320, 568],
