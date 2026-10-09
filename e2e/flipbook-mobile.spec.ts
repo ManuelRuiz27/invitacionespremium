@@ -636,7 +636,7 @@ test.describe('desktop and tablet regression', () => {
     const rect = (await page.locator('.stf__block').boundingBox())!;
     const curl = () => folded.evaluate((element) => getComputedStyle(element, '::after').content);
     for (const y of [0.08, 0.92]) {
-      await page.mouse.move(rect.x + rect.width * (browserName === 'chromium' ? 0.9 : 0.95), rect.y + rect.height * y);
+      await page.mouse.move(rect.x + rect.width * (browserName === 'chromium' ? 0.88 : 0.95), rect.y + rect.height * y);
       await expect(reader(page)).toHaveAttribute('data-corner-preview', 'true');
       await expect(folded).toHaveClass(/--simple/);
       await expect.poll(curl).toBe('""');
@@ -652,8 +652,8 @@ test.describe('desktop and tablet regression', () => {
 
     // A preview that actually lifts the folded leaf still hides its settled curl.
     await page.mouse.move(
-      rect.x + rect.width * (browserName === 'chromium' ? 0.08 : 0.05),
-      rect.y + rect.height * 0.08
+      rect.x + rect.width * (browserName === 'chromium' ? 0.1 : 0.05),
+      rect.y + rect.height * (browserName === 'chromium' ? 0.12 : 0.08)
     );
     await expect(reader(page)).toHaveAttribute('data-corner-preview', 'true');
     await expect(folded).not.toHaveClass(/--simple/);
