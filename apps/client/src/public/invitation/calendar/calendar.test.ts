@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildIcsCalendar, calendarFileName, toCalendarEventData } from './calendar';
+import { buildGoogleCalendarUrl, buildIcsCalendar, calendarFileName, toCalendarEventData } from './calendar';
 
 const event = {
   name: 'Boda de Elena & Mateo',
@@ -10,13 +10,17 @@ const event = {
 };
 
 describe('public invitation calendar helpers', () => {
-  it('exports the start alone without inventing an end or duration', () => {
-    const data = toCalendarEventData({ ...event, eventEndDateTime: null })!;
-    expect(data.eventEndDateTime).toBeNull();
-    const ics = buildIcsCalendar(data);
-    expect(ics).toContain('DTSTART:20351018T230000Z');
-    expect(ics).toContain('X-WR-TIMEZONE:America/Mexico_City');
-    expect(ics).not.toMatch(/DTEND|DURATION|VALARM/u);
+  it('builds the documented Google Calendar event-edit URL with authoritative instants and timezone', () => {
+    const url = new URL(buildGoogleCalendarUrl(event));
+    expect(url.origin).toBe('https://calendar.google.com');
+    expect(url.pathname).toBe('/calendar/r/eventedit');
+    expect(url.searchParams.get('action')).toBe('TEMPLATE');
+    expect(url.searchParams.get('text')).toBe(event.name);
+    expect(url.searchParams.get('dates')).toBe('20351018T230000Z/20351019T050000Z');
+    expect(url.searchParams.get('stz')).toBe(event.timeZone);
+    expect(url.searchParams.get('etz')).toBe(event.timeZone);
+    expect(url.searchParams.get('ctz')).toBeNull();
+    expect(url.searchParams.get('location')).toBe(event.locationUrl);
   });
 
   it('builds an interoperable ICS payload and escapes calendar text', () => {
@@ -39,56 +43,11 @@ describe('public invitation calendar helpers', () => {
 
   it('only exposes a calendar event when the end is after the start', () => {
     expect(toCalendarEventData(event)).toEqual(event);
-    expect(toCalendarEventData({ ...event, eventEndDateTime: null })).not.toBeNull();
+    expect(toCalendarEventData({ ...event, eventEndDateTime: null })).toBeNull();
     expect(toCalendarEventData({ ...event, eventEndDateTime: event.eventDateTime })).toBeNull();
   });
 
   it('creates a safe ICS filename', () => {
     expect(calendarFileName('Boda de Élena & Mateo')).toBe('boda-de-elena-mateo.ics');
-  });
-
-  it('preserves explicit offsets and DST instants in UTC', () => {
-    expect(buildIcsCalendar({ ...event, eventDateTime: '2035-10-18T17:00:00-06:00' })).toContain(
-      'DTSTART:20351018T230000Z'
-    );
-    expect(
-      buildIcsCalendar({ ...event, eventDateTime: '2026-11-01T01:30:00-04:00', timeZone: 'America/New_York' })
-    ).toContain('DTSTART:20261101T053000Z');
-    expect(toCalendarEventData({ ...event, eventDateTime: 'invalid' })).toBeNull();
-    expect(toCalendarEventData({ ...event, timeZone: 'invalid' })).toBeNull();
-  });
-
-  it('folds UTF-8 lines at 75 octets and escapes all newline forms', () => {
-    const name = 'Recepción 🎉 '.repeat(30) + '\r\nUno\rDos\nTres';
-    const ics = buildIcsCalendar({ ...event, name });
-    for (const line of ics.split('\r\n')) expect(new TextEncoder().encode(line).length).toBeLessThanOrEqual(75);
-    expect(ics.replace(/\r\n /gu, '')).toContain('SUMMARY:' + 'Recepción 🎉 '.repeat(30) + '\\nUno\\nDos\\nTres');
-  });
-
-  it('allowlists public data and keeps the UID stable without secrets', () => {
-    const projection = {
-      ...event,
-      invitationToken: 'secret-invitation',
-      qrToken: 'secret-qr',
-      nonce: 'secret-nonce',
-      contactId: 'private-contact',
-      clientId: 'private-client',
-      phone: '+525512345678',
-      invitationUrl: 'https://private.test/invitacion/secret'
-    };
-    const data = toCalendarEventData(projection)!;
-    const ics = buildIcsCalendar(data);
-    for (const secret of [
-      'secret-invitation',
-      'secret-qr',
-      'secret-nonce',
-      'private-contact',
-      'private-client',
-      '+525512345678',
-      'private.test'
-    ])
-      expect(ics).not.toContain(secret);
-    expect(ics.match(/UID:.+/u)?.[0]).toBe(buildIcsCalendar(data, new Date('2030-01-01')).match(/UID:.+/u)?.[0]);
-    expect(buildIcsCalendar({ ...data, locationUrl: null })).not.toContain('LOCATION:');
   });
 });

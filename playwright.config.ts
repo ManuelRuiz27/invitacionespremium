@@ -11,7 +11,7 @@ export default defineConfig({
   outputDir: 'test-results/managed-m01',
   use: {
     ...devices['Desktop Chrome'],
-    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:5173',
+    baseURL: 'http://localhost:5173',
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
     video: 'off'

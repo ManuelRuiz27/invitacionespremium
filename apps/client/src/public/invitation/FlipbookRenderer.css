@@ -12,42 +12,17 @@
   display: none;
 }
 
-.flipbook-reader-title {
-  display: none;
-}
-
 .flipbook-stage::after {
   content: '';
   position: absolute;
-  z-index: 0;
-  left: 30%;
-  right: 30%;
-  bottom: 5%;
-  height: 6%;
+  left: 16%;
+  right: 16%;
+  bottom: 2.5%;
+  height: 9%;
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.48);
   filter: blur(24px);
   pointer-events: none;
-}
-
-.flipbook-controls {
-  position: relative;
-  z-index: 2;
-  min-height: 44px;
-  color: #f8f3e8;
-}
-
-.flipbook-controls .MuiButton-root {
-  color: #f8f3e8;
-  border-color: rgba(248, 243, 232, 0.46);
-}
-
-.flipbook-controls .MuiButton-root:hover {
-  background: rgba(248, 243, 232, 0.12);
-}
-
-.flipbook-controls .MuiTypography-root {
-  color: #f8f3e8;
 }
 
 .flipbook-volume {
@@ -58,28 +33,32 @@
   justify-content: center;
   transform-style: preserve-3d;
   transform: translateY(-7px) rotateX(5deg) rotateZ(-0.8deg);
-  transition: transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 720ms cubic-bezier(0.22, 1, 0.36, 1);
   z-index: 1;
 }
 
 .flipbook-volume[data-orientation='portrait'][data-intro='closed'] {
-  transform: translateY(14px) rotateX(2deg) rotateZ(-0.45deg) scale(0.96);
+  transform: translateY(15px) rotateX(0deg) rotateZ(0deg) scale(0.97);
 }
 
 .flipbook-volume[data-orientation='portrait'][data-intro='lifting'] {
   transform: translateY(-13px) rotateX(5deg) rotateZ(-0.7deg) scale(1.01);
 }
 
+.flipbook-volume[data-cover='landscape'] {
+  transform: translateX(-25%) translateY(-7px) rotateX(5deg) rotateZ(-0.8deg);
+}
+
 .flipbook-volume[data-intro='closed'] {
-  transform: translateY(14px) rotateX(2deg) rotateZ(-0.45deg) scale(0.96);
+  transform: translateX(-25%) translateY(15px) rotateX(0deg) rotateZ(0deg) scale(0.97);
 }
 
 .flipbook-volume[data-intro='lifting'] {
-  transform: translateY(-18px) rotateX(8deg) rotateZ(-1.5deg) scale(1.015);
+  transform: translateX(-25%) translateY(-18px) rotateX(8deg) rotateZ(-1.5deg) scale(1.015);
 }
 
 .flipbook-volume[data-intro='opening'] {
-  transform: translateY(-22px) rotateX(8deg) rotateZ(-1.25deg) scale(1.01);
+  transform: translateY(-17px) rotateX(8deg) rotateZ(-1.5deg);
 }
 
 .flipbook-volume::before {
@@ -95,11 +74,8 @@
     0 8px 0 #aa9070,
     0 20px 28px rgba(0, 0, 0, 0.36);
   pointer-events: none;
-  transform: translate3d(7px, 6px, -2px);
-  transition:
-    left 900ms cubic-bezier(0.22, 1, 0.36, 1),
-    right 900ms cubic-bezier(0.22, 1, 0.36, 1),
-    transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
+  transform: translate3d(7px, 5px, -2px);
+  transition: left 720ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .flipbook-volume[data-orientation='portrait']::before {
@@ -109,53 +85,11 @@
   transform: translateX(-50%) translate3d(7px, 5px, -2px);
 }
 
-.flipbook-volume[data-cover='single']::before {
-  right: 25%;
-  left: 25%;
-  border-radius: 3px 5px 8px 5px;
-  box-shadow:
-    4px 4px 0 #c1a883,
-    7px 7px 0 #a88c68,
-    0 20px 28px rgba(0, 0, 0, 0.36);
+.flipbook-volume[data-cover='landscape']::before {
+  left: 50%;
 }
 
-.flipbook-volume::after {
-  content: '';
-  position: absolute;
-  z-index: -1;
-  right: 12%;
-  bottom: -28px;
-  left: 12%;
-  height: 28px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.52);
-  filter: blur(18px);
-  opacity: 0.32;
-  pointer-events: none;
-  transform: scaleX(0.88);
-  transition:
-    right 900ms cubic-bezier(0.22, 1, 0.36, 1),
-    bottom 900ms cubic-bezier(0.22, 1, 0.36, 1),
-    left 900ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 900ms cubic-bezier(0.22, 1, 0.36, 1),
-    transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.flipbook-volume[data-cover='single']::after {
-  right: 31%;
-  bottom: -22px;
-  left: 31%;
-  opacity: 0.44;
-  transform: scaleX(0.82);
-}
-
-.flipbook-volume[data-intro='opening']::after {
-  bottom: -34px;
-  opacity: 0.2;
-  transform: scaleX(0.7);
-}
-
-.flipbook-volume .flipbook-magazine-engine {
+.flipbook-volume .flipbook-magazine-engine.stf__parent {
   position: relative;
   z-index: 1;
   filter: drop-shadow(0 12px 16px rgba(0, 0, 0, 0.25));
@@ -163,7 +97,7 @@
 
 /* Keep a paper edge behind the moving leaves, including the single-page
    mobile reader. Anchor it to the engine's actual book bounds. */
-.flipbook-volume:is([data-intro='opening'], [data-intro='open']) .flipbook-magazine-engine::after {
+.flipbook-volume:is([data-intro='opening'], [data-intro='open']) .flipbook-magazine-engine.stf__parent::after {
   content: '';
   position: absolute;
   z-index: -1;
@@ -207,306 +141,31 @@
   pointer-events: none;
 }
 
-.flipbook-volume[data-can-open='true'][data-intro='closed'] .flipbook-magazine-engine {
+.flipbook-volume[data-can-open='true'][data-intro='closed'] .flipbook-magazine-engine.stf__parent {
   cursor: pointer;
 }
 
-/* A hover only previews the valid page corner. It has no pointer target and
-   does not change reader state; the engine still owns all turn gestures. */
-@media (hover: hover) and (pointer: fine) {
-  .flipbook-volume[data-flip-engine] .flip-engine[data-corner-hint] {
-    cursor: pointer;
-  }
-
-  .flipbook-volume[data-flip-engine] .flip-engine-page[data-corner-hint] .flip-engine-page-front::after {
-    content: '';
-    position: absolute;
-    z-index: 4;
-    top: 0;
-    width: min(36%, 104px);
-    height: min(27%, 132px);
-    opacity: 0.82;
-    background: linear-gradient(135deg, rgba(255, 252, 244, 0.9), rgba(159, 128, 94, 0.28));
-    box-shadow: 0 7px 13px rgba(46, 30, 16, 0.27);
-    clip-path: polygon(0 0, 100% 0, 100% 100%);
-    pointer-events: none;
-    transform: perspective(300px) rotateY(-14deg);
-    transform-origin: right top;
-    transition:
-      opacity 120ms ease-out,
-      transform 150ms ease-out;
-  }
-
-  .flipbook-volume[data-flip-engine] .flip-engine-page[data-corner-hint='next'] .flip-engine-page-front::after {
-    right: 0;
-  }
-
-  .flipbook-volume[data-flip-engine] .flip-engine-page[data-corner-hint='prev'] .flip-engine-page-front::after {
-    left: 0;
-    clip-path: polygon(0 0, 100% 0, 0 100%);
-    transform: perspective(300px) rotateY(14deg);
-    transform-origin: left top;
-  }
-}
-
-/* The public reader owns page geometry and all decorative layers. */
-.flipbook-volume[data-flip-engine] .flip-engine {
-  position: relative;
-  display: block;
-  width: 100%;
-  max-width: 960px;
-  aspect-ratio: 960 / 680;
-  overflow: visible;
-  isolation: isolate;
-  perspective: 1600px;
-  transform-style: preserve-3d;
-}
-
-.flipbook-volume[data-flip-engine] .flip-engine[data-zoomed='true'] {
-  transform: translate3d(var(--flip-engine-zoom-x), var(--flip-engine-zoom-y), 0) scale(var(--flip-engine-zoom));
-  transform-origin: center;
-  transition: transform 140ms ease-out;
-  will-change: transform;
-}
-
-.flipbook-volume[data-flip-engine] .flip-engine[data-layout='single'] {
-  max-width: 480px;
-  aspect-ratio: 480 / 680;
-}
-
-.flipbook-volume[data-flip-engine] .flip-engine-page {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  overflow: hidden;
-  background: #f3eee6;
-  box-shadow: inset 0 0 0 1px rgba(95, 70, 43, 0.14);
-  perspective: 1600px;
-  transform-style: preserve-3d;
-}
-
-.flipbook-volume[data-flip-engine] .flip-engine-page-face {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  transform-style: preserve-3d;
-}
-
-.flipbook-volume[data-flip-engine] .flip-engine-page-front {
-  opacity: var(--flip-engine-front-opacity, 1);
-}
-
-.flipbook-volume[data-flip-engine] .flip-engine-page-back {
-  opacity: var(--flip-engine-back-opacity, 0);
-  background:
-    linear-gradient(
-      90deg,
-      rgba(68, 44, 25, 0.25),
-      transparent 18%,
-      rgba(255, 250, 239, 0.45) 52%,
-      rgba(56, 36, 19, 0.3)
-    ),
-    repeating-linear-gradient(0deg, #eee5d8 0, #eee5d8 2px, #ded0bf 3px, #f7f0e6 4px);
-  box-shadow: inset 0 0 24px rgba(73, 50, 29, 0.35);
-  pointer-events: none;
-  transform: rotateY(180deg);
-}
-
-.flipbook-volume[data-flip-engine] .flip-engine-page-front > [data-flipbook-page-id] {
-  width: 100%;
-  height: 100%;
-}
-
-.flipbook-volume[data-flip-engine] .flip-engine-page.flip-engine-moving {
-  will-change: clip-path, opacity, transform;
-  filter: drop-shadow(
-    calc(3px + 14px * var(--flip-engine-curvature, 0)) calc(5px + 12px * var(--flip-engine-curvature, 0))
-      calc(6px + 15px * var(--flip-engine-curvature, 0)) rgba(19, 12, 6, var(--flip-engine-shadow, 0))
-  );
-}
-
-.flipbook-volume[data-flip-engine] .flip-engine-page.flip-engine-moving::after {
-  content: '';
-  position: absolute;
-  z-index: 4;
-  inset: 0;
-  opacity: var(--flip-engine-fold-opacity, 0);
-  background: linear-gradient(
-    90deg,
-    rgba(46, 26, 11, 0.56) 0%,
-    rgba(97, 61, 29, 0.16) 24%,
-    transparent 43%,
-    rgba(255, 250, 238, 0.48) 57%,
-    transparent 72%
-  );
-  mix-blend-mode: multiply;
-  pointer-events: none;
-  transform: translateZ(1px);
-}
-
-.flipbook-volume[data-flip-engine] [data-turn-direction='prev'].flip-engine-moving::after {
-  background: linear-gradient(
-    270deg,
-    rgba(46, 26, 11, 0.56) 0%,
-    rgba(97, 61, 29, 0.16) 24%,
-    transparent 43%,
-    rgba(255, 250, 238, 0.48) 57%,
-    transparent 72%
-  );
-}
-
-.flipbook-volume[data-flip-engine] .flip-engine-lighting {
-  position: absolute;
-  z-index: 3;
-  inset: 0;
-  pointer-events: none;
-}
-
-.flipbook-volume[data-flip-engine] .flip-engine-projection-shadow,
-.flipbook-volume[data-flip-engine] .flip-engine-fold-light {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.flipbook-volume[data-flip-engine] .flip-engine-projection-shadow {
-  opacity: var(--flip-engine-projection-opacity, 0);
-  background: radial-gradient(ellipse at 4% 50%, rgba(26, 15, 8, 0.68), transparent 62%);
-  filter: blur(calc(3px + 10px * var(--flip-engine-curvature, 0)));
-  transform: scaleX(calc(0.68 + 0.32 * var(--flip-engine-curvature, 0)));
-}
-
-.flipbook-volume[data-flip-engine] [data-turn-direction='prev'] .flip-engine-projection-shadow {
-  background: radial-gradient(ellipse at 96% 50%, rgba(26, 15, 8, 0.52), transparent 57%);
-}
-
-.flipbook-volume[data-flip-engine] .flip-engine-fold-light {
-  opacity: var(--flip-engine-fold-opacity, 0);
-  background: linear-gradient(
-    90deg,
-    rgba(51, 31, 16, 0.62),
-    rgba(97, 61, 29, 0.18) 28%,
-    transparent 44%,
-    rgba(255, 249, 237, 0.52) 57%,
-    transparent 76%
-  );
-  mix-blend-mode: multiply;
-}
-
-.flipbook-volume[data-flip-engine] [data-turn-direction='prev'] .flip-engine-fold-light {
-  background: linear-gradient(270deg, rgba(51, 31, 16, 0.46), transparent 42%, rgba(255, 249, 237, 0.3));
-}
-
-.flipbook-volume[data-flip-engine] .flip-engine-spine {
-  position: absolute;
-  z-index: 3;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 2px;
-  background: linear-gradient(90deg, rgba(61, 42, 25, 0.35), rgba(255, 249, 239, 0.42));
-  box-shadow: 0 0 8px rgba(42, 26, 12, 0.25);
-  pointer-events: none;
-}
-
-.flipbook-volume[data-flip-engine] .flip-engine[data-layout='single'] .flip-engine-spine {
-  display: none;
-}
-
-.flipbook-secondary-navigation {
-  position: absolute;
-  z-index: 4;
-  top: 16px;
-  right: 16px;
-}
-
-.flipbook-secondary-trigger {
-  min-width: auto !important;
-  padding: 6px 10px !important;
-  color: #f8f3e8 !important;
-  background: rgba(31, 25, 18, 0.68) !important;
-  border: 1px solid rgba(248, 243, 232, 0.42) !important;
-}
-
-.flipbook-page-index {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  display: grid !important;
-  grid-template-columns: repeat(5, minmax(34px, 1fr));
-  gap: 4px;
-  width: min(264px, calc(100vw - 32px));
-  max-height: min(300px, 55vh);
-  padding: 8px;
-  overflow-y: auto;
-  background: rgba(31, 25, 18, 0.94);
-  border: 1px solid rgba(248, 243, 232, 0.32);
-  border-radius: 4px;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
-}
-
-.flipbook-page-index-item {
-  min-width: 34px !important;
-  min-height: 34px !important;
-  padding: 4px !important;
-  color: #f8f3e8 !important;
-  border: 1px solid rgba(248, 243, 232, 0.26) !important;
-}
-
-.flipbook-page-index-item[aria-current='page'] {
-  color: #211a12 !important;
-  background: #ecd5ae !important;
-  border-color: #f7ead3 !important;
-}
-
-.flipbook-volume[data-flip-engine][data-intro='closed'] {
-  transform: translateY(14px) rotateX(2deg) rotateZ(-0.45deg) scale(0.96);
-}
-
-.flipbook-volume[data-flip-engine][data-intro='opening'] {
-  transform: translateY(-22px) rotateX(8deg) rotateZ(-1.25deg) scale(1.01);
-}
-
-@media (max-width: 1023px), (pointer: coarse) and (max-height: 500px) {
-  .flipbook-secondary-navigation {
-    display: none;
-  }
-  .flipbook-reader-title {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-
+@media (max-width: 767px), (pointer: coarse) and (max-height: 500px) {
   .flipbook-reader {
     --reader-safe-top: env(safe-area-inset-top, 0px);
     --reader-safe-bottom: env(safe-area-inset-bottom, 0px);
-    --reader-chrome: 64px;
+    --reader-chrome: 56px;
     --reader-animation-space: 48px;
     box-sizing: border-box;
     height: 100vh;
     height: 100dvh;
     padding-top: var(--reader-safe-top);
     padding-bottom: var(--reader-safe-bottom);
-    position: relative;
-    display: block;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) var(--reader-chrome);
     background: #201d18;
     color: #f8f3e8;
     overflow: clip;
   }
 
   .flipbook-reader .flipbook-stage {
-    box-sizing: border-box;
-    height: 100%;
     min-height: 0;
-    padding: 24px max(16px, env(safe-area-inset-right, 0px)) calc(24px + var(--reader-chrome))
-      max(16px, env(safe-area-inset-left, 0px));
+    padding: 24px max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px));
     overflow: visible;
     box-shadow: none;
     perspective: 1600px;
@@ -517,36 +176,9 @@
     display: none;
   }
 
-  /* A restrained pool of warm light moves with the camera rather than adding
-     a separate visual object. It gives the real cover depth before the curl starts. */
-  .flipbook-reader .flipbook-stage::before {
-    content: '';
-    position: absolute;
-    z-index: 0;
-    inset: 0;
-    background:
-      radial-gradient(ellipse 56% 44% at 50% 46%, rgba(245, 213, 163, 0.2), transparent 72%),
-      radial-gradient(ellipse 82% 70% at 50% 120%, rgba(0, 0, 0, 0.24), transparent 70%);
-    opacity: 0.44;
-    pointer-events: none;
-    transform: scale(1);
-    transition: none;
-  }
-
-  .flipbook-reader[data-intro='opening'] .flipbook-stage::before {
-    animation: flipbook-mobile-camera-light 1200ms linear both;
-  }
-
   /* CSS supplies the physical box. Core's existing ResizeObserver fits the
      leaf to both axes; no second measurement loop or viewport-sized remount. */
   .flipbook-reader .flipbook-volume[data-intro] {
-    --flipbook-accumulated-depth: 1px;
-    --flipbook-remaining-depth: 7px;
-    --flipbook-accumulated-scale: 0.142857;
-    --flipbook-remaining-scale: 1;
-    --flipbook-contact-shadow-opacity: 0.24;
-    --flipbook-contact-shadow-scale: 0.96;
-
     width: min(
       100%,
       480px,
@@ -560,162 +192,65 @@
     );
     aspect-ratio: 480 / 680;
     max-height: 100%;
-    /* Keep enough negative space for the cover and sheet trajectories to be
-       perceived as one object. The engine still receives the full physical
-       host size, so hit testing and page geometry retain their precision. */
-    transform: scale(0.9);
-    transform-origin: 50% 50%;
-    transition: none;
-    will-change: transform;
-  }
-
-  .flipbook-reader .flipbook-volume[data-intro='open'] {
-    will-change: auto;
-  }
-
-  /* The shell is a camera layer only: it may zoom, but never pitches, rolls or
-     leaves its support plane. The engine independently rotates the hard cover
-     around its left binding edge during the native page turn. */
-  .flipbook-reader .flipbook-volume[data-orientation][data-intro='opening'] {
-    animation: flipbook-mobile-camera-open 1200ms linear both;
-  }
-
-  /* The body keeps one contact patch while the camera pulls back. The moving
-     cover gets its cast shadow from the engine, so this shadow must not widen
-     as if the complete magazine were rising. */
-  .flipbook-reader .flipbook-volume::after {
-    content: '';
-    position: absolute;
-    z-index: -1;
-    right: 12%;
-    bottom: -14px;
-    left: 12%;
-    height: 16px;
-    border-radius: 50%;
-    background: rgba(0, 0, 0, 0.48);
-    filter: blur(13px);
-    opacity: var(--flipbook-contact-shadow-opacity);
-    pointer-events: none;
-    transform: scaleX(var(--flipbook-contact-shadow-scale));
-    transition: none;
-  }
-
-  .flipbook-reader .flipbook-volume[data-intro='opening']::after {
-    animation: flipbook-mobile-camera-shadow 1200ms linear both;
-  }
-
-  /* One restrained binding belongs to the shell, never to an individual
-     leaf. It stays fixed behind the engine while every page passes above it. */
-  .flipbook-reader .flipbook-volume[data-mobile-spine='true']::before {
-    --mobile-spine-width: clamp(8px, 2.5%, 12px);
-
-    display: block;
-    z-index: 0;
-    top: 3px;
-    right: auto;
-    bottom: 3px;
-    left: -5px;
-    width: var(--mobile-spine-width);
-    border: 1px solid rgba(255, 250, 239, 0.52);
-    border-right: 0;
-    border-radius: 3px 0 0 4px;
-    background: linear-gradient(90deg, #725a41 0%, #bca789 34%, #eee4d3 66%, #9b8265 100%);
-    box-shadow:
-      -2px 2px 5px rgba(0, 0, 0, 0.2),
-      inset 1px 0 rgba(255, 250, 239, 0.24);
     transform: none;
-    transition: none;
+    transition: transform 180ms ease-out;
   }
 
-  .flipbook-reader .flipbook-magazine-engine {
+  .flipbook-reader .flipbook-volume[data-orientation][data-intro='lifting'] {
+    transform: translateY(-4px);
+  }
+
+  .flipbook-reader .flipbook-magazine-engine.stf__parent {
     height: 100%;
     min-height: 0 !important;
-    filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.24));
-    transition: filter 180ms ease-out;
+    filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.32));
   }
 
-  /* Desktop keeps its paper edge; portrait mobile uses only the shell-bound
-     spine above so duplicate edges cannot overlap or disappear mid-turn. */
-  .flipbook-reader .flipbook-magazine-engine::after {
-    display: none;
-  }
-
-  /* Lighting follows only the hard cover while the engine rotates that leaf.
-     Keeping transform ownership in the engine preserves the binding pivot. */
-  .flipbook-reader[data-intro='opening'] [data-flipbook-page-id][data-density='hard'] {
-    animation: flipbook-mobile-cover-light 1200ms linear both;
-  }
-
-  .flipbook-reader .flip-engine {
-    position: relative;
+  .flipbook-reader .stf__wrapper {
     height: 100%;
     padding-bottom: 0 !important;
-    overflow: visible;
   }
 
-  /* Two paper blocks share the same one-to-seven-pixel depth range. Their scale is
-     derived from the exact fractional leaf position, so every turn transfers
-     thickness continuously instead of switching among named size buckets. */
-  .flipbook-reader .flip-engine::before,
-  .flipbook-reader .flip-engine::after {
+  /* A visible rolled leaf gives the single-page reader the same physical
+     depth as an open book. Both layers stay inside the page and ignore taps. */
+  .flipbook-reader[data-transition='idle'] [data-flipbook-page-id][data-folded='true']::before {
     content: '';
     position: absolute;
-    z-index: 0;
-    top: 100%;
-    width: calc(50% - 3px);
-    height: 7px;
-    border-bottom: 1px solid rgba(104, 79, 48, 0.34);
-    background: repeating-linear-gradient(to bottom, #f8f2e7 0, #f8f2e7 1px, #d7c9b5 1px, #eee5d8 2px);
-    box-shadow: 0 2px 3px rgba(0, 0, 0, 0.14);
+    z-index: 2;
+    inset: 2px auto 2px 0;
+    width: clamp(36px, 12%, 52px);
+    border-radius: 0 100% 100% 0 / 0 6% 6% 0;
+    background: linear-gradient(90deg, rgba(48, 33, 18, 0.48) 35%, rgba(48, 33, 18, 0.18) 72%, transparent);
+    filter: blur(2px);
     pointer-events: none;
-    transform-origin: top;
-    transition: transform 120ms linear;
   }
 
-  .flipbook-reader .flip-engine::before {
-    left: 2px;
-    border-radius: 0 0 0 3px;
-    transform: scaleY(var(--flipbook-accumulated-scale));
-  }
-
-  .flipbook-reader .flip-engine::after {
-    right: 2px;
-    border-radius: 0 0 3px 0;
-    transform: scaleY(var(--flipbook-remaining-scale));
-  }
-
-  /* The fixed binding replaces the former leaf-local rolled edge. The page
-     keeps the engine's own background layer but no idle-only spine overlay. */
   .flipbook-reader[data-transition='idle'] [data-flipbook-page-id][data-folded='true']::after {
-    content: none;
+    top: 1px;
+    bottom: 1px;
+    width: clamp(26px, 8.5%, 38px);
+    border-left: 1px solid #fffaf0;
+    border-radius: 0 100% 100% 0 / 0 6% 6% 0;
+    background: linear-gradient(
+      90deg,
+      #8c775d 0%,
+      #d4c4ab 12%,
+      #fffaf0 38%,
+      #f7eddb 55%,
+      #d8c7ab 78%,
+      #998062 96%,
+      #786047 100%
+    );
+    box-shadow: inset -1px 0 1px rgba(255, 250, 239, 0.6);
+    clip-path: none;
+    transform: none;
   }
 
   .flipbook-reader .flipbook-controls {
-    position: absolute;
-    right: 0;
-    bottom: var(--reader-safe-bottom);
-    left: 0;
-    height: var(--reader-chrome);
-    margin: 0 !important;
+    margin: 0;
     padding: 0 max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px));
     justify-content: space-between;
-    z-index: 3;
-    visibility: hidden;
-    opacity: 0;
-    pointer-events: none;
-    transform: translateY(12px);
-    transition:
-      opacity 160ms ease-out,
-      transform 180ms ease-out,
-      visibility 0s linear 180ms;
-  }
-
-  .flipbook-reader[data-mobile-controls='true'] .flipbook-controls {
-    visibility: visible;
-    opacity: 1;
-    pointer-events: auto;
-    transform: translateY(0);
-    transition-delay: 0s;
+    z-index: 2;
   }
 
   .flipbook-controls .MuiButton-root {
@@ -750,140 +285,9 @@
   }
 }
 
-@keyframes flipbook-mobile-camera-open {
-  0% {
-    transform: scale(0.9);
-  }
-  8% {
-    transform: scale(0.851);
-  }
-  14% {
-    transform: scale(0.814);
-  }
-  19% {
-    transform: scale(0.79);
-  }
-  21% {
-    transform: scale(0.783);
-  }
-  23% {
-    transform: scale(0.785);
-  }
-  29% {
-    transform: scale(0.797);
-  }
-  36% {
-    transform: scale(0.819);
-  }
-  48% {
-    transform: scale(0.839);
-  }
-  64% {
-    transform: scale(0.862);
-  }
-  78% {
-    transform: scale(0.882);
-  }
-  90% {
-    transform: scale(0.895);
-  }
-  100% {
-    transform: scale(0.9);
-  }
-}
-
-@keyframes flipbook-mobile-camera-light {
-  0%,
-  100% {
-    opacity: 0.44;
-    transform: scale(1);
-  }
-  14% {
-    opacity: 0.36;
-    transform: scale(0.97);
-  }
-  21% {
-    opacity: 0.32;
-    transform: scale(0.95);
-  }
-  29% {
-    opacity: 0.36;
-    transform: scale(0.97);
-  }
-  42% {
-    opacity: 0.48;
-    transform: scale(1.01);
-  }
-  64% {
-    opacity: 0.46;
-    transform: scale(1.01);
-  }
-  82% {
-    opacity: 0.44;
-    transform: scale(1);
-  }
-}
-
-@keyframes flipbook-mobile-camera-shadow {
-  0%,
-  100% {
-    opacity: 0.34;
-    transform: scaleX(0.94);
-  }
-  14% {
-    opacity: 0.31;
-    transform: scaleX(0.94);
-  }
-  21% {
-    opacity: 0.28;
-    transform: scaleX(0.94);
-  }
-  36% {
-    opacity: 0.3;
-    transform: scaleX(0.94);
-  }
-  62% {
-    opacity: 0.32;
-    transform: scaleX(0.94);
-  }
-  82% {
-    opacity: 0.33;
-    transform: scaleX(0.94);
-  }
-}
-
-@keyframes flipbook-mobile-cover-light {
-  0%,
-  31%,
-  78%,
-  100% {
-    filter: brightness(1) saturate(1) contrast(1);
-  }
-  42% {
-    filter: brightness(0.92) saturate(0.9) contrast(1.04);
-  }
-  58% {
-    filter: brightness(1.04) saturate(1.01) contrast(1.01);
-  }
-  72% {
-    filter: brightness(0.98) saturate(0.98) contrast(1.01);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .flipbook-reader .flipbook-volume,
-  .flipbook-reader .flipbook-volume::after,
-  .flipbook-volume::before,
-  .flipbook-reader .flipbook-stage::before,
-  .flipbook-reader .flipbook-magazine-engine,
-  .flipbook-reader .flip-engine::before,
-  .flipbook-reader .flip-engine::after,
-  .flipbook-reader [data-flipbook-page-id][data-density='hard'] {
-    animation: none !important;
+  .flipbook-volume::before {
     transition: none;
-  }
-
-  .flipbook-volume[data-flip-engine] .flip-engine-page[data-corner-hint] .flip-engine-page-front::after {
-    display: none;
   }
 }

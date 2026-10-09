@@ -1,7 +1,5 @@
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 
-test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
-
 const reader = (page: Page) => page.locator('.flipbook-reader');
 const next = (page: Page) => page.locator('.flipbook-controls button').last();
 const previous = (page: Page) => page.locator('.flipbook-controls button').first();
@@ -9,15 +7,14 @@ const previous = (page: Page) => page.locator('.flipbook-controls button').first
 async function open(page: Page, query = '', autoplay = false) {
   await page.goto(`/__dev/flipbook-magazine${query}`);
   await reader(page).waitFor();
-  await page.locator('[data-flip-engine-visible="true"] img').first().waitFor();
+  const pause = page.getByRole('button', { name: 'Pausar animación automática' });
+  if (!autoplay && (await pause.count())) {
+    await expect(pause).toBeEnabled();
+    await pause.click();
+  }
+  await page.locator('.stf__item.--shown img').first().waitFor();
   await page.evaluate(() => document.fonts.ready);
   await expect(reader(page)).toHaveAttribute('data-transition', 'idle');
-  const pause = page.locator('button[data-auto-control][aria-label^="Pausar"]');
-  if (!autoplay && new URLSearchParams(query).get('pages') !== '1') {
-    await expect(pause).toBeEnabled();
-    await pause.click({ force: true });
-    await expect(page.locator('button[data-auto-control][aria-label^="Reanudar"]')).toBeAttached();
-  }
 }
 
 async function visible(page: Page, indexes: string) {
@@ -30,35 +27,9 @@ async function shot(page: Page, info: TestInfo, name: string) {
   await page.screenshot({
     path,
     fullPage: name.startsWith('desktop-'),
-    animations: name.includes('-turning') ? 'allow' : 'disabled'
+    animations: name.endsWith('-turning') ? 'allow' : 'disabled'
   });
   await info.attach(name, { path, contentType: 'image/png' });
-}
-
-async function hasPhysicalCurl(page: Page, direction: 'next' | 'prev') {
-  return page.locator('[data-flip-engine-role="moving"]').evaluateAll(
-    (leaves, expectedDirection) =>
-      leaves.some((leaf) => {
-        const element = leaf as HTMLElement;
-        return (
-          element.dataset.turnDirection === expectedDirection &&
-          element.style.clipPath.startsWith('polygon') &&
-          element.style.transform.includes('rotateY')
-        );
-      }),
-    direction
-  );
-}
-
-async function beginCurl(page: Page, direction: 'next' | 'prev') {
-  const box = await page.locator('.flipbook-volume').boundingBox();
-  if (!box) throw new Error('Flipbook volume is not visible');
-  const x = box.x + box.width * (direction === 'next' ? 0.9 : 0.1);
-  const y = box.y + box.height * 0.45;
-  const destination = x + box.width * (direction === 'next' ? -0.62 : 0.62);
-  await page.mouse.move(x, y);
-  await page.mouse.down();
-  await page.mouse.move(destination, y, { steps: 5 });
 }
 
 async function fits(page: Page) {
@@ -81,14 +52,13 @@ async function fits(page: Page) {
         height: rect.height,
         controlsTop: controls.top,
         controlsBottom: controls.bottom,
-        shown: root.querySelectorAll('[data-flip-engine-visible="true"]').length
+        shown: root.querySelectorAll('.stf__item.--shown').length
       };
     });
   await expect
     .poll(async () => {
       const geometry = await readGeometry();
-      const expectedWidth =
-        Math.min(geometry.viewportWidth - 32, ((geometry.viewportHeight - 104) * 480) / 680) * 0.9 - 2;
+      const expectedWidth = Math.min(geometry.viewportWidth - 32, ((geometry.viewportHeight - 104) * 480) / 680) - 2;
       return (
         Math.abs(geometry.readerHeight - geometry.viewportHeight) <= 1 &&
         geometry.x >= 0 &&
@@ -112,7 +82,7 @@ async function fits(page: Page) {
   expect(geometry.controlsBottom).toBeLessThanOrEqual(geometry.viewportHeight + 1);
   expect(geometry.width / geometry.height).toBeCloseTo(480 / 680, 2);
   expect(geometry.width).toBeGreaterThanOrEqual(
-    Math.min(geometry.viewportWidth - 32, ((geometry.viewportHeight - 104) * 480) / 680) * 0.9 - 2
+    Math.min(geometry.viewportWidth - 32, ((geometry.viewportHeight - 104) * 480) / 680) - 2
   );
   expect(geometry.shown).toBe(1);
   return geometry;
@@ -236,6 +206,7 @@ test('physical curl, touch navigation, concurrent input and vertical scroll', as
   if (browserName === 'chromium') {
     const before = await reader(page).getAttribute('data-visible-pages');
     await swipe(page, browserName, 2, -210);
+    await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(50);
     await expect(reader(page)).toHaveAttribute('data-visible-pages', before!);
   }
 });
@@ -267,29 +238,26 @@ test('real focal leaf survives orientation, viewport chrome and reduced motion c
 });
 
 test('visual evidence at a physical curl frame', async ({ page }, info) => {
+  await page.clock.install({ time: new Date('2026-09-23T12:00:00Z') });
   await open(page);
   await next(page).click();
   await visible(page, '1');
-  await beginCurl(page, 'next');
+  await page.clock.pauseAt(new Date('2026-09-23T12:05:00Z'));
+  await next(page).click({ force: true });
+  await page.clock.runFor(160);
   await expect(reader(page)).not.toHaveAttribute('data-transition', 'idle');
-  await expect.poll(() => hasPhysicalCurl(page, 'next')).toBe(true);
+  expect(
+    await page
+      .locator('.stf__item')
+      .evaluateAll((leaves) => leaves.some((leaf) => leaf.getAttribute('style')?.includes('clip-path')))
+  ).toBe(true);
+  await reader(page).evaluate((element) => {
+    element.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    element.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+  });
   await shot(page, info, 'mobile-390-turning');
-  await page.mouse.up();
+  await page.clock.resume();
   await visible(page, '2');
-});
-
-test('visual evidence at a backward physical curl frame', async ({ page }, info) => {
-  await open(page);
-  await next(page).click();
-  await visible(page, '1');
-  await next(page).click();
-  await visible(page, '2');
-  await beginCurl(page, 'prev');
-  await expect(reader(page)).not.toHaveAttribute('data-transition', 'idle');
-  await expect.poll(() => hasPhysicalCurl(page, 'prev')).toBe(true);
-  await shot(page, info, 'mobile-390-turning-backward');
-  await page.mouse.up();
-  await visible(page, '1');
 });
 
 test('automatic reading settles with a left fold and stops after manual input', async ({ page }, info) => {
@@ -301,6 +269,7 @@ test('automatic reading settles with a left fold and stops after manual input', 
   await visible(page, '1');
   const folded = page.locator('[data-flipbook-page-id="fixture-page-2"]');
   await expect(folded).toHaveAttribute('data-folded', 'true');
+  expect(await folded.evaluate((element) => getComputedStyle(element, '::after').content)).not.toBe('none');
   await shot(page, info, 'mobile-390-folded-left');
   await next(page).click();
   await visible(page, '2');
@@ -328,11 +297,9 @@ test('automatic reading can be paused and resumed explicitly', async ({ page }) 
   await page.clock.install({ time: new Date('2026-09-23T12:00:00Z') });
   await open(page, '?pages=3', true);
   await page.getByRole('button', { name: 'Pausar animación automática' }).click();
-  await expect(page.getByRole('button', { name: 'Reanudar animación automática' })).toBeAttached();
   await page.clock.runFor(10_000);
   await visible(page, '0');
   await page.getByRole('button', { name: 'Reanudar animación automática' }).click();
-  await expect(page.getByRole('button', { name: 'Pausar animación automática' })).toBeAttached();
   await page.clock.runFor(3_300);
   await visible(page, '1');
 });
@@ -405,14 +372,14 @@ test('contained mixed assets and adjacent slow load', async ({ page }) => {
   for (let index = 1; index <= 2; index++) {
     await next(page).click();
     await visible(page, String(index));
-    const image = page.locator('[data-flip-engine-visible="true"] img').first();
+    const image = page.locator(`.stf__item.--shown img`).first();
     await expect(image).toHaveCSS('object-fit', 'contain');
     await fits(page);
   }
   await open(page, '?pages=6&slow');
   await next(page).click();
   await visible(page, '1');
-  await expect(page.locator('[data-flip-engine-visible="true"] img')).toBeVisible();
+  await expect(page.locator('.stf__item.--shown img')).toBeVisible();
   await fits(page);
 });
 

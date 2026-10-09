@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useMemo, useState } from 'react';
+import { forwardRef, useCallback, useMemo, useState } from 'react';
 import type { ApiClient, PublicInvitationView } from '@invitaciones/api-client';
 import { useElementSize } from '@invitaciones/ui';
 import { Box, CircularProgress } from '@mui/material';
@@ -23,7 +23,6 @@ interface FlipbookPageProps {
   rsvpConfirmed: boolean;
   onUnavailableQr: () => void;
   qrAvailable: boolean;
-  onPageReady?: (pageId: string) => void;
 }
 
 export const FlipbookPage = forwardRef<HTMLDivElement, FlipbookPageProps>(function FlipbookPage(
@@ -41,8 +40,7 @@ export const FlipbookPage = forwardRef<HTMLDivElement, FlipbookPageProps>(functi
     onRsvp,
     rsvpConfirmed,
     onUnavailableQr,
-    qrAvailable,
-    onPageReady
+    qrAvailable
   },
   forwardedRef
 ) {
@@ -66,16 +64,10 @@ export const FlipbookPage = forwardRef<HTMLDivElement, FlipbookPageProps>(functi
   }, [imageSize, pageSize.height, pageSize.width]);
   const disabled = !visible || !interactive;
 
-  useEffect(() => {
-    if (visible && imageSize) onPageReady?.(page.id);
-  }, [imageSize, onPageReady, page.id, visible]);
-
   return (
     <div
       ref={setRefs}
-      role="group"
       data-flipbook-page-id={page.id}
-      data-stf-soft-mesh="true"
       data-folded={folded || undefined}
       data-density={pageNumber === 1 ? 'hard' : undefined}
       aria-label={`Página ${pageNumber} de ${pageCount}`}

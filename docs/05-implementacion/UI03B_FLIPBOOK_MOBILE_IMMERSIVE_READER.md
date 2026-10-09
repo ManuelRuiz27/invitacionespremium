@@ -2,8 +2,6 @@
 
 Implementación y QA: 2026-09-23. Ámbito: Client público, fixture DEV y verificación del navegador. Sin cambios de dominio, API, persistencia ni dependencias del engine.
 
-> **Vigencia:** desde la Fase 1, el runtime usa `FlipEngine` propio. Las referencias posteriores a `@gullabs/flipbook-core`, `HTMLFlipBook`, `hardCovers` y `allowTouchScroll` documentan el baseline de UI-03B y quedan sustituidas por `BookState`, `PageTurnController` y la superficie Pointer Events de `FlipEngine`. El contrato vigente es `docs/04-tecnico/FLIPBOOK_MAGAZINE_CONTRACT.md`.
-
 ## Archaeology
 
 - El shell público consumía ancho y altura con encabezado, márgenes y controles. En 390×844 la portada terminaba aproximadamente en y=855, antes de los controles.
@@ -62,11 +60,3 @@ Chromium usa touch nativo vía CDP. WebKit ejecuta el engine real y PointerEvent
 El build conserva el aviso previo de chunks >500 kB. CI previo de main fallaba por formato, incluido formato ajeno en Landing/Scanner/scripts; se aplica exclusivamente Prettier a esos cinco archivos para desbloquear el gate, sin cambios funcionales.
 
 Durante la implementación concurrente, el primer conjunto de cambios del shell quedó incluido en `2e5ae7a4672f1599fec65aba651db800e61b53f7`. El commit UI-03B posterior completa gestos, fixture, formato y QA; no se reescribe el historial de main.
-
-## Certificación de fase 9
-
-La suite reproducible cubre la matriz de 1, 2, 3, 4, 5, 6 y 10 páginas, bordes, paridad portrait/spread, conservación de la hoja focal, progreso de drag, flick por velocidad, snapback y cancelación. También cubre entradas concurrentes, scroll vertical, zoom, hotspots, assets mixtos o lentos, precarga adyacente, reintento explícito del asset y reinicio de estado/carga cuando cambia el token público.
-
-La evidencia del navegador incluye capturas de curl hacia adelante y hacia atrás, ambas con la hoja móvil, `clip-path` y dirección de giro comprobados durante la transición. La captura adicional es `mobile-390-turning-backward.png`.
-
-La validación manual en hardware queda pendiente porque este entorno no dispone de equipos físicos. Debe registrarse por separado el resultado en mouse/teclado de escritorio y laptop, Android, iPhone, tablet portrait/landscape y equipo híbrido o stylus; incluyendo pausa a mitad de giro, inversión, flick, scroll, zoom, rotación e interrupciones por cambio de aplicación. Esta limitación no invalida la evidencia automatizada, pero impide certificar FPS o arbitraje del sistema operativo en dispositivos reales.

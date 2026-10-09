@@ -88,9 +88,9 @@ El cambio de página debe comunicar una hoja física mediante como mínimo:
 
 Avanzar gira de derecha a izquierda; retroceder invierte el movimiento.
 
-Implementación aprobada actualmente: `FlipEngine` propio en `apps/client/src/public/invitation/flip-engine`. `BookState` es autoridad de `visiblePages` y orientation; `PageTurnController` es autoridad de los estados de giro; `GestureController` clasifica el pointer como scroll vertical, arrastre horizontal o tap lateral antes de iniciar el giro; `ZoomController` mantiene pinch, doble tap y pan acotado sin alterar la geometría de Hotspots; `PageRenderer` y `LightingRenderer` derivan caras, pliegue y luz de la geometría continua; `ResponsiveLayout` elige single/spread con viewport, `ResizeObserver` y `visualViewport`. El renderer mantiene en memoria las hojas visibles y sus vecinas, inicia la lectura automática cuando la primera hoja está lista y resuelve inmediatamente un giro parcial ante cambio de layout, pérdida de foco o pestaña oculta. La semántica y los estilos del runtime usan exclusivamente nombres de `FlipEngine`, sin adaptadores del engine retirado. Cada `FlipbookPage` real sigue siendo una hoja individual del engine; nunca un spread preagrupado.
+Implementación aprobada actualmente: `@gullabs/react-flipbook` como wrapper React y `@gullabs/flipbook-core` como engine HTML. Cada `FlipbookPage` real debe ser un child directo del engine; nunca un spread preagrupado.
 
-Primera y última hoja son cubiertas físicas. `BookState` calcula los spreads sin páginas dummy ni assets duplicados.
+`hardCovers` representa primera y última hoja como cubiertas físicas. No se debe reimplementar manualmente el pairing de spreads mientras el engine sea autoridad de `visiblePages`/orientation.
 
 ## 6. Navegación
 
@@ -194,7 +194,12 @@ Además:
 
 ## 12. Dependencias y licencias
 
-`FlipEngine` no tiene una dependencia de runtime de terceros para renderizar la invitación.
+Dependencias aprobadas:
+
+- `@gullabs/react-flipbook@3.1.0` — MIT;
+- `@gullabs/flipbook-core@3.1.0` — MPL-2.0.
+
+La aplicación debe conservar `THIRD_PARTY_NOTICES.md` con nombre, licencia y fuente upstream del core. La MPL-2.0 no cambia la licencia de InvitacionesPremium.
 
 No se permite iframe, runtime remoto ni branding de terceros para renderizar la invitación.
 

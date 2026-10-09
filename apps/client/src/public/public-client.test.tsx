@@ -147,62 +147,6 @@ describe('public routing', () => {
 });
 
 describe('public invitation', () => {
-  it.each(['PENDING', 'REJECTED'] as const)('keeps calendar absent for %s', async (responseStatus) => {
-    const base = availableView();
-    renderApp(
-      publicApi(availableView({ invitation: { ...base.invitation!, responseStatus } })),
-      `/invitacion/${token}`
-    );
-    await screen.findByRole('heading', { name: 'Boda de Ana y Luis' });
-    expect(screen.queryByRole('button', { name: 'Agregar a mi calendario' })).not.toBeInTheDocument();
-  });
-
-  it('downloads ICS when reopening a confirmed invitation without an end, even with RSVP closed', async () => {
-    const base = availableView();
-    const view = availableView({
-      invitation: { ...base.invitation!, responseStatus: 'CONFIRMED' },
-      confirmation: { open: false }
-    });
-    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
-    try {
-      renderApp(publicApi(view), `/invitacion/${token}`);
-      const button = await screen.findByRole('button', { name: 'Agregar a mi calendario' });
-      await userEvent.click(button);
-      expect(click).toHaveBeenCalledTimes(1);
-      const anchor = click.mock.instances[0] as HTMLAnchorElement;
-      expect(anchor.download).toBe('boda-de-ana-y-luis.ics');
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-      const calls = vi.mocked(URL.createObjectURL).mock.calls;
-      const blob = calls.at(-1)?.[0] as Blob;
-      expect(blob.type).toBe('text/calendar;charset=utf-8');
-      expect(anchor.isConnected).toBe(false);
-    } finally {
-      click.mockRestore();
-    }
-  });
-
-  it('keeps calendar failure local and retryable on a confirmed invitation', async () => {
-    const base = availableView();
-    const api = publicApi(availableView({ invitation: { ...base.invitation!, responseStatus: 'CONFIRMED' } }));
-    renderApp(api, `/invitacion/${token}`);
-    const button = await screen.findByRole('button', { name: 'Agregar a mi calendario' });
-    vi.mocked(URL.createObjectURL).mockImplementationOnce(() => {
-      throw new Error('private failure');
-    });
-    await userEvent.click(button);
-    expect(await screen.findByText('No pudimos preparar el calendario. Inténtalo nuevamente.')).toBeVisible();
-    expect(screen.getByText('Asistencia confirmada')).toBeVisible();
-    expect(api.publicInvitation.confirm).not.toHaveBeenCalled();
-    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
-    try {
-      await userEvent.click(button);
-      expect(click).toHaveBeenCalledTimes(1);
-      expect(screen.queryByText('No pudimos preparar el calendario. Inténtalo nuevamente.')).not.toBeInTheDocument();
-    } finally {
-      click.mockRestore();
-    }
-  });
-
   it('shows loading, retries a non-enumerating unavailable state and never prints the token', async () => {
     const api = publicApi();
     vi.mocked(api.publicInvitation.resolve)
@@ -225,7 +169,6 @@ describe('public invitation', () => {
       if (message.startsWith('Este evento')) expect(screen.queryByText('Invitación cancelada')).not.toBeInTheDocument();
       expect(screen.queryByText('Confirmar asistencia')).not.toBeInTheDocument();
       expect(api.publicInvitation.asset).not.toHaveBeenCalled();
-      expect(screen.queryByRole('button', { name: 'Agregar a mi calendario' })).not.toBeInTheDocument();
     }
   );
 
@@ -233,7 +176,6 @@ describe('public invitation', () => {
     const api = publicApi({ status: 'CLOSED' });
     renderApp(api, `/invitacion/${token}`);
     expect(await screen.findByRole('heading', { name: 'Este evento ha finalizado.' })).toBeVisible();
-    expect(screen.queryByRole('button', { name: 'Agregar a mi calendario' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Confirmar asistencia' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Ver mi QR' })).not.toBeInTheDocument();
   });
@@ -318,14 +260,6 @@ describe('public invitation', () => {
       )
     );
     expect(await screen.findByText('Tu confirmación quedó guardada.')).toBeVisible();
-    const calendarButton = await screen.findByRole('button', { name: 'Agregar a mi calendario' });
-    const download = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
-    try {
-      await userEvent.click(calendarButton);
-      expect(download).toHaveBeenCalledTimes(1);
-    } finally {
-      download.mockRestore();
-    }
     expect(screen.queryByRole('button', { name: 'Ver mi QR' })).not.toBeInTheDocument();
     expect(await screen.findAllByRole('button', { name: 'Modificar acompañantes' })).toHaveLength(1);
     expect(api.publicInvitation.qr).not.toHaveBeenCalled();

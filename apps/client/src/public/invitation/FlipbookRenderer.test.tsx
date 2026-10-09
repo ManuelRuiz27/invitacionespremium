@@ -1,11 +1,11 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ApiClient, PublicInvitationView } from '@invitaciones/api-client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { FlipbookRenderer, preloadPageIndexes } from './FlipbookRenderer';
+import { FlipbookRenderer } from './FlipbookRenderer';
 
 const token = 'flipbook-renderer-test';
 
-function fixture(pageCount: number, invitationToken = token): PublicInvitationView {
+function fixture(pageCount: number): PublicInvitationView {
   return {
     status: 'AVAILABLE',
     designType: 'FLIPBOOK',
@@ -17,211 +17,169 @@ function fixture(pageCount: number, invitationToken = token): PublicInvitationVi
         position: index + 1,
         asset: {
           id: `5c643f2f-7247-42a3-8348-${String(index + 1).padStart(12, '0')}`,
-          contentPath: `/api/v1/public/invitations/${invitationToken}/assets/5c643f2f-7247-42a3-8348-${String(index + 1).padStart(12, '0')}/content`
+          contentPath: `/api/v1/public/invitations/${token}/assets/5c643f2f-7247-42a3-8348-${String(index + 1).padStart(12, '0')}/content`
         }
       })),
       hotspots: [
-        {
-          id: 'rsvp-cover',
-          action: 'RSVP',
-          destination: null,
-          flipbookPageId: 'page-1',
-          visualOwnerType: 'FLIPBOOK_PAGE',
-          x: 0.1,
-          y: 0.1,
-          width: 0.3,
-          height: 0.1,
-          priority: 0
-        }
+        hotspot('location-left', 'LOCATION', 'page-4', 'https://maps.example.com/location'),
+        hotspot('external-right', 'EXTERNAL_LINK', 'page-5', 'https://example.com/registry'),
+        hotspot('rsvp-cover', 'RSVP', 'page-1')
       ]
     }
   } as PublicInvitationView;
 }
 
-function setMedia({ spread = false, reducedMotion = true } = {}) {
-  Object.defineProperties(window, {
-    innerHeight: { configurable: true, value: spread ? 768 : 844 },
-    innerWidth: { configurable: true, value: spread ? 1024 : 390 }
-  });
-  Object.defineProperty(window, 'matchMedia', {
-    configurable: true,
-    writable: true,
-    value: (query: string) => ({
-      matches:
-        (spread && query.includes('orientation: landscape')) ||
-        (reducedMotion && query.includes('prefers-reduced-motion: reduce')),
-      media: query,
-      onchange: null,
-      addListener: () => undefined,
-      removeListener: () => undefined,
-      addEventListener: () => undefined,
-      removeEventListener: () => undefined,
-      dispatchEvent: () => false
-    })
-  });
-}
-
-function renderFlipbook(
-  pageCount = 6,
-  onRsvp = vi.fn(),
-  invitationToken = token,
-  apiClient = {
-    publicInvitation: { asset: vi.fn().mockResolvedValue(new Blob(['page'], { type: 'image/svg+xml' })) }
-  } as unknown as ApiClient
+function hotspot(
+  id: string,
+  action: 'LOCATION' | 'EXTERNAL_LINK' | 'RSVP',
+  flipbookPageId: string,
+  destination: string | null = null
 ) {
   return {
-    apiClient,
-    onRsvp,
-    ...render(
-      <FlipbookRenderer
-        apiClient={apiClient}
-        token={invitationToken}
-        view={fixture(pageCount, invitationToken)}
-        onRsvp={onRsvp}
-        onUnavailableQr={vi.fn()}
-      />
-    )
+    id,
+    action,
+    destination,
+    flipbookPageId,
+    visualOwnerType: 'FLIPBOOK_PAGE',
+    x: 0.1,
+    y: 0.1,
+    width: 0.3,
+    height: 0.1,
+    priority: 0
   };
 }
 
-afterEach(() => setMedia({ spread: false, reducedMotion: false }));
+function renderFlipbook(pageCount = 6) {
+  const apiClient = {
+    publicInvitation: { asset: vi.fn().mockResolvedValue(new Blob(['page'], { type: 'image/svg+xml' })) }
+  } as unknown as ApiClient;
+  return render(
+    <FlipbookRenderer
+      apiClient={apiClient}
+      token={token}
+      view={fixture(pageCount)}
+      onRsvp={vi.fn()}
+      onUnavailableQr={vi.fn()}
+    />
+  );
+}
 
-describe('FlipbookRenderer', () => {
-  it('keeps only visible pages and immediate neighbors in the asset window', () => {
-    expect(preloadPageIndexes(10, [0])).toEqual(new Set([0, 1]));
-    expect(preloadPageIndexes(10, [4])).toEqual(new Set([3, 4, 5]));
-    expect(preloadPageIndexes(10, [4, 5])).toEqual(new Set([3, 4, 5, 6]));
+function setViewport(width: number) {
+  act(() => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: width });
+    window.dispatchEvent(new Event('resize'));
   });
+}
 
-  it('renders persisted pages through the local engine and keeps the public asset contract', () => {
-    setMedia({ spread: true });
+afterEach(() => {
+  delete (globalThis as typeof globalThis & { __flipbookMockAsync?: boolean }).__flipbookMockAsync;
+  setViewport(1024);
+});
+
+describe('FlipbookRenderer physical leaves', () => {
+  it('waits for the guest, then replays the opening whenever the cover is opened again', async () => {
+    setViewport(1200);
     const { container } = renderFlipbook();
+    await screen.findByText('Página 1 de 6');
+    expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-intro', 'closed');
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 650));
+    });
+    expect(screen.getByText('Página 1 de 6')).toBeVisible();
+    expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-intro', 'closed');
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar asistencia' }));
+    expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-intro', 'closed');
 
-    const engine = container.querySelector('.flip-engine');
-    expect(engine).toHaveAttribute('data-layout', 'spread');
-    expect(container.querySelectorAll('[data-flipbook-page-id]')).toHaveLength(6);
-    expect(container.querySelectorAll('.flip-engine-page-front')).toHaveLength(6);
-    expect(container.querySelectorAll('.flip-engine-page-back')).toHaveLength(0);
-    expect(container.querySelector('[data-flipbook-page-id="page-1"]')).toHaveAttribute(
-      'data-flipbook-page-id',
-      'page-1'
-    );
-    expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-flip-engine');
-    expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-cover', 'single');
-    expect(screen.getByRole('group', { name: /1 de 6/ })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir invitación' }));
+    expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-intro', 'lifting');
+    await waitFor(() => expect(screen.getByText('Página 2–3 de 6')).toBeVisible(), { timeout: 2000 });
+    expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-intro', 'open');
+    fireEvent.click(screen.getByRole('button', { name: 'Anterior' }));
+    expect(screen.getByText('Página 1 de 6')).toBeVisible();
+    expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-intro', 'closed');
+    fireEvent.click(screen.getByLabelText('Página 1 de 6'));
+    expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-intro', 'lifting');
+    await waitFor(() => expect(screen.getByText('Página 2–3 de 6')).toBeVisible(), { timeout: 2000 });
   });
 
-  it('opens the cover and moves through reader spreads without changing the backend payload', async () => {
-    setMedia({ spread: true });
-    const { container } = renderFlipbook();
-    const reader = container.querySelector('.flipbook-reader')!;
+  it('passes each persisted page as a direct engine leaf and exposes the native desktop spreads', async () => {
+    setViewport(1200);
+    renderFlipbook();
+    await screen.findByText('Página 1 de 6');
 
-    await act(async () => undefined);
-    expect(reader).toHaveAttribute('data-visible-pages', '0');
-    expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-cover', 'single');
-    fireEvent.click(screen.getByRole('button', { name: /abrir invit/i }));
-    expect(reader).toHaveAttribute('data-visible-pages', '1,2');
-    expect(container.querySelector('.flipbook-volume')).toHaveAttribute('data-cover', 'spread');
-    fireEvent.click(screen.getByRole('button', { name: /siguiente/i }));
-    expect(reader).toHaveAttribute('data-visible-pages', '3,4');
-    fireEvent.click(screen.getByRole('button', { name: /anterior/i }));
-    expect(reader).toHaveAttribute('data-visible-pages', '1,2');
+    const engine = screen.getByTestId('flipbook-engine-mock');
+    expect(engine).toHaveAttribute('data-orientation', 'landscape');
+    expect(engine.querySelectorAll(':scope > [data-leaf-index]')).toHaveLength(6);
+    expect(engine.querySelectorAll('[data-flipbook-page-id]')).toHaveLength(6);
+    expect(screen.getByLabelText('Página 1 de 6')).toBeVisible();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir invitación' }));
+    await screen.findByText('Página 2–3 de 6');
+    expect(engine).toHaveAttribute('data-last-turn-leaf', '1');
+    expect(screen.getByLabelText('Página 2 de 6')).toBeVisible();
+    expect(screen.getByLabelText('Página 3 de 6')).toBeVisible();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
+    expect(screen.getByText('Página 4–5 de 6')).toBeVisible();
+    const location = await screen.findByRole('link', { name: 'Ver ubicación' });
+    const external = await screen.findByRole('link', { name: 'Abrir enlace' });
+    expect(screen.getByLabelText('Página 4 de 6')).toContainElement(location);
+    expect(screen.getByLabelText('Página 5 de 6')).toContainElement(external);
   });
 
-  it('uses the secondary page index through the same engine navigation path', async () => {
-    setMedia({ spread: true });
-    const { container } = renderFlipbook();
-    const reader = container.querySelector('.flipbook-reader')!;
+  it('uses one physical leaf in portrait and leaves the fourth page as the N=4 closing leaf', async () => {
+    setViewport(390);
+    renderFlipbook(4);
+    await screen.findByText('Página 1 de 4');
+    const engine = screen.getByTestId('flipbook-engine-mock');
+    expect(engine).toHaveAttribute('data-orientation', 'portrait');
+    expect(engine.querySelectorAll(':scope > [data-leaf-index]:not([hidden])')).toHaveLength(1);
 
-    await act(async () => undefined);
-    fireEvent.click(screen.getByRole('button', { name: 'Abrir índice de páginas' }));
-    expect(screen.getByLabelText('Índice de páginas')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir invitación' }));
+    await screen.findByText('Página 2 de 4');
+    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
+    expect(screen.getByText('Página 4 de 4')).toBeVisible();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ir a página 5' }));
-    expect(reader).toHaveAttribute('data-visible-pages', '3,4');
-    expect(screen.queryByLabelText('Índice de páginas')).not.toBeInTheDocument();
+    setViewport(1200);
+    expect(engine).toHaveAttribute('data-orientation', 'landscape');
+    expect(screen.getByText('Página 4 de 4')).toBeVisible();
   });
 
-  it('opens the cover when the reader surface is clicked', async () => {
-    setMedia({ spread: true });
-    const { container } = renderFlipbook();
-    const reader = container.querySelector('.flipbook-reader')!;
-
-    await act(async () => undefined);
-    fireEvent.click(container.querySelector('.flipbook-volume')!);
-    expect(reader).toHaveAttribute('data-visible-pages', '1,2');
-  });
-
-  it('rebuilds the visual spread after a resize without losing the focal leaf', async () => {
-    setMedia();
-    const { container } = renderFlipbook();
-    const reader = container.querySelector('.flipbook-reader')!;
-
-    await act(async () => undefined);
-    fireEvent.click(screen.getByRole('button', { name: /abrir invit/i }));
-    expect(reader).toHaveAttribute('data-visible-pages', '1');
-
-    setMedia({ spread: true });
-    await act(async () => window.dispatchEvent(new Event('resize')));
-
-    expect(container.querySelector('.flip-engine')).toHaveAttribute('data-layout', 'spread');
-    await waitFor(() => expect(reader).toHaveAttribute('data-visible-pages', '1,2'));
-  });
-
-  it('keeps visible hotspots interactive while the reader is settled', async () => {
-    setMedia();
+  it('blocks external links and RSVP while the engine reports an in-flight turn', async () => {
+    setViewport(1200);
+    (globalThis as typeof globalThis & { __flipbookMockAsync?: boolean }).__flipbookMockAsync = true;
     const onRsvp = vi.fn();
-    renderFlipbook(3, onRsvp);
-
-    const rsvp = await screen.findByRole('button', { name: /confirmar asistencia/i });
-    expect(rsvp).toBeEnabled();
-    fireEvent.click(rsvp);
-    expect(onRsvp).toHaveBeenCalledOnce();
-  });
-
-  it('keeps a failed page asset retryable through the public asset contract', async () => {
-    setMedia();
     const apiClient = {
-      publicInvitation: {
-        asset: vi
-          .fn()
-          .mockRejectedValueOnce(new Error('temporary asset failure'))
-          .mockResolvedValue(new Blob(['page'], { type: 'image/svg+xml' }))
-      }
+      publicInvitation: { asset: vi.fn().mockResolvedValue(new Blob(['page'])) }
     } as unknown as ApiClient;
-    renderFlipbook(1, vi.fn(), token, apiClient);
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Reintentar' }));
-    await waitFor(() => expect(apiClient.publicInvitation.asset).toHaveBeenCalledTimes(2));
-  });
-
-  it('resets the local reader and reloads assets when the public token changes', async () => {
-    setMedia();
-    const { apiClient, container, onRsvp, rerender } = renderFlipbook(3);
-    const reader = container.querySelector('.flipbook-reader')!;
-    const nextToken = 'flipbook-renderer-next-token';
-
-    await act(async () => undefined);
-    fireEvent.click(screen.getByRole('button', { name: /abrir invit/i }));
-    expect(reader).toHaveAttribute('data-visible-pages', '1');
-
-    rerender(
+    render(
       <FlipbookRenderer
         apiClient={apiClient}
-        token={nextToken}
-        view={fixture(3, nextToken)}
+        token={token}
+        view={fixture(6)}
         onRsvp={onRsvp}
         onUnavailableQr={vi.fn()}
       />
     );
+    await screen.findByRole('button', { name: 'Confirmar asistencia' });
+    const rsvp = screen.getByRole('button', { name: 'Confirmar asistencia' });
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir invitación' }));
+    expect(rsvp).toBeDisabled();
+    fireEvent.click(rsvp);
+    expect(onRsvp).not.toHaveBeenCalled();
 
-    await waitFor(() => expect(reader).toHaveAttribute('data-visible-pages', '0'));
-    await waitFor(() =>
-      expect(apiClient.publicInvitation.asset).toHaveBeenCalledWith(
-        nextToken,
-        expect.any(String),
-        expect.any(AbortSignal)
-      )
-    );
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 580));
+    });
+    await screen.findByText('Página 2–3 de 6');
+    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
+    const external = await screen.findByRole('link', { name: 'Abrir enlace' });
+    fireEvent.click(screen.getByRole('button', { name: 'Anterior' }));
+    expect(external).toHaveAttribute('aria-disabled', 'true');
+    expect(external).toHaveAttribute('tabindex', '-1');
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+    external.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
   });
 });

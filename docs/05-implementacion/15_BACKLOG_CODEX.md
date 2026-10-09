@@ -2,20 +2,6 @@
 
 ## Objetivo
 
-### Exportación pública de calendario — implementada
-
-Alcance: `apps/client`, presentación/exportación opcional de Invitaciones confirmadas mediante `.ics`.
-Reutiliza la proyección pública existente sin cambiar API, schema, RSVP ni QR. La acción directa
-“Agregar a mi calendario” aparece después de confirmar y al volver a abrir, incluso con Confirmación
-cerrada; permanece oculta para pendientes, rechazados, cancelaciones y Eventos no operativos.
-Exporta nombre, instante, zona y ubicación pública; sólo incluye fin real cuando ya existe.
-UID estable sin tokens, escaping y plegado UTF-8, nombre sanitizado y fallo local recuperable.
-
-Contratos: `PUBLIC_CLIENT_CONTRACT.md`, `PUBLIC_RSVP_CONTRACT.md`, `EVENTS_CONTRACT.md` y `04_APP_FLOW.md`.
-Pruebas: visibilidad por estado, RSVP sin reload, reapertura, descarga, fallo/reintento, fechas/offset/DST,
-escaping, plegado, ausencia de datos privados y conservación de las pruebas de QR.
-Sin OAuth, proveedores Calendar API, persistencia, jobs, notificaciones, sincronización ni analytics.
-
 Convertir la documentación fuente de verdad en una secuencia de trabajo implementable por Codex.
 
 Este backlog no reemplaza `13_PLAN_IMPLEMENTACION.md`. Lo traduce a unidades ejecutables con dependencias, alcance y criterios de aceptación.
