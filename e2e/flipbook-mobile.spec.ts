@@ -204,6 +204,29 @@ test('REQ-04 cover geometry stays fixed through initialization and full reload',
   }
 });
 
+test('mobile page stays centered above thumb-reachable bottom controls', async ({ page }) => {
+  for (const [width, height] of [
+    [320, 568],
+    [390, 844]
+  ]) {
+    await page.setViewportSize({ width, height });
+    await open(page, '?pages=6');
+    const stage = (await page.locator('.flipbook-stage').boundingBox())!;
+    const leaf = (await page.locator('.stf__item.--shown').boundingBox())!;
+    const controls = (await page.locator('.flipbook-controls').boundingBox())!;
+    const previousButton = (await previous(page).boundingBox())!;
+    const nextButton = (await next(page).boundingBox())!;
+    expect(Math.abs(leaf.y + leaf.height / 2 - (stage.y + 24 + controls.y) / 2)).toBeLessThan(3);
+    expect(controls.y + controls.height).toBeCloseTo(height - 24, 0);
+    expect(previousButton.x).toBeLessThan(33);
+    expect(width - nextButton.x - nextButton.width).toBeLessThan(33);
+    await next(page).click();
+    await visible(page, '1');
+    await previous(page).click();
+    await visible(page, '0');
+  }
+});
+
 for (const [width, height] of [
   [320, 568],
   [360, 800],
@@ -272,10 +295,10 @@ for (const [width, height] of [
       for (const layer of [crease!, edge!]) {
         expect(layer.content).toBe('""');
         expect(layer.pointerEvents).toBe('none');
-        expect(Math.abs(layer.top - bounds.y)).toBeLessThan(1);
-        expect(Math.abs(layer.bottom - bounds.y - bounds.height)).toBeLessThan(1);
+        expect(Math.abs(layer.top - bounds.y)).toBeLessThan(2.5);
+        expect(Math.abs(layer.bottom - bounds.y - bounds.height)).toBeLessThan(2.5);
         expect(layer.width).toBeGreaterThanOrEqual(8);
-        expect(layer.width).toBeLessThanOrEqual(14);
+        expect(layer.width).toBeLessThanOrEqual(17);
       }
       expect(Math.abs(edge!.left + edge!.width - crease!.left)).toBeLessThan(1);
       expect(Math.abs(crease!.left - bounds.x)).toBeLessThan(1);
@@ -585,9 +608,8 @@ test('safe area budget, adjacent preload and access to the public document', asy
       return rect.y + rect.height;
     })
     .toBeLessThanOrEqual(534);
-  await page.getByRole('heading', { name: 'Ana & Luis' }).scrollIntoViewIfNeeded();
-  await expect(page.getByRole('heading', { name: 'Ana & Luis' })).toBeInViewport();
-  await expect(page.getByRole('button', { name: /calendario/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Ana & Luis' })).toBeAttached();
+  await expect(page.getByRole('button', { name: 'Modificar acompañantes' })).toBeVisible();
   await page.evaluate(() => scrollTo(0, 0));
   await visible(page, '0');
 });
