@@ -4,8 +4,8 @@
   justify-content: center;
   align-items: center;
   isolation: isolate;
-  perspective: 1350px;
-  perspective-origin: 50% 38%;
+  perspective: 900px;
+  perspective-origin: 50% 28%;
   overflow: hidden;
 }
 
@@ -61,10 +61,10 @@
 }
 
 .flipbook-volume {
-  --book-tilt: 7deg;
-  --cover-tilt: 3deg;
-  --lift-tilt: 9deg;
-  --opening-tilt: 8deg;
+  --book-tilt: 11deg;
+  --cover-tilt: 6deg;
+  --lift-tilt: 12deg;
+  --opening-tilt: 11deg;
   --book-roll: -0.55deg;
   --lift-roll: -1deg;
   position: relative;
@@ -113,16 +113,16 @@
   position: absolute;
   top: 5px;
   right: 0;
-  bottom: -7px;
+  bottom: -10px;
   left: 0;
   border-radius: 3px 5px 8px 5px;
   background:
     linear-gradient(90deg, #c9b393, #f8f2e8 2%, transparent 5%, transparent 95%, #bda482),
     repeating-linear-gradient(to bottom, #f9f5ec 0, #f9f5ec 2px, #d8cbb8 3px, #f0e8da 4px);
   box-shadow:
-    0 5px 0 #b49d7c,
-    0 11px 0 rgba(91, 70, 46, 0.58),
-    0 22px 26px rgba(0, 0, 0, 0.35);
+    0 6px 0 #b49d7c,
+    0 14px 0 rgba(91, 70, 46, 0.68),
+    0 30px 30px rgba(0, 0, 0, 0.5);
   pointer-events: none;
   transform: translate3d(4px, 4px, -2px);
   transition: left 720ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -142,7 +142,7 @@
 .flipbook-volume .flipbook-magazine-engine.stf__parent {
   position: relative;
   z-index: 1;
-  filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.28));
+  filter: drop-shadow(0 18px 22px rgba(0, 0, 0, 0.42));
 }
 
 /* Light rolls into the center fold without changing the engine's leaf geometry. */
@@ -154,14 +154,14 @@
   z-index: 2;
   top: 0;
   bottom: 0;
-  left: calc(50% - 20px);
-  width: 40px;
+  left: calc(50% - 26px);
+  width: 52px;
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(72, 49, 28, 0.1) 28%,
-    rgba(54, 36, 20, 0.2) 47%,
-    rgba(255, 250, 238, 0.3) 58%,
+    rgba(72, 49, 28, 0.14) 20%,
+    rgba(54, 36, 20, 0.32) 45%,
+    rgba(255, 250, 238, 0.36) 60%,
     transparent
   );
   pointer-events: none;
@@ -221,14 +221,14 @@
 
 @media (min-width: 768px) and (max-width: 1023px) {
   .flipbook-stage {
-    perspective: 1700px;
+    perspective: 1100px;
   }
 
   .flipbook-volume {
-    --book-tilt: 4deg;
-    --cover-tilt: 2deg;
-    --lift-tilt: 6deg;
-    --opening-tilt: 5deg;
+    --book-tilt: 7deg;
+    --cover-tilt: 4deg;
+    --lift-tilt: 8deg;
+    --opening-tilt: 7deg;
     --book-roll: 0deg;
     --lift-roll: -0.5deg;
     width: calc(100% - 16px);
@@ -237,8 +237,8 @@
   .flipbook-reader[data-transition='idle']
     .flipbook-volume[data-orientation='landscape'][data-intro='open']
     .flipbook-magazine-engine.stf__parent::before {
-    left: calc(50% - 15px);
-    width: 30px;
+    left: calc(50% - 19px);
+    width: 38px;
   }
 }
 
@@ -270,8 +270,8 @@
     padding: 24px max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px));
     overflow: hidden;
     box-shadow: none;
-    perspective: 1250px;
-    perspective-origin: 50% 34%;
+    perspective: 850px;
+    perspective-origin: 50% 28%;
   }
 
   .flipbook-stage::after {
@@ -297,7 +297,7 @@
     min-height: 0;
     max-height: 100%;
     transform-origin: 50% 88%;
-    transform: rotateX(1.4deg);
+    transform: rotateX(5deg);
   }
 
   .flipbook-reader .flipbook-volume[data-intro-started='true'] {
@@ -305,18 +305,18 @@
   }
 
   .flipbook-reader .flipbook-volume[data-orientation][data-intro='lifting'] {
-    transform: translateY(-4px) rotateX(2deg);
+    transform: translateY(-4px) rotateX(6deg);
   }
 
   .flipbook-reader .flipbook-volume::before {
     display: block;
     top: 2px;
-    bottom: -3px;
+    bottom: -6px;
     width: 100%;
     transform: translateX(-50%) translate3d(2px, 3px, -2px);
     box-shadow:
-      0 3px 0 #b49d7c,
-      0 7px 12px rgba(0, 0, 0, 0.3);
+      0 4px 0 #b49d7c,
+      0 10px 14px rgba(0, 0, 0, 0.44);
   }
 
   .flipbook-reader .flipbook-volume::after {
@@ -368,9 +368,9 @@
     width: var(--binding-crease);
     background: linear-gradient(
       90deg,
-      rgba(67, 49, 29, 0.32),
-      rgba(103, 80, 51, 0.18) 26%,
-      rgba(255, 250, 239, 0.18) 58%,
+      rgba(67, 49, 29, 0.45),
+      rgba(103, 80, 51, 0.25) 26%,
+      rgba(255, 250, 239, 0.19) 58%,
       transparent
     );
     box-shadow: 2px 0 5px rgba(64, 45, 26, 0.1);
@@ -429,11 +429,11 @@
 
 @media (max-width: 359px) {
   .flipbook-reader .flipbook-volume[data-intro] {
-    transform: rotateX(1deg);
+    transform: rotateX(3deg);
   }
 
   .flipbook-reader .flipbook-volume[data-orientation][data-intro='lifting'] {
-    transform: translateY(-4px) rotateX(1.6deg);
+    transform: translateY(-4px) rotateX(4deg);
   }
 }
 

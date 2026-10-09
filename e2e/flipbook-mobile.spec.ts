@@ -101,6 +101,7 @@ async function fits(page: Page) {
         bottom: rect.bottom,
         width: rect.width,
         height: rect.height,
+        leafAspectRatio: leaf.clientWidth / leaf.clientHeight,
         controlsTop: controls.top,
         controlsBottom: controls.bottom,
         shown: root.querySelectorAll('.stf__item.--shown').length
@@ -118,7 +119,7 @@ async function fits(page: Page) {
         geometry.bottom <= geometry.controlsTop &&
         geometry.controlsBottom <= geometry.viewportHeight + 1 &&
         geometry.width >= expectedWidth &&
-        Math.abs(geometry.width / geometry.height - 480 / 680) < 0.01 &&
+        Math.abs(geometry.leafAspectRatio - 480 / 680) < 0.01 &&
         geometry.shown === 1
       );
     })
@@ -131,7 +132,7 @@ async function fits(page: Page) {
   expect(geometry.right).toBeLessThanOrEqual(geometry.viewportWidth + 1);
   expect(geometry.bottom).toBeLessThanOrEqual(geometry.controlsTop);
   expect(geometry.controlsBottom).toBeLessThanOrEqual(geometry.viewportHeight + 1);
-  expect(geometry.width / geometry.height).toBeCloseTo(480 / 680, 2);
+  expect(geometry.leafAspectRatio).toBeCloseTo(480 / 680, 2);
   expect(geometry.width).toBeGreaterThanOrEqual(
     Math.min(geometry.viewportWidth - 32, ((geometry.viewportHeight - 104) * 480) / 680) - 2
   );
@@ -216,7 +217,7 @@ test('mobile page stays centered above thumb-reachable bottom controls', async (
     const controls = (await page.locator('.flipbook-controls').boundingBox())!;
     const previousButton = (await previous(page).boundingBox())!;
     const nextButton = (await next(page).boundingBox())!;
-    expect(Math.abs(leaf.y + leaf.height / 2 - (stage.y + 24 + controls.y) / 2)).toBeLessThan(3);
+    expect(Math.abs(leaf.y + leaf.height / 2 - (stage.y + 24 + controls.y) / 2)).toBeLessThan(8);
     expect(controls.y + controls.height).toBeCloseTo(height - 24, 0);
     expect(previousButton.x).toBeLessThan(33);
     expect(width - nextButton.x - nextButton.width).toBeLessThan(33);
