@@ -354,6 +354,13 @@ for (const [width, height] of [
         });
         await shot(page, info, `req03-${width}-reverse-turning`);
       }
+      await page.clock.runFor(320);
+      const shownLeaves = await page
+        .locator('.stf__item.--shown')
+        .evaluateAll((leaves) => leaves.map((leaf) => leaf.getAttribute('data-flipbook-page-id')));
+      expect(shownLeaves.length).toBeGreaterThan(0);
+      expect(shownLeaves.every((pageId) => pageId !== null)).toBe(true);
+      if (width === 390 && index === 1) await shot(page, info, 'req03-390-reverse-landing');
       await page.clock.resume();
       await visible(page, positions[index]!);
     }

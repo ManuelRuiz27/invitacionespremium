@@ -80,9 +80,9 @@ afterEach(() => {
 });
 
 describe('FlipbookRenderer physical leaves', () => {
-  it('preloads every page before the guest opens the cover', async () => {
-    const { apiClient } = renderFlipbook(4);
-    await waitFor(() => expect(apiClient.publicInvitation.asset).toHaveBeenCalledTimes(4));
+  it('preloads the cover and nearby leaves without loading the full book', async () => {
+    const { apiClient } = renderFlipbook(10);
+    await waitFor(() => expect(apiClient.publicInvitation.asset).toHaveBeenCalledTimes(3));
   });
 
   it('waits for the guest, then replays the opening whenever the cover is opened again', async () => {

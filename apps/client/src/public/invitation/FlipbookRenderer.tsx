@@ -12,8 +12,14 @@ import './FlipbookRenderer.css';
 
 const initialSnapshot: BookSnapshot = { page: 0, pageCount: 0, orientation: 'portrait', visiblePages: [0] };
 
-function allPageIndexes(pageCount: number): Set<number> {
-  return new Set(Array.from({ length: pageCount }, (_, index) => index));
+function nearbyPageIndexes(visiblePages: number[], pageCount: number): Set<number> {
+  const indexes = new Set<number>();
+  for (const visiblePage of visiblePages) {
+    for (let index = Math.max(0, visiblePage - 2); index <= Math.min(pageCount - 1, visiblePage + 2); index++) {
+      indexes.add(index);
+    }
+  }
+  return indexes;
 }
 
 export function FlipbookRenderer({
@@ -48,7 +54,9 @@ export function FlipbookRenderer({
   const [transitionState, setTransitionState] = useState<'idle' | 'turning' | 'settling'>('idle');
   const [cornerPreview, setCornerPreview] = useState(false);
   const [introState, setIntroState] = useState<'closed' | 'lifting' | 'opening' | 'open'>('closed');
-  const [preloadedPageIndexes, setPreloadedPageIndexes] = useState<Set<number>>(() => allPageIndexes(pages.length));
+  const [preloadedPageIndexes, setPreloadedPageIndexes] = useState<Set<number>>(() =>
+    nearbyPageIndexes([0], pages.length)
+  );
   const [autoActive, setAutoActive] = useState(true);
   const [readerVisible, setReaderVisible] = useState(false);
   const [documentVisible, setDocumentVisible] = useState(() => !document.hidden);
@@ -62,7 +70,7 @@ export function FlipbookRenderer({
 
   useLayoutEffect(() => {
     setSnapshot(initialSnapshot);
-    setPreloadedPageIndexes(allPageIndexes(pages.length));
+    setPreloadedPageIndexes(nearbyPageIndexes([0], pages.length));
     turningRef.current = false;
     focalPageRef.current = 0;
     if (introTimerRef.current !== null) window.clearTimeout(introTimerRef.current);
@@ -100,16 +108,24 @@ export function FlipbookRenderer({
     []
   );
 
-  const syncSnapshot = useCallback((next: BookSnapshot) => {
-    // Core exposes a spread head, not the last real leaf read in portrait.
-    // Resize can emit `flip` before `changeOrientation`; retain that leaf until
-    // the orientation callback restores it through the public instant API.
-    if (next.orientation === orientationRef.current && !next.visiblePages.includes(focalPageRef.current)) {
-      focalPageRef.current = next.page;
-    }
-    setSnapshot(next);
-    setIntroState(next.page === 0 ? 'closed' : 'open');
-  }, []);
+  const syncSnapshot = useCallback(
+    (next: BookSnapshot) => {
+      // Core exposes a spread head, not the last real leaf read in portrait.
+      // Resize can emit `flip` before `changeOrientation`; retain that leaf until
+      // the orientation callback restores it through the public instant API.
+      if (next.orientation === orientationRef.current && !next.visiblePages.includes(focalPageRef.current)) {
+        focalPageRef.current = next.page;
+      }
+      setSnapshot(next);
+      setPreloadedPageIndexes((current) => {
+        const nearby = nearbyPageIndexes(next.visiblePages, pages.length);
+        if ([...nearby].every((index) => current.has(index))) return current;
+        return new Set([...current, ...nearby]);
+      });
+      setIntroState(next.page === 0 ? 'closed' : 'open');
+    },
+    [pages.length]
+  );
   const syncOrientation = useCallback(() => {
     const book = bookRef.current?.pageFlip();
     if (!book || book.getPageCount() === 0) return;
@@ -359,9 +375,6 @@ export function FlipbookRenderer({
             respectInteractiveContent
             allowTouchScroll
             swipeDistance={40}
-            // A landscape turn out of the back cover lands on two leaves.
-            // Keep both mounted before the engine starts its reverse fold.
-            lazyRadius={2}
             useKeyboard={false}
             controls="none"
             liveRegion={false}
@@ -384,6 +397,8 @@ export function FlipbookRenderer({
               }
             }}
           >
+            {/* Keep the engine's page nodes stable through every turn. Only the
+                image content is loaded for nearby leaves. */}
             {pages.map((page, pageIndex) => (
               <FlipbookPage
                 key={page.id}
