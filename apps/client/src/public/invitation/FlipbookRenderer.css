@@ -56,15 +56,19 @@
   z-index: 2;
 }
 
+.flipbook-stage > .flipbook-controls {
+  margin-top: 36px;
+}
+
 .flipbook-controls .MuiButton-root:not(.Mui-disabled) {
   color: #f8f3e8;
 }
 
 .flipbook-volume {
-  --book-tilt: 11deg;
-  --cover-tilt: 6deg;
-  --lift-tilt: 12deg;
-  --opening-tilt: 11deg;
+  --book-tilt: 15deg;
+  --cover-tilt: 11deg;
+  --lift-tilt: 16deg;
+  --opening-tilt: 15deg;
   --book-roll: -0.55deg;
   --lift-roll: -1deg;
   position: relative;
@@ -73,7 +77,7 @@
   display: flex;
   justify-content: center;
   transform-style: preserve-3d;
-  transform-origin: 50% 85%;
+  transform-origin: 50% 90%;
   transform: translateY(-7px) rotateX(var(--book-tilt)) rotateZ(var(--book-roll));
   z-index: 1;
 }
@@ -111,20 +115,22 @@
 .flipbook-volume::before {
   content: '';
   position: absolute;
-  top: 5px;
+  top: -9px;
   right: 0;
-  bottom: -10px;
+  bottom: -15px;
   left: 0;
-  border-radius: 3px 5px 8px 5px;
+  border-radius: 50% 50% 45% 45% / 9px 9px 12px 12px;
   background:
+    radial-gradient(ellipse 55% 12px at 50% 0, rgba(255, 251, 242, 0.92), transparent 95%),
+    radial-gradient(ellipse 65% 18px at 50% 100%, rgba(124, 95, 61, 0.5), transparent 95%),
     linear-gradient(90deg, #c9b393, #f8f2e8 2%, transparent 5%, transparent 95%, #bda482),
     repeating-linear-gradient(to bottom, #f9f5ec 0, #f9f5ec 2px, #d8cbb8 3px, #f0e8da 4px);
   box-shadow:
-    0 6px 0 #b49d7c,
-    0 14px 0 rgba(91, 70, 46, 0.68),
-    0 30px 30px rgba(0, 0, 0, 0.5);
+    0 8px 0 #b49d7c,
+    0 18px 0 rgba(91, 70, 46, 0.68),
+    0 34px 32px rgba(0, 0, 0, 0.5);
   pointer-events: none;
-  transform: translate3d(4px, 4px, -2px);
+  transform: translate3d(5px, 4px, -2px);
   transition: left 720ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -132,7 +138,7 @@
   left: 50%;
   right: auto;
   width: min(480px, 100%);
-  transform: translateX(-50%) translate3d(4px, 4px, -2px);
+  transform: translateX(-50%) translate3d(5px, 4px, -2px);
 }
 
 .flipbook-volume[data-cover='landscape']::before {
@@ -143,6 +149,18 @@
   position: relative;
   z-index: 1;
   filter: drop-shadow(0 18px 22px rgba(0, 0, 0, 0.42));
+}
+
+/* Soft arcs at the head and foot make the tilted paper appear to bend into the spine. */
+.flipbook-volume .flipbook-magazine-engine.stf__parent::before {
+  content: '';
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 48% 15px at 50% 0, rgba(72, 49, 30, 0.22), transparent 100%),
+    radial-gradient(ellipse 52% 18px at 50% 100%, rgba(72, 49, 30, 0.25), transparent 100%);
+  pointer-events: none;
 }
 
 /* Light rolls into the center fold without changing the engine's leaf geometry. */
@@ -156,16 +174,19 @@
   bottom: 0;
   left: calc(50% - 48px);
   width: 96px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(81, 58, 35, 0.08) 18%,
-    rgba(57, 39, 21, 0.26) 37%,
-    rgba(36, 24, 14, 0.5) 49%,
-    rgba(255, 249, 235, 0.3) 55%,
-    rgba(95, 67, 40, 0.1) 77%,
-    transparent 100%
-  );
+  background:
+    radial-gradient(ellipse 48% 15px at 50% 0, rgba(72, 49, 30, 0.3), transparent 100%),
+    radial-gradient(ellipse 52% 18px at 50% 100%, rgba(72, 49, 30, 0.32), transparent 100%),
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(81, 58, 35, 0.08) 18%,
+      rgba(57, 39, 21, 0.26) 37%,
+      rgba(36, 24, 14, 0.5) 49%,
+      rgba(255, 249, 235, 0.3) 55%,
+      rgba(95, 67, 40, 0.1) 77%,
+      transparent 100%
+    );
   pointer-events: none;
 }
 
@@ -227,10 +248,10 @@
   }
 
   .flipbook-volume {
-    --book-tilt: 7deg;
-    --cover-tilt: 4deg;
-    --lift-tilt: 8deg;
-    --opening-tilt: 7deg;
+    --book-tilt: 10deg;
+    --cover-tilt: 7deg;
+    --lift-tilt: 11deg;
+    --opening-tilt: 10deg;
     --book-roll: 0deg;
     --lift-roll: -0.5deg;
     width: calc(100% - 16px);
@@ -299,7 +320,7 @@
     min-height: 0;
     max-height: 100%;
     transform-origin: 50% 88%;
-    transform: rotateX(5deg);
+    transform: rotateX(7deg);
   }
 
   .flipbook-reader .flipbook-volume[data-intro-started='true'] {
@@ -307,18 +328,18 @@
   }
 
   .flipbook-reader .flipbook-volume[data-orientation][data-intro='lifting'] {
-    transform: translateY(-4px) rotateX(6deg);
+    transform: translateY(-4px) rotateX(8deg);
   }
 
   .flipbook-reader .flipbook-volume::before {
     display: block;
-    top: 2px;
-    bottom: -6px;
+    top: -6px;
+    bottom: -8px;
     width: 100%;
     transform: translateX(-50%) translate3d(2px, 3px, -2px);
     box-shadow:
-      0 4px 0 #b49d7c,
-      0 10px 14px rgba(0, 0, 0, 0.44);
+      0 5px 0 #b49d7c,
+      0 12px 15px rgba(0, 0, 0, 0.44);
   }
 
   .flipbook-reader .flipbook-volume::after {
@@ -368,14 +389,17 @@
     z-index: 2;
     inset: 0 auto 0 0;
     width: var(--binding-crease);
-    background: linear-gradient(
-      90deg,
-      rgba(50, 34, 19, 0.42),
-      rgba(92, 65, 39, 0.26) 15%,
-      rgba(255, 250, 239, 0.23) 38%,
-      rgba(97, 72, 45, 0.1) 70%,
-      transparent
-    );
+    background:
+      radial-gradient(ellipse 48% 12px at 50% 0, rgba(72, 49, 30, 0.24), transparent 100%),
+      radial-gradient(ellipse 52% 14px at 50% 100%, rgba(72, 49, 30, 0.27), transparent 100%),
+      linear-gradient(
+        90deg,
+        rgba(50, 34, 19, 0.42),
+        rgba(92, 65, 39, 0.26) 15%,
+        rgba(255, 250, 239, 0.23) 38%,
+        rgba(97, 72, 45, 0.1) 70%,
+        transparent
+      );
     box-shadow: 3px 0 7px rgba(64, 45, 26, 0.12);
     pointer-events: none;
   }
@@ -432,11 +456,11 @@
 
 @media (max-width: 359px) {
   .flipbook-reader .flipbook-volume[data-intro] {
-    transform: rotateX(3deg);
+    transform: rotateX(5deg);
   }
 
   .flipbook-reader .flipbook-volume[data-orientation][data-intro='lifting'] {
-    transform: translateY(-4px) rotateX(4deg);
+    transform: translateY(-4px) rotateX(6deg);
   }
 }
 
