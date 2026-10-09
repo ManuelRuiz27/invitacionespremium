@@ -141,8 +141,10 @@
 }
 
 /* The settled left leaf retains a shallow paper curl. It belongs to the
-   physical page, so portrait and desktop spreads share the same treatment. */
-.flipbook-reader[data-transition='idle'] [data-flipbook-page-id][data-folded='true']::after {
+   physical page, so portrait and desktop spreads share the same treatment.
+   A corner preview must not hide the curl on a leaf the engine keeps still. */
+.flipbook-reader[data-transition='idle'] [data-flipbook-page-id][data-folded='true']::after,
+.flipbook-reader[data-corner-preview='true'] [data-flipbook-page-id][data-folded='true'].--simple::after {
   content: '';
   position: absolute;
   z-index: 2;
@@ -233,9 +235,7 @@
 
   /* The spine and rolled edge use the exact leaf bounds so their upper and
      lower corners stay continuous with the portrait page. */
-  .flipbook-reader
-    .flipbook-volume[data-orientation='portrait']
-    .flipbook-magazine-engine.stf__parent::after {
+  .flipbook-reader .flipbook-volume[data-orientation='portrait'] .flipbook-magazine-engine.stf__parent::after {
     top: 0;
     bottom: 0;
   }
@@ -247,7 +247,8 @@
 
   /* A visible rolled leaf gives the single-page reader the same physical
      depth as an open book. Both layers stay inside the page and ignore taps. */
-  .flipbook-reader[data-transition='idle'] [data-flipbook-page-id][data-folded='true']::before {
+  .flipbook-reader[data-transition='idle'] [data-flipbook-page-id][data-folded='true']::before,
+  .flipbook-reader[data-corner-preview='true'] [data-flipbook-page-id][data-folded='true'].--simple::before {
     content: '';
     position: absolute;
     z-index: 2;
@@ -259,7 +260,8 @@
     pointer-events: none;
   }
 
-  .flipbook-reader[data-transition='idle'] [data-flipbook-page-id][data-folded='true']::after {
+  .flipbook-reader[data-transition='idle'] [data-flipbook-page-id][data-folded='true']::after,
+  .flipbook-reader[data-corner-preview='true'] [data-flipbook-page-id][data-folded='true'].--simple::after {
     top: 0;
     bottom: 0;
     width: clamp(26px, 8.5%, 38px);

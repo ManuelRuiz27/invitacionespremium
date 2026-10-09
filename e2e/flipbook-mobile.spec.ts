@@ -277,6 +277,34 @@ test('automatic reading settles with a left fold and stops after manual input', 
   await visible(page, '2');
 });
 
+test('REQ-02 mobile taps preserve the settled curl without turning a page', async ({ page }, info) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await open(page, '?pages=6');
+  await next(page).click();
+  await visible(page, '1');
+  const folded = page.locator('[data-flipbook-page-id="fixture-page-2"]:not([data-stf-clone])');
+  const rect = (await folded.boundingBox())!;
+  for (const [x, y] of [
+    [0.5, 0.5],
+    [0.08, 0.5],
+    [0.95, 0.08],
+    [0.05, 0.92]
+  ]) {
+    await page.touchscreen.tap(rect.x + rect.width * x!, rect.y + rect.height * y!);
+    await visible(page, '1');
+    await expect(folded).toHaveAttribute('data-folded', 'true');
+    for (const pseudo of ['::before', '::after']) {
+      expect(await folded.evaluate((element, pseudo) => getComputedStyle(element, pseudo).content, pseudo)).toBe('""');
+    }
+  }
+  await shot(page, info, 'req02-mobile-settled-curl');
+  await next(page).click();
+  await visible(page, '2');
+  await previous(page).click();
+  await visible(page, '1');
+  expect(await folded.evaluate((element) => getComputedStyle(element, '::after').content)).toBe('""');
+});
+
 test('automatic reading reaches the back cover and respects reduced motion', async ({ page }) => {
   await page.clock.install({ time: new Date('2026-09-23T12:00:00Z') });
   await open(page, '?pages=3', true);
@@ -407,6 +435,47 @@ test('safe area budget, adjacent preload and access to the public document', asy
 
 test.describe('desktop and tablet regression', () => {
   test.use({ isMobile: false, hasTouch: false });
+  test('REQ-02 corner preview preserves only the stationary leaf curl', async ({ page }, info) => {
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await open(page, '?pages=6');
+    await next(page).click();
+    await visible(page, '1,2');
+    const folded = page.locator('[data-flipbook-page-id="fixture-page-2"]:not([data-stf-clone])');
+    const rect = (await page.locator('.stf__block').boundingBox())!;
+    const curl = () => folded.evaluate((element) => getComputedStyle(element, '::after').content);
+    for (const y of [0.08, 0.92]) {
+      await page.mouse.move(rect.x + rect.width * 0.95, rect.y + rect.height * y);
+      await expect(reader(page)).toHaveAttribute('data-corner-preview', 'true');
+      await expect(folded).toHaveClass(/--simple/);
+      await expect.poll(curl).toBe('""');
+      await page.mouse.down();
+      await page.mouse.up();
+      await expect(reader(page)).toHaveAttribute('data-visible-pages', '1,2');
+      await expect.poll(curl).toBe('""');
+      await page.mouse.move(rect.x + rect.width * 0.5, rect.y + rect.height * 0.5);
+      await visible(page, '1,2');
+      await expect.poll(curl).toBe('""');
+    }
+    await shot(page, info, 'desktop-req02-settled-curl');
+
+    // A preview that actually lifts the folded leaf still hides its settled curl.
+    await page.mouse.move(rect.x + rect.width * 0.05, rect.y + rect.height * 0.08);
+    await expect(reader(page)).toHaveAttribute('data-corner-preview', 'true');
+    await expect(folded).not.toHaveClass(/--simple/);
+    await expect.poll(curl).toBe('none');
+    await page.mouse.move(rect.x + rect.width * 0.5, rect.y + rect.height * 0.5);
+    await visible(page, '1,2');
+    await expect.poll(curl).toBe('""');
+
+    await next(page).click();
+    await expect(reader(page)).not.toHaveAttribute('data-transition', 'idle');
+    await expect(reader(page)).not.toHaveAttribute('data-corner-preview', 'true');
+    expect(await curl()).toBe('none');
+    await visible(page, '3,4');
+    await previous(page).click();
+    await visible(page, '1,2');
+    await expect.poll(curl).toBe('""');
+  });
   for (const [width, height] of [
     [768, 1024],
     [1024, 768],

@@ -46,6 +46,7 @@ export function FlipbookRenderer({
   const introTimerRef = useRef<number | null>(null);
   const [snapshot, setSnapshot] = useState<BookSnapshot>(initialSnapshot);
   const [transitionState, setTransitionState] = useState<'idle' | 'turning' | 'settling'>('idle');
+  const [cornerPreview, setCornerPreview] = useState(false);
   const [introState, setIntroState] = useState<'closed' | 'lifting' | 'opening' | 'open'>('closed');
   const [preloadedPageIndexes, setPreloadedPageIndexes] = useState<Set<number>>(() => allPageIndexes(pages.length));
   const [autoActive, setAutoActive] = useState(true);
@@ -67,6 +68,7 @@ export function FlipbookRenderer({
     if (introTimerRef.current !== null) window.clearTimeout(introTimerRef.current);
     introTimerRef.current = null;
     setTransitionState('idle');
+    setCornerPreview(false);
     setIntroState('closed');
     setAutoActive(true);
   }, [bookKey]);
@@ -219,6 +221,7 @@ export function FlipbookRenderer({
       tabIndex={0}
       aria-label="Invitación en páginas"
       data-transition={transitionState}
+      data-corner-preview={cornerPreview || undefined}
       data-visible-pages={visiblePageKey}
       onFocusCapture={(event) => {
         if (!(event.target instanceof Element) || !event.target.closest('[data-auto-control]')) setAutoActive(false);
@@ -369,6 +372,7 @@ export function FlipbookRenderer({
             onPageChange={syncSnapshot}
             onChangeOrientation={syncOrientation}
             onChangeState={({ state }) => {
+              setCornerPreview(state === 'fold_corner');
               if (state === 'read') {
                 turningRef.current = false;
                 setTransitionState('idle');
