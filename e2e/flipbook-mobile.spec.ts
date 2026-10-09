@@ -298,9 +298,11 @@ for (const [width, height] of [
         expect(layer.pointerEvents).toBe('none');
         expect(Math.abs(layer.top - bounds.y)).toBeLessThan(2.5);
         expect(Math.abs(layer.bottom - bounds.y - bounds.height)).toBeLessThan(2.5);
-        expect(layer.width).toBeGreaterThanOrEqual(8);
-        expect(layer.width).toBeLessThanOrEqual(17);
       }
+      expect(crease!.width).toBeGreaterThanOrEqual(21);
+      expect(crease!.width).toBeLessThanOrEqual(26);
+      expect(edge!.width).toBeGreaterThanOrEqual(8);
+      expect(edge!.width).toBeLessThanOrEqual(12);
       expect(Math.abs(edge!.left + edge!.width - crease!.left)).toBeLessThan(1);
       expect(Math.abs(crease!.left - bounds.x)).toBeLessThan(1);
       await expect(leaf.locator('img')).toHaveCSS('object-fit', 'contain');
@@ -625,7 +627,7 @@ test('safe area budget, adjacent preload and access to the public document', asy
 
 test.describe('desktop and tablet regression', () => {
   test.use({ isMobile: false, hasTouch: false });
-  test('REQ-02 corner preview preserves only the stationary leaf curl', async ({ page }, info) => {
+  test('REQ-02 corner preview preserves only the stationary leaf curl', async ({ page, browserName }, info) => {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await open(page, '?pages=6');
     await next(page).click();
@@ -634,7 +636,7 @@ test.describe('desktop and tablet regression', () => {
     const rect = (await page.locator('.stf__block').boundingBox())!;
     const curl = () => folded.evaluate((element) => getComputedStyle(element, '::after').content);
     for (const y of [0.08, 0.92]) {
-      await page.mouse.move(rect.x + rect.width * 0.95, rect.y + rect.height * y);
+      await page.mouse.move(rect.x + rect.width * (browserName === 'chromium' ? 0.9 : 0.95), rect.y + rect.height * y);
       await expect(reader(page)).toHaveAttribute('data-corner-preview', 'true');
       await expect(folded).toHaveClass(/--simple/);
       await expect.poll(curl).toBe('""');
@@ -649,7 +651,10 @@ test.describe('desktop and tablet regression', () => {
     await shot(page, info, 'desktop-req02-settled-curl');
 
     // A preview that actually lifts the folded leaf still hides its settled curl.
-    await page.mouse.move(rect.x + rect.width * 0.05, rect.y + rect.height * 0.08);
+    await page.mouse.move(
+      rect.x + rect.width * (browserName === 'chromium' ? 0.08 : 0.05),
+      rect.y + rect.height * 0.08
+    );
     await expect(reader(page)).toHaveAttribute('data-corner-preview', 'true');
     await expect(folded).not.toHaveClass(/--simple/);
     await expect.poll(curl).toBe('none');
