@@ -53,15 +53,18 @@ function renderFlipbook(pageCount = 6) {
   const apiClient = {
     publicInvitation: { asset: vi.fn().mockResolvedValue(new Blob(['page'], { type: 'image/svg+xml' })) }
   } as unknown as ApiClient;
-  return render(
-    <FlipbookRenderer
-      apiClient={apiClient}
-      token={token}
-      view={fixture(pageCount)}
-      onRsvp={vi.fn()}
-      onUnavailableQr={vi.fn()}
-    />
-  );
+  return {
+    apiClient,
+    ...render(
+      <FlipbookRenderer
+        apiClient={apiClient}
+        token={token}
+        view={fixture(pageCount)}
+        onRsvp={vi.fn()}
+        onUnavailableQr={vi.fn()}
+      />
+    )
+  };
 }
 
 function setViewport(width: number) {
@@ -77,6 +80,11 @@ afterEach(() => {
 });
 
 describe('FlipbookRenderer physical leaves', () => {
+  it('preloads every page before the guest opens the cover', async () => {
+    const { apiClient } = renderFlipbook(4);
+    await waitFor(() => expect(apiClient.publicInvitation.asset).toHaveBeenCalledTimes(4));
+  });
+
   it('waits for the guest, then replays the opening whenever the cover is opened again', async () => {
     setViewport(1200);
     const { container } = renderFlipbook();

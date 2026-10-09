@@ -12,11 +12,8 @@ import './FlipbookRenderer.css';
 
 const initialSnapshot: BookSnapshot = { page: 0, pageCount: 0, orientation: 'portrait', visiblePages: [0] };
 
-function preloadPageIndexes(pageCount: number, visiblePages: number[]): Set<number> {
-  if (pageCount <= 0 || visiblePages.length === 0) return new Set();
-  const first = Math.max(0, visiblePages[0]! - 1);
-  const last = Math.min(pageCount - 1, visiblePages[visiblePages.length - 1]! + 1);
-  return new Set(Array.from({ length: last - first + 1 }, (_, index) => first + index));
+function allPageIndexes(pageCount: number): Set<number> {
+  return new Set(Array.from({ length: pageCount }, (_, index) => index));
 }
 
 export function FlipbookRenderer({
@@ -50,7 +47,7 @@ export function FlipbookRenderer({
   const [snapshot, setSnapshot] = useState<BookSnapshot>(initialSnapshot);
   const [transitionState, setTransitionState] = useState<'idle' | 'turning' | 'settling'>('idle');
   const [introState, setIntroState] = useState<'closed' | 'lifting' | 'opening' | 'open'>('closed');
-  const [preloadedPageIndexes, setPreloadedPageIndexes] = useState<Set<number>>(() => new Set([0]));
+  const [preloadedPageIndexes, setPreloadedPageIndexes] = useState<Set<number>>(() => allPageIndexes(pages.length));
   const [autoActive, setAutoActive] = useState(true);
   const [readerVisible, setReaderVisible] = useState(false);
   const [documentVisible, setDocumentVisible] = useState(() => !document.hidden);
@@ -64,7 +61,7 @@ export function FlipbookRenderer({
 
   useLayoutEffect(() => {
     setSnapshot(initialSnapshot);
-    setPreloadedPageIndexes(new Set([0]));
+    setPreloadedPageIndexes(allPageIndexes(pages.length));
     turningRef.current = false;
     focalPageRef.current = 0;
     if (introTimerRef.current !== null) window.clearTimeout(introTimerRef.current);
@@ -100,17 +97,6 @@ export function FlipbookRenderer({
     },
     []
   );
-
-  useEffect(() => {
-    const preload = window.setTimeout(() => {
-      setPreloadedPageIndexes((current) => {
-        const next = new Set(current);
-        for (const pageIndex of preloadPageIndexes(pages.length, visiblePageIndexes)) next.add(pageIndex);
-        return next.size === current.size ? current : next;
-      });
-    }, 0);
-    return () => window.clearTimeout(preload);
-  }, [pages.length, visiblePageKey]);
 
   const syncSnapshot = useCallback((next: BookSnapshot) => {
     // Core exposes a spread head, not the last real leaf read in portrait.
