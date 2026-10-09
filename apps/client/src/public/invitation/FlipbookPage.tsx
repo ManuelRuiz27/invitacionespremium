@@ -17,6 +17,7 @@ interface FlipbookPageProps {
   hotspots: Hotspot[];
   visible: boolean;
   folded: boolean;
+  hard?: boolean;
   interactive: boolean;
   shouldLoad: boolean;
   onRsvp: () => void;
@@ -35,6 +36,7 @@ export const FlipbookPage = forwardRef<HTMLDivElement, FlipbookPageProps>(functi
     hotspots,
     visible,
     folded,
+    hard = false,
     interactive,
     shouldLoad,
     onRsvp,
@@ -69,7 +71,7 @@ export const FlipbookPage = forwardRef<HTMLDivElement, FlipbookPageProps>(functi
       ref={setRefs}
       data-flipbook-page-id={page.id}
       data-folded={folded || undefined}
-      data-density={pageNumber === 1 ? 'hard' : undefined}
+      data-density={hard ? 'hard' : undefined}
       aria-label={`Página ${pageNumber} de ${pageCount}`}
       aria-hidden={!visible || undefined}
       style={{ position: 'relative', overflow: 'hidden', background: '#f3eee6' }}
