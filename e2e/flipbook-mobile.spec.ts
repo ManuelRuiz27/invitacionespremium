@@ -316,6 +316,51 @@ test('visual evidence at a physical curl frame', async ({ page }, info) => {
   await visible(page, '2');
 });
 
+for (const [width, height] of [
+  [390, 844],
+  [768, 1024],
+  [1440, 1000]
+]) {
+  test(`REQ-03 reverse turn keeps real leaves mounted at ${width}x${height}`, async ({ page }, info) => {
+    await page.setViewportSize({ width: width!, height: height! });
+    await page.clock.install({ time: new Date('2026-09-23T12:00:00Z') });
+    await open(page, '?pages=6');
+    const positions = width === 390 ? ['3', '2', '1', '0'] : ['5', '3,4', '1,2', '0'];
+    for (let index = 0; index < 3; index++) {
+      await next(page).click();
+      await visible(page, width === 390 ? String(index + 1) : ['1,2', '3,4', '5'][index]!);
+    }
+    for (let index = 1; index < positions.length; index++) {
+      await page.clock.pauseAt(new Date(`2026-09-23T12:0${index}:00Z`));
+      await previous(page).click({ force: true });
+      await page.clock.runFor(160);
+      await expect(reader(page)).not.toHaveAttribute('data-transition', 'idle');
+      await expect(reader(page)).toHaveAttribute('data-visible-pages', positions[index - 1]!);
+      expect(
+        await page
+          .locator('.stf__item.--shown')
+          .evaluateAll(
+            (leaves) =>
+              leaves.length > 0 &&
+              leaves.every(
+                (leaf) => leaf.hasAttribute('data-flipbook-page-id') && !leaf.hasAttribute('data-flipbook-lazy')
+              )
+          )
+      ).toBe(true);
+      if (index === 1) {
+        await reader(page).evaluate((element) => {
+          element.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+          element.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+        });
+        await shot(page, info, `req03-${width}-reverse-turning`);
+      }
+      await page.clock.resume();
+      await visible(page, positions[index]!);
+    }
+    await expect(previous(page)).toBeDisabled();
+  });
+}
+
 test('automatic reading settles with a left fold and stops after manual input', async ({ page }, info) => {
   await page.clock.install({ time: new Date('2026-09-23T12:00:00Z') });
   await open(page, '?pages=4', true);
@@ -468,7 +513,7 @@ test('contained mixed assets and adjacent slow load', async ({ page }) => {
 test('safe area budget, adjacent preload and access to the public document', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
   await open(page, '?pages=10');
-  await expect(page.locator('[data-flipbook-page-id] img')).toHaveCount(2);
+  await expect(page.locator('[data-flipbook-page-id] img')).toHaveCount(3);
   await reader(page).evaluate((element) => {
     (element as HTMLElement).style.setProperty('--reader-safe-top', '47px');
     (element as HTMLElement).style.setProperty('--reader-safe-bottom', '34px');

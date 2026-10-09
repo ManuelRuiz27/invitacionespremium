@@ -359,7 +359,9 @@ export function FlipbookRenderer({
             respectInteractiveContent
             allowTouchScroll
             swipeDistance={40}
-            lazyRadius={1}
+            // A landscape turn out of the back cover lands on two leaves.
+            // Keep both mounted before the engine starts its reverse fold.
+            lazyRadius={2}
             useKeyboard={false}
             controls="none"
             liveRegion={false}
