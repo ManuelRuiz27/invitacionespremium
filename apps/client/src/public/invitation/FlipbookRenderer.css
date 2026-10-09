@@ -200,12 +200,13 @@
   bottom: 0;
   left: 0;
   width: clamp(10px, 4%, 22px);
+  border-left: 1px solid rgba(255, 250, 239, 0.7);
   background: linear-gradient(
     90deg,
-    rgba(72, 51, 30, 0.36) 0%,
-    rgba(223, 208, 188, 0.68) 15%,
-    rgba(255, 250, 240, 0.58) 36%,
-    rgba(104, 79, 48, 0.2) 70%,
+    rgba(72, 51, 30, 0.42) 0%,
+    rgba(223, 208, 188, 0.8) 12%,
+    rgba(255, 250, 240, 0.75) 30%,
+    rgba(104, 79, 48, 0.24) 62%,
     rgba(104, 79, 48, 0) 100%
   );
   clip-path: polygon(0 0, 100% 0, 70% 48%, 100% 100%, 0 100%);
@@ -383,12 +384,6 @@
 
   .flipbook-reader .flipbook-volume[data-orientation='portrait'] .stf__wrapper {
     z-index: 1;
-  }
-
-  /* Portrait binding stays on the host through turns and corner previews.
-     Keep the engine's own page background (::before) and turn shadows. */
-  .flipbook-reader .flipbook-volume[data-orientation='portrait'] [data-flipbook-page-id][data-folded]::after {
-    content: none;
   }
 
   .flipbook-reader .flipbook-controls {

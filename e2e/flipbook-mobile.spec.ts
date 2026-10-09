@@ -467,6 +467,12 @@ test('REQ-02 mobile taps preserve the settled curl without turning a page', asyn
   await next(page).click();
   await visible(page, '1');
   const folded = page.locator('[data-flipbook-page-id="fixture-page-2"]:not([data-stf-clone])');
+  const curl = () =>
+    folded.evaluate((element) => {
+      const style = getComputedStyle(element, '::after');
+      return { content: style.content, border: style.borderLeftWidth };
+    });
+  await expect.poll(curl).toEqual({ content: '""', border: '1px' });
   const rect = (await folded.boundingBox())!;
   for (const [x, y] of [
     [0.5, 0.5],
@@ -477,6 +483,7 @@ test('REQ-02 mobile taps preserve the settled curl without turning a page', asyn
     await page.touchscreen.tap(rect.x + rect.width * x!, rect.y + rect.height * y!);
     await visible(page, '1');
     await expect(folded).toHaveAttribute('data-folded', 'true');
+    expect(await curl()).toEqual({ content: '""', border: '1px' });
     expect((await binding(page)).every((layer) => layer.content === '""')).toBe(true);
   }
   await shot(page, info, 'req02-mobile-settled-curl');
@@ -484,6 +491,7 @@ test('REQ-02 mobile taps preserve the settled curl without turning a page', asyn
   await visible(page, '2');
   await previous(page).click();
   await visible(page, '1');
+  expect(await curl()).toEqual({ content: '""', border: '1px' });
   expect((await binding(page)).every((layer) => layer.content === '""')).toBe(true);
 });
 
