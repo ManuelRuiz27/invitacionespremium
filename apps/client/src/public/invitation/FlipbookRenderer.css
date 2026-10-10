@@ -115,13 +115,16 @@
 .flipbook-volume::before {
   content: '';
   position: absolute;
-  top: -7px;
+  /* The volume's curved paper edge belongs above the book. Rotate only this
+     decorative layer; rotating the volume itself would invert its leaves,
+     hotspots and controls. */
+  top: -11px;
   right: 0;
-  bottom: -11px;
+  bottom: -7px;
   left: 0;
-  border-radius: 50% 50% 42% 42% / 8px 8px 11px 11px;
+  border-radius: 42% 42% 50% 50% / 11px 11px 8px 8px;
   background:
-    radial-gradient(ellipse 54% 12px at 50% 0, rgba(255, 252, 245, 0.8), transparent 95%),
+    radial-gradient(ellipse 54% 12px at 50% 100%, rgba(255, 252, 245, 0.8), transparent 95%),
     linear-gradient(90deg, #b5a58d, #f8f4eb 2%, transparent 5%, transparent 95%, #a89477),
     repeating-linear-gradient(to bottom, #f8f4ec 0, #f8f4ec 2px, #d5cab9 3px, #eee8dc 4px);
   box-shadow:
@@ -129,7 +132,7 @@
     0 7px 0 rgba(134, 112, 83, 0.75),
     0 19px 27px rgba(0, 0, 0, 0.48);
   pointer-events: none;
-  transform: translate3d(3px, 3px, -2px);
+  transform: translate3d(3px, -3px, -2px) rotate(180deg);
   transition: left 720ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -137,7 +140,7 @@
   left: 50%;
   right: auto;
   width: min(480px, 100%);
-  transform: translateX(-50%) translate3d(3px, 3px, -2px);
+  transform: translateX(-50%) translate3d(3px, -3px, -2px) rotate(180deg);
 }
 
 .flipbook-volume[data-cover='landscape']::before {
@@ -330,10 +333,10 @@
 
   .flipbook-reader .flipbook-volume::before {
     display: block;
-    top: -5px;
-    bottom: -7px;
+    top: -7px;
+    bottom: -5px;
     width: 100%;
-    transform: translateX(-50%) translate3d(2px, 3px, -2px);
+    transform: translateX(-50%) translate3d(2px, -3px, -2px) rotate(180deg);
     box-shadow:
       0 3px 0 #ded3c2,
       0 10px 15px rgba(0, 0, 0, 0.4);
