@@ -71,6 +71,7 @@
   --opening-tilt: 19deg;
   --book-roll: -0.55deg;
   --lift-roll: -1deg;
+  --volume-edge-height: clamp(9px, 1.35vw, 14px);
   position: relative;
   width: 100%;
   max-width: 960px;
@@ -115,24 +116,24 @@
 .flipbook-volume::before {
   content: '';
   position: absolute;
-  /* The volume's curved paper edge belongs above the book. Rotate only this
-     decorative layer; rotating the volume itself would invert its leaves,
-     hotspots and controls. */
-  top: -11px;
+  /* A single calibrated paper edge sits above the engine. Keeping it shallow
+     makes the volume read as one object instead of a second, oversized book. */
+  z-index: 0;
+  top: calc(-1 * var(--volume-edge-height));
   right: 0;
-  bottom: -7px;
+  bottom: auto;
   left: 0;
-  border-radius: 42% 42% 50% 50% / 11px 11px 8px 8px;
+  height: var(--volume-edge-height);
+  border-radius: 50% 50% 18% 18% / 100% 100% 26% 26%;
   background:
-    radial-gradient(ellipse 54% 12px at 50% 100%, rgba(255, 252, 245, 0.8), transparent 95%),
-    linear-gradient(90deg, #b5a58d, #f8f4eb 2%, transparent 5%, transparent 95%, #a89477),
-    repeating-linear-gradient(to bottom, #f8f4ec 0, #f8f4ec 2px, #d5cab9 3px, #eee8dc 4px);
+    radial-gradient(ellipse 54% 100% at 50% 0, rgba(255, 253, 248, 0.9), transparent 78%),
+    linear-gradient(90deg, #b8a78e 0%, #f8f4eb 4%, #fffdf8 50%, #f8f4eb 96%, #ad997c 100%),
+    repeating-linear-gradient(to bottom, #fffdf8 0 2px, #d8ccbb 2px 3px, #f1e9de 3px 4px);
   box-shadow:
-    0 3px 0 #ded3c2,
-    0 7px 0 rgba(134, 112, 83, 0.75),
-    0 19px 27px rgba(0, 0, 0, 0.48);
+    0 1px 0 rgba(255, 253, 247, 0.9),
+    0 3px 5px rgba(73, 54, 33, 0.26);
   pointer-events: none;
-  transform: translate3d(3px, -3px, -2px) rotate(180deg);
+  transform: translate3d(0, 1px, -2px);
   transition: left 720ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -140,7 +141,7 @@
   left: 50%;
   right: auto;
   width: min(480px, 100%);
-  transform: translateX(-50%) translate3d(3px, -3px, -2px) rotate(180deg);
+  transform: translateX(-50%) translate3d(0, 1px, -2px);
 }
 
 .flipbook-volume[data-cover='landscape']::before {
@@ -333,13 +334,14 @@
 
   .flipbook-reader .flipbook-volume::before {
     display: block;
-    top: -7px;
-    bottom: -5px;
+    --volume-edge-height: 9px;
+    top: calc(-1 * var(--volume-edge-height));
+    bottom: auto;
     width: 100%;
-    transform: translateX(-50%) translate3d(2px, -3px, -2px) rotate(180deg);
+    transform: translateX(-50%) translate3d(0, 1px, -2px);
     box-shadow:
-      0 3px 0 #ded3c2,
-      0 10px 15px rgba(0, 0, 0, 0.4);
+      0 1px 0 rgba(255, 253, 247, 0.9),
+      0 3px 5px rgba(73, 54, 33, 0.24);
   }
 
   .flipbook-reader .flipbook-volume::after {
