@@ -2,11 +2,13 @@
 
 Estado: **PLAN TÉCNICO / DESGLOSE PROPUESTO — NO AUTORIZA IMPLEMENTACIÓN**
 
-**DT00/DT01 realizados (2026-10-19):** [DT00 auditoría estática](./M02_B01_DT00_RUNTIME_AUDIT.md) y [DT01 ADR propuesto](./M02_B01_DT01_ACCESS_ARCHITECTURE_ADR.md). DT01 recomienda `ACCESS_CONTROL`, `Event.accessMode`, credencial nominal individual y Managed Organization Provider paths, **pero requiere ratificación antes de CODE**. La investigación previa DT00/DT01 no debe delegarse otra vez ni ejecutarse como tickets de implementación.  
+**DT00/DT01 realizados (2026-10-19):** [DT00 auditoría estática](./M02_B01_DT00_RUNTIME_AUDIT.md) y [DT01 ADR](./M02_B01_DT01_ACCESS_ARCHITECTURE_ADR.md). **Product aprobó `ServiceCode.ACCESS_CONTROL` y un único `Event.accessMode=NOMINAL|ANONYMOUS` por Evento, conservando `PHYSICAL_QR`.** Las decisiones técnicas de credencial individual y Managed Organization paths siguen propuestas; el [gate SQL](./M02_B01_DT01_SQL_COMPATIBILITY_GATE.md) se revisó estáticamente pero **no se ejecutó contra PostgreSQL**. No hay autorización para code. La investigación previa DT00/DT01 no debe delegarse otra vez ni ejecutarse como tickets de implementación.  
 Fecha: **2026-10-19**  
 Requisito funcional autorizado: [M02-B01 QR nominal/anónimo](../01-producto/06B1_M02_B01_ACCESOS_QR_NOMINAL_ANONIMO.md)  
 Modelo base: [M02](../01-producto/06B_MODELO_02_SALON_JARDIN_ORGANIZACION.md)  
 Alcance de release: **M01 sigue siendo lanzamiento activo; M02-B01 aprobado para especificación, aún NO para código.**
+
+**Alcance comercial:** no crear automáticamente regla Pricing V2 VENUE para `ACCESS_CONTROL`. La activación MANAGED para Organización se diseñará por separado del Ledger, manteniendo intacta la cotización VENUE de `PHYSICAL_QR`. El nuevo servicio no se deduce de la licencia.
 
 ## 1. Instrucciones obligatorias para el equipo
 
@@ -35,7 +37,7 @@ Alcance de release: **M01 sigue siendo lanzamiento activo; M02-B01 aprobado para
 
 ## 3. Secuencia propuesta de tickets (no ejecutables hasta aprobación técnica)
 
-> **Interpretación tras DT00/DT01:** las secciones DT00 y DT01 que siguen son el plan original, hoy completado como documentos vinculados arriba. DT02–DT09 siguen **no autorizados**. Antes de DT02 se debe ratificar especialmente ADR-02 (nuevo ServiceCode) y realizar gates DB/SQL. DT02 deberá dividirse en **DT02A (Event/service/Managed Organización Provider)** y **DT02B (Contacts nominales sin teléfono y CSV)** según DT01, porque el circuito Managed de Organización hoy no existe. `PHYSICAL_QR` MANAGED necesita igualmente nueva capacidad Provider; no eliminar `ClientOperatingProfilePolicy`.
+> **Interpretación tras DT00/DT01:** las secciones DT00 y DT01 que siguen son el plan original, hoy completado como documentos vinculados arriba. DT02–DT09 siguen **no autorizados**. ADR-02 (`ACCESS_CONTROL`) ya está ratificada por Product; antes de DT02 faltan gates DB/SQL, decisiones técnicas del resto de ADR y autorización expresa de implementación. DT02 deberá dividirse en **DT02A (Event/service/Managed Organización Provider)** y **DT02B (Contacts nominales sin teléfono y CSV)** según DT01, porque el circuito Managed de Organización hoy no existe. `PHYSICAL_QR` MANAGED necesita igualmente nueva capacidad Provider; no eliminar `ClientOperatingProfilePolicy`.
 
 ### M02-B01-DT00 — Archaeology y matriz de compatibilidad (P0, PLAN)
 
