@@ -452,3 +452,15 @@ M03 deberá responder especialmente:
 - qué pasa con Croquis y diseño;
 - qué soporte/mantenimiento conserva InvitacionesPremium;
 - qué diferencia funcional real existe frente a M02, sin mezclar todavía pricing o licencia comercial.
+
+
+## 19. Extensión M02-B01 aprobada — QR nominal y anónimo (2026-10-19)
+
+**Estado:** alcance funcional aprobado para especificación; diseño técnico pendiente; no autoriza code ni cambia la prioridad del lanzamiento M01.
+
+Por solicitud comercial de salones se aprueba un bloque adicional para **eventos sin diseño obligatorio de invitación y sin RSVP público**, con **modalidad única por Evento**: QR individual **nominal por asistente** o QR **anónimo numerado**. Una Organización puede tener distintos Eventos de ambas modalidades, pero no mezclarlas dentro del mismo Evento en esta versión.
+
+Fuente de requerimientos aprobados: [M02-B01 — QR nominal/anónimo](./06B1_M02_B01_ACCESOS_QR_NOMINAL_ANONIMO.md).  
+Handoff técnico, análisis requerido y tareas propuestas: [M02-B01 Technical Handoff](../05-implementacion/M02_B01_TECHNICAL_HANDOFF.md).
+
+**Reglas preservadas:** Provider prepara la infraestructura; Admin Organización supervisa, Planner asignado opera invitados/mesas y Staff accede sólo al Evento. No nuevos roles ni autoservicio pleno. Pricing, licencia mensual/anual y onboarding permanecen como decisiones comerciales posteriores, no capacidades automáticas de M02. Los contratos especializados actuales siguen describiendo runtime hasta la aprobación de nuevas decisiones de arquitectura y tickets de implementación. 
