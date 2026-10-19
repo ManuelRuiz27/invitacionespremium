@@ -203,12 +203,15 @@ Hallazgos centrales de MG-00:
 ## Modelos congelados para esta fase
 
 - `01-producto/06B_MODELO_02_SALON_JARDIN_ORGANIZACION.md` — M02.
+- `01-producto/06B1_M02_B01_ACCESOS_QR_NOMINAL_ANONIMO.md` — **M02-B01 REQUERIMIENTOS FUNCIONALES APROBADOS (2026-10-19)**; QR nominal individual o anónimo por Evento, sin RSVP/diseño obligatorio; **no autoriza código**.
+- `05-implementacion/M02_B01_TECHNICAL_HANDOFF.md` — **PLAN DE HANDOFF FUTURO**; DT00–DT09, conflictos de contratos y decisiones por cerrar antes de desarrollar.
 - `01-producto/06C_MODELO_03_LICENCIA_AUTOSERVICIO.md` — M03 / Self-Service.
 - `01-producto/06D_MODELO_04_CLIENTE_GRAN_ESCALA_DEDICADO.md` — M04 / gran escala.
 - `01-producto/06E_MODELO_05_PARTNER_RESELLER.md` — M05 / Partner-Reseller.
 
 Reglas:
 
+- **M02-B01 aprobado sólo a nivel de producto; M01 continúa como alcance activo del lanzamiento.** Antes de ejecutar cualquier ticket M02-B01 se necesita audit/ADR y autorización de implementación explícita.
 - no crear roles por estos modelos;
 - no implementar superficies nuevas salvo ticket futuro explícito;
 - no usar Partner/Venue/CommercialChannel para decidir capabilities;
@@ -283,6 +286,7 @@ Los siguientes documentos pueden explicar decisiones o implementación existente
 | SDK/API drift | MG-00 MG-01A → OpenAPI/api-client implementation |
 | Finance/Pricing | contratos Finance/Pricing; recordar que están fuera del lanzamiento salvo ticket |
 | modelo M02–M05 | `06_MODELOS...` + documento específico, sólo para análisis futuro |
+| M02-B01 / salones con QR nominal o anónimo | `06B...` → `06B1_M02_B01...` → `M02_B01_TECHNICAL_HANDOFF.md` → contratos QR/Physical/Scanner/Contacts/Pricing; **planificación sin code** |
 
 ---
 
