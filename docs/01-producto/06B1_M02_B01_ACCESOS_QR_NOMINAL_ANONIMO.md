@@ -4,7 +4,7 @@ Estado: **REQUERIMIENTOS FUNCIONALES APROBADOS — DISEÑO TÉCNICO PENDIENTE �
 Fecha de decisión funcional: **2026-10-19**  
 Modelo operativo: **M02 — Salón/jardín como Organización (MANAGED)**  
 Responsable funcional: Product  
-Documentos de desarrollo: [handoff técnico](../05-implementacion/M02_B01_TECHNICAL_HANDOFF.md) · [DT00 audit completado](../05-implementacion/M02_B01_DT00_RUNTIME_AUDIT.md) · [DT01 ADR recomendado, pendiente de ratificación](../05-implementacion/M02_B01_DT01_ACCESS_ARCHITECTURE_ADR.md)
+Documentos de desarrollo: [handoff técnico](../05-implementacion/M02_B01_TECHNICAL_HANDOFF.md) · [DT00 audit completado](../05-implementacion/M02_B01_DT00_RUNTIME_AUDIT.md) · [DT01 ADR: decisión ACCESS_CONTROL aprobada, arquitectura restante pendiente](../05-implementacion/M02_B01_DT01_ACCESS_ARCHITECTURE_ADR.md) · [gate SQL](../05-implementacion/M02_B01_DT01_SQL_COMPATIBILITY_GATE.md)
 
 ## 1. Objetivo y precedencia
 
@@ -13,6 +13,17 @@ Habilitar eventos de salones/jardines dedicados a control de acceso y acomodo, s
 Este documento **aprueba qué debe hacer el producto**, no una solución de persistencia, API, ServiceCode, endpoint, precio ni ticket ejecutable. No sustituye los contratos técnicos actuales: estos describen el runtime existente hasta la aprobación e implementación de contratos especializados nuevos. No modifica el objetivo de lanzamiento activo **M01 Managed**.
 
 Leer antes de diseñar o implementar: [M02 base](./06B_MODELO_02_SALON_JARDIN_ORGANIZACION.md), [modelos M01–M05](./06_MODELOS_OPERATIVOS_DE_VENTA.md), [matriz de gaps](./06F_MATRIZ_CAPACIDADES_GAPS_MODELOS.md), [dirección M01](../00-inicio/01_DIRECCION_ACTUAL_M01_MANAGED.md) y [handoff](../05-implementacion/M02_B01_TECHNICAL_HANDOFF.md).
+
+## 1A. Decisión de producto adicional (aprobada 2026-10-19)
+
+- Crear el servicio funcional `ServiceCode.ACCESS_CONTROL` **en una implementación futura**.
+- Cada Evento bajo este servicio tendrá exactamente una modalidad explícita: `Event.accessMode = NOMINAL | ANONYMOUS`.
+- `ACCESS_CONTROL + NOMINAL`: QR individual por Assistant, sin RSVP y sin diseño de invitación obligatorio.
+- `ACCESS_CONTROL + ANONYMOUS`: reutilización del dominio PhysicalPass (pase numerado de uso único).
+- **Preservar `PHYSICAL_QR` y su comportamiento vigente**, incluyendo eventos históricos y compatibilidad de su flujo actual; no retirarlo ni remapearlo.
+- No crear dos ServiceCodes separados por modalidad, no inferir modo de `CommercialChannel`, y no modificar Price Book, tarifas ni licencias por esta decisión.
+- El catálogo actual **todavía no contiene** `ACCESS_CONTROL`. Las migraciones, APIs y tests son trabajo futuro.
+- Véanse [ADR DT01](../05-implementacion/M02_B01_DT01_ACCESS_ARCHITECTURE_ADR.md) y [compatibilidad SQL](../05-implementacion/M02_B01_DT01_SQL_COMPATIBILITY_GATE.md).
 
 ## 2. Términos y límites del producto
 
@@ -168,9 +179,9 @@ Referencias de autoridad de comportamiento actual: [Contactos](../04-tecnico/CON
 
 ## 7. Decisiones abiertas antes de escribir código
 
-**PRODUCT/TECH DECISION REQUIRED** en cada punto. Ninguno se resuelve implícitamente con este documento:
+**La decisión funcional 1 está resuelta (ServiceCode ACCESS_CONTROL + accessMode NOMINAL/ANONYMOUS).** Los puntos 2–10 y los detalles de esquema/seguridad requieren decisión técnica, QA o una fase comercial posterior. No se infieren del servicio nuevo.
 
-1. Representación del modo nominal por Evento y relación con ServiceCode/productos existentes; no usar CommercialChannel como flag de capability.
+1. **RESUELTO EN PRODUCTO:** servicio ACCESS_CONTROL y modo único NOMINAL/ANONYMOUS por Evento; implementar esquema/API/constraints sólo tras ticket aprobado.
 2. Identidad/credencial individual: adaptar los agregados Invitation/Assistant o diseñar referencia propia sin duplicar CheckIn ni emitir invitación digital pública.
 3. Teléfono opcional: modelo, reglas SQL, CSV y aprovisionamiento sin romper el flujo actual con teléfono obligatorio.
 4. Disponibilidad, recuperación, revocación y reemisión de QR nominal; efecto en entradas ya registradas y privacidad.
@@ -183,4 +194,4 @@ Referencias de autoridad de comportamiento actual: [Contactos](../04-tecnico/CON
 
 ## 8. Gate de salida para desarrollo
 
-Para pasar a implementación: (a) aprobar el diseño técnico DT01 con decisiones 1–10 resueltas o acotadas; (b) actualizar contratos especializados afectados sin falsear el runtime; (c) definir tickets ejecutables, migraciones y pruebas por componente; (d) declarar explícitamente si M02 entra o no al alcance de la release, ya que el objetivo de lanzamiento documentado sigue siendo M01. **La aprobación funcional de B01 por sí sola no autoriza code.**
+Para pasar a implementación: (a) ratificar el diseño técnico restante DT01 con decisiones 2–10 resueltas o acotadas y cerrar gate SQL; (b) actualizar contratos especializados afectados sin falsear el runtime; (c) definir tickets ejecutables, migraciones y pruebas por componente; (d) declarar explícitamente si M02 entra o no al alcance de la release, ya que el objetivo de lanzamiento documentado sigue siendo M01. **La aprobación funcional de B01 por sí sola no autoriza code.**
