@@ -463,4 +463,6 @@ Por solicitud comercial de salones se aprueba un bloque adicional para **eventos
 Fuente de requerimientos aprobados: [M02-B01 — QR nominal/anónimo](./06B1_M02_B01_ACCESOS_QR_NOMINAL_ANONIMO.md).  
 Handoff técnico, análisis requerido y tareas propuestas: [M02-B01 Technical Handoff](../05-implementacion/M02_B01_TECHNICAL_HANDOFF.md).
 
+Análisis realizado: [DT00 auditoría de código](../05-implementacion/M02_B01_DT00_RUNTIME_AUDIT.md) y [DT01 arquitectura propuesta](../05-implementacion/M02_B01_DT01_ACCESS_ARCHITECTURE_ADR.md). DT01 define recomendaciones de dominio y gates pendientes; **no es un cambio de contrato de runtime ni una autorización de implementación**.
+
 **Reglas preservadas:** Provider prepara la infraestructura; Admin Organización supervisa, Planner asignado opera invitados/mesas y Staff accede sólo al Evento. No nuevos roles ni autoservicio pleno. Pricing, licencia mensual/anual y onboarding permanecen como decisiones comerciales posteriores, no capacidades automáticas de M02. Los contratos especializados actuales siguen describiendo runtime hasta la aprobación de nuevas decisiones de arquitectura y tickets de implementación. 
