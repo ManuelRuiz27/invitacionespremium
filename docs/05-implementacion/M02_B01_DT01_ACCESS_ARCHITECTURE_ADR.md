@@ -1,9 +1,9 @@
-# M02-B01-DT01 — ADR propuesto: arquitectura de control de acceso
+# M02-B01-DT01 — ADR de arquitectura: control de acceso (decisión de producto ratificada parcialmente)
 
-Estado: **DESIGN COMPLETE / RECOMENDACIÓN TÉCNICA — PENDIENTE DE RATIFICACIÓN PARA CODE**  
+Estado: **ADR-01/ADR-02 RATIFICADAS EN PRODUCTO — RESTO PROPUESTA TÉCNICA — NO AUTORIZA CÓDIGO**  
 Fecha: **2026-10-19**  
 Base: [DT00 auditoría estática](./M02_B01_DT00_RUNTIME_AUDIT.md) · [M02-B01 requisitos funcionales aprobados](../01-producto/06B1_M02_B01_ACCESOS_QR_NOMINAL_ANONIMO.md)  
-No introduce código ni modifica los contratos de runtime existentes. Los nombres nuevos son **propuesta contractual**, no APIs/entidades presentes en `main`.
+No introduce código ni modifica los contratos de runtime existentes. **Decisión expresa de Product (2026-10-19):** adoptar el servicio funcional `ACCESS_CONTROL` con `NOMINAL` o `ANONYMOUS` como modalidad exclusiva por Evento; preservar `PHYSICAL_QR` vigente sin alterar su semántica. Estos identificadores están **aprobados para la futura implementación**, pero todavía **no existen** como nuevas capacidades en el runtime. La arquitectura restante y la vía financiera se revisarán en tickets posteriores. [Gate SQL](./M02_B01_DT01_SQL_COMPATIBILITY_GATE.md).
 
 ## 1. Problema y criterio decisorio
 
@@ -20,7 +20,7 @@ Criterios en orden:
 
 ## 2. Arquitectura recomendada — decisiones técnicas propuestas
 
-### ADR-01 — Modalidad explícita en Evento: ACCEPT RECOMMENDED
+### ADR-01 — Modalidad explícita en Evento: APROBADA POR PRODUCTO (schema aún no implementado)
 
 Proponer `Event.accessMode?: NOMINAL | ANONYMOUS` (nombre final validado en DTO/Prisma).
 
@@ -32,9 +32,9 @@ Proponer `Event.accessMode?: NOMINAL | ANONYMOUS` (nombre final validado en DTO/
 
 **Se descarta:** derivar modalidad de `MANAGED`, `ORGANIZATION`, `VENUE`, `ClientType` o precio.
 
-### ADR-02 — Servicio funcional separado y compatibilidad legacy: RECOMMENDED, con aprobación Product/Finance requerida
+### ADR-02 — Servicio funcional separado y compatibilidad legacy: APROBADA POR PRODUCTO (pricing diferido)
 
-**Propuesta:** crear `ServiceCode.ACCESS_CONTROL` para nuevos eventos B01, con `Event.accessMode` obligatorio. **Conservar** `ServiceCode.PHYSICAL_QR` sin cambios de significado para Eventos históricos. En nuevos eventos `ACCESS_CONTROL + ANONYMOUS` se reutiliza `PhysicalPass`; en `ACCESS_CONTROL + NOMINAL` se reutiliza la identidad Assistant + una credencial individual nueva.
+**Decisión aprobada:** crear `ServiceCode.ACCESS_CONTROL` para nuevos eventos B01, con `Event.accessMode` obligatorio. **Conservar** `ServiceCode.PHYSICAL_QR` sin cambios de significado para Eventos históricos. En nuevos eventos `ACCESS_CONTROL + ANONYMOUS` se reutiliza `PhysicalPass`; en `ACCESS_CONTROL + NOMINAL` se reutiliza la identidad Assistant + una credencial individual nueva.
 
 Motivo: `PHYSICAL_QR` actual es intrínsecamente un SKU de pase anónimo; reinterpretarlo como entrada nominal contaminaria el contrato, preflight y reporting de Eventos antiguos.
 
@@ -44,7 +44,7 @@ Cambios posteriores necesarios: enum Prisma + migración, catálogo/seed, compat
 - Reutilizar `PHYSICAL_QR` como contenedor también nominal: menos catálogo inicialmente, pero vuelve engañosa la semántica y obliga a excepciones extensas sobre contratos físicos.
 - Crear `NOMINAL_QR` y `ANONYMOUS_QR` como dos nuevos ServiceCodes: duplica el catálogo cuando hay una sola capacidad comercial de control de acceso con modos técnicos seleccionables.
 
-**Gate:** Product/Technical Owner deberán ratificar `ACCESS_CONTROL` y la forma comercial antes del ticket que modifique `ServiceCode`/activación. Si se rechaza, reabrir ADR-02; no autorizar DT02–DT09 con mapping indeterminado.
+**Gate posterior a la decisión (NO bloquea el consenso de producto):** verificar compatibilidad SQL de activación/intake de Managed Organización, ampliar de manera acotada el catálogo y la preparación, validar migraciones y obtener autorización de implementación por ticket. **La aprobación de `ACCESS_CONTROL` no incluye nuevos precios, una tarifa Venue, créditos ni suscripción.** Las condiciones comerciales deberán resolverse en su propia fase. Preservar el funcionamiento y disponibilidad actuales de `PHYSICAL_QR` para legacy.
 
 ### ADR-03 — Identidad nominal: REUSE Contact → Invitation (interno) → Assistant
 
@@ -207,8 +207,8 @@ Los paths nuevos y DTO finales requieren contratos OpenAPI/tickets aprobados. No
 
 | ID | Estado | Quién debe ratificar |
 |---|---|---|
-| ADR-01 Event.accessMode explícito | RECOMENDADO | Technical Owner |
-| ADR-02 Servicio `ACCESS_CONTROL` nuevo | **DECISIÓN PRODUCT/FINANCE ABIERTA** | Product + Tech + responsable comercial |
+| ADR-01 Event.accessMode explícito / un modo por Evento | **PRODUCTO APROBADO (2026-10-19)**; DB/API por especificar | Technical Owner para constraints |
+| ADR-02 Servicio `ACCESS_CONTROL` nuevo, conservar `PHYSICAL_QR` | **PRODUCTO APROBADO (2026-10-19)**; FINANCE/PRICE BOOK no incluido | Technical Owner para implementación y Finance posterior |
 | ADR-03 Reusar Contact→Invitation interna→Assistant | RECOMENDADO | Technical Owner |
 | ADR-04 AssistantAccessCredential individual | RECOMENDADO | Technical Owner/Security |
 | ADR-05 CheckIn unificado, excepción SQL verificable | RECOMENDADO CON GATE SQL | Technical Owner/Security |
@@ -217,7 +217,7 @@ Los paths nuevos y DTO finales requieren contratos OpenAPI/tickets aprobados. No
 | ADR-08 Managed Organization Admin paths | RECOMENDADO CON GATE RELEASE | Product + Technical Owner |
 | ADR-09 límite de pilot y post-activation | RECOMENDADO, validar necesidad real del salón | Product |
 
-**Resultado DT01:** existe una arquitectura concreta recomendada para planificar tickets y revisar trade-offs, pero **NO está autorizada para implementación** hasta ratificar ADR-02, validar los triggers/migraciones en workspace y establecer autorización expresa de tickets, prioridad y release M02. Si Product decide mantener M02 después de M01, no modificar START_HERE ni roadmap M01 para simular que ya se lanzó.
+**Resultado DT01:** el esquema funcional `ACCESS_CONTROL + Event.accessMode` quedó ratificado por Product; el resto de la arquitectura sigue siendo propuesta. **NO hay autorización de implementación** hasta revisar y probar las migraciones/triggers en workspace, cerrar decisiones técnicas pendientes y autorizar tickets, prioridad y release M02. El [gate SQL estático](./M02_B01_DT01_SQL_COMPATIBILITY_GATE.md) identifica constraints actuales concretos; la ejecución PostgreSQL sigue pendiente. Si Product decide mantener M02 después de M01, no modificar START_HERE ni roadmap M01 para simular que ya se lanzó.
 
 ## 8. Secuencia de CODE handoff al aprobar DT01
 
