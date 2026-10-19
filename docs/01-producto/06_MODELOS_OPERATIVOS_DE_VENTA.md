@@ -61,7 +61,8 @@ No implementar roles, permisos o superficies nuevas únicamente porque un escena
 
 Auditoría transversal de implementación:
 
-- `06F_MATRIZ_CAPACIDADES_GAPS_MODELOS.md` — compara M01–M05 contra el runtime y clasifica `EXISTS`, `ADAPT`, `MISSING`, `FINANCE-ONLY` y `OUT-OF-SCOPE`.
+- `06F_MATRIZ_CAPACIDADES_GAPS_MODELOS.md`
+- `06B1_M02_B01_ACCESOS_QR_NOMINAL_ANONIMO.md` — **B01 funcional M02 aprobado (2026-10-19)**: QR nominal individual o anónimo por Evento, sin Flyer/Flipbook/RSVP obligatorio; requiere ADR técnico antes de code. Ver `../05-implementacion/M02_B01_TECHNICAL_HANDOFF.md`. — compara M01–M05 contra el runtime y clasifica `EXISTS`, `ADAPT`, `MISSING`, `FINANCE-ONLY` y `OUT-OF-SCOPE`.
 
 La familia inicial queda cubierta. Un modelo nuevo sólo debe añadirse si representa una distribución de responsabilidades realmente distinta, no una tarifa o estrategia de adquisición distinta.
 
