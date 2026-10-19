@@ -1,6 +1,8 @@
 # M02-B01 — Handoff técnico para el equipo de desarrollo
 
-Estado: **PLAN TÉCNICO / DESGLOSE PROPUESTO — NO AUTORIZA IMPLEMENTACIÓN**  
+Estado: **PLAN TÉCNICO / DESGLOSE PROPUESTO — NO AUTORIZA IMPLEMENTACIÓN**
+
+**DT00/DT01 realizados (2026-10-19):** [DT00 auditoría estática](./M02_B01_DT00_RUNTIME_AUDIT.md) y [DT01 ADR propuesto](./M02_B01_DT01_ACCESS_ARCHITECTURE_ADR.md). DT01 recomienda `ACCESS_CONTROL`, `Event.accessMode`, credencial nominal individual y Managed Organization Provider paths, **pero requiere ratificación antes de CODE**. La investigación previa DT00/DT01 no debe delegarse otra vez ni ejecutarse como tickets de implementación.  
 Fecha: **2026-10-19**  
 Requisito funcional autorizado: [M02-B01 QR nominal/anónimo](../01-producto/06B1_M02_B01_ACCESOS_QR_NOMINAL_ANONIMO.md)  
 Modelo base: [M02](../01-producto/06B_MODELO_02_SALON_JARDIN_ORGANIZACION.md)  
@@ -32,6 +34,8 @@ Alcance de release: **M01 sigue siendo lanzamiento activo; M02-B01 aprobado para
 | Seguridad/permisos | M02 indica assignedPlannerUserId; algunos contratos anteriores usan createdByUserId | Auditoría de ownership real sin generalizar acceso | CLIENTS_CONTRACT; EventAccessPolicy; controllers y tests |
 
 ## 3. Secuencia propuesta de tickets (no ejecutables hasta aprobación técnica)
+
+> **Interpretación tras DT00/DT01:** las secciones DT00 y DT01 que siguen son el plan original, hoy completado como documentos vinculados arriba. DT02–DT09 siguen **no autorizados**. Antes de DT02 se debe ratificar especialmente ADR-02 (nuevo ServiceCode) y realizar gates DB/SQL. DT02 deberá dividirse en **DT02A (Event/service/Managed Organización Provider)** y **DT02B (Contacts nominales sin teléfono y CSV)** según DT01, porque el circuito Managed de Organización hoy no existe. `PHYSICAL_QR` MANAGED necesita igualmente nueva capacidad Provider; no eliminar `ClientOperatingProfilePolicy`.
 
 ### M02-B01-DT00 — Archaeology y matriz de compatibilidad (P0, PLAN)
 
