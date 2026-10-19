@@ -221,7 +221,7 @@ Los paths nuevos y DTO finales requieren contratos OpenAPI/tickets aprobados. No
 
 ## 8. Secuencia de CODE handoff al aprobar DT01
 
-1. `DT02A` Event accessMode + service/Managed Organization Provider intake/activation (separado de comercial); pruebas de rol y DB.
+1. [`DT02A` — foundation especificada](./M02_B01_DT02A_ACCESS_CONTROL_FOUNDATION.md): Event accessMode + service/Managed Organization Provider intake, preparación de activación **fail-closed hasta DT06**; pruebas de rol, SQL, auditoría y DB. Ticket no autorizado todavía.
 2. `DT02B` Contact phone opcional sólo NOMINAL + CSV/provisioning y seating eligibility.
 3. `DT03` Credencial QR individual, SVG seguro, revocación idempotente + constraints.
 4. `DT04` Scanner nominal + extensión CheckIn y trigger branch, regresiones M01.
