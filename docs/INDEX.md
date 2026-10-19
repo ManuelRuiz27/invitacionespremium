@@ -206,14 +206,15 @@ Hallazgos centrales de MG-00:
 - `01-producto/06B1_M02_B01_ACCESOS_QR_NOMINAL_ANONIMO.md` — **M02-B01 REQUERIMIENTOS FUNCIONALES APROBADOS (2026-10-19)**; QR nominal individual o anónimo por Evento, sin RSVP/diseño obligatorio; **no autoriza código**.
 - `05-implementacion/M02_B01_TECHNICAL_HANDOFF.md` — **PLAN DE HANDOFF FUTURO**; DT00–DT09, conflictos de contratos y decisiones por cerrar antes de desarrollar.
 - `05-implementacion/M02_B01_DT00_RUNTIME_AUDIT.md` — **DT00 COMPLETADO**: auditoría estática verificable de código y contratos, con bloqueos para M02 Managed Organización.
-- `05-implementacion/M02_B01_DT01_ACCESS_ARCHITECTURE_ADR.md` — **DT01 PROPUESTO**: arquitectura de credencial nominal individual, evento/modo, servicio, CheckIn y pases; **requiere ratificación técnica/comercial para code**.
+- `05-implementacion/M02_B01_DT01_ACCESS_ARCHITECTURE_ADR.md` — **DT01 PARCIALMENTE RATIFICADO**: Product aprobó `ACCESS_CONTROL` y modo `NOMINAL|ANONYMOUS` por Evento; esquema/API y resto de arquitectura pendiente para code.
+- `05-implementacion/M02_B01_DT01_SQL_COMPATIBILITY_GATE.md` — **REVISIÓN ESTÁTICA SQL COMPLETADA**: incompatibilidades concretas con activación Managed Organización, Contactos, CheckIn y PhysicalPass; ejecución de PostgreSQL pendiente.
 - `01-producto/06C_MODELO_03_LICENCIA_AUTOSERVICIO.md` — M03 / Self-Service.
 - `01-producto/06D_MODELO_04_CLIENTE_GRAN_ESCALA_DEDICADO.md` — M04 / gran escala.
 - `01-producto/06E_MODELO_05_PARTNER_RESELLER.md` — M05 / Partner-Reseller.
 
 Reglas:
 
-- **M02-B01 aprobado sólo a nivel de producto; M01 continúa como alcance activo del lanzamiento.** Antes de ejecutar cualquier ticket M02-B01 se necesita audit/ADR y autorización de implementación explícita.
+- **M02-B01 aprobado sólo a nivel de producto, incluido `ACCESS_CONTROL` y modalidad única por Evento; M01 continúa como alcance activo del lanzamiento.** Antes de ejecutar cualquier ticket M02-B01 se necesita cerrar el ADR técnico/gate SQL y autorización de implementación explícita.
 - no crear roles por estos modelos;
 - no implementar superficies nuevas salvo ticket futuro explícito;
 - no usar Partner/Venue/CommercialChannel para decidir capabilities;
