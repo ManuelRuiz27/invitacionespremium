@@ -25,6 +25,8 @@ Leer antes de diseñar o implementar: [M02 base](./06B_MODELO_02_SALON_JARDIN_OR
 - El catálogo actual **todavía no contiene** `ACCESS_CONTROL`. Las migraciones, APIs y tests son trabajo futuro.
 - Véanse [ADR DT01](../05-implementacion/M02_B01_DT01_ACCESS_ARCHITECTURE_ADR.md) y [compatibilidad SQL](../05-implementacion/M02_B01_DT01_SQL_COMPATIBILITY_GATE.md).
 
+**Handoff de desarrollo:** [DT02A Foundation ya especificado, no implementado](../05-implementacion/M02_B01_DT02A_ACCESS_CONTROL_FOUNDATION.md). La activación real de ACCESS_CONTROL permanece bloqueada hasta que esté implementado el readiness de ambos modos (DT06).
+
 ## 2. Términos y límites del producto
 
 - **Evento nominal:** una credencial QR por **asistente individual** con nombre registrado; puede existir grupo/familia como agrupador, pero B01 no autoriza compartir un solo QR entre varios asistentes.
