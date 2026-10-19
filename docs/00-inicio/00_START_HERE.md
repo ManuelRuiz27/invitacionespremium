@@ -101,7 +101,7 @@ Durante esta fase no implementar comportamiento nuevo para:
 
 Los documentos M02–M05 son **referencia futura**, no backlog implícito.
 
-**Actualización documental (2026-10-19):** se aprobó **sólo el alcance funcional M02-B01** para salones con QR nominal individual o pase físico anónimo (una modalidad por Evento), sin invitación visual ni RSVP obligatorio. Leer `docs/01-producto/06B1_M02_B01_ACCESOS_QR_NOMINAL_ANONIMO.md` y `docs/05-implementacion/M02_B01_TECHNICAL_HANDOFF.md`. Este visto bueno **NO autoriza implementación**, no cambia la release M01 ni sustituye contratos técnicos. Requiere audit/ADR y autorización explícita por tickets antes de modificar código.
+**Actualización documental (2026-10-19):** se aprobó **sólo el alcance funcional M02-B01** para salones con QR nominal individual o pase físico anónimo (una modalidad por Evento), sin invitación visual ni RSVP obligatorio. Leer `docs/01-producto/06B1_M02_B01_ACCESOS_QR_NOMINAL_ANONIMO.md` y `docs/05-implementacion/M02_B01_TECHNICAL_HANDOFF.md`. **Decisión posterior de Product (2026-10-19):** `ServiceCode.ACCESS_CONTROL` para nuevos Eventos con modo exclusivo `NOMINAL` o `ANONYMOUS`; `PHYSICAL_QR` conserva semántica/funcionamiento actuales. DT00 completado, DT01 parcialmente ratificado y gate SQL revisado **estáticamente**; ver `docs/05-implementacion/M02_B01_DT01_ACCESS_ARCHITECTURE_ADR.md` y `docs/05-implementacion/M02_B01_DT01_SQL_COMPATIBILITY_GATE.md`. Esta decisión **NO autoriza implementación**, no cambia la release M01 ni sustituye contratos técnicos vigentes. Requiere cierre de decisiones técnicas, validación PostgreSQL y ticket explícito antes de modificar código.
 
 ## 6. Regla crítica: operación ≠ comercial ≠ permisos
 
