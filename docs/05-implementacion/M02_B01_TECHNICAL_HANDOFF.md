@@ -2,6 +2,8 @@
 
 Estado: **PLAN TÉCNICO / DESGLOSE PROPUESTO — NO AUTORIZA IMPLEMENTACIÓN**
 
+**DT02A ESPECIFICADO (2026-10-19):** [Ticket ejecutable propuesto — Foundation ACCESS_CONTROL](./M02_B01_DT02A_ACCESS_CONTROL_FOUNDATION.md). Alcance: ServiceCode/accessMode, Managed Provider intake Organización, preparación y activación **fail-closed hasta DT06**, sin QR ni precios. **Pendiente de autorización expresa para Codex; ningún código ejecutado.**  
+
 **DT00/DT01 realizados (2026-10-19):** [DT00 auditoría estática](./M02_B01_DT00_RUNTIME_AUDIT.md) y [DT01 ADR](./M02_B01_DT01_ACCESS_ARCHITECTURE_ADR.md). **Product aprobó `ServiceCode.ACCESS_CONTROL` y un único `Event.accessMode=NOMINAL|ANONYMOUS` por Evento, conservando `PHYSICAL_QR`.** Las decisiones técnicas de credencial individual y Managed Organization paths siguen propuestas; el [gate SQL](./M02_B01_DT01_SQL_COMPATIBILITY_GATE.md) se revisó estáticamente pero **no se ejecutó contra PostgreSQL**. No hay autorización para code. La investigación previa DT00/DT01 no debe delegarse otra vez ni ejecutarse como tickets de implementación.  
 Fecha: **2026-10-19**  
 Requisito funcional autorizado: [M02-B01 QR nominal/anónimo](../01-producto/06B1_M02_B01_ACCESOS_QR_NOMINAL_ANONIMO.md)  
@@ -37,7 +39,7 @@ Alcance de release: **M01 sigue siendo lanzamiento activo; M02-B01 aprobado para
 
 ## 3. Secuencia propuesta de tickets (no ejecutables hasta aprobación técnica)
 
-> **Interpretación tras DT00/DT01:** las secciones DT00 y DT01 que siguen son el plan original, hoy completado como documentos vinculados arriba. DT02–DT09 siguen **no autorizados**. ADR-02 (`ACCESS_CONTROL`) ya está ratificada por Product; antes de DT02 faltan gates DB/SQL, decisiones técnicas del resto de ADR y autorización expresa de implementación. DT02 deberá dividirse en **DT02A (Event/service/Managed Organización Provider)** y **DT02B (Contacts nominales sin teléfono y CSV)** según DT01, porque el circuito Managed de Organización hoy no existe. `PHYSICAL_QR` MANAGED necesita igualmente nueva capacidad Provider; no eliminar `ClientOperatingProfilePolicy`.
+> **Interpretación tras DT00/DT01:** las secciones DT00 y DT01 que siguen son el plan original, hoy completado como documentos vinculados arriba. DT02–DT09 siguen **no autorizados**. ADR-02 (`ACCESS_CONTROL`) ya está ratificada por Product; antes de DT02 faltan gates DB/SQL, decisiones técnicas del resto de ADR y autorización expresa de implementación. DT02 se divide en **DT02A (Foundation: Event/service/Managed Organización Provider, activación cerrada hasta DT06)** y **DT02B (Contacts nominales sin teléfono y CSV)** según DT01, porque el circuito Managed de Organización hoy no existe. `PHYSICAL_QR` MANAGED necesita igualmente nueva capacidad Provider; no eliminar `ClientOperatingProfilePolicy`.
 
 ### M02-B01-DT00 — Archaeology y matriz de compatibilidad (P0, PLAN)
 
@@ -136,7 +138,7 @@ Alcance de release: **M01 sigue siendo lanzamiento activo; M02-B01 aprobado para
 ## 5. Decisiones de arquitectura aún no tomadas
 
 No fijar por supuesto del equipo:
-- nuevo ServiceCode vs submodalidad del servicio: Product/Finance debe validar interoperabilidad;
+- **RESUELTO EN PRODUCTO:** nuevo `ServiceCode.ACCESS_CONTROL` con `Event.accessMode`, preservando `PHYSICAL_QR`; Price Book y comercial fuera de este bloque;
 - migración de QR nominal: adaptar Invitation/Assistant o credencial separada, y cómo impedir doble entrada;
 - esquema de Contact con teléfono nullable por modalidad, sin regresiones al alta M01;
 - autorización de cambios durante ACTIVE/EVENT_DAY: definir política para invitados tardíos;
@@ -147,7 +149,7 @@ No fijar por supuesto del equipo:
 - separación de preparación Provider vs operación del salón y compatibilidad de assignedPlannerUserId;
 - línea comercial/licencia futura, fuera de este bloque.
 
-**No crear rutas, enums, tablas, migraciones ni comandos de Codex hasta cerrar estas decisiones mediante DT01 y aprobar por separado tickets BUILD.**
+**DT02A ya cuenta con especificación cerrada pero NO tiene autorización de ejecución.** Los nuevos enums/tablas/migraciones sólo se incorporarán por Codex al aprobar explícitamente el ticket BUILD. El resto de decisiones (DT02B–DT09) se cierra por tickets.
 
 ## 6. Condiciones de release y dependencias externas
 
