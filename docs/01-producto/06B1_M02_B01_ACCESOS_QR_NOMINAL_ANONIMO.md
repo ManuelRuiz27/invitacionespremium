@@ -4,7 +4,7 @@ Estado: **REQUERIMIENTOS FUNCIONALES APROBADOS — DISEÑO TÉCNICO PENDIENTE �
 Fecha de decisión funcional: **2026-10-19**  
 Modelo operativo: **M02 — Salón/jardín como Organización (MANAGED)**  
 Responsable funcional: Product  
-Siguiente documento: [M02-B01 handoff técnico](../05-implementacion/M02_B01_TECHNICAL_HANDOFF.md)
+Documentos de desarrollo: [handoff técnico](../05-implementacion/M02_B01_TECHNICAL_HANDOFF.md) · [DT00 audit completado](../05-implementacion/M02_B01_DT00_RUNTIME_AUDIT.md) · [DT01 ADR recomendado, pendiente de ratificación](../05-implementacion/M02_B01_DT01_ACCESS_ARCHITECTURE_ADR.md)
 
 ## 1. Objetivo y precedencia
 
