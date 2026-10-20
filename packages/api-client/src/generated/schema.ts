@@ -2050,6 +2050,70 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/events/{eventId}/nominal-access-credentials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["NominalAccessController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{eventId}/nominal-access-credentials/{credentialId}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["NominalAccessController_revoke"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{eventId}/nominal-access-credentials/{credentialId}/svg": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["NominalAccessController_svg"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{eventId}/nominal-access-credentials/assistants/{assistantId}/issue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["NominalAccessController_issue"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events/{eventId}/physical-passes": {
         parameters: {
             query?: never;
@@ -3798,6 +3862,7 @@ export type components = {
             /** Format: date-time */
             updatedAt: string;
         };
+        IssueNominalAccessRequestDto: Record<string, never>;
         LedgerMovementResponseDto: {
             allocationMetadata: Record<string, never> | null;
             cashMxnDelta: number;
@@ -3851,6 +3916,26 @@ export type components = {
             };
             notes?: string | null;
             operationReference?: string;
+        };
+        NominalAccessCredentialResponseDto: {
+            /** Format: uuid */
+            assistantId: string;
+            /** Format: uuid */
+            eventId: string;
+            /** @description Derived from existing, unreverted CheckIn records. */
+            hasActiveCheckIn: boolean;
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            issuedAt: string;
+            revocationReasonCode: string | null;
+            /** Format: date-time */
+            revokedAt: string | null;
+            /**
+             * @description Issuance history only; does not authorize entry.
+             * @enum {string}
+             */
+            status: "ISSUED" | "REVOKED";
         };
         OperatorMinutesByAreaDto: {
             CHECKIN: number;
@@ -4228,6 +4313,10 @@ export type components = {
             templateVersion: number;
             /** @enum {string} */
             type: "ATTENDANCE" | "PHYSICAL_PASSES";
+        };
+        RevokeNominalAccessRequestDto: {
+            /** @example OPERATOR_REQUEST */
+            revocationReasonCode: string;
         };
         RsvpAssistantInputDto: {
             /** Format: uuid */
@@ -7896,6 +7985,101 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RsvpMutationResponseDto"];
+                };
+            };
+        };
+    };
+    NominalAccessController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NominalAccessCredentialResponseDto"][];
+                };
+            };
+        };
+    };
+    NominalAccessController_revoke: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RevokeNominalAccessRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NominalAccessCredentialResponseDto"];
+                };
+            };
+        };
+    };
+    NominalAccessController_svg: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Authenticated nominal credential SVG; never persisted. */
+            200: {
+                headers: {
+                    "Cache-Control"?: string;
+                    "Content-Security-Policy"?: string;
+                    "Content-Type"?: string;
+                    ETag?: string;
+                    "Referrer-Policy"?: string;
+                    "X-Content-Type-Options"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/svg+xml": string;
+                };
+            };
+        };
+    };
+    NominalAccessController_issue: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IssueNominalAccessRequestDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NominalAccessCredentialResponseDto"];
                 };
             };
         };

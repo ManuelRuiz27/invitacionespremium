@@ -467,6 +467,32 @@ describe('Events CRUD', () => {
           [randomUUID(), clientId, adminId, plannerId, service.id]
         );
       }
+      // Preserve real legacy Contact/Invitation/Assistant identity and QR material through DT03.
+      const legacyEventId = (await legacy.query<{ id: string }>('SELECT id FROM event ORDER BY id LIMIT 1')).rows[0]!
+        .id;
+      const contactId = randomUUID(),
+        invitationId = randomUUID(),
+        assistantId = randomUUID();
+      await legacy.query('BEGIN');
+      await legacy.query(
+        `INSERT INTO contact (id,event_id,name,whatsapp_phone_normalized,updated_at) VALUES ($1,$2,'Legacy Nominal','+525512345678',NOW())`,
+        [contactId, legacyEventId]
+      );
+      await legacy.query(
+        `INSERT INTO invitation (id,event_id,contact_id,invitation_token_nonce,qr_token_nonce,updated_at) VALUES ($1,$2,$3,$4,$5,NOW())`,
+        [invitationId, legacyEventId, contactId, '1'.repeat(64), '2'.repeat(64)]
+      );
+      await legacy.query(
+        `INSERT INTO assistant (id,event_id,invitation_id,name,is_primary,updated_at) VALUES ($1,$2,$3,'Legacy Nominal',TRUE,NOW())`,
+        [assistantId, legacyEventId, invitationId]
+      );
+      await legacy.query('COMMIT');
+      const legacyMaterial = {} as Record<string, unknown[]>;
+      for (const table of ['contact', 'invitation', 'assistant']) {
+        legacyMaterial[table] = (
+          await legacy.query(`SELECT to_jsonb(${table}) AS data FROM ${table} ORDER BY id`)
+        ).rows;
+      }
       const before = (await legacy.query('SELECT to_jsonb(event) AS data FROM event ORDER BY id')).rows;
       const prices = (await legacy.query('SELECT to_jsonb(service_price) AS data FROM service_price ORDER BY id')).rows;
       for (const migration of newMigrations) {
@@ -483,6 +509,14 @@ describe('Events CRUD', () => {
         (await legacy.query('SELECT to_jsonb(service_price) AS data FROM service_price ORDER BY id')).rows
       ).toEqual(prices);
       expect(prices.filter((row) => row.data.pricing_version === 2)).toHaveLength(16);
+      for (const table of ['contact', 'invitation', 'assistant']) {
+        expect((await legacy.query(`SELECT to_jsonb(${table}) AS data FROM ${table} ORDER BY id`)).rows).toEqual(
+          legacyMaterial[table]
+        );
+      }
+      expect((await legacy.query('SELECT count(*)::int AS total FROM assistant_access_credential')).rows).toEqual([
+        { total: 0 }
+      ]);
     } finally {
       await legacy?.end();
       await maintenance.query(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`);

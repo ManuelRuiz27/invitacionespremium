@@ -12,6 +12,6 @@ import { AlbumsModule } from '../albums/albums.module';
   imports: [AuditModule, EventsModule, FileAssetsModule, InvitationsModule, AlbumsModule],
   controllers: [PublicRsvpController, EventConfirmationController],
   providers: [PublicRsvpService, InvitationQrService, InvitationQrRenderer],
-  exports: [InvitationQrService]
+  exports: [InvitationQrService, InvitationQrRenderer]
 })
 export class PublicRsvpModule {}

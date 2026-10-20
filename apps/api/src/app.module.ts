@@ -27,6 +27,7 @@ import { ReportsModule } from './reports/reports.module';
 import { PilotObservationsModule } from './pilot-observations/pilot-observations.module';
 import { CommercialLeadsModule } from './commercial-leads/commercial-leads.module';
 import { UnitEconomicsModule } from './unit-economics/unit-economics.module';
+import { NominalAccessModule } from './nominal-access/nominal-access.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { UnitEconomicsModule } from './unit-economics/unit-economics.module';
     CommercialLeadsModule,
     UnitEconomicsModule,
     ContactsModule,
+    NominalAccessModule,
     ScheduleModule.forRoot()
   ],
   controllers: [HealthController],

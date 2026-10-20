@@ -1,5 +1,9 @@
 # Contrato técnico de QR SVG de Invitación
 
+Las credenciales individuales `NOMINAL_ACCESS` implementadas en DT03 tienen contrato separado en
+[`NOMINAL_ACCESS_CREDENTIALS_CONTRACT.md`](./NOMINAL_ACCESS_CREDENTIALS_CONTRACT.md). No usan este token
+QR por Invitation ni sus endpoints públicos; las exclusiones Access Control de DT02B siguen vigentes.
+
 ## Alcance
 
 `InvitationQrService`, integrado en `PublicRsvpModule`, implementa `CODEX-071`: proyecta la disponibilidad
@@ -14,8 +18,8 @@ el token QR.
 
 Desde M02-B01-DT02B, las Invitations internas de Access Control quedan excluidas del QR legacy.
 `qr.svg` responde `404 INVITATION_NOT_FOUND` y la resolución interna de su token QR devuelve `null`,
-incluso con estado operativo o respuestas confirmadas forzadas. DT02B no genera QR de Access Control;
-las credenciales posteriores quedan fuera de este runtime. Flyer, Flipbook y PHYSICAL_QR no cambian.
+incluso con estado operativo o respuestas confirmadas forzadas. DT03 implementa credenciales Access Control
+independientes, sin ampliar esta superficie pública. Flyer, Flipbook y PHYSICAL_QR no cambian.
 
 El único payload codificado es el resultado exacto de:
 

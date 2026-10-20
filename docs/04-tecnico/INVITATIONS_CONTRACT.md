@@ -11,6 +11,10 @@ no habilita diseño, archivos persistidos para QR, WhatsApp, mesas, check-in ni 
 
 ### Excepción implementada M02-B01-DT02B
 
+DT03 añade la credencial individual hija de Assistant descrita en
+[`NOMINAL_ACCESS_CREDENTIALS_CONTRACT.md`](./NOMINAL_ACCESS_CREDENTIALS_CONTRACT.md). Reutiliza este
+agregado interno sin cambiar respuestas `PENDING`, nonces de Invitation o superficies públicas.
+
 En `ACCESS_CONTROL + NOMINAL`, Contactos reutiliza el agregado como registro interno: una Invitation
 `INDIVIDUAL`, `additionalAssistantLimit = 0` y un único Assistant principal; ambos permanecen `PENDING`.
 La edición del Contacto sincroniza el nombre y su eliminación propaga el borrado lógico. La anonimización
@@ -196,5 +200,6 @@ agregado completo en una sola transacción sin observar estados intermedios inv�
 
 ## Alcance diferido
 
-Quedan fuera la asignación de un QR distinto a cada Asistente, persistencia del SVG, WhatsApp, `StaffToken`, scanner, check-in, mesas,
+El QR individual Access Control pertenece al módulo y contrato DT03; no lo emite InvitationsModule.
+Quedan fuera de este contrato persistencia del SVG, WhatsApp, `StaffToken`, scanner, check-in, mesas,
 Álbum, frontend y efectos financieros propios de RSVP.
