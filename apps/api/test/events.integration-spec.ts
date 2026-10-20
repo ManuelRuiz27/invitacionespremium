@@ -434,7 +434,7 @@ describe('Events CRUD', () => {
       await legacy.connect();
       const directory = resolve(process.cwd(), 'prisma/migrations');
       const migrations = (await readdir(directory)).filter((name) => /^\d/.test(name)).sort();
-      const newMigrations = migrations.filter((name) => name.startsWith('2026101912'));
+      const newMigrations = migrations.filter((name) => name >= '20261019120000_add_access_control_service');
       for (const migration of migrations.filter((name) => !newMigrations.includes(name))) {
         let sql = await readFile(resolve(directory, migration, 'migration.sql'), 'utf8');
         // Prisma commits enum extensions before statements that use their values.

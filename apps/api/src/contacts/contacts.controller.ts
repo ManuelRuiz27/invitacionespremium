@@ -158,7 +158,10 @@ export class ContactsController {
 
   @Get('contacts/import-template')
   @ApiProduces('text/csv')
-  @ApiOkResponse({ description: 'UTF-8 CSV template.' })
+  @ApiOkResponse({
+    description:
+      'UTF-8 CSV template with name,whatsapp_phone,group; phone may be empty only for ACCESS_CONTROL NOMINAL.'
+  })
   async template(
     @Param('eventId') eventId: string,
     @CurrentAuth() principal: AuthPrincipal,

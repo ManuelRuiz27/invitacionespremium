@@ -9,13 +9,23 @@ confirmaciones RSVP, QR, diseño ni envíos por WhatsApp.
 
 ## Modelos
 
+Desde M02-B01-DT02B, `ACCESS_CONTROL + NOMINAL` reutiliza estas rutas para registrar asistentes
+individuales. El backend resuelve servicio/modalidad desde el Evento bloqueado: permite omitir o enviar
+`whatsappPhone: null` exclusivamente en NOMINAL. Legacy exige teléfono y responde
+`400 CONTACT_PHONE_REQUIRED` cuando falta; un teléfono presente conserva la normalización y validación
+E.164. El nombre sigue siendo obligatorio, normalizado y no vacío; se permiten nombres repetidos.
+`ACCESS_CONTROL + ANONYMOUS` rechaza altas, mutaciones y previews nominales con
+`409 CONTACT_EVENT_MODE_NOT_SUPPORTED`. Se conservan estados de preparación, límite de 150 y grupos
+opcionales. Cada Contacto crea una Invitation interna individual y un Assistant principal en `PENDING`;
+los grupos no comparten credenciales ni QR. DT02B no emite material de acceso ni habilita activación.
+
 ### Contact
 
 - `id`: UUID;
 - `eventId`: FK restrictiva a `Event`;
 - `groupId`: UUID nullable;
 - `name`: nombre visible, obligatorio hasta la anonimización;
-- `whatsappPhoneNormalized`: teléfono E.164, obligatorio hasta la anonimización;
+- `whatsappPhoneNormalized`: teléfono E.164 cuando existe, opcional sólo en NOMINAL hasta la anonimización;
 - `anonymizedAt`: instante nullable de anonimización;
 - `createdAt`, `updatedAt` y `deletedAt`.
 
@@ -57,7 +67,7 @@ Las rutas operativas aceptan exclusivamente:
 
 - `INDEPENDENT_PLANNER`: Eventos de su Cliente;
 - `ORGANIZATION_ADMIN`: todos los Eventos de su Organización;
-- `ORGANIZATION_PLANNER`: Eventos de su Organización creados por su propio usuario.
+- `ORGANIZATION_PLANNER`: Eventos de su Organización asignados por `assignedPlannerUserId`.
 
 `PLATFORM_ADMIN` no usa estas rutas. Un Evento ajeno, eliminado o inexistente responde
 `404 EVENT_NOT_FOUND`.
@@ -67,6 +77,14 @@ permite en `DRAFT`, `CONFIGURED` y `READY_TO_ACTIVATE`; cualquier otro estado re
 `409 CONTACT_EVENT_NOT_MUTABLE`.
 
 ## Teléfonos
+
+Los DTO aceptan ausencia/null de forma sintáctica; la elegibilidad se valida en el backend con el
+contexto del Evento. CSV conserva `name,whatsapp_phone,group`; su plantilla NOMINAL contiene un ejemplo
+sin teléfono. Preview permite filas mixtas con/sin teléfono sólo en NOMINAL. Commit bloquea el Evento,
+revalida elegibilidad y normaliza nuevamente cada fila antes de crear grupos/contactos. Un preview
+pendiente con teléfonos vacíos no permite importar después de cambiar a legacy; ANONYMOUS rechaza todo
+registro nominal. Replay de un commit existente conserva la respuesta original o su snapshot redactado,
+sin volver a ejecutar la importación. Un archivo vacío es inválido; CSV con sólo cabecera importa cero filas.
 
 La entrada se interpreta mediante `libphonenumber-js` y la región configurada en
 `PHONE_DEFAULT_REGION`, cuyo valor predeterminado es `MX`. Solo se persiste el resultado E.164. Un valor no
@@ -184,7 +202,7 @@ confirmados y se registra una auditoría técnica agregada, sin PII.
 - FK compuesta para garantizar que Contacto y grupo pertenezcan al mismo Evento;
 - nombre visible limpio y no vacío;
 - teléfono E.164 cuando existe;
-- Contacto no anonimizado con nombre y teléfono; anonimizado con ambos en `NULL`;
+- Contacto no anonimizado con nombre y teléfono contextual; anonimizado con ambos en `NULL`;
 - conteos del preview entre 0 y 150;
 - estado pendiente con filas JSON consistentes con `totalRows` y campos de confirmación y purga nulos;
 - estado confirmado con commit, llave y resultado establecidos, y `normalizedRows = NULL`;
@@ -197,6 +215,12 @@ la tabla. El borrado de previews pendientes continúa permitido. La limpieza con
 desactivar triggers dentro de su transacción mediante `session_replication_role = replica`.
 
 ## Alcance diferido
+
+La migración DT02B conserva `contact_phone_e164_check` y exige mediante trigger contextual teléfono
+para legacy, permite NULL sólo en NOMINAL y prohíbe contactos en ANONYMOUS, incluso por SQL directo.
+Los triggers usan el lock del Evento de DT02A; servicio/modalidad quedan congelados al existir material,
+incluido eliminado. Otro trigger mantiene las Invitations NOMINAL individuales, sin cupo adicional, y
+Invitation/Assistant en `PENDING`; no permite convertirlas en RSVP confirmado.
 
 La integración básica con Invitaciones y Asistentes nominales está vigente desde CODEX-051. Quedan para
 tareas posteriores `StaffToken`, QR público, RSVP, WhatsApp, diseño y frontend.

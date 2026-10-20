@@ -5,7 +5,16 @@ import type { AuthPrincipal } from '../auth/auth.types';
 import { PrismaService } from '../common/database/prisma.service';
 import { CRITICAL_TRANSACTION_OPTIONS } from '../common/database/transaction-policy';
 import { AppConfigService } from '../config/app-config.service';
-import { AuditActorType, EventStatus, Prisma, type Contact, type Group, type Event } from '../generated/prisma/client';
+import {
+  AuditActorType,
+  EventAccessMode,
+  EventStatus,
+  ServiceCode,
+  Prisma,
+  type Contact,
+  type Group,
+  type Event
+} from '../generated/prisma/client';
 import { EventAccessPolicy, eventNotFound } from '../events/event-access.policy';
 import { recomputeDigitalEventPreparationStatus } from '../events/digital-event-readiness.service';
 import { InvitationProvisioningService } from '../invitations/invitation-provisioning.service';
@@ -22,6 +31,9 @@ import {
   type UpdateContactInput
 } from './contacts.dto';
 import { PhoneNormalizer } from './phone-normalizer';
+
+const contactEventInclude = { service: { select: { code: true } } } satisfies Prisma.EventInclude;
+type ContactEvent = Prisma.EventGetPayload<{ include: typeof contactEventInclude }>;
 
 const MAX_ACTIVE_CONTACTS = 150;
 const MUTABLE_EVENT_STATUSES = new Set<EventStatus>([
@@ -61,10 +73,9 @@ export class ContactsService {
     principal: AuthPrincipal,
     operationId: string | undefined
   ): Promise<ContactResponseDto> {
-    const normalizedPhone = this.phones.normalize(input.whatsappPhone);
-
     return this.serializable(async (tx) => {
       const event = await this.lockMutableOwnedEvent(tx, eventId, principal);
+      const normalizedPhone = this.normalizePhone(input.whatsappPhone, event);
       await this.assertCapacity(tx, eventId, 1);
       await this.assertGroupInEvent(tx, eventId, input.groupId);
 
@@ -96,14 +107,14 @@ export class ContactsService {
     principal: AuthPrincipal,
     operationId: string | undefined
   ): Promise<ContactResponseDto> {
-    const normalizedPhone = input.whatsappPhone === undefined ? undefined : this.phones.normalize(input.whatsappPhone);
-
     return this.serializable(async (tx) => {
       const event = await this.lockMutableOwnedEvent(tx, eventId, principal);
       const current = await tx.contact.findFirst({ where: { id: contactId, eventId, deletedAt: null } });
       if (!current) {
         throw contactNotFound();
       }
+      const normalizedPhone =
+        input.whatsappPhone === undefined ? undefined : this.normalizePhone(input.whatsappPhone, event);
       await this.assertGroupInEvent(tx, eventId, input.groupId);
 
       const contact = await tx.contact.update({
@@ -248,7 +259,10 @@ export class ContactsService {
   }
 
   async getCsvTemplate(eventId: string, principal: AuthPrincipal): Promise<string> {
-    await this.requireOwnedEvent(eventId, principal);
+    const event = await this.requireOwnedEvent(eventId, principal);
+    if (this.allowsMissingPhone(event)) {
+      return 'name,whatsapp_phone,group\r\nPersona Ejemplo,,Familia\r\n';
+    }
     return 'name,whatsapp_phone,group\r\nMaría Ejemplo,+525512345678,Familia\r\n';
   }
 
@@ -272,7 +286,9 @@ export class ContactsService {
       const event = await this.lockMutableOwnedEvent(tx, eventId, principal);
       const existingGroups = await tx.group.findMany({ where: { eventId } });
       const groupsByName = new Map(existingGroups.map((group) => [group.normalizedName, group]));
-      const rows = rawRows.map((row) => this.normalizeImportRow(row.values, row.rowNumber, groupsByName));
+      const rows = rawRows.map((row) =>
+        this.normalizeImportRow(row.values, row.rowNumber, groupsByName, this.allowsMissingPhone(event))
+      );
       const invalidRows = rows.filter((row) => row.errors.length > 0).length;
       const expiresAt = new Date(Date.now() + this.config.contactImportPreviewTtlSeconds * 1000);
 
@@ -342,6 +358,7 @@ export class ContactsService {
           return deserializeCommitResult(priorByKey.resultSnapshot);
         }
         this.assertMutableEvent(event);
+        const allowsMissingPhone = this.allowsMissingPhone(event);
 
         const preview = await tx.contactImportPreview.findFirst({ where: { id: previewId, eventId } });
         if (!preview) {
@@ -363,7 +380,20 @@ export class ContactsService {
           });
         }
 
-        const rows = parseStoredRows(preview.normalizedRows);
+        const rows = parseStoredRows(preview.normalizedRows).map((row) =>
+          this.normalizeImportRow(
+            [row.name ?? '', row.normalizedPhone ?? '', row.group ?? ''],
+            row.rowNumber,
+            new Map(),
+            allowsMissingPhone
+          )
+        );
+        if (rows.some((row) => row.errors.length > 0)) {
+          throw new ConflictException({
+            code: 'CONTACT_IMPORT_HAS_INVALID_ROWS',
+            message: 'The preview is not valid for the current event modality.'
+          });
+        }
         await this.assertCapacity(tx, eventId, rows.length);
 
         const groupIds = new Map<string, string>();
@@ -386,7 +416,7 @@ export class ContactsService {
 
         const contacts: Contact[] = [];
         for (const row of rows) {
-          if (!row.name || !row.normalizedPhone) {
+          if (!row.name) {
             throw new TypeError('A valid preview contains a non-importable row.');
           }
           const contact = await tx.contact.create({
@@ -588,7 +618,12 @@ export class ContactsService {
     }
   }
 
-  private normalizeImportRow(values: string[], rowNumber: number, groups: Map<string, Group>): StoredImportRow {
+  private normalizeImportRow(
+    values: string[],
+    rowNumber: number,
+    groups: Map<string, Group>,
+    allowsMissingPhone: boolean
+  ): StoredImportRow {
     const errors: string[] = [];
     if (values.length !== 3) {
       errors.push('CONTACT_CSV_COLUMN_COUNT_INVALID');
@@ -603,7 +638,7 @@ export class ContactsService {
     }
     let normalizedPhone: string | null = null;
     if (!phoneInput) {
-      errors.push('CONTACT_PHONE_REQUIRED');
+      if (!allowsMissingPhone) errors.push('CONTACT_PHONE_REQUIRED');
     } else {
       try {
         normalizedPhone = this.phones.normalize(phoneInput);
@@ -628,9 +663,10 @@ export class ContactsService {
     };
   }
 
-  private async requireOwnedEvent(eventId: string, principal: AuthPrincipal): Promise<Event> {
+  private async requireOwnedEvent(eventId: string, principal: AuthPrincipal): Promise<ContactEvent> {
     const event = await this.prisma.event.findFirst({
-      where: { id: eventId, deletedAt: null, ...this.eventAccess.ownedWhere(principal) }
+      where: { id: eventId, deletedAt: null, ...this.eventAccess.ownedWhere(principal) },
+      include: contactEventInclude
     });
     if (!event) {
       throw eventNotFound();
@@ -642,9 +678,10 @@ export class ContactsService {
     tx: Prisma.TransactionClient,
     eventId: string,
     principal: AuthPrincipal
-  ): Promise<Event> {
+  ): Promise<ContactEvent> {
     const event = await this.lockOwnedEvent(tx, eventId, principal);
     this.assertMutableEvent(event);
+    this.allowsMissingPhone(event);
     return event;
   }
 
@@ -652,15 +689,38 @@ export class ContactsService {
     tx: Prisma.TransactionClient,
     eventId: string,
     principal: AuthPrincipal
-  ): Promise<Event> {
+  ): Promise<ContactEvent> {
     await tx.$queryRaw`SELECT id FROM event WHERE id = ${eventId}::uuid FOR UPDATE`;
     const event = await tx.event.findFirst({
-      where: { id: eventId, deletedAt: null, ...this.eventAccess.ownedWhere(principal) }
+      where: { id: eventId, deletedAt: null, ...this.eventAccess.ownedWhere(principal) },
+      include: contactEventInclude
     });
     if (!event) {
       throw eventNotFound();
     }
     return event;
+  }
+
+  private allowsMissingPhone(event: ContactEvent): boolean {
+    if (event.service?.code === ServiceCode.ACCESS_CONTROL) {
+      if (event.accessMode !== EventAccessMode.NOMINAL) {
+        throw new ConflictException({
+          code: 'CONTACT_EVENT_MODE_NOT_SUPPORTED',
+          message: 'Anonymous access events do not register nominal guests.'
+        });
+      }
+      return true;
+    }
+    return false;
+  }
+
+  private normalizePhone(value: string | null | undefined, event: ContactEvent): string | null {
+    const optional = this.allowsMissingPhone(event);
+    if (value == null) {
+      if (!optional) throw csvError('CONTACT_PHONE_REQUIRED', 'A phone number is required for this event.');
+      return null;
+    }
+    return this.phones.normalize(value);
   }
 
   private assertMutableEvent(event: Event): void {

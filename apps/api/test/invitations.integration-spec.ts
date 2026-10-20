@@ -1,3 +1,4 @@
+import { createNominalAccessFixture } from './nominal-access.fixture';
 import { randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
@@ -40,6 +41,35 @@ describe('Invitations and nominal assistants', () => {
     await resetDatabase();
     await app.close();
   }, 60_000);
+
+  it('keeps nominal Invitations internal and individual across every legacy management route', async () => {
+    const { event, invitation, cookie } = await createNominalAccessFixture(app, trustedOrigin, password);
+    const base = `/events/${event.id}/invitations`;
+    for (const path of [base, `${base}/${invitation.id}`]) {
+      await request(app.getHttpServer())
+        .get(`/api/v1${path}`)
+        .set('Cookie', cookie)
+        .expect(409)
+        .expect(({ body }) => {
+          expect(body.code).toBe('INVITATION_INTERNAL_ONLY');
+          expect(body).not.toHaveProperty('invitationLink');
+        });
+    }
+    await mutate('patch', `${base}/${invitation.id}`, cookie, {
+      mode: 'FAMILY_NOMINAL',
+      additionalAssistantLimit: 2
+    }).expect(409);
+    await mutate('post', `${base}/${invitation.id}/assistants`, cookie, { name: 'Extra' }).expect(409);
+    await mutate('patch', `${base}/${invitation.id}/assistants/${invitation.assistants[0]!.id}`, cookie, {
+      name: 'Changed'
+    }).expect(409);
+    await mutate('delete', `${base}/${invitation.id}/assistants/${invitation.assistants[0]!.id}`, cookie).expect(409);
+    await cancel(event.id, invitation.id, cookie, 'internal-cancel').expect(409);
+    expect(await prisma.assistant.count({ where: { invitationId: invitation.id } })).toBe(1);
+    expect((await prisma.invitation.findUniqueOrThrow({ where: { id: invitation.id } })).responseStatus).toBe(
+      'PENDING'
+    );
+  });
 
   it('provisions manual and CSV contacts, synchronizes names, and soft-deletes the complete aggregate', async () => {
     const owner = await createClientUser(UserRole.INDEPENDENT_PLANNER);

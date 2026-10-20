@@ -9,6 +9,19 @@ no habilita diseño, archivos persistidos para QR, WhatsApp, mesas, check-in ni 
 
 ## Modelos
 
+### Excepción implementada M02-B01-DT02B
+
+En `ACCESS_CONTROL + NOMINAL`, Contactos reutiliza el agregado como registro interno: una Invitation
+`INDIVIDUAL`, `additionalAssistantLimit = 0` y un único Assistant principal; ambos permanecen `PENDING`.
+La edición del Contacto sincroniza el nombre y su eliminación propaga el borrado lógico. La anonimización
+conserva el mismo tratamiento de privacidad. No hay RSVP ficticio ni enlace público distribuible.
+
+Las rutas legacy de gestión de Invitations responden `409 INVITATION_INTERNAL_ONLY` para Access Control
+después de comprobar ownership. Las operaciones nominales se realizan desde Contactos/Grupos/CSV.
+Los nonces requeridos por el agregado permanecen internos e inertes: DT02B no emite QR ni credenciales.
+PostgreSQL impide transformar este agregado en una invitación familiar o en respuestas distintas de
+`PENDING`. Flyer, Flipbook y PHYSICAL_QR conservan su comportamiento previo.
+
 ### Invitation
 
 - `id`: UUID;

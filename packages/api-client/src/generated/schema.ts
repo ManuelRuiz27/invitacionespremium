@@ -3157,8 +3157,11 @@ export type components = {
             groupId?: string | null;
             /** @example María Ejemplo */
             name: string;
-            /** @example +525512345678 */
-            whatsappPhone: string;
+            /**
+             * @description Optional only for ACCESS_CONTROL NOMINAL events; required for legacy events.
+             * @example +525512345678
+             */
+            whatsappPhone?: string | null;
         };
         CreatedStaffTokenResponseDto: {
             alias: string;
@@ -4519,8 +4522,11 @@ export type components = {
             groupId?: string | null;
             /** @example María Ejemplo */
             name?: string;
-            /** @example +525512345678 */
-            whatsappPhone?: string;
+            /**
+             * @description May be cleared only for ACCESS_CONTROL NOMINAL events.
+             * @example +525512345678
+             */
+            whatsappPhone?: string | null;
         };
         UpdateEventRequestDto: {
             /** @description Provider only. Must match the resulting service; immutable after access material or activation. */
@@ -7177,7 +7183,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description UTF-8 CSV template. */
+            /** @description UTF-8 CSV template with name,whatsapp_phone,group; phone may be empty only for ACCESS_CONTROL NOMINAL. */
             200: {
                 headers: {
                     [name: string]: unknown;

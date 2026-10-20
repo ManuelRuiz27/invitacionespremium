@@ -1,3 +1,4 @@
+import { createNominalAccessFixture } from './nominal-access.fixture';
 import { randomBytes, randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import jsQR from 'jsqr';
@@ -15,6 +16,7 @@ import { createOpenApiDocument } from '../src/openapi/openapi';
 import {
   InvitationQrRenderer,
   InvitationQrService,
+  isInvitationQrAvailable,
   INVITATION_QR_SVG_OPTIONS
 } from '../src/public-rsvp/invitation-qr.service';
 
@@ -54,6 +56,36 @@ describe('Invitation QR SVG', () => {
     await resetDatabase();
     await app.close();
   }, 60_000);
+
+  it('never issues or resolves legacy QR for internal NOMINAL material, even if confirmation is forced', async () => {
+    const { event, invitation } = await createNominalAccessFixture(app, origin, password);
+    const token = tokens.issue('INVITATION', invitation.id, invitation.invitationTokenNonce);
+    const qrToken = tokens.issue('QR', invitation.id, invitation.qrTokenNonce);
+    await qrGet(token).expect(404);
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe('SET LOCAL session_replication_role = replica');
+      await tx.event.update({
+        where: { id: event.id },
+        data: {
+          status: 'ACTIVE',
+          confirmationEnabled: true,
+          activatedAt: new Date(),
+          activatedByUserId: event.createdByUserId,
+          activatedServiceId: event.serviceId,
+          activationIdempotencyKey: `forced-nominal-${event.id}`
+        }
+      });
+      await tx.invitation.update({ where: { id: invitation.id }, data: { responseStatus: 'CONFIRMED' } });
+      await tx.assistant.updateMany({ where: { invitationId: invitation.id }, data: { responseStatus: 'CONFIRMED' } });
+    });
+    await qrGet(token).expect(404);
+    expect(await qr.resolveQrToken(qrToken)).toBeNull();
+    const aggregate = await prisma.invitation.findUniqueOrThrow({
+      where: { id: invitation.id },
+      include: { event: true, contact: true, assistants: true }
+    });
+    expect(isInvitationQrAvailable(aggregate)).toBe(false);
+  });
 
   it('exposes QR only for a coherent confirmed invitation and applies every lifecycle visibility rule', async () => {
     const fixture = await createFixture();

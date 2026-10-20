@@ -342,6 +342,11 @@ export class InvitationsService {
       where: { id: eventId, deletedAt: null, ...this.eventAccess.ownedWhere(principal) }
     });
     if (!event) throw eventNotFound();
+    if (event.accessMode !== null)
+      throw new ConflictException({
+        code: 'INVITATION_INTERNAL_ONLY',
+        message: 'Access Control invitations are internal records.'
+      });
     return event;
   }
 
@@ -352,9 +357,14 @@ export class InvitationsService {
   ): Promise<void> {
     const event = await client.event.findFirst({
       where: { id: eventId, ...this.eventAccess.ownedWhere(principal) },
-      select: { id: true }
+      select: { id: true, accessMode: true }
     });
     if (!event) throw eventNotFound();
+    if (event.accessMode !== null)
+      throw new ConflictException({
+        code: 'INVITATION_INTERNAL_ONLY',
+        message: 'Access Control invitations are internal records.'
+      });
   }
 
   private async lockOwnedEvent(
@@ -367,6 +377,11 @@ export class InvitationsService {
       where: { id: eventId, deletedAt: null, ...this.eventAccess.ownedWhere(principal) }
     });
     if (!event) throw eventNotFound();
+    if (event.accessMode !== null)
+      throw new ConflictException({
+        code: 'INVITATION_INTERNAL_ONLY',
+        message: 'Access Control invitations are internal records.'
+      });
     return event;
   }
 

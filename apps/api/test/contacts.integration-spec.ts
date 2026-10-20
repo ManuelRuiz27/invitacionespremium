@@ -513,6 +513,252 @@ describe('Contacts, groups, and CSV imports', () => {
     ).toBe(1);
   });
 
+  it('registers individual NOMINAL guests without a phone, syncs and deletes the pending aggregate', async () => {
+    const { owner, event, cookie } = await nominalFixture();
+    const group = await mutate('post', `/events/${event.id}/groups`, cookie, { name: 'Equipo' }).expect(201);
+    const created = await mutate('post', `/events/${event.id}/contacts`, cookie, {
+      name: '  Nombre   repetido ',
+      groupId: group.body.id
+    }).expect(201);
+    expect(created.body).toMatchObject({ name: 'Nombre repetido', whatsappPhone: null });
+    await mutate('post', `/events/${event.id}/contacts`, cookie, {
+      name: 'Nombre repetido',
+      whatsappPhone: null
+    }).expect(201);
+    await mutate('patch', `/events/${event.id}/contacts/${created.body.id}`, cookie, { whatsappPhone: '55 1234 5678' })
+      .expect(200)
+      .expect(({ body }) => expect(body.whatsappPhone).toBe('+525512345678'));
+    await mutate('patch', `/events/${event.id}/contacts/${created.body.id}`, cookie, {
+      name: '  Nombre   editado ',
+      whatsappPhone: null
+    })
+      .expect(200)
+      .expect(({ body }) => expect(body.whatsappPhone).toBeNull());
+    await mutate('post', `/events/${event.id}/contacts`, cookie, { name: 'Invalid', whatsappPhone: 'invalid' }).expect(
+      400
+    );
+    const invitation = await prisma.invitation.findUniqueOrThrow({
+      where: { contactId: created.body.id },
+      include: { assistants: true }
+    });
+    expect(invitation).toMatchObject({ mode: 'INDIVIDUAL', additionalAssistantLimit: 0, responseStatus: 'PENDING' });
+    expect(invitation.assistants).toHaveLength(1);
+    expect(invitation.assistants[0]).toMatchObject({
+      name: 'Nombre editado',
+      isPrimary: true,
+      responseStatus: 'PENDING'
+    });
+    const colleague = await createUser(owner.clientId, UserRole.ORGANIZATION_PLANNER);
+    const outsider = await createClientUser(UserRole.ORGANIZATION_PLANNER, ClientType.ORGANIZATION);
+    for (const user of [colleague, outsider]) {
+      const foreignCookie = await login(user.email);
+      await mutate('post', `/events/${event.id}/contacts`, foreignCookie, { name: 'Hidden' }).expect(404);
+      await mutate('patch', `/events/${event.id}/contacts/${created.body.id}`, foreignCookie, {
+        name: 'Hidden'
+      }).expect(404);
+      await request(app.getHttpServer())
+        .get(`/api/v1/events/${event.id}/contacts`)
+        .set('Cookie', foreignCookie)
+        .expect(404);
+    }
+    await mutate('delete', `/events/${event.id}/contacts/${created.body.id}`, cookie).expect(204);
+    const deleted = await prisma.invitation.findUniqueOrThrow({
+      where: { id: invitation.id },
+      include: { assistants: true }
+    });
+    expect(deleted.deletedAt).toBeInstanceOf(Date);
+    expect(deleted.assistants[0]?.deletedAt).toEqual(deleted.deletedAt);
+    await expect(prisma.event.update({ where: { id: event.id }, data: { accessMode: 'ANONYMOUS' } })).rejects.toThrow();
+    await prisma.event.update({ where: { id: event.id }, data: { status: 'CANCELLED' } });
+    await mutate('post', `/events/${event.id}/contacts`, cookie, { name: 'Blocked' })
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('CONTACT_EVENT_NOT_MUTABLE'));
+    const audit = JSON.stringify(await prisma.auditLog.findMany({ where: { eventId: event.id } }));
+    expect(audit).not.toContain('Nombre editado');
+    expect(audit).not.toContain('+525512345678');
+  });
+
+  it('retains required legacy phones and prohibits anonymous registration and SQL bypasses', async () => {
+    const legacyOwner = await createClientUser(UserRole.INDEPENDENT_PLANNER);
+    const legacy = await createEvent(legacyOwner);
+    const legacyCookie = await login(legacyOwner.email);
+    for (const value of [undefined, null]) {
+      await mutate('post', `/events/${legacy.id}/contacts`, legacyCookie, { name: 'Legacy', whatsappPhone: value })
+        .expect(400)
+        .expect(({ body }) => expect(body.code).toBe('CONTACT_PHONE_REQUIRED'));
+    }
+    const legacyContact = await mutate('post', `/events/${legacy.id}/contacts`, legacyCookie, {
+      name: 'Legacy',
+      whatsappPhone: '+525512345678'
+    }).expect(201);
+    await mutate('patch', `/events/${legacy.id}/contacts/${legacyContact.body.id}`, legacyCookie, {
+      whatsappPhone: null
+    }).expect(400);
+    const { event, cookie } = await nominalFixture();
+    await prisma.event.update({ where: { id: event.id }, data: { accessMode: 'ANONYMOUS' } });
+    for (const whatsappPhone of [undefined, '+525512345678']) {
+      await mutate('post', `/events/${event.id}/contacts`, cookie, { name: 'Blocked', whatsappPhone })
+        .expect(409)
+        .expect(({ body }) => expect(body.code).toBe('CONTACT_EVENT_MODE_NOT_SUPPORTED'));
+    }
+    await previewCsv(event.id, cookie, 'name,whatsapp_phone,group\nPersona,,Equipo').expect(409);
+    for (const eventId of [legacy.id, event.id]) {
+      await expect(
+        prisma.$executeRaw`INSERT INTO contact (event_id,name) VALUES (${eventId}::uuid,'SQL')`
+      ).rejects.toThrow();
+    }
+    await expect(
+      prisma.$executeRaw`UPDATE contact SET whatsapp_phone_normalized = NULL WHERE id = ${legacyContact.body.id}::uuid`
+    ).rejects.toThrow();
+    await expect(
+      prisma.$executeRaw`INSERT INTO contact (event_id,name,whatsapp_phone_normalized) VALUES (${event.id}::uuid,'SQL','+525512345678')`
+    ).rejects.toThrow();
+    const nominal = await nominalFixture();
+    await expect(
+      prisma.$executeRaw`INSERT INTO contact (event_id,name,whatsapp_phone_normalized) VALUES (${nominal.event.id}::uuid,'SQL','bad')`
+    ).rejects.toThrow();
+    await expect(
+      prisma.$executeRaw`INSERT INTO contact (event_id,name) VALUES (${nominal.event.id}::uuid,' ')`
+    ).rejects.toThrow();
+    await prisma.$executeRaw`INSERT INTO contact (event_id,name) VALUES (${nominal.event.id}::uuid,'SQL valid')`;
+    const created = await mutate('post', `/events/${nominal.event.id}/contacts`, nominal.cookie, {
+      name: 'Pending'
+    }).expect(201);
+    const invitation = await prisma.invitation.findUniqueOrThrow({ where: { contactId: created.body.id } });
+    await expect(
+      prisma.$executeRaw`UPDATE invitation SET response_status = 'CONFIRMED' WHERE id = ${invitation.id}::uuid`
+    ).rejects.toThrow();
+    await expect(
+      prisma.$executeRaw`UPDATE invitation SET mode = 'FAMILY_NOMINAL', additional_assistant_limit = 2 WHERE id = ${invitation.id}::uuid`
+    ).rejects.toThrow();
+    await expect(
+      prisma.$executeRaw`UPDATE assistant SET response_status = 'CONFIRMED' WHERE invitation_id = ${invitation.id}::uuid`
+    ).rejects.toThrow();
+    await expect(
+      prisma.$executeRaw`UPDATE contact SET event_id = ${legacy.id}::uuid WHERE id = ${created.body.id}::uuid`
+    ).rejects.toThrow();
+    await prisma.$executeRaw`UPDATE contact SET name = NULL, whatsapp_phone_normalized = NULL, anonymized_at = NOW() WHERE id = ${created.body.id}::uuid`;
+    await expect(
+      prisma.$executeRaw`UPDATE contact SET name = 'PII' WHERE id = ${created.body.id}::uuid`
+    ).rejects.toThrow();
+  });
+
+  it('imports mixed NOMINAL rows, supports empty CSV, preserves capacity, replay and privacy', async () => {
+    const { event, cookie } = await nominalFixture();
+    const template = await request(app.getHttpServer())
+      .get(`/api/v1/events/${event.id}/contacts/import-template`)
+      .set('Cookie', cookie)
+      .expect(200);
+    expect(template.text).toContain('name,whatsapp_phone,group\r\nPersona Ejemplo,,Familia');
+    await previewCsv(event.id, cookie, '').expect(400);
+    const empty = await previewCsv(event.id, cookie, 'name,whatsapp_phone,group\n').expect(201);
+    expect(empty.body.totalRows).toBe(0);
+    await commit(event.id, cookie, empty.body.previewId, 'nominal-empty')
+      .expect(200)
+      .expect(({ body }) => expect(body.createdContacts).toBe(0));
+    const invalid = await previewCsv(
+      event.id,
+      cookie,
+      'name,whatsapp_phone,group\n,123,Equipo\nNombre,invalid,'
+    ).expect(201);
+    expect(invalid.body.invalidRows).toBe(2);
+    await commit(event.id, cookie, invalid.body.previewId, 'nominal-invalid').expect(409);
+    const preview = await previewCsv(
+      event.id,
+      cookie,
+      'name,whatsapp_phone,group\nRepetido,,Equipo\nRepetido,+525512345678,Equipo'
+    ).expect(201);
+    expect(preview.body).toMatchObject({ totalRows: 2, validRows: 2, invalidRows: 0 });
+    expect(preview.body.rows[0].normalizedPhone).toBeNull();
+    const imported = await commit(event.id, cookie, preview.body.previewId, 'nominal-mixed').expect(200);
+    expect(imported.body).toMatchObject({ createdContacts: 2, createdGroups: 1 });
+    expect(
+      await prisma.assistant.count({ where: { eventId: event.id, isPrimary: true, responseStatus: 'PENDING' } })
+    ).toBe(2);
+    expect((await commit(event.id, cookie, preview.body.previewId, 'nominal-mixed').expect(200)).body).toEqual(
+      imported.body
+    );
+    await commit(event.id, cookie, preview.body.previewId, 'nominal-other-key').expect(409);
+    const full = await previewCsv(
+      event.id,
+      cookie,
+      'name,whatsapp_phone,group\n' + Array.from({ length: 149 }, (_, i) => `Persona ${i},,`).join('\n')
+    ).expect(201);
+    await commit(event.id, cookie, full.body.previewId, 'nominal-capacity')
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('CONTACT_LIMIT_EXCEEDED'));
+    expect(await prisma.contact.count({ where: { eventId: event.id } })).toBe(2);
+    const at = new Date('2030-02-02T00:00:00Z');
+    expect(await contacts.anonymizeExpiredContacts(at)).toBeGreaterThan(0);
+    await prisma.event.update({ where: { id: event.id }, data: { status: 'CANCELLED' } });
+    const replay = await commit(event.id, cookie, preview.body.previewId, 'nominal-mixed').expect(200);
+    expect(replay.body.contacts).toEqual(
+      imported.body.contacts.map((row: Record<string, unknown>) => ({
+        ...row,
+        name: null,
+        whatsappPhone: null,
+        anonymizedAt: at.toISOString()
+      }))
+    );
+    expect(await prisma.assistant.count({ where: { eventId: event.id, name: null, anonymizedAt: at } })).toBe(2);
+    expect(await contacts.anonymizeExpiredContacts(at)).toBe(0);
+    const stored = await prisma.contactImportPreview.findUniqueOrThrow({ where: { id: preview.body.previewId } });
+    expect(stored.normalizedRows).toBeNull();
+    expect(JSON.stringify(stored.resultSnapshot)).not.toContain('Repetido');
+  });
+
+  it('revalidates uncommitted rows after modality changes without creating groups or guests', async () => {
+    for (const mode of ['ANONYMOUS', 'LEGACY'] as const) {
+      const { event, cookie } = await nominalFixture();
+      const preview = await previewCsv(event.id, cookie, 'name,whatsapp_phone,group\nPersona,,Equipo').expect(201);
+      await prisma.event.update({
+        where: { id: event.id },
+        data: mode === 'LEGACY' ? { serviceId: null, accessMode: null } : { accessMode: mode }
+      });
+      await commit(event.id, cookie, preview.body.previewId, `stale-${mode}`)
+        .expect(409)
+        .expect(({ body }) =>
+          expect(body.code).toBe(
+            mode === 'LEGACY' ? 'CONTACT_IMPORT_HAS_INVALID_ROWS' : 'CONTACT_EVENT_MODE_NOT_SUPPORTED'
+          )
+        );
+      expect(await prisma.contact.count({ where: { eventId: event.id } })).toBe(0);
+      expect(await prisma.group.count({ where: { eventId: event.id } })).toBe(0);
+      expect(
+        (await prisma.contactImportPreview.findUniqueOrThrow({ where: { id: preview.body.previewId } })).committedAt
+      ).toBeNull();
+    }
+    const owner = await createClientUser(UserRole.INDEPENDENT_PLANNER);
+    const legacy = await createEvent(owner);
+    const preview = await previewCsv(legacy.id, await login(owner.email), 'name,whatsapp_phone,group\nLegacy,,').expect(
+      201
+    );
+    expect(preview.body.rows[0].errors).toContain('CONTACT_PHONE_REQUIRED');
+  });
+
+  async function nominalFixture() {
+    const owner = await createClientUser(UserRole.ORGANIZATION_PLANNER, ClientType.ORGANIZATION);
+    await prisma.client.update({ where: { id: owner.clientId }, data: { operatingProfile: 'MANAGED' } });
+    const admin = await createUser(null, UserRole.PLATFORM_ADMIN);
+    const service = await prisma.service.upsert({
+      where: { code: 'ACCESS_CONTROL' },
+      create: { code: 'ACCESS_CONTROL' },
+      update: {}
+    });
+    const event = await prisma.event.create({
+      data: {
+        clientId: owner.clientId,
+        createdByUserId: admin.userId,
+        assignedPlannerUserId: owner.userId,
+        serviceId: service.id,
+        accessMode: 'NOMINAL',
+        capacity: 150,
+        eventDateTime: new Date('2030-01-01T18:00:00Z')
+      }
+    });
+    return { owner, event, cookie: await login(owner.email) };
+  }
+
   it('publishes all CODEX-050 endpoints in OpenAPI', () => {
     const paths = createOpenApiDocument(app).paths;
     for (const path of [

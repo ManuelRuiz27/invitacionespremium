@@ -1,5 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { Contact, Prisma } from '../generated/prisma/client';
+import {
+  AssistantResponseStatus,
+  InvitationMode,
+  InvitationResponseStatus,
+  type Contact,
+  type Prisma
+} from '../generated/prisma/client';
 import { InvitationTokenService } from './invitation-token.service';
 
 export interface ProvisionedInvitation {
@@ -19,6 +25,9 @@ export class InvitationProvisioningService {
       data: {
         eventId: contact.eventId,
         contactId: contact.id,
+        mode: InvitationMode.INDIVIDUAL,
+        additionalAssistantLimit: 0,
+        responseStatus: InvitationResponseStatus.PENDING,
         invitationTokenNonce: this.tokens.createNonce(),
         qrTokenNonce: this.tokens.createNonce(),
         deletedAt: contact.deletedAt
@@ -30,6 +39,7 @@ export class InvitationProvisioningService {
         invitationId: invitation.id,
         name: contact.name,
         isPrimary: true,
+        responseStatus: AssistantResponseStatus.PENDING,
         anonymizedAt: contact.anonymizedAt,
         deletedAt: contact.deletedAt
       }

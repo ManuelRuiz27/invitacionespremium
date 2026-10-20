@@ -9,7 +9,7 @@ const phoneSchema = z.string().trim().min(3).max(100);
 const createContactSchema = z
   .object({
     name: nameSchema,
-    whatsappPhone: phoneSchema,
+    whatsappPhone: phoneSchema.nullable().optional(),
     groupId: uuidSchema.nullable().optional()
   })
   .strict();
@@ -17,7 +17,7 @@ const createContactSchema = z
 const updateContactSchema = z
   .object({
     name: nameSchema.optional(),
-    whatsappPhone: phoneSchema.optional(),
+    whatsappPhone: phoneSchema.nullable().optional(),
     groupId: uuidSchema.nullable().optional()
   })
   .strict()
@@ -35,8 +35,13 @@ export class CreateContactRequestDto {
   @ApiProperty({ type: String, example: 'María Ejemplo' })
   name!: string;
 
-  @ApiProperty({ type: String, example: '+525512345678' })
-  whatsappPhone!: string;
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    example: '+525512345678',
+    description: 'Optional only for ACCESS_CONTROL NOMINAL events; required for legacy events.'
+  })
+  whatsappPhone?: string | null;
 
   @ApiPropertyOptional({ type: String, nullable: true, format: 'uuid' })
   groupId?: string | null;
@@ -46,8 +51,13 @@ export class UpdateContactRequestDto {
   @ApiPropertyOptional({ type: String, example: 'María Ejemplo' })
   name?: string;
 
-  @ApiPropertyOptional({ type: String, example: '+525512345678' })
-  whatsappPhone?: string;
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    example: '+525512345678',
+    description: 'May be cleared only for ACCESS_CONTROL NOMINAL events.'
+  })
+  whatsappPhone?: string | null;
 
   @ApiPropertyOptional({ type: String, nullable: true, format: 'uuid' })
   groupId?: string | null;

@@ -155,7 +155,7 @@ export class InvitationQrService {
             }),
         deletedAt: null,
         contact: { deletedAt: null },
-        event: { deletedAt: null }
+        event: { deletedAt: null, accessMode: null }
       },
       include: qrInclude
     });
@@ -197,6 +197,7 @@ export class InvitationQrService {
 
 export function isInvitationQrAvailable(invitation: QrInvitation): boolean {
   if (
+    invitation.event.accessMode != null ||
     !OPERATIONAL_STATUSES.has(invitation.event.status) ||
     invitation.event.deletedAt ||
     invitation.event.status === EventStatus.CANCELLED ||

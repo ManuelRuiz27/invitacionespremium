@@ -11,6 +11,12 @@
 
 ## Configuración del Evento
 
+M02-B01-DT02B excluye de estas superficies las Invitations internas de Access Control. La resolución
+pública, assets y mutaciones RSVP responden `404 INVITATION_NOT_FOUND` aunque se presente un token
+correctamente firmado del agregado interno. Las rutas operativas de confirmación responden
+`409 RSVP_NOT_AVAILABLE` después de validar ownership. Los guardas dependen de la modalidad, incluso si
+se fuerza un estado operativo; no simulan confirmación. Legacy conserva el flujo descrito a continuación.
+
 `Event` conserva `confirmationEnabled` y agrega:
 
 - `locationUrl` y `giftRegistryUrl`;

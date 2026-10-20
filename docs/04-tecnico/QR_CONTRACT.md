@@ -12,6 +12,11 @@ el token QR.
 
 ## Token y payload
 
+Desde M02-B01-DT02B, las Invitations internas de Access Control quedan excluidas del QR legacy.
+`qr.svg` responde `404 INVITATION_NOT_FOUND` y la resolución interna de su token QR devuelve `null`,
+incluso con estado operativo o respuestas confirmadas forzadas. DT02B no genera QR de Access Control;
+las credenciales posteriores quedan fuera de este runtime. Flyer, Flipbook y PHYSICAL_QR no cambian.
+
 El único payload codificado es el resultado exacto de:
 
 ```ts

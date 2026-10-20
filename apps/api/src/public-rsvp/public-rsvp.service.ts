@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { HttpStatus, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, HttpStatus, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
 import type { AuthPrincipal } from '../auth/auth.types';
 import { PrismaService } from '../common/database/prisma.service';
@@ -596,7 +596,7 @@ export class PublicRsvpService {
         invitationTokenVersion: verified.version,
         deletedAt: null,
         contact: { deletedAt: null },
-        event: { deletedAt: null }
+        event: { deletedAt: null, accessMode: null }
       },
       include: publicInclude
     });
@@ -894,6 +894,11 @@ export class PublicRsvpService {
       where: { id: eventId, deletedAt: null, ...this.eventAccess.ownedWhere(principal) }
     });
     if (!event) throw eventNotFound();
+    if (event.accessMode !== null)
+      throw new ConflictException({
+        code: 'RSVP_NOT_AVAILABLE',
+        message: 'RSVP is not available for Access Control events.'
+      });
     return event;
   }
 

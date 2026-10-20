@@ -1,3 +1,4 @@
+import { createNominalAccessFixture } from './nominal-access.fixture';
 import { randomBytes, randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
@@ -63,6 +64,51 @@ describe('Public RSVP', () => {
     await resetDatabase();
     await app.close();
   }, 60_000);
+
+  it('hides internal nominal Invitations even with a correctly signed token and forced operational state', async () => {
+    const { event, invitation, cookie } = await createNominalAccessFixture(app, origin, password);
+    const token = tokens.issue('INVITATION', invitation.id, invitation.invitationTokenNonce);
+    // Test the guard independently of DT02A readiness/status checks, in the isolated database only.
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe('SET LOCAL session_replication_role = replica');
+      await tx.event.update({
+        where: { id: event.id },
+        data: {
+          status: 'ACTIVE',
+          confirmationEnabled: true,
+          activatedAt: new Date(),
+          activatedByUserId: event.createdByUserId,
+          activatedServiceId: event.serviceId,
+          activationIdempotencyKey: `forced-nominal-${event.id}`
+        }
+      });
+    });
+    const base = `/api/v1/public/invitations/${token}`;
+    await request(app.getHttpServer()).get(base).expect(404);
+    await request(app.getHttpServer()).get(`${base}/assets/${randomUUID()}/content`).expect(404);
+    await request(app.getHttpServer()).post(`${base}/confirm`).send({ additionalAssistants: [] }).expect(404);
+    await request(app.getHttpServer()).post(`${base}/reject`).expect(404);
+    await request(app.getHttpServer()).patch(`${base}/assistants`).send({ additionalAssistants: [] }).expect(404);
+    await request(app.getHttpServer()).get(`/api/v1/events/${event.id}/confirmation`).set('Cookie', cookie).expect(409);
+    for (const action of ['close', 'reopen']) {
+      await request(app.getHttpServer())
+        .post(`/api/v1/events/${event.id}/confirmation/${action}`)
+        .set('Origin', origin)
+        .set('Cookie', cookie)
+        .send({})
+        .expect(409);
+    }
+    await request(app.getHttpServer())
+      .put(`/api/v1/events/${event.id}/invitations/${invitation.id}/confirmation`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .send({ responseStatus: 'CONFIRMED', additionalAssistants: [] })
+      .expect(409);
+    expect((await prisma.invitation.findUniqueOrThrow({ where: { id: invitation.id } })).responseStatus).toBe(
+      'PENDING'
+    );
+    expect(await prisma.auditLog.count({ where: { eventId: event.id, action: { startsWith: 'RSVP_' } } })).toBe(0);
+  });
 
   it('resolves the private view, reconciles nominal assistants idempotently, rejects and supports close/reopen override', async () => {
     const fixture = await createFixture({ capacity: 4, withDesign: true });
