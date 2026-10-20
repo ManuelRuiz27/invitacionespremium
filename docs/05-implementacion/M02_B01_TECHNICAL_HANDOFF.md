@@ -2,9 +2,9 @@
 
 Estado: **PLAN TÉCNICO / DESGLOSE PROPUESTO — NO AUTORIZA IMPLEMENTACIÓN**
 
-**DT02A ESPECIFICADO (2026-10-19):** [Ticket ejecutable propuesto — Foundation ACCESS_CONTROL](./M02_B01_DT02A_ACCESS_CONTROL_FOUNDATION.md). Alcance: ServiceCode/accessMode, Managed Provider intake Organización, preparación y activación **fail-closed hasta DT06**, sin QR ni precios. **Pendiente de autorización expresa para Codex; ningún código ejecutado.**  
+**DT02A IMPLEMENTADO Y REVISADO (2026-10-19):** [Foundation ACCESS_CONTROL](./M02_B01_DT02A_ACCESS_CONTROL_FOUNDATION.md), commit [`ae1e4b6`](https://github.com/ManuelRuiz27/invitacionespremium/commit/ae1e4b6c7450a845cf8d57361a86abf7a76691ff), [revisión de implementación](./M02_B01_DT02A_IMPLEMENTATION_REVIEW.md). DB/API/Managed Provider creados; activación **fail-closed hasta DT06**; no nuevos precios. CI `quality` verde. CI Flipbook browser QA rojo en el mismo paso desde commit anterior (causa aún no diagnosticada). **DT02B–DT09 no autorizados aún.**  
 
-**DT00/DT01 realizados (2026-10-19):** [DT00 auditoría estática](./M02_B01_DT00_RUNTIME_AUDIT.md) y [DT01 ADR](./M02_B01_DT01_ACCESS_ARCHITECTURE_ADR.md). **Product aprobó `ServiceCode.ACCESS_CONTROL` y un único `Event.accessMode=NOMINAL|ANONYMOUS` por Evento, conservando `PHYSICAL_QR`.** Las decisiones técnicas de credencial individual y Managed Organization paths siguen propuestas; el [gate SQL](./M02_B01_DT01_SQL_COMPATIBILITY_GATE.md) se revisó estáticamente pero **no se ejecutó contra PostgreSQL**. No hay autorización para code. La investigación previa DT00/DT01 no debe delegarse otra vez ni ejecutarse como tickets de implementación.  
+**DT00/DT01 realizados (2026-10-19):** [DT00 auditoría estática](./M02_B01_DT00_RUNTIME_AUDIT.md) y [DT01 ADR](./M02_B01_DT01_ACCESS_ARCHITECTURE_ADR.md). **Product aprobó `ServiceCode.ACCESS_CONTROL` y un único `Event.accessMode=NOMINAL|ANONYMOUS` por Evento, conservando `PHYSICAL_QR`.** Las decisiones técnicas de credencial individual y Managed Organization paths siguen propuestas; el [gate SQL](./M02_B01_DT01_SQL_COMPATIBILITY_GATE.md) ahora incluye evidencia de migración y tests PostgreSQL para DT02A; los gates de Scanner/credenciales/Phone/PhysicalPass siguen pendientes. La autorización de código se limitó a DT02A. La investigación previa DT00/DT01 no debe delegarse otra vez ni ejecutarse como tickets de implementación.  
 Fecha: **2026-10-19**  
 Requisito funcional autorizado: [M02-B01 QR nominal/anónimo](../01-producto/06B1_M02_B01_ACCESOS_QR_NOMINAL_ANONIMO.md)  
 Modelo base: [M02](../01-producto/06B_MODELO_02_SALON_JARDIN_ORGANIZACION.md)  
@@ -39,7 +39,7 @@ Alcance de release: **M01 sigue siendo lanzamiento activo; M02-B01 aprobado para
 
 ## 3. Secuencia propuesta de tickets (no ejecutables hasta aprobación técnica)
 
-> **Interpretación tras DT00/DT01:** las secciones DT00 y DT01 que siguen son el plan original, hoy completado como documentos vinculados arriba. DT02–DT09 siguen **no autorizados**. ADR-02 (`ACCESS_CONTROL`) ya está ratificada por Product; antes de DT02 faltan gates DB/SQL, decisiones técnicas del resto de ADR y autorización expresa de implementación. DT02 se divide en **DT02A (Foundation: Event/service/Managed Organización Provider, activación cerrada hasta DT06)** y **DT02B (Contacts nominales sin teléfono y CSV)** según DT01, porque el circuito Managed de Organización hoy no existe. `PHYSICAL_QR` MANAGED necesita igualmente nueva capacidad Provider; no eliminar `ClientOperatingProfilePolicy`.
+> **Interpretación tras DT00/DT01:** las secciones DT00 y DT01 que siguen son el plan original, hoy completado como documentos vinculados arriba. DT02A fue implementado; **DT02B–DT09 siguen no autorizados**. ADR-02 (`ACCESS_CONTROL`) ya está ratificada por Product; antes de DT02 faltan gates DB/SQL, decisiones técnicas del resto de ADR y autorización expresa de implementación. DT02 se divide en **DT02A (Foundation: Event/service/Managed Organización Provider, activación cerrada hasta DT06)** y **DT02B (Contacts nominales sin teléfono y CSV)** según DT01, porque el circuito Managed de Organización hoy no existe. `PHYSICAL_QR` MANAGED necesita igualmente nueva capacidad Provider; no eliminar `ClientOperatingProfilePolicy`.
 
 ### M02-B01-DT00 — Archaeology y matriz de compatibilidad (P0, PLAN)
 
@@ -149,7 +149,7 @@ No fijar por supuesto del equipo:
 - separación de preparación Provider vs operación del salón y compatibilidad de assignedPlannerUserId;
 - línea comercial/licencia futura, fuera de este bloque.
 
-**DT02A ya cuenta con especificación cerrada pero NO tiene autorización de ejecución.** Los nuevos enums/tablas/migraciones sólo se incorporarán por Codex al aprobar explícitamente el ticket BUILD. El resto de decisiones (DT02B–DT09) se cierra por tickets.
+**DT02A ya se implementó y revisó en el commit registrado arriba.** Los nuevos enums/tablas/migraciones sólo se incorporarán por Codex al aprobar explícitamente el ticket BUILD. El resto de decisiones (DT02B–DT09) se cierra por tickets.
 
 ## 6. Condiciones de release y dependencias externas
 
