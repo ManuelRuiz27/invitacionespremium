@@ -208,7 +208,8 @@ Hallazgos centrales de MG-00:
 - `05-implementacion/M02_B01_DT00_RUNTIME_AUDIT.md` — **DT00 COMPLETADO**: auditoría estática verificable de código y contratos, con bloqueos para M02 Managed Organización.
 - `05-implementacion/M02_B01_DT01_ACCESS_ARCHITECTURE_ADR.md` — **DT01 PARCIALMENTE RATIFICADO**: Product aprobó `ACCESS_CONTROL` y modo `NOMINAL|ANONYMOUS` por Evento; esquema/API y resto de arquitectura pendiente para code.
 - `05-implementacion/M02_B01_DT01_SQL_COMPATIBILITY_GATE.md` — **REVISIÓN ESTÁTICA SQL COMPLETADA**: incompatibilidades concretas con activación Managed Organización, Contactos, CheckIn y PhysicalPass; ejecución de PostgreSQL pendiente.
-- `05-implementacion/M02_B01_DT02A_ACCESS_CONTROL_FOUNDATION.md` — **DT02A ESPECIFICADO PARA CODEX, NO AUTORIZADO**: foundation `ACCESS_CONTROL`, modalidad Event, Provider Managed Organización, activación bloqueada hasta DT06 y AC01–AC12.
+- `05-implementacion/M02_B01_DT02A_ACCESS_CONTROL_FOUNDATION.md` — **DT02A IMPLEMENTADO**: foundation `ACCESS_CONTROL`, modalidad Event, Provider Managed Organización, activación bloqueada hasta DT06 y AC01–AC12.
+- `05-implementacion/M02_B01_DT02A_IMPLEMENTATION_REVIEW.md` — **REVISIÓN DT02A**: commit `ae1e4b6`, evidencia GitHub CI quality verde, falla preexistente del paso Playwright Flipbook, next DT02B.
 - `01-producto/06C_MODELO_03_LICENCIA_AUTOSERVICIO.md` — M03 / Self-Service.
 - `01-producto/06D_MODELO_04_CLIENTE_GRAN_ESCALA_DEDICADO.md` — M04 / gran escala.
 - `01-producto/06E_MODELO_05_PARTNER_RESELLER.md` — M05 / Partner-Reseller.
