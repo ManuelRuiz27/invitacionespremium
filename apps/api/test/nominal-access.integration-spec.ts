@@ -15,7 +15,8 @@ import { NominalAccessTokenService } from '../src/nominal-access/nominal-access-
 import { NominalAccessQrService } from '../src/nominal-access/nominal-access-qr.service';
 import { NominalAccessService } from '../src/nominal-access/nominal-access.service';
 import { createOpenApiDocument } from '../src/openapi/openapi';
-import { createNominalAccessFixture } from './nominal-access.fixture';
+import { ScannerService } from '../src/scanner/scanner.service';
+import { createNominalAccessFixture, createOperationalNominalAccessFixture } from './nominal-access.fixture';
 
 const origin = 'http://localhost:5173',
   password = 'correct horse battery staple';
@@ -42,6 +43,85 @@ describe('DT03 nominal access credentials', () => {
     await reset();
     await app.close();
   }, 60_000);
+
+  it('serializes operational scan/revoke/reissue using real Event lock waits in both orders', async () => {
+    const scanner = app.get(ScannerService),
+      audit = app.get(AuditService);
+    // CheckIn wins: revocation observes the committed ingress and cannot invalidate used material.
+    const first = await createOperationalNominalAccessFixture(app, origin, password);
+    const gate = auditGate('CHECK_IN_CREATE');
+    const ingress = scanner.scanNominal(first.staffToken, 'race-scan', { qrToken: first.qrToken });
+    let revocation: Promise<request.Response> | undefined;
+    try {
+      await gate.entered;
+      revocation = revoke(first, first.credentialId, 'race-revoke').then((r) => r);
+      await waitForEventLock();
+    } finally {
+      gate.release();
+    }
+    await ingress;
+    expect((await revocation!).status).toBe(409);
+    gate.restore();
+    expect((await getList(first).expect(200)).body[0]).toMatchObject({ status: 'ISSUED', hasActiveCheckIn: true });
+
+    // Revocation wins: the old token stays invalid even if replacement issuance races the scan.
+    const second = await createOperationalNominalAccessFixture(app, origin, password);
+    const revokeGate = auditGate('NOMINAL_ACCESS_REVOKE');
+    const revokeRequest = revoke(second, second.credentialId, 'revoke-first').then((r) => r);
+    let blockedScan: Promise<unknown> | undefined;
+    try {
+      await revokeGate.entered;
+      // Attach rejection handling before releasing the competing transaction.
+      blockedScan = scanner.scanNominal(second.staffToken, 'old-material', { qrToken: second.qrToken }).catch((e) => e);
+      await waitForEventLock();
+    } finally {
+      revokeGate.release();
+    }
+    expect((await revokeRequest).status).toBe(200);
+    revokeGate.restore();
+    const replacement = await issue(second, second.assistantId, 'replacement').expect(201);
+    expect(await blockedScan!).toMatchObject({ response: { code: 'SCANNER_QR_NOT_FOUND' } });
+    expect(await prisma.checkIn.count({ where: { eventId: second.event.id } })).toBe(0);
+    const material = await prisma.assistantAccessCredential.findUniqueOrThrow({
+      where: { id: replacement.body.id as string }
+    });
+    await scanner.scanNominal(second.staffToken, 'new-material', {
+      qrToken: tokens.issue(material.id, material.qrTokenNonce)
+    });
+    expect(await prisma.checkIn.count({ where: { eventId: second.event.id, revertedAt: null } })).toBe(1);
+
+    function auditGate(action: string) {
+      let enter!: () => void, release!: () => void;
+      const entered = new Promise<void>((r) => {
+          enter = r;
+        }),
+        held = new Promise<void>((r) => {
+          release = r;
+        });
+      const original = audit.record.bind(audit);
+      let intercepted = false;
+      const spy = vi.spyOn(audit, 'record').mockImplementation(async (input, tx) => {
+        if (!intercepted && input.action === action) {
+          intercepted = true;
+          enter();
+          await held;
+        }
+        return original(input, tx);
+      });
+      return { entered, release, restore: () => spy.mockRestore() };
+    }
+    async function waitForEventLock() {
+      for (let i = 0; i < 1000; i += 1) {
+        const rows = await prisma.$queryRaw<Array<{ waiting: boolean }>>`SELECT EXISTS (
+          SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid()
+            AND wait_event_type = 'Lock' AND query ILIKE '%event%'
+        ) AS waiting`;
+        if (rows[0]?.waiting) return;
+        await new Promise<void>((r) => setImmediate(r));
+      }
+      throw new Error('Concurrent nominal operation did not wait for the Event lock.');
+    }
+  });
 
   it('issues individual credentials for repeated names without RSVP and serves authenticated safe SVG', async () => {
     const f = await fixture(),
@@ -516,7 +596,13 @@ describe('DT03 nominal access credentials', () => {
         expect.objectContaining({ name: 'Idempotency-Key', required: true })
       );
     }
-    expect(Object.keys(document.paths).filter((path) => path.includes('nominal-access'))).toHaveLength(4);
+    expect(Object.keys(document.paths).filter((path) => path.includes('nominal-access-credentials'))).toHaveLength(4);
+    expect(document.paths['/api/v1/scanner/{staffToken}/nominal-access/scan']?.post?.parameters).toContainEqual(
+      expect.objectContaining({ name: 'Idempotency-Key', required: true })
+    );
+    expect(document.paths['/api/v1/scanner/{staffToken}/nominal-access/scan']?.post?.parameters).toContainEqual(
+      expect.objectContaining({ name: 'staffToken', in: 'path', required: true })
+    );
   });
 
   function fixture() {

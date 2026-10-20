@@ -24,6 +24,7 @@ import {
   type CheckIn
 } from '../generated/prisma/client';
 import { InvitationQrService } from '../public-rsvp/invitation-qr.service';
+import { NominalAccessService } from '../nominal-access/nominal-access.service';
 import { StaffTokenResolverService, type StaffResolution } from '../staff-access/staff-access.service';
 import { RealtimePublisherService } from '../realtime/realtime-publisher.service';
 import { z } from 'zod';
@@ -33,6 +34,7 @@ import type {
   ScannerCheckInInput,
   ScannerCheckInResponseDto,
   ScannerInvitationResultDto,
+  ScannerNominalScanResponseDto,
   ScannerScanInput,
   ScannerScanResponseDto,
   ScannerSearchInput,
@@ -125,16 +127,180 @@ const checkInResultSnapshotSchema = z
     return remainingPendingAssistants.length === remainingPendingCount;
   });
 
+const nominalResultSnapshotSchema = checkInResultSnapshotSchema.shape.checkedIn.element
+  .extend({ status: z.literal('CHECKED_IN') })
+  .strict();
+
 @Injectable()
 export class ScannerService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(StaffTokenResolverService) private readonly staffTokens: StaffTokenResolverService,
     @Inject(InvitationQrService) private readonly invitationQr: InvitationQrService,
+    @Inject(NominalAccessService) private readonly nominalAccess: NominalAccessService,
     @Inject(AuditService) private readonly audit: AuditService,
     @Inject(EventAccessPolicy) private readonly eventAccess: EventAccessPolicy,
     @Inject(RealtimePublisherService) private readonly realtime: RealtimePublisherService
   ) {}
+
+  async scanNominal(
+    rawStaffToken: string,
+    idempotencyKey: string,
+    input: ScannerScanInput,
+    operationId: string = randomUUID()
+  ): Promise<ScannerNominalScanResponseDto> {
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+      try {
+        const outcome = await this.prisma.$transaction(async (tx) => {
+          // requireStaff locks Event -> Staff; DT03 resolves Credential -> Invitation -> Contact -> Assistant.
+          const resolution = await this.requireStaff(tx, rawStaffToken);
+          const signature = createHash('sha256')
+            .update(
+              JSON.stringify({
+                purpose: 'NOMINAL_ACCESS',
+                staffTokenId: resolution.staff.id,
+                eventId: resolution.staff.eventId,
+                qrToken: input.qrToken
+              }),
+              'utf8'
+            )
+            .digest('hex');
+          const prior = await tx.checkIn.findUnique({ where: { idempotencyKey } });
+          if (prior) {
+            if (
+              !prior.assistantAccessCredentialId ||
+              prior.requestSignature !== signature ||
+              prior.staffTokenId !== resolution.staff.id
+            )
+              throw idempotencyConflict();
+            const parsed = nominalResultSnapshotSchema.safeParse(prior.resultSnapshot);
+            if (!parsed.success) throw new Error('Invalid persisted nominal check-in result snapshot.');
+            return { response: parsed.data, realtime: null };
+          }
+          const resolved = await this.nominalAccess.resolveTokenInTransaction(
+            tx,
+            input.qrToken,
+            resolution.staff.eventId
+          );
+          if (!resolved) throw scannerQrNotFound();
+          const assistant = await tx.assistant.findUniqueOrThrow({
+            where: { id: resolved.assistantId },
+            include: {
+              floorplanShape: { select: { id: true, name: true } },
+              floorplanSeat: { select: { id: true, label: true, x: true, y: true } }
+            }
+          });
+          if (resolution.event.floorplanEnabled) {
+            if (!assistant.floorplanShapeId) throw scannerTableAssignmentRequired();
+            await tx.$queryRaw`SELECT id FROM floorplan_shape WHERE id = ${assistant.floorplanShapeId}::uuid FOR UPDATE`;
+            const table = await tx.floorplanShape.findFirst({
+              where: {
+                id: assistant.floorplanShapeId,
+                eventId: resolved.eventId,
+                kind: FloorplanShapeKind.TABLE,
+                deletedAt: null,
+                floorplan: { eventId: resolved.eventId, deletedAt: null }
+              },
+              include: { floorplan: { select: { seatingMode: true } } }
+            });
+            if (!table) throw scannerTableAssignmentRequired();
+            if (table.floorplan.seatingMode === FloorplanSeatingMode.SEAT) {
+              if (!assistant.floorplanSeatId) throw scannerSeatAssignmentRequired();
+              await tx.$queryRaw`SELECT id FROM floorplan_seat WHERE id = ${assistant.floorplanSeatId}::uuid FOR UPDATE`;
+              const seat = await tx.floorplanSeat.findFirst({
+                where: {
+                  id: assistant.floorplanSeatId,
+                  eventId: resolved.eventId,
+                  floorplanId: table.floorplanId,
+                  floorplanShapeId: table.id,
+                  deletedAt: null,
+                  isBlocked: false
+                }
+              });
+              if (!seat) throw scannerSeatAssignmentRequired();
+            }
+          }
+          await tx.$queryRaw`SELECT id FROM check_in WHERE assistant_id = ${assistant.id}::uuid
+            AND reverted_at IS NULL ORDER BY id FOR UPDATE`;
+          if (await tx.checkIn.count({ where: { assistantId: assistant.id, revertedAt: null } }))
+            throw assistantAlreadyCheckedIn();
+          const rows = await tx.$queryRaw<Array<{ now: Date }>>`SELECT clock_timestamp() AS now`;
+          const checkedInAt = rows[0]?.now;
+          if (!checkedInAt) throw new Error('PostgreSQL did not return a check-in timestamp.');
+          const response: ScannerNominalScanResponseDto = {
+            status: 'CHECKED_IN',
+            checkInId: randomUUID(),
+            assistantId: assistant.id,
+            name: requireAssistantName(assistant.name),
+            checkedInAt: checkedInAt.toISOString(),
+            table: assistant.floorplanShape,
+            seat: assistant.floorplanSeat ? seatProjection(assistant.floorplanSeat) : null
+          };
+          await tx.checkIn.create({
+            data: {
+              id: response.checkInId,
+              eventId: resolved.eventId,
+              invitationId: assistant.invitationId,
+              assistantId: assistant.id,
+              staffTokenId: resolution.staff.id,
+              assistantAccessCredentialId: resolved.credentialId,
+              checkedInAt,
+              createdAt: checkedInAt,
+              idempotencyKey,
+              requestSignature: signature,
+              resultSnapshot: response as unknown as Prisma.InputJsonObject
+            }
+          });
+          await this.audit.record(
+            {
+              actor: { type: AuditActorType.STAFF_TOKEN, id: resolution.staff.id },
+              clientId: resolution.event.clientId,
+              eventId: resolved.eventId,
+              resourceType: 'CHECK_IN',
+              resourceId: response.checkInId,
+              action: 'CHECK_IN_CREATE',
+              afterData: {
+                invitationId: assistant.invitationId,
+                assistantIds: [assistant.id],
+                checkInIds: [response.checkInId],
+                assistantAccessCredentialId: resolved.credentialId,
+                count: 1,
+                checkedInAt: response.checkedInAt,
+                status: 'CHECKED_IN'
+              },
+              operationId
+            },
+            tx
+          );
+          return {
+            response,
+            realtime: {
+              eventId: resolved.eventId,
+              invitationId: assistant.invitationId,
+              operationId,
+              occurredAt: response.checkedInAt,
+              checkIns: [
+                { checkInId: response.checkInId, assistantId: assistant.id, tableId: response.table?.id ?? null }
+              ]
+            }
+          };
+        }, CRITICAL_TRANSACTION_OPTIONS);
+        if (outcome.realtime) await this.realtime.publishCheckInCreated(outcome.realtime);
+        return outcome.response;
+      } catch (error) {
+        if (isActiveCheckInUniqueError(error)) throw assistantAlreadyCheckedIn();
+        if (isCheckInFloorplanTableError(error)) throw scannerTableAssignmentRequired();
+        if (String(error).includes('check_in_floorplan_seat_required')) throw scannerSeatAssignmentRequired();
+        if ((isRetryable(error) || isIdempotencyUniqueError(error)) && attempt < MAX_ATTEMPTS - 1) continue;
+        throw error;
+      }
+    }
+    throw new DomainError(
+      'CHECK_IN_CONCURRENCY_CONFLICT',
+      'The check-in operation could not be serialized.',
+      HttpStatus.CONFLICT
+    );
+  }
 
   async scan(rawStaffToken: string, input: ScannerScanInput): Promise<ScannerScanResponseDto> {
     return this.lockedRead(async (tx) => {
@@ -215,7 +381,11 @@ export class ScannerService {
           );
           const prior = await tx.checkIn.findUnique({ where: { idempotencyKey } });
           if (prior) {
-            if (prior.requestSignature !== signature || prior.staffTokenId !== resolution.staff.id) {
+            if (
+              prior.assistantAccessCredentialId ||
+              prior.requestSignature !== signature ||
+              prior.staffTokenId !== resolution.staff.id
+            ) {
               throw idempotencyConflict();
             }
             return {

@@ -128,6 +128,16 @@ export class CheckedInAssistantDto {
   seat!: ScannerSeatDto | null;
 }
 
+export class ScannerNominalScanRequestDto {
+  @ApiProperty({ type: String, minLength: 1, maxLength: 512, description: 'Individual NOMINAL_ACCESS QR token.' })
+  qrToken!: string;
+}
+
+export class ScannerNominalScanResponseDto extends CheckedInAssistantDto {
+  @ApiProperty({ enum: ['CHECKED_IN'] })
+  status!: 'CHECKED_IN';
+}
+
 export class ScannerCheckInResponseDto {
   @ApiProperty({ enum: ['CHECKED_IN'] })
   status!: 'CHECKED_IN';

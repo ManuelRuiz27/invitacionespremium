@@ -24,6 +24,8 @@ import { InvitationTokenService } from '../src/invitations/invitation-token.serv
 import { InvitationsService } from '../src/invitations/invitations.service';
 import { createOpenApiDocument } from '../src/openapi/openapi';
 import { ScannerService } from '../src/scanner/scanner.service';
+import { RealtimePublisherService } from '../src/realtime/realtime-publisher.service';
+import { createOperationalNominalAccessFixture } from './nominal-access.fixture';
 import { StaffTokenResolverService } from '../src/staff-access/staff-access.service';
 import { StaffTokenTechnicalService } from '../src/staff-access/staff-token-technical.service';
 
@@ -67,6 +69,243 @@ describe('Scanner and CheckIn', () => {
     await resetDatabase();
     await app.close();
   }, 60_000);
+
+  it('checks in one internal PENDING Assistant with a minimal stable nominal snapshot, audit and realtime', async () => {
+    const f = await nominalFixture(true);
+    const realtime = vi.spyOn(app.get(RealtimePublisherService), 'publishCheckInCreated');
+    const key = randomUUID();
+    const first = await nominalScan(f, key).expect(200);
+    expect(first.body).toMatchObject({
+      status: 'CHECKED_IN',
+      assistantId: f.assistantId,
+      name: 'Nominal interno',
+      table: null,
+      seat: null
+    });
+    expect(Object.keys(first.body).sort()).toEqual(
+      ['status', 'checkInId', 'assistantId', 'name', 'checkedInAt', 'table', 'seat'].sort()
+    );
+    expect((await nominalScan(f, key).expect(200)).body).toEqual(first.body);
+    await nominalScan(f, randomUUID())
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('ASSISTANT_ALREADY_CHECKED_IN'));
+    const row = await prisma.checkIn.findUniqueOrThrow({ where: { id: first.body.checkInId as string } });
+    expect(row.assistantAccessCredentialId).toBe(f.credentialId);
+    expect(row.resultSnapshot).toEqual(first.body);
+    expect(await prisma.checkIn.count({ where: { eventId: f.event.id } })).toBe(1);
+    expect(await prisma.checkIn.count({ where: { assistantId: f.otherAssistantId! } })).toBe(0);
+    expect((await prisma.assistant.findUniqueOrThrow({ where: { id: f.assistantId } })).responseStatus).toBe('PENDING');
+    expect((await prisma.invitation.findUniqueOrThrow({ where: { id: f.invitation.id } })).responseStatus).toBe(
+      'PENDING'
+    );
+    expect(realtime).toHaveBeenCalledTimes(1);
+    const logs = await prisma.auditLog.findMany({ where: { eventId: f.event.id, action: 'CHECK_IN_CREATE' } });
+    expect(logs).toHaveLength(1);
+    expect(JSON.stringify([logs, first.body, realtime.mock.calls])).not.toMatch(
+      /phone|nonce|qrToken|signature|digest|ledger/iu
+    );
+    expect(JSON.stringify(logs)).not.toContain('Nominal interno');
+    realtime.mockRestore();
+    // Global CheckIn keys cannot switch to the legacy decoder or another token/request.
+    await scannerCheckIn(f.staffToken, key, f.invitation.id, [f.assistantId])
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('CHECK_IN_IDEMPOTENCY_CONFLICT'));
+    await nominalScan(f, key, 'na1.invalid').expect(409);
+    await scannerPost(f.staffToken, 'scan', { qrToken: f.qrToken }).expect(404);
+    expect((await scannerPost(f.staffToken, 'search', { query: 'Nominal interno' }).expect(200)).body.results).toEqual(
+      []
+    );
+    await scannerCheckIn(f.staffToken, randomUUID(), f.invitation.id, [f.assistantId]).expect(404);
+    await revert(f.event.id, row.id, randomUUID(), f.cookie).expect(200);
+    await prisma.assistant.update({ where: { id: f.assistantId }, data: { name: 'Renamed' } });
+    expect((await nominalScan(f, key).expect(200)).body).toEqual(first.body);
+    await nominalScan(f, randomUUID()).expect(200);
+    expect(await prisma.checkIn.count({ where: { eventId: f.event.id, revertedAt: null } })).toBe(1);
+  });
+
+  it('rejects forged, legacy, revoked and foreign tokens uniformly and enforces current Staff and Event', async () => {
+    const f = await nominalFixture(),
+      foreign = await nominalFixture();
+    const bad = [
+      f.qrToken.slice(0, -1) + (f.qrToken.endsWith('A') ? 'B' : 'A'),
+      'na1.invalid',
+      issueQr(f.invitation.id, f.invitation.qrTokenNonce),
+      foreign.qrToken
+    ];
+    for (const token of bad)
+      await nominalScan(f, randomUUID(), token)
+        .expect(404)
+        .expect(({ body }) => expect(body.code).toBe('SCANNER_QR_NOT_FOUND'));
+    const legacy = await createFixture();
+    const legacyResult = await scannerCheckIn(legacy.staffToken, 'global-key', legacy.invitationId, [
+      legacy.primaryId
+    ]).expect(200);
+    expect(legacyResult.body.checkedIn).toHaveLength(1);
+    await nominalScan(f, 'global-key').expect(409);
+    await request(app.getHttpServer())
+      .post(`/api/v1/scanner/${f.staffToken}/nominal-access/scan`)
+      .send({ qrToken: f.qrToken })
+      .expect(400);
+    await nominalScan({ ...f, staffToken: 'invalid' }, randomUUID()).expect(401);
+    await revokeNominal(f).expect(200);
+    await nominalScan(f, randomUUID())
+      .expect(404)
+      .expect(({ body }) => expect(body.code).toBe('SCANNER_QR_NOT_FOUND'));
+    await prisma.staffToken.update({ where: { id: f.staffTokenId }, data: { expiredAt: new Date() } });
+    await nominalScan(f, randomUUID()).expect(401);
+    for (const status of [EventStatus.CLOSED, EventStatus.CANCELLED]) {
+      const closed = await nominalFixture();
+      await uncheckedExecute(
+        'UPDATE event SET status = $2::event_status WHERE id = $1::uuid',
+        closed.event.id,
+        status.toLowerCase()
+      );
+      await nominalScan(closed, randomUUID())
+        .expect(409)
+        .expect(({ body }) => expect(body.code).toBe('STAFF_EVENT_NOT_OPERATIONAL'));
+    }
+    expect(await prisma.checkIn.count({ where: { eventId: f.event.id } })).toBe(0);
+  });
+
+  it('serializes nominal scans from two Staff, same-key replays, and rolls back failed auditing', async () => {
+    const f = await nominalFixture();
+    const second = await addStaffToken(f.event.id, f.staffCreatorId);
+    const results = await Promise.allSettled([
+      scanner.scanNominal(f.staffToken, randomUUID(), { qrToken: f.qrToken }),
+      scanner.scanNominal(second, randomUUID(), { qrToken: f.qrToken })
+    ]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    expect(results.find((r) => r.status === 'rejected')).toMatchObject({
+      reason: { response: { code: 'ASSISTANT_ALREADY_CHECKED_IN' } }
+    });
+    const same = await nominalFixture(),
+      key = randomUUID();
+    const replays = await Promise.all([
+      scanner.scanNominal(same.staffToken, key, { qrToken: same.qrToken }),
+      scanner.scanNominal(same.staffToken, key, { qrToken: same.qrToken })
+    ]);
+    expect(replays[0]).toEqual(replays[1]);
+    await nominalScan({ ...same, staffToken: await addStaffToken(same.event.id, same.staffCreatorId) }, key).expect(
+      409
+    );
+    const rollback = await nominalFixture();
+    const publish = vi.spyOn(app.get(RealtimePublisherService), 'publishCheckInCreated');
+    const original = audit.record.bind(audit);
+    const fail = vi.spyOn(audit, 'record').mockImplementation(async (input, tx) => {
+      if (input.action === 'CHECK_IN_CREATE') throw new Error('audit unavailable');
+      return original(input, tx);
+    });
+    try {
+      await nominalScan(rollback, 'rollback').expect(500);
+    } finally {
+      fail.mockRestore();
+    }
+    expect(await prisma.checkIn.count({ where: { eventId: rollback.event.id } })).toBe(0);
+    expect(publish).not.toHaveBeenCalled();
+    publish.mockRestore();
+    await nominalScan(rollback, 'rollback').expect(200);
+  });
+
+  it('keeps a global CheckIn key exclusive across concurrent Events and modalities', async () => {
+    for (const legacyCompetitor of [false, true]) {
+      const f = await nominalFixture(),
+        other = legacyCompetitor ? await createFixture() : await nominalFixture();
+      const key = randomUUID();
+      const competitor =
+        'eventId' in other
+          ? scannerCheckIn(other.staffToken, key, other.invitationId, [other.primaryId])
+          : nominalScan(other, key);
+      const results = await Promise.all([nominalScan(f, key), competitor]);
+      expect(results.map((r) => r.status).sort()).toEqual([200, 409]);
+      expect(results.find((r) => r.status === 409)?.body.code).toBe('CHECK_IN_IDEMPOTENCY_CONFLICT');
+      expect(await prisma.checkIn.count({ where: { idempotencyKey: key } })).toBe(1);
+    }
+  });
+
+  it('rejects invalid direct SQL nominal CheckIns and protects credential identity on reversal', async () => {
+    const f = await nominalFixture(true),
+      foreign = await nominalFixture();
+    for (const credentialId of [null, foreign.credentialId, randomUUID()])
+      await expect(directNominal(f, credentialId)).rejects.toThrow(/check_in_nominal_credential_required/u);
+    // A different Assistant within the same Event still cannot use this credential.
+    await expect(directNominal(f, f.credentialId, f.otherAssistantId!)).rejects.toThrow();
+    await revokeNominal(f).expect(200);
+    await expect(directNominal(f, f.credentialId)).rejects.toThrow(/check_in_nominal_credential_required/u);
+    const live = await nominalFixture();
+    await directNominal(live, live.credentialId);
+    const row = await prisma.checkIn.findFirstOrThrow({ where: { eventId: live.event.id } });
+    await expect(
+      prisma.$executeRaw`UPDATE check_in SET assistant_access_credential_id = NULL WHERE id = ${row.id}::uuid`
+    ).rejects.toThrow(/immutable/u);
+    await expect(directNominal(live, live.credentialId)).rejects.toThrow();
+    await revert(live.event.id, row.id, randomUUID(), live.cookie).expect(200);
+    await revokeNominal(live).expect(200);
+    expect(await prisma.checkIn.count({ where: { assistantAccessCredentialId: live.credentialId } })).toBe(1);
+    expect(await prisma.checkIn.count({ where: { assistantId: live.assistantId, revertedAt: null } })).toBe(0);
+    for (const mutate of [
+      'UPDATE assistant SET deleted_at = NOW() WHERE id = $1::uuid',
+      'UPDATE assistant SET name = NULL, anonymized_at = NOW() WHERE id = $1::uuid',
+      "UPDATE assistant SET response_status = 'CONFIRMED' WHERE id = $1::uuid"
+    ]) {
+      const invalid = await nominalFixture();
+      await uncheckedExecute(mutate, invalid.assistantId);
+      await nominalScan(invalid, randomUUID()).expect(404);
+      await expect(directNominal(invalid, invalid.credentialId)).rejects.toThrow();
+    }
+  });
+
+  it('requires a valid table and an unblocked coherent seat in both API and direct SQL', async () => {
+    const f = await nominalFixture();
+    await uncheckedExecute('UPDATE event SET floorplan_enabled = TRUE WHERE id = $1::uuid', f.event.id);
+    await nominalScan(f, randomUUID())
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('SCANNER_TABLE_ASSIGNMENT_REQUIRED'));
+    await expect(directNominal(f, f.credentialId)).rejects.toThrow(/check_in_floorplan_table_required/u);
+    const seating = await nominalSeating(f);
+    const foreign = await nominalFixture(),
+      foreignSeating = await nominalSeating(foreign);
+    await uncheckedExecute(
+      'UPDATE assistant SET floorplan_shape_id = $2::uuid WHERE id = $1::uuid',
+      f.assistantId,
+      foreignSeating.table.id
+    );
+    await nominalScan(f, randomUUID())
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('SCANNER_TABLE_ASSIGNMENT_REQUIRED'));
+    await expect(directNominal(f, f.credentialId)).rejects.toThrow(/check_in_floorplan_table_required/u);
+    await uncheckedExecute(
+      'UPDATE assistant SET floorplan_shape_id = $2::uuid, floorplan_seat_id = $3::uuid WHERE id = $1::uuid',
+      f.assistantId,
+      seating.table.id,
+      foreignSeating.seat.id
+    );
+    await nominalScan(f, randomUUID())
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('SCANNER_SEAT_ASSIGNMENT_REQUIRED'));
+    await expect(directNominal(f, f.credentialId)).rejects.toThrow(/check_in_floorplan_seat_required/u);
+    await uncheckedExecute('UPDATE assistant SET floorplan_seat_id = NULL WHERE id = $1::uuid', f.assistantId);
+    await nominalScan(f, randomUUID())
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('SCANNER_SEAT_ASSIGNMENT_REQUIRED'));
+    await expect(directNominal(f, f.credentialId)).rejects.toThrow(/check_in_floorplan_seat_required/u);
+    await uncheckedExecute(
+      'UPDATE assistant SET floorplan_seat_id = $2::uuid WHERE id = $1::uuid',
+      f.assistantId,
+      seating.seat.id
+    );
+    for (const patch of ['is_blocked = TRUE', 'is_blocked = FALSE, deleted_at = NOW()']) {
+      await uncheckedExecute(`UPDATE floorplan_seat SET ${patch} WHERE id = $1::uuid`, seating.seat.id);
+      await nominalScan(f, randomUUID()).expect(409);
+      await expect(directNominal(f, f.credentialId)).rejects.toThrow(/check_in_floorplan_seat_required/u);
+    }
+    await uncheckedExecute(
+      'UPDATE floorplan_seat SET is_blocked = FALSE, deleted_at = NULL WHERE id = $1::uuid',
+      seating.seat.id
+    );
+    const result = await nominalScan(f, randomUUID()).expect(200);
+    expect(result.body.table).toEqual({ id: seating.table.id, name: 'Mesa nominal' });
+    expect(result.body.seat).toEqual({ id: seating.seat.id, label: 'A1', x: 0.1, y: 0.2 });
+  });
 
   it('scans and searches exactly with a private projection, then checks in partially and replays exactly', async () => {
     const fixture = await createFixture();
@@ -763,6 +1002,92 @@ describe('Scanner and CheckIn', () => {
     expect(JSON.stringify(document)).not.toContain('CODEX-100');
   });
 
+  function nominalFixture(withSecondContact = false) {
+    return createOperationalNominalAccessFixture(app, origin, password, withSecondContact);
+  }
+
+  function nominalScan(f: { staffToken: string; qrToken: string }, key: string, qrToken = f.qrToken) {
+    return request(app.getHttpServer())
+      .post(`/api/v1/scanner/${f.staffToken}/nominal-access/scan`)
+      .set('Idempotency-Key', key)
+      .send({ qrToken });
+  }
+
+  function revokeNominal(f: Awaited<ReturnType<typeof nominalFixture>>) {
+    return request(app.getHttpServer())
+      .post(`/api/v1/events/${f.event.id}/nominal-access-credentials/${f.credentialId}/revoke`)
+      .set('Origin', origin)
+      .set('Cookie', f.cookie)
+      .set('Idempotency-Key', randomUUID())
+      .send({ revocationReasonCode: 'REPLACED' });
+  }
+
+  async function directNominal(
+    f: Awaited<ReturnType<typeof nominalFixture>>,
+    credentialId: string | null,
+    assistantId = f.assistantId
+  ) {
+    return prisma.$executeRaw`INSERT INTO check_in (id,event_id,invitation_id,assistant_id,staff_token_id,
+      assistant_access_credential_id,checked_in_at,created_at,idempotency_key,request_signature,result_snapshot)
+      VALUES (${randomUUID()}::uuid,${f.event.id}::uuid,${f.invitation.id}::uuid,${assistantId}::uuid,${f.staffTokenId}::uuid,
+        ${credentialId}::uuid,clock_timestamp(),transaction_timestamp(),${randomUUID()},${'a'.repeat(64)},'{}'::jsonb)`;
+  }
+
+  async function nominalSeating(f: Awaited<ReturnType<typeof nominalFixture>>) {
+    // Seating eligibility belongs to DT06; fixture only, no production bypass.
+    return prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe('SET LOCAL session_replication_role = replica');
+      const asset = await tx.fileAsset.create({
+        data: {
+          clientId: f.event.clientId,
+          eventId: f.event.id,
+          ownerType: 'FLOORPLAN',
+          fileType: 'FLOORPLAN_IMAGE',
+          storageKey: randomUUID(),
+          originalName: 'test.png',
+          mimeType: 'image/png',
+          sizeBytes: 10,
+          width: 100,
+          height: 100,
+          checksumSha256: 'a'.repeat(64),
+          createdByUserId: f.event.createdByUserId,
+          status: 'READY'
+        }
+      });
+      const floorplan = await tx.floorplan.create({
+        data: { eventId: f.event.id, imageAssetId: asset.id, seatingMode: 'SEAT' }
+      });
+      const table = await tx.floorplanShape.create({
+        data: {
+          eventId: f.event.id,
+          floorplanId: floorplan.id,
+          kind: 'TABLE',
+          geometry: 'CIRCLE',
+          name: 'Mesa nominal',
+          normalizedName: 'mesa nominal',
+          capacity: 1,
+          x: 0.1,
+          y: 0.1,
+          width: 0.2,
+          height: 0.2
+        }
+      });
+      const seat = await tx.floorplanSeat.create({
+        data: {
+          eventId: f.event.id,
+          floorplanId: floorplan.id,
+          floorplanShapeId: table.id,
+          label: 'A1',
+          normalizedLabel: 'a1',
+          x: 0.1,
+          y: 0.2
+        }
+      });
+      await tx.assistant.update({ where: { id: f.assistantId }, data: { floorplanShapeId: table.id } });
+      return { floorplan, table, seat };
+    });
+  }
+
   async function createFixture() {
     const client = await prisma.client.create({
       data: { type: ClientType.PLANNER, operatingProfile: 'SELF_SERVICE', name: randomUUID() }
@@ -1151,10 +1476,10 @@ describe('Scanner and CheckIn', () => {
     }
   }
 
-  async function uncheckedExecute(statement: string, id: string) {
+  async function uncheckedExecute(statement: string, ...values: string[]) {
     await prisma.$transaction(async (tx) => {
       await tx.$executeRawUnsafe('SET LOCAL session_replication_role = replica');
-      await tx.$executeRawUnsafe(statement, id);
+      await tx.$executeRawUnsafe(statement, ...values);
     });
   }
 

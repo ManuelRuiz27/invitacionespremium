@@ -467,7 +467,7 @@ describe('Events CRUD', () => {
           [randomUUID(), clientId, adminId, plannerId, service.id]
         );
       }
-      // Preserve real legacy Contact/Invitation/Assistant identity and QR material through DT03.
+      // Preserve legacy identity, QR material and existing CheckIn history through DT04.
       const legacyEventId = (await legacy.query<{ id: string }>('SELECT id FROM event ORDER BY id LIMIT 1')).rows[0]!
         .id;
       const contactId = randomUUID(),
@@ -487,6 +487,53 @@ describe('Events CRUD', () => {
         [assistantId, legacyEventId, invitationId]
       );
       await legacy.query('COMMIT');
+      const legacyCheckInId = randomUUID(),
+        legacyStaffId = randomUUID();
+      await legacy.query('BEGIN');
+      await legacy.query('SET LOCAL session_replication_role = replica');
+      await legacy.query(
+        `UPDATE event SET status = 'active', activated_at = NOW(), activated_by_user_id = $2,
+        activated_service_id = service_id, activation_idempotency_key = 'legacy-fixture-activation'
+        WHERE id = $1`,
+        [legacyEventId, adminId]
+      );
+      await legacy.query(`UPDATE invitation SET response_status = 'CONFIRMED' WHERE id = $1`, [invitationId]);
+      await legacy.query(`UPDATE assistant SET response_status = 'CONFIRMED' WHERE id = $1`, [assistantId]);
+      await legacy.query(
+        `INSERT INTO staff_token (id,event_id,alias,token_digest_sha256,created_by_user_id)
+        VALUES ($1,$2,'Legacy Staff',$3,$4)`,
+        [legacyStaffId, legacyEventId, 'a'.repeat(64), plannerId]
+      );
+      await legacy.query('COMMIT');
+      await legacy.query(
+        `INSERT INTO check_in (id,event_id,invitation_id,assistant_id,staff_token_id,
+        checked_in_at,idempotency_key,request_signature,result_snapshot)
+        VALUES ($1,$2,$3,$4,$5,clock_timestamp(),'legacy-check-in',$6,$7::jsonb)`,
+        [
+          legacyCheckInId,
+          legacyEventId,
+          invitationId,
+          assistantId,
+          legacyStaffId,
+          'b'.repeat(64),
+          JSON.stringify({
+            status: 'CHECKED_IN',
+            invitationId,
+            checkedIn: [
+              {
+                checkInId: legacyCheckInId,
+                assistantId,
+                name: 'Legacy Nominal',
+                checkedInAt: new Date().toISOString(),
+                table: null
+              }
+            ],
+            remainingPendingAssistants: [],
+            remainingPendingCount: 0
+          })
+        ]
+      );
+      const legacyCheckIn = (await legacy.query('SELECT to_jsonb(check_in) AS data FROM check_in')).rows;
       const legacyMaterial = {} as Record<string, unknown[]>;
       for (const table of ['contact', 'invitation', 'assistant']) {
         legacyMaterial[table] = (
@@ -516,6 +563,12 @@ describe('Events CRUD', () => {
       }
       expect((await legacy.query('SELECT count(*)::int AS total FROM assistant_access_credential')).rows).toEqual([
         { total: 0 }
+      ]);
+      expect(
+        (await legacy.query("SELECT to_jsonb(check_in) - 'assistant_access_credential_id' AS data FROM check_in")).rows
+      ).toEqual(legacyCheckIn);
+      expect((await legacy.query('SELECT assistant_access_credential_id FROM check_in')).rows).toEqual([
+        { assistant_access_credential_id: null }
       ]);
     } finally {
       await legacy?.end();

@@ -101,14 +101,29 @@ ni token completo. Headers: `Content-Type: image/svg+xml; charset=utf-8`, `Conte
 `Content-Length`, ETag, `Cache-Control: private, no-store`, `X-Content-Type-Options: nosniff`,
 `Referrer-Policy: no-referrer` y `Content-Security-Policy: default-src 'none'`.
 
-## Frontera DT04–DT09
+## Integración Scanner — DT04
 
 `resolveTokenInTransaction(tx, token, expectedEventId)` es interno: devuelve únicamente ids de
 credencial/Evento/Assistant o `null`, con pertenencia, firma, no revocación y agregado vigente.
-Su llamador debe adquirir Evento antes de entrar y, en DT04, Staff antes de credencial. Este método
-comprueba material; **no autoriza ingreso** ni aplica una excepción a CheckIn.
+Su llamador debe adquirir Evento antes de entrar y Staff antes de credencial. Este método comprueba
+material; Scanner autoriza el ingreso y crea el CheckIn en la misma transacción Serializable.
 
-DT03 no agrega endpoint público ni Scanner, no modifica CheckIn ni su schema/trigger, no habilita
-seating, lotes anónimos, Finance, Pricing o UI. DT04 deberá comprobar Staff, estado operativo,
-seating y uso previo en su transacción, antes de cualquier ingreso nominal.
+DT04 agrega exclusivamente `POST /api/v1/scanner/:staffToken/nominal-access/scan` con `{qrToken}` y
+`Idempotency-Key` obligatorio. Resuelve un Assistant principal interno `PENDING`, exige Staff vigente,
+Evento `ACTIVE`/`EVENT_DAY`, Mesa/Lugar válidos cuando corresponde y ausencia de CheckIn activo.
+No modifica RSVP ni genera ingresos de grupos. Reutiliza CheckIn, reversión, auditoría y realtime.
+La FK `(assistantAccessCredentialId,assistantId,eventId)` conserva la identidad del material usado;
+la referencia es inmutable. SQL exige credencial no revocada y agregado interno vigente.
+
+Locks: Evento → Staff → credencial → Invitation → Contacto → Assistant → Mesa/Lugar → CheckIn.
+El Evento común serializa scan/scan y scan/revoke/reissue; si gana el ingreso, revocación y sustitución
+rechazan el Assistant utilizado. Si gana revocación, el token anterior deja de permitir nuevos ingresos.
+Revertir utiliza el CheckIn existente y permite un ingreso posterior con material todavía vigente.
+
+La respuesta mínima conserva nombre y Mesa/Lugar del individuo, sin teléfono ni material secreto.
+El replay usa el snapshot original de CheckIn y revalida Staff/Evento actuales; no vuelve a crear ingreso,
+auditoría ni realtime. La firma de solicitud separa NOMINAL_ACCESS de la selección legacy y liga Staff,
+Evento y token completo mediante SHA-256. Las claves globales de CheckIn no pueden cruzar modalidades.
+
+DT04 no habilita asignación nominal de seating, lotes anónimos, Finance, Pricing o UI.
 La activación sigue devolviendo `409 EVENT_ACCESS_CONTROL_READINESS_NOT_IMPLEMENTED` hasta DT06.

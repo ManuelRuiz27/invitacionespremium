@@ -1,5 +1,5 @@
 import { Body, Controller, Headers, HttpCode, HttpStatus, Inject, Param, Post, Req } from '@nestjs/common';
-import { ApiBody, ApiCookieAuth, ApiHeader, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiCookieAuth, ApiHeader, ApiOkResponse, ApiParam, ApiTags } from '@nestjs/swagger';
 import type { AuthenticatedRequest, AuthPrincipal } from '../auth/auth.types';
 import { CurrentAuth } from '../auth/current-auth.decorator';
 import { PublicRoute } from '../auth/public-route.decorator';
@@ -11,6 +11,8 @@ import {
   CheckInRevertResponseDto,
   ScannerCheckInRequestDto,
   ScannerCheckInResponseDto,
+  ScannerNominalScanRequestDto,
+  ScannerNominalScanResponseDto,
   ScannerScanRequestDto,
   ScannerScanResponseDto,
   ScannerSearchRequestDto,
@@ -27,6 +29,21 @@ import { ScannerService } from './scanner.service';
 @Controller('scanner/:staffToken')
 export class ScannerController {
   constructor(@Inject(ScannerService) private readonly scanner: ScannerService) {}
+
+  @Post('nominal-access/scan')
+  @HttpCode(HttpStatus.OK)
+  @ApiParam({ name: 'staffToken', type: String, required: true })
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @ApiBody({ type: ScannerNominalScanRequestDto })
+  @ApiOkResponse({ type: ScannerNominalScanResponseDto })
+  scanNominal(
+    @Param('staffToken') token: string,
+    @Headers('idempotency-key') key: unknown,
+    @Body() body: unknown,
+    @Req() request: AuthenticatedRequest
+  ): Promise<ScannerNominalScanResponseDto> {
+    return this.scanner.scanNominal(token, parseIdempotencyKey(key), parseScannerScan(body), request.operationId);
+  }
 
   @Post('scan')
   @HttpCode(HttpStatus.OK)

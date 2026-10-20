@@ -9,7 +9,7 @@ y exigir una asignación operativa cuando el Evento tiene Croquis habilitado.
 
 ## Modelo
 
-`CheckIn` conserva `id`, `eventId`, `invitationId`, `assistantId`, `staffTokenId`, `checkedInAt`,
+`CheckIn` conserva `id`, `eventId`, `invitationId`, `assistantId`, `staffTokenId`, `assistantAccessCredentialId?`, `checkedInAt`,
 `idempotencyKey`, firma técnica de solicitud, snapshot mínimo estable, campos completos de
 reversión y `createdAt`. Sus relaciones compuestas prueban que Evento, Invitación, Asistente y
 StaffToken pertenecen al mismo agregado. El estado vigente se deriva de `revertedAt IS NULL`; una
@@ -23,6 +23,7 @@ reversión nunca elimina ni modifica la identidad del registro.
 | POST | `/api/v1/scanner/:staffToken/scan` | StaffToken |
 | POST | `/api/v1/scanner/:staffToken/search` | StaffToken |
 | POST | `/api/v1/scanner/:staffToken/check-in` | StaffToken + `Idempotency-Key` |
+| POST | `/api/v1/scanner/:staffToken/nominal-access/scan` | StaffToken + `Idempotency-Key` |
 | POST | `/api/v1/events/:eventId/check-ins/:checkInId/revert` | cookie de usuario + `Idempotency-Key` |
 
 `scan` recibe `{qrToken}` y devuelve `AVAILABLE` o `NO_PENDING`. `search` recibe `{query}` y devuelve
@@ -98,7 +99,7 @@ Croquis, `floorplanShapeId=null` continúa permitido.
 ## Reversión y permisos
 
 Solo Planner independiente sobre su Cliente, Admin de Organización sobre su Organización y Planner de
-Organización sobre Eventos creados por él pueden revertir. Los estados permitidos son `ACTIVE`,
+Organización sobre Eventos asignados a él pueden revertir. Los estados permitidos son `ACTIVE`,
 `EVENT_DAY` y `CLOSED`. StaffToken y Platform Admin no usan esta operación; `ALBUM_PUBLISHED`,
 `ARCHIVED`, `CANCELLED` y borrado lógico la bloquean.
 
@@ -150,6 +151,41 @@ del ancho y alto del owner. De este modo no se deforman en planos no cuadrados. 
 owner real; `RECTANGLE` y `POLYGON` conservan sus proporciones directas, `polygonPoints` continúa local al bounding
 box proyectado y `rotation` mantiene origen central. La medición se actualiza mediante `ResizeObserver` sin cambiar
 API, StaffToken, check-in, realtime ni selección de Asistentes.
+
+## Ingreso nominal individual — M02-B01-DT04
+
+`POST /api/v1/scanner/:staffToken/nominal-access/scan` recibe exclusivamente `{qrToken}` y exige
+`Idempotency-Key`. Responde 200 con `status: CHECKED_IN`, `checkInId`, `assistantId`, `name`,
+`checkedInAt`, `table: {id,name} | null` y `seat: {id,label,x,y} | null`. No devuelve otros invitados,
+teléfono ni token. La ruta valida propósito NOMINAL_ACCESS, firma y material mediante DT03.
+
+Solo admite `ACCESS_CONTROL + NOMINAL` de Organización Managed activa. El Staff debe pertenecer al
+Evento y seguir vigente; el Evento debe estar `ACTIVE`/`EVENT_DAY`. El agregado Contact → Invitation
+individual → Assistant principal debe estar vigente, con respuestas internas `PENDING`, sin simular RSVP.
+Se crea exactamente un CheckIn con referencia a la credencial; nunca una familia o grupo completo.
+Con Croquis habilitado exige Mesa TABLE activa del Evento; en SEAT exige lugar de esa Mesa, vigente y
+no bloqueado. Sin Croquis admite Mesa/Lugar NULL. No habilita nuevas operaciones de asignación.
+
+La migración DT04 conserva las FK anteriores y el índice único de ingreso activo por Assistant. Añade
+FK compuesta de credencial/Assistant/Evento y dos ramas estrictas al trigger: legacy con `accessMode=NULL`,
+credencial NULL y respuestas CONFIRMED; nominal con credencial vigente y respuestas internas PENDING.
+SQL directo tampoco admite credencial revocada, ajena, ausente o de otro Assistant. La referencia a
+credencial es inmutable. La reversión existente conserva historial y usa ownership por Planner asignado.
+
+Transacción Serializable, locks Evento → Staff → credencial → Invitation → Contacto → Assistant →
+Mesa/Lugar → CheckIn; auditoría CHECK_IN_CREATE atómica y publicación realtime existente tras commit.
+Evento es el lock común con revocación/reemisión. Los escritores SQL que adquieren filas hijas primero
+pueden ser abortados por PostgreSQL por deadlock/serialización; nunca se omiten validaciones para resolverlo.
+
+Token inválido, legacy, falsificado, revocado o de otro Evento comparte `404 SCANNER_QR_NOT_FOUND`.
+Otra solicitud sobre un ingreso activo devuelve `409 ASSISTANT_ALREADY_CHECKED_IN`; reutilizar una clave
+para otro Staff, Evento, token o modalidad devuelve `409 CHECK_IN_IDEMPOTENCY_CONFLICT`.
+El replay idéntico devuelve el snapshot original, aun tras reversión o cambios de nombre/material,
+pero exige Staff y Evento operativos actuales. No duplica auditoría ni realtime. El decoder legacy
+permanece compatible con snapshots históricos sin `seat`.
+
+La activación ACCESS_CONTROL mantiene `409 EVENT_ACCESS_CONTROL_READINESS_NOT_IMPLEMENTED` hasta DT06.
+Los tests operativos nominales fuerzan ACTIVE exclusivamente en fixtures locales aislados.
 
 ## Fronteras diferidas
 

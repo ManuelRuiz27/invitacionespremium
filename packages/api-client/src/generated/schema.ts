@@ -2643,6 +2643,22 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/scanner/{staffToken}/nominal-access/scan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ScannerController_scanNominal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/scanner/{staffToken}/physical-passes/scan": {
         parameters: {
             query?: never;
@@ -4373,6 +4389,23 @@ export type components = {
             invitation: components["schemas"]["ScannerInvitationDto"];
             pendingAssistants: components["schemas"]["PendingAssistantDto"][];
             pendingCount: number;
+        };
+        ScannerNominalScanRequestDto: {
+            /** @description Individual NOMINAL_ACCESS QR token. */
+            qrToken: string;
+        };
+        ScannerNominalScanResponseDto: {
+            /** Format: uuid */
+            assistantId: string;
+            /** Format: date-time */
+            checkedInAt: string;
+            /** Format: uuid */
+            checkInId: string;
+            name: string;
+            seat: components["schemas"]["ScannerSeatDto"] | null;
+            /** @enum {string} */
+            status: "CHECKED_IN";
+            table: components["schemas"]["ScannerTableDto"] | null;
         };
         ScannerScanRequestDto: {
             /** @example qr1.payload.signature */
@@ -8830,6 +8863,33 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    ScannerController_scanNominal: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                staffToken: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScannerNominalScanRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScannerNominalScanResponseDto"];
+                };
             };
         };
     };
