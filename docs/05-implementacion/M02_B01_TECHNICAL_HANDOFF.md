@@ -1,8 +1,10 @@
 # M02-B01 — Handoff técnico para el equipo de desarrollo
 
-Estado: **PLAN TÉCNICO / DESGLOSE PROPUESTO — NO AUTORIZA IMPLEMENTACIÓN**
+Estado: **HANDOFF TÉCNICO — DT02A/DT02B/DT03 IMPLEMENTADOS; DT04–DT09 PENDIENTES DE AUTORIZACIÓN**
 
-**DT02B IMPLEMENTADO — REVISIÓN DE CÓDIGO FAVORABLE, CI PENDIENTE (2026-10-20):** commit [`65bcb9d`](https://github.com/ManuelRuiz27/invitacionespremium/commit/65bcb9dab16bb2cd7a16ad080bb7944334e5eef6), [revisión de implementación](./M02_B01_DT02B_IMPLEMENTATION_REVIEW.md). Teléfono opcional sólo NOMINAL, CSV contextual y contacto→Invitation interna→Assistant PENDING; sin QR. Codex reportó pruebas locales verdes; GitHub Actions seguía en ejecución al revisarlo. **DT03–DT09 no autorizados aún.**  
+**DT03 IMPLEMENTADO Y REVISADO (2026-10-20):** commit [`4bb6afa`](https://github.com/ManuelRuiz27/invitacionespremium/commit/4bb6afa6c2a7fb3f4e3cade0f859851a82504b16), [review técnico](./M02_B01_DT03_IMPLEMENTATION_REVIEW.md), [contrato nominal](../04-tecnico/NOMINAL_ACCESS_CREDENTIALS_CONTRACT.md). Credencial por Assistant, HMAC `NOMINAL_ACCESS`, SVG autenticado, revocación/idempotencia SQL, historial, `quality` CI verde. Workflow completo sigue rojo por Playwright Flipbook ya fallando en el paso antes de DT02A. Activación B01 sigue fail-closed hasta DT06. **DT04–DT09 no autorizados.**  
+
+**DT02B IMPLEMENTADO — REVISIÓN DE CÓDIGO FAVORABLE, CI CANCELADO (2026-10-20):** commit [`65bcb9d`](https://github.com/ManuelRuiz27/invitacionespremium/commit/65bcb9dab16bb2cd7a16ad080bb7944334e5eef6), [revisión de implementación](./M02_B01_DT02B_IMPLEMENTATION_REVIEW.md). Teléfono opcional sólo NOMINAL, CSV contextual y contacto→Invitation interna→Assistant PENDING; sin QR. Codex reportó pruebas locales verdes; GitHub Actions finalizó con jobs cancelados (no equivale a aprobado). **DT04–DT09 no autorizados aún.**  
 
 **DT02A IMPLEMENTADO Y REVISADO (2026-10-19):** [Foundation ACCESS_CONTROL](./M02_B01_DT02A_ACCESS_CONTROL_FOUNDATION.md), commit [`ae1e4b6`](https://github.com/ManuelRuiz27/invitacionespremium/commit/ae1e4b6c7450a845cf8d57361a86abf7a76691ff), [revisión de implementación](./M02_B01_DT02A_IMPLEMENTATION_REVIEW.md). DB/API/Managed Provider creados; activación **fail-closed hasta DT06**; no nuevos precios. CI `quality` verde. CI Flipbook browser QA rojo en el mismo paso desde commit anterior (causa aún no diagnosticada). **DT02B–DT09 no autorizados aún.**  
 
