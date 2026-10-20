@@ -210,7 +210,9 @@ Hallazgos centrales de MG-00:
 - `05-implementacion/M02_B01_DT01_SQL_COMPATIBILITY_GATE.md` — **REVISIÓN ESTÁTICA SQL COMPLETADA**: incompatibilidades concretas con activación Managed Organización, Contactos, CheckIn y PhysicalPass; ejecución de PostgreSQL pendiente.
 - `05-implementacion/M02_B01_DT02A_ACCESS_CONTROL_FOUNDATION.md` — **DT02A IMPLEMENTADO**: foundation `ACCESS_CONTROL`, modalidad Event, Provider Managed Organización, activación bloqueada hasta DT06 y AC01–AC12.
 - `05-implementacion/M02_B01_DT02A_IMPLEMENTATION_REVIEW.md` — **REVISIÓN DT02A**: commit `ae1e4b6`, evidencia GitHub CI quality verde, falla preexistente del paso Playwright Flipbook, next DT02B.
-- `05-implementacion/M02_B01_DT02B_IMPLEMENTATION_REVIEW.md` — **DT02B IMPLEMENTADO / CI PENDIENTE**: commit `65bcb9d`, registro manual/CSV NOMINAL sin teléfono, SQL contextual, Invitations internas PENDING; revisión GitHub y handoff DT03.
+- `05-implementacion/M02_B01_DT02B_IMPLEMENTATION_REVIEW.md` — **DT02B IMPLEMENTADO / CI CANCELADO**: commit `65bcb9d`, registro manual/CSV NOMINAL sin teléfono, SQL contextual, Invitations internas PENDING.
+- `05-implementacion/M02_B01_DT03_IMPLEMENTATION_REVIEW.md` — **DT03 IMPLEMENTADO / QUALITY VERDE**: commit `4bb6afa`, credencial nominal por Assistant, token, SVG, revocación, validación SQL y handoff DT04.
+- `04-tecnico/NOMINAL_ACCESS_CREDENTIALS_CONTRACT.md` — **Contrato implementado DT03** para credenciales nominales individuales, endpoints, tokens y revocación.
 - `01-producto/06C_MODELO_03_LICENCIA_AUTOSERVICIO.md` — M03 / Self-Service.
 - `01-producto/06D_MODELO_04_CLIENTE_GRAN_ESCALA_DEDICADO.md` — M04 / gran escala.
 - `01-producto/06E_MODELO_05_PARTNER_RESELLER.md` — M05 / Partner-Reseller.
