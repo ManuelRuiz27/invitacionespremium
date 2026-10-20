@@ -1,12 +1,12 @@
 # M02-B01-DT02A — Foundation: ACCESS_CONTROL, Event.accessMode y Managed Organización
 
-**Estado:** ESPECIFICACIÓN TÉCNICA CERRADA PARA REVISIÓN / **NO AUTORIZA CÓDIGO**  
+**Estado:** **IMPLEMENTADO** en [`ae1e4b6`](https://github.com/ManuelRuiz27/invitacionespremium/commit/ae1e4b6c7450a845cf8d57361a86abf7a76691ff); QA de foundation revisada en [DT02A Implementation Review](./M02_B01_DT02A_IMPLEMENTATION_REVIEW.md). CI `quality` aprobado; CI Flipbook browser QA sigue rojo en el mismo paso que el commit padre. **No habilita activación ACCESS_CONTROL antes de DT06**.  
 **Fecha:** 2026-10-19  
 **Tipo:** BUILD propuesto (DB + API + tests; sin cambios UI).  
 **Dependencia aprobada a nivel de producto:** `ServiceCode.ACCESS_CONTROL`, `Event.accessMode=NOMINAL|ANONYMOUS`, mantener `PHYSICAL_QR` vigente.  
 **Prerequisitos:** [RF B01](../01-producto/06B1_M02_B01_ACCESOS_QR_NOMINAL_ANONIMO.md) · [DT00](./M02_B01_DT00_RUNTIME_AUDIT.md) · [DT01 ADR](./M02_B01_DT01_ACCESS_ARCHITECTURE_ADR.md) · [SQL gate](./M02_B01_DT01_SQL_COMPATIBILITY_GATE.md).
 
-> Este archivo es el **contrato del futuro ticket para Codex**. No se autoriza su ejecución por haber sido redactado. `AGENTS.md` exige ticket y aprobación explícitos para ampliar M02; el objetivo de release vigente sigue siendo M01 Managed.
+> **Registro histórico del ticket:** este documento fijó el alcance que se autorizó e implementó mediante el commit anterior. Su prompt original queda como especificación/huella, **no como orden para volver a ejecutar DT02A**. La release vigente sigue siendo M01 Managed; DT02B–DT09 no han sido autorizados.
 
 ## 1. Objetivo exacto
 
