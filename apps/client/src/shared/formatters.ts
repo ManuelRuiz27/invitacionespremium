@@ -12,7 +12,8 @@ export const serviceLabels: Record<AvailableService['code'], string> = {
   FLYER: 'Flyer',
   FLIPBOOK: 'Flipbook',
   PHYSICAL_QR: 'Pase QR físico',
-  DEMO: 'Demo'
+  DEMO: 'Demo',
+  ACCESS_CONTROL: 'Control de acceso'
 };
 
 export function priceRuleForCapacity(service: AvailableService | undefined, capacity: number | null | undefined) {

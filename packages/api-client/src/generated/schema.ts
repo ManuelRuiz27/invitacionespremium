@@ -2692,12 +2692,27 @@ export type components = {
             /** @enum {string} */
             fileType: "FLYER_INITIAL_IMAGE" | "FLYER_QR_IMAGE" | "FLIPBOOK_PAGE_IMAGE";
         };
+        AdminManagedAccessControlEventIntakeRequestDto: {
+            accessMode: components["schemas"]["EventAccessMode"];
+            /** Format: uuid */
+            assignedPlannerUserId: string;
+            capacity: number;
+            name?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            serviceCode: "ACCESS_CONTROL";
+        };
         AdminManagedEventIntakeRequestDto: {
             /** Format: uuid */
             assignedPlannerUserId: string;
             capacity: number;
             name?: string | null;
-            /** @enum {string} */
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
             serviceCode: "FLYER" | "FLIPBOOK" | "PHYSICAL_QR";
         };
         AdminReportListItemDto: {
@@ -2897,7 +2912,7 @@ export type components = {
         };
         AvailableServiceResponseDto: {
             /** @enum {string} */
-            code: "FLIPBOOK" | "FLYER" | "PHYSICAL_QR" | "DEMO";
+            code: "FLIPBOOK" | "FLYER" | "PHYSICAL_QR" | "DEMO" | "ACCESS_CONTROL";
             /** Format: uuid */
             id: string;
             priceRules: components["schemas"]["AvailableServicePriceRuleResponseDto"][];
@@ -2966,6 +2981,36 @@ export type components = {
             type: "PLANNER" | "ORGANIZATION";
             /** Format: date-time */
             updatedAt: string;
+        };
+        ClientUpdateEventRequestDto: {
+            capacity?: number | null;
+            /** @default false */
+            confirmationEnabled: boolean;
+            /** Format: date-time */
+            eventDateTime?: string | null;
+            /** Format: date-time */
+            eventEndDateTime?: string | null;
+            /** @default false */
+            floorplanEnabled: boolean;
+            /**
+             * Format: uri
+             * @description Safe absolute HTTPS destination. Percent escapes must contain valid UTF-8 through at most four decoding rounds; %20 is allowed only in path segments and query values.
+             */
+            giftRegistryUrl?: string | null;
+            /**
+             * Format: uri
+             * @description Safe absolute HTTPS destination. Percent escapes must contain valid UTF-8 through at most four decoding rounds; %20 is allowed only in path segments and query values.
+             */
+            locationUrl?: string | null;
+            name?: string | null;
+            /** @description Explicit consent to soft-reset an incompatible active invitation design when switching between Flyer and Flipbook before activation. */
+            resetInvitationDesign?: boolean;
+            /** Format: uuid */
+            serviceId?: string | null;
+            /** @enum {string|null} */
+            socialType?: "WEDDING" | "QUINCEANERA" | "CORPORATE" | "BIRTHDAY" | "OTHER" | null;
+            /** @example America/Mexico_City */
+            timeZone?: string | null;
         };
         ClientUserResponseDto: {
             /** Format: uuid */
@@ -3227,7 +3272,7 @@ export type components = {
         };
         CreateServiceRequestDto: {
             /** @enum {string} */
-            code: "FLIPBOOK" | "FLYER" | "PHYSICAL_QR" | "DEMO";
+            code: "FLIPBOOK" | "FLYER" | "PHYSICAL_QR" | "DEMO" | "ACCESS_CONTROL";
             /** @default true */
             isActive: boolean;
         };
@@ -3258,6 +3303,8 @@ export type components = {
             /** @enum {string|null} */
             designType: "FLYER" | "FLIPBOOK" | null;
         };
+        /** @enum {string} */
+        EventAccessMode: "NOMINAL" | "ANONYMOUS";
         EventActivationResponseDto: {
             balance: components["schemas"]["FinanceBalanceResponseDto"];
             baseCostCredits: number;
@@ -3302,7 +3349,7 @@ export type components = {
             /** @enum {string} */
             quoteSource: "LOCKED" | "CURRENT";
             /** @enum {string} */
-            serviceCode: "FLIPBOOK" | "FLYER" | "PHYSICAL_QR" | "DEMO";
+            serviceCode: "FLIPBOOK" | "FLYER" | "PHYSICAL_QR" | "DEMO" | "ACCESS_CONTROL";
             /** Format: uuid */
             serviceId: string;
             /** Format: uuid */
@@ -3334,6 +3381,7 @@ export type components = {
             venueTier: "ONE_TO_TWO" | "THREE_TO_FIVE" | "SIX_TO_TEN" | "ELEVEN_PLUS" | null;
         };
         EventResponseDto: {
+            accessMode?: components["schemas"]["EventAccessMode"] | null;
             /** Format: date-time */
             activatedAt: string | null;
             /** Format: uuid */
@@ -3395,7 +3443,7 @@ export type components = {
             promotionDiscountCredits: number | null;
             purchasedCreditsUsed: number | null;
             /** @enum {string|null} */
-            serviceCode: "FLIPBOOK" | "FLYER" | "PHYSICAL_QR" | "DEMO" | null;
+            serviceCode: "FLIPBOOK" | "FLYER" | "PHYSICAL_QR" | "DEMO" | "ACCESS_CONTROL" | null;
             /** Format: uuid */
             serviceId: string | null;
             /** @enum {string|null} */
@@ -3919,7 +3967,7 @@ export type components = {
             /** @enum {number} */
             pricingVersion: 1 | 2;
             /** @enum {string} */
-            serviceCode: "FLIPBOOK" | "FLYER" | "PHYSICAL_QR" | "DEMO";
+            serviceCode: "FLIPBOOK" | "FLYER" | "PHYSICAL_QR" | "DEMO" | "ACCESS_CONTROL";
             /** Format: uuid */
             serviceId: string;
             /** Format: date-time */
@@ -4014,7 +4062,7 @@ export type components = {
             credits: number;
             displayName: string;
             /** @enum {string} */
-            serviceCode: "FLIPBOOK" | "FLYER" | "PHYSICAL_QR" | "DEMO";
+            serviceCode: "FLIPBOOK" | "FLYER" | "PHYSICAL_QR" | "DEMO" | "ACCESS_CONTROL";
             /** Format: date-time */
             validFrom: string;
             /** Format: date-time */
@@ -4376,7 +4424,7 @@ export type components = {
         };
         ServiceResponseDto: {
             /** @enum {string} */
-            code: "FLIPBOOK" | "FLYER" | "PHYSICAL_QR" | "DEMO";
+            code: "FLIPBOOK" | "FLYER" | "PHYSICAL_QR" | "DEMO" | "ACCESS_CONTROL";
             /** Format: date-time */
             createdAt: string;
             /** Format: uuid */
@@ -4440,7 +4488,7 @@ export type components = {
             refundCredits: number;
             refundMxnCents: number;
             /** @enum {string|null} */
-            serviceCode: "FLIPBOOK" | "FLYER" | "PHYSICAL_QR" | "DEMO" | null;
+            serviceCode: "FLIPBOOK" | "FLYER" | "PHYSICAL_QR" | "DEMO" | "ACCESS_CONTROL" | null;
             technologyCostMxnCents: number;
             /** @enum {string|null} */
             venueTier: "ONE_TO_TWO" | "THREE_TO_FIVE" | "SIX_TO_TEN" | "ELEVEN_PLUS" | null;
@@ -4475,6 +4523,8 @@ export type components = {
             whatsappPhone?: string;
         };
         UpdateEventRequestDto: {
+            /** @description Provider only. Must match the resulting service; immutable after access material or activation. */
+            accessMode?: components["schemas"]["EventAccessMode"] | null;
             capacity?: number | null;
             /** @default false */
             confirmationEnabled: boolean;
@@ -5779,7 +5829,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AdminManagedEventIntakeRequestDto"];
+                "application/json": components["schemas"]["AdminManagedEventIntakeRequestDto"] | components["schemas"]["AdminManagedAccessControlEventIntakeRequestDto"];
             };
         };
         responses: {
@@ -6713,7 +6763,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UpdateEventRequestDto"];
+                "application/json": components["schemas"]["ClientUpdateEventRequestDto"];
             };
         };
         responses: {

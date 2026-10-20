@@ -1,5 +1,35 @@
 # Contrato de Eventos
 
+## Foundation M02-B01-DT02A (2026-10-19)
+
+[Alcance DT02A](../05-implementacion/M02_B01_DT02A_ACCESS_CONTROL_FOUNDATION.md).
+La extensión implementada permite únicamente al Provider real crear `ACCESS_CONTROL` para
+`ORGANIZATION + MANAGED` mediante `POST /admin/clients/:clientId/events/managed`.
+Exige un `ORGANIZATION_PLANNER` activo del mismo tenant en `assignedPlannerUserId` y conserva
+`createdByUserId` como Platform Admin. Las variantes M01 existentes mantienen sus servicios y reglas.
+La capacidad del intake continúa en `1..150`.
+
+`Event.accessMode` usa `EventAccessMode.NOMINAL | ANONYMOUS`, obligatorio exclusivamente para
+`ACCESS_CONTROL`; todos los eventos legacy conservan `null`, incluido `PHYSICAL_QR`. La respuesta
+proyecta ese valor, sin inferirlo de perfil operativo, canal comercial o tarifa. El intake es una unión
+discriminada por `serviceCode`; el PATCH Provider existente acepta `accessMode`, mientras el DTO de
+PATCH Client lo rechaza. El estado inicial sigue siendo `DRAFT` y los datos generales completos
+producen `CONFIGURED`; DT02A no calcula readiness de acceso.
+
+El Provider puede cambiar modo/servicio durante preparación únicamente si la configuración final
+es coherente y no existe material ni activación anterior. Contact, Invitation, Assistant, PhysicalPass
+y PhysicalPassGenerationOperation cuentan como historial incluso tras borrado lógico. La validación
+ocurre bajo lock del Evento y se refuerza en PostgreSQL; los inserts de material toman el mismo lock.
+No se borra evidencia mediante reset de diseño para habilitar una conversión. Las mutaciones
+concurrentes se reintentan ante conflictos de serialización y la auditoría refleja el valor bloqueado.
+
+ACCESS_CONTROL exige asignación no nula; la reasignación Provider conserva auditoría y ownership por
+`assignedPlannerUserId`, sin conceder acceso al creador por esa provenance. Organización legacy sin
+asignación conserva su comportamiento. `ClientOperatingProfilePolicy` permanece sin cambios.
+SQL también rechaza cambiar el código de identidad de Service y cambiar tipo/perfil de un Client
+con eventos ACCESS_CONTROL. No habilita intake comercial, Self-Service, nuevos QR, CSV ni Scanner.
+La activación permanece cerrada con `409 EVENT_ACCESS_CONTROL_READINESS_NOT_IMPLEMENTED` hasta DT06.
+
 ## Alcance
 
 `EventsModule`, dentro de `apps/api`, implementa el modelo, CRUD, activación transaccional y ciclo de vida

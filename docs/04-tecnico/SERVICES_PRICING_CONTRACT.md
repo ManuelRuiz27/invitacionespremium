@@ -2,7 +2,7 @@
 
 ## Alcance
 
-`ServicesPricingModule`, dentro de `apps/api`, es la fuente de verdad del catálogo, el Price Book histórico y la elegibilidad de promociones. Los únicos `ServiceCode` son `FLIPBOOK`, `FLYER`, `PHYSICAL_QR` y `DEMO`.
+`ServicesPricingModule`, dentro de `apps/api`, es la fuente de verdad del catálogo, el Price Book histórico y la elegibilidad de promociones. Los únicos `ServiceCode` son `FLIPBOOK`, `FLYER`, `PHYSICAL_QR`, `DEMO` y `ACCESS_CONTROL`.
 
 `ClientType` (`PLANNER`/`ORGANIZATION`) sigue siendo identidad de cuenta y autorización. No selecciona tarifa. `Client.commercialChannel` es nullable y solo Platform Admin puede modificarlo:
 
@@ -59,3 +59,16 @@ La migración `20260824180000_add_commercial_pricing_v2` conserva V1, cierra sus
 ## Promociones
 
 `Promotion` continúa separado del Price Book y puede filtrar por scope, Client, `ClientType`, servicio y vigencia. En activación la elegibilidad se evalúa después del precio base y dentro de la transacción. El modelo actual no define porcentaje ni créditos de beneficio, por lo que `promotionDiscountCredits` permanece en cero hasta un contrato posterior.
+
+## Catálogo ACCESS_CONTROL — DT02A (2026-10-19)
+
+[Foundation implementada](../05-implementacion/M02_B01_DT02A_ACCESS_CONTROL_FOUNDATION.md).
+El upsert idempotente del seed registra el quinto servicio activo, sin agregar precios: las 16 reglas
+V2 permanecen intactas y PHYSICAL_QR conserva su identidad. ACCESS_CONTROL se selecciona únicamente
+mediante intake Managed Provider para Organización, con modo NOMINAL o ANONYMOUS.
+
+`GET /services` y `GET /public/pricing` excluyen ACCESS_CONTROL. La resolución de precio responde
+`CURRENT_PRICE_NOT_FOUND` y el alta de precios por Admin rechaza el servicio con
+`409 SERVICE_NOT_COMMERCIALLY_AVAILABLE`. Su presencia en el enum, catálogo administrativo y SDK no
+habilita cotización VENUE, intake comercial, Self-Service ni costo cero. No modifica CommercialChannel,
+promociones, créditos ni reglas de Finance. La activación de acceso continúa cerrada hasta DT06.

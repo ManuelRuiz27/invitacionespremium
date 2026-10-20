@@ -6,7 +6,7 @@ export type EventStatus = Event['status'];
 export type EventSocialType = NonNullable<Event['socialType']>;
 export type EventServiceCode = NonNullable<Event['serviceCode']>;
 export type CreateEventInput = components['schemas']['CreateEventRequestDto'];
-export type UpdateEventInput = components['schemas']['UpdateEventRequestDto'];
+export type UpdateEventInput = components['schemas']['ClientUpdateEventRequestDto'];
 export type EventActivation = components['schemas']['EventActivationResponseDto'];
 
 export interface EventsClient {

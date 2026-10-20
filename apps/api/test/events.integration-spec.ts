@@ -1,7 +1,10 @@
+import { readFile, readdir } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { Client as PgClient } from 'pg';
 import { randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../src/bootstrap/create-app';
 import { hashPassword } from '../src/auth/password-hasher';
 import { PrismaService } from '../src/common/database/prisma.service';
@@ -15,6 +18,7 @@ import {
   UserRole
 } from '../src/generated/prisma/client';
 import { createOpenApiDocument } from '../src/openapi/openapi';
+import { AuditService } from '../src/audit/audit.service';
 import { EventsService } from '../src/events/events.service';
 
 const trustedOrigin = 'http://localhost:5173';
@@ -414,6 +418,336 @@ describe('Events CRUD', () => {
     await createEvent(plannerCookie, { name: 'Self-service second draft' }).expect(201);
   });
 
+  it('applies additive migrations over representative legacy data without backfill or repricing', async () => {
+    const base = new URL(process.env.DATABASE_URL!);
+    if (!['localhost', '127.0.0.1'].includes(base.hostname))
+      throw new Error('Migration fixture requires local PostgreSQL.');
+    const name = `dt02a_legacy_${randomUUID().replaceAll('-', '')}`;
+    base.pathname = '/postgres';
+    const maintenance = new PgClient({ connectionString: base.toString() });
+    await maintenance.connect();
+    let legacy: PgClient | undefined;
+    try {
+      await maintenance.query(`CREATE DATABASE "${name}"`);
+      base.pathname = `/${name}`;
+      legacy = new PgClient({ connectionString: base.toString() });
+      await legacy.connect();
+      const directory = resolve(process.cwd(), 'prisma/migrations');
+      const migrations = (await readdir(directory)).filter((name) => /^\d/.test(name)).sort();
+      const newMigrations = migrations.filter((name) => name.startsWith('2026101912'));
+      for (const migration of migrations.filter((name) => !newMigrations.includes(name))) {
+        let sql = await readFile(resolve(directory, migration, 'migration.sql'), 'utf8');
+        // Prisma commits enum extensions before statements that use their values.
+        for (const statement of sql.match(/ALTER TYPE [^;]+ ADD VALUE[^;]*;/g) ?? []) {
+          await legacy.query(statement);
+          sql = sql.replace(statement, '');
+        }
+        await legacy.query(sql);
+      }
+      const clientId = randomUUID(),
+        adminId = randomUUID(),
+        plannerId = randomUUID();
+      await legacy.query(
+        `INSERT INTO "client" (id, type, name, operating_profile, updated_at) VALUES ($1, 'PLANNER', 'Legacy Managed', 'MANAGED', NOW())`,
+        [clientId]
+      );
+      await legacy.query(
+        `INSERT INTO app_user (id, email, password_hash, role, client_id, updated_at) VALUES ($1, 'provider@legacy.test', $4, 'PLATFORM_ADMIN', NULL, NOW()), ($2, 'planner@legacy.test', $4, 'INDEPENDENT_PLANNER', $3, NOW())`,
+        [adminId, plannerId, clientId, await hashPassword(password)]
+      );
+      await legacy.query(
+        `INSERT INTO service (id, code, updated_at) VALUES ($1, 'DEMO', NOW()) ON CONFLICT (code) DO NOTHING`,
+        [randomUUID()]
+      );
+      const services = await legacy.query<{ id: string; code: string }>('SELECT id, code FROM service ORDER BY code');
+      expect(services.rows).toHaveLength(4);
+      for (const service of services.rows) {
+        await legacy.query(
+          `INSERT INTO event (id, client_id, created_by_user_id, assigned_planner_user_id, service_id, updated_at) VALUES ($1, $2, $3, $4, $5, NOW())`,
+          [randomUUID(), clientId, adminId, plannerId, service.id]
+        );
+      }
+      const before = (await legacy.query('SELECT to_jsonb(event) AS data FROM event ORDER BY id')).rows;
+      const prices = (await legacy.query('SELECT to_jsonb(service_price) AS data FROM service_price ORDER BY id')).rows;
+      for (const migration of newMigrations) {
+        await legacy.query(await readFile(resolve(directory, migration, 'migration.sql'), 'utf8'));
+      }
+      expect(
+        (await legacy.query(`SELECT to_jsonb(event) - 'access_mode' AS data FROM event ORDER BY id`)).rows
+      ).toEqual(before);
+      expect((await legacy.query('SELECT access_mode FROM event')).rows.every((row) => row.access_mode === null)).toBe(
+        true
+      );
+      expect((await legacy.query('SELECT id, code FROM service ORDER BY code')).rows).toEqual(services.rows);
+      expect(
+        (await legacy.query('SELECT to_jsonb(service_price) AS data FROM service_price ORDER BY id')).rows
+      ).toEqual(prices);
+      expect(prices.filter((row) => row.data.pricing_version === 2)).toHaveLength(16);
+    } finally {
+      await legacy?.end();
+      await maintenance.query(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`);
+      await maintenance.end();
+    }
+  }, 60_000);
+
+  it.each(['NOMINAL', 'ANONYMOUS'] as const)(
+    'creates and prepares Provider Organization access mode %s without pricing or READY',
+    async (accessMode) => {
+      const f = await accessFixture();
+      const created = await managedIntake(f, { accessMode }).expect(201);
+      expect(created.body).toMatchObject({
+        clientId: f.clientId,
+        createdByUserId: f.platform.userId,
+        assignedPlannerUserId: f.userId,
+        serviceId: f.service.id,
+        serviceCode: 'ACCESS_CONTROL',
+        accessMode,
+        status: 'DRAFT',
+        activatedAt: null
+      });
+      const configured = await patchAdminEvent(f.cookie, f.clientId, created.body.id, {
+        socialType: 'OTHER',
+        eventDateTime: '2035-10-18T23:00:00.000Z',
+        timeZone: 'America/Mexico_City'
+      }).expect(200);
+      expect(configured.body.status).toBe('CONFIGURED');
+      const changed = await patchAdminEvent(f.cookie, f.clientId, created.body.id, {
+        accessMode: accessMode === 'NOMINAL' ? 'ANONYMOUS' : 'NOMINAL'
+      }).expect(200);
+      expect(changed.body.accessMode).not.toBe(accessMode);
+      expect(await prisma.servicePrice.count()).toBe(0);
+      expect(await prisma.receipt.count()).toBe(0);
+      expect(
+        await prisma.auditLog.findFirst({ where: { eventId: created.body.id, action: 'EVENT_CREATE' } })
+      ).toMatchObject({ actorId: f.platform.userId, afterData: { accessMode } });
+      await patchAdminEvent(f.cookie, randomUUID(), created.body.id, { accessMode }).expect(404);
+    }
+  );
+
+  it('restricts Provider access control intake to Managed Organizations, valid actors, mode and assignment', async () => {
+    const f = await accessFixture();
+    for (const accessMode of [null, 'INVALID', ['NOMINAL', 'ANONYMOUS']])
+      await managedIntake(f, { accessMode }).expect(400);
+    await managedIntake(f, { accessMode: undefined }).expect(400);
+    await managedIntake(f, { assignedPlannerUserId: null }).expect(400);
+    const wrongRole = await createUser(f.clientId, UserRole.ORGANIZATION_ADMIN);
+    const foreign = await createClientUser(ClientType.ORGANIZATION, UserRole.ORGANIZATION_PLANNER);
+    const deleted = await createUser(f.clientId, UserRole.ORGANIZATION_PLANNER);
+    await prisma.user.update({ where: { id: deleted.userId }, data: { deletedAt: new Date() } });
+    for (const assignedPlannerUserId of [wrongRole.userId, foreign.userId, deleted.userId]) {
+      await managedIntake(f, { assignedPlannerUserId }).expect(409);
+    }
+    const clientCookie = await login(f.email);
+    await managedIntake({ ...f, cookie: clientCookie }).expect(403);
+    await createEvent(clientCookie, { serviceId: f.service.id }).expect(403);
+    await prisma.client.update({
+      where: { id: f.clientId },
+      data: { status: 'SUSPENDED', suspendedAt: new Date(), suspensionReason: 'Test suspension' }
+    });
+    await managedIntake(f).expect(409);
+    await prisma.client.update({
+      where: { id: f.clientId },
+      data: { status: 'ACTIVE', suspendedAt: null, suspensionReason: null, operatingProfile: 'SELF_SERVICE' }
+    });
+    await managedIntake(f).expect(409);
+    await createEvent(clientCookie, { serviceId: f.service.id }).expect(409);
+    const planner = await createClientUser(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
+    await prisma.client.update({ where: { id: planner.clientId }, data: { operatingProfile: 'MANAGED' } });
+    await managedIntake({ ...f, clientId: planner.clientId, userId: planner.userId }).expect(409);
+    await managedIntake(f, { serviceCode: 'FLYER', accessMode: 'NOMINAL' }).expect(400);
+    expect(await prisma.event.count()).toBe(0);
+  });
+
+  it('preserves assignment ownership and rejects Client mode edits and null reassignment', async () => {
+    const f = await accessFixture();
+    const created = await managedIntake(f).expect(201);
+    const next = await createUser(f.clientId, UserRole.ORGANIZATION_PLANNER);
+    const beforeCookie = await login(f.email);
+    const nextCookie = await login(next.email);
+    await request(app.getHttpServer()).get(`/api/v1/events/${created.body.id}`).set('Cookie', beforeCookie).expect(200);
+    await request(app.getHttpServer()).get(`/api/v1/events/${created.body.id}`).set('Cookie', nextCookie).expect(404);
+    const assign = (assignedPlannerUserId: string | null) =>
+      request(app.getHttpServer())
+        .patch(`/api/v1/admin/clients/${f.clientId}/events/${created.body.id}/assignment`)
+        .set('Origin', trustedOrigin)
+        .set('Cookie', f.cookie)
+        .send({ assignedPlannerUserId });
+    await assign(null).expect(409);
+    await assign(next.userId).expect(200);
+    await request(app.getHttpServer()).get(`/api/v1/events/${created.body.id}`).set('Cookie', beforeCookie).expect(404);
+    await request(app.getHttpServer()).get(`/api/v1/events/${created.body.id}`).set('Cookie', nextCookie).expect(200);
+    await request(app.getHttpServer())
+      .patch(`/api/v1/events/${created.body.id}`)
+      .set('Origin', trustedOrigin)
+      .set('Cookie', nextCookie)
+      .send({ accessMode: 'ANONYMOUS' })
+      .expect(400);
+    expect(
+      await prisma.auditLog.count({ where: { eventId: created.body.id, action: 'EVENT_PLANNER_ASSIGNMENT_UPDATE' } })
+    ).toBe(1);
+  });
+
+  it('enforces SQL INSERT/UPDATE service-mode, actor, profile, tenant and assignment invariants', async () => {
+    const f = await accessFixture();
+    const flyer = await createService(ServiceCode.FLYER);
+    const insert = (
+      serviceId: string | null,
+      accessMode: string | null,
+      creator = f.platform.userId,
+      planner: string | null = f.userId
+    ) => prisma.$executeRaw`
+      INSERT INTO "event" ("id", "client_id", "created_by_user_id", "assigned_planner_user_id", "service_id", "access_mode", "updated_at")
+      VALUES (${randomUUID()}::uuid, ${f.clientId}::uuid, ${creator}::uuid, ${planner}::uuid, ${serviceId}::uuid, ${accessMode}::event_access_mode, NOW())`;
+    for (const [serviceId, accessMode] of [
+      [f.service.id, null],
+      [flyer.id, 'NOMINAL'],
+      [null, 'ANONYMOUS'],
+      [f.service.id, 'INVALID']
+    ] as const) {
+      await expect(insert(serviceId, accessMode)).rejects.toThrow();
+    }
+    await expect(insert(f.service.id, 'NOMINAL', f.userId)).rejects.toThrow();
+    await expect(insert(f.service.id, 'NOMINAL', f.platform.userId, null)).rejects.toThrow();
+    await prisma.client.update({ where: { id: f.clientId }, data: { operatingProfile: 'SELF_SERVICE' } });
+    await expect(insert(f.service.id, 'NOMINAL')).rejects.toThrow();
+    await prisma.client.update({ where: { id: f.clientId }, data: { operatingProfile: 'MANAGED' } });
+    const created = await managedIntake(f).expect(201);
+    const id = created.body.id as string;
+    await expect(
+      prisma.$executeRaw`UPDATE "event" SET "access_mode" = NULL WHERE "id" = ${id}::uuid`
+    ).rejects.toThrow();
+    await expect(
+      prisma.$executeRaw`UPDATE "event" SET "service_id" = ${flyer.id}::uuid WHERE "id" = ${id}::uuid`
+    ).rejects.toThrow();
+    await expect(
+      prisma.$executeRaw`UPDATE "event" SET "assigned_planner_user_id" = NULL WHERE "id" = ${id}::uuid`
+    ).rejects.toThrow();
+    await expect(
+      prisma.$executeRaw`UPDATE "service" SET "code" = 'DEMO' WHERE "id" = ${f.service.id}::uuid`
+    ).rejects.toThrow();
+    await expect(
+      prisma.client.update({ where: { id: f.clientId }, data: { operatingProfile: 'SELF_SERVICE' } })
+    ).rejects.toThrow();
+    await patchAdminEvent(f.cookie, f.clientId, id, { serviceId: flyer.id }).expect(409);
+    await patchAdminEvent(f.cookie, f.clientId, id, { accessMode: null }).expect(409);
+    // Complete service/mode changes are allowed before any access material.
+    await patchAdminEvent(f.cookie, f.clientId, id, { serviceId: flyer.id, accessMode: null }).expect(200);
+    expect((await prisma.event.findUniqueOrThrow({ where: { id } })).accessMode).toBeNull();
+  });
+
+  it('freezes access mode/service after soft-deleted Contact, Invitation and Assistant history', async () => {
+    const f = await accessFixture();
+    const created = await managedIntake(f).expect(201);
+    const id = created.body.id as string;
+    const plannerCookie = await login(f.email);
+    const contact = await request(app.getHttpServer())
+      .post(`/api/v1/events/${id}/contacts`)
+      .set('Origin', trustedOrigin)
+      .set('Cookie', plannerCookie)
+      .send({ name: 'Guest', whatsappPhone: '+524441234567' })
+      .expect(201);
+    await request(app.getHttpServer())
+      .delete(`/api/v1/events/${id}/contacts/${contact.body.id}`)
+      .set('Origin', trustedOrigin)
+      .set('Cookie', plannerCookie)
+      .expect(204);
+    expect(await prisma.invitation.count({ where: { eventId: id } })).toBe(1);
+    expect(await prisma.assistant.count({ where: { eventId: id } })).toBe(1);
+    await patchAdminEvent(f.cookie, f.clientId, id, { accessMode: 'ANONYMOUS' }).expect(409);
+    const flyer = await createService(ServiceCode.FLYER);
+    await patchAdminEvent(f.cookie, f.clientId, id, { serviceId: flyer.id, accessMode: null }).expect(409);
+    await expect(
+      prisma.$executeRaw`UPDATE "event" SET "access_mode" = 'ANONYMOUS' WHERE "id" = ${id}::uuid`
+    ).rejects.toThrow();
+    await expect(
+      prisma.$executeRaw`UPDATE "event" SET "service_id" = ${flyer.id}::uuid, "access_mode" = NULL WHERE "id" = ${id}::uuid`
+    ).rejects.toThrow();
+    expect((await prisma.event.findUniqueOrThrow({ where: { id } })).accessMode).toBe('NOMINAL');
+  });
+
+  it('preserves the material freeze for generation history and deleted physical passes', async () => {
+    const f = await accessFixture();
+    const created = await managedIntake(f).expect(201);
+    await prisma.physicalPassGenerationOperation.create({
+      data: {
+        eventId: created.body.id,
+        idempotencyKey: 'generation-history-fixture',
+        requestSignature: 'a'.repeat(64),
+        resultSnapshot: {}
+      }
+    });
+    await patchAdminEvent(f.cookie, f.clientId, created.body.id, { accessMode: 'ANONYMOUS' }).expect(409);
+    await expect(
+      prisma.$executeRaw`UPDATE "event" SET "access_mode" = 'ANONYMOUS' WHERE "id" = ${created.body.id}::uuid`
+    ).rejects.toThrow();
+    const physical = await createService(ServiceCode.PHYSICAL_QR);
+    const legacy = await prisma.event.create({
+      data: {
+        clientId: f.clientId,
+        createdByUserId: f.platform.userId,
+        assignedPlannerUserId: f.userId,
+        serviceId: physical.id,
+        capacity: 100
+      }
+    });
+    await prisma.physicalPass.create({
+      data: {
+        eventId: legacy.id,
+        createdByUserId: f.userId,
+        passNumber: 1,
+        qrTokenNonce: randomUUID().replaceAll('-', '').repeat(2),
+        deletedAt: new Date()
+      }
+    });
+    await patchAdminEvent(f.cookie, f.clientId, legacy.id, { serviceId: f.service.id, accessMode: 'ANONYMOUS' }).expect(
+      409
+    );
+    await expect(
+      prisma.$executeRaw`UPDATE "event" SET "service_id" = ${f.service.id}::uuid, "access_mode" = 'ANONYMOUS' WHERE "id" = ${legacy.id}::uuid`
+    ).rejects.toThrow();
+    expect((await prisma.event.findUniqueOrThrow({ where: { id: legacy.id } })).accessMode).toBeNull();
+  });
+
+  it('rolls back failed intake audits and serializes competing complete access configurations', async () => {
+    const f = await accessFixture();
+    const audit = vi.spyOn(app.get(AuditService), 'record').mockRejectedValueOnce(new Error('Injected audit failure'));
+    await managedIntake(f).expect(500);
+    audit.mockRestore();
+    expect(await prisma.event.count()).toBe(0);
+    const created = await managedIntake(f).expect(201);
+    const flyer = await createService(ServiceCode.FLYER);
+    const results = await Promise.all([
+      patchAdminEvent(f.cookie, f.clientId, created.body.id, { accessMode: 'ANONYMOUS' }),
+      patchAdminEvent(f.cookie, f.clientId, created.body.id, { serviceId: flyer.id, accessMode: null })
+    ]);
+    expect(results.map((r) => r.status).every((status) => status === 200 || status === 409)).toBe(true);
+    const final = await prisma.event.findUniqueOrThrow({ where: { id: created.body.id } });
+    expect(final.serviceId === f.service.id ? final.accessMode !== null : final.accessMode === null).toBe(true);
+  });
+
+  async function accessFixture() {
+    const client = await createClientUser(ClientType.ORGANIZATION, UserRole.ORGANIZATION_PLANNER);
+    await prisma.client.update({ where: { id: client.clientId }, data: { operatingProfile: 'MANAGED' } });
+    const platform = await createUser(null, UserRole.PLATFORM_ADMIN);
+    const service = await createService(ServiceCode.ACCESS_CONTROL);
+    return { ...client, platform, service, cookie: await login(platform.email) };
+  }
+
+  function managedIntake(f: Awaited<ReturnType<typeof accessFixture>>, overrides: Record<string, unknown> = {}) {
+    return request(app.getHttpServer())
+      .post(`/api/v1/admin/clients/${f.clientId}/events/managed`)
+      .set('Origin', trustedOrigin)
+      .set('Cookie', f.cookie)
+      .send({
+        name: 'Access control',
+        serviceCode: 'ACCESS_CONTROL',
+        accessMode: 'NOMINAL',
+        capacity: 120,
+        assignedPlannerUserId: f.userId,
+        ...overrides
+      });
+  }
+
   it('publishes the CODEX-040 endpoints in OpenAPI', () => {
     const document = createOpenApiDocument(app);
     const paths = document.paths;
@@ -429,10 +763,22 @@ describe('Events CRUD', () => {
     }
     expect(document.components?.schemas?.EventResponseDto).toMatchObject({
       properties: {
+        accessMode: { nullable: true, allOf: [{ $ref: '#/components/schemas/EventAccessMode' }] },
         serviceCode: {
           nullable: true,
-          enum: ['FLIPBOOK', 'FLYER', 'PHYSICAL_QR', 'DEMO']
+          enum: ['FLIPBOOK', 'FLYER', 'PHYSICAL_QR', 'DEMO', 'ACCESS_CONTROL']
         }
+      }
+    });
+    expect(document.components?.schemas?.EventAccessMode).toMatchObject({ enum: ['NOMINAL', 'ANONYMOUS'] });
+    expect(document.components?.schemas?.ClientUpdateEventRequestDto).not.toHaveProperty('properties.accessMode');
+    expect(document.components?.schemas?.AdminManagedAccessControlEventIntakeRequestDto).toMatchObject({
+      required: ['serviceCode', 'capacity', 'assignedPlannerUserId', 'accessMode'],
+      properties: { serviceCode: { enum: ['ACCESS_CONTROL'] } }
+    });
+    expect(document.paths['/api/v1/admin/clients/{clientId}/events/managed']?.post?.requestBody).toMatchObject({
+      content: {
+        'application/json': { schema: { oneOf: expect.any(Array), discriminator: { propertyName: 'serviceCode' } } }
       }
     });
   });

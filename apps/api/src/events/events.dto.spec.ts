@@ -5,11 +5,41 @@ import {
   parseAdminEventAssignment,
   parseAdminEventIntake,
   parseAdminEventIntakeQuote,
+  parseAdminManagedEventIntake,
+  parseAdminUpdateEventRequest,
   parseCreateEventRequest,
   parseUpdateEventRequest
 } from './events.dto';
 
 describe('Event DTO validation', () => {
+  it.each(['NOMINAL', 'ANONYMOUS'])('discriminates Managed access control mode %s', (accessMode) => {
+    const input = {
+      serviceCode: 'ACCESS_CONTROL',
+      accessMode,
+      capacity: 150,
+      assignedPlannerUserId: crypto.randomUUID()
+    };
+    expect(parseAdminManagedEventIntake(input)).toEqual(input);
+    expect(() => parseCreateEventRequest(input)).toThrow();
+    expect(() => parseUpdateEventRequest({ accessMode })).toThrow();
+    expect(parseAdminUpdateEventRequest({ accessMode })).toEqual({ accessMode });
+    expect(() => parseAdminEventIntakeQuote({ serviceCode: 'ACCESS_CONTROL', capacity: 10 })).toThrow();
+  });
+
+  it('rejects missing, mixed or legacy access modes and keeps intake capacity and assignment strict', () => {
+    const input = { serviceCode: 'ACCESS_CONTROL', capacity: 100, assignedPlannerUserId: crypto.randomUUID() };
+    for (const accessMode of [undefined, null, 'INVALID', ['NOMINAL', 'ANONYMOUS']]) {
+      expect(() => parseAdminManagedEventIntake({ ...input, accessMode })).toThrow();
+    }
+    for (const serviceCode of ['FLYER', 'FLIPBOOK', 'PHYSICAL_QR', 'DEMO']) {
+      expect(() => parseAdminManagedEventIntake({ ...input, serviceCode, accessMode: 'NOMINAL' })).toThrow();
+    }
+    expect(() => parseAdminManagedEventIntake({ ...input, accessMode: 'NOMINAL', capacity: 151 })).toThrow();
+    expect(() =>
+      parseAdminManagedEventIntake({ ...input, accessMode: 'NOMINAL', assignedPlannerUserId: null })
+    ).toThrow();
+    expect(parseAdminUpdateEventRequest({ accessMode: null })).toEqual({ accessMode: null });
+  });
   it.each([EventSocialType.OTHER, EventSocialType.CORPORATE, EventSocialType.WEDDING])(
     'accepts event type %s',
     (socialType) => {

@@ -30,7 +30,7 @@ import {
   CreateEventRequestDto,
   EventActivationResponseDto,
   EventResponseDto,
-  UpdateEventRequestDto,
+  ClientUpdateEventRequestDto,
   parseCreateEventRequest,
   parseEventId,
   parseUpdateEventRequest
@@ -72,7 +72,7 @@ export class EventsController {
   }
 
   @Patch(':eventId')
-  @ApiBody({ type: UpdateEventRequestDto })
+  @ApiBody({ type: ClientUpdateEventRequestDto })
   @ApiOkResponse({ type: EventResponseDto })
   update(
     @Param('eventId') eventId: string,

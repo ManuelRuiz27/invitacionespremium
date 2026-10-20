@@ -55,3 +55,66 @@ La decisión sobre `ACCESS_CONTROL` **no** autoriza nuevo Price Book, cobros, su
 - [ ] Ejecutar `pnpm lint`, `pnpm typecheck`, tests relevantes e integración/e2e/build al iniciar implementación, según AGENTS.
 
 **Condición de cierre:** este documento acredita revisión estática de migraciones, **NO ejecución exitosa de PostgreSQL**. Codex únicamente puede modificar código cuando Product/Technical Owner apruebe el ticket técnico delimitado correspondiente.
+
+## 5. Evidencia runtime limitada a DT02A — 2026-10-19
+
+La autorización explícita de BUILD DT02A permite ejecutar su Foundation. Esta evidencia complementa
+la revisión estática anterior; no cierra DT02B–DT09 ni certifica credenciales, Scanner B01 o readiness.
+
+- PostgreSQL local **16.14**, bases efímeras aisladas; sin modificar la base de trabajo del usuario.
+- `db:migrate:deploy`: **47 migraciones** aplicadas desde base limpia, incluidas
+  `20261019120000_add_access_control_service` y `20261019121000_add_access_control_foundation`.
+  El enum se confirma en la primera migración antes de utilizarlo en la segunda.
+- `events.integration-spec.ts` reconstruye el baseline previo en otra base temporal, conserva cuatro
+  Eventos legacy (Flyer/Flipbook/PHYSICAL_QR/Demo), sus servicios y todo el historial de precios
+  (ocho filas V1 y 16 V2), aplica las nuevas migraciones y compara filas. `access_mode` queda NULL;
+  no hay backfill ni repricing. Los `ALTER TYPE ... ADD VALUE` históricos se confirman separadamente
+  en el harness SQL, conforme a su despliegue por Prisma. La base auxiliar se elimina en `finally`.
+- SQL directo verifica INSERT/UPDATE incompatibles, actor, tenant/perfil, asignación obligatoria,
+  identidad de Service y cambio de perfil de Client. API y SQL rechazan cambios tras material,
+  incluyendo borrado lógico de Contact/Invitation/Assistant y PhysicalPass, y generaciones previas.
+- Las escrituras de material se serializan con la edición del Evento mediante el lock de la fila
+  padre. Los handlers de preparación reintentan conflictos serializables; no dejan servicio/modo
+  híbridos ni snapshots de auditoría anteriores al lock.
+- `event-activation.integration-spec.ts` verifica la forma futura Managed Organización dentro de una
+  transacción **revertida**, rechaza actor/servicio/snapshot financiero/asignación inválidos y conserva
+  checks de estado e inmutabilidad. La API devuelve el 409 temporal sin efectos en ambos modos,
+  incluso al forzar READY y al reintentar. No queda ningún Evento B01 activado por el fixture SQL.
+- Seed real ejecutado dos veces: cinco servicios con IDs estables, ninguna tarifa ACCESS_CONTROL y
+  las mismas 16 reglas V2. `GET /services`, pricing público, cotización y Self-Service no lo ofrecen.
+
+Se consultaron `pg_get_functiondef`, `pg_get_triggerdef` y `pg_get_constraintdef` sobre la base final:
+**9 funciones, 28 triggers** de Evento/material y **26 constraints** de Evento. La suite también
+inspecciona las definiciones efectivas durante el test de activación. Huellas SHA-256 de las funciones
+(devueltas por PostgreSQL, incluyendo formato de `pg_get_functiondef`):
+
+| Función efectiva | SHA-256 |
+|---|---|
+| `validate_event_access_configuration` | `ffbae9971e1afab57df496a3a0f48a5f53cf6fe450a10d86d272dc543f454920` |
+| `validate_event_activation_snapshot_references` | `ebabbbc831120bb78ac42d224f34faa80068dc1d0636f56776163bb865ac5a8a` |
+| `validate_check_in_insert` (legacy conservada) | `f73ce6a2f085a1983b719ab7d98252879928eac59fd665913633c8be206552a2` |
+| `validate_physical_pass` (legacy conservada) | `588285fd3cb9f90c69cc158b44a6a2de0ec90c0e4b8f8632725abf4895d41a06` |
+| `protect_physical_pass` (legacy conservada) | `f50dfcb896d22b68f0bf76e7649807672cf513950f2d10e48929affa65b51703` |
+
+Las pruebas de credenciales nominales, teléfono opcional, revocación B01, aforo por derechos y
+activación real de la matriz de §4 continúan diferidas a sus tickets. El gate fail-closed de DT02A
+permanece activo hasta DT06. El E2E M01 no pudo iniciarse porque los puertos 3000/5173/5174/5175
+estaban ocupados; el harness terminó antes de seeding o mutaciones y no detuvo procesos ajenos.
+
+### Verificación de entrega DT02A
+
+- `pnpm --filter @invitaciones/api db:validate`: exit 0.
+- `pnpm lint`, `pnpm typecheck` y `pnpm build`: exit 0.
+- `pnpm test`: exit 0; 1,266 casos Vitest en 135 archivos, más los checks Node del SDK.
+- Integración: 131 casos de diez suites validados, con reejecuciones completas de Events: 17/17 (exit 0);
+  Public RSVP con `--testTimeout=60000`: 10/10 (exit 0). Las otras ocho suites pasaron sin cambios.
+  El corpus RSVP superó inicialmente el timeout de 15 segundos del entorno.
+  Incluye events, event-activation, services-pricing, operator-intake, contacts, invitations,
+  invitation-qr, public-rsvp, scanner y physical-passes.
+- `openapi:generate`, SDK `generate`, `generate:check` y `verify:openapi-routes`: exit 0;
+  170 rutas verificadas contra 194 operaciones OpenAPI. Los tipos de request de los adapters
+  derivan de operaciones/esquemas generados, sin DTOs manuales paralelos.
+- Prettier sobre todos los archivos de código modificados y `git diff --check`: exit 0.
+  `pnpm format:check` global: exit 2 por artefactos previos sin cambios en `var/`, incluido
+  `var/qa/binding/baseline.css` con codificación incompatible. No se modificaron esos artefactos.
+- `pnpm test:e2e:managed`: exit 1 antes de mutaciones por los puertos ocupados indicados arriba.

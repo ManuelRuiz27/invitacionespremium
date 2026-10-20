@@ -59,8 +59,8 @@ describe('Services, prices, and promotions', () => {
     await app.close();
   });
 
-  it('contains four services and the 16 configured V2 rules', async () => {
-    expect(await prisma.service.count()).toBe(4);
+  it('contains five services and the 16 configured V2 rules', async () => {
+    expect(await prisma.service.count()).toBe(5);
     expect(await prisma.servicePrice.count()).toBe(16);
 
     const prices = await prisma.servicePrice.findMany({
@@ -71,6 +71,39 @@ describe('Services, prices, and promotions', () => {
     expect(prices.filter((price) => price.commercialChannel === CommercialChannel.PARTNER)).toHaveLength(3);
     expect(prices.filter((price) => price.commercialChannel === CommercialChannel.VENUE)).toHaveLength(4);
     expect(prices.every((price) => price.pricingVersion === 2 && price.clientType === null)).toBe(true);
+  });
+
+  it('keeps access control out of public discovery, Self-Service quotes and commercial prices', async () => {
+    const user = await createOperationalUser(ClientType.ORGANIZATION, UserRole.ORGANIZATION_ADMIN);
+    const cookie = await login(user.email);
+    const available = await request(app.getHttpServer()).get('/api/v1/services').set('Cookie', cookie).expect(200);
+    expect(available.body.some((s: { code: string }) => s.code === 'ACCESS_CONTROL')).toBe(false);
+    const pricing = await request(app.getHttpServer()).get('/api/v1/public/pricing').expect(200);
+    expect(pricing.body).toHaveLength(9);
+    expect(pricing.body.some((p: { serviceCode: string }) => p.serviceCode === 'ACCESS_CONTROL')).toBe(false);
+    for (const commercialChannel of [CommercialChannel.STANDARD, CommercialChannel.PARTNER, CommercialChannel.VENUE]) {
+      await prisma.client.update({ where: { id: user.clientId }, data: { commercialChannel } });
+      await expect(
+        servicesPricing.resolveCurrentPrice(user.clientId, ServiceCode.ACCESS_CONTROL, 100)
+      ).rejects.toMatchObject({ response: { code: 'CURRENT_PRICE_NOT_FOUND' } });
+    }
+    const admin = await createPlatformAdminCookie();
+    const access = await prisma.service.findUniqueOrThrow({ where: { code: ServiceCode.ACCESS_CONTROL } });
+    await request(app.getHttpServer())
+      .post('/api/v1/admin/prices')
+      .set('Origin', trustedOrigin)
+      .set('Cookie', admin)
+      .send({
+        serviceId: access.id,
+        commercialChannel: 'STANDARD',
+        capacityMin: 1,
+        capacityMax: 150,
+        credits: 0,
+        validFrom: futureIso(60)
+      })
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('SERVICE_NOT_COMMERCIALLY_AVAILABLE'));
+    expect(await prisma.servicePrice.count()).toBe(16);
   });
 
   it('does not derive commercial pricing from ClientType', async () => {
@@ -634,6 +667,7 @@ describe('Services, prices, and promotions', () => {
     await prisma.service.deleteMany();
 
     const firstRun = await runSeedScript();
+    const before = await prisma.service.findMany({ orderBy: { code: 'asc' } });
     const secondRun = await runSeedScript();
     const services = await prisma.service.findMany({ orderBy: { code: 'asc' } });
     const prices = await prisma.servicePrice.findMany({
@@ -651,7 +685,12 @@ describe('Services, prices, and promotions', () => {
     expect(services.map((service) => service.code).sort()).toEqual(Object.values(ServiceCode).sort());
     expect(prices).toHaveLength(16);
     expect(uniquePrices.size).toBe(16);
-  }, 30_000);
+    expect(services).toEqual(before);
+    const access = services.find((service) => service.code === ServiceCode.ACCESS_CONTROL);
+    expect(access?.isActive).toBe(true);
+    expect(prices.filter((price) => price.serviceId === access?.id)).toHaveLength(0);
+    expect(await prisma.receipt.count()).toBe(0);
+  }, 90_000);
 
   it('audits mutations and publishes the complete OpenAPI contract', async () => {
     const cookie = await createPlatformAdminCookie();

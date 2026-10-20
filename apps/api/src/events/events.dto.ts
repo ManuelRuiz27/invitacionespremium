@@ -1,7 +1,13 @@
 import { BadRequestException } from '@nestjs/common';
 import { ApiProperty } from '@nestjs/swagger';
 import { z } from 'zod';
-import { CommercialChannel, EventSocialType, EventStatus, ServiceCode } from '../generated/prisma/client';
+import {
+  CommercialChannel,
+  EventAccessMode,
+  EventSocialType,
+  EventStatus,
+  ServiceCode
+} from '../generated/prisma/client';
 import { FinanceBalanceResponseDto, LedgerMovementResponseDto, ReceiptResponseDto } from '../finance/finance.dto';
 import { normalizeEventDestinationUrl } from './event-destination-url';
 
@@ -52,6 +58,14 @@ const updateEventSchema = z
   })
   .strict()
   .refine((value) => Object.keys(value).length > 0, { message: 'At least one field is required.' });
+const adminUpdateEventSchema = z
+  .object({
+    ...eventFields,
+    resetInvitationDesign: z.literal(true).optional(),
+    accessMode: z.enum(EventAccessMode).nullable().optional()
+  })
+  .strict()
+  .refine((value) => Object.keys(value).length > 0, { message: 'At least one field is required.' });
 const paidServiceCodeSchema = z.enum([ServiceCode.FLYER, ServiceCode.FLIPBOOK, ServiceCode.PHYSICAL_QR]);
 const adminEventIntakeSchema = z
   .object({
@@ -63,14 +77,23 @@ const adminEventIntakeSchema = z
     acceptanceConfirmed: z.literal(true)
   })
   .strict();
-const adminManagedEventIntakeSchema = z
-  .object({
-    name: z.string().trim().min(1).max(160).nullable().optional(),
-    serviceCode: paidServiceCodeSchema,
-    capacity: z.number().int().min(1).max(150),
-    assignedPlannerUserId: z.string().uuid()
-  })
-  .strict();
+const managedIntakeFields = {
+  name: z.string().trim().min(1).max(160).nullable().optional(),
+  capacity: z.number().int().min(1).max(150),
+  assignedPlannerUserId: z.string().uuid()
+};
+const adminManagedEventIntakeSchema = z.discriminatedUnion('serviceCode', [
+  z.object({ ...managedIntakeFields, serviceCode: z.literal(ServiceCode.FLYER) }).strict(),
+  z.object({ ...managedIntakeFields, serviceCode: z.literal(ServiceCode.FLIPBOOK) }).strict(),
+  z.object({ ...managedIntakeFields, serviceCode: z.literal(ServiceCode.PHYSICAL_QR) }).strict(),
+  z
+    .object({
+      ...managedIntakeFields,
+      serviceCode: z.literal(ServiceCode.ACCESS_CONTROL),
+      accessMode: z.enum(EventAccessMode)
+    })
+    .strict()
+]);
 const adminEventAssignmentSchema = z.object({ assignedPlannerUserId: z.string().uuid().nullable() }).strict();
 const adminEventIntakeQuoteSchema = z
   .object({
@@ -128,7 +151,7 @@ export class CreateEventRequestDto {
   floorplanEnabled?: boolean;
 }
 
-export class UpdateEventRequestDto extends CreateEventRequestDto {
+export class ClientUpdateEventRequestDto extends CreateEventRequestDto {
   @ApiProperty({
     type: Boolean,
     required: false,
@@ -136,6 +159,17 @@ export class UpdateEventRequestDto extends CreateEventRequestDto {
       'Explicit consent to soft-reset an incompatible active invitation design when switching between Flyer and Flipbook before activation.'
   })
   resetInvitationDesign?: true;
+}
+
+export class UpdateEventRequestDto extends ClientUpdateEventRequestDto {
+  @ApiProperty({
+    enum: EventAccessMode,
+    enumName: 'EventAccessMode',
+    required: false,
+    nullable: true,
+    description: 'Provider only. Must match the resulting service; immutable after access material or activation.'
+  })
+  accessMode?: EventAccessMode | null;
 }
 
 export class AdminEventIntakeRequestDto {
@@ -172,6 +206,14 @@ export class AdminManagedEventIntakeRequestDto {
   assignedPlannerUserId!: string;
 }
 
+export class AdminManagedAccessControlEventIntakeRequestDto extends AdminManagedEventIntakeRequestDto {
+  @ApiProperty({ enum: [ServiceCode.ACCESS_CONTROL] })
+  override serviceCode!: ServiceCode;
+
+  @ApiProperty({ enum: EventAccessMode, enumName: 'EventAccessMode' })
+  accessMode!: EventAccessMode;
+}
+
 export class AdminEventAssignmentRequestDto {
   @ApiProperty({ type: String, format: 'uuid', nullable: true })
   assignedPlannerUserId!: string | null;
@@ -203,6 +245,9 @@ export class EventResponseDto {
 
   @ApiProperty({ enum: ServiceCode, nullable: true })
   serviceCode!: ServiceCode | null;
+
+  @ApiProperty({ enum: EventAccessMode, enumName: 'EventAccessMode', required: false, nullable: true })
+  accessMode?: EventAccessMode | null;
 
   @ApiProperty({ type: String, nullable: true })
   name!: string | null;
@@ -349,7 +394,7 @@ export class EventActivationResponseDto {
 }
 
 export type CreateEventInput = z.infer<typeof createEventSchema>;
-export type UpdateEventInput = z.infer<typeof updateEventSchema>;
+export type UpdateEventInput = z.infer<typeof adminUpdateEventSchema>;
 export type AdminEventIntakeInput = z.infer<typeof adminEventIntakeSchema>;
 export type AdminManagedEventIntakeInput = z.infer<typeof adminManagedEventIntakeSchema>;
 export type AdminEventAssignmentInput = z.infer<typeof adminEventAssignmentSchema>;
@@ -361,6 +406,10 @@ export function parseCreateEventRequest(input: unknown): CreateEventInput {
 
 export function parseUpdateEventRequest(input: unknown): UpdateEventInput {
   return parse(updateEventSchema, input);
+}
+
+export function parseAdminUpdateEventRequest(input: unknown): UpdateEventInput {
+  return parse(adminUpdateEventSchema, input);
 }
 
 export function parseAdminEventIntake(input: unknown): AdminEventIntakeInput {

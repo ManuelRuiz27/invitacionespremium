@@ -53,6 +53,97 @@ describe('Event activation', () => {
     await app.close();
   });
 
+  it.each(['NOMINAL', 'ANONYMOUS'] as const)(
+    'fails closed for access mode %s even with forced READY, with no activation or Finance effects',
+    async (accessMode) => {
+      const f = await accessActivationFixture(accessMode);
+      const cookie = await login(f.admin.email);
+      const balanceBefore = await prisma.financeBalance.findUnique({ where: { clientId: f.clientId } });
+      for (const status of [EventStatus.DRAFT, EventStatus.CONFIGURED, EventStatus.READY_TO_ACTIVATE]) {
+        await prisma.event.update({ where: { id: f.event.id }, data: { status } });
+        const before = await prisma.event.findUniqueOrThrow({ where: { id: f.event.id } });
+        for (let attempt = 0; attempt < 2; attempt++) {
+          await activateManaged(f.clientId, f.event.id, cookie, 'access-control-not-ready')
+            .expect(409)
+            .expect(({ body }) => expect(body.code).toBe('EVENT_ACCESS_CONTROL_READINESS_NOT_IMPLEMENTED'));
+        }
+        expect(await prisma.event.findUniqueOrThrow({ where: { id: f.event.id } })).toEqual(before);
+      }
+      await activateManaged(randomUUID(), f.event.id, cookie, 'access-control-cross-tenant').expect(404);
+      await activateManaged(f.clientId, f.event.id, await login(f.planner.email), 'access-control-client-actor').expect(
+        403
+      );
+      expect(await prisma.auditLog.count({ where: { eventId: f.event.id, action: 'EVENT_ACTIVATE' } })).toBe(0);
+      expect(await prisma.ledgerEntry.count()).toBe(0);
+      expect(await prisma.receipt.count()).toBe(0);
+      expect(await prisma.financeBalance.findUnique({ where: { clientId: f.clientId } })).toEqual(balanceBefore);
+    }
+  );
+
+  it('verifies restrictive Organization SQL activation snapshots in rollback-only fixtures', async () => {
+    const f = await accessActivationFixture('NOMINAL');
+    await prisma.event.update({ where: { id: f.event.id }, data: { status: 'CONFIGURED' } });
+    await prisma.event.update({ where: { id: f.event.id }, data: { status: 'READY_TO_ACTIVATE' } });
+    const flyer = await prisma.service.create({ data: { code: 'FLYER' } });
+    for (const data of [
+      managedActivationSnapshot(f.planner.userId, f.service.id, 'access-invalid-actor'),
+      managedActivationSnapshot(f.admin.userId, flyer.id, 'access-invalid-service'),
+      { ...managedActivationSnapshot(f.admin.userId, f.service.id, 'access-invalid-finance'), baseCostCredits: 0 },
+      {
+        ...managedActivationSnapshot(f.admin.userId, f.service.id, 'access-invalid-assignment'),
+        assignedPlannerUserId: null
+      }
+    ])
+      await expect(prisma.event.update({ where: { id: f.event.id }, data })).rejects.toThrow();
+    const rollback = new Error('Rollback isolated SQL activation fixture');
+    await expect(
+      prisma.$transaction(async (tx) => {
+        const active = await tx.event.update({
+          where: { id: f.event.id },
+          data: managedActivationSnapshot(f.admin.userId, f.service.id, 'access-future-shape')
+        });
+        expect(active.activatedAt).not.toBeNull();
+        await tx.$executeRawUnsafe('SAVEPOINT immutable_mode');
+        await expect(
+          tx.$executeRaw`UPDATE "event" SET "access_mode" = 'ANONYMOUS' WHERE "id" = ${f.event.id}::uuid`
+        ).rejects.toThrow();
+        await tx.$executeRawUnsafe('ROLLBACK TO SAVEPOINT immutable_mode');
+        throw rollback;
+      })
+    ).rejects.toBe(rollback);
+    expect((await prisma.event.findUniqueOrThrow({ where: { id: f.event.id } })).activatedAt).toBeNull();
+    // Inspect effective migrated definitions, rather than inferring behavior from historical SQL.
+    const definitions = await prisma.$queryRaw<{ definition: string }[]>`
+      SELECT pg_get_functiondef(oid) AS definition FROM pg_proc
+      WHERE proname IN ('validate_event_access_configuration', 'event_has_access_material', 'validate_event_activation_snapshot_references')
+      UNION ALL SELECT pg_get_triggerdef(oid) FROM pg_trigger WHERE tgrelid = 'event'::regclass AND NOT tgisinternal
+      UNION ALL SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conrelid = 'event'::regclass`;
+    const effective = definitions.map((row) => row.definition).join('\n');
+    expect(effective).toContain('ACCESS_CONTROL');
+    expect(effective).toContain('physical_pass_generation_operation');
+    expect(effective).toContain('event_access_configuration_trigger');
+    expect(effective).toContain('activated_service_price_id');
+  });
+
+  async function accessActivationFixture(accessMode: 'NOMINAL' | 'ANONYMOUS') {
+    const planner = await createClientUser(ClientType.ORGANIZATION, UserRole.ORGANIZATION_PLANNER);
+    await prisma.client.update({ where: { id: planner.clientId }, data: { operatingProfile: 'MANAGED' } });
+    const admin = await createUser(null, UserRole.PLATFORM_ADMIN);
+    const service = await prisma.service.create({ data: { code: 'ACCESS_CONTROL' } });
+    const event = await prisma.event.create({
+      data: {
+        clientId: planner.clientId,
+        createdByUserId: admin.userId,
+        assignedPlannerUserId: planner.userId,
+        serviceId: service.id,
+        accessMode,
+        name: 'Access fixture',
+        capacity: 120
+      }
+    });
+    return { clientId: planner.clientId, planner, admin, service, event };
+  }
+
   it('activates with purchased balance and preserves immutable activation snapshots', async () => {
     const planner = await createClientUser(ClientType.PLANNER, UserRole.INDEPENDENT_PLANNER);
     const { service, price } = await createPricedService(ServiceCode.FLYER, ClientType.PLANNER, 12);

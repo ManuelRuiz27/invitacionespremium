@@ -67,8 +67,16 @@ enum ServiceCode {
   FLYER
   PHYSICAL_QR
   DEMO
+  ACCESS_CONTROL
 
   @@map("service_code")
+}
+
+enum EventAccessMode {
+  NOMINAL
+  ANONYMOUS
+
+  @@map("event_access_mode")
 }
 
 enum PromotionScope {
@@ -629,6 +637,7 @@ model Event {
   createdByUserId                    String                            @map("created_by_user_id") @db.Uuid
   assignedPlannerUserId              String?                           @map("assigned_planner_user_id") @db.Uuid
   serviceId                          String?                           @map("service_id") @db.Uuid
+  accessMode                         EventAccessMode?                  @map("access_mode")
   name                               String?                           @db.VarChar(160)
   socialType                         EventSocialType?                  @map("social_type")
   status                             EventStatus                       @default(DRAFT)

@@ -1,5 +1,23 @@
 # Contrato de activación de Evento
 
+## Foundation M02-B01-DT02A (2026-10-19)
+
+[Contrato del corte](../05-implementacion/M02_B01_DT02A_ACCESS_CONTROL_FOUNDATION.md).
+La ruta Provider existente `POST /admin/clients/:clientId/events/:eventId/activate` reconoce
+`ORGANIZATION + MANAGED + ACCESS_CONTROL`, con Planner de Organización activo asignado y tenant
+verificado, pero **siempre rechaza su activación** con `409 EVENT_ACCESS_CONTROL_READINESS_NOT_IMPLEMENTED`.
+El preflight lo comprueba antes de recalcular readiness o mutar datos, también si SQL/fixture forzó
+`READY_TO_ACTIVATE`. No invoca readiness digital ni de PHYSICAL_QR para este servicio. No crea
+snapshot, auditoría de activación, recibo, ledger ni consumo de créditos al fallar o reintentar.
+
+La nueva migración amplía únicamente la rama SQL Managed de
+`validate_event_activation_snapshot_references()` para esa combinación Organización/servicio/modo,
+con actor Platform Admin activo, servicio activo concordante y Planner del mismo tenant. Conserva
+el shape Managed sin campos financieros, los checks de completitud, la máquina de estados y la
+inmutabilidad del snapshot. Verificar esa forma futura mediante un fixture SQL revertido no habilita
+la API: el gate temporal sólo se sustituirá por readiness autoritativo en DT06. La activación M01,
+la idempotencia y la rama Self-Service financiera conservan sus reglas.
+
 ## Alcance
 
 `CODEX-041` implementa la transición transaccional `READY_TO_ACTIVATE → ACTIVE`. La operación resuelve ownership, Cliente, servicio, precio y capacidad financiera exclusivamente en backend. No implementa el checklist que lleva un Evento a `READY_TO_ACTIVATE`; mientras los módulos diferidos no existan, solo fixtures de prueba pueden preparar ese estado.

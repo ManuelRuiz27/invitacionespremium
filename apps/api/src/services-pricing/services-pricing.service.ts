@@ -77,6 +77,7 @@ export class ServicesPricingService {
         : await this.findCurrentV2Prices(this.prisma, channel, at, { activeServicesOnly: true });
     const services = new Map<string, AvailableServiceResponseDto>();
     for (const price of prices) {
+      if (price.service.code === ServiceCode.ACCESS_CONTROL) continue;
       const service = services.get(price.serviceId) ?? {
         id: price.service.id,
         code: price.service.code,
@@ -125,9 +126,11 @@ export class ServicesPricingService {
     const client = await this.requirePricingClient(database, clientId);
     const channel = client.commercialChannel ?? CommercialChannel.STANDARD;
     const price =
-      channel === CommercialChannel.VENUE
-        ? await this.resolveVenuePrice(database, clientId, serviceCode, at)
-        : await this.resolveCapacityPrice(database, channel, serviceCode, capacity, at);
+      serviceCode === ServiceCode.ACCESS_CONTROL
+        ? null
+        : channel === CommercialChannel.VENUE
+          ? await this.resolveVenuePrice(database, clientId, serviceCode, at)
+          : await this.resolveCapacityPrice(database, channel, serviceCode, capacity, at);
 
     if (!price) {
       throw new DomainError(
@@ -152,7 +155,11 @@ export class ServicesPricingService {
     });
     return prices
       .filter(
-        (price) => price.service.code !== ServiceCode.DEMO && price.capacityMin !== null && price.capacityMax !== null
+        (price) =>
+          price.service.code !== ServiceCode.DEMO &&
+          price.service.code !== ServiceCode.ACCESS_CONTROL &&
+          price.capacityMin !== null &&
+          price.capacityMax !== null
       )
       .map((price) => ({
         serviceCode: price.service.code,
@@ -265,6 +272,13 @@ export class ServicesPricingService {
           }
 
           assertDemoPrice(service.code, input.credits);
+          if (service.code === ServiceCode.ACCESS_CONTROL) {
+            throw new DomainError(
+              'SERVICE_NOT_COMMERCIALLY_AVAILABLE',
+              'Access control has no commercial price contract.',
+              HttpStatus.CONFLICT
+            );
+          }
           if (input.commercialChannel === CommercialChannel.VENUE && service.code !== ServiceCode.PHYSICAL_QR) {
             throw new BadRequestException({
               code: 'INVALID_VENUE_PRICE_SERVICE',
@@ -918,6 +932,8 @@ function publicServiceName(code: ServiceCode): string {
       return 'Flipbook digital';
     case ServiceCode.DEMO:
       return 'Demo';
+    case ServiceCode.ACCESS_CONTROL:
+      return 'Control de acceso';
   }
 }
 

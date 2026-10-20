@@ -16,10 +16,12 @@ import {
   ApiBody,
   ApiCookieAuth,
   ApiCreatedResponse,
+  ApiExtraModels,
   ApiHeader,
   ApiOkResponse,
   ApiQuery,
-  ApiTags
+  ApiTags,
+  getSchemaPath
 } from '@nestjs/swagger';
 import type { AuthenticatedRequest, AuthPrincipal } from '../auth/auth.types';
 import { CurrentAuth } from '../auth/current-auth.decorator';
@@ -33,6 +35,7 @@ import {
   AdminEventAssignmentRequestDto,
   AdminEventIntakeRequestDto,
   AdminManagedEventIntakeRequestDto,
+  AdminManagedAccessControlEventIntakeRequestDto,
   EventResponseDto,
   UpdateEventRequestDto,
   parseAdminEventAssignment,
@@ -40,7 +43,7 @@ import {
   parseAdminEventIntakeQuote,
   parseAdminManagedEventIntake,
   parseEventId,
-  parseUpdateEventRequest
+  parseAdminUpdateEventRequest
 } from './events.dto';
 import { EventsService } from './events.service';
 
@@ -85,7 +88,24 @@ export class AdminClientEventsController {
   }
 
   @Post('managed')
-  @ApiBody({ type: AdminManagedEventIntakeRequestDto })
+  @ApiExtraModels(AdminManagedEventIntakeRequestDto, AdminManagedAccessControlEventIntakeRequestDto)
+  @ApiBody({
+    schema: {
+      oneOf: [
+        { $ref: getSchemaPath(AdminManagedEventIntakeRequestDto) },
+        { $ref: getSchemaPath(AdminManagedAccessControlEventIntakeRequestDto) }
+      ],
+      discriminator: {
+        propertyName: 'serviceCode',
+        mapping: {
+          FLYER: getSchemaPath(AdminManagedEventIntakeRequestDto),
+          FLIPBOOK: getSchemaPath(AdminManagedEventIntakeRequestDto),
+          PHYSICAL_QR: getSchemaPath(AdminManagedEventIntakeRequestDto),
+          ACCESS_CONTROL: getSchemaPath(AdminManagedAccessControlEventIntakeRequestDto)
+        }
+      }
+    }
+  })
   @ApiCreatedResponse({ type: EventResponseDto })
   createManaged(
     @Param('clientId') clientIdInput: string,
@@ -153,7 +173,7 @@ export class AdminClientEventsController {
     return this.events.updateAdmin(
       parseUuidParameter(clientIdInput, 'clientId'),
       parseEventId(eventIdInput),
-      parseUpdateEventRequest(body),
+      parseAdminUpdateEventRequest(body),
       principal,
       request.operationId
     );

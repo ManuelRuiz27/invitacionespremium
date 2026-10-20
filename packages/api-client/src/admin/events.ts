@@ -4,7 +4,8 @@ import { isRecord, isRecordArray, type ApiRequester } from '../api-client';
 export type AdminEvent = operations['AdminEventsController_get']['responses'][200]['content']['application/json'];
 export type AdminEventIntakeQuote = components['schemas']['EventIntakeQuoteResponseDto'];
 export type AdminEventIntakeInput = components['schemas']['AdminEventIntakeRequestDto'];
-export type AdminManagedEventIntakeInput = components['schemas']['AdminManagedEventIntakeRequestDto'];
+export type AdminManagedEventIntakeInput =
+  operations['AdminClientEventsController_createManaged']['requestBody']['content']['application/json'];
 export type AdminEventAssignmentInput = components['schemas']['AdminEventAssignmentRequestDto'];
 export interface AdminEventIntakeQuoteInput {
   serviceCode: 'FLYER' | 'FLIPBOOK' | 'PHYSICAL_QR';

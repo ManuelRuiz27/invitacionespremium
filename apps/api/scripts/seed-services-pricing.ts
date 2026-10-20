@@ -35,6 +35,7 @@ export async function seedServicesPricing(auditedMutation: AuditedMutationServic
     metadata: { source: 'idempotent_seed', initialValidFrom, pricingVersion: 2 },
     mutate: async (transaction) => {
       const services = await Promise.all(
+        // Includes ACCESS_CONTROL in the catalog only; configuredPrices remains the 16 legacy V2 rules.
         Object.values(ServiceCode).map((code) =>
           transaction.service.upsert({
             where: { code },

@@ -4,7 +4,8 @@ export const serviceLabels = {
   FLIPBOOK: 'Flipbook',
   FLYER: 'Flyer',
   PHYSICAL_QR: 'Pase fisico QR',
-  DEMO: 'Demo'
+  DEMO: 'Demo',
+  ACCESS_CONTROL: 'Control de acceso'
 } as const;
 
 export const clientTypeLabels = { PLANNER: 'Planner independiente', ORGANIZATION: 'Organizacion' } as const;

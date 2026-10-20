@@ -115,7 +115,8 @@ export class EventsService {
 
     return this.prisma.$transaction(async (transaction) => {
       await this.operatingProfile.assertTechnicalMutationAllowed(transaction, clientId);
-      await this.requireAvailableService(transaction, prepared.serviceId);
+      const service = await this.requireAvailableService(transaction, prepared.serviceId);
+      if (service?.code === ServiceCode.ACCESS_CONTROL) throw accessControlNotAllowed();
       const created = await transaction.event.create({
         data: {
           clientId,
@@ -238,6 +239,7 @@ export class EventsService {
     operationId?: string
   ): Promise<EventResponseDto> {
     return this.runCriticalTransaction(async (transaction) => {
+      await this.requireProvider(transaction, principal);
       const client = await transaction.client.findFirst({
         where: { id: clientId, deletedAt: null },
         select: { id: true, type: true, status: true, operatingProfile: true }
@@ -248,10 +250,15 @@ export class EventsService {
       if (client.status !== ClientStatus.ACTIVE) {
         throw new DomainError('CLIENT_NOT_ACTIVE', 'Client is not active.', HttpStatus.CONFLICT);
       }
-      if (client.operatingProfile !== ClientOperatingProfile.MANAGED || client.type !== ClientType.PLANNER) {
+      if (
+        client.operatingProfile !== ClientOperatingProfile.MANAGED ||
+        (input.serviceCode === ServiceCode.ACCESS_CONTROL
+          ? client.type !== ClientType.ORGANIZATION
+          : client.type !== ClientType.PLANNER)
+      ) {
         throw new DomainError(
           'EVENT_MANAGED_INTAKE_NOT_ALLOWED',
-          'Managed Event intake is available only for Managed Planner clients.',
+          'The service is not eligible for this Managed Client.',
           HttpStatus.CONFLICT
         );
       }
@@ -269,6 +276,7 @@ export class EventsService {
           createdByUserId: principal.userId,
           assignedPlannerUserId: input.assignedPlannerUserId,
           serviceId: service.id,
+          accessMode: input.serviceCode === ServiceCode.ACCESS_CONTROL ? input.accessMode : null,
           name: input.name ?? null,
           capacity: input.capacity,
           status: resolvePreparationStatus({
@@ -314,6 +322,10 @@ export class EventsService {
     return this.runCriticalTransaction(async (transaction) => {
       await transaction.$queryRaw`SELECT "id" FROM "event" WHERE "id" = ${eventId}::uuid FOR UPDATE`;
       const current = await this.findAdministrativeEventTarget(transaction, clientId, eventId);
+      await this.requireProvider(transaction, principal);
+      if (current.service?.code === ServiceCode.ACCESS_CONTROL && input.assignedPlannerUserId === null) {
+        throw plannerAssignmentRequired();
+      }
       const client = await transaction.client.findFirst({
         where: { id: clientId, deletedAt: null },
         select: { type: true }
@@ -490,49 +502,102 @@ export class EventsService {
       throw invalidEventState('Only Events in preparation may be edited.');
     }
 
-    return this.auditedMutation.execute({
-      actor: { type: AuditActorType.USER, id: principal.userId },
-      clientId: current.clientId,
-      eventId,
-      resourceType: 'EVENT',
-      resourceId: eventId,
-      action: 'EVENT_UPDATE',
-      beforeData: eventAuditSnapshot(current),
-      ...(operationId === undefined ? {} : { operationId }),
-      mutate: async (transaction) => {
-        await transaction.$queryRaw`SELECT "id" FROM "event" WHERE "id" = ${eventId}::uuid FOR UPDATE`;
-        const locked = await resolveTarget(transaction);
-        if (gateClientTechnicalMutation) {
-          await this.operatingProfile.assertTechnicalMutationAllowed(transaction, locked.clientId);
-        }
-        if (!PREPARATION_STATUSES.includes(locked.status)) {
-          throw invalidEventState('Only Events in preparation may be edited.');
-        }
-        const merged = mergePreparationData(locked, input);
-        assertEventSchedule(merged);
-        await this.requireAvailableService(transaction, merged.serviceId);
-        if (
-          (input.serviceId !== undefined && input.serviceId !== locked.serviceId) ||
-          (input.capacity !== undefined && input.capacity !== locked.capacity)
-        ) {
-          await this.commercial.invalidateForGenericChange(transaction, locked, principal, operationId);
-        }
-        await this.resetIncompatibleDigitalDesign(transaction, locked, merged.serviceId, input, principal, operationId);
-        await transaction.event.update({
-          where: { id: eventId },
-          data: {
-            ...updateData(input),
-            status: resolvePreparationStatus(merged)
-          }
-        });
-        await recomputeDigitalEventPreparationStatus(transaction, eventId);
-        await recomputePhysicalPassPreparationStatus(transaction, eventId);
-        const event = await transaction.event.findUniqueOrThrow({
-          where: { id: eventId },
-          include: EVENT_SERVICE_INCLUDE
-        });
-        return auditedResult(toEventResponse(event), eventAuditSnapshot(event));
+    return this.runCriticalTransaction(async (transaction) => {
+      await transaction.$queryRaw`SELECT "id" FROM "event" WHERE "id" = ${eventId}::uuid FOR UPDATE`;
+      const locked = await resolveTarget(transaction);
+      if (!gateClientTechnicalMutation) await this.requireProvider(transaction, principal);
+      if (gateClientTechnicalMutation) {
+        await this.operatingProfile.assertTechnicalMutationAllowed(transaction, locked.clientId);
       }
+      if (!PREPARATION_STATUSES.includes(locked.status)) {
+        throw invalidEventState('Only Events in preparation may be edited.');
+      }
+      const merged = mergePreparationData(locked, input);
+      assertEventSchedule(merged);
+      const service = await this.requireAvailableService(transaction, merged.serviceId);
+      const accessMode = input.accessMode === undefined ? locked.accessMode : input.accessMode;
+      if (
+        gateClientTechnicalMutation &&
+        (input.accessMode !== undefined || service?.code === ServiceCode.ACCESS_CONTROL)
+      ) {
+        throw accessControlNotAllowed();
+      }
+      if ((service?.code === ServiceCode.ACCESS_CONTROL) !== (accessMode !== null)) {
+        throw new DomainError(
+          'EVENT_ACCESS_MODE_SERVICE_MISMATCH',
+          'Access mode must match the configured service.',
+          HttpStatus.CONFLICT
+        );
+      }
+      if (service?.code === ServiceCode.ACCESS_CONTROL) {
+        const providerCreator = await transaction.user.findFirst({
+          where: { id: locked.createdByUserId, role: UserRole.PLATFORM_ADMIN, clientId: null, deletedAt: null },
+          select: { id: true }
+        });
+        if (locked.accessMode === null && !providerCreator) throw accessControlNotAllowed();
+        const client = await transaction.client.findUniqueOrThrow({ where: { id: locked.clientId } });
+        if (client.type !== ClientType.ORGANIZATION || client.operatingProfile !== ClientOperatingProfile.MANAGED)
+          throw accessControlNotAllowed();
+        if (client.status !== ClientStatus.ACTIVE || client.deletedAt !== null)
+          throw new DomainError('CLIENT_NOT_ACTIVE', 'Client is not active.', HttpStatus.CONFLICT);
+        if (locked.assignedPlannerUserId === null) throw plannerAssignmentRequired();
+        await this.requireValidPlannerAssignment(
+          transaction,
+          locked.clientId,
+          client.type,
+          locked.assignedPlannerUserId
+        );
+      }
+      if (
+        (locked.accessMode !== null || accessMode !== null) &&
+        (locked.accessMode !== accessMode || locked.serviceId !== merged.serviceId)
+      ) {
+        const [material] = await transaction.$queryRaw<
+          { present: boolean }[]
+        >`SELECT event_has_access_material(${eventId}::uuid) AS present`;
+        if (locked.activatedAt !== null || material?.present) {
+          throw new DomainError(
+            'EVENT_ACCESS_CONFIGURATION_IMMUTABLE',
+            'Access configuration cannot change after material issuance or activation.',
+            HttpStatus.CONFLICT
+          );
+        }
+      }
+      if (
+        (input.serviceId !== undefined && input.serviceId !== locked.serviceId) ||
+        (input.capacity !== undefined && input.capacity !== locked.capacity)
+      ) {
+        await this.commercial.invalidateForGenericChange(transaction, locked, principal, operationId);
+      }
+      await this.resetIncompatibleDigitalDesign(transaction, locked, merged.serviceId, input, principal, operationId);
+      await transaction.event.update({
+        where: { id: eventId },
+        data: {
+          ...updateData(input),
+          status: resolvePreparationStatus(merged)
+        }
+      });
+      await recomputeDigitalEventPreparationStatus(transaction, eventId);
+      await recomputePhysicalPassPreparationStatus(transaction, eventId);
+      const event = await transaction.event.findUniqueOrThrow({
+        where: { id: eventId },
+        include: EVENT_SERVICE_INCLUDE
+      });
+      await this.audit.record(
+        {
+          actor: { type: AuditActorType.USER, id: principal.userId },
+          clientId: locked.clientId,
+          eventId,
+          resourceType: 'EVENT',
+          resourceId: eventId,
+          action: 'EVENT_UPDATE',
+          beforeData: eventAuditSnapshot(locked),
+          afterData: eventAuditSnapshot(event),
+          ...(operationId === undefined ? {} : { operationId })
+        },
+        transaction
+      );
+      return toEventResponse(event);
     });
   }
 
@@ -704,6 +769,7 @@ export class EventsService {
     for (let attempt = 0; attempt < 20; attempt += 1) {
       try {
         return await this.prisma.$transaction(async (transaction) => {
+          await this.requireProvider(transaction, principal);
           await transaction.$queryRaw`
             SELECT "id"
             FROM "event"
@@ -736,10 +802,19 @@ export class EventsService {
               HttpStatus.CONFLICT
             );
           }
-          if (client.operatingProfile !== ClientOperatingProfile.MANAGED || client.type !== ClientType.PLANNER) {
+          const service =
+            current.serviceId === null
+              ? null
+              : await transaction.service.findUnique({ where: { id: current.serviceId } });
+          if (
+            client.operatingProfile !== ClientOperatingProfile.MANAGED ||
+            (service?.code === ServiceCode.ACCESS_CONTROL
+              ? client.type !== ClientType.ORGANIZATION
+              : client.type !== ClientType.PLANNER)
+          ) {
             throw new DomainError(
               'EVENT_MANAGED_ACTIVATION_NOT_ALLOWED',
-              'Managed Event activation is available only for Managed Planner clients.',
+              'The service is not eligible for this Managed Client.',
               HttpStatus.CONFLICT
             );
           }
@@ -754,6 +829,8 @@ export class EventsService {
               HttpStatus.CONFLICT
             );
           }
+          if (service?.code === ServiceCode.ACCESS_CONTROL && current.assignedPlannerUserId === null)
+            throw plannerAssignmentRequired();
           await this.requireValidPlannerAssignment(transaction, clientId, client.type, current.assignedPlannerUserId);
           const preflight = await this.requireActivationPreflight(transaction, eventId, current, () =>
             this.findAdministrativeEventForReplay(transaction, clientId, eventId)
@@ -949,19 +1026,33 @@ export class EventsService {
   private async requireAvailableService(
     database: PrismaService | Prisma.TransactionClient,
     serviceId: string | null
-  ): Promise<void> {
+  ): Promise<{ id: string; code: ServiceCode } | null> {
     if (serviceId === null) {
-      return;
+      return null;
     }
     const service = await database.service.findFirst({
       where: { id: serviceId, isActive: true },
-      select: { id: true }
+      select: { id: true, code: true }
     });
     if (!service) {
       throw new BadRequestException({
         code: 'EVENT_SERVICE_NOT_AVAILABLE',
         message: 'Event service does not exist or is inactive.'
       });
+    }
+    return service;
+  }
+
+  private async requireProvider(database: Prisma.TransactionClient, principal: AuthPrincipal): Promise<void> {
+    if (
+      principal.role !== UserRole.PLATFORM_ADMIN ||
+      principal.clientId !== null ||
+      !(await database.user.findFirst({
+        where: { id: principal.userId, role: UserRole.PLATFORM_ADMIN, clientId: null, deletedAt: null },
+        select: { id: true }
+      }))
+    ) {
+      throw new DomainError('FORBIDDEN', 'Active Platform Admin access is required.', HttpStatus.FORBIDDEN);
     }
   }
 
@@ -1029,6 +1120,13 @@ export class EventsService {
       throw new DomainError(
         'EVENT_DEMO_NOT_ACTIVATABLE',
         'Demo service cannot be activated as a real Event.',
+        HttpStatus.CONFLICT
+      );
+    }
+    if (service.code === ServiceCode.ACCESS_CONTROL) {
+      throw new DomainError(
+        'EVENT_ACCESS_CONTROL_READINESS_NOT_IMPLEMENTED',
+        'Access control readiness is not implemented until DT06.',
         HttpStatus.CONFLICT
       );
     }
@@ -1289,6 +1387,7 @@ function mergePreparationData(current: Event, input: UpdateEventInput) {
 
 function updateData(input: UpdateEventInput): Prisma.EventUpdateInput {
   return {
+    ...(input.accessMode === undefined ? {} : { accessMode: input.accessMode }),
     ...(input.name === undefined ? {} : { name: input.name }),
     ...(input.serviceId === undefined
       ? {}
@@ -1341,6 +1440,7 @@ export function eventAuditSnapshot(event: Event): Record<string, unknown> {
     createdByUserId: event.createdByUserId,
     assignedPlannerUserId: event.assignedPlannerUserId,
     serviceId: event.serviceId,
+    accessMode: event.accessMode,
     name: event.name,
     socialType: event.socialType,
     status: event.status,
@@ -1385,6 +1485,7 @@ export function toEventResponse(event: EventWithService): EventResponseDto {
     assignedPlannerUserId: event.assignedPlannerUserId,
     serviceId: event.serviceId,
     serviceCode: event.service?.code ?? null,
+    accessMode: event.accessMode,
     name: event.name,
     socialType: event.socialType,
     status: event.status,
@@ -1428,6 +1529,22 @@ export function toEventResponse(event: EventWithService): EventResponseDto {
     updatedAt: event.updatedAt.toISOString(),
     deletedAt: event.deletedAt?.toISOString() ?? null
   };
+}
+
+function accessControlNotAllowed(): DomainError {
+  return new DomainError(
+    'EVENT_ACCESS_CONTROL_NOT_ALLOWED',
+    'Access control requires Provider preparation for a Managed Organization.',
+    HttpStatus.CONFLICT
+  );
+}
+
+function plannerAssignmentRequired(): DomainError {
+  return new DomainError(
+    'EVENT_PLANNER_ASSIGNMENT_REQUIRED',
+    'Access control requires an assigned Organization Planner.',
+    HttpStatus.CONFLICT
+  );
 }
 
 function hasPrismaCode(error: unknown, code: string): boolean {
