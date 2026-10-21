@@ -213,6 +213,7 @@ Hallazgos centrales de MG-00:
 - `05-implementacion/M02_B01_DT02B_IMPLEMENTATION_REVIEW.md` — **DT02B IMPLEMENTADO / CI CANCELADO**: commit `65bcb9d`, registro manual/CSV NOMINAL sin teléfono, SQL contextual, Invitations internas PENDING.
 - `05-implementacion/M02_B01_DT03_IMPLEMENTATION_REVIEW.md` — **DT03 IMPLEMENTADO / QUALITY VERDE**: commit `4bb6afa`, credencial nominal por Assistant, token, SVG, revocación, validación SQL y handoff DT04.
 - `05-implementacion/M02_B01_DT04_IMPLEMENTATION_REVIEW.md` — **DT04 IMPLEMENTADO / QUALITY VERDE**: commit `21efa71`, Scanner nominal, FK/triggers de CheckIn, idempotencia, reversión, realtime; QA WebKit Flipbook rojo idéntico a DT03.
+- `05-implementacion/M02_B01_DT05_IMPLEMENTATION_REVIEW.md` — **DT05 IMPLEMENTADO / CI EN PROGRESO AL REVISAR**: commit `670c320`, pases ANONYMOUS con generación Provider, revocación, cupo histórico, Scanner y preservación PHYSICAL_QR.
 - `04-tecnico/NOMINAL_ACCESS_CREDENTIALS_CONTRACT.md` — **Contrato implementado DT03** para credenciales nominales individuales, endpoints, tokens y revocación.
 - `01-producto/06C_MODELO_03_LICENCIA_AUTOSERVICIO.md` — M03 / Self-Service.
 - `01-producto/06D_MODELO_04_CLIENTE_GRAN_ESCALA_DEDICADO.md` — M04 / gran escala.
