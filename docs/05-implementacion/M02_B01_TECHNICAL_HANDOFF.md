@@ -2,14 +2,14 @@
 
 Estado: **HANDOFF TÉCNICO — DT02A–DT06 IMPLEMENTADOS; DT07–DT09 PENDIENTES**
 
-**DT06 IMPLEMENTADO:** readiness NOMINAL/ANONYMOUS autoritativo y preparación derivada; activación
+**DT06 IMPLEMENTADO Y REVISADO (2026-10-20):** commit [`5d4915d`](https://github.com/ManuelRuiz27/invitacionespremium/commit/5d4915d5178922821bb9d6c33a709658b714955d), [dictamen DT06](./M02_B01_DT06_IMPLEMENTATION_REVIEW.md). Readiness NOMINAL/ANONYMOUS autoritativo y preparación derivada; activación
 Provider real sin Finance, guards SQL y aforo nominal, replay original inmutable y lecturas mínimas
 para Organización/Provider. Los fixtures operativos B01 activan por HTTP. Contrato vigente:
 [ACCESS_CONTROL_READINESS_CONTRACT.md](../04-tecnico/ACCESS_CONTROL_READINESS_CONTRACT.md).
 El gate temporal de DT02A–DT05 queda sustituido únicamente por estas validaciones; DT07–DT09 no se
-implementan. La limitación histórica de Staff para Organization Planner queda documentada en el contrato.
+implementan. **Gate operativo:** la creación de StaffToken por Organization Planner asignado sigue bloqueada por el trigger histórico que exige ser creador, pese a ownership API basado en asignación. Corregir y probar antes de cerrar DT07/DT09; Organization Admin sí puede emitir Staff. **CI DT06 al revisar:** `quality` en progreso; QA Flipbook WebKit falla en el mismo test/aserción preexistente; no afirmar CI global verde. La limitación Staff también está documentada en el contrato.
 
-**DT05 IMPLEMENTADO Y REVISADO (2026-10-20):** commit [`670c320`](https://github.com/ManuelRuiz27/invitacionespremium/commit/670c3200be8e1e13824ac9b51533c568bb15cf5e), [revisión DT05](./M02_B01_DT05_IMPLEMENTATION_REVIEW.md). Provider genera lotes ANONYMOUS; Organización consulta/SVG/revoca antes de uso; Scanner PHYSICAL_PASS conserva token/flujo; SQL protege historia, capacidad y folios. Codex reporta QA local verde salvo formato global con archivos ignorados `var/`; CI GitHub `quality`/Flipbook **en ejecución** al revisar. Activación B01 continúa 409 hasta DT06. **DT06–DT09 pendientes.**  
+**DT05 IMPLEMENTADO Y REVISADO (2026-10-20):** commit [`670c320`](https://github.com/ManuelRuiz27/invitacionespremium/commit/670c3200be8e1e13824ac9b51533c568bb15cf5e), [revisión DT05](./M02_B01_DT05_IMPLEMENTATION_REVIEW.md). Provider genera lotes ANONYMOUS; Organización consulta/SVG/revoca antes de uso; Scanner PHYSICAL_PASS conserva token/flujo; SQL protege historia, capacidad y folios. Codex reporta QA local verde salvo formato global con archivos ignorados `var/`; CI GitHub DT05 **cancelado** (ambos jobs, no verde). Activación B01 continúa 409 hasta DT06. **DT06–DT09 pendientes.**  
 
 **DT04 IMPLEMENTADO Y REVISADO (2026-10-20):** commit [`21efa71`](https://github.com/ManuelRuiz27/invitacionespremium/commit/21efa71b823ccab0e4b68e7d0742c9b7a838a2fa), [revisión DT04](./M02_B01_DT04_IMPLEMENTATION_REVIEW.md). Scanner NOMINAL con credencial individual, FK/triggers CheckIn, idempotencia, reversión y realtime; `quality` CI verde. QA Flipbook WebKit falla en **el mismo caso/aserción** que DT03; staging omitido. Activación B01 sigue bloqueada hasta DT06. **DT05–DT09 pendientes.**  
 
