@@ -1,6 +1,8 @@
 # M02-B01 — Handoff técnico para el equipo de desarrollo
 
-Estado: **HANDOFF TÉCNICO — DT02A/DT02B/DT03/DT04 IMPLEMENTADOS; DT05–DT09 PENDIENTES**
+Estado: **HANDOFF TÉCNICO — DT02A–DT05 IMPLEMENTADOS; DT06–DT09 PENDIENTES**
+
+**DT05 IMPLEMENTADO Y REVISADO (2026-10-20):** commit [`670c320`](https://github.com/ManuelRuiz27/invitacionespremium/commit/670c3200be8e1e13824ac9b51533c568bb15cf5e), [revisión DT05](./M02_B01_DT05_IMPLEMENTATION_REVIEW.md). Provider genera lotes ANONYMOUS; Organización consulta/SVG/revoca antes de uso; Scanner PHYSICAL_PASS conserva token/flujo; SQL protege historia, capacidad y folios. Codex reporta QA local verde salvo formato global con archivos ignorados `var/`; CI GitHub `quality`/Flipbook **en ejecución** al revisar. Activación B01 continúa 409 hasta DT06. **DT06–DT09 pendientes.**  
 
 **DT04 IMPLEMENTADO Y REVISADO (2026-10-20):** commit [`21efa71`](https://github.com/ManuelRuiz27/invitacionespremium/commit/21efa71b823ccab0e4b68e7d0742c9b7a838a2fa), [revisión DT04](./M02_B01_DT04_IMPLEMENTATION_REVIEW.md). Scanner NOMINAL con credencial individual, FK/triggers CheckIn, idempotencia, reversión y realtime; `quality` CI verde. QA Flipbook WebKit falla en **el mismo caso/aserción** que DT03; staging omitido. Activación B01 sigue bloqueada hasta DT06. **DT05–DT09 pendientes.**  
 
