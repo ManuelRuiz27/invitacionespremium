@@ -117,6 +117,22 @@ describe('StaffAccess', () => {
     }
   }, 60_000);
 
+  it.each([ServiceCode.FLYER, ServiceCode.FLIPBOOK, ServiceCode.PHYSICAL_QR, ServiceCode.DEMO])(
+    'DT06A preserves the historical SQL creator requirement for %s after reassignment',
+    async (code) => {
+      const f = await createOrganizationFixture(code);
+      const insert = (userId: string) => prisma.$executeRaw`INSERT INTO staff_token
+        (event_id, alias, token_digest_sha256, token_version, created_by_user_id)
+        VALUES (${f.eventId}::uuid, 'Legacy Staff', ${randomBytes(32).toString('hex')}, 1, ${userId}::uuid)`;
+      await expect(insert(f.creator.userId)).resolves.toBe(1);
+      await prisma.event.update({ where: { id: f.eventId }, data: { assignedPlannerUserId: f.other.userId } });
+      await expect(insert(f.other.userId)).rejects.toThrow('creator is not authorized');
+      await expect(insert(f.creator.userId)).resolves.toBe(1);
+      await createToken(f.eventId, await login(f.creator.email), 'Former assignment').expect(404);
+      await createToken(f.eventId, await login(f.admin.email), 'Admin unchanged').expect(201);
+    }
+  );
+
   it('stores only the digest, returns the secret once, lists safely, and exposes a minimal public session', async () => {
     const fixture = await createFixture(UserRole.INDEPENDENT_PLANNER, ClientType.PLANNER);
     const cookie = await login(fixture.email);
@@ -769,7 +785,7 @@ describe('StaffAccess', () => {
     return { ...user, clientId: client.id, clientType, eventId };
   }
 
-  async function createOrganizationFixture() {
+  async function createOrganizationFixture(serviceCode: ServiceCode = ServiceCode.FLYER) {
     const client = await prisma.client.create({
       data: {
         type: ClientType.ORGANIZATION,
@@ -781,7 +797,7 @@ describe('StaffAccess', () => {
     const creator = await createUser(UserRole.ORGANIZATION_PLANNER, client.id);
     const admin = await createUser(UserRole.ORGANIZATION_ADMIN, client.id);
     const other = await createUser(UserRole.ORGANIZATION_PLANNER, client.id);
-    const eventId = await createOperationalEvent(client.id, creator.userId);
+    const eventId = await createOperationalEvent(client.id, creator.userId, serviceCode);
     return { clientId: client.id, eventId, creator, admin, other };
   }
 
@@ -798,13 +814,17 @@ describe('StaffAccess', () => {
     return { userId: user.id, email, role };
   }
 
-  async function createOperationalEvent(clientId: string, createdByUserId: string) {
+  async function createOperationalEvent(
+    clientId: string,
+    createdByUserId: string,
+    serviceCode: ServiceCode = ServiceCode.FLYER
+  ) {
     return prisma.$transaction(async (transaction) => {
       await transaction.$executeRawUnsafe('SET LOCAL session_replication_role = replica');
       const client = await transaction.client.findUniqueOrThrow({ where: { id: clientId } });
       const service = await transaction.service.upsert({
-        where: { code: ServiceCode.FLYER },
-        create: { code: ServiceCode.FLYER },
+        where: { code: serviceCode },
+        create: { code: serviceCode },
         update: {}
       });
       const price =

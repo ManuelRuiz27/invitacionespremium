@@ -28,13 +28,22 @@ URL completa ni cookie.
 
 | Operación                                   | Autorización                                                                                                                              | Resultado                                                                                       |
 | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `GET /api/v1/events/:eventId/staff-tokens`  | Planner independiente sobre su Cliente; Admin de Organización sobre su Organización; Planner de Organización sobre Eventos creados por él | Activos y expirados, ordenados por creación e id, sin secreto, digest, creador ni `sessionPath` |
+| `GET /api/v1/events/:eventId/staff-tokens`  | Planner independiente sobre su Cliente; Admin de Organización sobre su Organización; Planner de Organización sobre Eventos asignados a él | Activos y expirados, ordenados por creación e id, sin secreto, digest, creador ni `sessionPath` |
 | `POST /api/v1/events/:eventId/staff-tokens` | Los mismos roles y ownership; Evento no eliminado en `ACTIVE` o `EVENT_DAY`                                                               | `201` con identidad, alias, estado, timestamps y secreto/`sessionPath` de una sola entrega      |
 
 Platform Admin no usa estas rutas operativas. Un recurso ajeno responde `404`; rol no permitido, `403`;
 estado no operativo, `409 STAFF_EVENT_NOT_OPERATIONAL`; el cuarto activo,
 `409 STAFF_TOKEN_LIMIT_REACHED`. No hay endpoints `PATCH`, `DELETE`, revoke, rotate o get individual.
 El alias se colapsa y recorta, debe contener entre 1 y 80 caracteres.
+
+DT06A alinea la emisión de `ACCESS_CONTROL + NOMINAL/ANONYMOUS` con la asignación operativa:
+la API usa `assignedPlannerUserId` y PostgreSQL exige que el Planner asignado esté vigente, sea del
+mismo Cliente `ORGANIZATION + MANAGED` activo y no eliminado. El creador real del Evento puede ser
+el Provider; no se reemplaza ni se impersona. La reasignación impide nuevas emisiones del Planner
+anterior y habilita al nuevo, sin modificar ni expirar automáticamente StaffTokens históricos.
+Para los demás servicios, la emisión SQL conserva exactamente el requisito histórico adicional:
+el `ORGANIZATION_PLANNER` debe ser `createdByUserId`. No se amplían los permisos legacy.
+Admin de Organización y Planner independiente conservan sus validaciones y alcance existentes.
 
 ## Resolución pública
 
@@ -86,6 +95,12 @@ La migración `20260729000000_add_staff_tokens` agrega:
 La migración `20260729010000_fix_staff_token_expiration_clock` reemplaza la función del trigger para
 capturar una sola vez `clock_timestamp()`. No usa `transaction_timestamp()` ni `CURRENT_TIMESTAMP`,
 porque ambos pueden representar el inicio de una transacción anterior a la espera del lock.
+
+La migración aditiva `20261020220000_fix_access_control_staff_planner_authorization` reemplaza
+únicamente `validate_staff_token_insert()`: distingue servicio y modalidad bajo el lock del Evento,
+aplica la asignación para ACCESS_CONTROL y conserva creador para legacy. Mantiene los mismos
+códigos de constraint, límite de tres activos, validación de actor, estado y tenant. No modifica
+formato criptográfico, endpoints, inmutabilidad, expiración ni historial.
 
 ## Auditoría
 

@@ -102,9 +102,14 @@ Además de los códigos especializados de Croquis:
 - EVENT_ACCESS_SEATING_INCOMPLETE
 - PHYSICAL_PASS_NUMBERING_INCONSISTENT
 
-## Límite conocido conservado
+## Autorización Staff corregida en DT06A
 
-El trigger histórico de creación de Staff exige al Planner de Organización ser creador del Evento,
-mientras ownership API usa asignación. DT06 no amplía permisos de Staff: las pruebas de ingreso real
-crean Staff mediante Organization Admin, autorizado por ambas capas. Corregir esa divergencia requiere
-el corte correspondiente; no se introduce impersonación ni se debilita el trigger.
+La emisión de StaffTokens para `ACCESS_CONTROL + NOMINAL/ANONYMOUS` valida al Planner de
+Organización mediante `assignedPlannerUserId` tanto en HTTP como en PostgreSQL, dentro de
+`ORGANIZATION + MANAGED` activo. El Provider conserva la autoría real del Evento y no puede usar
+las rutas Client de Staff. Admin de la misma Organización mantiene su permiso.
+
+Las pruebas de ingreso nominal y anónimo crean Staff mediante el Planner asignado después de
+la activación real por Provider. La reasignación cambia quién puede emitir nuevos tokens, sin alterar
+los históricos; cierre y cancelación siguen expirándolos. Los servicios legacy conservan la regla
+SQL del creador para Planner de Organización. El readiness y la activación DT06 no cambian.

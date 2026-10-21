@@ -72,7 +72,11 @@ describe('DT06 authoritative access preparation and Provider activation', () => 
           ).expect(200)
         ).body
       ).toEqual(first.body);
-      const staff = await post(`/api/v1/events/${f.id}/staff-tokens`, f.adminCookie, { alias: 'Door' }).expect(201);
+      const staff = await post(`/api/v1/events/${f.id}/staff-tokens`, f.cookie, { alias: 'Door' }).expect(201);
+      expect(await db.staffToken.findUniqueOrThrow({ where: { id: staff.body.id as string } })).toMatchObject({
+        createdByUserId: f.planner.id
+      });
+      await request(app.getHttpServer()).get(`/api/v1/scanner/${staff.body.token}/session`).expect(200);
       const qrToken =
         mode === 'NOMINAL'
           ? app.get(NominalAccessTokenService).issue(material.id, material.qrTokenNonce)
@@ -89,6 +93,7 @@ describe('DT06 authoritative access preparation and Provider activation', () => 
         expect(await db.checkIn.count()).toBe(0);
       }
       await post(`/api/v1/events/${f.id}/close`, f.cookie, {}, 'dt06-close').expect(200);
+      await request(app.getHttpServer()).get(`/api/v1/scanner/${staff.body.token}/session`).expect(401);
       expect((await activate(f, 'dt06-original').expect(200)).body).toEqual(first.body);
       await activate(f, 'dt06-different').expect(409);
       expect(await db.auditLog.count({ where: { eventId: f.id, action: 'EVENT_ACTIVATE' } })).toBe(1);
@@ -96,6 +101,106 @@ describe('DT06 authoritative access preparation and Provider activation', () => 
         db.event.update({ where: { id: f.id }, data: { accessActivationResultSnapshot: {} } })
       ).rejects.toThrow();
       await noFinance();
+    }
+  );
+
+  it.each(['NOMINAL', 'ANONYMOUS'] as const)(
+    'DT06A authorizes %s Staff by assignment in HTTP and SQL without exposing stored secrets',
+    async (mode) => {
+      const f = await fixture(mode),
+        foreign = await fixture(mode);
+      await prepare(f);
+      await activate(f).expect(200);
+      expect(await db.event.findUniqueOrThrow({ where: { id: f.id } })).toMatchObject({
+        createdByUserId: f.provider.id,
+        assignedPlannerUserId: f.planner.id
+      });
+      const outsider = await staffPlanner(f);
+      const outsiderCookie = await login(outsider.email);
+      const path = `/api/v1/events/${f.id}/staff-tokens`;
+      for (const cookie of [outsiderCookie, foreign.cookie, foreign.adminCookie]) {
+        await post(path, cookie, { alias: 'Forbidden' }).expect(404);
+        await request(app.getHttpServer()).get(path).set('Cookie', cookie).expect(404);
+      }
+      await post(path, f.providerCookie, { alias: 'Provider' }).expect(403);
+      await request(app.getHttpServer()).get(path).set('Cookie', f.providerCookie).expect(403);
+      const created = await post(path, f.cookie, { alias: 'Assigned' }).expect(201);
+      await post(path, f.adminCookie, { alias: 'Admin' }).expect(201);
+      await expect(insertStaff(f.id, f.planner.id)).resolves.toBe(1);
+      for (const actor of [outsider, foreign.planner, f.provider])
+        await expect(insertStaff(f.id, actor.id)).rejects.toThrow('creator is not authorized');
+      await db.user.update({ where: { id: f.planner.id }, data: { deletedAt: new Date() } });
+      await expect(insertStaff(f.id, f.planner.id)).rejects.toThrow('creator is not authorized');
+      const listed = await request(app.getHttpServer()).get(path).set('Cookie', f.adminCookie).expect(200);
+      expect(listed.body).toHaveLength(3);
+      const stored = await db.staffToken.findUniqueOrThrow({ where: { id: created.body.id as string } });
+      const logs = await db.auditLog.findMany({ where: { eventId: f.id, action: 'STAFF_TOKEN_CREATE' } });
+      expect(logs).toHaveLength(2);
+      expect(logs.some((log) => log.actorId === f.planner.id)).toBe(true);
+      for (const projection of [JSON.stringify(listed.body), JSON.stringify(logs)]) {
+        expect(projection).not.toContain(created.body.token);
+        expect(projection).not.toContain(stored.tokenDigestSha256);
+        expect(projection).not.toMatch(/tokenDigest|sessionPath|password|whatsapp/iu);
+      }
+      expect(created.body).not.toHaveProperty('tokenDigestSha256');
+      expect(created.body).not.toHaveProperty('createdByUserId');
+    }
+  );
+
+  it.each(['NOMINAL', 'ANONYMOUS'] as const)(
+    'DT06A reassigns %s Staff authorization without changing historical credentials',
+    async (mode) => {
+      const f = await fixture(mode);
+      await prepare(f);
+      await activate(f).expect(200);
+      const path = `/api/v1/events/${f.id}/staff-tokens`;
+      const original = await post(path, f.cookie, { alias: 'Original' }).expect(201);
+      const historical = await db.staffToken.findUniqueOrThrow({ where: { id: original.body.id as string } });
+      const replacement = await staffPlanner(f),
+        cookie = await login(replacement.email);
+      await request(app.getHttpServer())
+        .patch(`/api/v1/admin/clients/${f.client.id}/events/${f.id}/assignment`)
+        .set('Origin', origin)
+        .set('Cookie', f.providerCookie)
+        .send({ assignedPlannerUserId: replacement.id })
+        .expect(200);
+      await post(path, f.cookie, { alias: 'Former' }).expect(404);
+      await request(app.getHttpServer()).get(path).set('Cookie', f.cookie).expect(404);
+      await expect(insertStaff(f.id, f.planner.id)).rejects.toThrow('creator is not authorized');
+      await post(path, cookie, { alias: 'Replacement' }).expect(201);
+      await expect(insertStaff(f.id, replacement.id)).resolves.toBe(1);
+      expect(await db.staffToken.findUniqueOrThrow({ where: { id: historical.id } })).toEqual(historical);
+      await request(app.getHttpServer()).get(`/api/v1/scanner/${original.body.token}/session`).expect(200);
+      expect((await db.event.findUniqueOrThrow({ where: { id: f.id } })).createdByUserId).toBe(f.provider.id);
+    }
+  );
+
+  it.each(['NOMINAL', 'ANONYMOUS'] as const)(
+    'DT06A retains the three-active %s Staff limit under concurrent assigned Planner requests',
+    async (mode) => {
+      const f = await fixture(mode);
+      await prepare(f);
+      await activate(f).expect(200);
+      const barrier = auditGate('STAFF_TOKEN_CREATE');
+      try {
+        const results = Promise.all(
+          Array.from({ length: 4 }, (_, index) =>
+            post(`/api/v1/events/${f.id}/staff-tokens`, f.cookie, { alias: `Door ${index}` }).then((r) => r)
+          )
+        );
+        await barrier.entered;
+        await waitForLock();
+        barrier.release();
+        const responses = await results;
+        expect(responses.map((r) => r.status).sort()).toEqual([201, 201, 201, 409]);
+        expect(responses.find((r) => r.status === 409)?.body.code).toBe('STAFF_TOKEN_LIMIT_REACHED');
+      } finally {
+        barrier.release();
+        barrier.restore();
+      }
+      expect(await db.staffToken.count({ where: { eventId: f.id, expiredAt: null } })).toBe(3);
+      expect(await db.auditLog.count({ where: { eventId: f.id, action: 'STAFF_TOKEN_CREATE' } })).toBe(3);
+      await expect(insertStaff(f.id, f.planner.id)).rejects.toThrow('active limit reached');
     }
   );
 
@@ -357,9 +462,7 @@ describe('DT06 authoritative access preparation and Provider activation', () => 
         else await tx.floorplanShape.update({ where: { id: table.id }, data: { deletedAt: null } });
       });
       await activate(f).expect(200);
-      const staff = await post(`/api/v1/events/${f.id}/staff-tokens`, f.adminCookie, { alias: 'Seated door' }).expect(
-        201
-      );
+      const staff = await post(`/api/v1/events/${f.id}/staff-tokens`, f.cookie, { alias: 'Seated door' }).expect(201);
       const token = app.get(NominalAccessTokenService).issue(material.id, material.qrTokenNonce);
       const ingress = await post(
         `/api/v1/scanner/${staff.body.token}/nominal-access/scan`,
@@ -402,7 +505,7 @@ describe('DT06 authoritative access preparation and Provider activation', () => 
       await tx.fileAsset.update({ where: { id: t.imageAssetId }, data: { status: 'READY', failureCode: null } });
     });
     await activate(f).expect(200);
-    const staff = await post(`/api/v1/events/${f.id}/staff-tokens`, f.adminCookie, { alias: 'Table door' }).expect(201);
+    const staff = await post(`/api/v1/events/${f.id}/staff-tokens`, f.cookie, { alias: 'Table door' }).expect(201);
     const token = app.get(PhysicalPassTokenService).issue(current.id, current.qrTokenNonce);
     const ingress = await post(
       `/api/v1/scanner/${staff.body.token}/physical-passes/scan`,
@@ -622,9 +725,7 @@ describe('DT06 authoritative access preparation and Provider activation', () => 
       const f = await fixture(mode);
       await prepare(f);
       const first = await activate(f, 'dt06-cancel-replay').expect(200);
-      const staff = await post(`/api/v1/events/${f.id}/staff-tokens`, f.adminCookie, { alias: 'Cancel door' }).expect(
-        201
-      );
+      const staff = await post(`/api/v1/events/${f.id}/staff-tokens`, f.cookie, { alias: 'Cancel door' }).expect(201);
       await post(`/api/v1/events/${f.id}/cancel`, f.cookie, {}, randomUUID()).expect(200);
       expect((await db.event.findUniqueOrThrow({ where: { id: f.id } })).status).toBe('CANCELLED');
       expect((await activate(f, 'dt06-cancel-replay').expect(200)).body).toEqual(first.body);
@@ -796,6 +897,21 @@ describe('DT06 authoritative access preparation and Provider activation', () => 
       .send({ socialType: 'OTHER', eventDateTime: '2035-01-01T18:00:00Z', timeZone: 'America/Mexico_City' })
       .expect(200);
     return { id, mode, client, provider, planner, service, cookie, providerCookie, adminCookie };
+  }
+  function staffPlanner(f: Fixture) {
+    return db.user.create({
+      data: {
+        role: 'ORGANIZATION_PLANNER',
+        clientId: f.client.id,
+        email: `${randomUUID()}@example.com`,
+        passwordHash: f.planner.passwordHash
+      }
+    });
+  }
+  function insertStaff(eventId: string, actorId: string) {
+    return db.$executeRaw`INSERT INTO staff_token
+      (event_id, alias, token_digest_sha256, token_version, created_by_user_id)
+      VALUES (${eventId}::uuid, 'SQL assigned Staff', ${randomUUID().replaceAll('-', '').repeat(2)}, 1, ${actorId}::uuid)`;
   }
   async function login(email: string) {
     const r = await post('/api/v1/auth/login', null, { email, password }).expect(200);
