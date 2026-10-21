@@ -80,6 +80,22 @@ export type paths = {
         patch: operations["AdminClientEventsController_update"];
         trace?: never;
     };
+    "/api/v1/admin/clients/{clientId}/events/{eventId}/access-readiness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminClientEventsController_accessReadiness"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/clients/{clientId}/events/{eventId}/activate": {
         parameters: {
             query?: never;
@@ -1376,6 +1392,22 @@ export type paths = {
         options?: never;
         head?: never;
         patch: operations["EventsController_update"];
+        trace?: never;
+    };
+    "/api/v1/events/{eventId}/access-readiness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["EventsController_accessReadiness"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/events/{eventId}/activate": {
@@ -2775,6 +2807,14 @@ export type paths = {
 export type webhooks = Record<string, never>;
 export type components = {
     schemas: {
+        AccessControlReadinessResponseDto: {
+            /** @enum {string|null} */
+            accessMode: "NOMINAL" | "ANONYMOUS" | null;
+            activeMaterialCount: number;
+            blockers: string[];
+            capacity: number | null;
+            complete: boolean;
+        };
         AddAlbumPhotosRequestDto: {
             fileAssetIds: string[];
         };
@@ -4947,6 +4987,25 @@ export interface operations {
             };
         };
     };
+    AdminClientEventsController_accessReadiness: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessControlReadinessResponseDto"];
+                };
+            };
+        };
+    };
     AdminClientEventsController_activateManaged: {
         parameters: {
             query?: never;
@@ -6975,6 +7034,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EventResponseDto"];
+                };
+            };
+        };
+    };
+    EventsController_accessReadiness: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessControlReadinessResponseDto"];
                 };
             };
         };

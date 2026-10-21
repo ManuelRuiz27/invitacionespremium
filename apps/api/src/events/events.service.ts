@@ -1,3 +1,7 @@
+import {
+  recomputeAccessControlPreparationStatus,
+  resolveAccessControlReadiness
+} from './access-control-readiness.service';
 import { BadRequestException, ConflictException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
 import { AuditedMutationService, auditedResult } from '../audit/audited-mutation.service';
@@ -84,6 +88,26 @@ export class EventsService {
     return events.map(toEventResponse);
   }
 
+  async accessReadiness(eventId: string, principal: AuthPrincipal, clientId?: string) {
+    return this.runCriticalTransaction(async (tx) => {
+      if (clientId !== undefined) await this.requireProvider(tx, principal);
+      else if (principal.role !== UserRole.ORGANIZATION_ADMIN && principal.role !== UserRole.ORGANIZATION_PLANNER)
+        throw new DomainError('FORBIDDEN', 'Organization access is required.', HttpStatus.FORBIDDEN);
+      await tx.$queryRaw`SELECT id FROM event WHERE id = ${eventId}::uuid FOR UPDATE`;
+      const event = await tx.event.findFirst({
+        where: {
+          id: eventId,
+          deletedAt: null,
+          ...(clientId !== undefined ? { clientId } : this.accessPolicy.ownedWhere(principal))
+        },
+        include: { service: true }
+      });
+      if (!event) throw eventNotFound();
+      if (event.service?.code !== ServiceCode.ACCESS_CONTROL) throw accessControlNotAllowed();
+      return resolveAccessControlReadiness(tx, eventId);
+    });
+  }
+
   async getOwned(eventId: string, principal: AuthPrincipal): Promise<EventResponseDto> {
     return toEventResponse(await this.findOwnedEvent(this.prisma, eventId, principal));
   }
@@ -130,6 +154,7 @@ export class EventsService {
         }
       });
       await recomputeDigitalEventPreparationStatus(transaction, created.id);
+      await recomputeAccessControlPreparationStatus(transaction, created.id);
       await recomputePhysicalPassPreparationStatus(transaction, created.id);
       const event = await transaction.event.findUniqueOrThrow({
         where: { id: created.id },
@@ -202,6 +227,7 @@ export class EventsService {
         }
       });
       await recomputeDigitalEventPreparationStatus(transaction, created.id);
+      await recomputeAccessControlPreparationStatus(transaction, created.id);
       await recomputePhysicalPassPreparationStatus(transaction, created.id);
       const event = await transaction.event.findUniqueOrThrow({
         where: { id: created.id },
@@ -290,6 +316,7 @@ export class EventsService {
         }
       });
       await recomputeDigitalEventPreparationStatus(transaction, created.id);
+      await recomputeAccessControlPreparationStatus(transaction, created.id);
       await recomputePhysicalPassPreparationStatus(transaction, created.id);
       const event = await transaction.event.findUniqueOrThrow({
         where: { id: created.id },
@@ -456,6 +483,7 @@ export class EventsService {
             }
           });
           await recomputeDigitalEventPreparationStatus(transaction, eventId);
+          await recomputeAccessControlPreparationStatus(transaction, eventId);
           await recomputePhysicalPassPreparationStatus(transaction, eventId);
           const finalEvent = await transaction.event.findUniqueOrThrow({
             where: { id: eventId },
@@ -530,6 +558,17 @@ export class EventsService {
         );
       }
       if (service?.code === ServiceCode.ACCESS_CONTROL) {
+        if (accessMode === 'NOMINAL' && input.capacity !== undefined) {
+          const [capacity] = await transaction.$queryRaw<
+            { rights: number }[]
+          >`SELECT count_nominal_access_rights(${eventId}::uuid) AS rights`;
+          if ((capacity?.rights ?? 0) > 0 && (input.capacity === null || input.capacity < capacity!.rights))
+            throw new DomainError(
+              'EVENT_ACCESS_CAPACITY_EXCEEDED',
+              'Capacity cannot be less than current access rights.',
+              HttpStatus.CONFLICT
+            );
+        }
         const providerCreator = await transaction.user.findFirst({
           where: { id: locked.createdByUserId, role: UserRole.PLATFORM_ADMIN, clientId: null, deletedAt: null },
           select: { id: true }
@@ -570,6 +609,12 @@ export class EventsService {
         await this.commercial.invalidateForGenericChange(transaction, locked, principal, operationId);
       }
       await this.resetIncompatibleDigitalDesign(transaction, locked, merged.serviceId, input, principal, operationId);
+      if (
+        locked.accessMode !== null &&
+        locked.status === EventStatus.READY_TO_ACTIVATE &&
+        resolvePreparationStatus(merged) === EventStatus.DRAFT
+      )
+        await transaction.event.update({ where: { id: eventId }, data: { status: EventStatus.CONFIGURED } });
       await transaction.event.update({
         where: { id: eventId },
         data: {
@@ -578,6 +623,7 @@ export class EventsService {
         }
       });
       await recomputeDigitalEventPreparationStatus(transaction, eventId);
+      await recomputeAccessControlPreparationStatus(transaction, eventId);
       await recomputePhysicalPassPreparationStatus(transaction, eventId);
       const event = await transaction.event.findUniqueOrThrow({
         where: { id: eventId },
@@ -762,6 +808,8 @@ export class EventsService {
     principal: AuthPrincipal,
     operationId?: string
   ): Promise<EventResponseDto> {
+    clientId = clientId.toLowerCase();
+    eventId = eventId.toLowerCase();
     if (principal.role !== UserRole.PLATFORM_ADMIN || principal.clientId !== null) {
       throw new DomainError('FORBIDDEN', 'Platform Admin access is required.', HttpStatus.FORBIDDEN);
     }
@@ -786,7 +834,9 @@ export class EventsService {
             if (keyOwner.id !== eventId || keyOwner.clientId !== clientId) {
               throw activationIdempotencyConflict();
             }
-            return toEventResponse(keyOwner);
+            return keyOwner.accessActivationResultSnapshot
+              ? (keyOwner.accessActivationResultSnapshot as unknown as EventResponseDto)
+              : toEventResponse(keyOwner);
           }
           if (current.activatedAt !== null || current.activationIdempotencyKey !== null) {
             throw activationIdempotencyConflict();
@@ -837,15 +887,31 @@ export class EventsService {
           );
           current = preflight.event;
           const activatedAt = new Date();
+          const activationData = {
+            status: EventStatus.ACTIVE,
+            activatedAt,
+            activatedByUserId: principal.userId,
+            activatedServiceId: preflight.service.id,
+            activationIdempotencyKey: idempotencyKey
+          };
+          const original =
+            preflight.service.code === ServiceCode.ACCESS_CONTROL
+              ? await transaction.event.findUniqueOrThrow({ where: { id: eventId }, include: EVENT_SERVICE_INCLUDE })
+              : null;
+          const resultSnapshot = original
+            ? toEventResponse({ ...original, ...activationData, updatedAt: activatedAt })
+            : null;
           const event = await transaction.event.update({
             where: { id: eventId },
             include: EVENT_SERVICE_INCLUDE,
             data: {
-              status: EventStatus.ACTIVE,
-              activatedAt,
-              activatedByUserId: principal.userId,
-              activatedServiceId: preflight.service.id,
-              activationIdempotencyKey: idempotencyKey
+              ...activationData,
+              ...(resultSnapshot
+                ? {
+                    updatedAt: activatedAt,
+                    accessActivationResultSnapshot: resultSnapshot as unknown as Prisma.InputJsonObject
+                  }
+                : {})
             }
           });
           await this.audit.record(
@@ -871,7 +937,9 @@ export class EventsService {
             include: EVENT_SERVICE_INCLUDE
           });
           if (keyOwner?.id === eventId && keyOwner.clientId === clientId) {
-            return toEventResponse(keyOwner);
+            return keyOwner.accessActivationResultSnapshot
+              ? (keyOwner.accessActivationResultSnapshot as unknown as EventResponseDto)
+              : toEventResponse(keyOwner);
           }
           throw activationIdempotencyConflict();
         }
@@ -1124,11 +1192,27 @@ export class EventsService {
       );
     }
     if (service.code === ServiceCode.ACCESS_CONTROL) {
-      throw new DomainError(
-        'EVENT_ACCESS_CONTROL_READINESS_NOT_IMPLEMENTED',
-        'Access control readiness is not implemented until DT06.',
-        HttpStatus.CONFLICT
-      );
+      const readiness = await resolveAccessControlReadiness(transaction, eventId);
+      if (!readiness.complete)
+        throw new DomainError(
+          readiness.blockers[0] ?? 'EVENT_ACCESS_CONTROL_NOT_READY',
+          'Access control preparation is incomplete.',
+          HttpStatus.CONFLICT,
+          { blockers: readiness.blockers }
+        );
+      await recomputeAccessControlPreparationStatus(transaction, eventId);
+      const prepared = await reload();
+      if (prepared.status !== EventStatus.READY_TO_ACTIVATE)
+        throw invalidEventState('Only a ready Event may be activated.');
+      const finalReadiness = await resolveAccessControlReadiness(transaction, eventId);
+      if (!finalReadiness.complete)
+        throw new DomainError(
+          'EVENT_ACCESS_CONTROL_NOT_READY',
+          'Access control preparation changed.',
+          HttpStatus.CONFLICT,
+          { blockers: finalReadiness.blockers }
+        );
+      return { event: prepared, service };
     }
 
     let event = initial;

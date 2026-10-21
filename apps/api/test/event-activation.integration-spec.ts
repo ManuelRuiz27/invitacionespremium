@@ -54,7 +54,7 @@ describe('Event activation', () => {
   });
 
   it.each(['NOMINAL', 'ANONYMOUS'] as const)(
-    'fails closed for access mode %s even with forced READY, with no activation or Finance effects',
+    'revalidates empty access mode %s even with forced READY, with no activation or Finance effects',
     async (accessMode) => {
       const f = await accessActivationFixture(accessMode);
       const cookie = await login(f.admin.email);
@@ -65,7 +65,7 @@ describe('Event activation', () => {
         for (let attempt = 0; attempt < 2; attempt++) {
           await activateManaged(f.clientId, f.event.id, cookie, 'access-control-not-ready')
             .expect(409)
-            .expect(({ body }) => expect(body.code).toBe('EVENT_ACCESS_CONTROL_READINESS_NOT_IMPLEMENTED'));
+            .expect(({ body }) => expect(body.details.blockers).toContain('EVENT_ACCESS_MATERIAL_MISSING'));
         }
         expect(await prisma.event.findUniqueOrThrow({ where: { id: f.event.id } })).toEqual(before);
       }
@@ -95,22 +95,12 @@ describe('Event activation', () => {
       }
     ])
       await expect(prisma.event.update({ where: { id: f.event.id }, data })).rejects.toThrow();
-    const rollback = new Error('Rollback isolated SQL activation fixture');
     await expect(
-      prisma.$transaction(async (tx) => {
-        const active = await tx.event.update({
-          where: { id: f.event.id },
-          data: managedActivationSnapshot(f.admin.userId, f.service.id, 'access-future-shape')
-        });
-        expect(active.activatedAt).not.toBeNull();
-        await tx.$executeRawUnsafe('SAVEPOINT immutable_mode');
-        await expect(
-          tx.$executeRaw`UPDATE "event" SET "access_mode" = 'ANONYMOUS' WHERE "id" = ${f.event.id}::uuid`
-        ).rejects.toThrow();
-        await tx.$executeRawUnsafe('ROLLBACK TO SAVEPOINT immutable_mode');
-        throw rollback;
+      prisma.event.update({
+        where: { id: f.event.id },
+        data: managedActivationSnapshot(f.admin.userId, f.service.id, 'access-invalid-empty')
       })
-    ).rejects.toBe(rollback);
+    ).rejects.toThrow();
     expect((await prisma.event.findUniqueOrThrow({ where: { id: f.event.id } })).activatedAt).toBeNull();
     // Inspect effective migrated definitions, rather than inferring behavior from historical SQL.
     const definitions = await prisma.$queryRaw<{ definition: string }[]>`

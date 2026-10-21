@@ -66,13 +66,6 @@ export async function resolvePhysicalPassReadiness(
     orderBy: { passNumber: 'asc' }
   });
   const blockers: string[] = [];
-  if (event.service?.code === ServiceCode.ACCESS_CONTROL) {
-    return {
-      complete: false,
-      blockers: ['EVENT_ACCESS_CONTROL_READINESS_NOT_IMPLEMENTED'],
-      activePassCount: passes.length
-    };
-  }
   if (event.service?.code !== ServiceCode.PHYSICAL_QR) blockers.push(PHYSICAL_PASS_READINESS_BLOCKERS.SERVICE_MISMATCH);
   if (!hasCompletePhysicalPassBasicData(event)) {
     blockers.push(PHYSICAL_PASS_READINESS_BLOCKERS.BASIC_DATA);

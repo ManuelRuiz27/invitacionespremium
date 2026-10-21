@@ -1465,6 +1465,9 @@ describe('Scanner and CheckIn', () => {
     const tracked = promise.finally(() => {
       settled = true;
     });
+    // Rejection may arrive at COMMIT before the later rejects assertion attaches.
+    // Observe it immediately while retaining the original rejecting promise below.
+    void tracked.catch(() => undefined);
     return { promise: tracked, isSettled: () => settled };
   }
 

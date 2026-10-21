@@ -14,7 +14,8 @@ La capacidad del intake continúa en `1..150`.
 proyecta ese valor, sin inferirlo de perfil operativo, canal comercial o tarifa. El intake es una unión
 discriminada por `serviceCode`; el PATCH Provider existente acepta `accessMode`, mientras el DTO de
 PATCH Client lo rechaza. El estado inicial sigue siendo `DRAFT` y los datos generales completos
-producen `CONFIGURED`; DT02A no calcula readiness de acceso.
+producen `CONFIGURED`. DT06 agrega el resolver especializado que promueve o degrada preparación
+según identidad, material vigente, capacidad y acomodo.
 
 El Provider puede cambiar modo/servicio durante preparación únicamente si la configuración final
 es coherente y no existe material ni activación anterior. Contact, Invitation, Assistant, PhysicalPass
@@ -28,7 +29,9 @@ ACCESS_CONTROL exige asignación no nula; la reasignación Provider conserva aud
 asignación conserva su comportamiento. `ClientOperatingProfilePolicy` permanece sin cambios.
 SQL también rechaza cambiar el código de identidad de Service y cambiar tipo/perfil de un Client
 con eventos ACCESS_CONTROL. No habilita intake comercial, Self-Service, nuevos QR, CSV ni Scanner.
-La activación permanece cerrada con `409 EVENT_ACCESS_CONTROL_READINESS_NOT_IMPLEMENTED` hasta DT06.
+DT06 habilita la activación Provider únicamente con readiness completo y snapshot Managed sin Finance.
+Dos lecturas autenticadas exponen blockers/conteos mínimos por Evento para Organización y Provider.
+Ver [ACCESS_CONTROL_READINESS_CONTRACT.md](./ACCESS_CONTROL_READINESS_CONTRACT.md).
 
 ## Alcance
 

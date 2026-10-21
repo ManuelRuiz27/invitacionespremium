@@ -54,7 +54,7 @@ export async function createNominalAccessFixture(app: INestApplication, origin: 
   return { event, invitation, cookie };
 }
 
-// DT06 still blocks production activation. Only isolated tests force ACTIVE.
+// Operational fixtures activate through the real Provider flow (DT06).
 export async function createOperationalNominalAccessFixture(
   app: INestApplication,
   origin: string,
@@ -86,22 +86,41 @@ export async function createOperationalNominalAccessFixture(
   const credential = await prisma.assistantAccessCredential.findUniqueOrThrow({
     where: { id: issued.body.id as string }
   });
-  await prisma.$transaction(async (tx) => {
-    await tx.$executeRawUnsafe('SET LOCAL session_replication_role = replica');
-    await tx.event.update({
-      where: { id: f.event.id },
-      data: {
-        status: 'ACTIVE',
-        name: 'Nominal operativo test',
-        eventDateTime: new Date('2030-01-01T18:00:00Z'),
-        timeZone: 'America/Mexico_City',
-        activatedAt: new Date(),
-        activatedByUserId: f.event.createdByUserId,
-        activatedServiceId: f.event.serviceId,
-        activationIdempotencyKey: randomUUID()
-      }
-    });
-  });
+  if (otherAssistantId) {
+    await request(app.getHttpServer())
+      .post(`/api/v1/events/${f.event.id}/nominal-access-credentials/assistants/${otherAssistantId}/issue`)
+      .set('Origin', origin)
+      .set('Cookie', f.cookie)
+      .set('Idempotency-Key', randomUUID())
+      .send({})
+      .expect(201);
+  }
+  const provider = await prisma.user.findUniqueOrThrow({ where: { id: f.event.createdByUserId } });
+  const login = await request(app.getHttpServer())
+    .post('/api/v1/auth/login')
+    .set('Origin', origin)
+    .send({ email: provider.email, password })
+    .expect(200);
+  const raw = login.headers['set-cookie'];
+  const providerCookie = (Array.isArray(raw) ? raw[0] : raw)!.split(';')[0]!;
+  await request(app.getHttpServer())
+    .patch(`/api/v1/admin/clients/${f.event.clientId}/events/${f.event.id}`)
+    .set('Origin', origin)
+    .set('Cookie', providerCookie)
+    .send({
+      name: 'Nominal operativo test',
+      socialType: 'OTHER',
+      eventDateTime: '2030-01-01T18:00:00Z',
+      timeZone: 'America/Mexico_City'
+    })
+    .expect(200);
+  await request(app.getHttpServer())
+    .post(`/api/v1/admin/clients/${f.event.clientId}/events/${f.event.id}/activate`)
+    .set('Origin', origin)
+    .set('Cookie', providerCookie)
+    .set('Idempotency-Key', randomUUID())
+    .send({})
+    .expect(200);
   const admin = await prisma.user.create({
     data: {
       role: 'ORGANIZATION_ADMIN',

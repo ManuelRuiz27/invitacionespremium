@@ -1,3 +1,4 @@
+import { recomputeAccessControlPreparationStatus } from '../events/access-control-readiness.service';
 import { randomUUID } from 'node:crypto';
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
@@ -283,6 +284,7 @@ export class InvitationsService {
         select: { id: true, eventId: true, cancelledAt: true }
       });
       await recomputeDigitalEventPreparationStatus(tx, eventId);
+      await recomputeAccessControlPreparationStatus(tx, eventId);
       await this.recordAudit(tx, principal, event, effectiveOperationId, 'INVITATION_CANCEL', invitationId, {
         id: invitationId,
         eventId,

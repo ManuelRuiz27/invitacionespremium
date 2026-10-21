@@ -30,7 +30,7 @@ import {
   UserRole
 } from '../src/generated/prisma/client';
 import { PhysicalPassTokenService } from '../src/physical-passes/physical-pass-token.service';
-import { resolvePhysicalPassReadiness } from '../src/physical-passes/physical-pass-readiness.service';
+import { resolveAccessControlReadiness } from '../src/events/access-control-readiness.service';
 import { createOpenApiDocument } from '../src/openapi/openapi';
 
 const origin = 'http://localhost:5173';
@@ -96,24 +96,20 @@ describe('PhysicalPasses', () => {
     await adminGenerate({ ...f, providerCookie: f.cookie }, randomUUID(), 1).expect(403);
     await generate(f.eventId, f.providerCookie, randomUUID(), 1).expect(403);
     const event = await prisma.event.findUniqueOrThrow({ where: { id: f.eventId } });
-    expect(event.status).toBe(EventStatus.CONFIGURED);
-    expect(await prisma.$transaction((tx) => resolvePhysicalPassReadiness(tx, f.eventId))).toMatchObject({
-      complete: false,
-      activePassCount: 2,
-      blockers: ['EVENT_ACCESS_CONTROL_READINESS_NOT_IMPLEMENTED']
-    });
-    await prisma.$transaction(async (tx) => {
-      await tx.$executeRawUnsafe('SET LOCAL session_replication_role = replica');
-      await tx.event.update({ where: { id: f.eventId }, data: { status: EventStatus.READY_TO_ACTIVATE } });
+    expect(event.status).toBe(EventStatus.READY_TO_ACTIVATE);
+    expect(await prisma.$transaction((tx) => resolveAccessControlReadiness(tx, f.eventId))).toMatchObject({
+      complete: true,
+      activeMaterialCount: 2,
+      blockers: []
     });
     await request(app.getHttpServer())
       .post(`/api/v1/admin/clients/${f.clientId}/events/${f.eventId}/activate`)
       .set('Origin', origin)
       .set('Cookie', f.providerCookie)
-      .set('Idempotency-Key', 'anonymous-activation-blocked')
+      .set('Idempotency-Key', 'anonymous-activation-ready')
       .send({})
-      .expect(409)
-      .expect(({ body }) => expect(body.code).toBe('EVENT_ACCESS_CONTROL_READINESS_NOT_IMPLEMENTED'));
+      .expect(200)
+      .expect(({ body }) => expect(body.status).toBe(EventStatus.ACTIVE));
     await assertNoSyntheticDomainWrites();
     expect(await prisma.auditLog.count({ where: { eventId: f.eventId, action: 'PHYSICAL_PASS_GENERATE' } })).toBe(1);
     const document = createOpenApiDocument(app);
@@ -497,11 +493,11 @@ describe('PhysicalPasses', () => {
       'DELETE FROM physical_pass WHERE id=$1::uuid'
     ])
       await expect(prisma.$executeRawUnsafe(sql, id)).rejects.toThrow();
+    const usedBatch = await adminGenerate(f, 'anonymous-sql-next', 1).expect(200),
+      usedId = usedBatch.body.passes[0].id as string;
     const staff = await anonymousStaff(f),
       storedStaff = await prisma.staffToken.findFirstOrThrow({ where: { eventId: f.eventId } });
     await expect(setUseBySql(id, storedStaff.id, 'anonymous-sql-revoked-use', new Date())).rejects.toThrow();
-    const usedBatch = await adminGenerate(f, 'anonymous-sql-next', 1).expect(200),
-      usedId = usedBatch.body.passes[0].id as string;
     const usedPass = await prisma.physicalPass.findUniqueOrThrow({ where: { id: usedId } });
     await scan(staff, 'anonymous-sql-used', tokens.issue(usedId, usedPass.qrTokenNonce)).expect(200);
     await expect(sqlRevoke(usedId, f.plannerId, 'anonymous-sql-used-revoke')).rejects.toThrow();
@@ -1812,20 +1808,13 @@ describe('PhysicalPasses', () => {
   }
 
   async function anonymousStaff(f: Awaited<ReturnType<typeof anonymousFixture>>) {
-    // Isolated fixture only. Production ACCESS_CONTROL activation remains closed until DT06.
-    await prisma.$transaction(async (tx) => {
-      await tx.$executeRawUnsafe('SET LOCAL session_replication_role = replica');
-      await tx.event.update({
-        where: { id: f.eventId },
-        data: {
-          status: EventStatus.ACTIVE,
-          activatedAt: new Date(),
-          activatedByUserId: f.userId,
-          activatedServiceId: f.serviceId,
-          activationIdempotencyKey: randomUUID()
-        }
-      });
-    });
+    await request(app.getHttpServer())
+      .post(`/api/v1/admin/clients/${f.clientId}/events/${f.eventId}/activate`)
+      .set('Origin', origin)
+      .set('Cookie', f.providerCookie)
+      .set('Idempotency-Key', randomUUID())
+      .send({})
+      .expect(200);
     return createStaff(f.eventId, f.adminCookie, 'Anonymous door');
   }
 

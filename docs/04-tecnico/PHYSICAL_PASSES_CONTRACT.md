@@ -189,12 +189,11 @@ La generación puede promover `configured → ready_to_activate`. La activación
 readiness dentro de su transacción antes de finanzas. Flyer/Flipbook conservan su preflight; Demo no se
 activa.
 
-La promoción anterior corresponde solo a PHYSICAL_QR. DT05 no promueve ACCESS_CONTROL a READY ni
-implementa su readiness de activación. El resolver devuelve `complete=false` con
-`EVENT_ACCESS_CONTROL_READINESS_NOT_IMPLEMENTED`; la activación real conserva expresamente
-`409 EVENT_ACCESS_CONTROL_READINESS_NOT_IMPLEMENTED`, incluso si READY fue forzado. DT06 conserva
-la responsabilidad de readiness/certificación de ambos modos. Los tests de ingreso fuerzan ACTIVE
-únicamente en fixtures locales aislados, sin bypass productivo.
+La promoción anterior corresponde solo a PHYSICAL_QR. DT06 utiliza un resolver separado para
+ACCESS_CONTROL y recalcula preparación al generar/revocar pases. Cuenta folios sobre historial completo,
+incluidos revocados, y habilita activación Provider sólo con cupo, material y acomodo válidos.
+Los fixtures operativos B01 usan activación real. Ver
+[ACCESS_CONTROL_READINESS_CONTRACT.md](./ACCESS_CONTROL_READINESS_CONTRACT.md).
 
 `EventsService.update()` reutiliza la misma recomputación en su transacción: datos básicos incompletos
 producen `draft`; datos completos con blockers producen `configured`; readiness completo produce

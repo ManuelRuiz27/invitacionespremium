@@ -1,3 +1,4 @@
+import { recomputeAccessControlPreparationStatus } from '../events/access-control-readiness.service';
 import { createHash, randomUUID } from 'node:crypto';
 import { ForbiddenException, HttpStatus, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
@@ -129,6 +130,7 @@ export class PhysicalPassesService {
               throw generationIdempotencyConflict();
             }
             await recomputePhysicalPassPreparationStatus(tx, eventId);
+            await recomputeAccessControlPreparationStatus(tx, eventId);
             return parseGenerationSnapshot(replay.resultSnapshot);
           }
           if (!providerClientId && !legacyPhysicalEvent(event))
@@ -219,6 +221,7 @@ export class PhysicalPassesService {
             }
           });
           await recomputePhysicalPassPreparationStatus(tx, eventId);
+          await recomputeAccessControlPreparationStatus(tx, eventId);
           await this.audit.record(
             {
               actor: { type: AuditActorType.USER, id: principal.userId },
@@ -366,6 +369,7 @@ export class PhysicalPassesService {
         },
         tx
       );
+      await recomputeAccessControlPreparationStatus(tx, eventId);
       return snapshot;
     });
   }

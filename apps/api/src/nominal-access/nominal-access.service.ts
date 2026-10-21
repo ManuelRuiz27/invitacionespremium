@@ -1,3 +1,4 @@
+import { recomputeAccessControlPreparationStatus } from '../events/access-control-readiness.service';
 import { createHash } from 'node:crypto';
 import {
   ConflictException,
@@ -67,10 +68,16 @@ export class NominalAccessService {
       await this.assertUnused(tx, assistantId);
       if (current)
         throw conflict('NOMINAL_ACCESS_ALREADY_ISSUED', 'The assistant already has an unrevoked credential.');
+      const [capacity] = await tx.$queryRaw<
+        { rights: number }[]
+      >`SELECT count_nominal_access_rights(${eventId}::uuid) AS rights`;
+      if ((capacity?.rights ?? 0) >= (event.capacity ?? 0) || (capacity?.rights ?? 0) >= 150)
+        throw conflict('EVENT_ACCESS_CAPACITY_EXCEEDED', 'Nominal access capacity would be exceeded.');
       const credential = await tx.assistantAccessCredential.create({
         data: { eventId, assistantId, issuedByUserId: principal.userId, qrTokenNonce: this.tokens.createNonce() }
       });
       await this.recordOperation(tx, event, credential, principal, key, signature, 'ISSUE', operationId);
+      await recomputeAccessControlPreparationStatus(tx, eventId);
       return response(credential);
     });
   }
@@ -137,6 +144,7 @@ export class NominalAccessService {
         }
       });
       await this.recordOperation(tx, event, revoked, principal, key, signature, 'REVOKE', operationId);
+      await recomputeAccessControlPreparationStatus(tx, eventId);
       return response(revoked);
     });
   }

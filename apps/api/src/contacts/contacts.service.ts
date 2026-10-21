@@ -1,3 +1,4 @@
+import { recomputeAccessControlPreparationStatus } from '../events/access-control-readiness.service';
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { parse } from 'csv-parse/sync';
 import { AuditService } from '../audit/audit.service';
@@ -89,6 +90,7 @@ export class ContactsService {
       });
       const provisioned = await this.invitations.provisionForContact(tx, contact);
       await recomputeDigitalEventPreparationStatus(tx, eventId);
+      await recomputeAccessControlPreparationStatus(tx, eventId);
 
       await this.recordUserAudit(tx, principal, event, operationId, 'CONTACT_CREATE', 'Contact', contact.id, {
         id: contact.id,
@@ -163,6 +165,7 @@ export class ContactsService {
       });
       await this.invitations.softDeleteForContact(tx, contactId, deletedAt);
       await recomputeDigitalEventPreparationStatus(tx, eventId);
+      await recomputeAccessControlPreparationStatus(tx, eventId);
       await this.recordUserAudit(
         tx,
         principal,
@@ -431,6 +434,7 @@ export class ContactsService {
           contacts.push(contact);
         }
         await recomputeDigitalEventPreparationStatus(tx, eventId);
+        await recomputeAccessControlPreparationStatus(tx, eventId);
 
         const result: CommitImportResponseDto = {
           createdContacts: contacts.length,

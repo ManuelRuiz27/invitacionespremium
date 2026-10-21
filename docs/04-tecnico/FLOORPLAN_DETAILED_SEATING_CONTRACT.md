@@ -366,6 +366,11 @@ No confiar exclusivamente en validación frontend.
 
 La API sigue siendo autoridad.
 
+**Extensión DT06 para ACCESS_CONTROL + NOMINAL:** el agregado interno PENDING puede asignarse mediante
+las rutas de seating existentes. La activación exige que todas las personas vigentes tengan Mesa y,
+en SEAT, lugar activo no bloqueado; no utiliza Confirmación ni modifica RSVP. ANONYMOUS sólo admite
+TABLE. Esta regla especializada no altera la activación digital descrita a continuación.
+
 ### Activación
 
 Con Croquis habilitado:

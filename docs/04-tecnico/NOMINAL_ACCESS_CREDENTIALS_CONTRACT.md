@@ -24,8 +24,9 @@ La Organización debe seguir activa y Managed. Eventos ajenos y sujetos/credenci
 devuelven 404. ANONYMOUS y servicios legacy devuelven 409 por incompatibilidad de modalidad.
 
 Emisión, SVG y revocación admiten `DRAFT`, `CONFIGURED`, `READY_TO_ACTIVATE`, `ACTIVE` y `EVENT_DAY`.
-Así el material puede prepararse antes del Evento; estas rutas no cambian su estado ni permiten altas
-tardías de Contactos. Cancelación/cierre/archivo bloquean operaciones nuevas y descarga. El listado
+Así el material puede prepararse antes del Evento. DT06 recomputa preparación tras emisión/revocación,
+sin modificar estados ya operativos ni permitir altas tardías de Contactos. Cancelación/cierre/archivo
+bloquean operaciones nuevas y descarga. El listado
 conserva historial autorizado, sin devolver Eventos eliminados.
 
 El JSON contiene exclusivamente `id`, `eventId`, `assistantId`, `status` (`ISSUED`/`REVOKED`), `issuedAt`,
@@ -126,4 +127,5 @@ auditoría ni realtime. La firma de solicitud separa NOMINAL_ACCESS de la selecc
 Evento y token completo mediante SHA-256. Las claves globales de CheckIn no pueden cruzar modalidades.
 
 DT04 no habilita asignación nominal de seating, lotes anónimos, Finance, Pricing o UI.
-La activación sigue devolviendo `409 EVENT_ACCESS_CONTROL_READINESS_NOT_IMPLEMENTED` hasta DT06.
+DT06 habilita readiness/activación Provider con agregado vigente completo, sin RSVP ni Finance.
+Ver [ACCESS_CONTROL_READINESS_CONTRACT.md](./ACCESS_CONTROL_READINESS_CONTRACT.md).

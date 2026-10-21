@@ -46,6 +46,7 @@ import {
   parseAdminUpdateEventRequest
 } from './events.dto';
 import { EventsService } from './events.service';
+import { AccessControlReadinessResponseDto } from './access-control-readiness.dto';
 
 @ApiTags('admin-events')
 @ApiCookieAuth()
@@ -56,6 +57,16 @@ export class AdminClientEventsController {
     @Inject(EventsService) private readonly events: EventsService,
     @Inject(EventCommercialService) private readonly commercial: EventCommercialService
   ) {}
+
+  @Get(':eventId/access-readiness')
+  @ApiOkResponse({ type: AccessControlReadinessResponseDto })
+  accessReadiness(
+    @Param('clientId') clientId: string,
+    @Param('eventId') eventId: string,
+    @CurrentAuth() principal: AuthPrincipal
+  ) {
+    return this.events.accessReadiness(parseEventId(eventId), principal, parseUuidParameter(clientId, 'clientId'));
+  }
 
   @Get('intake-quote')
   @ApiOkResponse({ type: EventIntakeQuoteResponseDto })

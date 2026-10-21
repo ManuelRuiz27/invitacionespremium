@@ -37,6 +37,7 @@ import {
 } from './events.dto';
 import { EventLifecycleService } from './event-lifecycle.service';
 import { EventsService } from './events.service';
+import { AccessControlReadinessResponseDto } from './access-control-readiness.dto';
 
 @ApiTags('events')
 @ApiCookieAuth()
@@ -47,6 +48,13 @@ export class EventsController {
     @Inject(EventsService) private readonly events: EventsService,
     @Inject(EventLifecycleService) private readonly lifecycle: EventLifecycleService
   ) {}
+
+  @Get(':eventId/access-readiness')
+  @Roles(UserRole.ORGANIZATION_ADMIN, UserRole.ORGANIZATION_PLANNER)
+  @ApiOkResponse({ type: AccessControlReadinessResponseDto })
+  accessReadiness(@Param('eventId') eventId: string, @CurrentAuth() principal: AuthPrincipal) {
+    return this.events.accessReadiness(parseEventId(eventId), principal);
+  }
 
   @Get()
   @ApiOkResponse({ type: EventResponseDto, isArray: true })

@@ -559,7 +559,11 @@ describe('Events CRUD', () => {
         await legacy.query(await readFile(resolve(directory, migration, 'migration.sql'), 'utf8'));
       }
       expect(
-        (await legacy.query(`SELECT to_jsonb(event) - 'access_mode' AS data FROM event ORDER BY id`)).rows
+        (
+          await legacy.query(
+            `SELECT to_jsonb(event) - ARRAY['access_mode','access_activation_result_snapshot'] AS data FROM event ORDER BY id`
+          )
+        ).rows
       ).toEqual(before);
       expect((await legacy.query('SELECT access_mode FROM event')).rows.every((row) => row.access_mode === null)).toBe(
         true

@@ -1,3 +1,4 @@
+import { recomputeAccessControlPreparationStatus } from '../events/access-control-readiness.service';
 import { createHash, randomUUID } from 'node:crypto';
 import {
   BadRequestException,
@@ -171,6 +172,7 @@ export class FloorplanService {
         imageAssetId: input.imageAssetId
       });
       await recomputeDigitalEventPreparationStatus(tx, eventId);
+      await recomputeAccessControlPreparationStatus(tx, eventId);
       return this.toTargetResponse(await this.requireView(tx, eventId), target);
     });
   }
@@ -217,7 +219,7 @@ export class FloorplanService {
   ): Promise<SeatingWorkspacePageDto> {
     const cursor = input.cursor ? decodeSeatingCursor(input.cursor) : null;
     return this.prisma.$transaction(async (tx) => {
-      await this.access.requireOwnedEvent(tx, eventId, principal);
+      const event = await this.access.requireOwnedEvent(tx, eventId, principal);
       const floorplan = await tx.floorplan.findFirst({
         where: { eventId, deletedAt: null },
         select: { id: true }
@@ -289,7 +291,7 @@ export class FloorplanService {
             AND a."deleted_at" IS NULL
             AND a."anonymized_at" IS NULL
             AND a."name" IS NOT NULL
-            AND a."response_status" = 'CONFIRMED'::"assistant_response_status"
+            AND a."response_status" = ${event.accessMode === 'NOMINAL' ? 'PENDING' : 'CONFIRMED'}::"assistant_response_status"
             AND i."deleted_at" IS NULL
             AND i."cancelled_at" IS NULL
             AND c."deleted_at" IS NULL
@@ -337,7 +339,7 @@ export class FloorplanService {
           AND a."deleted_at" IS NULL
           AND a."anonymized_at" IS NULL
           AND a."name" IS NOT NULL
-          AND a."response_status" = 'CONFIRMED'::"assistant_response_status"
+          AND a."response_status" = ${event.accessMode === 'NOMINAL' ? 'PENDING' : 'CONFIRMED'}::"assistant_response_status"
           AND i."deleted_at" IS NULL
           AND i."cancelled_at" IS NULL
           AND c."deleted_at" IS NULL
@@ -518,6 +520,7 @@ export class FloorplanService {
         detachedShapeIds: mappedShapes.map(({ id }) => id)
       });
       await recomputeDigitalEventPreparationStatus(tx, eventId);
+      await recomputeAccessControlPreparationStatus(tx, eventId);
       return this.toTargetResponse(await this.requireView(tx, eventId), target);
     });
   }
@@ -618,6 +621,7 @@ export class FloorplanService {
       });
       await this.recordAudit(tx, event, principal, operationId, 'FLOORPLAN_SVG_MAP', shape.id, shapeAudit(shape));
       await recomputeDigitalEventPreparationStatus(tx, eventId);
+      await recomputeAccessControlPreparationStatus(tx, eventId);
       return toShapeResponse(shape, 0);
     });
   }
@@ -641,6 +645,7 @@ export class FloorplanService {
         after: shapeAudit(updated)
       });
       await recomputeDigitalEventPreparationStatus(tx, eventId);
+      await recomputeAccessControlPreparationStatus(tx, eventId);
       return toShapeResponse(updated, await combinedOccupancy(tx, shapeId));
     });
   }
@@ -679,6 +684,7 @@ export class FloorplanService {
       const shape = await tx.floorplanShape.create({ data: shapeCreateData(floorplan.id, eventId, input) });
       await this.recordAudit(tx, event, principal, operationId, 'FLOORPLAN_SHAPE_CREATE', shape.id, shapeAudit(shape));
       await recomputeDigitalEventPreparationStatus(tx, eventId);
+      await recomputeAccessControlPreparationStatus(tx, eventId);
       return toShapeResponse(shape, 0);
     });
   }
@@ -757,6 +763,7 @@ export class FloorplanService {
         occupancy
       });
       await recomputeDigitalEventPreparationStatus(tx, eventId);
+      await recomputeAccessControlPreparationStatus(tx, eventId);
       return toShapeResponse(updated, occupancy);
     });
   }
@@ -802,6 +809,7 @@ export class FloorplanService {
         occupancy
       });
       await recomputeDigitalEventPreparationStatus(tx, eventId);
+      await recomputeAccessControlPreparationStatus(tx, eventId);
     });
   }
 
@@ -866,7 +874,7 @@ export class FloorplanService {
             deletedAt: null,
             anonymizedAt: null,
             name: { not: null },
-            responseStatus: AssistantResponseStatus.CONFIRMED,
+            ...seatingEligibility(event),
             invitation: { deletedAt: null, cancelledAt: null }
           },
           select: { id: true, floorplanShapeId: true, floorplanSeatId: true }
@@ -899,6 +907,7 @@ export class FloorplanService {
           )
         ].sort()
       );
+      await recomputeAccessControlPreparationStatus(tx, eventId);
       const response = { changes, affectedTables };
       await tx.seatingOperation.create({
         data: {
@@ -959,6 +968,7 @@ export class FloorplanService {
         seatingMode
       });
       await recomputeDigitalEventPreparationStatus(tx, eventId);
+      await recomputeAccessControlPreparationStatus(tx, eventId);
       return this.toTargetResponse(await this.requireView(tx, eventId), { kind: 'ADMIN', clientId });
     });
   }
@@ -1013,6 +1023,7 @@ export class FloorplanService {
         after: seatAudit(updated)
       });
       await recomputeDigitalEventPreparationStatus(tx, eventId);
+      await recomputeAccessControlPreparationStatus(tx, eventId);
       return toSeatResponse(updated, await tx.assistant.count({ where: { floorplanSeatId: seatId, deletedAt: null } }));
     });
   }
@@ -1037,6 +1048,7 @@ export class FloorplanService {
       await tx.floorplanSeat.update({ where: { id: seatId }, data: { deletedAt: new Date() } });
       await this.recordAudit(tx, event, principal, operationId, 'FLOORPLAN_SEAT_DELETE', seatId, seatAudit(seat));
       await recomputeDigitalEventPreparationStatus(tx, eventId);
+      await recomputeAccessControlPreparationStatus(tx, eventId);
     });
   }
   async batchSeatsAdministrative(
@@ -1088,6 +1100,7 @@ export class FloorplanService {
         );
       }
       await recomputeDigitalEventPreparationStatus(tx, eventId);
+      await recomputeAccessControlPreparationStatus(tx, eventId);
       return results;
     });
   }
@@ -1144,6 +1157,7 @@ export class FloorplanService {
         seatIds: ordered.map((seat) => seat.id)
       });
       await recomputeDigitalEventPreparationStatus(tx, eventId);
+      await recomputeAccessControlPreparationStatus(tx, eventId);
       return results;
     });
   }
@@ -1180,6 +1194,7 @@ export class FloorplanService {
       });
       await this.recordAudit(tx, event, principal, operationId, `FLOORPLAN_SEAT_${action}`, seat.id, seatAudit(seat));
       await recomputeDigitalEventPreparationStatus(tx, eventId);
+      await recomputeAccessControlPreparationStatus(tx, eventId);
       return toSeatResponse(seat, 0);
     });
   }
@@ -1199,7 +1214,7 @@ export class FloorplanService {
       input.tableShapeId,
       principal,
       operationId,
-      async (tx) => {
+      async (tx, event) => {
         await tx.$queryRaw`SELECT "id" FROM "invitation" WHERE "id" = ${input.invitationId}::uuid FOR UPDATE`;
         const invitation = await tx.invitation.findFirst({
           where: { id: input.invitationId, eventId, deletedAt: null, cancelledAt: null },
@@ -1213,7 +1228,7 @@ export class FloorplanService {
             deletedAt: null,
             anonymizedAt: null,
             name: { not: null },
-            responseStatus: AssistantResponseStatus.CONFIRMED
+            ...seatingEligibility(event)
           },
           select: { id: true },
           orderBy: { id: 'asc' }
@@ -1239,7 +1254,7 @@ export class FloorplanService {
       input.tableShapeId,
       principal,
       operationId,
-      async (tx) => {
+      async (tx, event) => {
         await tx.$queryRaw`SELECT "id" FROM "contact_group" WHERE "id" = ${input.groupId}::uuid FOR UPDATE`;
         const group = await tx.group.findFirst({ where: { id: input.groupId, eventId }, select: { id: true } });
         if (!group) throw seatingNotFound();
@@ -1249,7 +1264,7 @@ export class FloorplanService {
             deletedAt: null,
             anonymizedAt: null,
             name: { not: null },
-            responseStatus: AssistantResponseStatus.CONFIRMED,
+            ...seatingEligibility(event),
             invitation: {
               deletedAt: null,
               cancelledAt: null,
@@ -1293,7 +1308,10 @@ export class FloorplanService {
     targetTableShapeId: string | null,
     principal: AuthPrincipal,
     operationId: string | undefined,
-    resolve: (tx: Prisma.TransactionClient) => Promise<{ assistantIds: string[]; tableShapeId: string | null }>
+    resolve: (
+      tx: Prisma.TransactionClient,
+      event: Event
+    ) => Promise<{ assistantIds: string[]; tableShapeId: string | null }>
   ): Promise<SeatingMutationResponseDto> {
     const effectiveOperationId = operationId ?? randomUUID();
     const signature = requestSignature(eventId, action, signatureInput);
@@ -1320,7 +1338,7 @@ export class FloorplanService {
           throw floorplanError('SEATING_TABLE_INVALID', 'Seating assignment requires a table.');
         }
       }
-      const resolved = await resolve(tx);
+      const resolved = await resolve(tx, event);
       if (resolved.tableShapeId !== targetTableShapeId) {
         throw floorplanError('SEATING_TABLE_INVALID', 'Seating assignment target is inconsistent.');
       }
@@ -1338,7 +1356,7 @@ export class FloorplanService {
           deletedAt: null,
           anonymizedAt: null,
           name: { not: null },
-          responseStatus: AssistantResponseStatus.CONFIRMED,
+          ...seatingEligibility(event),
           invitation: { deletedAt: null, cancelledAt: null }
         },
         select: { id: true, floorplanShapeId: true },
@@ -1392,6 +1410,7 @@ export class FloorplanService {
         )
       ].sort();
       const affectedTables = await this.tableOccupancy(tx, tableIds);
+      await recomputeAccessControlPreparationStatus(tx, eventId);
       const response: SeatingMutationResponseDto = { changes, affectedTables };
       await tx.seatingOperation.create({
         data: {
@@ -1921,4 +1940,25 @@ function isRetryable(error: unknown): boolean {
   if (hasPrismaCode(error, 'P2034') || hasPrismaCode(error, 'P2002')) return true;
   const message = databaseMessage(error);
   return message.includes('40001') || message.includes('40P01');
+}
+
+function seatingEligibility(event: Event): Prisma.AssistantWhereInput {
+  return event.accessMode === 'NOMINAL'
+    ? {
+        responseStatus: 'PENDING',
+        isPrimary: true,
+        AND: [
+          {
+            invitation: {
+              mode: 'INDIVIDUAL',
+              responseStatus: 'PENDING',
+              additionalAssistantLimit: 0,
+              deletedAt: null,
+              cancelledAt: null,
+              contact: { deletedAt: null, anonymizedAt: null }
+            }
+          }
+        ]
+      }
+    : { responseStatus: AssistantResponseStatus.CONFIRMED };
 }
