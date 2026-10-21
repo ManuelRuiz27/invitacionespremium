@@ -409,6 +409,7 @@ model User {
   revertedCheckIns           CheckIn[]              @relation("CheckInReverter")
   lockedFloorplans           Floorplan[]            @relation("FloorplanLocker")
   createdPhysicalPasses      PhysicalPass[]         @relation("PhysicalPassCreator")
+  revokedPhysicalPasses      PhysicalPass[]         @relation("PhysicalPassRevoker")
   createdAlbums              Album[]                @relation("AlbumCreator")
   requestedReports           GeneratedReport[]      @relation("GeneratedReportRequester")
   issuedAccessCredentials    AssistantAccessCredential[] @relation("NominalCredentialIssuer")
@@ -1039,6 +1040,12 @@ model PhysicalPass {
   useIdempotencyKey   String?         @map("use_idempotency_key") @db.VarChar(128)
   useRequestSignature String?         @map("use_request_signature") @db.Char(64)
   useResultSnapshot   Json?           @map("use_result_snapshot")
+  revokedAt           DateTime?       @map("revoked_at") @db.Timestamptz(6)
+  revokedByUserId     String?         @map("revoked_by_user_id") @db.Uuid
+  revocationReasonCode String?        @map("revocation_reason_code") @db.VarChar(64)
+  revokeIdempotencyKey String?        @unique @map("revoke_idempotency_key") @db.VarChar(128)
+  revokeRequestSignature String?      @map("revoke_request_signature") @db.Char(64)
+  revokeResultSnapshot Json?          @map("revoke_result_snapshot")
   createdByUserId     String          @map("created_by_user_id") @db.Uuid
   createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -1047,12 +1054,14 @@ model PhysicalPass {
   floorplanShape      FloorplanShape? @relation(fields: [floorplanShapeId, eventId], references: [id, eventId], onDelete: Restrict)
   usedByStaffToken    StaffToken?     @relation(fields: [usedByStaffTokenId, eventId], references: [id, eventId], onDelete: Restrict)
   createdByUser       User            @relation("PhysicalPassCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  revokedByUser       User?           @relation("PhysicalPassRevoker", fields: [revokedByUserId], references: [id], onDelete: Restrict)
 
   @@unique([eventId, passNumber])
   @@unique([id, eventId])
   @@index([eventId, deletedAt, passNumber])
   @@index([floorplanShapeId, eventId, deletedAt])
   @@index([usedByStaffTokenId, eventId])
+  @@index([revokedByUserId])
   @@map("physical_pass")
 }
 

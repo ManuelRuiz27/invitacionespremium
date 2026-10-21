@@ -61,11 +61,18 @@ export async function resolvePhysicalPassReadiness(
   });
   if (!event) return { complete: false, blockers: [PHYSICAL_PASS_READINESS_BLOCKERS.BASIC_DATA], activePassCount: 0 };
   const passes = await tx.physicalPass.findMany({
-    where: { eventId, deletedAt: null },
+    where: { eventId, deletedAt: null, revokedAt: null },
     select: { passNumber: true, floorplanShapeId: true, usedAt: true },
     orderBy: { passNumber: 'asc' }
   });
   const blockers: string[] = [];
+  if (event.service?.code === ServiceCode.ACCESS_CONTROL) {
+    return {
+      complete: false,
+      blockers: ['EVENT_ACCESS_CONTROL_READINESS_NOT_IMPLEMENTED'],
+      activePassCount: passes.length
+    };
+  }
   if (event.service?.code !== ServiceCode.PHYSICAL_QR) blockers.push(PHYSICAL_PASS_READINESS_BLOCKERS.SERVICE_MISMATCH);
   if (!hasCompletePhysicalPassBasicData(event)) {
     blockers.push(PHYSICAL_PASS_READINESS_BLOCKERS.BASIC_DATA);

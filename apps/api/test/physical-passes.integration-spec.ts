@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import jsQR from 'jsqr';
 import { Client as PgClient } from 'pg';
@@ -9,6 +9,7 @@ import { AuditService } from '../src/audit/audit.service';
 import { hashPassword } from '../src/auth/password-hasher';
 import { createApp } from '../src/bootstrap/create-app';
 import { PrismaService } from '../src/common/database/prisma.service';
+import { CRITICAL_TRANSACTION_OPTIONS } from '../src/common/database/transaction-policy';
 import {
   ClientOperatingProfile,
   ClientStatus,
@@ -29,6 +30,8 @@ import {
   UserRole
 } from '../src/generated/prisma/client';
 import { PhysicalPassTokenService } from '../src/physical-passes/physical-pass-token.service';
+import { resolvePhysicalPassReadiness } from '../src/physical-passes/physical-pass-readiness.service';
+import { createOpenApiDocument } from '../src/openapi/openapi';
 
 const origin = 'http://localhost:5173';
 const password = 'correct horse battery staple';
@@ -61,6 +64,566 @@ describe('PhysicalPasses', () => {
     await resetDatabase();
     await app.close();
   }, 60_000);
+
+  it('generates Provider-owned anonymous batches without commercial or nominal aggregates and keeps activation blocked', async () => {
+    const f = await anonymousFixture(3);
+    const first = await adminGenerate(f, 'anonymous-provider-001', 2).expect(200);
+    expect(first.body).toMatchObject({ firstPassNumber: 1, lastPassNumber: 2, quantity: 2, table: null });
+    expect((await adminGenerate(f, 'anonymous-provider-001', 2).expect(200)).body).toEqual(first.body);
+    expect(
+      (
+        await adminGenerate(
+          { ...f, eventId: f.eventId.toUpperCase(), clientId: f.clientId.toUpperCase() },
+          'anonymous-provider-001',
+          2
+        ).expect(200)
+      ).body
+    ).toEqual(first.body);
+    await adminGenerate(f, 'anonymous-provider-001', 1).expect(409);
+    const otherProvider = await createUser(UserRole.PLATFORM_ADMIN, null);
+    await adminGenerate({ ...f, providerCookie: await login(otherProvider.email) }, 'anonymous-provider-001', 2).expect(
+      409
+    );
+    expect(
+      (await prisma.physicalPass.findMany({ where: { eventId: f.eventId } })).every(
+        (p) => p.createdByUserId === f.userId
+      )
+    ).toBe(true);
+    for (const cookie of [f.cookie, f.adminCookie])
+      await generate(f.eventId, cookie, randomUUID(), 1)
+        .expect(403)
+        .expect(({ body }) => expect(body.code).toBe('CLIENT_MANAGED_CAPABILITY_FORBIDDEN'));
+    await adminGenerate({ ...f, providerCookie: f.cookie }, randomUUID(), 1).expect(403);
+    await generate(f.eventId, f.providerCookie, randomUUID(), 1).expect(403);
+    const event = await prisma.event.findUniqueOrThrow({ where: { id: f.eventId } });
+    expect(event.status).toBe(EventStatus.CONFIGURED);
+    expect(await prisma.$transaction((tx) => resolvePhysicalPassReadiness(tx, f.eventId))).toMatchObject({
+      complete: false,
+      activePassCount: 2,
+      blockers: ['EVENT_ACCESS_CONTROL_READINESS_NOT_IMPLEMENTED']
+    });
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe('SET LOCAL session_replication_role = replica');
+      await tx.event.update({ where: { id: f.eventId }, data: { status: EventStatus.READY_TO_ACTIVATE } });
+    });
+    await request(app.getHttpServer())
+      .post(`/api/v1/admin/clients/${f.clientId}/events/${f.eventId}/activate`)
+      .set('Origin', origin)
+      .set('Cookie', f.providerCookie)
+      .set('Idempotency-Key', 'anonymous-activation-blocked')
+      .send({})
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('EVENT_ACCESS_CONTROL_READINESS_NOT_IMPLEMENTED'));
+    await assertNoSyntheticDomainWrites();
+    expect(await prisma.auditLog.count({ where: { eventId: f.eventId, action: 'PHYSICAL_PASS_GENERATE' } })).toBe(1);
+    const document = createOpenApiDocument(app);
+    for (const path of [
+      '/api/v1/admin/clients/{clientId}/events/{eventId}/physical-passes/generate',
+      '/api/v1/events/{eventId}/physical-passes/{passId}/revoke'
+    ])
+      expect(document.paths[path]?.post?.parameters).toContainEqual(
+        expect.objectContaining({ name: 'Idempotency-Key', required: true })
+      );
+  });
+
+  it('authorizes anonymous reads and SVG by assigned Planner/Organization and enforces exact tenant and modality', async () => {
+    const f = await anonymousFixture(3),
+      foreign = await anonymousFixture(3);
+    const issued = await adminGenerate(f, 'anonymous-reads', 1).expect(200),
+      passId = issued.body.passes[0].id as string;
+    for (const cookie of [f.cookie, f.adminCookie]) {
+      const list = await request(app.getHttpServer())
+        .get(`/api/v1/events/${f.eventId}/physical-passes`)
+        .set('Cookie', cookie)
+        .expect(200);
+      expect(list.body).toEqual(issued.body.passes);
+      const svg = await getSvg(f.eventId, passId, cookie).expect(200);
+      const repeat = await getSvg(f.eventId, passId, cookie).expect(200);
+      expect(repeat.body).toEqual(svg.body);
+      expect(svg.headers).toMatchObject({
+        'cache-control': 'private, no-store',
+        'x-content-type-options': 'nosniff',
+        'referrer-policy': 'no-referrer',
+        'content-security-policy': "default-src 'none'"
+      });
+      const stored = await prisma.physicalPass.findUniqueOrThrow({ where: { id: passId } });
+      expect(await decodeSvgQr(svg.body as Buffer)).toBe(tokens.issue(stored.id, stored.qrTokenNonce));
+      expect(JSON.stringify(list.body)).not.toMatch(/nonce|token|signature|snapshot|phone|finance/iu);
+    }
+    const colleague = await createUser(UserRole.ORGANIZATION_PLANNER, f.clientId);
+    for (const cookie of [foreign.cookie, await login(colleague.email)]) {
+      await request(app.getHttpServer())
+        .get(`/api/v1/events/${f.eventId}/physical-passes`)
+        .set('Cookie', cookie)
+        .expect(404);
+      await getSvg(f.eventId, passId, cookie).expect(404);
+      await revokeAnonymous(f, passId, randomUUID(), cookie).expect(404);
+    }
+    await getSvg(f.eventId, passId, f.providerCookie).expect(403);
+    await getSvg(foreign.eventId, passId, foreign.cookie).expect(404);
+    await adminGenerate({ ...f, clientId: foreign.clientId }, randomUUID(), 1).expect(404);
+    for (const [code, accessMode] of [
+      ['ACCESS_CONTROL', 'NOMINAL'],
+      ['PHYSICAL_QR', null],
+      ['FLYER', null]
+    ] as const) {
+      const service = await prisma.service.upsert({ where: { code }, create: { code }, update: {} });
+      const event = await prisma.event.create({
+        data: {
+          clientId: f.clientId,
+          createdByUserId: f.userId,
+          assignedPlannerUserId: f.plannerId,
+          serviceId: service.id,
+          accessMode,
+          capacity: 3
+        }
+      });
+      await adminGenerate({ ...f, eventId: event.id }, randomUUID(), 1).expect(409);
+      if (accessMode)
+        await request(app.getHttpServer())
+          .get(`/api/v1/events/${event.id}/physical-passes`)
+          .set('Cookie', f.cookie)
+          .expect(409);
+    }
+    await prisma.event.update({ where: { id: f.eventId }, data: { assignedPlannerUserId: colleague.id } });
+    await getSvg(f.eventId, passId, f.cookie).expect(404);
+    await getSvg(f.eventId, passId, await login(colleague.email)).expect(200);
+  }, 60_000);
+
+  it('revokes unused anonymous passes exactly once, invalidates old SVG tokens and releases capacity without recycling folios', async () => {
+    const f = await anonymousFixture(2);
+    const issued = await adminGenerate(f, 'anonymous-full', 2).expect(200),
+      passId = issued.body.passes[1].id as string;
+    const before = await prisma.physicalPass.findUniqueOrThrow({ where: { id: passId } });
+    const svg = await getSvg(f.eventId, passId, f.cookie).expect(200),
+      token = await decodeSvgQr(svg.body as Buffer);
+    const first = await revokeAnonymous(f, passId, 'anonymous-revoke-one').expect(200);
+    expect(first.body).toMatchObject({
+      status: 'REVOKED',
+      physicalPassId: passId,
+      passNumber: 2,
+      revocationReasonCode: 'OPERATOR_REQUEST'
+    });
+    expect((await revokeAnonymous(f, passId, 'anonymous-revoke-one').expect(200)).body).toEqual(first.body);
+    expect(
+      (
+        await revokeAnonymous(
+          { ...f, eventId: f.eventId.toUpperCase() },
+          passId.toUpperCase(),
+          'anonymous-revoke-one'
+        ).expect(200)
+      ).body
+    ).toEqual(first.body);
+    await revokeAnonymous(f, passId, 'anonymous-revoke-again').expect(409);
+    await revokeAnonymous(f, passId, 'anonymous-revoke-one', f.adminCookie).expect(409);
+    await revokeAnonymous(f, issued.body.passes[0].id as string, 'anonymous-revoke-one').expect(409);
+    await revokeAnonymous(f, passId, 'anonymous-revoke-one', f.cookie, 'REPLACED').expect(409);
+    expect((await adminGenerate(f, 'anonymous-full', 2).expect(200)).body).toEqual(issued.body);
+    const next = await adminGenerate(f, 'anonymous-next', 1).expect(200);
+    expect(next.body).toMatchObject({ firstPassNumber: 3, lastPassNumber: 3 });
+    await adminGenerate(f, 'anonymous-over-capacity', 1).expect(409);
+    await getSvg(f.eventId, passId, f.cookie).expect(404);
+    const listed = await request(app.getHttpServer())
+      .get(`/api/v1/events/${f.eventId}/physical-passes`)
+      .set('Cookie', f.cookie)
+      .expect(200);
+    expect(listed.body.map((p: { status: string }) => p.status)).toEqual(['UNUSED', 'REVOKED', 'UNUSED']);
+    const stored = await prisma.physicalPass.findUniqueOrThrow({ where: { id: passId } });
+    expect(stored).toMatchObject({
+      qrTokenNonce: before.qrTokenNonce,
+      qrTokenVersion: before.qrTokenVersion,
+      passNumber: before.passNumber,
+      createdByUserId: f.userId,
+      revokedByUserId: f.plannerId
+    });
+    expect(stored.revokeResultSnapshot).toEqual(first.body);
+    const staff = await anonymousStaff(f);
+    await scan(staff, 'anonymous-revoked-token', token)
+      .expect(404)
+      .expect(({ body }) => expect(body.code).toBe('PHYSICAL_PASS_NOT_FOUND'));
+    expect(await prisma.auditLog.count({ where: { eventId: f.eventId, action: 'PHYSICAL_PASS_REVOKE' } })).toBe(1);
+    expect(JSON.stringify(await prisma.auditLog.findMany())).not.toMatch(/pp1\.|nonce|qrToken|phone|signature/iu);
+  });
+
+  it('checks in anonymous passes once with current Staff, stable snapshots and no nominal or financial writes', async () => {
+    const f = await anonymousFixture(3);
+    const generated = await adminGenerate(f, 'anonymous-scan-batch', 3).expect(200);
+    const pass = await prisma.physicalPass.findUniqueOrThrow({ where: { id: generated.body.passes[0].id as string } });
+    const token = tokens.issue(pass.id, pass.qrTokenNonce),
+      staff = await anonymousStaff(f);
+    const secondStaff = await createStaff(f.eventId, f.adminCookie, 'Second anonymous door');
+    for (const bad of [token.slice(0, -1) + '!', 'qr1.invalid', 'na1.invalid'])
+      await scan(staff, randomUUID(), bad).expect(404);
+    const foreign = await anonymousFixture(1),
+      foreignPass = await adminGenerate(foreign, 'anonymous-foreign', 1).expect(200);
+    const material = await prisma.physicalPass.findUniqueOrThrow({
+      where: { id: foreignPass.body.passes[0].id as string }
+    });
+    await scan(staff, randomUUID(), tokens.issue(material.id, material.qrTokenNonce)).expect(404);
+    const responses = await startBehindVerifiedEventLock(f.eventId, () => [
+      scan(staff, 'anonymous-use-a', token),
+      scan(secondStaff, 'anonymous-use-b', token)
+    ]);
+    expect(responses.map((r) => r.status).sort()).toEqual([200, 409]);
+    const winner =
+      responses[0].status === 200
+        ? { staff, key: 'anonymous-use-a', response: responses[0] }
+        : { staff: secondStaff, key: 'anonymous-use-b', response: responses[1] };
+    expect((await scan(winner.staff, winner.key, token).expect(200)).body).toEqual(winner.response.body);
+    expect(Object.keys(winner.response.body).sort()).toEqual(
+      ['status', 'physicalPassId', 'passNumber', 'usedAt', 'table'].sort()
+    );
+    await scan(staff === winner.staff ? secondStaff : staff, winner.key, token).expect(409);
+    await revokeAnonymous(f, pass.id, 'anonymous-used-revoke')
+      .expect(409)
+      .expect(({ body }) => expect(body.code).toBe('PHYSICAL_PASS_ALREADY_USED'));
+    const other = await prisma.physicalPass.findUniqueOrThrow({ where: { id: generated.body.passes[1].id as string } });
+    await scan(staff, winner.key, tokens.issue(other.id, other.qrTokenNonce)).expect(409);
+    const staffRow = await prisma.staffToken.findFirstOrThrow({
+      where: { eventId: f.eventId, tokenDigestSha256: createHash('sha256').update(staff).digest('hex') }
+    });
+    await prisma.staffToken.update({ where: { id: staffRow.id }, data: { expiredAt: new Date() } });
+    await scan(staff, 'anonymous-expired', tokens.issue(other.id, other.qrTokenNonce)).expect(401);
+    for (const status of [EventStatus.CLOSED, EventStatus.CANCELLED]) {
+      await prisma.$transaction(async (tx) => {
+        await tx.$executeRawUnsafe('SET LOCAL session_replication_role = replica');
+        await tx.event.update({ where: { id: f.eventId }, data: { status } });
+      });
+      await scan(secondStaff, randomUUID(), tokens.issue(other.id, other.qrTokenNonce))
+        .expect(409)
+        .expect(({ body }) => expect(body.code).toBe('STAFF_EVENT_NOT_OPERATIONAL'));
+    }
+    expect(await prisma.auditLog.count({ where: { eventId: f.eventId, action: 'PHYSICAL_PASS_USE' } })).toBe(1);
+    await assertNoSyntheticDomainWrites();
+  }, 60_000);
+
+  it('serializes anonymous batches, last capacity and generation versus revocation with historical numbering', async () => {
+    const f = await anonymousFixture(6);
+    const ranges = await startBehindVerifiedEventLock(f.eventId, () => [
+      adminGenerate(f, 'anonymous-range-a', 3),
+      adminGenerate(f, 'anonymous-range-b', 3)
+    ]);
+    expect(ranges.map((r) => r.status)).toEqual([200, 200]);
+    expect(ranges.map((r) => r.body.firstPassNumber as number).sort((a, b) => a - b)).toEqual([1, 4]);
+    const shared = await anonymousFixture(1);
+    const same = await startBehindVerifiedEventLock(shared.eventId, () => [
+      adminGenerate(shared, 'anonymous-same-key', 1),
+      adminGenerate(shared, 'anonymous-same-key', 1)
+    ]);
+    expect(same.map((r) => r.status)).toEqual([200, 200]);
+    expect(same[0].body).toEqual(same[1].body);
+    for (const revokeFirst of [true, false]) {
+      const last = await anonymousFixture(1);
+      const pass = await adminGenerate(last, `anonymous-one-existing-${revokeFirst}`, 1).expect(200),
+        id = pass.body.passes[0].id as string;
+      const key = `anonymous-generate-race-${revokeFirst}`;
+      const result = revokeFirst
+        ? await startBehindVerifiedEventLock(last.eventId, () => [
+            revokeAnonymous(last, id, `anonymous-release-one-${revokeFirst}`),
+            adminGenerate(last, key, 1)
+          ])
+        : await startBehindVerifiedEventLock(last.eventId, () => [
+            adminGenerate(last, key, 1),
+            revokeAnonymous(last, id, `anonymous-release-one-${revokeFirst}`)
+          ]);
+      expect(result[revokeFirst ? 0 : 1].status).toBe(200);
+      const generated = result[revokeFirst ? 1 : 0];
+      expect([200, 409]).toContain(generated.status);
+      const final = await adminGenerate(last, key, 1).expect(200);
+      expect(final.body).toMatchObject({ firstPassNumber: 2, lastPassNumber: 2 });
+      expect(
+        await prisma.physicalPass.count({ where: { eventId: last.eventId, revokedAt: null, deletedAt: null } })
+      ).toBe(1);
+    }
+  }, 60_000);
+
+  it('serializes scan/revoke in both orders and rolls back all anonymous operations when audit fails', async () => {
+    for (const scanFirst of [true, false]) {
+      const f = await anonymousFixture(1),
+        issued = await adminGenerate(f, `anonymous-race-material-${scanFirst}`, 1).expect(200);
+      const id = issued.body.passes[0].id as string,
+        pass = await prisma.physicalPass.findUniqueOrThrow({ where: { id } });
+      const staff = await anonymousStaff(f),
+        token = tokens.issue(pass.id, pass.qrTokenNonce);
+      const gate = auditBarrier(scanFirst ? 'PHYSICAL_PASS_USE' : 'PHYSICAL_PASS_REVOKE');
+      const first = (
+        scanFirst
+          ? scan(staff, `anonymous-race-scan-${scanFirst}`, token)
+          : revokeAnonymous(f, id, `anonymous-race-revoke-${scanFirst}`)
+      ).then((r) => r);
+      let second: Promise<request.Response> | undefined;
+      try {
+        await gate.entered.promise;
+        second = (
+          scanFirst
+            ? revokeAnonymous(f, id, `anonymous-race-revoke-${scanFirst}`)
+            : scan(staff, `anonymous-race-scan-${scanFirst}`, token)
+        ).then((r) => r);
+        await waitForVerifiedLockWaiters(1);
+      } finally {
+        gate.release.resolve();
+      }
+      expect((await first).status).toBe(200);
+      expect((await second!).status).toBe(scanFirst ? 409 : 404);
+      gate.restore();
+      const stored = await prisma.physicalPass.findUniqueOrThrow({ where: { id } });
+      expect(stored.usedAt !== null).toBe(scanFirst);
+      expect(stored.revokedAt !== null).toBe(!scanFirst);
+    }
+    const rollback = await anonymousFixture(2),
+      original = audit.record.bind(audit);
+    for (const action of ['PHYSICAL_PASS_GENERATE', 'PHYSICAL_PASS_REVOKE', 'PHYSICAL_PASS_USE']) {
+      let id: string | undefined, staff: string | undefined, token: string | undefined;
+      if (action !== 'PHYSICAL_PASS_GENERATE') {
+        const batch = await adminGenerate(rollback, `anonymous-audit-${action}`, 1).expect(200);
+        id = batch.body.passes[0].id as string;
+        const pass = await prisma.physicalPass.findUniqueOrThrow({ where: { id } });
+        token = tokens.issue(pass.id, pass.qrTokenNonce);
+        if (action === 'PHYSICAL_PASS_USE') staff = await anonymousStaff(rollback);
+      }
+      const before = await prisma.physicalPass.findMany({ where: { eventId: rollback.eventId } });
+      const fail = vi.spyOn(audit, 'record').mockImplementation(async (input, tx) => {
+        if (input.action === action) throw new Error('anonymous audit unavailable');
+        return original(input, tx);
+      });
+      try {
+        if (action === 'PHYSICAL_PASS_GENERATE')
+          await adminGenerate(rollback, 'anonymous-rollback-generate', 1).expect(500);
+        if (action === 'PHYSICAL_PASS_REVOKE')
+          await revokeAnonymous(rollback, id!, 'anonymous-rollback-revoke').expect(500);
+        if (action === 'PHYSICAL_PASS_USE') await scan(staff!, 'anonymous-rollback-use', token!).expect(500);
+      } finally {
+        fail.mockRestore();
+      }
+      expect(await prisma.physicalPass.findMany({ where: { eventId: rollback.eventId } })).toEqual(before);
+    }
+  }, 60_000);
+
+  it('counts nonrevoked anonymous table occupancy, protects used capacity and rejects exact-seat mode', async () => {
+    const f = await anonymousFixture(3, true),
+      table = await createFloorplanTable(f, 2);
+    const batch = await adminGenerate(f, 'anonymous-table-full', 2, table.id).expect(200),
+      first = batch.body.passes[0].id as string;
+    await adminGenerate(f, 'anonymous-table-over', 1, table.id).expect(409);
+    await expect(prisma.floorplanShape.update({ where: { id: table.id }, data: { capacity: 1 } })).rejects.toThrow();
+    await revokeAnonymous(f, first, 'anonymous-table-release').expect(200);
+    await prisma.floorplanShape.update({ where: { id: table.id }, data: { capacity: 1 } });
+    const view = await request(app.getHttpServer())
+      .get(`/api/v1/admin/clients/${f.clientId}/events/${f.eventId}/floorplan`)
+      .set('Cookie', f.providerCookie)
+      .expect(200);
+    expect(view.body.shapes[0]).toMatchObject({ id: table.id, occupancy: 1, availableCapacity: 0 });
+    const floorplan = await prisma.floorplan.findFirstOrThrow({ where: { eventId: f.eventId } });
+    await expect(
+      prisma.floorplan.update({ where: { id: floorplan.id }, data: { seatingMode: 'SEAT' } })
+    ).rejects.toThrow(/PHYSICAL_PASS_TABLE_INVALID/u);
+    await request(app.getHttpServer())
+      .patch(`/api/v1/admin/clients/${f.clientId}/events/${f.eventId}/floorplan/seating-mode`)
+      .set('Origin', origin)
+      .set('Cookie', f.providerCookie)
+      .send({ seatingMode: 'SEAT' })
+      .expect(409);
+    await prisma.floorplanShape.update({ where: { id: table.id }, data: { capacity: 2 } });
+    const replacement = await adminGenerate(f, 'anonymous-table-replacement', 1, table.id).expect(200);
+    expect(replacement.body.firstPassNumber).toBe(3);
+    const staff = await anonymousStaff(f),
+      id = replacement.body.passes[0].id as string;
+    const material = await prisma.physicalPass.findUniqueOrThrow({ where: { id } });
+    const used = await scan(staff, 'anonymous-table-used', tokens.issue(id, material.qrTokenNonce)).expect(200);
+    expect(used.body.table).toEqual({ id: table.id, name: 'Mesa 1' });
+    await expect(prisma.event.update({ where: { id: f.eventId }, data: { capacity: 1 } })).rejects.toThrow();
+    await expect(prisma.floorplanShape.update({ where: { id: table.id }, data: { capacity: 1 } })).rejects.toThrow();
+    await expect(prisma.physicalPass.update({ where: { id }, data: { deletedAt: new Date() } })).rejects.toThrow();
+    await revokeAnonymous(f, id, 'anonymous-used-table-revoke').expect(409);
+  }, 60_000);
+
+  it('rejects invalid anonymous mutations through SQL and keeps legacy revocation forbidden', async () => {
+    const f = await anonymousFixture(2),
+      other = await anonymousFixture(1);
+    const batch = await adminGenerate(f, 'anonymous-sql-batch', 1).expect(200),
+      id = batch.body.passes[0].id as string;
+    await expect(insertPhysicalPass({ ...f, userId: f.plannerId }, 2)).rejects.toThrow(
+      /PHYSICAL_PASS_PROVIDER_REQUIRED/u
+    );
+    await expect(insertPhysicalPass(f, 3)).rejects.toThrow(/PHYSICAL_PASS_NUMBER_NOT_CONSECUTIVE/u);
+    const future = {
+      ...f,
+      eventId: (
+        await prisma.event.create({
+          data: {
+            clientId: f.clientId,
+            createdByUserId: f.userId,
+            assignedPlannerUserId: f.plannerId,
+            serviceId: f.serviceId,
+            accessMode: 'NOMINAL',
+            capacity: 2
+          }
+        })
+      ).id
+    };
+    await expect(insertPhysicalPass(future, 1)).rejects.toThrow(/PHYSICAL_PASS_SERVICE_MISMATCH/u);
+    for (const sql of [
+      'DELETE FROM physical_pass WHERE id = $1::uuid',
+      'UPDATE physical_pass SET deleted_at = NOW() WHERE id = $1::uuid',
+      'UPDATE physical_pass SET qr_token_version = 2 WHERE id = $1::uuid',
+      'UPDATE physical_pass SET pass_number = 9 WHERE id = $1::uuid'
+    ])
+      await expect(prisma.$executeRawUnsafe(sql, id)).rejects.toThrow();
+    await expect(sqlRevoke(id, f.userId, 'anonymous-sql-provider')).rejects.toThrow(
+      /PHYSICAL_PASS_REVOKER_NOT_AUTHORIZED/u
+    );
+    await expect(sqlRevoke(id, other.plannerId, 'anonymous-sql-foreign')).rejects.toThrow(
+      /PHYSICAL_PASS_REVOKER_NOT_AUTHORIZED/u
+    );
+    await expect(prisma.$executeRawUnsafe('TRUNCATE physical_pass')).rejects.toThrow(
+      /PHYSICAL_PASS.*HISTORY_IMMUTABLE/u
+    );
+    const legacy = await createFixture(EventStatus.CONFIGURED, 2);
+    await insertPhysicalPass(legacy, 1);
+    const legacyPass = await prisma.physicalPass.findFirstOrThrow({ where: { eventId: legacy.eventId } });
+    await expect(sqlRevoke(legacyPass.id, f.plannerId, 'anonymous-sql-legacy')).rejects.toThrow(
+      /PHYSICAL_PASS_REVOCATION_NOT_ALLOWED/u
+    );
+    await revokeAnonymous(
+      { ...f, eventId: legacy.eventId },
+      legacyPass.id,
+      'anonymous-legacy-revoke',
+      await login(legacy.email)
+    ).expect(403);
+    await sqlRevoke(id, f.plannerId, 'anonymous-sql-valid');
+    for (const sql of [
+      'UPDATE physical_pass SET revoked_at=NULL, revoked_by_user_id=NULL, revocation_reason_code=NULL, revoke_idempotency_key=NULL, revoke_request_signature=NULL, revoke_result_snapshot=NULL WHERE id=$1::uuid',
+      "UPDATE physical_pass SET revoke_result_snapshot='{}'::jsonb WHERE id=$1::uuid",
+      'DELETE FROM physical_pass WHERE id=$1::uuid'
+    ])
+      await expect(prisma.$executeRawUnsafe(sql, id)).rejects.toThrow();
+    const staff = await anonymousStaff(f),
+      storedStaff = await prisma.staffToken.findFirstOrThrow({ where: { eventId: f.eventId } });
+    await expect(setUseBySql(id, storedStaff.id, 'anonymous-sql-revoked-use', new Date())).rejects.toThrow();
+    const usedBatch = await adminGenerate(f, 'anonymous-sql-next', 1).expect(200),
+      usedId = usedBatch.body.passes[0].id as string;
+    const usedPass = await prisma.physicalPass.findUniqueOrThrow({ where: { id: usedId } });
+    await scan(staff, 'anonymous-sql-used', tokens.issue(usedId, usedPass.qrTokenNonce)).expect(200);
+    await expect(sqlRevoke(usedId, f.plannerId, 'anonymous-sql-used-revoke')).rejects.toThrow();
+    await expect(prisma.physicalPass.delete({ where: { id: usedId } })).rejects.toThrow();
+  }, 60_000);
+
+  it('serializes anonymous table reduction and relocation against the last available table capacity', async () => {
+    for (const generateFirst of [true, false]) {
+      const f = await anonymousFixture(2, true),
+        table = await createFloorplanTable(f, 2);
+      const change = () =>
+        request(app.getHttpServer())
+          .patch(`/api/v1/admin/clients/${f.clientId}/events/${f.eventId}/floorplan/shapes/${table.id}`)
+          .set('Origin', origin)
+          .set('Cookie', f.providerCookie)
+          .send({ capacity: 1 });
+      const gen = () => adminGenerate(f, `anonymous-table-race-${generateFirst}`, 2, table.id);
+      const result = generateFirst
+        ? await startBehindVerifiedEventLock(f.eventId, () => [gen(), change()])
+        : await startBehindVerifiedEventLock(f.eventId, () => [change(), gen()]);
+      expect(result.map((r) => r.status).sort()).toEqual([200, 409]);
+      const stored = await prisma.floorplanShape.findUniqueOrThrow({ where: { id: table.id } });
+      expect(
+        await prisma.physicalPass.count({ where: { floorplanShapeId: table.id, deletedAt: null, revokedAt: null } })
+      ).toBeLessThanOrEqual(stored.capacity);
+    }
+    const f = await anonymousFixture(2, true),
+      source = await createFloorplanTable(f, 1);
+    const target = await prisma.floorplanShape.create({
+      data: {
+        eventId: f.eventId,
+        floorplanId: source.floorplanId,
+        kind: FloorplanShapeKind.TABLE,
+        geometry: FloorplanGeometry.CIRCLE,
+        name: 'Target',
+        normalizedName: 'target',
+        capacity: 1,
+        x: 0.5,
+        y: 0.5,
+        width: 0.2,
+        height: 0.2
+      }
+    });
+    const existing = await adminGenerate(f, 'anonymous-move-source', 1, source.id).expect(200);
+    const id = existing.body.passes[0].id as string;
+    const [generated, moved] = await startBehindVerifiedEventLock(f.eventId, () => [
+      adminGenerate(f, 'anonymous-move-target', 1, target.id),
+      capture(
+        prisma.$transaction(async (tx) => {
+          await tx.$queryRaw`SELECT id FROM event WHERE id=${f.eventId}::uuid FOR UPDATE`;
+          return tx.physicalPass.update({ where: { id }, data: { floorplanShapeId: target.id } });
+        }, CRITICAL_TRANSACTION_OPTIONS)
+      )
+    ]);
+    expect(Number(generated.status === 200) + Number(moved.ok)).toBe(1);
+    expect(
+      await prisma.physicalPass.count({ where: { floorplanShapeId: target.id, deletedAt: null, revokedAt: null } })
+    ).toBe(1);
+  }, 60_000);
+
+  it('binds anonymous revocation receipts globally and reauthorizes all retries', async () => {
+    const f = await anonymousFixture(2),
+      batch = await adminGenerate(f, 'anonymous-double-revoke-material', 2).expect(200);
+    const id = batch.body.passes[0].id as string;
+    const result = await startBehindVerifiedEventLock(f.eventId, () => [
+      revokeAnonymous(f, id, 'anonymous-double-revoke'),
+      revokeAnonymous(f, id, 'anonymous-double-revoke')
+    ]);
+    expect(result.map((r) => r.status)).toEqual([200, 200]);
+    expect(result[0].body).toEqual(result[1].body);
+    expect(await prisma.auditLog.count({ where: { eventId: f.eventId, action: 'PHYSICAL_PASS_REVOKE' } })).toBe(1);
+    const foreign = await anonymousFixture(1),
+      otherBatch = await adminGenerate(foreign, 'anonymous-other-revoke-material', 1).expect(200);
+    await revokeAnonymous(foreign, otherBatch.body.passes[0].id as string, 'anonymous-double-revoke').expect(409);
+    await revokeAnonymous(f, otherBatch.body.passes[0].id as string, 'anonymous-cross-pass').expect(404);
+    await revokeAnonymous(f, id, 'anonymous-provider-revoke', f.providerCookie).expect(403);
+    const legacyService = await prisma.service.upsert({
+      where: { code: ServiceCode.PHYSICAL_QR },
+      create: { code: ServiceCode.PHYSICAL_QR },
+      update: {}
+    });
+    const legacy = await prisma.event.create({
+      data: {
+        clientId: f.clientId,
+        createdByUserId: f.userId,
+        assignedPlannerUserId: f.plannerId,
+        serviceId: legacyService.id,
+        capacity: 2
+      }
+    });
+    await insertPhysicalPass({ ...f, eventId: legacy.id }, 1);
+    const legacyPass = await prisma.physicalPass.findFirstOrThrow({ where: { eventId: legacy.id } });
+    await revokeAnonymous({ ...f, eventId: legacy.id }, legacyPass.id, 'anonymous-org-legacy-revoke').expect(409);
+    await request(app.getHttpServer())
+      .post(`/api/v1/events/${f.eventId}/physical-passes/${id}/revoke`)
+      .set('Origin', origin)
+      .set('Cookie', f.cookie)
+      .send({ revocationReasonCode: 'OPERATOR_REQUEST' })
+      .expect(400);
+    await prisma.client.update({
+      where: { id: f.clientId },
+      data: { status: ClientStatus.SUSPENDED, suspendedAt: new Date(), suspensionReason: 'Test' }
+    });
+    await adminGenerate(f, 'anonymous-double-revoke-material', 2).expect(409);
+  }, 60_000);
+
+  it('rejects TRUNCATE even when its transaction predates the anonymous history', async () => {
+    const observer = new PgClient({ connectionString: process.env.DATABASE_URL! });
+    await observer.connect();
+    try {
+      await observer.query('BEGIN ISOLATION LEVEL REPEATABLE READ');
+      expect((await observer.query('SELECT count(*)::int AS total FROM physical_pass')).rows).toEqual([{ total: 0 }]);
+      const f = await anonymousFixture(1);
+      await adminGenerate(f, 'anonymous-truncate-stale-snapshot', 1).expect(200);
+      await expect(observer.query('TRUNCATE physical_pass')).rejects.toThrow(/PHYSICAL_PASS.*HISTORY_IMMUTABLE/u);
+    } finally {
+      // The probe never commits, including when testing an insufficient guard.
+      await observer.query('ROLLBACK');
+      await observer.end();
+    }
+    expect(await prisma.physicalPass.count()).toBe(1);
+  });
 
   it('generates consecutive batches, replays exactly, lists safely and renders a private deterministic SVG', async () => {
     const fixture = await createFixture(EventStatus.CONFIGURED, 5);
@@ -1090,7 +1653,7 @@ describe('PhysicalPasses', () => {
       .set('Idempotency-Key', key);
   }
 
-  function auditBarrier(action: 'PHYSICAL_PASS_GENERATE' | 'PHYSICAL_PASS_USE') {
+  function auditBarrier(action: 'PHYSICAL_PASS_GENERATE' | 'PHYSICAL_PASS_USE' | 'PHYSICAL_PASS_REVOKE') {
     const entered = deferred<void>();
     const release = deferred<void>();
     const original = audit.record.bind(audit);
@@ -1159,6 +1722,117 @@ describe('PhysicalPasses', () => {
         "use_result_snapshot" = ${snapshot}::jsonb
       WHERE "id" = ${passId}::uuid
     `;
+  }
+
+  async function assertNoSyntheticDomainWrites() {
+    expect(
+      await Promise.all([
+        prisma.contact.count(),
+        prisma.invitation.count(),
+        prisma.assistant.count(),
+        prisma.checkIn.count(),
+        prisma.ledgerEntry.count(),
+        prisma.receipt.count(),
+        prisma.servicePrice.count(),
+        prisma.payment.count()
+      ])
+    ).toEqual(Array(8).fill(0));
+  }
+
+  async function anonymousFixture(capacity: number, floorplanEnabled = false) {
+    const client = await prisma.client.create({
+      data: { type: ClientType.ORGANIZATION, operatingProfile: 'MANAGED', name: randomUUID() }
+    });
+    const provider = await createUser(UserRole.PLATFORM_ADMIN, null);
+    const planner = await createUser(UserRole.ORGANIZATION_PLANNER, client.id);
+    const admin = await createUser(UserRole.ORGANIZATION_ADMIN, client.id);
+    const service = await prisma.service.upsert({
+      where: { code: ServiceCode.ACCESS_CONTROL },
+      create: { code: ServiceCode.ACCESS_CONTROL },
+      update: {}
+    });
+    const event = await prisma.event.create({
+      data: {
+        clientId: client.id,
+        createdByUserId: provider.id,
+        assignedPlannerUserId: planner.id,
+        serviceId: service.id,
+        accessMode: 'ANONYMOUS',
+        capacity,
+        floorplanEnabled,
+        status: EventStatus.CONFIGURED,
+        name: 'Anonymous passes',
+        socialType: EventSocialType.OTHER,
+        eventDateTime: new Date('2035-01-01T18:00:00Z'),
+        timeZone: 'America/Mexico_City',
+        confirmationEnabled: false
+      }
+    });
+    return {
+      clientId: client.id,
+      userId: provider.id,
+      email: provider.email,
+      plannerId: planner.id,
+      adminId: admin.id,
+      serviceId: service.id,
+      eventId: event.id,
+      providerCookie: await login(provider.email),
+      cookie: await login(planner.email),
+      adminCookie: await login(admin.email)
+    };
+  }
+
+  function adminGenerate(
+    f: Awaited<ReturnType<typeof anonymousFixture>>,
+    key: string,
+    quantity: number,
+    tableShapeId: string | null = null
+  ) {
+    return request(app.getHttpServer())
+      .post(`/api/v1/admin/clients/${f.clientId}/events/${f.eventId}/physical-passes/generate`)
+      .set('Origin', origin)
+      .set('Cookie', f.providerCookie)
+      .set('Idempotency-Key', key)
+      .send({ quantity, tableShapeId });
+  }
+
+  function revokeAnonymous(
+    f: { eventId: string; cookie: string[] },
+    passId: string,
+    key: string,
+    cookie = f.cookie,
+    reason = 'OPERATOR_REQUEST'
+  ) {
+    return request(app.getHttpServer())
+      .post(`/api/v1/events/${f.eventId}/physical-passes/${passId}/revoke`)
+      .set('Origin', origin)
+      .set('Cookie', cookie)
+      .set('Idempotency-Key', key)
+      .send({ revocationReasonCode: reason });
+  }
+
+  async function anonymousStaff(f: Awaited<ReturnType<typeof anonymousFixture>>) {
+    // Isolated fixture only. Production ACCESS_CONTROL activation remains closed until DT06.
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe('SET LOCAL session_replication_role = replica');
+      await tx.event.update({
+        where: { id: f.eventId },
+        data: {
+          status: EventStatus.ACTIVE,
+          activatedAt: new Date(),
+          activatedByUserId: f.userId,
+          activatedServiceId: f.serviceId,
+          activationIdempotencyKey: randomUUID()
+        }
+      });
+    });
+    return createStaff(f.eventId, f.adminCookie, 'Anonymous door');
+  }
+
+  async function sqlRevoke(passId: string, actor: string, key: string) {
+    return prisma.$executeRaw`UPDATE physical_pass SET revoked_at=clock_timestamp(),revoked_by_user_id=${actor}::uuid,
+      revocation_reason_code='OPERATOR_REQUEST',revoke_idempotency_key=${key},revoke_request_signature=${'a'.repeat(64)},
+      revoke_result_snapshot='{}'::jsonb WHERE id=${passId}::uuid`;
   }
 
   async function createFixture(status: EventStatus, capacity: number, floorplanEnabled = false) {

@@ -534,6 +534,19 @@ describe('Events CRUD', () => {
         ]
       );
       const legacyCheckIn = (await legacy.query('SELECT to_jsonb(check_in) AS data FROM check_in')).rows;
+      const physicalEventId = (
+        await legacy.query<{ id: string }>(
+          `SELECT e.id FROM event e JOIN service s ON s.id=e.service_id WHERE s.code='PHYSICAL_QR' LIMIT 1`
+        )
+      ).rows[0]!.id;
+      await legacy.query('UPDATE event SET capacity=2 WHERE id=$1', [physicalEventId]);
+      const legacyPassId = randomUUID();
+      await legacy.query(
+        `INSERT INTO physical_pass(id,event_id,pass_number,qr_token_nonce,created_by_user_id,updated_at)
+        VALUES($1,$2,1,$3,$4,NOW())`,
+        [legacyPassId, physicalEventId, '3'.repeat(64), plannerId]
+      );
+      const legacyPasses = (await legacy.query('SELECT to_jsonb(physical_pass) AS data FROM physical_pass')).rows;
       const legacyMaterial = {} as Record<string, unknown[]>;
       for (const table of ['contact', 'invitation', 'assistant']) {
         legacyMaterial[table] = (
@@ -569,6 +582,15 @@ describe('Events CRUD', () => {
       ).toEqual(legacyCheckIn);
       expect((await legacy.query('SELECT assistant_access_credential_id FROM check_in')).rows).toEqual([
         { assistant_access_credential_id: null }
+      ]);
+      expect(
+        (
+          await legacy.query(`SELECT to_jsonb(physical_pass) - ARRAY['revoked_at','revoked_by_user_id',
+        'revocation_reason_code','revoke_idempotency_key','revoke_request_signature','revoke_result_snapshot'] AS data FROM physical_pass`)
+        ).rows
+      ).toEqual(legacyPasses);
+      expect((await legacy.query('SELECT revoked_at, revoke_idempotency_key FROM physical_pass')).rows).toEqual([
+        { revoked_at: null, revoke_idempotency_key: null }
       ]);
     } finally {
       await legacy?.end();

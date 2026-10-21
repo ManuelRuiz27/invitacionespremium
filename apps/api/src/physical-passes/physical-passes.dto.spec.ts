@@ -3,10 +3,39 @@ import {
   parseGeneratePhysicalPasses,
   parseGenerationSnapshot,
   parseScanPhysicalPass,
-  parseUseSnapshot
+  parseUseSnapshot,
+  parseRevokePhysicalPass,
+  parseRevokeSnapshot
 } from './physical-passes.dto';
 
 describe('physical pass DTOs', () => {
+  it('accepts only a bounded technical reason for anonymous revocation', () => {
+    expect(parseRevokePhysicalPass({ revocationReasonCode: 'OPERATOR_REQUEST' })).toEqual({
+      revocationReasonCode: 'OPERATOR_REQUEST'
+    });
+    for (const body of [
+      {},
+      { revocationReasonCode: '' },
+      { revocationReasonCode: 'free text' },
+      { revocationReasonCode: 'A'.repeat(65) },
+      { revocationReasonCode: null },
+      { revocationReasonCode: 'REPLACED', actor: 'forged' }
+    ])
+      expect(() => parseRevokePhysicalPass(body)).toThrow();
+  });
+
+  it('decodes an immutable revocation receipt without accepting secret or partial fields', () => {
+    const receipt = {
+      status: 'REVOKED',
+      physicalPassId: '00000000-0000-4000-8000-000000000001',
+      passNumber: 7,
+      revokedAt: '2026-10-20T12:00:00.000Z',
+      revocationReasonCode: 'OPERATOR_REQUEST'
+    };
+    expect(parseRevokeSnapshot(receipt)).toEqual(receipt);
+    expect(() => parseRevokeSnapshot({ ...receipt, nonce: 'secret' })).toThrow();
+    expect(() => parseRevokeSnapshot({ ...receipt, revokedAt: null })).toThrow();
+  });
   it('accepts strict generation and scan payloads', () => {
     expect(parseGeneratePhysicalPasses({ quantity: 2, tableShapeId: null })).toEqual({
       quantity: 2,

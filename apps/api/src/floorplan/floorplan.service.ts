@@ -90,7 +90,7 @@ const floorplanInclude = {
       _count: {
         select: {
           assistants: { where: { deletedAt: null } },
-          physicalPasses: { where: { deletedAt: null } }
+          physicalPasses: { where: { deletedAt: null, revokedAt: null } }
         }
       }
     },
@@ -329,7 +329,7 @@ export class FloorplanService {
             WHERE seated."floorplan_shape_id" = ${input.tableShapeId ?? null}::uuid
               AND seated."deleted_at" IS NULL) AS table_assistants,
           (SELECT count(*)::int FROM "physical_pass" p
-            WHERE p."floorplan_shape_id" = ${input.tableShapeId ?? null}::uuid AND p."deleted_at" IS NULL) AS table_passes
+            WHERE p."floorplan_shape_id" = ${input.tableShapeId ?? null}::uuid AND p."deleted_at" IS NULL AND p."revoked_at" IS NULL) AS table_passes
         FROM "assistant" a
         JOIN "invitation" i ON i."id" = a."invitation_id" AND i."event_id" = a."event_id"
         JOIN "contact" c ON c."id" = i."contact_id" AND c."event_id" = i."event_id"
@@ -940,6 +940,8 @@ export class FloorplanService {
     return this.serializable(async (tx) => {
       const event = await this.requireTargetEvent(tx, eventId, principal, { kind: 'ADMIN', clientId }, true);
       this.assertSeatingModeMutable(event);
+      if (event.accessMode === 'ANONYMOUS' && seatingMode !== FloorplanSeatingMode.TABLE)
+        throw floorplanError('PHYSICAL_PASS_TABLE_INVALID', 'Anonymous access supports table seating only.');
       const floorplan = await this.lockFloorplan(tx, eventId);
       this.assertUnlocked(floorplan);
       if (floorplan.seatingMode === seatingMode)
@@ -1372,7 +1374,7 @@ export class FloorplanService {
           }
         });
         const existingPasses = await tx.physicalPass.count({
-          where: { floorplanShapeId: table.id, deletedAt: null }
+          where: { floorplanShapeId: table.id, deletedAt: null, revokedAt: null }
         });
         if (existingAssistants + existingPasses + assistants.length > table.capacity) {
           throw floorplanError('SEATING_TABLE_CAPACITY_EXCEEDED', 'Table capacity would be exceeded.');
@@ -1539,7 +1541,7 @@ export class FloorplanService {
         _count: {
           select: {
             assistants: { where: { deletedAt: null } },
-            physicalPasses: { where: { deletedAt: null } }
+            physicalPasses: { where: { deletedAt: null, revokedAt: null } }
           }
         }
       },
@@ -1851,7 +1853,7 @@ function decodeSeatingCursor(cursor: string): { name: string; assistantId: strin
 async function combinedOccupancy(tx: Prisma.TransactionClient, shapeId: string): Promise<number> {
   const [assistants, physicalPasses] = await Promise.all([
     tx.assistant.count({ where: { floorplanShapeId: shapeId, deletedAt: null } }),
-    tx.physicalPass.count({ where: { floorplanShapeId: shapeId, deletedAt: null } })
+    tx.physicalPass.count({ where: { floorplanShapeId: shapeId, deletedAt: null, revokedAt: null } })
   ]);
   return assistants + physicalPasses;
 }

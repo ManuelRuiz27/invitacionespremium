@@ -10,6 +10,16 @@ const generationSchema = z
   })
   .strict();
 const scanSchema = z.object({ qrToken: z.string().min(1).max(1024) }).strict();
+const revokeSchema = z.object({ revocationReasonCode: z.string().regex(/^[A-Z][A-Z0-9_]{0,63}$/u) }).strict();
+const revokeSnapshotSchema = z
+  .object({
+    status: z.literal('REVOKED'),
+    physicalPassId: uuid,
+    passNumber: z.number().int().positive(),
+    revokedAt: z.string().datetime(),
+    revocationReasonCode: revokeSchema.shape.revocationReasonCode
+  })
+  .strict();
 const tableSnapshotSchema = z.object({ id: uuid, name: z.string() }).strict();
 const passSnapshotSchema = z
   .object({
@@ -45,6 +55,7 @@ const useSnapshotSchema = z
 
 export type GeneratePhysicalPassesInput = z.infer<typeof generationSchema>;
 export type ScanPhysicalPassInput = z.infer<typeof scanSchema>;
+export type RevokePhysicalPassInput = z.infer<typeof revokeSchema>;
 
 export class GeneratePhysicalPassesRequestDto {
   @ApiProperty({ type: Number, example: 10, minimum: 1, maximum: 10_000 })
@@ -72,8 +83,8 @@ export class PhysicalPassResponseDto {
   @ApiProperty({ type: Number })
   passNumber!: number;
 
-  @ApiProperty({ type: String, enum: ['UNUSED', 'USED'] })
-  status!: 'UNUSED' | 'USED';
+  @ApiProperty({ type: String, enum: ['UNUSED', 'USED', 'REVOKED'] })
+  status!: 'UNUSED' | 'USED' | 'REVOKED';
 
   @ApiProperty({ type: () => PhysicalPassTableDto, nullable: true })
   table!: PhysicalPassTableDto | null;
@@ -113,6 +124,19 @@ export class ScanPhysicalPassRequestDto {
   qrToken!: string;
 }
 
+export class RevokePhysicalPassRequestDto {
+  @ApiProperty({ type: String, pattern: '^[A-Z][A-Z0-9_]{0,63}$', example: 'OPERATOR_REQUEST' })
+  revocationReasonCode!: string;
+}
+
+export class RevokePhysicalPassResponseDto {
+  @ApiProperty({ enum: ['REVOKED'] }) status!: 'REVOKED';
+  @ApiProperty({ type: String, format: 'uuid' }) physicalPassId!: string;
+  @ApiProperty({ type: Number }) passNumber!: number;
+  @ApiProperty({ type: String, format: 'date-time' }) revokedAt!: string;
+  @ApiProperty({ type: String }) revocationReasonCode!: string;
+}
+
 export class ScanPhysicalPassResponseDto {
   @ApiProperty({ type: String, enum: ['USED'] })
   status!: 'USED';
@@ -136,6 +160,14 @@ export function parseGeneratePhysicalPasses(value: unknown): GeneratePhysicalPas
 
 export function parseScanPhysicalPass(value: unknown): ScanPhysicalPassInput {
   return parse(scanSchema, value);
+}
+
+export function parseRevokePhysicalPass(value: unknown): RevokePhysicalPassInput {
+  return parse(revokeSchema, value);
+}
+
+export function parseRevokeSnapshot(value: unknown): RevokePhysicalPassResponseDto {
+  return parseStored(revokeSnapshotSchema, value);
 }
 
 export function parsePhysicalPassId(value: string): string {

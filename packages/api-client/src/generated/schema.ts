@@ -672,6 +672,22 @@ export type paths = {
         patch: operations["AdminInvitationDesignController_updateHotspot"];
         trace?: never;
     };
+    "/api/v1/admin/clients/{clientId}/events/{eventId}/physical-passes/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminPhysicalPassesController_generate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/clients/{clientId}/events/{eventId}/pilot-observations": {
         parameters: {
             query?: never;
@@ -2124,6 +2140,22 @@ export type paths = {
         get: operations["PhysicalPassesController_list"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{eventId}/physical-passes/{passId}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["PhysicalPassesController_revoke"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3997,7 +4029,7 @@ export type components = {
             id: string;
             passNumber: number;
             /** @enum {string} */
-            status: "UNUSED" | "USED";
+            status: "UNUSED" | "USED" | "REVOKED";
             table: components["schemas"]["PhysicalPassTableDto"] | null;
             usedAt: string | null;
         };
@@ -4333,6 +4365,20 @@ export type components = {
         RevokeNominalAccessRequestDto: {
             /** @example OPERATOR_REQUEST */
             revocationReasonCode: string;
+        };
+        RevokePhysicalPassRequestDto: {
+            /** @example OPERATOR_REQUEST */
+            revocationReasonCode: string;
+        };
+        RevokePhysicalPassResponseDto: {
+            passNumber: number;
+            /** Format: uuid */
+            physicalPassId: string;
+            revocationReasonCode: string;
+            /** Format: date-time */
+            revokedAt: string;
+            /** @enum {string} */
+            status: "REVOKED";
         };
         RsvpAssistantInputDto: {
             /** Format: uuid */
@@ -5838,6 +5884,34 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HotspotResponseDto"];
+                };
+            };
+        };
+    };
+    AdminPhysicalPassesController_generate: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                clientId: string;
+                eventId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GeneratePhysicalPassesRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GeneratePhysicalPassesResponseDto"];
                 };
             };
         };
@@ -8132,6 +8206,34 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PhysicalPassResponseDto"][];
+                };
+            };
+        };
+    };
+    PhysicalPassesController_revoke: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                eventId: string;
+                passId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RevokePhysicalPassRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevokePhysicalPassResponseDto"];
                 };
             };
         };

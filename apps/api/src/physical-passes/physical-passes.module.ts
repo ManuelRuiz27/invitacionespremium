@@ -5,12 +5,16 @@ import { EventsModule } from '../events/events.module';
 import { StaffAccessModule } from '../staff-access/staff-access.module';
 import { PhysicalPassQrService } from './physical-pass-qr.service';
 import { PhysicalPassTokenService } from './physical-pass-token.service';
-import { PhysicalPassesController, ScannerPhysicalPassesController } from './physical-passes.controller';
+import {
+  AdminPhysicalPassesController,
+  PhysicalPassesController,
+  ScannerPhysicalPassesController
+} from './physical-passes.controller';
 import { PhysicalPassesService } from './physical-passes.service';
 
 @Module({
   imports: [AuditModule, ClientsModule, EventsModule, StaffAccessModule],
-  controllers: [PhysicalPassesController, ScannerPhysicalPassesController],
+  controllers: [PhysicalPassesController, ScannerPhysicalPassesController, AdminPhysicalPassesController],
   providers: [PhysicalPassesService, PhysicalPassTokenService, PhysicalPassQrService],
   exports: [PhysicalPassesService]
 })

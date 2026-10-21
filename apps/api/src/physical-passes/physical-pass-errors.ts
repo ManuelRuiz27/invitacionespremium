@@ -22,3 +22,10 @@ export function useIdempotencyConflict(): ConflictException {
     message: 'The Idempotency-Key is already associated with another physical pass use.'
   });
 }
+
+export function revokeIdempotencyConflict(): ConflictException {
+  return new ConflictException({
+    code: 'PHYSICAL_PASS_REVOKE_IDEMPOTENCY_CONFLICT',
+    message: 'The Idempotency-Key is already associated with another physical pass revocation.'
+  });
+}

@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { HttpStatus, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, HttpStatus, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
 import type { AuthPrincipal } from '../auth/auth.types';
 import { ClientOperatingProfilePolicy } from '../clients/client-operating-profile.policy';
@@ -14,14 +14,18 @@ import {
   type PhysicalPassResponseDto,
   type ScanPhysicalPassInput,
   type ScanPhysicalPassResponseDto,
+  type RevokePhysicalPassInput,
+  type RevokePhysicalPassResponseDto,
   parseGenerationSnapshot,
-  parseUseSnapshot
+  parseUseSnapshot,
+  parseRevokeSnapshot
 } from './physical-passes.dto';
 import {
   generationIdempotencyConflict,
   physicalPassError,
   physicalPassNotFound,
-  useIdempotencyConflict
+  useIdempotencyConflict,
+  revokeIdempotencyConflict
 } from './physical-pass-errors';
 import { PhysicalPassQrService, type PhysicalPassSvgContent } from './physical-pass-qr.service';
 import { recomputePhysicalPassPreparationStatus } from './physical-pass-readiness.service';
@@ -38,6 +42,8 @@ const OPERATIONAL_STATUSES = new Set<EventStatus>([EventStatus.ACTIVE, EventStat
 const MAX_ATTEMPTS = 20;
 const passInclude = { floorplanShape: { select: { id: true, name: true } } } satisfies Prisma.PhysicalPassInclude;
 type PhysicalPassView = Prisma.PhysicalPassGetPayload<{ include: typeof passInclude }>;
+const physicalEventInclude = { service: { select: { code: true } }, client: true } satisfies Prisma.EventInclude;
+type PhysicalEventView = Prisma.EventGetPayload<{ include: typeof physicalEventInclude }>;
 
 @Injectable()
 export class PhysicalPassesService {
@@ -58,18 +64,65 @@ export class PhysicalPassesService {
     principal: AuthPrincipal,
     operationId?: string
   ): Promise<GeneratePhysicalPassesResponseDto> {
+    return this.generateBatch(eventId, idempotencyKey, input, principal, operationId);
+  }
+
+  async generateAdministrative(
+    clientId: string,
+    eventId: string,
+    idempotencyKey: string,
+    input: GeneratePhysicalPassesInput,
+    principal: AuthPrincipal,
+    operationId?: string
+  ): Promise<GeneratePhysicalPassesResponseDto> {
+    if (principal.role !== 'PLATFORM_ADMIN')
+      throw new ForbiddenException({ code: 'ROLE_FORBIDDEN', message: 'Provider access required.' });
+    return this.generateBatch(
+      eventId.toLowerCase(),
+      idempotencyKey,
+      input,
+      principal,
+      operationId,
+      clientId.toLowerCase()
+    );
+  }
+
+  private async generateBatch(
+    eventId: string,
+    idempotencyKey: string,
+    input: GeneratePhysicalPassesInput,
+    principal: AuthPrincipal,
+    operationId?: string,
+    providerClientId?: string
+  ): Promise<GeneratePhysicalPassesResponseDto> {
     const tableShapeId = input.tableShapeId ?? null;
-    const signature = hashSignature({ eventId, quantity: input.quantity, tableShapeId });
+    // Preserve historical Client signatures verbatim. Managed receipts bind Provider + tenant + purpose.
+    const signature = hashSignature({
+      eventId,
+      quantity: input.quantity,
+      tableShapeId,
+      ...(providerClientId
+        ? { context: 'PROVIDER_ANONYMOUS', clientId: providerClientId, actorUserId: principal.userId }
+        : {})
+    });
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
       try {
         return await this.prisma.$transaction(async (tx) => {
           await lockEvent(tx, eventId);
           const event = await tx.event.findFirst({
-            where: { id: eventId, deletedAt: null, ...this.access.ownedWhere(principal) },
-            include: { service: { select: { code: true } } }
+            where: {
+              id: eventId,
+              deletedAt: null,
+              ...(providerClientId ? { clientId: providerClientId } : this.access.ownedWhere(principal))
+            },
+            include: physicalEventInclude
           });
           if (!event) throw eventNotFound();
-          await this.operatingProfile.assertTechnicalMutationAllowed(tx, event.clientId);
+          if (providerClientId) {
+            assertAnonymousEvent(event);
+          } else {
+            await this.operatingProfile.assertTechnicalMutationAllowed(tx, event.clientId);
+          }
           const replay = await tx.physicalPassGenerationOperation.findUnique({ where: { idempotencyKey } });
           if (replay) {
             if (replay.eventId !== eventId || replay.requestSignature !== signature) {
@@ -78,12 +131,11 @@ export class PhysicalPassesService {
             await recomputePhysicalPassPreparationStatus(tx, eventId);
             return parseGenerationSnapshot(replay.resultSnapshot);
           }
-          if (event.service?.code !== ServiceCode.PHYSICAL_QR) {
+          if (!providerClientId && !legacyPhysicalEvent(event))
             throw physicalPassError(
               'PHYSICAL_PASS_SERVICE_MISMATCH',
               'Event service does not support physical passes.'
             );
-          }
           if (!GENERATION_STATUSES.has(event.status)) {
             throw physicalPassError(
               'PHYSICAL_PASS_EVENT_NOT_MUTABLE',
@@ -104,7 +156,10 @@ export class PhysicalPassesService {
                 eventId,
                 deletedAt: null,
                 kind: FloorplanShapeKind.TABLE,
-                floorplan: { deletedAt: null }
+                floorplan: {
+                  deletedAt: null,
+                  ...(anonymousPhysicalEvent(event) ? { seatingMode: 'TABLE' as const } : {})
+                }
               },
               select: { id: true, name: true, capacity: true }
             });
@@ -112,14 +167,14 @@ export class PhysicalPassesService {
           } else if (tableShapeId) {
             throw physicalPassError('PHYSICAL_PASS_TABLE_INVALID', 'Table must be omitted without a Floorplan.');
           }
-          const activeCount = await tx.physicalPass.count({ where: { eventId, deletedAt: null } });
+          const activeCount = await tx.physicalPass.count({ where: { eventId, deletedAt: null, revokedAt: null } });
           if (activeCount + input.quantity > event.capacity) {
             throw physicalPassError('PHYSICAL_PASS_CAPACITY_EXCEEDED', 'Event capacity would be exceeded.');
           }
           if (table) {
             const [assistantCount, passCount] = await Promise.all([
               tx.assistant.count({ where: { floorplanShapeId: table.id, deletedAt: null } }),
-              tx.physicalPass.count({ where: { floorplanShapeId: table.id, deletedAt: null } })
+              tx.physicalPass.count({ where: { floorplanShapeId: table.id, deletedAt: null, revokedAt: null } })
             ]);
             if (assistantCount + passCount + input.quantity > table.capacity) {
               throw physicalPassError('PHYSICAL_PASS_CAPACITY_EXCEEDED', 'Table capacity would be exceeded.');
@@ -194,37 +249,125 @@ export class PhysicalPassesService {
   }
 
   async list(eventId: string, principal: AuthPrincipal): Promise<PhysicalPassResponseDto[]> {
-    await this.requireOwnedPhysicalEvent(eventId, principal);
-    const passes = await this.prisma.physicalPass.findMany({
-      where: { eventId, deletedAt: null },
-      include: passInclude,
-      orderBy: { passNumber: 'asc' }
+    return this.serializable(async (tx) => {
+      await lockEvent(tx, eventId);
+      await this.requireOwnedPhysicalEvent(eventId, principal, tx);
+      const passes = await tx.physicalPass.findMany({
+        where: { eventId, deletedAt: null },
+        include: passInclude,
+        orderBy: { passNumber: 'asc' }
+      });
+      return passes.map(toPassResponse);
     });
-    return passes.map(toPassResponse);
   }
 
   async getSvg(eventId: string, passId: string, principal: AuthPrincipal): Promise<PhysicalPassSvgContent> {
-    const event = await this.requireOwnedPhysicalEvent(eventId, principal);
-    const pass = await this.prisma.physicalPass.findFirst({
-      where: { id: passId, eventId, deletedAt: null },
-      include: passInclude
-    });
-    if (!pass) throw physicalPassNotFound();
-    const token = this.tokens.issue(pass.id, pass.qrTokenNonce, pass.qrTokenVersion);
-    try {
-      return await this.qr.render({
-        eventName: event.name ?? 'Evento',
-        passNumber: pass.passNumber,
-        tableName: pass.floorplanShape?.name ?? null,
-        qrToken: token
+    return this.serializable(async (tx) => {
+      await lockEvent(tx, eventId);
+      const event = await this.requireOwnedPhysicalEvent(eventId, principal, tx);
+      await tx.$queryRaw`SELECT id FROM physical_pass WHERE id = ${passId}::uuid AND event_id = ${eventId}::uuid FOR UPDATE`;
+      const pass = await tx.physicalPass.findFirst({
+        where: { id: passId, eventId, deletedAt: null, revokedAt: null },
+        include: passInclude
       });
-    } catch {
-      throw physicalPassError(
-        'PHYSICAL_PASS_QR_GENERATION_FAILURE',
-        'The physical pass SVG could not be generated.',
-        HttpStatus.INTERNAL_SERVER_ERROR
+      if (!pass) throw physicalPassNotFound();
+      const token = this.tokens.issue(pass.id, pass.qrTokenNonce, pass.qrTokenVersion);
+      try {
+        return await this.qr.render({
+          eventName: event.name ?? 'Evento',
+          passNumber: pass.passNumber,
+          tableName: pass.floorplanShape?.name ?? null,
+          qrToken: token
+        });
+      } catch {
+        throw physicalPassError(
+          'PHYSICAL_PASS_QR_GENERATION_FAILURE',
+          'The physical pass SVG could not be generated.',
+          HttpStatus.INTERNAL_SERVER_ERROR
+        );
+      }
+    });
+  }
+
+  async revoke(
+    eventId: string,
+    passId: string,
+    idempotencyKey: string,
+    input: RevokePhysicalPassInput,
+    principal: AuthPrincipal,
+    operationId?: string
+  ): Promise<RevokePhysicalPassResponseDto> {
+    eventId = eventId.toLowerCase();
+    passId = passId.toLowerCase();
+    if (!['ORGANIZATION_ADMIN', 'ORGANIZATION_PLANNER'].includes(principal.role))
+      throw new ForbiddenException({ code: 'ROLE_FORBIDDEN', message: 'Organization access required.' });
+    return this.serializable(async (tx) => {
+      await lockEvent(tx, eventId);
+      const event = await this.requireOwnedPhysicalEvent(eventId, principal, tx);
+      assertAnonymousEvent(event);
+      const signature = hashSignature({
+        context: 'REVOKE_ANONYMOUS',
+        clientId: event.clientId,
+        eventId,
+        passId,
+        actorUserId: principal.userId,
+        revocationReasonCode: input.revocationReasonCode
+      });
+      await tx.$queryRaw`SELECT id FROM physical_pass WHERE id = ${passId}::uuid AND event_id = ${eventId}::uuid FOR UPDATE`;
+      const prior = await tx.physicalPass.findUnique({ where: { revokeIdempotencyKey: idempotencyKey } });
+      if (prior) {
+        if (prior.id !== passId || prior.eventId !== eventId || prior.revokeRequestSignature !== signature)
+          throw revokeIdempotencyConflict();
+        return parseRevokeSnapshot(prior.revokeResultSnapshot);
+      }
+      const pass = await tx.physicalPass.findFirst({ where: { id: passId, eventId, deletedAt: null } });
+      if (!pass) throw physicalPassNotFound();
+      if (!GENERATION_STATUSES.has(event.status))
+        throw physicalPassError('PHYSICAL_PASS_EVENT_NOT_MUTABLE', 'Physical passes cannot be revoked in this state.');
+      if (pass.usedAt)
+        throw physicalPassError('PHYSICAL_PASS_ALREADY_USED', 'The physical pass has already been used.');
+      if (pass.revokedAt) throw physicalPassError('PHYSICAL_PASS_ALREADY_REVOKED', 'The physical pass is revoked.');
+      const rows = await tx.$queryRaw<Array<{ now: Date }>>`SELECT clock_timestamp() AS now`;
+      const now = rows[0]?.now;
+      if (!now) throw new Error('Database clock unavailable.');
+      const snapshot: RevokePhysicalPassResponseDto = {
+        status: 'REVOKED',
+        physicalPassId: pass.id,
+        passNumber: pass.passNumber,
+        revokedAt: now.toISOString(),
+        revocationReasonCode: input.revocationReasonCode
+      };
+      await tx.physicalPass.update({
+        where: { id: pass.id },
+        data: {
+          revokedAt: now,
+          revokedByUserId: principal.userId,
+          revocationReasonCode: input.revocationReasonCode,
+          revokeIdempotencyKey: idempotencyKey,
+          revokeRequestSignature: signature,
+          revokeResultSnapshot: snapshot as unknown as Prisma.InputJsonObject
+        }
+      });
+      await this.audit.record(
+        {
+          actor: { type: AuditActorType.USER, id: principal.userId },
+          clientId: event.clientId,
+          eventId,
+          resourceType: 'PHYSICAL_PASS',
+          resourceId: pass.id,
+          action: 'PHYSICAL_PASS_REVOKE',
+          afterData: {
+            physicalPassId: pass.id,
+            passNumber: pass.passNumber,
+            revokedAt: snapshot.revokedAt,
+            revocationReasonCode: input.revocationReasonCode
+          },
+          ...(operationId ? { operationId } : {})
+        },
+        tx
       );
-    }
+      return snapshot;
+    });
   }
 
   async scan(
@@ -240,6 +383,19 @@ export class PhysicalPassesService {
         return await this.prisma.$transaction(async (tx) => {
           const identity = await this.staffTokens.resolveStaffTokenIdentityInTransaction(tx, rawStaffToken);
           if (!identity) throw invalidStaff();
+          // New anonymous requests (including replay) require current operational Staff.
+          // Historical PHYSICAL_QR replays retain their original post-close contract below.
+          if (identity.event.accessMode !== null) {
+            if (identity.event.deletedAt || !OPERATIONAL_STATUSES.has(identity.event.status))
+              throw physicalPassError('STAFF_EVENT_NOT_OPERATIONAL', 'The StaffToken Event is not operational.');
+            if (identity.staff.expiredAt) throw invalidStaff();
+            const context = await tx.event.findUniqueOrThrow({
+              where: { id: identity.event.id },
+              include: physicalEventInclude
+            });
+            if (!anonymousPhysicalEvent(context)) throw physicalPassNotFound();
+            assertAnonymousEvent(context);
+          }
           const signature = hashSignature({
             staffTokenId: identity.staff.id,
             eventId: identity.event.id,
@@ -263,7 +419,20 @@ export class PhysicalPassesService {
           }
           if (identity.staff.expiredAt) throw invalidStaff();
           const service = await tx.service.findUnique({ where: { id: identity.event.serviceId ?? '' } });
-          if (service?.code !== ServiceCode.PHYSICAL_QR) throw physicalPassNotFound();
+          const physicalEvent = { ...identity.event, service };
+          if (!legacyPhysicalEvent(physicalEvent) && !anonymousPhysicalEvent(physicalEvent))
+            throw physicalPassNotFound();
+          if (anonymousPhysicalEvent(physicalEvent)) {
+            const client = await tx.client.findUnique({ where: { id: identity.event.clientId } });
+            if (
+              !client ||
+              client.deletedAt ||
+              client.type !== 'ORGANIZATION' ||
+              client.operatingProfile !== 'MANAGED' ||
+              client.status !== 'ACTIVE'
+            )
+              throw physicalPassNotFound();
+          }
           await tx.$queryRaw`SELECT "id" FROM "physical_pass" WHERE "id" = ${verified.physicalPassId}::uuid FOR UPDATE`;
           const pass = await tx.physicalPass.findFirst({
             where: {
@@ -271,7 +440,8 @@ export class PhysicalPassesService {
               eventId: identity.event.id,
               qrTokenNonce: verified.nonce,
               qrTokenVersion: verified.version,
-              deletedAt: null
+              deletedAt: null,
+              revokedAt: null
             },
             include: passInclude
           });
@@ -290,7 +460,10 @@ export class PhysicalPassesService {
                 eventId: identity.event.id,
                 deletedAt: null,
                 kind: FloorplanShapeKind.TABLE,
-                floorplan: { deletedAt: null }
+                floorplan: {
+                  deletedAt: null,
+                  ...(anonymousPhysicalEvent(physicalEvent) ? { seatingMode: 'TABLE' as const } : {})
+                }
               }
             });
             if (!table)
@@ -346,16 +519,30 @@ export class PhysicalPassesService {
     throw physicalPassError('PHYSICAL_PASS_CONCURRENCY_CONFLICT', 'Physical pass use could not be serialized.');
   }
 
-  private async requireOwnedPhysicalEvent(eventId: string, principal: AuthPrincipal) {
-    const event = await this.prisma.event.findFirst({
+  private async requireOwnedPhysicalEvent(eventId: string, principal: AuthPrincipal, tx: Prisma.TransactionClient) {
+    const event = await tx.event.findFirst({
       where: { id: eventId, deletedAt: null, ...this.access.ownedWhere(principal) },
-      include: { service: { select: { code: true } } }
+      include: physicalEventInclude
     });
     if (!event) throw eventNotFound();
-    if (event.service?.code !== ServiceCode.PHYSICAL_QR) {
-      throw physicalPassError('PHYSICAL_PASS_SERVICE_MISMATCH', 'Event service does not support physical passes.');
+    if (!legacyPhysicalEvent(event)) {
+      assertAnonymousEvent(event);
+      if (!['ORGANIZATION_ADMIN', 'ORGANIZATION_PLANNER'].includes(principal.role))
+        throw new ForbiddenException({ code: 'ROLE_FORBIDDEN', message: 'Organization access required.' });
     }
     return event;
+  }
+
+  private async serializable<T>(work: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+      try {
+        return await this.prisma.$transaction(work, CRITICAL_TRANSACTION_OPTIONS);
+      } catch (error) {
+        if ((isRetryable(error) || isIdempotencyUnique(error)) && attempt < MAX_ATTEMPTS - 1) continue;
+        throw mapDatabaseError(error);
+      }
+    }
+    throw physicalPassError('PHYSICAL_PASS_CONCURRENCY_CONFLICT', 'Physical pass operation could not be serialized.');
   }
 }
 
@@ -364,11 +551,29 @@ function toPassResponse(pass: PhysicalPassView): PhysicalPassResponseDto {
     id: pass.id,
     eventId: pass.eventId,
     passNumber: pass.passNumber,
-    status: pass.usedAt ? 'USED' : 'UNUSED',
+    status: pass.revokedAt ? 'REVOKED' : pass.usedAt ? 'USED' : 'UNUSED',
     table: pass.floorplanShape ? { id: pass.floorplanShape.id, name: pass.floorplanShape.name } : null,
     usedAt: pass.usedAt?.toISOString() ?? null,
     createdAt: pass.createdAt.toISOString()
   };
+}
+
+type PhysicalEventIdentity = { service: { code: ServiceCode } | null; accessMode: string | null };
+function legacyPhysicalEvent(event: PhysicalEventIdentity): boolean {
+  return event.service?.code === ServiceCode.PHYSICAL_QR && event.accessMode === null;
+}
+function anonymousPhysicalEvent(event: PhysicalEventIdentity): boolean {
+  return event.service?.code === ServiceCode.ACCESS_CONTROL && event.accessMode === 'ANONYMOUS';
+}
+function assertAnonymousEvent(event: PhysicalEventView): void {
+  if (
+    !anonymousPhysicalEvent(event) ||
+    event.client.type !== 'ORGANIZATION' ||
+    event.client.operatingProfile !== 'MANAGED' ||
+    event.client.deletedAt ||
+    event.client.status !== 'ACTIVE'
+  )
+    throw physicalPassError('PHYSICAL_PASS_SERVICE_MISMATCH', 'Event does not support Managed anonymous passes.');
 }
 
 function hashSignature(value: Record<string, unknown>): string {
