@@ -1,13 +1,15 @@
 # M02-B01 — Handoff técnico para el equipo de desarrollo
 
-Estado: **HANDOFF TÉCNICO — DT02A–DT06 IMPLEMENTADOS; DT07–DT09 PENDIENTES**
+Estado: **HANDOFF TÉCNICO — DT02A–DT06A IMPLEMENTADOS; DT07–DT09 PENDIENTES**
+
+**DT06A IMPLEMENTADO Y REVISADO (2026-10-22):** commit [`88d5c818`](https://github.com/ManuelRuiz27/invitacionespremium/commit/88d5c818cadca2a7770437f4dc7e6e0d7251ad85), [revisión DT06A](./M02_B01_DT06A_IMPLEMENTATION_REVIEW.md). Migración aditiva alinea `validate_staff_token_insert()` con `assignedPlannerUserId` en `ACCESS_CONTROL+NOMINAL/ANONYMOUS`, conserva regla del creador para legacy y prueba HTTP/SQL, aislamiento, reasignación, Staff concurrente, Scanner y expiración. **CI `quality` success**; **Flipbook WebKit QA failure preexistente (73/74)**; workflow global rojo. Bloqueo operativo Staff de DT06 **resuelto**. DT07–DT09 pendientes.
 
 **DT06 IMPLEMENTADO Y REVISADO (2026-10-20):** commit [`5d4915d`](https://github.com/ManuelRuiz27/invitacionespremium/commit/5d4915d5178922821bb9d6c33a709658b714955d), [dictamen DT06](./M02_B01_DT06_IMPLEMENTATION_REVIEW.md). Readiness NOMINAL/ANONYMOUS autoritativo y preparación derivada; activación
 Provider real sin Finance, guards SQL y aforo nominal, replay original inmutable y lecturas mínimas
 para Organización/Provider. Los fixtures operativos B01 activan por HTTP. Contrato vigente:
 [ACCESS_CONTROL_READINESS_CONTRACT.md](../04-tecnico/ACCESS_CONTROL_READINESS_CONTRACT.md).
 El gate temporal de DT02A–DT05 queda sustituido únicamente por estas validaciones; DT07–DT09 no se
-implementan. **Gate operativo:** la creación de StaffToken por Organization Planner asignado sigue bloqueada por el trigger histórico que exige ser creador, pese a ownership API basado en asignación. Corregir y probar antes de cerrar DT07/DT09; Organization Admin sí puede emitir Staff. **CI DT06 al revisar:** `quality` en progreso; QA Flipbook WebKit falla en el mismo test/aserción preexistente; no afirmar CI global verde. La limitación Staff también está documentada en el contrato.
+implementan. **Nota histórica del DT06:** en ese commit el trigger de Staff aún exigía ser creador y las pruebas usaban Organization Admin. La discrepancia quedó **corregida y certificada en `quality` por DT06A**. El CI DT06 terminó cancelado en `quality`; el QA WebKit Flipbook sigue siendo una falla de release separada.
 
 **DT05 IMPLEMENTADO Y REVISADO (2026-10-20):** commit [`670c320`](https://github.com/ManuelRuiz27/invitacionespremium/commit/670c3200be8e1e13824ac9b51533c568bb15cf5e), [revisión DT05](./M02_B01_DT05_IMPLEMENTATION_REVIEW.md). Provider genera lotes ANONYMOUS; Organización consulta/SVG/revoca antes de uso; Scanner PHYSICAL_PASS conserva token/flujo; SQL protege historia, capacidad y folios. Codex reporta QA local verde salvo formato global con archivos ignorados `var/`; CI GitHub DT05 **cancelado** (ambos jobs, no verde). Activación B01 continúa 409 hasta DT06. **DT06–DT09 pendientes.**  
 
