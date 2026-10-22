@@ -214,7 +214,8 @@ Hallazgos centrales de MG-00:
 - `05-implementacion/M02_B01_DT03_IMPLEMENTATION_REVIEW.md` — **DT03 IMPLEMENTADO / QUALITY VERDE**: commit `4bb6afa`, credencial nominal por Assistant, token, SVG, revocación, validación SQL y handoff DT04.
 - `05-implementacion/M02_B01_DT04_IMPLEMENTATION_REVIEW.md` — **DT04 IMPLEMENTADO / QUALITY VERDE**: commit `21efa71`, Scanner nominal, FK/triggers de CheckIn, idempotencia, reversión, realtime; QA WebKit Flipbook rojo idéntico a DT03.
 - `05-implementacion/M02_B01_DT05_IMPLEMENTATION_REVIEW.md` — **DT05 IMPLEMENTADO / CI CANCELADO**: commit `670c320`, pases ANONYMOUS con generación Provider, revocación, cupo histórico, Scanner y preservación PHYSICAL_QR.
-- `05-implementacion/M02_B01_DT06_IMPLEMENTATION_REVIEW.md` — **DT06 IMPLEMENTADO / CI PENDIENTE DE CIERRE Y FLIPBOOK QA ROJO**: commit `5d4915d`, readiness y activación real Provider sin Finance. Pendiente corregir trigger Staff para Planner asignado antes de release.
+- `05-implementacion/M02_B01_DT06_IMPLEMENTATION_REVIEW.md` — **DT06 IMPLEMENTADO / CI QUALITY CANCELADO, FLIPBOOK QA ROJO**: commit `5d4915d`, readiness y activación real Provider sin Finance. Discrepancia Staff corregida en DT06A.
+- `05-implementacion/M02_B01_DT06A_IMPLEMENTATION_REVIEW.md` — **DT06A IMPLEMENTADO / QUALITY VERDE**: commit `88d5c818`, Planner asignado emite StaffTokens ACCESS_CONTROL, SQL/HTTP y regresiones legacy; QA Flipbook WebKit continúa rojo.
 - `04-tecnico/ACCESS_CONTROL_READINESS_CONTRACT.md` — **Contrato implementado DT06**: reglas NOMINAL/ANONYMOUS, transiciones de preparación, activación SQL y endpoints de lectura.
 - `04-tecnico/NOMINAL_ACCESS_CREDENTIALS_CONTRACT.md` — **Contrato implementado DT03** para credenciales nominales individuales, endpoints, tokens y revocación.
 - `01-producto/06C_MODELO_03_LICENCIA_AUTOSERVICIO.md` — M03 / Self-Service.
