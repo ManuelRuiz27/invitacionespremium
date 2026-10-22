@@ -36,3 +36,8 @@ El código conserva las superficies `PHYSICAL_QR` legacy, M01 Managed y Finance 
 **DT07–DT09:** UX Provider/Client/Scanner, métricas de operación y certificación integral, incluidos Staff delegado, límites físicos/dispositivos, carga y release; no implementados.
 
 **Conclusión:** DT06 entrega la activación técnica real para NOMINAL y ANONYMOUS sin Finance y supera la revisión estática de sus invariantes principales, pero **NO implica disponibilidad productiva ni aprobación de CI completo**. El pendiente Staff y el QA navegador deben quedar visibles en el handoff.
+
+
+## Actualización posterior — DT06A (2026-10-22)
+
+El bloqueo de delegación Staff documentado arriba es **histórico, no vigente**: fue corregido por [DT06A](./M02_B01_DT06A_IMPLEMENTATION_REVIEW.md), commit [`88d5c818`](https://github.com/ManuelRuiz27/invitacionespremium/commit/88d5c818cadca2a7770437f4dc7e6e0d7251ad85). El Planner asignado ahora puede crear StaffTokens ACCESS_CONTROL con autorización SQL y HTTP coherente, manteniendo legacy; el CI `quality` de DT06A terminó **success**. QA Flipbook WebKit aún falla en el mismo caso preexistente, y DT07–DT09 siguen sin implementarse. El CI `quality` del commit original DT06 terminó **cancelado** al ser sucedido por cambios posteriores, no aprobado.
