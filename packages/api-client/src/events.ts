@@ -1,5 +1,6 @@
 import type { components } from './generated/schema';
 import { isRecord, isRecordArray, type ApiRequester } from './api-client';
+import { isAccessControlReadiness, type AccessControlReadiness } from './access-control';
 
 export type Event = components['schemas']['EventResponseDto'];
 export type EventStatus = Event['status'];
@@ -12,6 +13,7 @@ export type EventActivation = components['schemas']['EventActivationResponseDto'
 export interface EventsClient {
   list(signal?: AbortSignal): Promise<Event[]>;
   get(eventId: string, signal?: AbortSignal): Promise<Event>;
+  getAccessReadiness(eventId: string, signal?: AbortSignal): Promise<AccessControlReadiness>;
   create(input: CreateEventInput, signal?: AbortSignal): Promise<Event>;
   update(eventId: string, input: UpdateEventInput, signal?: AbortSignal): Promise<Event>;
   activate(eventId: string, idempotencyKey: string, signal?: AbortSignal): Promise<EventActivation>;
@@ -20,6 +22,15 @@ export interface EventsClient {
 
 export function createEventsClient(request: ApiRequester): EventsClient {
   return {
+    getAccessReadiness: (eventId, signal) =>
+      request(
+        {
+          path: `/events/${encodeURIComponent(eventId)}/access-readiness`,
+          response: 'json',
+          ...(signal ? { signal } : {})
+        },
+        isAccessControlReadiness
+      ),
     list: (signal) => request({ path: '/events', response: 'json', ...(signal ? { signal } : {}) }, isEventArray),
     get: (eventId, signal) =>
       request(
@@ -89,4 +100,4 @@ function isEvent(value: unknown): value is Event {
   );
 }
 
-const serviceCodes = new Set<unknown>(['FLIPBOOK', 'FLYER', 'PHYSICAL_QR', 'DEMO']);
+const serviceCodes = new Set<unknown>(['FLIPBOOK', 'FLYER', 'PHYSICAL_QR', 'DEMO', 'ACCESS_CONTROL']);

@@ -23,6 +23,14 @@ const messages: Record<string, string> = {
   IDEMPOTENCY_CONFLICT: 'La llave de la operacion ya corresponde a otra intencion.',
   FINANCE_DUPLICATE_OPERATION: 'La llave de la operacion ya corresponde a otra intencion.',
   EVENT_ACTIVATION_IDEMPOTENCY_CONFLICT: 'El Evento ya fue activado mediante otra operación.',
+  EVENT_ACCESS_CONFIGURATION_IMMUTABLE: 'La modalidad ya no puede cambiar: existe registro o material de acceso.',
+  EVENT_PLANNER_ASSIGNMENT_INVALID: 'Selecciona una Planner vigente de la misma Organización.',
+  EVENT_PLANNER_ASSIGNMENT_REQUIRED: 'Selecciona la Planner responsable del Evento.',
+  EVENT_ACCESS_CAPACITY_EXCEEDED: 'La capacidad es menor que los accesos vigentes.',
+  PHYSICAL_PASS_CAPACITY_EXCEEDED: 'El lote supera los lugares disponibles del Evento o la Mesa.',
+  PHYSICAL_PASS_TABLE_INVALID: 'Selecciona una Mesa válida del Croquis con capacidad para el lote.',
+  PHYSICAL_PASS_EVENT_NOT_MUTABLE: 'El estado del Evento ya no permite generar pases.',
+  PHYSICAL_PASS_GENERATION_IDEMPOTENCY_CONFLICT: 'La operación de generación no coincide con el lote original.',
   VALIDATION_ERROR: 'Revisa los datos capturados.',
   UNEXPECTED_API_RESPONSE: 'La API devolvio una respuesta inesperada.'
 };

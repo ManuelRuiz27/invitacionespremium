@@ -226,6 +226,14 @@ export function mockAdminApi(user: AuthUser = platformAdmin): AdminTestApiClient
       updateAssignment: vi.fn().mockResolvedValue(adminEvent)
     },
     adminEventPreparation: {
+      getAccessReadiness: vi.fn().mockResolvedValue({
+        complete: false,
+        accessMode: 'NOMINAL',
+        blockers: ['EVENT_ACCESS_MATERIAL_MISSING'],
+        activeMaterialCount: 0,
+        capacity: 120
+      }),
+      generatePhysicalPasses: vi.fn(),
       getCommercialQuote: vi.fn().mockResolvedValue({
         quoteSource: 'LOCKED',
         eventId: adminEvent.id,
@@ -424,7 +432,15 @@ export function mockAdminApi(user: AuthUser = platformAdmin): AdminTestApiClient
       list: vi.fn().mockResolvedValue({ items: [commercialLead], nextCursor: null }),
       get: vi.fn().mockResolvedValue(commercialLead)
     },
-    events: { list: vi.fn(), get: vi.fn(), create: vi.fn(), update: vi.fn(), activate: vi.fn(), close: vi.fn() },
+    events: {
+      list: vi.fn(),
+      get: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      activate: vi.fn(),
+      close: vi.fn(),
+      getAccessReadiness: vi.fn()
+    },
     eventConfirmation: { get: vi.fn(), close: vi.fn(), reopen: vi.fn(), override: vi.fn() },
     finance: { balance: vi.fn(), movements: vi.fn(), receipts: vi.fn() },
     services: { listAvailable: vi.fn() },
@@ -482,7 +498,8 @@ export function mockAdminApi(user: AuthUser = platformAdmin): AdminTestApiClient
       lock: vi.fn(),
       unlock: vi.fn()
     },
-    physicalPasses: { list: vi.fn(), generate: vi.fn(), svg: vi.fn() },
+    physicalPasses: { list: vi.fn(), generate: vi.fn(), svg: vi.fn(), revoke: vi.fn() },
+    nominalAccessCredentials: { list: vi.fn(), issue: vi.fn(), svg: vi.fn(), revoke: vi.fn() },
     staffTokens: { list: vi.fn(), create: vi.fn() },
     scanner: {
       getSession: vi.fn(),
@@ -490,6 +507,7 @@ export function mockAdminApi(user: AuthUser = platformAdmin): AdminTestApiClient
       search: vi.fn(),
       checkIn: vi.fn(),
       scanPhysicalPass: vi.fn(),
+      scanNominalAccess: vi.fn(),
       getFloorplan: vi.fn()
     },
     publicInvitation: {

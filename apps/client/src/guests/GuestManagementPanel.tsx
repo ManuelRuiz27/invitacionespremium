@@ -1,4 +1,4 @@
-import type { ApiClient, Contact, Event } from '@invitaciones/api-client';
+import { ApiError, type ApiClient, type Contact, type Event } from '@invitaciones/api-client';
 import {
   Alert,
   Box,
@@ -13,6 +13,8 @@ import {
   Typography
 } from '@mui/material';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useBeforeUnload, useBlocker } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { AttemptManager, isUncertainFailure } from '../shared/attempt-manager';
 import { downloadBlob, errorMessage } from '../shared/client-utils';
 
@@ -31,6 +33,7 @@ export function GuestManagementPanel({
   readOnly?: boolean;
 }) {
   const attempts = useRef(new AttemptManager());
+  const queryClient = useQueryClient();
   const refreshSequence = useRef(0);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [invitations, setInvitations] = useState<Awaited<ReturnType<ApiClient['invitations']['list']>>>([]);
@@ -43,15 +46,27 @@ export function GuestManagementPanel({
   const [deleting, setDeleting] = useState<Contact>();
   const [preview, setPreview] = useState<Awaited<ReturnType<ApiClient['contacts']['preview']>>>();
   const [error, setError] = useState<string>();
+  const [loading, setLoading] = useState(true);
+  const [csvBusy, setCsvBusy] = useState(false);
+  const [csvUncertain, setCsvUncertain] = useState(false);
+  const csvSubmitting = useRef(false);
+  const blocker = useBlocker(csvBusy || csvUncertain);
+  useBeforeUnload((event) => {
+    if (!csvBusy && !csvUncertain) return;
+    event.preventDefault();
+    event.returnValue = '';
+  });
+  const nominalAccess = event.serviceCode === 'ACCESS_CONTROL' && event.accessMode === 'NOMINAL';
   const canMutate = !readOnly && mutableStatuses.has(event.status);
 
   const refresh = useCallback(async () => {
     const sequence = ++refreshSequence.current;
+    setLoading(true);
     try {
       const [nextContacts, nextGroups, nextInvitations] = await Promise.all([
         apiClient.contacts.list(event.id),
         apiClient.contacts.groups(event.id),
-        apiClient.invitations.list(event.id)
+        nominalAccess ? Promise.resolve([]) : apiClient.invitations.list(event.id)
       ]);
       if (sequence !== refreshSequence.current) return;
       setContacts(nextContacts);
@@ -61,8 +76,21 @@ export function GuestManagementPanel({
     } catch (reason) {
       if (sequence !== refreshSequence.current) return;
       setError(errorMessage(reason));
+    } finally {
+      if (sequence === refreshSequence.current) setLoading(false);
     }
-  }, [apiClient, event.id]);
+  }, [apiClient, event.id, nominalAccess]);
+
+  const refreshAfterMutation = async () => {
+    await refresh();
+    if (!nominalAccess) return;
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['events', event.id] }),
+      queryClient.invalidateQueries({ queryKey: ['access-subjects', event.id] }),
+      queryClient.invalidateQueries({ queryKey: ['access-material', event.id] }),
+      queryClient.invalidateQueries({ queryKey: ['access-readiness', event.id] })
+    ]);
+  };
 
   useEffect(() => {
     setContacts([]);
@@ -84,23 +112,35 @@ export function GuestManagementPanel({
     );
   }, [contacts, search]);
 
-  const authorized = invitations.reduce((total, invitation) => total + invitation.assistants.length, 0);
+  const authorized = nominalAccess
+    ? contacts.length
+    : invitations.reduce((total, invitation) => total + invitation.assistants.length, 0);
   const remaining = event.capacity === null ? null : event.capacity - authorized;
   const setField = (field: keyof ContactForm, value: string) => setForm((current) => ({ ...current, [field]: value }));
   const setEditField = (field: keyof ContactForm, value: string) =>
     setEditForm((current) => ({ ...current, [field]: value }));
 
   const commitPreview = async () => {
-    if (!preview || !canMutate) return;
+    if (!preview || !canMutate || csvSubmitting.current) return;
+    csvSubmitting.current = true;
+    setCsvBusy(true);
     const attempt = attempts.current.start('csv', preview.previewId);
     try {
       await apiClient.contacts.commit(event.id, preview.previewId, attempt.key);
       attempts.current.clear('csv', attempt.key);
+      setCsvUncertain(false);
       setPreview(undefined);
-      await refresh();
+      await refreshAfterMutation();
     } catch (reason) {
-      if (!isUncertainFailure(reason)) attempts.current.clear('csv', attempt.key);
+      const uncertain =
+        isUncertainFailure(reason) ||
+        (reason instanceof ApiError && (reason.status >= 500 || reason.code === 'UNEXPECTED_API_RESPONSE'));
+      setCsvUncertain(uncertain);
+      if (!uncertain) attempts.current.clear('csv', attempt.key);
       setError(errorMessage(reason));
+    } finally {
+      csvSubmitting.current = false;
+      setCsvBusy(false);
     }
   };
 
@@ -110,13 +150,20 @@ export function GuestManagementPanel({
         Invitados
       </Typography>
       <Typography color={remaining !== null && remaining < 0 ? 'error' : 'text.secondary'}>
-        Invitaciones: {invitations.length} · Personas contempladas: {authorized}
+        {nominalAccess ? `Invitados registrados: ${contacts.length}` : `Invitaciones: ${invitations.length}`} · Personas
+        contempladas: {authorized}
         {remaining === null ? '' : ` · Lugares disponibles: ${remaining}`}
       </Typography>
       {!canMutate ? (
         <Alert severity="info">La lista de invitados está disponible en modo de consulta para este evento.</Alert>
       ) : null}
       {error ? <Alert severity="error">{error}</Alert> : null}
+      {loading ? <Typography role="status">Cargando invitados…</Typography> : null}
+      {csvUncertain ? (
+        <Alert severity="warning">
+          El resultado de la importación es incierto. Confirma el mismo intento antes de importar otro archivo o salir.
+        </Alert>
+      ) : null}
       <TextField label="Buscar invitado" value={search} onChange={(event) => setSearch(event.target.value)} />
 
       {canMutate ? (
@@ -130,12 +177,12 @@ export function GuestManagementPanel({
               void apiClient.contacts
                 .create(event.id, {
                   name: form.name,
-                  whatsappPhone: form.whatsappPhone,
+                  whatsappPhone: nominalAccess ? form.whatsappPhone || null : form.whatsappPhone,
                   groupId: form.groupId || null
                 })
                 .then(() => {
                   setForm(blank);
-                  return refresh();
+                  return refreshAfterMutation();
                 })
                 .catch((reason) => setError(errorMessage(reason)));
             }}
@@ -147,8 +194,8 @@ export function GuestManagementPanel({
               onChange={(event) => setField('name', event.target.value)}
             />
             <TextField
-              required
-              label="Número de WhatsApp"
+              required={!nominalAccess}
+              label={nominalAccess ? 'Teléfono (opcional)' : 'Número de WhatsApp'}
               value={form.whatsappPhone}
               onChange={(event) => setField('whatsappPhone', event.target.value)}
             />
@@ -180,7 +227,7 @@ export function GuestManagementPanel({
                 .createGroup(event.id, { name: groupName })
                 .then(() => {
                   setGroupName('');
-                  return refresh();
+                  return refreshAfterMutation();
                 })
                 .catch((reason) => setError(errorMessage(reason)));
             }}
@@ -228,6 +275,9 @@ export function GuestManagementPanel({
       {contacts.length > 0 && filteredContacts.length === 0 ? (
         <Typography color="text.secondary">No encontramos invitados con esa búsqueda.</Typography>
       ) : null}
+      {!loading && !error && contacts.length === 0 ? (
+        <Typography color="text.secondary">Aún no hay invitados registrados.</Typography>
+      ) : null}
 
       {canMutate ? (
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
@@ -241,12 +291,13 @@ export function GuestManagementPanel({
           >
             Descargar plantilla
           </Button>
-          <Button component="label">
+          <Button component="label" disabled={csvBusy || csvUncertain}>
             Importar lista
             <input
               hidden
               type="file"
               accept=".csv,text/csv"
+              disabled={csvBusy || csvUncertain}
               onChange={(changeEvent) => {
                 const file = changeEvent.target.files?.[0];
                 if (file)
@@ -277,7 +328,10 @@ export function GuestManagementPanel({
               </li>
             ))}
           </Box>
-          <Button disabled={preview.validRows === 0 || preview.invalidRows > 0} onClick={() => void commitPreview()}>
+          <Button
+            disabled={csvBusy || preview.validRows === 0 || preview.invalidRows > 0}
+            onClick={() => void commitPreview()}
+          >
             Confirmar importación
           </Button>
         </Box>
@@ -292,12 +346,14 @@ export function GuestManagementPanel({
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
             <TextField
+              required
               label="Nombre"
               value={editForm.name}
               onChange={(event) => setEditField('name', event.target.value)}
             />
             <TextField
-              label="Número de WhatsApp"
+              required={!nominalAccess}
+              label={nominalAccess ? 'Teléfono (opcional)' : 'Número de WhatsApp'}
               value={editForm.whatsappPhone}
               onChange={(event) => setEditField('whatsappPhone', event.target.value)}
             />
@@ -325,13 +381,13 @@ export function GuestManagementPanel({
               void apiClient.contacts
                 .update(event.id, editing.id, {
                   name: editForm.name,
-                  whatsappPhone: editForm.whatsappPhone,
+                  whatsappPhone: nominalAccess ? editForm.whatsappPhone || null : editForm.whatsappPhone,
                   groupId: editForm.groupId || null
                 })
                 .then(() => {
                   setEditing(undefined);
                   setEditForm(blank);
-                  return refresh();
+                  return refreshAfterMutation();
                 })
                 .catch((reason) => setError(errorMessage(reason)));
             }}
@@ -360,13 +416,22 @@ export function GuestManagementPanel({
                 .remove(event.id, deleting.id)
                 .then(() => {
                   setDeleting(undefined);
-                  return refresh();
+                  return refreshAfterMutation();
                 })
                 .catch((reason) => setError(errorMessage(reason)));
             }}
           >
             Confirmar eliminación
           </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog open={blocker.state === 'blocked'} aria-labelledby="pending-csv-title">
+        <DialogTitle id="pending-csv-title">Hay una importación pendiente</DialogTitle>
+        <DialogContent>
+          Resuelve la importación con el mismo intento antes de salir para conservar su clave.
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => blocker.reset?.()}>Seguir trabajando</Button>
         </DialogActions>
       </Dialog>
     </Stack>

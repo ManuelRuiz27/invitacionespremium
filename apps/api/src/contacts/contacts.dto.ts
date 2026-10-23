@@ -69,6 +69,15 @@ export class GroupRequestDto {
 }
 
 export class ContactResponseDto {
+  @ApiPropertyOptional({
+    type: String,
+    format: 'uuid',
+    nullable: true,
+    readOnly: true,
+    description: 'NOMINAL contact list only: current internal primary Assistant UUID; no public invitation material.'
+  })
+  assistantId?: string | null;
+
   @ApiProperty({ type: String, format: 'uuid' })
   id!: string;
 

@@ -1,5 +1,15 @@
 import { ApiError } from '@invitaciones/api-client';
 
+export function isTerminalScannerError(error: unknown): boolean {
+  return (
+    error instanceof ApiError && ['STAFF_TOKEN_INVALID_OR_EXPIRED', 'STAFF_EVENT_NOT_OPERATIONAL'].includes(error.code)
+  );
+}
+
+export function isUncertainScannerError(error: unknown): boolean {
+  return Boolean(error) && (!(error instanceof ApiError) || error.status >= 500 || error.code === 'INVALID_RESPONSE');
+}
+
 export function scannerErrorMessage(error: unknown, fallback: string): string {
   if (!(error instanceof ApiError)) return fallback;
   switch (error.code) {
@@ -17,9 +27,14 @@ export function scannerErrorMessage(error: unknown, fallback: string): string {
       return 'El Croquis no está disponible.';
     case 'PHYSICAL_PASS_ALREADY_USED':
       return 'Este pase físico ya fue utilizado.';
+    case 'ASSISTANT_ALREADY_CHECKED_IN':
+      return 'Este QR ya registró un ingreso.';
+    case 'PHYSICAL_PASS_NOT_FOUND':
+    case 'PHYSICAL_PASS_REVOKED':
+      return 'El código QR no es válido para este Evento.';
     default:
       return error.status >= 500
         ? 'No pudimos confirmar la respuesta. Conservamos el resultado para reintentar con seguridad.'
-        : error.message;
+        : fallback;
   }
 }

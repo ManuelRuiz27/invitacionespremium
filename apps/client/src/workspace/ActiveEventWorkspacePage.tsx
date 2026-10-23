@@ -14,6 +14,7 @@ import { InvitationOperationsPanel } from './InvitationOperationsPanel';
 import { ManagedEventCloseAction } from './ManagedEventCloseAction';
 import { SeatingWorkspace } from './SeatingWorkspace';
 import { StaffAccessPanel } from './StaffAccessPanel';
+import { AccessControlWorkspace } from './access-control/AccessControlWorkspace';
 
 const preparationDestinations: Partial<Record<EventStatus, string>> = {
   DRAFT: 'datos',
@@ -101,6 +102,10 @@ export function ActiveEventWorkspacePage({
 
   if (!event) {
     return <WorkspaceUnavailable title="Este evento no está disponible." />;
+  }
+
+  if (managed && event.serviceCode === 'ACCESS_CONTROL') {
+    return <AccessControlWorkspace apiClient={apiClient} event={event} {...(scannerAppUrl ? { scannerAppUrl } : {})} />;
   }
 
   const destination = preparationDestinations[event.status];

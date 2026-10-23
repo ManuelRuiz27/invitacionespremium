@@ -54,9 +54,11 @@ export function SeatingWorkspace({ apiClient, event }: { apiClient: ApiClient; e
   const theme = useTheme();
   const compact = useMediaQuery(theme.breakpoints.down('md'));
   const mobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const digital = event.serviceCode === 'FLYER' || event.serviceCode === 'FLIPBOOK';
+  const nominalAccess = event.serviceCode === 'ACCESS_CONTROL' && event.accessMode === 'NOMINAL';
+  const digital = event.serviceCode === 'FLYER' || event.serviceCode === 'FLIPBOOK' || nominalAccess;
   const [realtimeTerminal, setRealtimeTerminal] = useState(false);
-  const mutable = digital && mutableStatuses.has(event.status) && !realtimeTerminal;
+  const preparingNominal = nominalAccess && ['DRAFT', 'CONFIGURED', 'READY_TO_ACTIVATE'].includes(event.status);
+  const mutable = digital && (mutableStatuses.has(event.status) || preparingNominal) && !realtimeTerminal;
   const [selectedTableId, setSelectedTableId] = useState<string>();
   const [selectedSeatId, setSelectedSeatId] = useState<string>();
   const [scope, setScope] = useState<Scope>('UNASSIGNED');
@@ -235,7 +237,16 @@ export function SeatingWorkspace({ apiClient, event }: { apiClient: ApiClient; e
       }
       setUncertainIntent(undefined);
       setFeedback('Cambio guardado. Actualizando la distribución…');
-      const refresh = await seatingQuery.refetch();
+      const [refresh] = await Promise.all([
+        seatingQuery.refetch(),
+        ...(nominalAccess || floorplan?.seatingMode === 'SEAT' ? [floorplanQuery.refetch()] : []),
+        ...(nominalAccess
+          ? [
+              queryClient.invalidateQueries({ queryKey: ['events', event.id] }),
+              queryClient.invalidateQueries({ queryKey: ['access-readiness', event.id] })
+            ]
+          : [])
+      ]);
       if (refresh.isError) setFeedback('El cambio se guardó. Actualiza la lectura para ver el estado más reciente.');
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
@@ -303,6 +314,8 @@ export function SeatingWorkspace({ apiClient, event }: { apiClient: ApiClient; e
         loading={seatingQuery.isPending}
         error={seatingQuery.isError}
         mutable={mutable}
+        individualOnly={nominalAccess || floorplan.seatingMode === 'SEAT'}
+        detailed={floorplan.seatingMode === 'SEAT'}
         {...(feedback ? { feedback } : {})}
         uncertain={Boolean(uncertainIntent)}
         onClose={clearSelection}
@@ -414,7 +427,7 @@ export function SeatingWorkspace({ apiClient, event }: { apiClient: ApiClient; e
           {panel}
         </Drawer>
       ) : null}
-      {selectedTable ? (
+      {selectedTable && floorplan.seatingMode !== 'SEAT' ? (
         <DestinationDialog
           open={destinationOpen}
           tables={tables}
@@ -431,6 +444,37 @@ export function SeatingWorkspace({ apiClient, event }: { apiClient: ApiClient; e
             );
           }}
         />
+      ) : null}
+      {floorplan.seatingMode === 'SEAT' ? (
+        <Dialog open={destinationOpen} onClose={() => setDestinationOpen(false)} fullWidth maxWidth="xs">
+          <DialogTitle>Cambiar lugar exacto</DialogTitle>
+          <DialogContent>
+            <Stack spacing={1}>
+              {(floorplan.seats ?? [])
+                .filter((seat) => !seat.occupied && !seat.isBlocked)
+                .map((seat) => (
+                  <Button
+                    key={seat.id}
+                    sx={{ minHeight: 44 }}
+                    onClick={() => {
+                      const assistantId = [...selectedIds][0];
+                      if (!assistantId || selectedIds.size !== 1) return;
+                      setDestinationOpen(false);
+                      void executeIntent({ kind: 'SEAT', assistantId, seatId: seat.id, key: newKey() });
+                    }}
+                  >
+                    {tables.find((table) => table.id === seat.floorplanShapeId)?.name} · Lugar {seat.label}
+                  </Button>
+                ))}
+              {!(floorplan.seats ?? []).some((seat) => !seat.occupied && !seat.isBlocked) ? (
+                <Typography>No hay lugares libres.</Typography>
+              ) : null}
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDestinationOpen(false)}>Cancelar</Button>
+          </DialogActions>
+        </Dialog>
       ) : null}
       {selectedTable ? (
         <ConfirmationDialog
@@ -523,6 +567,8 @@ function AssignmentPanel(props: {
   loading: boolean;
   error: boolean;
   mutable: boolean;
+  individualOnly: boolean;
+  detailed: boolean;
   feedback?: string;
   uncertain: boolean;
   onClose: () => void;
@@ -691,7 +737,7 @@ function AssignmentPanel(props: {
                         ? `Mesa ${item.table.name} · Lugar ${item.seat.label}`
                         : (item.group?.name ?? 'Sin grupo')}
                   </Typography>
-                  {props.mutable && props.scope === 'UNASSIGNED' ? (
+                  {props.mutable && !props.individualOnly && props.scope === 'UNASSIGNED' ? (
                     <Stack direction="row" useFlexGap sx={{ flexWrap: 'wrap', mt: 0.25, ml: -1 }}>
                       <Button size="small" onClick={() => props.onFamily(item)} sx={{ minHeight: 44 }}>
                         Invitación completa
@@ -757,14 +803,18 @@ function AssignmentPanel(props: {
             variant="contained"
             fullWidth
             disabled={
-              props.selectedIds.size === 0 || (props.scope === 'UNASSIGNED' && props.selectedIds.size > available)
+              props.selectedIds.size === 0 ||
+              (props.detailed && props.selectedIds.size !== 1) ||
+              (props.scope === 'UNASSIGNED' && props.selectedIds.size > available)
             }
             onClick={props.scope === 'UNASSIGNED' ? props.onAssign : props.onMove}
             sx={{ minHeight: 48 }}
           >
             {props.scope === 'UNASSIGNED'
               ? `Asignar ${props.selectedIds.size} a ${props.table.name}`
-              : `Cambiar mesa de ${props.selectedIds.size}`}
+              : props.detailed
+                ? 'Cambiar lugar exacto'
+                : `Cambiar mesa de ${props.selectedIds.size}`}
           </Button>
           {props.scope === 'UNASSIGNED' && props.selectedIds.size > available ? (
             <Typography variant="caption" color="error.main">

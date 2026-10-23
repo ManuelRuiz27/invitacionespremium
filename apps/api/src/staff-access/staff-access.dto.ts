@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { ApiProperty } from '@nestjs/swagger';
 import { z } from 'zod';
-import { EventStatus } from '../generated/prisma/client';
+import { EventAccessMode, EventStatus, ServiceCode } from '../generated/prisma/client';
 
 const staffAlias = z
   .string()
@@ -70,6 +70,12 @@ export class ScannerSessionEventDto {
 
   @ApiProperty({ type: Boolean })
   floorplanEnabled!: boolean;
+
+  @ApiProperty({ enum: ServiceCode })
+  serviceCode!: ServiceCode;
+
+  @ApiProperty({ enum: EventAccessMode, enumName: 'EventAccessMode', nullable: true })
+  accessMode!: EventAccessMode | null;
 }
 
 export class ScannerSessionResponseDto {

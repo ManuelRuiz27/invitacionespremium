@@ -9,6 +9,7 @@ export type ScannerSearchResponse = components['schemas']['ScannerSearchResponse
 export type ScanPhysicalPassResponse = components['schemas']['ScanPhysicalPassResponseDto'];
 export type ScannerFloorplanResponse = components['schemas']['ScannerFloorplanResponseDto'];
 export type ScannerScanResponse = components['schemas']['ScannerScanResponseDto'];
+export type ScannerNominalScanResponse = components['schemas']['ScannerNominalScanResponseDto'];
 export type PendingAssistant = components['schemas']['PendingAssistantDto'];
 export type CheckedInAssistant = components['schemas']['CheckedInAssistantDto'];
 export type ScannerInvitation = components['schemas']['ScannerInvitationDto'];
@@ -18,6 +19,12 @@ export type ScannerTable = components['schemas']['ScannerTableDto'];
 export type ScannerSeat = components['schemas']['ScannerSeatDto'];
 
 export interface ScannerClient {
+  scanNominalAccess(
+    staffToken: string,
+    idempotencyKey: string,
+    qrToken: string,
+    signal?: AbortSignal
+  ): Promise<ScannerNominalScanResponse>;
   getSession(staffToken: string, signal?: AbortSignal): Promise<ScannerSessionResponse>;
   scan(staffToken: string, qrToken: string, signal?: AbortSignal): Promise<ScannerScanResponse>;
   search(staffToken: string, query: string, signal?: AbortSignal): Promise<ScannerSearchResponse>;
@@ -47,6 +54,19 @@ const isDateTime = (value: unknown): value is string => isNonEmptyString(value) 
 
 export function createScannerClient(request: ApiRequester): ScannerClient {
   return {
+    scanNominalAccess: (staffToken, idempotencyKey, qrToken, signal) =>
+      request(
+        {
+          method: 'POST',
+          path: `/scanner/${segment(staffToken)}/nominal-access/scan`,
+          headers: { 'Idempotency-Key': idempotencyKey },
+          body: { qrToken },
+          credentials: 'omit',
+          response: 'json',
+          ...withSignal(signal)
+        },
+        isNominalScanResponse
+      ),
     getSession: (staffToken, signal) =>
       request(
         {
@@ -127,12 +147,33 @@ function isScannerSession(value: unknown): value is ScannerSessionResponse {
     isRecord(value.staff) &&
     isNonEmptyString(value.staff.alias) &&
     isRecord(value.event) &&
+    hasCompatibleAccessContext(value.event) &&
     isNonEmptyString(value.event.id) &&
     isNonEmptyString(value.event.name) &&
     (value.event.status === 'ACTIVE' || value.event.status === 'EVENT_DAY') &&
     isDateTime(value.event.eventDateTime) &&
     isNonEmptyString(value.event.timeZone) &&
     typeof value.event.floorplanEnabled === 'boolean'
+  );
+}
+
+function hasCompatibleAccessContext(event: Record<string, unknown>): boolean {
+  if (event.serviceCode === undefined && event.accessMode === undefined) return true;
+  return event.serviceCode === 'ACCESS_CONTROL'
+    ? event.accessMode === 'NOMINAL' || event.accessMode === 'ANONYMOUS'
+    : ['FLYER', 'FLIPBOOK', 'PHYSICAL_QR', 'DEMO'].includes(String(event.serviceCode)) && event.accessMode === null;
+}
+
+function isNominalScanResponse(value: unknown): value is ScannerNominalScanResponse {
+  return (
+    isRecord(value) &&
+    value.status === 'CHECKED_IN' &&
+    isNonEmptyString(value.assistantId) &&
+    isNonEmptyString(value.checkInId) &&
+    isNonEmptyString(value.name) &&
+    isDateTime(value.checkedInAt) &&
+    (value.table === null || isTable(value.table)) &&
+    (value.seat === null || isSeat(value.seat))
   );
 }
 

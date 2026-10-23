@@ -34,23 +34,26 @@ import { adminErrorMessage, isUncertainFailure } from '../../shared/admin-error'
 import { eventStatusLabel } from '../../shared/admin-labels';
 import { AdminErrorState, AdminLoadingState } from '../../shared/AdminStates';
 import { AdminFloorplanBuilderWorkspace } from './floorplan/AdminFloorplanBuilderWorkspace';
+import { AdminAccessSection, accessReadinessKey } from './AdminAccessSection';
 import { AdminPilotOperationalLog } from './pilot/AdminPilotOperationalLog';
 
-type Section = 'comercial' | 'datos' | 'invitacion' | 'croquis' | 'registro';
+type Section = 'comercial' | 'datos' | 'invitacion' | 'croquis' | 'registro' | 'accesos';
 
 export function AdminEventPreparationPage({ apiClient }: { apiClient: ApiClient }) {
   const queryClient = useQueryClient();
   const { eventId = '' } = useParams();
   const location = useLocation();
-  const section: Section = location.pathname.endsWith('/comercial')
-    ? 'comercial'
-    : location.pathname.endsWith('/invitacion')
-      ? 'invitacion'
-      : location.pathname.endsWith('/croquis')
-        ? 'croquis'
-        : location.pathname.endsWith('/registro')
-          ? 'registro'
-          : 'datos';
+  const section: Section = location.pathname.endsWith('/accesos')
+    ? 'accesos'
+    : location.pathname.endsWith('/comercial')
+      ? 'comercial'
+      : location.pathname.endsWith('/invitacion')
+        ? 'invitacion'
+        : location.pathname.endsWith('/croquis')
+          ? 'croquis'
+          : location.pathname.endsWith('/registro')
+            ? 'registro'
+            : 'datos';
   const event = useQuery({
     queryKey: adminQueryKeys.event(eventId),
     queryFn: ({ signal }) => apiClient.adminEvents.get(eventId, signal),
@@ -60,6 +63,12 @@ export function AdminEventPreparationPage({ apiClient }: { apiClient: ApiClient 
     queryKey: adminQueryKeys.client(event.data?.clientId ?? ''),
     queryFn: ({ signal }) => apiClient.adminClients.get(event.data!.clientId, signal),
     enabled: Boolean(event.data?.clientId)
+  });
+  const accessControl = event.data?.serviceCode === 'ACCESS_CONTROL';
+  const accessReadiness = useQuery({
+    queryKey: accessReadinessKey({ clientId: event.data?.clientId ?? '', id: eventId }),
+    queryFn: ({ signal }) => apiClient.adminEventPreparation.getAccessReadiness(event.data!.clientId, eventId, signal),
+    enabled: accessControl && Boolean(event.data?.clientId)
   });
   const activationRunning = useRef(false);
   const activationAttempt = useRef<{ eventId: string; key: string } | undefined>(undefined);
@@ -81,10 +90,17 @@ export function AdminEventPreparationPage({ apiClient }: { apiClient: ApiClient 
   const data = event.data;
   const base = `/eventos/${data.id}/preparar`;
   const managed = client.data.operatingProfile === 'MANAGED';
-  const canActivateManaged = managed && client.data.type === 'PLANNER' && data.status === 'READY_TO_ACTIVATE';
+  const managedActivationContext =
+    managed &&
+    client.data.status === 'ACTIVE' &&
+    (client.data.type === 'PLANNER' || (client.data.type === 'ORGANIZATION' && accessControl));
+  const canActivateManaged =
+    managedActivationContext &&
+    data.status === 'READY_TO_ACTIVATE' &&
+    (!accessControl || (accessReadiness.data?.complete === true && !accessReadiness.isError));
 
   async function activateManaged() {
-    if (activationRunning.current) return;
+    if (activationRunning.current || !canActivateManaged) return;
     if (
       !window.confirm(
         'Al activar el Evento, quedará operativo y su configuración técnica se congelará. La activación Managed no genera ningún cargo financiero. ¿Deseas continuar?'
@@ -123,7 +139,7 @@ export function AdminEventPreparationPage({ apiClient }: { apiClient: ApiClient 
           });
           return;
         }
-        if (authoritative?.status !== 'READY_TO_ACTIVATE') {
+        if (authoritative && authoritative.status !== 'READY_TO_ACTIVATE') {
           activationAttempt.current = undefined;
           setActivationFeedback({
             severity: 'warning',
@@ -143,6 +159,12 @@ export function AdminEventPreparationPage({ apiClient }: { apiClient: ApiClient 
           message: parsed.message,
           ...(parsed.operationId ? { operationId: parsed.operationId } : {})
         });
+        if (accessControl) {
+          await Promise.allSettled([
+            queryClient.invalidateQueries({ queryKey: accessReadinessKey(data) }),
+            queryClient.invalidateQueries({ queryKey: adminQueryKeys.event(data.id) })
+          ]);
+        }
       }
     } finally {
       activationRunning.current = false;
@@ -150,10 +172,17 @@ export function AdminEventPreparationPage({ apiClient }: { apiClient: ApiClient 
     }
   }
 
-  if (managed && section === 'comercial') return <Navigate to={`${base}/datos`} replace />;
-  const sections = managed
-    ? (['datos', 'invitacion', 'croquis', 'registro'] as const)
-    : (['comercial', 'datos', 'invitacion', 'croquis', 'registro'] as const);
+  if (
+    (managed && section === 'comercial') ||
+    (accessControl && (section === 'invitacion' || section === 'registro')) ||
+    (!accessControl && section === 'accesos')
+  )
+    return <Navigate to={`${base}/datos`} replace />;
+  const sections = accessControl
+    ? (['datos', 'croquis', 'accesos'] as const)
+    : managed
+      ? (['datos', 'invitacion', 'croquis', 'registro'] as const)
+      : (['comercial', 'datos', 'invitacion', 'croquis', 'registro'] as const);
   return (
     <Stack spacing={3}>
       <Button
@@ -202,14 +231,19 @@ export function AdminEventPreparationPage({ apiClient }: { apiClient: ApiClient 
                   ? 'Invitación'
                   : item === 'croquis'
                     ? 'Croquis'
-                    : 'Registro operativo'}
+                    : item === 'accesos'
+                      ? 'Accesos'
+                      : 'Registro operativo'}
           </Button>
         ))}
       </Stack>
       {section === 'comercial' ? <CommercialSection apiClient={apiClient} event={data} /> : null}
-      {section === 'datos' ? <EventDataSection apiClient={apiClient} event={data} /> : null}
+      {section === 'datos' ? <EventDataSection key={data.id} apiClient={apiClient} event={data} /> : null}
       {section === 'invitacion' ? <InvitationSection apiClient={apiClient} event={data} managed={managed} /> : null}
       {section === 'croquis' ? <AdminFloorplanBuilderWorkspace apiClient={apiClient} event={data} /> : null}
+      {section === 'accesos' && accessControl ? (
+        <AdminAccessSection key={data.id} apiClient={apiClient} event={data} />
+      ) : null}
       {section === 'registro' ? <AdminPilotOperationalLog apiClient={apiClient} event={data} /> : null}
     </Stack>
   );
@@ -533,11 +567,17 @@ function formatMxn(cents: number) {
 function EventDataSection({ apiClient, event }: { apiClient: ApiClient; event: AdminEvent }) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState(() => eventDraft(event));
+  const accessControl = event.serviceCode === 'ACCESS_CONTROL';
+  const canEdit = !accessControl || ['DRAFT', 'CONFIGURED', 'READY_TO_ACTIVATE'].includes(event.status);
+  const modeEditable = canEdit && event.hasAccessMaterial === false && !event.activatedAt;
+  const saving = useRef(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string>();
   const set = (field: keyof typeof draft, value: string | boolean) =>
     setDraft((current) => ({ ...current, [field]: value }));
   const save = async () => {
+    if (saving.current || !canEdit) return;
+    saving.current = true;
     setBusy(true);
     setMessage(undefined);
     try {
@@ -554,17 +594,26 @@ function EventDataSection({ apiClient, event }: { apiClient: ApiClient; event: A
         eventEndDateTime: end?.toISOString() ?? null,
         timeZone: draft.timeZone.trim() || null,
         capacity: draft.capacity ? Number(draft.capacity) : null,
-        confirmationEnabled: draft.confirmationEnabled,
+        ...(accessControl && modeEditable ? { accessMode: draft.accessMode as 'NOMINAL' | 'ANONYMOUS' } : {}),
+        confirmationEnabled: accessControl ? false : draft.confirmationEnabled,
         floorplanEnabled: draft.floorplanEnabled,
         locationUrl: draft.locationUrl.trim() || null,
-        giftRegistryUrl: draft.giftRegistryUrl.trim() || null
+        ...(!accessControl ? { giftRegistryUrl: draft.giftRegistryUrl.trim() || null } : {})
       });
       queryClient.setQueryData(adminQueryKeys.event(event.id), updated);
       setDraft(eventDraft(updated));
       setMessage('Datos guardados.');
+      if (accessControl) {
+        await queryClient.invalidateQueries({ queryKey: accessReadinessKey(event) });
+        await queryClient.invalidateQueries({ queryKey: adminQueryKeys.event(event.id) });
+      }
     } catch (cause) {
       setMessage(adminErrorMessage(cause).message);
+      if (accessControl && cause instanceof ApiError && cause.code === 'EVENT_ACCESS_CONFIGURATION_IMMUTABLE') {
+        await queryClient.invalidateQueries({ queryKey: adminQueryKeys.event(event.id) });
+      }
     } finally {
+      saving.current = false;
       setBusy(false);
     }
   };
@@ -583,70 +632,106 @@ function EventDataSection({ apiClient, event }: { apiClient: ApiClient; event: A
             Datos del Evento
           </Typography>
           <TextField label="Servicio" value={event.serviceCode ?? event.serviceId ?? 'Sin asignar'} disabled />
-          <TextField label="Nombre" value={draft.name} onChange={(e) => set('name', e.target.value)} />
-          <TextField
-            select
-            label="Tipo social"
-            value={draft.socialType}
-            onChange={(e) => set('socialType', e.target.value)}
+          {accessControl ? (
+            <>
+              <TextField
+                select
+                label="Modalidad de acceso"
+                value={draft.accessMode}
+                disabled={busy || !modeEditable}
+                onChange={(e) => set('accessMode', e.target.value)}
+              >
+                <MenuItem value="NOMINAL">Nominal — un acceso por invitado</MenuItem>
+                <MenuItem value="ANONYMOUS">Anónimo — pases QR numerados</MenuItem>
+              </TextField>
+              {!modeEditable ? (
+                <Alert severity="info">
+                  La modalidad no admite cambios cuando existe registro o material de acceso, o el Evento ya fue
+                  activado.
+                </Alert>
+              ) : null}
+              {!canEdit ? <Alert severity="info">Los datos técnicos de este Evento están en consulta.</Alert> : null}
+            </>
+          ) : null}
+          <Stack
+            component="fieldset"
+            spacing={2}
+            disabled={busy || !canEdit}
+            sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}
           >
-            <MenuItem value="">Sin definir</MenuItem>
-            {['WEDDING', 'QUINCEANERA', 'CORPORATE', 'BIRTHDAY', 'OTHER'].map((value) => (
-              <MenuItem key={value} value={value}>
-                {value}
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField
-            label="Fecha y hora"
-            type="datetime-local"
-            value={draft.eventDateTime}
-            onChange={(e) => set('eventDateTime', e.target.value)}
-            slotProps={{ inputLabel: { shrink: true } }}
-          />
-          <TextField
-            label="Fecha y hora de finalización"
-            type="datetime-local"
-            value={draft.eventEndDateTime}
-            onChange={(e) => set('eventEndDateTime', e.target.value)}
-            slotProps={{ inputLabel: { shrink: true } }}
-          />
-          <TextField label="Zona horaria" value={draft.timeZone} onChange={(e) => set('timeZone', e.target.value)} />
-          <TextField
-            label="Capacidad"
-            type="number"
-            value={draft.capacity}
-            onChange={(e) => set('capacity', e.target.value)}
-          />
-          <TextField
-            label="URL de ubicación"
-            value={draft.locationUrl}
-            onChange={(e) => set('locationUrl', e.target.value)}
-          />
-          <TextField
-            label="URL de mesa de regalos"
-            value={draft.giftRegistryUrl}
-            onChange={(e) => set('giftRegistryUrl', e.target.value)}
-          />
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={draft.confirmationEnabled}
-                onChange={(e) => set('confirmationEnabled', e.target.checked)}
+            <TextField label="Nombre" value={draft.name} onChange={(e) => set('name', e.target.value)} />
+            <TextField
+              select
+              label="Tipo social"
+              value={draft.socialType}
+              disabled={busy || !canEdit}
+              onChange={(e) => set('socialType', e.target.value)}
+            >
+              <MenuItem value="">Sin definir</MenuItem>
+              {['WEDDING', 'QUINCEANERA', 'CORPORATE', 'BIRTHDAY', 'OTHER'].map((value) => (
+                <MenuItem key={value} value={value}>
+                  {value}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              label="Fecha y hora"
+              type="datetime-local"
+              value={draft.eventDateTime}
+              onChange={(e) => set('eventDateTime', e.target.value)}
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <TextField
+              label="Fecha y hora de finalización"
+              type="datetime-local"
+              value={draft.eventEndDateTime}
+              onChange={(e) => set('eventEndDateTime', e.target.value)}
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <TextField label="Zona horaria" value={draft.timeZone} onChange={(e) => set('timeZone', e.target.value)} />
+            <TextField
+              label="Capacidad"
+              type="number"
+              value={draft.capacity}
+              onChange={(e) => set('capacity', e.target.value)}
+            />
+            <TextField
+              label="URL de ubicación"
+              value={draft.locationUrl}
+              onChange={(e) => set('locationUrl', e.target.value)}
+            />
+            {!accessControl ? (
+              <TextField
+                label="URL de mesa de regalos"
+                value={draft.giftRegistryUrl}
+                onChange={(e) => set('giftRegistryUrl', e.target.value)}
               />
-            }
-            label="Confirmación habilitada"
-          />
-          <FormControlLabel
-            control={
-              <Checkbox checked={draft.floorplanEnabled} onChange={(e) => set('floorplanEnabled', e.target.checked)} />
-            }
-            label="Croquis habilitado"
-          />
-          {message ? <Alert severity={message === 'Datos guardados.' ? 'success' : 'error'}>{message}</Alert> : null}
-          <Button type="submit" variant="contained" disabled={busy}>
-            {busy ? 'Guardando...' : 'Guardar datos'}
-          </Button>
+            ) : null}
+            {!accessControl ? (
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={draft.confirmationEnabled}
+                    onChange={(e) => set('confirmationEnabled', e.target.checked)}
+                  />
+                }
+                label="Confirmación habilitada"
+              />
+            ) : null}
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={draft.floorplanEnabled}
+                  onChange={(e) => set('floorplanEnabled', e.target.checked)}
+                />
+              }
+              label="Croquis habilitado"
+            />
+            {message ? <Alert severity={message === 'Datos guardados.' ? 'success' : 'error'}>{message}</Alert> : null}
+            <Button type="submit" variant="contained" disabled={busy || !canEdit}>
+              {busy ? 'Guardando...' : 'Guardar datos'}
+            </Button>
+          </Stack>
         </Stack>
       </CardContent>
     </Card>
@@ -1094,6 +1179,7 @@ function UploadButton({
 function eventDraft(event: AdminEvent) {
   return {
     name: event.name ?? '',
+    accessMode: event.accessMode ?? '',
     socialType: event.socialType ?? '',
     eventDateTime: event.eventDateTime?.slice(0, 16) ?? '',
     eventEndDateTime: event.eventEndDateTime?.slice(0, 16) ?? '',

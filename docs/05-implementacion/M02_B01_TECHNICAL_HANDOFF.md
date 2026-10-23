@@ -1,6 +1,15 @@
 # M02-B01 — Handoff técnico para el equipo de desarrollo
 
-Estado: **HANDOFF TÉCNICO — DT02A–DT06A IMPLEMENTADOS; DT07–DT09 PENDIENTES**
+Estado: **HANDOFF TÉCNICO — DT02A–DT07 IMPLEMENTADOS; DT08–DT09 PENDIENTES**
+
+**DT07 (2026-10-22):** interfaces Provider/Organización/Scanner y wrappers OpenAPI para ACCESS_CONTROL,
+conservando M01 y legacy. Alta discriminada, readiness/activación Provider, generación ANONYMOUS,
+registro/credenciales nominales, descarga/impresión/revocación, acomodo y Staff; Scanner atómico
+con retry idempotente y cámara protegida. Ver [implementación y evidencia DT07](./M02_B01_DT07_IMPLEMENTATION.md).
+Validación continuada el 2026-10-23: proyección mínima `Contact.assistantId` NOMINAL para no consumir
+Invitations internas; E2E real NOMINAL/ANONYMOUS con SVG/PDF e ingreso Scanner aprobado.
+No implementa métricas DT08 ni certificación/release DT09. Las entradas posteriores conservan su
+contexto histórico y no sustituyen el alcance del ticket DT07 autorizado explícitamente.
 
 **DT06A IMPLEMENTADO Y REVISADO (2026-10-22):** commit [`88d5c818`](https://github.com/ManuelRuiz27/invitacionespremium/commit/88d5c818cadca2a7770437f4dc7e6e0d7251ad85), [revisión DT06A](./M02_B01_DT06A_IMPLEMENTATION_REVIEW.md). Migración aditiva alinea `validate_staff_token_insert()` con `assignedPlannerUserId` en `ACCESS_CONTROL+NOMINAL/ANONYMOUS`, conserva regla del creador para legacy y prueba HTTP/SQL, aislamiento, reasignación, Staff concurrente, Scanner y expiración. **CI `quality` success**; **Flipbook WebKit QA failure preexistente (73/74)**; workflow global rojo. Bloqueo operativo Staff de DT06 **resuelto**. DT07–DT09 pendientes.
 

@@ -177,7 +177,9 @@ describe('StaffAccess', () => {
         status: 'ACTIVE',
         eventDateTime: '2030-01-01T18:00:00.000Z',
         timeZone: 'America/Mexico_City',
-        floorplanEnabled: false
+        floorplanEnabled: false,
+        serviceCode: 'FLYER',
+        accessMode: null
       }
     });
     expect(JSON.stringify(session.body)).not.toMatch(

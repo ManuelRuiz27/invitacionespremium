@@ -109,7 +109,7 @@ export class EventsService {
   }
 
   async getOwned(eventId: string, principal: AuthPrincipal): Promise<EventResponseDto> {
-    return toEventResponse(await this.findOwnedEvent(this.prisma, eventId, principal));
+    return this.withAccessMaterial(await this.findOwnedEvent(this.prisma, eventId, principal));
   }
 
   async listAdmin(): Promise<EventResponseDto[]> {
@@ -129,7 +129,16 @@ export class EventsService {
     if (!event) {
       throw eventNotFound();
     }
-    return toEventResponse(event);
+    return this.withAccessMaterial(event);
+  }
+
+  private async withAccessMaterial(event: EventWithService): Promise<EventResponseDto> {
+    const response = toEventResponse(event);
+    if (event.service?.code !== ServiceCode.ACCESS_CONTROL) return response;
+    const [material] = await this.prisma.$queryRaw<
+      Array<{ present: boolean }>
+    >`SELECT event_has_access_material(${event.id}::uuid) AS present`;
+    return { ...response, hasAccessMaterial: material?.present ?? true };
   }
 
   async create(input: CreateEventInput, principal: AuthPrincipal, operationId?: string): Promise<EventResponseDto> {

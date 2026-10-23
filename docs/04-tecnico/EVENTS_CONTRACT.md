@@ -263,3 +263,12 @@ Para Flyer/Flipbook, activación exige Confirmación habilitada, ambos destinos,
 una Invitación activa antes de cualquier efecto financiero. Las rutas `GET /confirmation`, `POST
 /confirmation/close` y `POST /confirmation/reopen` siguen `EventAccessPolicy`, bloquean el Evento y son
 idempotentes sin duplicar auditoría. Detalle en `PUBLIC_RSVP_CONTRACT.md`.
+
+## Proyección de detalle ACCESS_CONTROL — DT07
+
+Las lecturas autenticadas de detalle `getOwned` y `getAdmin` agregan opcionalmente
+`hasAccessMaterial`, derivado de `event_has_access_material(eventId)` para ACCESS_CONTROL.
+Incluye historia y registro, aunque el conteo de material vigente sea cero; permite al Provider
+mostrar la modalidad congelada. No es un permiso, no reemplaza las guardas del PATCH y no se
+incorpora a snapshots históricos de activación. Las demás proyecciones pueden omitir el campo;
+el frontend no permite cambiar modalidad hasta contar con una lectura autoritativa negativa.

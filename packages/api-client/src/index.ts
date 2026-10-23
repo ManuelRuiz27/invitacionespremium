@@ -1,4 +1,5 @@
 import { createRequester, type ApiClientRuntimeConfig } from './api-client';
+import { createNominalAccessCredentialsClient } from './access-control';
 import {
   createAdminAuditClient,
   createAdminCatalogClient,
@@ -61,6 +62,7 @@ export type {
   ScanPhysicalPassResponse,
   ScannerFloorplanResponse,
   ScannerScanResponse,
+  ScannerNominalScanResponse,
   PendingAssistant,
   CheckedInAssistant,
   ScannerInvitation,
@@ -89,6 +91,7 @@ export type {
   RegisterPlannerResult
 } from './public';
 export type * from './wizard';
+export type * from './access-control';
 export type * from './admin';
 
 export const API_CLIENT_STATUS = 'Operational typed client generated from the API OpenAPI document.';
@@ -127,6 +130,7 @@ export function createApiClient(config: ApiClientRuntimeConfig) {
     design: createDesignClient(request),
     floorplan: createFloorplanClient(request),
     physicalPasses: createPhysicalPassesClient(request),
+    nominalAccessCredentials: createNominalAccessCredentialsClient(request),
     staffTokens: createStaffTokensClient(request),
     publicInvitation: createPublicInvitationClient(request),
     publicAlbum: createPublicAlbumClient(request),

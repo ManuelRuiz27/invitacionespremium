@@ -191,6 +191,8 @@ export function mockApiClient(user: AuthUser = independentUser): ApiClient {
       updateAssignment: vi.fn()
     },
     adminEventPreparation: {
+      getAccessReadiness: vi.fn(),
+      generatePhysicalPasses: vi.fn(),
       getCommercialQuote: vi.fn(),
       authorizeCommercial: vi.fn(),
       startDesignKickoff: vi.fn(),
@@ -271,7 +273,14 @@ export function mockApiClient(user: AuthUser = independentUser): ApiClient {
       create: vi.fn().mockResolvedValue(configuredEvent),
       update: vi.fn().mockResolvedValue(configuredEvent),
       activate: vi.fn().mockResolvedValue({ event: activeEvent }),
-      close: vi.fn().mockResolvedValue({ ...activeEvent, status: 'CLOSED' })
+      close: vi.fn().mockResolvedValue({ ...activeEvent, status: 'CLOSED' }),
+      getAccessReadiness: vi.fn().mockResolvedValue({
+        complete: false,
+        accessMode: 'NOMINAL',
+        blockers: [],
+        activeMaterialCount: 0,
+        capacity: 120
+      })
     },
     eventConfirmation: {
       get: vi.fn().mockResolvedValue({ enabled: true, open: true, closedAt: null, closedByUserId: null }),
@@ -371,7 +380,8 @@ export function mockApiClient(user: AuthUser = independentUser): ApiClient {
       assignSeats: vi.fn(),
       updateSeating: vi.fn()
     },
-    physicalPasses: { list: vi.fn().mockResolvedValue([]), generate: vi.fn(), svg: vi.fn() },
+    physicalPasses: { list: vi.fn().mockResolvedValue([]), generate: vi.fn(), svg: vi.fn(), revoke: vi.fn() },
+    nominalAccessCredentials: { list: vi.fn().mockResolvedValue([]), issue: vi.fn(), svg: vi.fn(), revoke: vi.fn() },
     staffTokens: { list: vi.fn().mockResolvedValue([]), create: vi.fn() },
     scanner: {
       getSession: vi.fn(),
@@ -379,6 +389,7 @@ export function mockApiClient(user: AuthUser = independentUser): ApiClient {
       search: vi.fn(),
       checkIn: vi.fn(),
       scanPhysicalPass: vi.fn(),
+      scanNominalAccess: vi.fn(),
       getFloorplan: vi.fn()
     },
     publicInvitation: {

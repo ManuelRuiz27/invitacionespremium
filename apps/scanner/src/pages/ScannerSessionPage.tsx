@@ -14,7 +14,7 @@ import { ScannerFloorplan } from '../components/ScannerFloorplan';
 import { ScannerSearchPanel } from '../components/ScannerSearchPanel';
 import { useScannerFloorplan, useScannerMutations, useScannerSession } from '../hooks/useScannerQueries';
 import { useScannerRealtime } from '../hooks/useScannerRealtime';
-import { scannerErrorMessage } from '../scanner-errors';
+import { isTerminalScannerError, isUncertainScannerError, scannerErrorMessage } from '../scanner-errors';
 import type { ScannerRealtimeConfig } from '../env';
 
 export interface ScannerSessionPageProps {
@@ -35,10 +35,13 @@ export function ScannerSessionPage({
   const [selectedAssistantIds, setSelectedAssistantIds] = useState<string[]>([]);
   const [realtimeNotice, setRealtimeNotice] = useState<string | null>(null);
   const [terminalState, setTerminalState] = useState(false);
+  const [terminalMessage, setTerminalMessage] = useState<string | null>(null);
   const terminalStateRef = useRef(false);
   const confirmationRef = useRef<ScannerCheckInResponse | null>(null);
   const checkInInFlightRef = useRef(false);
   const checkInAttempt = useRef<{ signature: string; key: string } | null>(null);
+  const scanLockedRef = useRef(false);
+  const accessAttempt = useRef<{ mode: 'NOMINAL' | 'ANONYMOUS'; idempotencyKey: string; qrToken: string } | null>(null);
   const session = useScannerSession(apiClient, staffToken);
   const operational =
     session.data?.status === 'AVAILABLE' && ['ACTIVE', 'EVENT_DAY'].includes(session.data.event.status);
@@ -47,7 +50,20 @@ export function ScannerSessionPage({
     staffToken,
     Boolean(operational && session.data?.event.floorplanEnabled)
   );
-  const { scanMutation, checkInMutation, searchMutation } = useScannerMutations(apiClient, staffToken);
+  const { scanMutation, checkInMutation, scanAccessMutation, searchMutation } = useScannerMutations(
+    apiClient,
+    staffToken
+  );
+  const isAccessControl = session.data?.event.serviceCode === 'ACCESS_CONTROL';
+  const allowSearch = !isAccessControl && session.data?.event.serviceCode !== 'PHYSICAL_QR';
+  const floorplanAccessExpired = isTerminalScannerError(floorplan.error);
+
+  const stopOnTerminalError = useCallback((error: unknown) => {
+    if (!isTerminalScannerError(error)) return;
+    terminalStateRef.current = true;
+    setTerminalMessage(scannerErrorMessage(error, 'El acceso Staff ya no está disponible.'));
+    setTerminalState(true);
+  }, []);
 
   const clearResult = useCallback(() => {
     setScanResult(null);
@@ -56,11 +72,16 @@ export function ScannerSessionPage({
     setConfirmation(null);
     setSelectedAssistantIds([]);
     checkInAttempt.current = null;
+    accessAttempt.current = null;
+    scanLockedRef.current = false;
     scanMutation.reset();
     checkInMutation.reset();
-  }, [checkInMutation, scanMutation]);
+    scanAccessMutation.reset();
+  }, [checkInMutation, scanMutation, scanAccessMutation]);
 
   const discardStaleResult = useCallback(() => {
+    // Atomic access attempts retain their token/key through realtime echoes and uncertain responses.
+    if (accessAttempt.current) return;
     clearResult();
     searchMutation.reset();
     setRealtimeNotice('La disponibilidad cambió. Escanea o busca nuevamente.');
@@ -68,7 +89,7 @@ export function ScannerSessionPage({
 
   const realtimeStatus = useScannerRealtime(
     staffToken,
-    operational && !terminalState ? session.data : undefined,
+    operational && !terminalState && !floorplanAccessExpired ? session.data : undefined,
     realtime,
     {
       onTerminal: () => {
@@ -87,17 +108,50 @@ export function ScannerSessionPage({
 
   const handleScan = useCallback(
     (qrToken: string) => {
-      if (scanResult || confirmation || scanMutation.isPending || checkInMutation.isPending) return;
+      if (
+        terminalStateRef.current ||
+        scanLockedRef.current ||
+        scanResult ||
+        confirmation ||
+        scanMutation.isPending ||
+        checkInMutation.isPending
+      )
+        return;
+      scanLockedRef.current = true;
       setRealtimeNotice(null);
+      const mode = qrToken.startsWith('na1.')
+        ? 'NOMINAL'
+        : qrToken.startsWith('pp1.')
+          ? 'ANONYMOUS'
+          : isAccessControl
+            ? session.data?.event.accessMode
+            : session.data?.event.serviceCode === 'PHYSICAL_QR'
+              ? 'ANONYMOUS'
+              : null;
+      if (mode === 'NOMINAL' || mode === 'ANONYMOUS') {
+        accessAttempt.current = { mode, qrToken, idempotencyKey: crypto.randomUUID() };
+        scanAccessMutation.mutate(accessAttempt.current, { onError: stopOnTerminalError });
+        return;
+      }
       scanMutation.mutate(qrToken, {
         onSuccess: (result) => {
           if (terminalStateRef.current) return;
           setScanResult(result);
           setSelectedAssistantIds(result.pendingAssistants.map((assistant) => assistant.id));
-        }
+        },
+        onError: stopOnTerminalError
       });
     },
-    [scanResult, confirmation, scanMutation, checkInMutation.isPending]
+    [
+      scanResult,
+      confirmation,
+      scanMutation,
+      checkInMutation.isPending,
+      isAccessControl,
+      session.data,
+      scanAccessMutation,
+      stopOnTerminalError
+    ]
   );
 
   const handleCheckIn = (assistantIds: string[]) => {
@@ -124,8 +178,9 @@ export function ScannerSessionPage({
             checkedInCount: scanResult.confirmedCount - result.remainingPendingCount
           });
         },
-        onError: () => {
+        onError: (error) => {
           checkInInFlightRef.current = false;
+          stopOnTerminalError(error);
         }
       }
     );
@@ -150,10 +205,15 @@ export function ScannerSessionPage({
       </Container>
     );
   const sessionData = session.data;
-  if (!operational || terminalState || !sessionData)
+  if (!operational || terminalState || floorplanAccessExpired || !sessionData)
     return (
       <Container sx={{ py: 4 }}>
-        <Alert severity="error">El Evento está cerrado, cancelado, archivado o fuera de operación.</Alert>
+        <Alert severity="error">
+          {terminalMessage ??
+            (floorplanAccessExpired
+              ? scannerErrorMessage(floorplan.error, 'El acceso Staff ya no está disponible.')
+              : 'El Evento está cerrado, cancelado, archivado o fuera de operación.')}
+        </Alert>
       </Container>
     );
 
@@ -161,8 +221,17 @@ export function ScannerSessionPage({
     ? confirmation.checkedIn
     : (scanResult?.pendingAssistants.filter((assistant) => selectedAssistantIds.includes(assistant.id)) ?? []);
 
-  const tableIds = activeAssistants.flatMap((assistant) => (assistant.table ? [assistant.table.id] : []));
-  const highlightedSeats = activeAssistants.flatMap((assistant) => (assistant.seat ? [assistant.seat] : []));
+  const accessResult = scanAccessMutation.data;
+  const tableIds = accessResult?.table
+    ? [accessResult.table.id]
+    : activeAssistants.flatMap((assistant) => (assistant.table ? [assistant.table.id] : []));
+  const highlightedSeats =
+    accessResult?.status === 'CHECKED_IN' && accessResult.seat
+      ? [accessResult.seat]
+      : activeAssistants.flatMap((assistant) => (assistant.seat ? [assistant.seat] : []));
+  const scanError = scanAccessMutation.error ?? scanMutation.error;
+  const scanPending = scanMutation.isPending || scanAccessMutation.isPending;
+  const uncertain = isUncertainScannerError(scanAccessMutation.error);
 
   const alertsBlock = (
     <>
@@ -206,7 +275,31 @@ export function ScannerSessionPage({
 
         {currentTab === 0 ? (
           <Box role="tabpanel" id="scanner-panel-camera" aria-labelledby="scanner-tab-camera">
-            {confirmation ? (
+            {accessResult ? (
+              <Stack spacing={2.5}>
+                {alertsBlock}
+                <Alert severity="success" icon={<CheckCircleRounded />} role="status">
+                  {accessResult.status === 'CHECKED_IN'
+                    ? `Ingreso registrado: ${accessResult.name}.`
+                    : `Pase ${accessResult.passNumber}: ingreso registrado.`}
+                </Alert>
+                {accessResult.table ? <Typography variant="h2">Mesa {accessResult.table.name}</Typography> : null}
+                {accessResult.status === 'CHECKED_IN' && accessResult.seat ? (
+                  <Typography variant="h2">Lugar {accessResult.seat.label}</Typography>
+                ) : null}
+                {sessionData.event.floorplanEnabled && floorplan.data ? (
+                  <ScannerFloorplan
+                    floorplan={floorplan.data}
+                    contentUrl={new URL(floorplan.data.contentPath, apiBaseUrl).toString()}
+                    highlightedTableIds={tableIds}
+                    highlightedSeats={highlightedSeats}
+                  />
+                ) : null}
+                <Button variant="contained" size="large" fullWidth onClick={clearResult} sx={{ minHeight: 48 }}>
+                  Siguiente escaneo
+                </Button>
+              </Stack>
+            ) : confirmation ? (
               <Box
                 sx={{
                   animation: 'scannerConfirmIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards',
@@ -285,18 +378,51 @@ export function ScannerSessionPage({
             ) : (
               <>
                 {/* Div de video en la parte superior: limpio, alargado, sin etiquetas, botones ni texto */}
-                <CameraReader onScan={handleScan} paused={scanMutation.isPending} />
+                <CameraReader
+                  onScan={handleScan}
+                  paused={scanPending || Boolean(scanError)}
+                  allowSearch={allowSearch}
+                />
 
-                {scanMutation.isPending ? (
+                {scanPending ? (
                   <Stack role="status" spacing={1} sx={{ mt: 2, alignItems: 'center' }}>
                     <CircularProgress size={28} />
                     <Typography>Validando código…</Typography>
                   </Stack>
                 ) : null}
-                {scanMutation.error ? (
-                  <Alert severity="error" sx={{ mt: 2 }} onClose={() => scanMutation.reset()}>
-                    {scannerErrorMessage(scanMutation.error, 'No pudimos procesar el código.')}
-                  </Alert>
+                {scanError ? (
+                  <Stack spacing={2} sx={{ mt: 2 }}>
+                    <Alert
+                      severity={
+                        ['ASSISTANT_ALREADY_CHECKED_IN', 'PHYSICAL_PASS_ALREADY_USED'].includes(Object(scanError).code)
+                          ? 'warning'
+                          : 'error'
+                      }
+                    >
+                      {scannerErrorMessage(
+                        scanError,
+                        uncertain
+                          ? 'No pudimos confirmar el ingreso. Reintenta la misma operación con seguridad.'
+                          : 'No pudimos procesar el código.'
+                      )}
+                    </Alert>
+                    {uncertain ? (
+                      <Button
+                        variant="contained"
+                        size="large"
+                        onClick={() => {
+                          if (accessAttempt.current && !scanAccessMutation.isPending)
+                            scanAccessMutation.mutate(accessAttempt.current, { onError: stopOnTerminalError });
+                        }}
+                      >
+                        Reintentar el mismo ingreso
+                      </Button>
+                    ) : (
+                      <Button variant="contained" size="large" onClick={clearResult}>
+                        Siguiente escaneo
+                      </Button>
+                    )}
+                  </Stack>
                 ) : null}
 
                 {/* Alertas debajo del video en modo scanner */}
@@ -323,7 +449,7 @@ export function ScannerSessionPage({
         ) : null}
 
         {/* Pestaña 1: Buscar */}
-        {currentTab === 1 ? (
+        {currentTab === 1 && allowSearch ? (
           <Box role="tabpanel" id="scanner-panel-search" aria-labelledby="scanner-tab-search">
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Button
@@ -355,7 +481,7 @@ export function ScannerSessionPage({
             <ScannerSearchPanel
               onSearch={(query) => {
                 setRealtimeNotice(null);
-                searchMutation.mutate(query);
+                searchMutation.mutate(query, { onError: stopOnTerminalError });
               }}
               isLoading={searchMutation.isPending}
               result={searchMutation.data ?? null}
@@ -455,21 +581,26 @@ export function ScannerSessionPage({
             }}
           >
             <Tab
+              value={0}
               icon={<QrCodeScannerRounded />}
               iconPosition="top"
               label="Scanner"
               id="scanner-tab-camera"
               aria-controls="scanner-panel-camera"
             />
-            <Tab
-              icon={<SearchRounded />}
-              iconPosition="top"
-              label="Buscar"
-              id="scanner-tab-search"
-              aria-controls="scanner-panel-search"
-            />
+            {allowSearch ? (
+              <Tab
+                value={1}
+                icon={<SearchRounded />}
+                iconPosition="top"
+                label="Buscar"
+                id="scanner-tab-search"
+                aria-controls="scanner-panel-search"
+              />
+            ) : null}
             {sessionData.event.floorplanEnabled ? (
               <Tab
+                value={2}
                 icon={<MapRounded />}
                 iconPosition="top"
                 label="Croquis"

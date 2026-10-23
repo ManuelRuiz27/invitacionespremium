@@ -40,12 +40,49 @@ describe('DT06 authoritative access preparation and Provider activation', () => 
     await app.close();
   }, 60_000);
 
+  it('projects nominal primary Assistant UUIDs without exposing or reading internal invitations', async () => {
+    const f = await fixture('NOMINAL');
+    await addPerson(f).expect(201);
+    await addPerson(f).expect(201);
+    const listed = await request(app.getHttpServer())
+      .get(`/api/v1/events/${f.id}/contacts`)
+      .set('Cookie', f.cookie)
+      .expect(200);
+    expect(listed.body).toHaveLength(2);
+    expect(new Set(listed.body.map((contact: { assistantId: string }) => contact.assistantId)).size).toBe(2);
+    for (const contact of listed.body) {
+      const assistant = await db.assistant.findUniqueOrThrow({
+        where: { id: contact.assistantId },
+        include: { invitation: true }
+      });
+      expect(assistant.invitation.contactId).toBe(contact.id);
+      expect(assistant).toMatchObject({ eventId: f.id, responseStatus: 'PENDING', isPrimary: true });
+    }
+    expect(JSON.stringify(listed.body)).not.toMatch(/invitationLink|nonce|signature|qrToken/u);
+    await request(app.getHttpServer()).get(`/api/v1/events/${f.id}/invitations`).set('Cookie', f.cookie).expect(409);
+    const outsider = await staffPlanner(f),
+      cookie = await login(outsider.email);
+    await request(app.getHttpServer()).get(`/api/v1/events/${f.id}/contacts`).set('Cookie', cookie).expect(404);
+    await request(app.getHttpServer())
+      .get(`/api/v1/events/${f.id}/contacts`)
+      .set('Cookie', f.providerCookie)
+      .expect(403);
+  });
+
   it.each(['NOMINAL', 'ANONYMOUS'] as const)(
     'activates %s through Provider, scans, replays after close without Finance',
     async (mode) => {
       const f = await fixture(mode);
       expect((await readiness(f)).body).toMatchObject({ complete: false, activeMaterialCount: 0 });
+      expect(
+        (await request(app.getHttpServer()).get(`/api/v1/events/${f.id}`).set('Cookie', f.cookie).expect(200)).body
+          .hasAccessMaterial
+      ).toBe(false);
       const material = await prepare(f);
+      expect(
+        (await request(app.getHttpServer()).get(`/api/v1/events/${f.id}`).set('Cookie', f.cookie).expect(200)).body
+          .hasAccessMaterial
+      ).toBe(true);
       expect((await readiness(f)).body).toEqual({
         complete: true,
         accessMode: mode,
@@ -76,7 +113,19 @@ describe('DT06 authoritative access preparation and Provider activation', () => 
       expect(await db.staffToken.findUniqueOrThrow({ where: { id: staff.body.id as string } })).toMatchObject({
         createdByUserId: f.planner.id
       });
-      await request(app.getHttpServer()).get(`/api/v1/scanner/${staff.body.token}/session`).expect(200);
+      const session = await request(app.getHttpServer()).get(`/api/v1/scanner/${staff.body.token}/session`).expect(200);
+      expect(session.body.event).toMatchObject({ serviceCode: 'ACCESS_CONTROL', accessMode: mode });
+      expect(Object.keys(session.body.event).sort()).toEqual([
+        'accessMode',
+        'eventDateTime',
+        'floorplanEnabled',
+        'id',
+        'name',
+        'serviceCode',
+        'status',
+        'timeZone'
+      ]);
+      expect(JSON.stringify(session.body)).not.toMatch(/clientId|assistant|credential|phone|nonce|digest|finance/iu);
       const qrToken =
         mode === 'NOMINAL'
           ? app.get(NominalAccessTokenService).issue(material.id, material.qrTokenNonce)

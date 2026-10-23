@@ -5,12 +5,13 @@ import { Box, Typography } from '@mui/material';
 export interface CameraReaderProps {
   onScan: (data: string) => void;
   paused?: boolean;
+  allowSearch?: boolean;
 }
 
 const FRAME_INTERVAL_MS = 160;
 const DUPLICATE_INTERVAL_MS = 2_000;
 
-export function CameraReader({ onScan, paused = false }: CameraReaderProps) {
+export function CameraReader({ onScan, paused = false, allowSearch = true }: CameraReaderProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const onScanRef = useRef(onScan);
@@ -136,9 +137,11 @@ export function CameraReader({ onScan, paused = false }: CameraReaderProps) {
         <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)', maxWidth: 280, mb: 2.5 }}>
           {error}
         </Typography>
-        <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-          Puedes usar la pestaña <strong>Buscar</strong> abajo para registrar asistentes por nombre.
-        </Typography>
+        {allowSearch ? (
+          <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+            Puedes usar la pestaña <strong>Buscar</strong> abajo para registrar asistentes por nombre.
+          </Typography>
+        ) : null}
       </Box>
     );
   }

@@ -20,6 +20,7 @@ import { adminQueryKeys } from '../app/query-client';
 import { adminErrorMessage } from '../shared/admin-error';
 
 type PaidServiceCode = 'FLYER' | 'FLIPBOOK' | 'PHYSICAL_QR';
+type IntakeServiceCode = PaidServiceCode | 'ACCESS_CONTROL';
 
 const serviceOptions: { code: PaidServiceCode; label: string }[] = [
   { code: 'PHYSICAL_QR', label: 'QR / EventOps' },
@@ -43,7 +44,8 @@ export function AdminEventIntakeDialog({
   const submitLock = useRef(false);
   const [clientId, setClientId] = useState('');
   const [name, setName] = useState('');
-  const [serviceCode, setServiceCode] = useState<PaidServiceCode>('PHYSICAL_QR');
+  const [serviceCode, setServiceCode] = useState<IntakeServiceCode>('PHYSICAL_QR');
+  const [accessMode, setAccessMode] = useState<'NOMINAL' | 'ANONYMOUS' | ''>('');
   const [capacityInput, setCapacityInput] = useState('');
   const [assignedPlannerUserId, setAssignedPlannerUserId] = useState('');
   const [acceptanceConfirmed, setAcceptanceConfirmed] = useState(false);
@@ -51,6 +53,7 @@ export function AdminEventIntakeDialog({
   const selectedClient = clients.find((client) => client.id === clientId);
   const managed = selectedClient?.operatingProfile === 'MANAGED';
   const managedM01 = managed && selectedClient.type === 'PLANNER';
+  const managedOrganization = managed && selectedClient.type === 'ORGANIZATION';
   const capacity = Number(capacityInput);
   const validIntakeInput = Boolean(clientId) && Number.isInteger(capacity) && capacity >= 1 && capacity <= 150;
   const users = useQuery({
@@ -63,8 +66,9 @@ export function AdminEventIntakeDialog({
   );
   const quote = useQuery({
     queryKey: ['admin-event-intake-quote', clientId, serviceCode, capacity],
-    queryFn: ({ signal }) => apiClient.adminEvents.quoteIntake(clientId, { serviceCode, capacity }, signal),
-    enabled: open && validIntakeInput && !managed
+    queryFn: ({ signal }) =>
+      apiClient.adminEvents.quoteIntake(clientId, { serviceCode: serviceCode as PaidServiceCode, capacity }, signal),
+    enabled: open && validIntakeInput && !managed && serviceCode !== 'ACCESS_CONTROL'
   });
 
   useEffect(() => {
@@ -85,13 +89,15 @@ export function AdminEventIntakeDialog({
       const event = managed
         ? await apiClient.adminEvents.createManagedForClient(clientId, {
             name: name.trim() || null,
-            serviceCode,
             capacity,
-            assignedPlannerUserId
+            assignedPlannerUserId,
+            ...(serviceCode === 'ACCESS_CONTROL'
+              ? { serviceCode: 'ACCESS_CONTROL' as const, accessMode: accessMode as 'NOMINAL' | 'ANONYMOUS' }
+              : { serviceCode })
           })
         : await apiClient.adminEvents.createForClient(clientId, {
             name: name.trim() || null,
-            serviceCode,
+            serviceCode: serviceCode as PaidServiceCode,
             capacity,
             acceptedServicePriceId: quote.data!.servicePriceId,
             assignedPlannerUserId: assignedPlannerUserId || null,
@@ -123,6 +129,7 @@ export function AdminEventIntakeDialog({
     setClientId('');
     setName('');
     setServiceCode('PHYSICAL_QR');
+    setAccessMode('');
     setCapacityInput('');
     setAssignedPlannerUserId('');
     setAcceptanceConfirmed(false);
@@ -135,16 +142,19 @@ export function AdminEventIntakeDialog({
       setError('Captura una capacidad entre 1 y 150 personas.');
       return;
     }
-    if (managed && !managedM01) {
-      setError('El alta gestionada M01 sólo está disponible para Clientes Planner.');
+    if ((serviceCode === 'ACCESS_CONTROL') !== managedOrganization || (managedOrganization && !accessMode)) {
+      setError('Selecciona una modalidad válida para el servicio de esta Organización.');
       return;
     }
     if (!managed && (!quote.data || !quote.data.coverage.sufficient || !acceptanceConfirmed)) {
       setError('Obtén una cotizacion con cobertura suficiente y confirma sus terminos.');
       return;
     }
-    if ((managed || selectedClient?.type === 'PLANNER') && !assignedPlannerUserId) {
-      setError('Selecciona la Planner independiente responsable.');
+    if (
+      (managed || selectedClient?.type === 'PLANNER') &&
+      !candidates.some((user) => user.id === assignedPlannerUserId)
+    ) {
+      setError('Selecciona una Planner responsable válida para este Cliente.');
       return;
     }
     submitLock.current = true;
@@ -157,7 +167,23 @@ export function AdminEventIntakeDialog({
       <DialogTitle>Nuevo evento</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>
-          <TextField select label="Cliente" value={clientId} onChange={(event) => setClientId(event.target.value)}>
+          <TextField
+            select
+            label="Cliente"
+            value={clientId}
+            disabled={create.isPending}
+            onChange={(event) => {
+              const next = clients.find((item) => item.id === event.target.value);
+              setClientId(event.target.value);
+              setServiceCode(
+                next?.type === 'ORGANIZATION' && next.operatingProfile === 'MANAGED' ? 'ACCESS_CONTROL' : 'PHYSICAL_QR'
+              );
+              setAccessMode('');
+              setAssignedPlannerUserId('');
+              setAcceptanceConfirmed(false);
+              setError('');
+            }}
+          >
             {clients.map((client) => (
               <MenuItem key={client.id} value={client.id} disabled={client.status !== 'ACTIVE'}>
                 {client.name} · {client.type === 'PLANNER' ? 'Planner' : 'Organización'}
@@ -169,14 +195,30 @@ export function AdminEventIntakeDialog({
             select
             label="Servicio"
             value={serviceCode}
-            onChange={(event) => setServiceCode(event.target.value as PaidServiceCode)}
+            disabled={create.isPending}
+            onChange={(event) => setServiceCode(event.target.value as IntakeServiceCode)}
           >
-            {serviceOptions.map((option) => (
-              <MenuItem key={option.code} value={option.code}>
-                {option.label}
-              </MenuItem>
-            ))}
+            {(managedOrganization ? [{ code: 'ACCESS_CONTROL', label: 'Control de acceso' }] : serviceOptions).map(
+              (option) => (
+                <MenuItem key={option.code} value={option.code}>
+                  {option.label}
+                </MenuItem>
+              )
+            )}
           </TextField>
+          {managedOrganization ? (
+            <TextField
+              select
+              required
+              label="Modalidad de acceso"
+              value={accessMode}
+              disabled={create.isPending}
+              onChange={(event) => setAccessMode(event.target.value as 'NOMINAL' | 'ANONYMOUS')}
+            >
+              <MenuItem value="NOMINAL">Nominal — un acceso por invitado</MenuItem>
+              <MenuItem value="ANONYMOUS">Anónimo — pases QR numerados</MenuItem>
+            </TextField>
+          ) : null}
           <TextField
             label="Capacidad"
             type="number"
@@ -188,26 +230,37 @@ export function AdminEventIntakeDialog({
             select
             label="Planner responsable"
             value={assignedPlannerUserId}
-            disabled={!clientId || users.isPending}
+            disabled={!clientId || users.isPending || create.isPending}
             onChange={(event) => {
               setAssignedPlannerUserId(event.target.value);
               setAcceptanceConfirmed(false);
             }}
           >
-            {selectedClient?.type === 'ORGANIZATION' ? <MenuItem value="">Sin asignar</MenuItem> : null}
+            {selectedClient?.type === 'ORGANIZATION' && !managedOrganization ? (
+              <MenuItem value="">Sin asignar</MenuItem>
+            ) : null}
             {candidates.map((user) => (
               <MenuItem key={user.id} value={user.id}>
                 {user.email}
               </MenuItem>
             ))}
           </TextField>
-          {managedM01 ? (
+          {managedM01 || managedOrganization ? (
             <Alert severity="info">
               Este Evento será preparado como servicio gestionado, sin cotización ni cobertura financiera.
             </Alert>
           ) : null}
-          {managed && !managedM01 ? (
-            <Alert severity="warning">El alta gestionada M01 sólo está disponible para Clientes Planner.</Alert>
+          {users.isError ? (
+            <Alert severity="error">
+              No pudimos cargar las Planners responsables.{' '}
+              <Button onClick={() => void users.refetch()}>Reintentar</Button>
+            </Alert>
+          ) : null}
+          {managedOrganization && users.isSuccess && candidates.length === 0 ? (
+            <Alert severity="warning">
+              Esta Organización necesita una Planner responsable. Créala desde el detalle del Cliente antes de dar de
+              alta el Evento.
+            </Alert>
           ) : null}
           {!managed && quote.isFetching ? <Typography color="text.secondary">Calculando cotizacion…</Typography> : null}
           {!managed && quote.data ? (
@@ -249,7 +302,9 @@ export function AdminEventIntakeDialog({
           disabled={
             create.isPending ||
             !validIntakeInput ||
-            (managed ? !managedM01 || !assignedPlannerUserId : !quote.data?.coverage.sufficient)
+            (managed
+              ? !candidates.some((user) => user.id === assignedPlannerUserId) || (managedOrganization && !accessMode)
+              : !quote.data?.coverage.sufficient)
           }
         >
           {create.isPending ? 'Creando…' : 'Crear evento'}

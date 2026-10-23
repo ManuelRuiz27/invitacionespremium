@@ -1,5 +1,10 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import type { ApiClient, ScannerCheckInRequest } from '@invitaciones/api-client';
+import type {
+  ApiClient,
+  ScannerCheckInRequest,
+  ScannerNominalScanResponse,
+  ScanPhysicalPassResponse
+} from '@invitaciones/api-client';
 
 export const scannerKeys = {
   all: ['scanner'] as const,
@@ -39,8 +44,22 @@ export function useScannerMutations(apiClient: ApiClient, staffToken: string) {
     mutationFn: ({ idempotencyKey, qrToken }: { idempotencyKey: string; qrToken: string }) =>
       apiClient.scanner.scanPhysicalPass(staffToken, idempotencyKey, qrToken)
   });
+  const scanAccessMutation = useMutation({
+    mutationFn: async ({
+      mode,
+      idempotencyKey,
+      qrToken
+    }: {
+      mode: 'NOMINAL' | 'ANONYMOUS';
+      idempotencyKey: string;
+      qrToken: string;
+    }): Promise<ScannerNominalScanResponse | ScanPhysicalPassResponse> =>
+      mode === 'NOMINAL'
+        ? apiClient.scanner.scanNominalAccess(staffToken, idempotencyKey, qrToken)
+        : apiClient.scanner.scanPhysicalPass(staffToken, idempotencyKey, qrToken)
+  });
   const searchMutation = useMutation({
     mutationFn: (query: string) => apiClient.scanner.search(staffToken, query)
   });
-  return { scanMutation, checkInMutation, scanPhysicalPassMutation, searchMutation };
+  return { scanMutation, checkInMutation, scanPhysicalPassMutation, scanAccessMutation, searchMutation };
 }

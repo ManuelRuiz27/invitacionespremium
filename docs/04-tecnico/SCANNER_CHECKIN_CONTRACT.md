@@ -192,3 +192,18 @@ Los tests operativos nominales fuerzan ACTIVE exclusivamente en fixtures locales
 PaseFisicoQR, frontend, canvas, modo offline y reportes permanecen fuera de este contrato. La lectura
 del Croquis para Staff está definida por `FloorplanModule`; Scanner solo incorpora la Mesa mínima en
 sus resultados.
+
+## Experiencia Scanner DT07
+
+La sesión pública incluye `event.serviceCode` y `event.accessMode` mínimos (modalidad nula en legacy).
+Estos campos eligen herramientas visuales y no sustituyen las validaciones de cada endpoint.
+El Scanner conserva el flujo familiar `scan` → selección → `check-in`; NOMINAL consume directamente
+`nominal-access/scan` y ANONYMOUS consume `physical-passes/scan`, ambos con Idempotency-Key.
+No existe segundo botón de check-in en los flujos atómicos ni búsqueda nominal por nombre.
+
+Un lock síncrono evita intenciones duplicadas por frames consecutivos. Cámara pausada durante la
+solicitud, resultado o error; un resultado incierto conserva el mismo token y clave para reintentar.
+El siguiente escaneo es explícito; expiración Staff y Evento no operativo detienen la cámara.
+La interfaz muestra sólo nombre o folio, Mesa y lugar cuando corresponda. Cookies omitidas, sin
+almacenamiento local ni logs de QR/Staff. DT06 sustituyó el gate temporal de activación mencionado
+arriba por readiness autoritativo y activación Provider real; ver ACCESS_CONTROL_READINESS_CONTRACT.

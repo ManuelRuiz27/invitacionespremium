@@ -3281,6 +3281,11 @@ export type components = {
         ContactResponseDto: {
             /** Format: date-time */
             anonymizedAt: string | null;
+            /**
+             * Format: uuid
+             * @description NOMINAL contact list only: current internal primary Assistant UUID; no public invitation material.
+             */
+            readonly assistantId?: string | null;
             /** Format: date-time */
             createdAt: string;
             /** Format: uuid */
@@ -3590,6 +3595,8 @@ export type components = {
             floorplanEnabled: boolean;
             /** Format: uri */
             giftRegistryUrl: string | null;
+            /** @description Present on event detail reads; historical access material prevents changing modality. */
+            hasAccessMaterial?: boolean;
             /** Format: uuid */
             id: string;
             /** Format: uri */
@@ -4522,12 +4529,15 @@ export type components = {
             y: number;
         };
         ScannerSessionEventDto: {
+            accessMode: components["schemas"]["EventAccessMode"] | null;
             /** Format: date-time */
             eventDateTime: string;
             floorplanEnabled: boolean;
             /** Format: uuid */
             id: string;
             name: string;
+            /** @enum {string} */
+            serviceCode: "FLIPBOOK" | "FLYER" | "PHYSICAL_QR" | "DEMO" | "ACCESS_CONTROL";
             /** @enum {string} */
             status: "ACTIVE" | "EVENT_DAY";
             /** @example America/Mexico_City */

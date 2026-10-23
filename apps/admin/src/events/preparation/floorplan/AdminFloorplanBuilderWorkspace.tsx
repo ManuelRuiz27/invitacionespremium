@@ -199,8 +199,12 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   const selectedSeats = floorplan?.seats.filter((seat) => selectedSeatIds.includes(seat.id)) ?? [];
   const pending = Boolean(mutation);
   const editing = mode !== 'idle';
-  const readOnly = pending || floorplan?.locked === true;
-  const finalized = floorplan?.locked === true;
+  const accessEventReadOnly =
+    event.serviceCode === 'ACCESS_CONTROL' &&
+    !['DRAFT', 'CONFIGURED', 'READY_TO_ACTIVATE', 'ACTIVE', 'EVENT_DAY'].includes(event.status);
+  const anonymousAccess = event.serviceCode === 'ACCESS_CONTROL' && event.accessMode === 'ANONYMOUS';
+  const readOnly = pending || floorplan?.locked === true || accessEventReadOnly;
+  const finalized = floorplan?.locked === true || accessEventReadOnly;
   const dirty =
     mode === 'mapping-source' ||
     mode === 'creating-draft' ||
@@ -289,7 +293,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     operation: () => Promise<T>,
     options: { recover?: boolean; forceAuthoritativeRecovery?: boolean } = {}
   ) => {
-    if (mutationLock.current) return undefined;
+    if (mutationLock.current || accessEventReadOnly) return undefined;
     mutationLock.current = true;
     setMutation(kind);
     setMessage(undefined);
@@ -542,7 +546,8 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     await refreshAfterConfirmedMutation();
   };
   const setSeatingMode = async (seatingMode: 'TABLE' | 'SEAT') => {
-    if (!floorplan || floorplan.seatingMode === seatingMode || readOnly) return;
+    if (!floorplan || floorplan.seatingMode === seatingMode || readOnly || (anonymousAccess && seatingMode === 'SEAT'))
+      return;
     const updated = await runMutation('seating', () =>
       apiClient.adminEventPreparation.setFloorplanSeatingMode(event.clientId, event.id, seatingMode)
     );
@@ -748,7 +753,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     if (placed) await refreshAfterConfirmedMutation();
   };
   const changeLock = async () => {
-    if (!floorplan) return;
+    if (!floorplan || accessEventReadOnly) return;
     const kind = floorplan.locked ? 'unlocking' : 'locking';
     const updated = await runMutation(kind, () =>
       floorplan.locked
@@ -799,7 +804,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
           <Typography color="text.secondary">Sube una imagen JPG, PNG o SVG para distribuir Mesas y Zonas.</Typography>
           <UploadButton
             label={mutation === 'uploading' ? 'Subiendo plano...' : 'Subir plano'}
-            disabled={pending}
+            disabled={pending || accessEventReadOnly}
             onFile={requestUpload}
           />
           {validationMessage ? <Alert severity="warning">{validationMessage}</Alert> : null}
@@ -981,7 +986,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
               sx={{ minWidth: 148 }}
             >
               <MenuItem value="TABLE">Por mesa</MenuItem>
-              <MenuItem value="SEAT">Por lugar exacto</MenuItem>
+              {!anonymousAccess ? <MenuItem value="SEAT">Por lugar exacto</MenuItem> : null}
             </TextField>
           )}
           {!finalized ? (
@@ -990,7 +995,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
           <Button
             variant={floorplan.locked ? 'contained' : 'outlined'}
             startIcon={floorplan.locked ? <LockOpenRounded /> : <LockRounded />}
-            disabled={pending || editing || pendingTables.length > 0}
+            disabled={pending || editing || pendingTables.length > 0 || accessEventReadOnly}
             onClick={() => void changeLock()}
             sx={{ minHeight: 44 }}
           >

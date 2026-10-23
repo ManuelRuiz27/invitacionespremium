@@ -1,6 +1,16 @@
 import { ApiError } from '@invitaciones/api-client';
 
 const messages: Record<string, string> = {
+  NOMINAL_ACCESS_ALREADY_ISSUED: 'Este invitado ya tiene una credencial vigente. Actualiza los accesos.',
+  NOMINAL_ACCESS_CREDENTIAL_REVOKED: 'Esta credencial fue revocada y ya no está disponible.',
+  NOMINAL_ACCESS_CREDENTIAL_NOT_FOUND: 'La credencial ya no está disponible. Actualiza los accesos.',
+  NOMINAL_ACCESS_ASSISTANT_ALREADY_USED:
+    'Este invitado ya registró su ingreso. No se puede revocar ni sustituir su credencial.',
+  NOMINAL_ACCESS_EVENT_NOT_MUTABLE: 'El estado del evento ya no permite modificar ni descargar credenciales.',
+  PHYSICAL_PASS_ALREADY_USED: 'Este pase ya fue utilizado y no se puede revocar.',
+  PHYSICAL_PASS_ALREADY_REVOKED: 'Este pase ya fue revocado. Su folio se conserva en el historial.',
+  PHYSICAL_PASS_NOT_FOUND: 'El pase no está disponible o fue revocado. Actualiza los accesos.',
+  PHYSICAL_PASS_EVENT_NOT_MUTABLE: 'El estado del evento ya no permite modificar pases.',
   EVENT_NOT_FOUND: 'No encontramos este Evento o ya no tienes acceso.',
   EVENT_NOT_EDITABLE: 'Este evento ya no puede modificarse.',
   EVENT_CAPACITY_EXCEEDED: 'Los Asistentes autorizados superan la capacidad del Evento.',

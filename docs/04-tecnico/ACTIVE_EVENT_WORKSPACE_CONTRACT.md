@@ -351,3 +351,27 @@ Para `FLYER`/`FLIPBOOK` con Croquis, `ACTIVE` y `EVENT_DAY` permiten lectura y s
 backend. `CLOSED`, `ALBUM_PUBLISHED`, `ARCHIVED` y `CANCELLED` son de solo lectura. Una transición autoritativa a un
 estado no mutable mientras el panel está abierto cancela la intención pendiente y elimina los CTAs de escritura; el
 Client no duplica la máquina de estados del backend.
+
+## M02-B01-DT07 — Control de acceso gestionado
+
+Para `MANAGED + ACCESS_CONTROL`, la ruta canónica `/eventos/:eventId` conserva el shell existente
+y ofrece preparación y operación contextual sin enviar al Wizard de diseño. `serviceCode` y
+`accessMode` provienen del detalle autenticado; no se infieren de tarifas, créditos o canal comercial.
+
+- NOMINAL: Resumen, Invitados, Credenciales individuales, Mesas cuando hay Croquis y Staff en
+  ACTIVE/EVENT_DAY. Contactos/CSV sólo mutan en preparación. Emisión/revocación de credenciales y
+  seating admiten los estados autorizados por sus contratos, incluida preparación nominal.
+- El UUID del Assistant procede del campo de lectura `Contact.assistantId`; no se consulta
+  `/invitations`, que conserva `INVITATION_INTERNAL_ONLY`. No se ofrecen RSVP, enlaces públicos,
+  acompañantes ni derechos familiares. Se permiten nombres repetidos y teléfono ausente.
+- ANONYMOUS: Resumen, Pases físicos y Croquis de consulta; Staff sólo en ACTIVE/EVENT_DAY. Client
+  lista/descarga/revoca pases y compone PDF de seleccionados vigentes sin uso. Sólo Provider genera
+  lotes mediante su ruta Admin. Los revocados permanecen en historial sin descarga ni distribución.
+- CLOSED/CANCELLED y demás estados terminales se consultan sin nuevas mutaciones. La descarga
+  nominal se oculta cuando su contrato la bloquea; la lectura SVG anónima conserva la política del
+  backend. No se administra geometría desde Client.
+
+El resumen de preparación consume `GET /events/:eventId/access-readiness`; no inventa requisitos ni
+métricas de asistencia DT08. Las revocaciones requieren confirmación y motivo técnico, y nunca se
+ofrecen sobre material utilizado. Red/respuesta incierta conserva clave y payload en memoria y
+bloquea navegación hasta resolver el intento; no se guardan secretos ni archivos QR persistentes.

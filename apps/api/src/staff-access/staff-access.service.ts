@@ -248,7 +248,10 @@ export class StaffTokenResolverService {
       });
     }
     const { event, staff } = result;
-    if (!event.name || !event.eventDateTime || !event.timeZone) {
+    const service = event.serviceId
+      ? await this.prisma.service.findUnique({ where: { id: event.serviceId }, select: { code: true } })
+      : null;
+    if (!event.name || !event.eventDateTime || !event.timeZone || !service) {
       throw new ConflictException({
         code: 'STAFF_EVENT_NOT_OPERATIONAL',
         message: 'The StaffToken Event is not operational.'
@@ -263,7 +266,9 @@ export class StaffTokenResolverService {
         status: event.status,
         eventDateTime: event.eventDateTime.toISOString(),
         timeZone: event.timeZone,
-        floorplanEnabled: event.floorplanEnabled
+        floorplanEnabled: event.floorplanEnabled,
+        serviceCode: service.code,
+        accessMode: event.accessMode
       }
     };
   }

@@ -1,5 +1,10 @@
 import type { components, operations } from './generated/schema';
 import { isRecord, isRecordArray, type ApiRequester } from './api-client';
+import {
+  isPhysicalPassRevokeResult,
+  type PhysicalPassRevokeInput,
+  type PhysicalPassRevokeResult
+} from './access-control';
 
 type S = components['schemas'];
 export type AvailableService = S['AvailableServiceResponseDto'];
@@ -388,7 +393,20 @@ export function createFloorplanClient(request: ApiRequester) {
 export function createPhysicalPassesClient(request: ApiRequester) {
   const base = (eventId: string) => `/events/${id(eventId)}/physical-passes`;
   return {
-    list: (eventId: string) => request<PhysicalPass[]>({ path: base(eventId), response: 'json' }, records),
+    revoke: (eventId: string, passId: string, body: PhysicalPassRevokeInput, key: string, signal?: AbortSignal) =>
+      request<PhysicalPassRevokeResult>(
+        {
+          method: 'POST',
+          path: `${base(eventId)}/${id(passId)}/revoke`,
+          body,
+          headers: { 'Idempotency-Key': key },
+          response: 'json',
+          ...(signal ? { signal } : {})
+        },
+        isPhysicalPassRevokeResult
+      ),
+    list: (eventId: string, signal?: AbortSignal) =>
+      request<PhysicalPass[]>({ path: base(eventId), response: 'json', ...(signal ? { signal } : {}) }, records),
     generate: (eventId: string, body: GeneratePhysicalPassesInput, idempotencyKey: string) =>
       request<GeneratePhysicalPassesResult>(
         {
@@ -400,7 +418,7 @@ export function createPhysicalPassesClient(request: ApiRequester) {
         },
         record
       ),
-    svg: (eventId: string, passId: string) =>
-      request<string>({ path: `${base(eventId)}/${id(passId)}/svg`, response: 'text' })
+    svg: (eventId: string, passId: string, signal?: AbortSignal) =>
+      request<string>({ path: `${base(eventId)}/${id(passId)}/svg`, response: 'text', ...(signal ? { signal } : {}) })
   };
 }

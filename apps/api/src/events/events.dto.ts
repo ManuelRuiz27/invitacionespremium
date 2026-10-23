@@ -228,6 +228,13 @@ export class AdminEventIntakeQuoteRequestDto {
 }
 
 export class EventResponseDto {
+  @ApiProperty({
+    type: Boolean,
+    required: false,
+    description: 'Present on event detail reads; historical access material prevents changing modality.'
+  })
+  hasAccessMaterial?: boolean;
+
   @ApiProperty({ type: String, format: 'uuid' })
   id!: string;
 

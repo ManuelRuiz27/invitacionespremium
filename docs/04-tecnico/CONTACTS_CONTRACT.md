@@ -171,6 +171,18 @@ Contactos, se registra auditoría, se guarda el resultado y se descarta `normali
 
 ## Auditoría y privacidad
 
+### Proyección mínima NOMINAL — DT07
+
+`GET /events/:eventId/contacts` agrega únicamente en ACCESS_CONTROL+NOMINAL el campo opcional
+`assistantId`: UUID del principal interno vigente, o null cuando ya no existe un sujeto emitible
+(cancelado, eliminado o anonimizado). Se deriva por relación Contact→Invitation→Assistant con una
+consulta acotada para todos los contactos, sin N+1. No cambia el agregado ni sus estados y conserva
+EventAccessPolicy. Legacy conserva su JSON; altas, edición y snapshots CSV pueden omitir el campo.
+
+Client usa esta proyección para relacionar credenciales por Assistant UUID, incluso sin Croquis y
+con nombres repetidos. No consulta `/invitations` en B01: esa superficie conserva
+`409 INVITATION_INTERNAL_ONLY`. No expone enlaces públicos, nonces, firmas ni otro material interno.
+
 Todas las mutaciones se auditan dentro de la misma transacción. Los snapshots de auditoría solo contienen
 identificadores, conteos, estado técnico y timestamps; nunca incluyen nombres, teléfonos, contenido CSV ni
 filas del preview.

@@ -1,7 +1,11 @@
 import type { components } from '../generated/schema';
 import { isRecord, isRecordArray, type ApiRequester } from '../api-client';
+import { isAccessControlReadiness, isPhysicalPassGenerationResult } from '../access-control';
 
 type S = components['schemas'];
+export type AdminAccessReadiness = S['AccessControlReadinessResponseDto'];
+export type AdminGeneratePhysicalPassesInput = S['GeneratePhysicalPassesRequestDto'];
+export type AdminGeneratePhysicalPassesResult = S['GeneratePhysicalPassesResponseDto'];
 export type AdminEventUpdateInput = S['UpdateEventRequestDto'];
 export type AdminPreparationEvent = S['EventResponseDto'];
 export type AdminEventCommercial = S['EventCommercialResponseDto'];
@@ -50,6 +54,29 @@ const withSignal = (signal?: AbortSignal) => (signal ? { signal } : {});
 export function createAdminEventPreparationClient(request: ApiRequester) {
   const base = (clientId: string, eventId: string) => `/admin/clients/${id(clientId)}/events/${id(eventId)}`;
   return {
+    getAccessReadiness: (clientId: string, eventId: string, signal?: AbortSignal) =>
+      request<AdminAccessReadiness>(
+        { path: `${base(clientId, eventId)}/access-readiness`, response: 'json', ...withSignal(signal) },
+        isAccessControlReadiness
+      ),
+    generatePhysicalPasses: (
+      clientId: string,
+      eventId: string,
+      body: AdminGeneratePhysicalPassesInput,
+      key: string,
+      signal?: AbortSignal
+    ) =>
+      request<AdminGeneratePhysicalPassesResult>(
+        {
+          method: 'POST',
+          path: `${base(clientId, eventId)}/physical-passes/generate`,
+          body,
+          headers: { 'Idempotency-Key': key },
+          response: 'json',
+          ...withSignal(signal)
+        },
+        isPhysicalPassGenerationResult
+      ),
     getCommercialQuote: (
       clientId: string,
       eventId: string,

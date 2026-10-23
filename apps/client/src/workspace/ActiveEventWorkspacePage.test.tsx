@@ -974,6 +974,94 @@ describe('Active Event workspace loading and errors', () => {
   });
 });
 
+describe('ACCESS_CONTROL seating preparation', () => {
+  const accessEvent = {
+    ...workspaceEvent,
+    status: 'CONFIGURED',
+    serviceCode: 'ACCESS_CONTROL',
+    accessMode: 'NOMINAL'
+  } satisfies Event;
+
+  it('assigns a nominal PENDING Assistant before activation and hides family actions', async () => {
+    const api = mockApiClient(managedUser);
+    vi.mocked(api.events.get).mockResolvedValue(accessEvent);
+    vi.mocked(api.floorplan.get).mockResolvedValue(floorplan);
+    vi.mocked(api.fileAssets.content).mockResolvedValue(new Blob(['image']));
+    vi.mocked(api.floorplan.seating).mockResolvedValue(unassignedPage);
+    vi.mocked(api.floorplan.assign).mockResolvedValue(mutationResult);
+    const actor = userEvent.setup();
+    renderApp(api, `/eventos/${accessEvent.id}?seccion=mesas`);
+    await actor.click(await screen.findByRole('button', { name: /Mesa 12/ }));
+    await actor.click(await screen.findByRole('checkbox', { name: /Seleccionar Ana/ }));
+    const assign = screen.getByRole('button', { name: 'Asignar 1 a 12' });
+    expect(assign).toBeEnabled();
+    expect(screen.queryByRole('button', { name: 'Invitación completa' })).not.toBeInTheDocument();
+    await actor.click(assign);
+    await waitFor(() =>
+      expect(api.floorplan.assign).toHaveBeenCalledWith(
+        accessEvent.id,
+        { assistantIds: [seatingItem.assistantId], tableShapeId: floorplan.shapes[0]!.id },
+        expect.any(String),
+        expect.any(AbortSignal)
+      )
+    );
+    expect(api.eventConfirmation.override).not.toHaveBeenCalled();
+  });
+
+  it('assigns an exact place in nominal preparation without a table-only request', async () => {
+    const api = mockApiClient(managedUser);
+    vi.mocked(api.events.get).mockResolvedValue(accessEvent);
+    vi.mocked(api.floorplan.get).mockResolvedValue({
+      ...floorplan,
+      seatingMode: 'SEAT',
+      seats: [
+        {
+          id: 'seat-a',
+          floorplanShapeId: floorplan.shapes[0]!.id,
+          label: 'A1',
+          x: 0.1,
+          y: 0.1,
+          isBlocked: false,
+          occupied: false
+        }
+      ]
+    });
+    vi.mocked(api.fileAssets.content).mockResolvedValue(new Blob(['image']));
+    vi.mocked(api.floorplan.seating).mockResolvedValue(unassignedPage);
+    vi.mocked(api.floorplan.assignSeats).mockResolvedValue(mutationResult);
+    const actor = userEvent.setup();
+    renderApp(api, `/eventos/${accessEvent.id}?seccion=mesas`);
+    await actor.click(await screen.findByRole('button', { name: 'Lugar A1' }));
+    await actor.click(await screen.findByRole('checkbox', { name: /Seleccionar Ana/ }));
+    await actor.click(screen.getByRole('button', { name: 'Asignar 1 a 12' }));
+    await waitFor(() =>
+      expect(api.floorplan.assignSeats).toHaveBeenCalledWith(
+        accessEvent.id,
+        { assignments: [{ assistantId: seatingItem.assistantId, seatId: 'seat-a' }] },
+        expect.any(String),
+        expect.any(AbortSignal)
+      )
+    );
+    expect(api.floorplan.assign).not.toHaveBeenCalled();
+    expect(api.floorplan.assignFamily).not.toHaveBeenCalled();
+  });
+
+  it('keeps anonymous TABLE occupancy read-only without requesting nominal subjects', async () => {
+    const api = mockApiClient(managedUser);
+    vi.mocked(api.events.get).mockResolvedValue({ ...accessEvent, accessMode: 'ANONYMOUS' });
+    vi.mocked(api.floorplan.get).mockResolvedValue(floorplan);
+    vi.mocked(api.fileAssets.content).mockResolvedValue(new Blob(['image']));
+    const actor = userEvent.setup();
+    renderApp(api, `/eventos/${accessEvent.id}?seccion=mesas`);
+    await actor.click(await screen.findByRole('button', { name: /Mesa 12/ }));
+    expect(await screen.findByText('7 / 10 lugares')).toBeInTheDocument();
+    expect(api.floorplan.seating).not.toHaveBeenCalled();
+    expect(api.contacts.groups).not.toHaveBeenCalled();
+    expect(api.contacts.list).not.toHaveBeenCalled();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+  });
+});
+
 function setViewportWidth(width: number) {
   Object.defineProperty(window, 'matchMedia', {
     configurable: true,

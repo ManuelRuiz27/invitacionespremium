@@ -60,12 +60,28 @@ export class ContactsService {
   ) {}
 
   async listContacts(eventId: string, principal: AuthPrincipal): Promise<ContactResponseDto[]> {
-    await this.requireOwnedEvent(eventId, principal);
+    const event = await this.requireOwnedEvent(eventId, principal);
     const contacts = await this.prisma.contact.findMany({
       where: { eventId, deletedAt: null },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }]
     });
-    return contacts.map(toContactResponse);
+    if (event.service?.code !== ServiceCode.ACCESS_CONTROL || event.accessMode !== EventAccessMode.NOMINAL)
+      return contacts.map(toContactResponse);
+    const assistants = await this.prisma.assistant.findMany({
+      where: {
+        eventId,
+        isPrimary: true,
+        deletedAt: null,
+        anonymizedAt: null,
+        invitation: { deletedAt: null, cancelledAt: null, contact: { deletedAt: null, anonymizedAt: null } }
+      },
+      select: { id: true, invitation: { select: { contactId: true } } }
+    });
+    const byContact = new Map(assistants.map((assistant) => [assistant.invitation.contactId, assistant.id]));
+    return contacts.map((contact) => ({
+      ...toContactResponse(contact),
+      assistantId: byContact.get(contact.id) ?? null
+    }));
   }
 
   async createContact(

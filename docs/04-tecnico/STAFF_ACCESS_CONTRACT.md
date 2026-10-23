@@ -53,7 +53,7 @@ respuesta `401 STAFF_TOKEN_INVALID_OR_EXPIRED`. Una fila activa asociada a un Ev
 `409 STAFF_EVENT_NOT_OPERATIONAL`.
 
 La respuesta `AVAILABLE` contiene solo alias y `event.id`, `name`, `status`, `eventDateTime`, `timeZone`
-y `floorplanEnabled`. No expone id del StaffToken, Cliente, creador, Contactos, Invitaciones, Asistentes,
+y `floorplanEnabled`. DT07 agrega `serviceCode` y `accessMode` (nullable para legacy) para elegir las herramientas de Scanner; son contexto visual, no autorización de ingreso. No expone id del StaffToken, Cliente, creador, Contactos, Invitaciones, Asistentes,
 teléfonos, diseño, QR, finanzas o auditoría. La lectura no escribe ni audita.
 
 La operación interna `resolveStaffToken(rawToken)` devuelve únicamente `staffTokenId`, `eventId` y

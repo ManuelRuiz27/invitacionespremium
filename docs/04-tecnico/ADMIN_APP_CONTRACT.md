@@ -1,5 +1,33 @@
 # Contrato de la aplicacion Platform Admin
 
+## M02-B01-DT07 — preparación Provider de ACCESS_CONTROL
+
+El intake `ORGANIZATION + MANAGED` ofrece exclusivamente `ACCESS_CONTROL` y exige modalidad
+`NOMINAL|ANONYMOUS`, capacidad 1–150 y Planner de Organización válido. Usa el DTO discriminado de
+`adminEvents.createManagedForClient`; el cambio de Cliente limpia servicio, modalidad y Planner.
+Los servicios M01 para Planner y el intake Self-Service conservan su contrato. No se cotiza ni se
+consulta Finance para el alta, preparación o activación B01.
+
+La preparación B01 usa `/eventos/:eventId/preparar/datos|croquis|accesos`. Las rutas directas de
+Invitación, Comercial o Registro operativo redirigen a Datos sin montar esos módulos. Datos muestra
+modalidad y no presenta RSVP ni regalos. El detalle autoritativo `hasAccessMaterial` bloquea el cambio
+de modalidad incluso con historial revocado y cero accesos vigentes; si falta esa proyección, el
+selector permanece bloqueado. El backend mantiene la última validación bajo lock.
+
+Accesos consume `GET /admin/clients/:clientId/events/:eventId/access-readiness`, muestra sólo sus
+blockers, capacidad y material vigente, y habilita activación Managed únicamente con respuesta completa
+y estado `READY_TO_ACTIVATE`. Reutiliza `activateManagedForClient`, confirmación, misma clave ante
+incertidumbre y reconciliación por detalle autoritativo. No introduce otra activación ni efectos Finance.
+
+Para ANONYMOUS, Provider genera mediante
+`POST /admin/clients/:clientId/events/:eventId/physical-passes/generate`, con cantidad y
+`tableShapeId` cuando hay Croquis. La respuesta idempotente confirma lote y rango; un conteo creciente
+nunca atribuye éxito. Una falla incierta conserva exactamente body y clave en memoria, bloquea edición
+y navegación hasta resolver el mismo lote. Se refrescan readiness, Evento y Mesas tras éxito. NOMINAL
+sólo presenta instrucciones para registro, emisión y acomodo desde Client; no solicita credenciales.
+El Builder conserva TABLE exclusivamente para ANONYMOUS y bloquea mutaciones en estados terminales.
+No hay QR, tokens ni claves persistidos en Web Storage, nuevos roles o métricas DT08.
+
 ## Estado y alcance
 
 CODEX-130 permanece **EN PROGRESO**. CODEX-130A y CODEX-130B estan aceptados; CODEX-130C esta
