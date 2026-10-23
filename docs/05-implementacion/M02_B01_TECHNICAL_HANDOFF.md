@@ -5,11 +5,13 @@ Estado: **HANDOFF TÉCNICO — DT02A–DT07 IMPLEMENTADOS; DT08–DT09 PENDIENTE
 **DT07 (2026-10-22):** interfaces Provider/Organización/Scanner y wrappers OpenAPI para ACCESS_CONTROL,
 conservando M01 y legacy. Alta discriminada, readiness/activación Provider, generación ANONYMOUS,
 registro/credenciales nominales, descarga/impresión/revocación, acomodo y Staff; Scanner atómico
-con retry idempotente y cámara protegida. Ver [implementación y evidencia DT07](./M02_B01_DT07_IMPLEMENTATION.md).
+con retry idempotente y cámara protegida. Ver [implementación y evidencia DT07](./M02_B01_DT07_IMPLEMENTATION.md) y [revisión técnica DT07](./M02_B01_DT07_IMPLEMENTATION_REVIEW.md).
 Validación continuada el 2026-10-23: proyección mínima `Contact.assistantId` NOMINAL para no consumir
 Invitations internas; E2E real NOMINAL/ANONYMOUS con SVG/PDF e ingreso Scanner aprobado.
 No implementa métricas DT08 ni certificación/release DT09. Las entradas posteriores conservan su
 contexto histórico y no sustituyen el alcance del ticket DT07 autorizado explícitamente.
+
+**Control QA DT07 (2026-10-23):** pruebas reportadas localmente: 370 API, 216 Admin, 403 Client, 62 Scanner, 129 SDK, 412 integraciones (antes de la última proyección), 57 específicas posteriores y 2/2 E2E reales. **CI remoto `quality` y `flipbook-browser-qa` aún en progreso al revisar**, sin aprobar workflow global. Flipbook 73/74 local con retry aislado verde; `format:check` global afectado por `var/qa` ignorado. DT08–DT09 siguen pendientes.
 
 **DT06A IMPLEMENTADO Y REVISADO (2026-10-22):** commit [`88d5c818`](https://github.com/ManuelRuiz27/invitacionespremium/commit/88d5c818cadca2a7770437f4dc7e6e0d7251ad85), [revisión DT06A](./M02_B01_DT06A_IMPLEMENTATION_REVIEW.md). Migración aditiva alinea `validate_staff_token_insert()` con `assignedPlannerUserId` en `ACCESS_CONTROL+NOMINAL/ANONYMOUS`, conserva regla del creador para legacy y prueba HTTP/SQL, aislamiento, reasignación, Staff concurrente, Scanner y expiración. **CI `quality` success**; **Flipbook WebKit QA failure preexistente (73/74)**; workflow global rojo. Bloqueo operativo Staff de DT06 **resuelto**. DT07–DT09 pendientes.
 
