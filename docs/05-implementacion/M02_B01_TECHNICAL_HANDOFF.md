@@ -1,6 +1,15 @@
 # M02-B01 — Handoff técnico para el equipo de desarrollo
 
-Estado: **HANDOFF TÉCNICO — DT02A–DT07 IMPLEMENTADOS; DT08–DT09 PENDIENTES**
+Estado: **HANDOFF TÉCNICO — DT02A–DT08 IMPLEMENTADOS; DT09 PENDIENTE**
+
+**DT08 (2026-10-23):** panel de ingresos y aforo de sólo lectura para NOMINAL y ANONYMOUS.
+PostgreSQL calcula históricos, derechos vigentes, ingresos, pendientes, capacidad disponible y Mesas
+en una fotografía RepeatableRead sin locks de Scanner. Organización recibe detalle mínimo paginado;
+Provider recibe exclusivamente agregados. Client incorpora **Ingresos y aforo** y Admin consulta desde
+el detalle. Realtime invalida REST; polling de respaldo sólo operativo. Privacidad y retención no se
+amplían. Ver [contrato operativo](../04-tecnico/ACCESS_CONTROL_OPERATIONS_CONTRACT.md) e
+[implementación y QA DT08](./M02_B01_DT08_IMPLEMENTATION.md). DT09 y certificación de lanzamiento
+permanecen pendientes; las entradas siguientes conservan su contexto histórico.
 
 **DT07 (2026-10-22):** interfaces Provider/Organización/Scanner y wrappers OpenAPI para ACCESS_CONTROL,
 conservando M01 y legacy. Alta discriminada, readiness/activación Provider, generación ANONYMOUS,

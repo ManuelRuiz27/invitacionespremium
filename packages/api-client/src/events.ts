@@ -1,6 +1,11 @@
 import type { components } from './generated/schema';
 import { isRecord, isRecordArray, type ApiRequester } from './api-client';
-import { isAccessControlReadiness, type AccessControlReadiness } from './access-control';
+import {
+  isAccessControlReadiness,
+  isAccessOperations,
+  type AccessControlReadiness,
+  type AccessOperations
+} from './access-control';
 
 export type Event = components['schemas']['EventResponseDto'];
 export type EventStatus = Event['status'];
@@ -14,6 +19,7 @@ export interface EventsClient {
   list(signal?: AbortSignal): Promise<Event[]>;
   get(eventId: string, signal?: AbortSignal): Promise<Event>;
   getAccessReadiness(eventId: string, signal?: AbortSignal): Promise<AccessControlReadiness>;
+  getAccessOperations(eventId: string, signal?: AbortSignal, page?: number): Promise<AccessOperations>;
   create(input: CreateEventInput, signal?: AbortSignal): Promise<Event>;
   update(eventId: string, input: UpdateEventInput, signal?: AbortSignal): Promise<Event>;
   activate(eventId: string, idempotencyKey: string, signal?: AbortSignal): Promise<EventActivation>;
@@ -22,6 +28,15 @@ export interface EventsClient {
 
 export function createEventsClient(request: ApiRequester): EventsClient {
   return {
+    getAccessOperations: (eventId, signal, page = 1) =>
+      request<AccessOperations>(
+        {
+          path: `/events/${encodeURIComponent(eventId)}/access-operations${page === 1 ? '' : `?page=${encodeURIComponent(page)}`}`,
+          response: 'json',
+          ...(signal ? { signal } : {})
+        },
+        isAccessOperations
+      ),
     getAccessReadiness: (eventId, signal) =>
       request(
         {

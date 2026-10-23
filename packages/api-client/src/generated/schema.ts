@@ -80,6 +80,22 @@ export type paths = {
         patch: operations["AdminClientEventsController_update"];
         trace?: never;
     };
+    "/api/v1/admin/clients/{clientId}/events/{eventId}/access-operations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminAccessControlOperationsController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/clients/{clientId}/events/{eventId}/access-readiness": {
         parameters: {
             query?: never;
@@ -1392,6 +1408,22 @@ export type paths = {
         options?: never;
         head?: never;
         patch: operations["EventsController_update"];
+        trace?: never;
+    };
+    "/api/v1/events/{eventId}/access-operations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AccessControlOperationsController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/events/{eventId}/access-readiness": {
@@ -2815,6 +2847,40 @@ export type components = {
             capacity: number | null;
             complete: boolean;
         };
+        AccessOperationalSeatReferenceDto: {
+            id: string;
+            label: string;
+        };
+        AccessOperationalSummaryDto: {
+            /** @enum {string} */
+            accessMode: "NOMINAL" | "ANONYMOUS";
+            activeRights: number;
+            /** Format: date-time */
+            asOf: string;
+            availableCapacity: number | null;
+            capacity: number | null;
+            entered: number;
+            eventId: string;
+            /** @enum {string} */
+            eventStatus: "DRAFT" | "CONFIGURED" | "READY_TO_ACTIVATE" | "ACTIVE" | "EVENT_DAY" | "CLOSED" | "ALBUM_PUBLISHED" | "ARCHIVED" | "CANCELLED";
+            issuedHistorical: number;
+            pending: number;
+            revokedHistorical: number;
+            tables: components["schemas"]["AccessOperationalTableDto"][];
+        };
+        AccessOperationalTableDto: {
+            activeRights: number;
+            availableCapacity: number;
+            capacity: number;
+            entered: number;
+            pending: number;
+            tableId: string;
+            tableName: string;
+        };
+        AccessOperationalTableReferenceDto: {
+            id: string;
+            name: string;
+        };
         AddAlbumPhotosRequestDto: {
             fileAssetIds: string[];
         };
@@ -2951,6 +3017,39 @@ export type components = {
             backgroundColor: string;
             /** @example #111111 */
             textColor: string;
+        };
+        AnonymousAccessOperationDetailDto: {
+            passNumber: number;
+            /** @enum {string} */
+            status: "UNUSED" | "USED" | "REVOKED";
+            table: components["schemas"]["AccessOperationalTableReferenceDto"] | null;
+            /** Format: date-time */
+            usedAt: string | null;
+        };
+        AnonymousAccessOperationsDto: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            accessMode: "ANONYMOUS";
+            activeRights: number;
+            /** Format: date-time */
+            asOf: string;
+            availableCapacity: number | null;
+            capacity: number | null;
+            detailPage: number;
+            /** @enum {number} */
+            detailPageSize: 150;
+            details: components["schemas"]["AnonymousAccessOperationDetailDto"][];
+            detailTotal: number;
+            entered: number;
+            eventId: string;
+            /** @enum {string} */
+            eventStatus: "DRAFT" | "CONFIGURED" | "READY_TO_ACTIVATE" | "ACTIVE" | "EVENT_DAY" | "CLOSED" | "ALBUM_PUBLISHED" | "ARCHIVED" | "CANCELLED";
+            issuedHistorical: number;
+            pending: number;
+            revokedHistorical: number;
+            tables: components["schemas"]["AccessOperationalTableDto"][];
         };
         AssignCreditsRequestDto: {
             credits: number;
@@ -4032,6 +4131,42 @@ export type components = {
              */
             status: "ISSUED" | "REVOKED";
         };
+        NominalAccessOperationDetailDto: {
+            assistantId: string;
+            /** Format: date-time */
+            enteredAt: string | null;
+            group: string | null;
+            name: string;
+            seat: components["schemas"]["AccessOperationalSeatReferenceDto"] | null;
+            /** @enum {string} */
+            status: "PENDING" | "ENTERED";
+            table: components["schemas"]["AccessOperationalTableReferenceDto"] | null;
+        };
+        NominalAccessOperationsDto: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            accessMode: "NOMINAL";
+            activeRights: number;
+            /** Format: date-time */
+            asOf: string;
+            availableCapacity: number | null;
+            capacity: number | null;
+            detailPage: number;
+            /** @enum {number} */
+            detailPageSize: 150;
+            details: components["schemas"]["NominalAccessOperationDetailDto"][];
+            detailTotal: number;
+            entered: number;
+            eventId: string;
+            /** @enum {string} */
+            eventStatus: "DRAFT" | "CONFIGURED" | "READY_TO_ACTIVATE" | "ACTIVE" | "EVENT_DAY" | "CLOSED" | "ALBUM_PUBLISHED" | "ARCHIVED" | "CANCELLED";
+            issuedHistorical: number;
+            pending: number;
+            revokedHistorical: number;
+            tables: components["schemas"]["AccessOperationalTableDto"][];
+        };
         OperatorMinutesByAreaDto: {
             CHECKIN: number;
             CLOSE_REPORT: number;
@@ -4993,6 +5128,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EventResponseDto"];
+                };
+            };
+        };
+    };
+    AdminAccessControlOperationsController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessOperationalSummaryDto"];
                 };
             };
         };
@@ -7044,6 +7198,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EventResponseDto"];
+                };
+            };
+        };
+    };
+    AccessControlOperationsController_get: {
+        parameters: {
+            query?: {
+                page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NominalAccessOperationsDto"] | components["schemas"]["AnonymousAccessOperationsDto"];
                 };
             };
         };

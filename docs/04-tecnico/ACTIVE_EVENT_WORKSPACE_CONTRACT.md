@@ -1,5 +1,16 @@
 # Contrato del workspace operativo del Evento
 
+## ACCESS_CONTROL — consulta operativa DT08
+
+El workspace B01 incorpora `?seccion=ingresos`, **Ingresos y aforo**, durante preparación, operación
+y consulta histórica permitida. Consume exclusivamente el resolver PostgreSQL documentado en
+[ACCESS_CONTROL_OPERATIONS_CONTRACT.md](./ACCESS_CONTROL_OPERATIONS_CONTRACT.md): cifras globales,
+Mesas y detalle mínimo paginado por Assistant o folio. Los filtros locales no alteran totales.
+Refresca mediante REST al entrar, recuperar foco, recibir señales realtime compatibles y cada 10
+segundos sólo en operación. Lecturas previas ante errores de red se identifican como desactualizadas;
+errores de acceso, privacidad o integridad retiran el snapshot. No incorpora CheckIn manual, edición
+de Croquis ni reportes nuevos. El contrato M01 siguiente conserva su alcance.
+
 ## Alcance
 
 El workspace operativo es la experiencia autenticada que utiliza el Planner después de activar un

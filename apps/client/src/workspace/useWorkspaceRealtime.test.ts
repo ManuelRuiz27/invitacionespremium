@@ -53,9 +53,30 @@ describe('workspace realtime validation', () => {
     expect(onSeatingUpdated).toHaveBeenCalledOnce();
     expect(onSeatingUpdated).toHaveBeenCalledWith([{ tableId: 'table-200', occupancy: 9 }]);
     cleanup();
-    expect(socket.off).toHaveBeenCalledTimes(4);
+    expect(socket.off).toHaveBeenCalledTimes(6);
     expect(socket.managerOff).toHaveBeenCalledOnce();
     expect(socket.disconnect).toHaveBeenCalledOnce();
+  });
+
+  it('invalidates operational authority for check-in signals without accumulating deltas', () => {
+    const socket = realtimeSocket();
+    const queryClient = queryClientHarness();
+    const onOperationalChange = vi.fn();
+    wireWorkspaceRealtime(socket.value, 'event-1', queryClient.value, () => ({
+      onSeatingUpdated: vi.fn(),
+      onTerminal: vi.fn(),
+      onOperationalChange
+    }));
+    const envelope = { version: 1, eventId: 'event-1', operationId: 'same-operation' };
+    socket.emit('checkin.created', { ...envelope, eventId: 'other-event' });
+    expect(onOperationalChange).not.toHaveBeenCalled();
+    socket.emit('checkin.created', envelope);
+    socket.emit('checkin.created', envelope);
+    socket.emit('checkin.reverted', envelope);
+    expect(onOperationalChange).toHaveBeenCalledTimes(2);
+    expect(queryClient.invalidate).not.toHaveBeenCalled();
+    socket.emit('connect');
+    expect(onOperationalChange).toHaveBeenCalledTimes(3);
   });
 
   it.each(['event.closed', 'event.cancelled'] as const)(

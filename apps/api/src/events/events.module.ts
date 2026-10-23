@@ -13,11 +13,30 @@ import { EventLifecycleScheduler } from './event-lifecycle.scheduler';
 import { EventLifecycleService } from './event-lifecycle.service';
 import { EventsController } from './events.controller';
 import { EventsService } from './events.service';
+import { AccessControlOperationsService } from '../access-control-operations/access-control-operations.service';
+import {
+  AccessControlOperationsController,
+  AdminAccessControlOperationsController
+} from '../access-control-operations/access-control-operations.controller';
 
 @Module({
   imports: [AuditModule, ClientsModule, FinanceModule, ServicesPricingModule, StaffAccessModule],
-  controllers: [EventsController, AdminEventsController, AdminClientEventsController, AdminEventCommercialController],
-  providers: [EventsService, EventAccessPolicy, EventCommercialService, EventLifecycleService, EventLifecycleScheduler],
+  controllers: [
+    EventsController,
+    AdminEventsController,
+    AdminClientEventsController,
+    AdminEventCommercialController,
+    AccessControlOperationsController,
+    AdminAccessControlOperationsController
+  ],
+  providers: [
+    EventsService,
+    EventAccessPolicy,
+    EventCommercialService,
+    EventLifecycleService,
+    EventLifecycleScheduler,
+    AccessControlOperationsService
+  ],
   exports: [EventsService, EventLifecycleService, EventAccessPolicy, EventCommercialService]
 })
 export class EventsModule {}

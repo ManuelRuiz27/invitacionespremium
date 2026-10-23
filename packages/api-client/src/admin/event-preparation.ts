@@ -1,6 +1,11 @@
 import type { components } from '../generated/schema';
 import { isRecord, isRecordArray, type ApiRequester } from '../api-client';
-import { isAccessControlReadiness, isPhysicalPassGenerationResult } from '../access-control';
+import {
+  isAccessControlReadiness,
+  isPhysicalPassGenerationResult,
+  isAccessOperationalSummary,
+  type AccessOperationalSummary
+} from '../access-control';
 
 type S = components['schemas'];
 export type AdminAccessReadiness = S['AccessControlReadinessResponseDto'];
@@ -54,6 +59,11 @@ const withSignal = (signal?: AbortSignal) => (signal ? { signal } : {});
 export function createAdminEventPreparationClient(request: ApiRequester) {
   const base = (clientId: string, eventId: string) => `/admin/clients/${id(clientId)}/events/${id(eventId)}`;
   return {
+    getAccessOperations: (clientId: string, eventId: string, signal?: AbortSignal) =>
+      request<AccessOperationalSummary>(
+        { path: `${base(clientId, eventId)}/access-operations`, response: 'json', ...withSignal(signal) },
+        isAccessOperationalSummary
+      ),
     getAccessReadiness: (clientId: string, eventId: string, signal?: AbortSignal) =>
       request<AdminAccessReadiness>(
         { path: `${base(clientId, eventId)}/access-readiness`, response: 'json', ...withSignal(signal) },

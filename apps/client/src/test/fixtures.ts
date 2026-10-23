@@ -191,6 +191,7 @@ export function mockApiClient(user: AuthUser = independentUser): ApiClient {
       updateAssignment: vi.fn()
     },
     adminEventPreparation: {
+      getAccessOperations: vi.fn(),
       getAccessReadiness: vi.fn(),
       generatePhysicalPasses: vi.fn(),
       getCommercialQuote: vi.fn(),
@@ -268,6 +269,7 @@ export function mockApiClient(user: AuthUser = independentUser): ApiClient {
     adminAudit: { listAuditLogs: vi.fn() },
     adminCommercialLeads: { list: vi.fn(), get: vi.fn() },
     events: {
+      getAccessOperations: vi.fn(),
       list: vi.fn().mockResolvedValue([configuredEvent, activeEvent]),
       get: vi.fn().mockResolvedValue(configuredEvent),
       create: vi.fn().mockResolvedValue(configuredEvent),

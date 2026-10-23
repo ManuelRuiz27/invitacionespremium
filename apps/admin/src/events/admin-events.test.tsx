@@ -23,6 +23,7 @@ describe('Admin Events', () => {
     expect(api.adminEvents.get).toHaveBeenCalledWith('event-a', expect.any(AbortSignal));
     expect(screen.queryByRole('button', { name: /activar|cancelar|editar/i })).not.toBeInTheDocument();
     expect(api.events.get).not.toHaveBeenCalled();
+    expect(api.adminEventPreparation.getAccessOperations).not.toHaveBeenCalled();
   });
 
   it('shows an authoritative quote and creates once before navigating to Commercial', async () => {
@@ -41,6 +42,41 @@ describe('Admin Events', () => {
     await waitFor(() => expect(api.adminEvents.createForClient).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(router.state.location.pathname).toBe(`/eventos/${adminEvent.id}/preparar/comercial`));
   });
+
+  it.each(['NOMINAL', 'ANONYMOUS'] as const)(
+    'mounts the read-only Provider operations summary for %s in Event detail',
+    async (accessMode) => {
+      const api = mockAdminApi();
+      vi.mocked(api.adminEvents.get).mockResolvedValue({ ...adminEvent, serviceCode: 'ACCESS_CONTROL', accessMode });
+      vi.mocked(api.adminClients.get).mockResolvedValue({ ...organization, operatingProfile: 'MANAGED' });
+      vi.mocked(api.adminEventPreparation.getAccessOperations).mockResolvedValue({
+        eventId: adminEvent.id,
+        accessMode,
+        eventStatus: 'ACTIVE',
+        capacity: 120,
+        issuedHistorical: 10,
+        revokedHistorical: 2,
+        activeRights: 8,
+        entered: 3,
+        pending: 5,
+        availableCapacity: 112,
+        asOf: '2026-10-23T18:00:00.000Z',
+        tables: []
+      });
+      renderAdminApp(api, `/eventos/${adminEvent.id}`);
+      expect(await screen.findByRole('heading', { name: 'Ingresos y aforo' })).toBeInTheDocument();
+      expect(await screen.findByText('Emitidos históricos: 10')).toBeInTheDocument();
+      expect(api.adminEventPreparation.getAccessOperations).toHaveBeenCalledWith(
+        organization.id,
+        adminEvent.id,
+        expect.any(AbortSignal)
+      );
+      expect(api.events.getAccessOperations).not.toHaveBeenCalled();
+      expect(api.adminFinance.balance).not.toHaveBeenCalled();
+      expect(api.scanner.scan).not.toHaveBeenCalled();
+      expect(api.contacts.list).not.toHaveBeenCalled();
+    }
+  );
 
   it('creates a Managed Planner Event without quote or Finance controls and navigates to Datos', async () => {
     const managedClient = {

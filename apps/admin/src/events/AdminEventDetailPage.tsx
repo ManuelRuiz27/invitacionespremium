@@ -12,6 +12,7 @@ import { AdminErrorState, AdminLoadingState } from '../shared/AdminStates';
 import { ConfirmSensitiveActionDialog } from '../shared/ConfirmSensitiveActionDialog';
 import { isAbortError, type AdminScopedOperation, useAdminOperationScope } from '../shared/useAdminOperationScope';
 import { AdminPlannerAssignmentDialog } from './AdminPlannerAssignmentDialog';
+import { AdminAccessOperationsPanel } from './AdminAccessOperationsPanel';
 
 export function AdminEventDetailPage({ apiClient }: { apiClient: ApiClient }) {
   const { eventId = '' } = useParams();
@@ -120,6 +121,11 @@ function AdminEventDetail({ apiClient, eventId }: { apiClient: ApiClient; eventI
           </Grid>
         </CardContent>
       </Card>
+      {!data.deletedAt &&
+      data.serviceCode === 'ACCESS_CONTROL' &&
+      (data.accessMode === 'NOMINAL' || data.accessMode === 'ANONYMOUS') ? (
+        <AdminAccessOperationsPanel key={`${data.id}:${data.accessMode}`} apiClient={apiClient} event={data} />
+      ) : null}
       <ConfirmSensitiveActionDialog
         open={restoring}
         title="Restaurar Evento"

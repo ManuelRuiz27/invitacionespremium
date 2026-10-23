@@ -1,5 +1,15 @@
 # Contrato de la aplicacion Platform Admin
 
+## M02-B01-DT08 — consulta de ingresos y aforo
+
+El detalle administrativo de ACCESS_CONTROL integra **Ingresos y aforo**, con modalidad, capacidad,
+derechos vigentes, ingresados, pendientes, disponibilidad, históricos y Mesas. Usa exclusivamente
+`GET /admin/clients/:clientId/events/:eventId/access-operations` del
+[contrato operativo](./ACCESS_CONTROL_OPERATIONS_CONTRACT.md). Provider recibe agregados sin nombres
+ni credenciales; no obtiene herramientas Scanner. Actualización manual/foco y polling sólo operativo,
+con asOf del servidor y estado desactualizado ante red. Errores autoritativos retiran cifras previas.
+M01 y las demás superficies administrativas conservan su comportamiento.
+
 ## M02-B01-DT07 — preparación Provider de ACCESS_CONTROL
 
 El intake `ORGANIZATION + MANAGED` ofrece exclusivamente `ACCESS_CONTROL` y exige modalidad

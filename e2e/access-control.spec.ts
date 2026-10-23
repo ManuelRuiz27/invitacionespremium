@@ -7,7 +7,7 @@ const scanner = 'http://localhost:5375';
 const password = process.env.DT07_E2E_PASSWORD!;
 
 for (const mode of ['NOMINAL', 'ANONYMOUS'] as const) {
-  test(`DT07 ${mode}: Provider intake → Organization material → real activation → Staff camera`, async ({
+  test(`DT08 ${mode}: Provider activation → authoritative access counters → Staff camera → updated counters`, async ({
     browser
   }) => {
     const providerContext = await browser.newContext();
@@ -91,7 +91,25 @@ for (const mode of ['NOMINAL', 'ANONYMOUS'] as const) {
       await expect(provider.getByText('El Evento quedó activo.', { exact: true })).toBeVisible();
       const authoritative = await orgContext.request.get(`${api}/events/${eventId}`);
       expect(authoritative.status()).toBe(200);
-      expect(await authoritative.json()).toMatchObject({ status: 'ACTIVE', accessMode: mode, hasAccessMaterial: true });
+      const authoritativeEvent = await authoritative.json();
+      expect(authoritativeEvent).toMatchObject({ status: 'ACTIVE', accessMode: mode, hasAccessMaterial: true });
+
+      await organization.goto(`${client}/eventos/${eventId}?seccion=ingresos`);
+      await expectOperationsFigures(organization, { activeRights: 1, entered: 0, pending: 1, availableCapacity: 2 });
+      const beforeOperations = await orgContext.request.get(`${api}/events/${eventId}/access-operations`);
+      expect(beforeOperations.status()).toBe(200);
+      expect(await beforeOperations.json()).toMatchObject({
+        eventId,
+        accessMode: mode,
+        capacity: 3,
+        issuedHistorical: 1,
+        revokedHistorical: 0,
+        activeRights: 1,
+        entered: 0,
+        pending: 1,
+        availableCapacity: 2,
+        detailTotal: 1
+      });
 
       // Use the actual downloadable SVG as a virtual camera source: jsQR still decodes pixels in CameraReader.
       await organization.goto(`${client}/eventos/${eventId}?seccion=accesos`);
@@ -155,6 +173,37 @@ for (const mode of ['NOMINAL', 'ANONYMOUS'] as const) {
       expect(
         paths.filter((path) => path.endsWith(mode === 'NOMINAL' ? '/nominal-access/scan' : '/physical-passes/scan'))
       ).toHaveLength(1);
+
+      await organization.goto(`${client}/eventos/${eventId}?seccion=ingresos`);
+      await expectOperationsFigures(organization, { activeRights: 1, entered: 1, pending: 0, availableCapacity: 2 });
+      const afterOperations = await orgContext.request.get(`${api}/events/${eventId}/access-operations`);
+      expect(afterOperations.status()).toBe(200);
+      const operation = await afterOperations.json();
+      expect(operation).toMatchObject({
+        eventId,
+        accessMode: mode,
+        activeRights: 1,
+        entered: 1,
+        pending: 0,
+        availableCapacity: 2,
+        details: [
+          mode === 'NOMINAL' ? { name: 'Invitado sin teléfono', status: 'ENTERED' } : { passNumber: 1, status: 'USED' }
+        ]
+      });
+      const aggregate = await providerContext.request.get(
+        `${api}/admin/clients/${authoritativeEvent.clientId}/events/${eventId}/access-operations`
+      );
+      expect(aggregate.status()).toBe(200);
+      const providerOperation = await aggregate.json();
+      expect(providerOperation).toMatchObject({ eventId, accessMode: mode, activeRights: 1, entered: 1, pending: 0 });
+      expect(providerOperation).not.toHaveProperty('details');
+      expect(JSON.stringify(providerOperation)).not.toContain('Invitado sin teléfono');
+      const refreshedOperations = organization.waitForResponse((response) =>
+        response.url().endsWith('/access-operations')
+      );
+      await organization.getByRole('button', { name: 'Actualizar', exact: true }).click();
+      expect((await refreshedOperations).status()).toBe(200);
+      await expectOperationsFigures(organization, { activeRights: 1, entered: 1, pending: 0, availableCapacity: 2 });
       expect(
         paths.some((path) => /finance|ledger|intake-quote|commercial-quote|\/confirm$|\/check-in$/u.test(path))
       ).toBe(false);
@@ -169,6 +218,7 @@ for (const mode of ['NOMINAL', 'ANONYMOUS'] as const) {
         });
         expect(auth.status()).toBe(200);
         expect((await outsider.request.get(`${api}/events/${eventId}`)).status()).toBe(404);
+        expect((await outsider.request.get(`${api}/events/${eventId}/access-operations`)).status()).toBe(404);
       } finally {
         await outsider.close();
       }
@@ -181,6 +231,26 @@ for (const mode of ['NOMINAL', 'ANONYMOUS'] as const) {
       await Promise.all([providerContext.close(), orgContext.close(), staffContext.close()]);
     }
   });
+}
+
+async function expectOperationsFigures(
+  page: Page,
+  expected: { activeRights: number; entered: number; pending: number; availableCapacity: number }
+) {
+  const labels = {
+    activeRights: 'Accesos vigentes',
+    entered: 'Ingresados',
+    pending: 'Pendientes',
+    availableCapacity: 'Capacidad disponible'
+  } as const;
+  for (const key of Object.keys(labels) as Array<keyof typeof labels>) {
+    const metric = page
+      .getByLabel('Cifras del evento')
+      .getByText(labels[key], { exact: true })
+      .locator('..')
+      .locator('dd');
+    await expect(metric).toHaveText(String(expected[key]));
+  }
 }
 
 async function login(page: Page, url: string, email: string, provider: boolean) {

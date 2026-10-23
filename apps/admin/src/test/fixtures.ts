@@ -226,6 +226,7 @@ export function mockAdminApi(user: AuthUser = platformAdmin): AdminTestApiClient
       updateAssignment: vi.fn().mockResolvedValue(adminEvent)
     },
     adminEventPreparation: {
+      getAccessOperations: vi.fn(),
       getAccessReadiness: vi.fn().mockResolvedValue({
         complete: false,
         accessMode: 'NOMINAL',
@@ -439,7 +440,8 @@ export function mockAdminApi(user: AuthUser = platformAdmin): AdminTestApiClient
       update: vi.fn(),
       activate: vi.fn(),
       close: vi.fn(),
-      getAccessReadiness: vi.fn()
+      getAccessReadiness: vi.fn(),
+      getAccessOperations: vi.fn()
     },
     eventConfirmation: { get: vi.fn(), close: vi.fn(), reopen: vi.fn(), override: vi.fn() },
     finance: { balance: vi.fn(), movements: vi.fn(), receipts: vi.fn() },

@@ -16,6 +16,8 @@ export const adminQueryKeys = {
   clientUsers: (clientId: string) => ['admin-client-users', clientId] as const,
   events: ['admin-events'] as const,
   event: (eventId: string) => ['admin-event', eventId] as const,
+  accessOperations: (clientId: string, eventId: string, accessMode: string | null) =>
+    ['admin-access-operations', clientId, eventId, accessMode] as const,
   finance: (clientId: string) => ['admin-client-finance', clientId] as const,
   prices: ['admin-prices'] as const,
   promotions: ['admin-promotions'] as const,

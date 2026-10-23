@@ -204,7 +204,7 @@ Hallazgos centrales de MG-00:
 
 - `01-producto/06B_MODELO_02_SALON_JARDIN_ORGANIZACION.md` — M02.
 - `01-producto/06B1_M02_B01_ACCESOS_QR_NOMINAL_ANONIMO.md` — **M02-B01 REQUERIMIENTOS FUNCIONALES APROBADOS (2026-10-19)**; QR nominal individual o anónimo por Evento, sin RSVP/diseño obligatorio; **no autoriza código**.
-- `05-implementacion/M02_B01_TECHNICAL_HANDOFF.md` — **HANDOFF TÉCNICO EN EJECUCIÓN**; DT02A–DT07 implementados, DT08–DT09 pendientes, estado actual de QA y decisiones históricas documentadas.
+- `05-implementacion/M02_B01_TECHNICAL_HANDOFF.md` — **HANDOFF TÉCNICO EN EJECUCIÓN**; DT02A–DT08 implementados, DT09 pendiente, estado actual de QA y decisiones históricas documentadas.
 - `05-implementacion/M02_B01_DT00_RUNTIME_AUDIT.md` — **DT00 COMPLETADO**: auditoría estática verificable de código y contratos, con bloqueos para M02 Managed Organización.
 - `05-implementacion/M02_B01_DT01_ACCESS_ARCHITECTURE_ADR.md` — **DT01 PARCIALMENTE RATIFICADO**: Product aprobó `ACCESS_CONTROL` y modo `NOMINAL|ANONYMOUS` por Evento; esquema/API y resto de arquitectura pendiente para code.
 - `05-implementacion/M02_B01_DT01_SQL_COMPATIBILITY_GATE.md` — **REVISIÓN ESTÁTICA SQL COMPLETADA**: incompatibilidades concretas con activación Managed Organización, Contactos, CheckIn y PhysicalPass; ejecución de PostgreSQL pendiente.
@@ -219,6 +219,8 @@ Hallazgos centrales de MG-00:
 - `05-implementacion/M02_B01_DT07_IMPLEMENTATION.md` — **DT07 IMPLEMENTADO**: commit `0346250`, interfaces Admin/Client/Scanner y evidencia local de QA E2E B01 2/2; CI remoto en curso al revisar.
 - `05-implementacion/M02_B01_DT07_IMPLEMENTATION_REVIEW.md` — **DT07 REVISIÓN ESTÁTICA FAVORABLE / RELEASE PENDIENTE**: alcances técnicos, distinción 412 integraciones previas y 57 posteriores, QA Flipbook intermitente y pendientes DT08–DT09.
 - `04-tecnico/ACCESS_CONTROL_READINESS_CONTRACT.md` — **Contrato implementado DT06**: reglas NOMINAL/ANONYMOUS, transiciones de preparación, activación SQL y endpoints de lectura.
+- `04-tecnico/ACCESS_CONTROL_OPERATIONS_CONTRACT.md` — **Contrato DT08**: métricas PostgreSQL consistentes, Mesas, detalle mínimo paginado, permisos y privacidad.
+- `05-implementacion/M02_B01_DT08_IMPLEMENTATION.md` — **DT08 IMPLEMENTADO**: resolver de sólo lectura, paneles Client/Admin, concurrencia y QA reproducible.
 - `04-tecnico/NOMINAL_ACCESS_CREDENTIALS_CONTRACT.md` — **Contrato implementado DT03** para credenciales nominales individuales, endpoints, tokens y revocación.
 - `01-producto/06C_MODELO_03_LICENCIA_AUTOSERVICIO.md` — M03 / Self-Service.
 - `01-producto/06D_MODELO_04_CLIENTE_GRAN_ESCALA_DEDICADO.md` — M04 / gran escala.

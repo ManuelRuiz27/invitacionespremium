@@ -9,6 +9,7 @@ import { getEventStatusPresentation } from '../../shared/event-status';
 import { SeatingWorkspace } from '../SeatingWorkspace';
 import { StaffAccessPanel } from '../StaffAccessPanel';
 import { AccessMaterialPanel } from './AccessMaterialPanel';
+import { AccessOperationsPanel } from './AccessOperationsPanel';
 
 const preparationStatuses = new Set<Event['status']>(['DRAFT', 'CONFIGURED', 'READY_TO_ACTIVATE']);
 
@@ -46,6 +47,7 @@ export function AccessControlWorkspace({
     { id: 'resumen', label: 'Resumen' },
     ...(nominal ? [{ id: 'invitados', label: 'Invitados' }] : []),
     { id: 'accesos', label: nominal ? 'Credenciales individuales' : 'Pases físicos' },
+    { id: 'ingresos', label: 'Ingresos y aforo' },
     ...(event.floorplanEnabled ? [{ id: 'mesas', label: 'Mesas y distribución' }] : []),
     ...(operational && scannerAppUrl ? [{ id: 'staff', label: 'Staff' }] : [])
   ];
@@ -115,6 +117,8 @@ export function AccessControlWorkspace({
         <AccessMaterialPanel apiClient={apiClient} event={event} />
       ) : section === 'mesas' ? (
         <SeatingWorkspace apiClient={apiClient} event={event} />
+      ) : section === 'ingresos' ? (
+        <AccessOperationsPanel key={`${event.id}:${event.accessMode}`} apiClient={apiClient} event={event} />
       ) : section === 'staff' && scannerAppUrl ? (
         <StaffAccessPanel apiClient={apiClient} event={event} scannerAppUrl={scannerAppUrl} />
       ) : (

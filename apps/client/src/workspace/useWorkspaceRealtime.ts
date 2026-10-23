@@ -6,6 +6,7 @@ import { readClientEnv } from '../app/env';
 interface WorkspaceRealtimeCallbacks {
   onSeatingUpdated: (affectedTables: Array<{ tableId: string; occupancy: number }>) => void;
   onTerminal: () => void;
+  onOperationalChange?: () => void;
 }
 
 interface RealtimeEnvelope {
@@ -15,7 +16,12 @@ interface RealtimeEnvelope {
   data?: unknown;
 }
 
-export function useWorkspaceRealtime(eventId: string, enabled: boolean, callbacks: WorkspaceRealtimeCallbacks) {
+export function useWorkspaceRealtime(
+  eventId: string,
+  enabled: boolean,
+  callbacks: WorkspaceRealtimeCallbacks,
+  roomType: 'floorplan' | 'dashboard' = 'floorplan'
+) {
   const queryClient = useQueryClient();
   const callbacksRef = useRef(callbacks);
   callbacksRef.current = callbacks;
@@ -25,13 +31,13 @@ export function useWorkspaceRealtime(eventId: string, enabled: boolean, callback
 
     const serverUrl = new URL(readClientEnv().apiBaseUrl).origin;
     const socket = io(`${serverUrl}/realtime`, {
-      auth: { protocolVersion: 1, actorMode: 'USER', roomType: 'floorplan', eventId, administrative: false },
+      auth: { protocolVersion: 1, actorMode: 'USER', roomType, eventId, administrative: false },
       path: '/socket.io',
       transports: ['websocket'],
       withCredentials: true
     });
     return wireWorkspaceRealtime(socket, eventId, queryClient, () => callbacksRef.current);
-  }, [enabled, eventId, queryClient]);
+  }, [enabled, eventId, queryClient, roomType]);
 }
 
 export function wireWorkspaceRealtime(
@@ -45,18 +51,26 @@ export function wireWorkspaceRealtime(
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: ['workspace-floorplan', eventId] });
     void queryClient.invalidateQueries({ queryKey: ['workspace-seating', eventId] });
+    getCallbacks().onOperationalChange?.();
   };
   const onSeating = (value: unknown) => {
     const envelope = parseWorkspaceEnvelope(value, eventId);
-    if (!envelope || !remember(envelope.operationId)) return;
+    if (!envelope || !remember(`seating.updated:${envelope.operationId}`)) return;
     const affectedTables = parseAffectedTables(envelope.data);
     if (!affectedTables) return;
     getCallbacks().onSeatingUpdated(affectedTables);
     refresh();
   };
+  const onCheckIn = (eventName: string, value: unknown) => {
+    const envelope = parseWorkspaceEnvelope(value, eventId);
+    if (!envelope || !remember(`${eventName}:${envelope.operationId}`)) return;
+    getCallbacks().onOperationalChange?.();
+  };
+  const onCheckInCreated = (value: unknown) => onCheckIn('checkin.created', value);
+  const onCheckInReverted = (value: unknown) => onCheckIn('checkin.reverted', value);
   const onTerminal = (value: unknown) => {
     const envelope = parseWorkspaceEnvelope(value, eventId);
-    if (!envelope || terminalHandled || !remember(envelope.operationId)) return;
+    if (!envelope || terminalHandled || !remember(`terminal:${envelope.operationId}`)) return;
     terminalHandled = true;
     getCallbacks().onTerminal();
     void queryClient.cancelQueries({ queryKey: ['workspace-seating', eventId] });
@@ -68,12 +82,16 @@ export function wireWorkspaceRealtime(
   socket.on('connect', recover);
   socket.io.on('reconnect', recover);
   socket.on('seating.updated', onSeating);
+  socket.on('checkin.created', onCheckInCreated);
+  socket.on('checkin.reverted', onCheckInReverted);
   socket.on('event.closed', onTerminal);
   socket.on('event.cancelled', onTerminal);
   return () => {
     socket.off('connect', recover);
     socket.io.off('reconnect', recover);
     socket.off('seating.updated', onSeating);
+    socket.off('checkin.created', onCheckInCreated);
+    socket.off('checkin.reverted', onCheckInReverted);
     socket.off('event.closed', onTerminal);
     socket.off('event.cancelled', onTerminal);
     socket.disconnect();
