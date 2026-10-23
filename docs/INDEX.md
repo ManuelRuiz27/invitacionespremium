@@ -204,7 +204,7 @@ Hallazgos centrales de MG-00:
 
 - `01-producto/06B_MODELO_02_SALON_JARDIN_ORGANIZACION.md` — M02.
 - `01-producto/06B1_M02_B01_ACCESOS_QR_NOMINAL_ANONIMO.md` — **M02-B01 REQUERIMIENTOS FUNCIONALES APROBADOS (2026-10-19)**; QR nominal individual o anónimo por Evento, sin RSVP/diseño obligatorio; **no autoriza código**.
-- `05-implementacion/M02_B01_TECHNICAL_HANDOFF.md` — **PLAN DE HANDOFF FUTURO**; DT00–DT09, conflictos de contratos y decisiones por cerrar antes de desarrollar.
+- `05-implementacion/M02_B01_TECHNICAL_HANDOFF.md` — **HANDOFF TÉCNICO EN EJECUCIÓN**; DT02A–DT07 implementados, DT08–DT09 pendientes, estado actual de QA y decisiones históricas documentadas.
 - `05-implementacion/M02_B01_DT00_RUNTIME_AUDIT.md` — **DT00 COMPLETADO**: auditoría estática verificable de código y contratos, con bloqueos para M02 Managed Organización.
 - `05-implementacion/M02_B01_DT01_ACCESS_ARCHITECTURE_ADR.md` — **DT01 PARCIALMENTE RATIFICADO**: Product aprobó `ACCESS_CONTROL` y modo `NOMINAL|ANONYMOUS` por Evento; esquema/API y resto de arquitectura pendiente para code.
 - `05-implementacion/M02_B01_DT01_SQL_COMPATIBILITY_GATE.md` — **REVISIÓN ESTÁTICA SQL COMPLETADA**: incompatibilidades concretas con activación Managed Organización, Contactos, CheckIn y PhysicalPass; ejecución de PostgreSQL pendiente.
@@ -216,6 +216,8 @@ Hallazgos centrales de MG-00:
 - `05-implementacion/M02_B01_DT05_IMPLEMENTATION_REVIEW.md` — **DT05 IMPLEMENTADO / CI CANCELADO**: commit `670c320`, pases ANONYMOUS con generación Provider, revocación, cupo histórico, Scanner y preservación PHYSICAL_QR.
 - `05-implementacion/M02_B01_DT06_IMPLEMENTATION_REVIEW.md` — **DT06 IMPLEMENTADO / CI QUALITY CANCELADO, FLIPBOOK QA ROJO**: commit `5d4915d`, readiness y activación real Provider sin Finance. Discrepancia Staff corregida en DT06A.
 - `05-implementacion/M02_B01_DT06A_IMPLEMENTATION_REVIEW.md` — **DT06A IMPLEMENTADO / QUALITY VERDE**: commit `88d5c818`, Planner asignado emite StaffTokens ACCESS_CONTROL, SQL/HTTP y regresiones legacy; QA Flipbook WebKit continúa rojo.
+- `05-implementacion/M02_B01_DT07_IMPLEMENTATION.md` — **DT07 IMPLEMENTADO**: commit `0346250`, interfaces Admin/Client/Scanner y evidencia local de QA E2E B01 2/2; CI remoto en curso al revisar.
+- `05-implementacion/M02_B01_DT07_IMPLEMENTATION_REVIEW.md` — **DT07 REVISIÓN ESTÁTICA FAVORABLE / RELEASE PENDIENTE**: alcances técnicos, distinción 412 integraciones previas y 57 posteriores, QA Flipbook intermitente y pendientes DT08–DT09.
 - `04-tecnico/ACCESS_CONTROL_READINESS_CONTRACT.md` — **Contrato implementado DT06**: reglas NOMINAL/ANONYMOUS, transiciones de preparación, activación SQL y endpoints de lectura.
 - `04-tecnico/NOMINAL_ACCESS_CREDENTIALS_CONTRACT.md` — **Contrato implementado DT03** para credenciales nominales individuales, endpoints, tokens y revocación.
 - `01-producto/06C_MODELO_03_LICENCIA_AUTOSERVICIO.md` — M03 / Self-Service.
