@@ -1,6 +1,15 @@
 # M02-B01 — Handoff técnico para el equipo de desarrollo
 
-Estado: **HANDOFF TÉCNICO — DT02A–DT08 IMPLEMENTADOS; DT09 PENDIENTE**
+Estado: **HANDOFF TÉCNICO — DT09 QA LOCAL APROBADO; CI PENDIENTE; NO-GO PRESENCIAL**
+
+**DT09 (2026-10-23–25):** certificación del piloto separado con pruebas PostgreSQL, 150 derechos por
+modalidad, E2E M01/PHYSICAL_QR y M02, estabilidad UI y privacidad de evidencias. Correcciones puntuales
+de inyección de teléfono, preparación Provider Managed y retries de uso físico; sin nuevas entidades,
+roles, migraciones ni cambios en Finance. Ver [certificación y gates](./M02_B01_DT09_CERTIFICATION.md)
+y [operación/aceptación física](./M02_B01_PILOT_OPERATIONS_RUNBOOK.md). El usuario confirmó que no hay
+pruebas físicas: Android/Chrome, iPhone/Safari y tablet permanecen pendientes; **no autoriza piloto
+presencial ni lanzamiento comercial**. El informe distingue QA local y CI final; las entradas siguientes
+son históricas y no sustituyen su dictamen.
 
 **DT08 (2026-10-23):** panel de ingresos y aforo de sólo lectura para NOMINAL y ANONYMOUS.
 PostgreSQL calcula históricos, derechos vigentes, ingresos, pendientes, capacidad disponible y Mesas

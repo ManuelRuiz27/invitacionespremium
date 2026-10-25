@@ -1,5 +1,5 @@
 import type { AdminPilotObservationJournal, AdminUnitEconomics } from '@invitaciones/api-client';
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { adminEvent, mockAdminApi } from '../test/fixtures';
@@ -89,7 +89,9 @@ describe('Admin pilot operational log', () => {
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/registro`);
 
     expect(api.adminEventPreparation.listPilotObservations).not.toHaveBeenCalled();
-    pending.resolve(adminEvent);
+    await act(async () => {
+      pending.resolve(adminEvent);
+    });
     expect(await screen.findByRole('heading', { name: 'Rentabilidad estimada' })).toBeInTheDocument();
     expect(api.adminEventPreparation.listPilotObservations).toHaveBeenCalledWith(
       adminEvent.clientId,

@@ -516,7 +516,16 @@ export class PhysicalPassesService {
           return snapshot;
         }, CRITICAL_TRANSACTION_OPTIONS);
       } catch (error) {
-        if ((isRetryable(error) || isIdempotencyUnique(error)) && attempt < MAX_ATTEMPTS - 1) continue;
+        if (isRetryable(error) || isIdempotencyUnique(error)) {
+          if (attempt === MAX_ATTEMPTS - 1)
+            throw physicalPassError('PHYSICAL_PASS_CONCURRENCY_CONFLICT', 'Physical pass use could not be serialized.');
+          // Yield outside the transaction: synchronized gates otherwise keep
+          // acquiring stale snapshots and can starve one reader for 20 attempts.
+          await new Promise((resolve) =>
+            setTimeout(resolve, Math.min(5 * (attempt + 1), 50) + Math.floor(Math.random() * 10))
+          );
+          continue;
+        }
         throw mapDatabaseError(error);
       }
     }

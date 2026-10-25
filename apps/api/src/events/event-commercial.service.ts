@@ -10,6 +10,8 @@ import {
   CommercialChannel,
   CreditLineStatus,
   ClientStatus,
+  ClientType,
+  ClientOperatingProfile,
   EventStatus,
   FileAssetType,
   Prisma,
@@ -246,6 +248,19 @@ export class EventCommercialService {
         'Personalized invitation work requires Flyer or Flipbook.'
       );
     }
+    // M01 Provider preparation is already authorized by the administrative
+    // surface. A Managed Planner Event intentionally has no commercial lock
+    // or paid design kickoff; Self-Service retains both existing gates below.
+    const managedPlanner = await database.client.findFirst({
+      where: {
+        id: clientId,
+        type: ClientType.PLANNER,
+        operatingProfile: ClientOperatingProfile.MANAGED,
+        deletedAt: null
+      },
+      select: { id: true }
+    });
+    if (managedPlanner) return;
     await this.assertValidLock(database, event);
     if (event.designKickoffAt === null) {
       throw commercialError(

@@ -7,7 +7,7 @@ export default defineConfig({
   retries: 0,
   timeout: 180_000,
   expect: { timeout: 15_000 },
-  reporter: [['list']],
+  reporter: [['./e2e/private-reporter.mjs']],
   outputDir: 'test-results/access-control',
   use: { ...devices['Desktop Chrome'], actionTimeout: 25_000, trace: 'off', screenshot: 'off', video: 'off' },
   projects: [{ name: 'chromium', use: { browserName: 'chromium' } }]

@@ -1,10 +1,20 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { randomUUID } from 'node:crypto';
+import { createRequire } from 'node:module';
+import { join } from 'node:path';
+import sharp from 'sharp';
 
 const api = 'http://localhost:5300/api/v1';
 const admin = 'http://localhost:5374';
 const client = 'http://localhost:5373';
 const scanner = 'http://localhost:5375';
 const password = process.env.DT07_E2E_PASSWORD!;
+const requireScanner = createRequire(join(process.cwd(), 'apps/scanner/package.json'));
+const decodeQr = requireScanner('jsqr') as (
+  pixels: Uint8ClampedArray,
+  width: number,
+  height: number
+) => { data: string } | null;
 
 for (const mode of ['NOMINAL', 'ANONYMOUS'] as const) {
   test(`DT08 ${mode}: Provider activation → authoritative access counters → Staff camera → updated counters`, async ({
@@ -165,14 +175,35 @@ for (const mode of ['NOMINAL', 'ANONYMOUS'] as const) {
       const accepted = staffPage.waitForResponse((response) =>
         response.url().endsWith(mode === 'NOMINAL' ? '/nominal-access/scan' : '/physical-passes/scan')
       );
+      const submittedKeys: Array<string | undefined> = [];
+      let dropCommittedResponse = true;
+      await staffPage.route(`**/${mode === 'NOMINAL' ? 'nominal-access' : 'physical-passes'}/scan`, async (route) => {
+        submittedKeys.push(route.request().headers()['idempotency-key']);
+        if (dropCommittedResponse) {
+          dropCommittedResponse = false;
+          // Real server mutation, followed by a lost response. No response body is fabricated.
+          const committed = await route.fetch();
+          expect(committed.status()).toBe(200);
+          await route.abort('connectionreset');
+        } else await route.continue();
+      });
       await staffPage.goto(staffUrl!);
+      const retry = staffPage.getByRole('button', { name: 'Reintentar el mismo ingreso', exact: true });
+      await expect(retry).toBeVisible();
+      await expect(staffPage.getByRole('button', { name: 'Siguiente escaneo', exact: true })).toHaveCount(0);
+      const uncertainSnapshot = await orgContext.request.get(`${api}/events/${eventId}/access-operations`);
+      expect((await uncertainSnapshot.json()).entered).toBe(1);
+      await retry.click();
       expect((await accepted).status()).toBe(200);
+      expect(submittedKeys).toHaveLength(2);
+      expect(Boolean(submittedKeys[0])).toBe(true);
+      expect(new Set(submittedKeys).size).toBe(1);
       await expect(staffPage.getByRole('status').filter({ hasText: /ingreso registrado/iu })).toBeVisible();
       await expect(staffPage.getByRole('button', { name: 'Siguiente escaneo', exact: true })).toBeVisible();
       await expect(staffPage.getByRole('tab', { name: 'Buscar', exact: true })).toHaveCount(0);
       expect(
         paths.filter((path) => path.endsWith(mode === 'NOMINAL' ? '/nominal-access/scan' : '/physical-passes/scan'))
-      ).toHaveLength(1);
+      ).toHaveLength(2);
 
       await organization.goto(`${client}/eventos/${eventId}?seccion=ingresos`);
       await expectOperationsFigures(organization, { activeRights: 1, entered: 1, pending: 0, availableCapacity: 2 });
@@ -259,4 +290,311 @@ async function login(page: Page, url: string, email: string, provider: boolean) 
   await page.getByLabel(/Contrase[nñ]a/u).fill(password);
   await page.getByRole('button', { name: provider ? 'Entrar al panel' : 'Iniciar sesión' }).click();
   await expect(page).not.toHaveURL(/\/login$/u);
+}
+
+test('DT09 same Organization: CSV/SEAT nominal and TABLE anonymous, two readers, reversal, reissue and terminal gates', async ({
+  browser
+}) => {
+  const provider = await browser.newContext(),
+    organization = await browser.newContext(),
+    outsider = await browser.newContext();
+  try {
+    for (const [context, email] of [
+      [provider, 'provider@dt07.example'],
+      [organization, 'planner@dt07.example'],
+      [outsider, 'unassigned@dt07.example']
+    ] as const)
+      await pilotPost(context.request, '/auth/login', { email, password }, 200);
+    const planner = await (await organization.request.get(`${api}/auth/me`)).json();
+    const previousPlanner = await (await outsider.request.get(`${api}/auth/me`)).json();
+    const nominal = await createPilotEvent('NOMINAL'),
+      anonymous = await createPilotEvent('ANONYMOUS');
+    expect(nominal.clientId).toBe(anonymous.clientId);
+    const events = [nominal, anonymous];
+    const materials: Array<{
+      eventId: string;
+      mode: 'NOMINAL' | 'ANONYMOUS';
+      token: string;
+      oldToken: string;
+      staff: string[];
+      subjectId: string;
+    }> = [];
+    for (const event of events) {
+      const mode = event.accessMode as 'NOMINAL' | 'ANONYMOUS';
+      const base = `/admin/clients/${planner.clientId}/events/${event.id}`;
+      const png = await sharp({ create: { width: 500, height: 500, channels: 3, background: '#ffffff' } })
+        .png()
+        .toBuffer();
+      const upload = await provider.request.post(`${api}${base}/floorplan/file-assets`, {
+        headers: { Origin: admin },
+        multipart: { file: { name: 'pilot.png', mimeType: 'image/png', buffer: png } }
+      });
+      expect(upload.status()).toBe(201);
+      const asset = await upload.json();
+      await pilotPost(provider.request, `${base}/floorplan`, { imageAssetId: asset.id }, 201);
+      const table = await pilotPost(
+        provider.request,
+        `${base}/floorplan/shapes`,
+        {
+          kind: 'TABLE',
+          geometry: 'RECTANGLE',
+          name: 'Recepción',
+          capacity: 3,
+          x: 0.2,
+          y: 0.2,
+          width: 0.4,
+          height: 0.3,
+          rotation: 0
+        },
+        201
+      );
+      let subjectId: string, oldToken: string, token: string;
+      if (mode === 'NOMINAL') {
+        await pilotPatch(provider.request, `${base}/floorplan/seating-mode`, { seatingMode: 'SEAT' });
+        const seats = [];
+        for (const label of ['1', '2'])
+          seats.push(
+            await pilotPost(
+              provider.request,
+              `${base}/floorplan/shapes/${table.id}/seats`,
+              { label, x: Number(label) / 4, y: 0.4 },
+              201
+            )
+          );
+        const preview = await organization.request.post(`${api}/events/${event.id}/contacts/import/preview`, {
+          headers: { Origin: client },
+          multipart: {
+            file: {
+              name: 'pilot.csv',
+              mimeType: 'text/csv',
+              buffer: Buffer.from(
+                'name,whatsapp_phone,group\nNombre repetido,,Familia\nNombre repetido,+525512345678,Familia\n'
+              )
+            }
+          }
+        });
+        expect(preview.status()).toBe(201);
+        const parsed = await preview.json();
+        expect(parsed).toMatchObject({ validRows: 2, invalidRows: 0 });
+        const commitKey = randomUUID();
+        const committed = await pilotPost(
+          organization.request,
+          `/events/${event.id}/contacts/import/commit`,
+          { previewId: parsed.previewId },
+          200,
+          commitKey
+        );
+        expect(
+          await pilotPost(
+            organization.request,
+            `/events/${event.id}/contacts/import/commit`,
+            { previewId: parsed.previewId },
+            200,
+            commitKey
+          )
+        ).toEqual(committed);
+        const contacts = await (await organization.request.get(`${api}/events/${event.id}/contacts`)).json();
+        expect(contacts).toHaveLength(2);
+        expect(new Set(contacts.map((contact: { assistantId: string }) => contact.assistantId)).size).toBe(2);
+        const credentials = [];
+        for (const contact of contacts)
+          credentials.push(
+            await pilotPost(
+              organization.request,
+              `/events/${event.id}/nominal-access-credentials/assistants/${contact.assistantId}/issue`,
+              {},
+              201
+            )
+          );
+        await pilotPost(
+          organization.request,
+          `/events/${event.id}/seating/assign-seats`,
+          {
+            assignments: contacts.map((contact: { assistantId: string }, index: number) => ({
+              assistantId: contact.assistantId,
+              seatId: seats[index]!.id
+            }))
+          },
+          201
+        );
+        subjectId = credentials[0]!.assistantId;
+        oldToken = await pilotQr(
+          organization.request,
+          `/events/${event.id}/nominal-access-credentials/${credentials[0]!.id}/svg`
+        );
+        await pilotPost(
+          organization.request,
+          `/events/${event.id}/nominal-access-credentials/${credentials[0]!.id}/revoke`,
+          { revocationReasonCode: 'PILOT_REPLACEMENT' },
+          200
+        );
+        const replacement = await pilotPost(
+          organization.request,
+          `/events/${event.id}/nominal-access-credentials/assistants/${subjectId}/issue`,
+          {},
+          201
+        );
+        token = await pilotQr(
+          organization.request,
+          `/events/${event.id}/nominal-access-credentials/${replacement.id}/svg`
+        );
+      } else {
+        const batch = await pilotPost(
+          provider.request,
+          `${base}/physical-passes/generate`,
+          { quantity: 2, tableShapeId: table.id },
+          200
+        );
+        const first = batch.passes[0];
+        oldToken = await pilotQr(organization.request, `/events/${event.id}/physical-passes/${first.id}/svg`);
+        await pilotPost(
+          organization.request,
+          `/events/${event.id}/physical-passes/${first.id}/revoke`,
+          { revocationReasonCode: 'PILOT_REPLACEMENT' },
+          200
+        );
+        const replacement = await pilotPost(
+          provider.request,
+          `${base}/physical-passes/generate`,
+          { quantity: 1, tableShapeId: table.id },
+          200
+        );
+        expect(replacement.passes[0].passNumber).toBe(3);
+        const history = await (await organization.request.get(`${api}/events/${event.id}/physical-passes`)).json();
+        expect(history.map((pass: { passNumber: number; status: string }) => [pass.passNumber, pass.status])).toEqual([
+          [1, 'REVOKED'],
+          [2, 'UNUSED'],
+          [3, 'UNUSED']
+        ]);
+        subjectId = replacement.passes[0].id;
+        token = await pilotQr(organization.request, `/events/${event.id}/physical-passes/${subjectId}/svg`);
+      }
+      const readiness = await (await provider.request.get(`${api}${base}/access-readiness`)).json();
+      expect(readiness).toMatchObject({ complete: true, activeMaterialCount: 2 });
+      const prepared = await (await organization.request.get(`${api}/events/${event.id}`)).json();
+      expect(prepared.status).toBe('READY_TO_ACTIVATE');
+      await pilotPost(provider.request, `${base}/activate`, {}, 200);
+      const staff = [];
+      for (const alias of ['Puerta 1', 'Puerta 2'])
+        staff.push(
+          (await pilotPost(organization.request, `/events/${event.id}/staff-tokens`, { alias }, 201)).token as string
+        );
+      materials.push({ eventId: event.id as string, mode, token, oldToken, staff, subjectId });
+    }
+    for (const material of materials) {
+      const { eventId, mode, token, oldToken, staff } = material;
+      const suffix = mode === 'NOMINAL' ? 'nominal-access' : 'physical-passes';
+      const scan = (qrToken: string, reader: number, key = randomUUID()) =>
+        organization.request.post(`${api}/scanner/${staff[reader]}/${suffix}/scan`, {
+          headers: { Origin: client, 'Idempotency-Key': key },
+          data: { qrToken }
+        });
+      expect((await scan(oldToken, 0)).status()).toBe(404);
+      const foreign = materials.find((item) => item.eventId !== eventId)!;
+      expect((await scan(foreign.token, 0)).status()).toBe(404);
+      const key = randomUUID();
+      const results = await Promise.all([scan(token, 0, key), scan(token, 1)]);
+      expect(results.map((response) => response.status()).sort()).toEqual([200, 409]);
+      const successful = await results.find((response) => response.status() === 200)!.json();
+      if (results[0]!.status() === 200) expect(await (await scan(token, 0, key)).json()).toEqual(successful);
+      const panel = await organization.newPage();
+      await panel.goto(`${client}/eventos/${eventId}?seccion=ingresos`);
+      await expectOperationsFigures(panel, { activeRights: 2, entered: 1, pending: 1, availableCapacity: 1 });
+      if (mode === 'NOMINAL') {
+        expect(successful.seat).not.toBeNull();
+        await pilotPost(organization.request, `/events/${eventId}/check-ins/${successful.checkInId}/revert`, {}, 200);
+        await panel.reload();
+        await expectOperationsFigures(panel, { activeRights: 2, entered: 0, pending: 2, availableCapacity: 1 });
+        expect((await scan(token, 0)).status()).toBe(200);
+      }
+      const snapshot = await (await organization.request.get(`${api}/events/${eventId}/access-operations`)).json();
+      expect(snapshot).toMatchObject({
+        issuedHistorical: 3,
+        revokedHistorical: 1,
+        activeRights: 2,
+        entered: 1,
+        pending: 1
+      });
+      expect(snapshot.tables[0]).toMatchObject({ activeRights: 2, entered: 1, pending: 1 });
+      const providerSnapshot = await (
+        await provider.request.get(`${api}/admin/clients/${planner.clientId}/events/${eventId}/access-operations`)
+      ).json();
+      expect(providerSnapshot).not.toHaveProperty('details');
+      expect(JSON.stringify(snapshot)).not.toMatch(/whatsapp|phone|nonce|signature|qrToken|staffToken/iu);
+      expect((await provider.request.get(`${api}/events/${eventId}/access-operations`)).status()).toBe(403);
+      expect((await outsider.request.get(`${api}/events/${eventId}/access-operations`)).status()).toBe(404);
+      expect(
+        (
+          await outsider.request.post(`${api}/events/${eventId}/staff-tokens`, {
+            headers: { Origin: client },
+            data: { alias: 'Forbidden' }
+          })
+        ).status()
+      ).toBe(404);
+      // Reassignment revokes the previous Planner immediately, including cached/detail reads and material.
+      await pilotPatch(provider.request, `/admin/clients/${planner.clientId}/events/${eventId}/assignment`, {
+        assignedPlannerUserId: previousPlanner.id
+      });
+      expect((await organization.request.get(`${api}/events/${eventId}/access-operations`)).status()).toBe(404);
+      await pilotPatch(provider.request, `/admin/clients/${planner.clientId}/events/${eventId}/assignment`, {
+        assignedPlannerUserId: planner.id
+      });
+      await pilotPost(organization.request, `/events/${eventId}/${mode === 'NOMINAL' ? 'close' : 'cancel'}`, {}, 200);
+      const terminalScan = await scan(token, 0);
+      // Nominal resolves expired Staff first; anonymous preserves its Event-first gate.
+      expect(terminalScan.status()).toBe(mode === 'NOMINAL' ? 401 : 409);
+      expect(await terminalScan.json()).toMatchObject({
+        code: mode === 'NOMINAL' ? 'STAFF_TOKEN_INVALID_OR_EXPIRED' : 'STAFF_EVENT_NOT_OPERATIONAL'
+      });
+      expect((await organization.request.get(`${api}/scanner/${staff[0]}/session`)).status()).toBe(401);
+      const terminal = await (await organization.request.get(`${api}/events/${eventId}/access-operations`)).json();
+      expect(terminal).toMatchObject({ entered: 1, eventStatus: mode === 'NOMINAL' ? 'CLOSED' : 'CANCELLED' });
+      await panel.close();
+    }
+    async function createPilotEvent(accessMode: 'NOMINAL' | 'ANONYMOUS') {
+      const event = await pilotPost(
+        provider.request,
+        `/admin/clients/${planner.clientId}/events/managed`,
+        {
+          name: `DT09 ${accessMode}`,
+          serviceCode: 'ACCESS_CONTROL',
+          accessMode,
+          capacity: 3,
+          assignedPlannerUserId: planner.id
+        },
+        201
+      );
+      await pilotPatch(provider.request, `/admin/clients/${planner.clientId}/events/${event.id}`, {
+        socialType: 'OTHER',
+        eventDateTime: '2035-01-01T18:00:00Z',
+        timeZone: 'America/Mexico_City',
+        floorplanEnabled: true
+      });
+      return event;
+    }
+  } finally {
+    await Promise.all([provider.close(), organization.close(), outsider.close()]);
+  }
+});
+
+async function pilotPost(request: APIRequestContext, path: string, data: object, status: number, key = randomUUID()) {
+  const response = await request.post(`${api}${path}`, { headers: { Origin: client, 'Idempotency-Key': key }, data });
+  const body = await response.json();
+  expect(response.status(), `pilot HTTP ${status}, domain code ${body.code ?? 'OK'}`).toBe(status);
+  return body;
+}
+async function pilotPatch(request: APIRequestContext, path: string, data: object) {
+  const response = await request.patch(`${api}${path}`, { headers: { Origin: client }, data });
+  const body = await response.json();
+  expect(response.status(), `pilot PATCH domain code ${body.code ?? 'OK'}`).toBe(200);
+  return body;
+}
+async function pilotQr(request: APIRequestContext, path: string) {
+  const response = await request.get(`${api}${path}`);
+  expect(response.status()).toBe(200);
+  const svg = await response.body();
+  const { data, info } = await sharp(svg, { density: 160 }).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const decoded = decodeQr(new Uint8ClampedArray(data), info.width, info.height);
+  expect(Boolean(decoded)).toBe(true);
+  return decoded!.data;
 }

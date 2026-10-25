@@ -1,0 +1,163 @@
+{
+  "scope": "Local isolated DT09 PostgreSQL integration; no production SLA",
+  "instrumentation": "HTTP clients and Nest in one test worker; CPU/RSS includes test driver. No DB CPU measurement.",
+  "initialRejectedAnonymousRun": {
+    "mode": "ANONYMOUS",
+    "rights": 150,
+    "readers": 2,
+    "tables": 5,
+    "errors": 3,
+    "elapsedMs": 8421.815000000002,
+    "scanner": {
+      "samples": 150,
+      "p50Ms": 61.50699999999779,
+      "p95Ms": 96.25239999999758
+    },
+    "dashboard": {
+      "samples": 215,
+      "p50Ms": 34.62050000000454,
+      "p95Ms": 46.17109999999957
+    },
+    "database": {
+      "deadlocksDelta": 0,
+      "rollbackDelta": 75,
+      "lockSamples": 215,
+      "maxLockWaiters": 1,
+      "serializationConflicts": 75,
+      "deadlockConflicts": 0,
+      "transactionFailureCodes": {
+        "P2034": 75
+      },
+      "retryObservation": "failed real transactions observed before bounded service retries; rollback stats may lag"
+    },
+    "process": {
+      "cpuUserMs": 4531,
+      "cpuSystemMs": 1469,
+      "rssBeforeBytes": 367448064,
+      "rssAfterBytes": 368050176
+    },
+    "environment": {
+      "node": "v22.18.0",
+      "platform": "win32",
+      "cpu": "12th Gen Intel(R) Core(TM) i3-1215U",
+      "logicalCpus": 8,
+      "ramBytes": 16835407872,
+      "postgres": {
+        "server_version": "16.14"
+      }
+    },
+    "gates": {
+      "scannerP95Ms": 2000,
+      "dashboardP95Ms": 1500,
+      "unexpectedErrors": 0,
+      "deadlocks": 0
+    },
+    "generatedAt": "2026-10-23T21:21:44.326Z"
+  },
+  "finalMeasurements": [
+    {
+      "mode": "NOMINAL",
+      "rights": 150,
+      "readers": 2,
+      "tables": 5,
+      "errors": 0,
+      "elapsedMs": 6834.631299999994,
+      "scanner": {
+        "samples": 150,
+        "p50Ms": 82.29559999999765,
+        "p95Ms": 124.50479999999516
+      },
+      "dashboard": {
+        "samples": 127,
+        "p50Ms": 48.73309999999765,
+        "p95Ms": 67.24959999999555
+      },
+      "database": {
+        "deadlocksDelta": 0,
+        "rollbackDelta": 0,
+        "lockSamples": 127,
+        "maxLockWaiters": 1,
+        "serializationConflicts": 0,
+        "deadlockConflicts": 0,
+        "transactionFailureCodes": {},
+        "retryObservation": "failed real transactions observed before bounded service retries; rollback stats may lag"
+      },
+      "process": {
+        "cpuUserMs": 3297,
+        "cpuSystemMs": 875,
+        "rssBeforeBytes": 389222400,
+        "rssAfterBytes": 457732096
+      },
+      "environment": {
+        "node": "v22.18.0",
+        "platform": "win32",
+        "cpu": "12th Gen Intel(R) Core(TM) i3-1215U",
+        "logicalCpus": 8,
+        "ramBytes": 16835407872,
+        "postgres": {
+          "server_version": "16.14"
+        }
+      },
+      "gates": {
+        "scannerP95Ms": 2000,
+        "dashboardP95Ms": 1500,
+        "unexpectedErrors": 0,
+        "deadlocks": 0
+      },
+      "generatedAt": "2026-10-25T17:33:23.613Z"
+    },
+    {
+      "mode": "ANONYMOUS",
+      "rights": 150,
+      "readers": 2,
+      "tables": 5,
+      "errors": 0,
+      "elapsedMs": 12429.394400000005,
+      "scanner": {
+        "samples": 150,
+        "p50Ms": 87.97389999999723,
+        "p95Ms": 721.9015000000072
+      },
+      "dashboard": {
+        "samples": 233,
+        "p50Ms": 47.82259999999951,
+        "p95Ms": 64.98679999999877
+      },
+      "database": {
+        "deadlocksDelta": 0,
+        "rollbackDelta": 111,
+        "lockSamples": 233,
+        "maxLockWaiters": 1,
+        "serializationConflicts": 111,
+        "deadlockConflicts": 0,
+        "transactionFailureCodes": {
+          "P2034": 111
+        },
+        "retryObservation": "failed real transactions observed before bounded service retries; rollback stats may lag"
+      },
+      "process": {
+        "cpuUserMs": 7500,
+        "cpuSystemMs": 2047,
+        "rssBeforeBytes": 460783616,
+        "rssAfterBytes": 536891392
+      },
+      "environment": {
+        "node": "v22.18.0",
+        "platform": "win32",
+        "cpu": "12th Gen Intel(R) Core(TM) i3-1215U",
+        "logicalCpus": 8,
+        "ramBytes": 16835407872,
+        "postgres": {
+          "server_version": "16.14"
+        }
+      },
+      "gates": {
+        "scannerP95Ms": 2000,
+        "dashboardP95Ms": 1500,
+        "unexpectedErrors": 0,
+        "deadlocks": 0
+      },
+      "generatedAt": "2026-10-25T17:33:41.208Z"
+    }
+  ]
+}

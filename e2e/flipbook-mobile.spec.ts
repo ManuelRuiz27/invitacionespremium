@@ -633,6 +633,11 @@ test.describe('desktop and tablet regression', () => {
     await next(page).click();
     await visible(page, '1,2');
     const folded = page.locator('[data-flipbook-page-id="fixture-page-2"]:not([data-stf-clone])');
+    // Engine READ precedes the end of the enclosing volume's CSS transform.
+    // Hover coordinates must be measured on the settled physical book.
+    await page.locator('.flipbook-volume').evaluate(async (volume) => {
+      await Promise.all(volume.getAnimations().map((animation) => animation.finished.catch(() => undefined)));
+    });
     const rect = (await page.locator('.stf__block').boundingBox())!;
     const curl = () => folded.evaluate((element) => getComputedStyle(element, '::after').content);
     for (const y of [0.08, 0.92]) {

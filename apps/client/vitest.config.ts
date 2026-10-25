@@ -11,7 +11,8 @@ export default defineConfig({
     environment: 'jsdom',
     include: ['src/**/*.test.{ts,tsx}'],
     setupFiles: ['./src/test/setup.ts'],
-    maxWorkers: 4,
+    // Keep bounded DOM-scale tests isolated from other CPU-heavy MUI route trees.
+    maxWorkers: 1,
     testTimeout: 15_000,
     restoreMocks: true
   }

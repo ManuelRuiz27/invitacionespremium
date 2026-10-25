@@ -6,5 +6,9 @@ coverage/
 .turbo/
 pnpm-lock.yaml
 graphify-out/
+# Ignored local QA downloads/captures; no versioned source lives here.
+var/qa/
+# Ignored local tunnel configuration; never part of the source tree.
+var/ngrok-public-test.yml
 apps/api/prisma/schema.prisma
 packages/api-client/src/generated/

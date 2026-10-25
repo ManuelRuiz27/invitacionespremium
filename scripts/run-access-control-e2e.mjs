@@ -103,6 +103,23 @@ try {
     }
     await Promise.all([5373, 5374, 5375].map((port) => ready(`http://localhost:${port}`)));
     await run(['exec', 'playwright', 'test', '--config', 'playwright.access-control.config.ts'], environment);
+    const integrity = await sql(
+      isolated.toString(),
+      `SELECT
+      (SELECT count(*)::int FROM ledger_entry) AS ledger,
+      (SELECT count(*)::int FROM receipt) AS receipts,
+      (SELECT count(*)::int FROM payment) AS payments,
+      (SELECT count(*)::int FROM assistant WHERE response_status <> 'PENDING') AS changed_rsvp,
+      (SELECT count(*)::int FROM check_in a JOIN check_in b ON a.assistant_id=b.assistant_id AND a.id<b.id
+        WHERE a.reverted_at IS NULL AND b.reverted_at IS NULL) AS duplicate_active_entries,
+      (SELECT abs((SELECT count(*) FROM audit_log WHERE action='CHECK_IN_CREATE') - (SELECT count(*) FROM check_in))::int) AS duplicate_checkin_audit,
+      (SELECT abs((SELECT count(*) FROM audit_log WHERE action='PHYSICAL_PASS_USE') - (SELECT count(*) FROM physical_pass WHERE used_at IS NOT NULL))::int) AS duplicate_use_audit,
+      (SELECT count(*)::int FROM staff_token s JOIN event e ON e.id=s.event_id
+        WHERE e.status IN ('closed','cancelled') AND s.expired_at IS NULL) AS terminal_staff`
+    );
+    if (Object.values(integrity.rows[0]).some((count) => count !== 0))
+      throw new Error('Pilot persisted invariants failed: Finance, RSVP, active entries or terminal Staff.');
+    process.stdout.write('[pilot-qa] Persisted Finance/RSVP, unique CheckIn and terminal Staff invariants passed.\n');
   }
 } catch (error) {
   // Avoid connection strings and credentials in diagnostics.

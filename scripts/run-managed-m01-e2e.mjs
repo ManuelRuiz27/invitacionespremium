@@ -4,11 +4,23 @@ import { existsSync } from 'node:fs';
 import { mkdir, rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import net from 'node:net';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { redactQaText } from '../e2e/private-reporter.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const requiredPorts = [3000, 5173, 5174, 5175];
+// One explicit offset keeps every origin consistent, without touching existing services.
+const offsetArgument = process.argv.find((argument) => argument.startsWith('--port-offset='));
+const offsetValue = offsetArgument?.slice('--port-offset='.length) ?? '0';
+if (!/^(0|[1-9]\d*)$/u.test(offsetValue) || Number(offsetValue) > 60_360)
+  throw new Error('Expected --port-offset=0..60360.');
+const portOffset = Number(offsetValue);
+const [apiPort, clientPort, adminPort, scannerPort] = [3000, 5173, 5174, 5175].map((port) => port + portOffset);
+const requiredPorts = [apiPort, clientPort, adminPort, scannerPort];
+const apiOrigin = `http://localhost:${apiPort}`;
+const clientOrigin = `http://localhost:${clientPort}`;
+const adminOrigin = `http://localhost:${adminPort}`;
+const scannerOrigin = `http://localhost:${scannerPort}`;
 const crossTenantClientId = '15000000-0000-4000-8000-000000000101';
 const crossTenantEventId = '15000000-0000-4000-8000-000000000102';
 const managedClientId = '15000000-0000-4000-8000-000000000001';
@@ -20,6 +32,7 @@ let databaseName;
 let databaseUrl;
 let maintenanceUrl;
 let storageRoot;
+let databaseCreated = false;
 
 loadEnvironment();
 
@@ -36,20 +49,28 @@ try {
   await mkdir(storageRoot, { recursive: true });
 
   await createDatabase(maintenanceUrl, databaseName);
+  databaseCreated = true;
   const runtimeEnvironment = {
     ...process.env,
     NODE_ENV: 'development',
-    PORT: '3000',
-    API_PORT: '3000',
+    PORT: String(apiPort),
+    API_PORT: String(apiPort),
+    LOG_LEVEL: 'error',
     DATABASE_URL: databaseUrl,
     FILE_STORAGE_LOCAL_ROOT: storageRoot,
-    CORS_ORIGINS: 'http://localhost:5173,http://localhost:5174,http://localhost:5175',
-    PUBLIC_INVITATION_BASE_URL: 'http://localhost:5173/invitacion',
-    VITE_API_BASE_URL: 'http://localhost:3000/api/v1',
-    VITE_SOCKET_URL: 'http://localhost:3000',
-    VITE_ADMIN_APP_URL: 'http://localhost:5174',
-    VITE_CLIENT_APP_URL: 'http://localhost:5173',
-    VITE_SCANNER_APP_URL: 'http://localhost:5175',
+    CORS_ORIGINS: [clientOrigin, adminOrigin, scannerOrigin].join(','),
+    PUBLIC_INVITATION_BASE_URL: `${clientOrigin}/invitacion`,
+    VITE_API_BASE_URL: `${apiOrigin}/api/v1`,
+    VITE_SOCKET_URL: apiOrigin,
+    VITE_ADMIN_APP_URL: adminOrigin,
+    VITE_CLIENT_APP_URL: clientOrigin,
+    VITE_SCANNER_APP_URL: scannerOrigin,
+    MANAGED_E2E_API_URL: `${apiOrigin}/api/v1`,
+    MANAGED_E2E_CLIENT_URL: clientOrigin,
+    MANAGED_E2E_ADMIN_URL: adminOrigin,
+    MANAGED_E2E_SCANNER_URL: scannerOrigin,
+    MANAGED_DEMO_ARTIFACT_PATH: join(storageRoot, 'credentials.json'),
+    INVITATION_TOKEN_SIGNING_SECRET: randomBytes(48).toString('base64url'),
     MANAGED_E2E_CROSS_TENANT_EVENT_ID: crossTenantEventId
   };
 
@@ -57,29 +78,60 @@ try {
   process.stdout.write('[managed-e2e] Seeding with: pnpm --filter @invitaciones/api managed-demo:seed\n');
   await runPnpm(['--filter', '@invitaciones/api', 'managed-demo:seed'], runtimeEnvironment);
   await seedCrossTenantNegative(databaseUrl);
+  await seedLegacyCatalog(databaseUrl);
 
   startService('api', ['--filter', '@invitaciones/api', 'exec', 'tsx', 'src/main.ts'], runtimeEnvironment);
-  await waitForUrl('http://localhost:3000/api/v1/health', 'API');
+  await waitForUrl(`${apiOrigin}/api/v1/health`, 'API');
 
   startService(
     'client',
-    ['--filter', '@invitaciones/client', 'exec', 'vite', '--host', '127.0.0.1', '--port', '5173', '--strictPort'],
+    [
+      '--filter',
+      '@invitaciones/client',
+      'exec',
+      'vite',
+      '--host',
+      'localhost',
+      '--port',
+      String(clientPort),
+      '--strictPort'
+    ],
     runtimeEnvironment
   );
   startService(
     'admin',
-    ['--filter', '@invitaciones/admin', 'exec', 'vite', '--host', '127.0.0.1', '--port', '5174', '--strictPort'],
+    [
+      '--filter',
+      '@invitaciones/admin',
+      'exec',
+      'vite',
+      '--host',
+      'localhost',
+      '--port',
+      String(adminPort),
+      '--strictPort'
+    ],
     runtimeEnvironment
   );
   startService(
     'scanner',
-    ['--filter', '@invitaciones/scanner', 'exec', 'vite', '--host', '127.0.0.1', '--port', '5175', '--strictPort'],
+    [
+      '--filter',
+      '@invitaciones/scanner',
+      'exec',
+      'vite',
+      '--host',
+      'localhost',
+      '--port',
+      String(scannerPort),
+      '--strictPort'
+    ],
     runtimeEnvironment
   );
   await Promise.all([
-    waitForUrl('http://localhost:5173/login', 'Client'),
-    waitForUrl('http://localhost:5174/login', 'Admin'),
-    waitForUrl('http://localhost:5175/', 'Scanner')
+    waitForUrl(`${clientOrigin}/login`, 'Client'),
+    waitForUrl(`${adminOrigin}/login`, 'Admin'),
+    waitForUrl(scannerOrigin, 'Scanner')
   ]);
 
   const playwrightExitCode = await runPnpm(
@@ -94,8 +146,14 @@ try {
   process.exitCode = 1;
 } finally {
   await stopOwnedServices();
-  if (databaseName && maintenanceUrl) await dropDatabase(maintenanceUrl, databaseName).catch(reportCleanupError);
-  if (storageRoot) await rm(storageRoot, { recursive: true, force: true }).catch(reportCleanupError);
+  if (databaseCreated) await dropDatabase(maintenanceUrl, databaseName).catch(reportCleanupError);
+  if (storageRoot) await cleanupOwnedStorage(storageRoot).catch(reportCleanupError);
+}
+
+async function cleanupOwnedStorage(path) {
+  if (!resolve(path).startsWith(resolve(root, 'var', 'managed-m01-e2e') + sep))
+    throw new Error('Cleanup escaped owned M01 storage.');
+  await rm(path, { recursive: true, force: true });
 }
 
 function loadEnvironment() {
@@ -125,7 +183,7 @@ async function assertPortsAvailable(ports) {
   }
   if (occupied.length) {
     throw new Error(
-      `Required ports are occupied: ${occupied.join(', ')}. Stop the owning processes and retry; the harness did not seed, modify the database, or terminate any process.`
+      `Required ports are occupied: ${occupied.join(', ')}. Use --port-offset with available ports; the harness did not seed, modify the database, or terminate any process.`
     );
   }
 }
@@ -195,11 +253,13 @@ async function assertNoFinancialArtifacts(url) {
   try {
     const result = await client.query(
       `SELECT
-         (SELECT count(*)::int FROM ledger_entry WHERE event_id = $1) AS ledger_entries,
+         (SELECT count(*)::int FROM ledger_entry WHERE client_id = $2::uuid) AS ledger_entries,
          (SELECT count(*)::int FROM receipt WHERE client_id = $2::uuid OR operation_reference = $1::text) AS receipts,
          (SELECT count(*)::int FROM payment WHERE client_id = $2) AS payments,
          (SELECT count(*)::int FROM finance_balance WHERE client_id = $2) AS balances,
-         (SELECT count(*)::int FROM credit_line WHERE client_id = $2) AS credit_lines`,
+         (SELECT count(*)::int FROM credit_line WHERE client_id = $2) AS credit_lines,
+         (SELECT count(*)::int FROM event WHERE client_id = $2 AND
+           (commercial_authorized_at IS NOT NULL OR design_kickoff_at IS NOT NULL OR activation_receipt_id IS NOT NULL)) AS commercial_or_financial_snapshots`,
       [managedEventId, managedClientId]
     );
     const counts = result.rows[0];
@@ -215,28 +275,43 @@ async function assertNoFinancialArtifacts(url) {
   }
 }
 
+async function seedLegacyCatalog(url) {
+  const client = new Client({ connectionString: url });
+  await client.connect();
+  try {
+    // Existing services only; fixture catalog stays inside this run's new database.
+    await client.query(`INSERT INTO service(id,code,is_active,created_at,updated_at)
+      VALUES(gen_random_uuid(),'FLIPBOOK',true,now(),now()),(gen_random_uuid(),'PHYSICAL_QR',true,now(),now())
+      ON CONFLICT(code) DO UPDATE SET is_active=true`);
+    await client.query(`INSERT INTO client(id,type,operating_profile,name,status,created_at,updated_at)
+      VALUES('15000000-0000-4000-8000-000000000201','PLANNER','SELF_SERVICE','[E2E] Legacy físico','ACTIVE',now(),now())`);
+    await client.query(`INSERT INTO app_user(id,email,password_hash,role,client_id,created_at,updated_at)
+      SELECT '15000000-0000-4000-8000-000000000202','legacy-physical@example.invalid',password_hash,'INDEPENDENT_PLANNER',
+      '15000000-0000-4000-8000-000000000201',now(),now() FROM app_user WHERE id='15000000-0000-4000-8000-000000000003'`);
+  } finally {
+    await client.end();
+  }
+}
+
 function startService(name, args, environment) {
   const child = spawnPnpm(args, environment, ['ignore', 'pipe', 'pipe']);
   children.push({ name, child });
-  pipeWithPrefix(child.stdout, name, process.stdout);
-  pipeWithPrefix(child.stderr, name, process.stderr);
+  // Request logs can include Staff/public token paths. Never retain service output in QA artifacts.
+  child.stdout.resume();
+  let errorRemainder = '';
+  child.stderr.on('data', (chunk) => {
+    const lines = `${errorRemainder}${chunk}`.split(/\r?\n/u);
+    errorRemainder = lines.pop() ?? '';
+    for (const line of lines) {
+      // Only error diagnostics, redacted before writing; never forward raw request logs.
+      if (line.includes('"level":"error"')) process.stderr.write(`[${name}] ${redactQaText(line)}\n`);
+    }
+  });
   child.once('exit', (code, signal) => {
     if (!stoppingOwnedServices && code && process.exitCode !== 1) {
       process.stderr.write(`[managed-e2e] ${name} exited unexpectedly (${code ?? signal}).\n`);
       process.exitCode = 1;
     }
-  });
-}
-
-function pipeWithPrefix(stream, name, destination) {
-  let remainder = '';
-  stream?.on('data', (chunk) => {
-    const lines = `${remainder}${chunk}`.split(/\r?\n/u);
-    remainder = lines.pop() ?? '';
-    for (const line of lines) destination.write(`[${name}] ${line}\n`);
-  });
-  stream?.on('end', () => {
-    if (remainder) destination.write(`[${name}] ${remainder}\n`);
   });
 }
 
@@ -303,6 +378,7 @@ async function stopOwnedProcess(child) {
 }
 
 function reportCleanupError(error) {
+  process.exitCode = 1;
   process.stderr.write(`[managed-e2e] Cleanup warning: ${error instanceof Error ? error.message : String(error)}\n`);
 }
 

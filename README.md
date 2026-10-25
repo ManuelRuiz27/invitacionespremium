@@ -113,13 +113,26 @@ Certificación E2E local de M01 Managed:
 
 ```bash
 pnpm test:e2e:managed
+# Si los puertos habituales pertenecen a otro entorno:
+pnpm test:e2e:managed -- --port-offset=1000
 ```
 
-El comando exige libres los puertos `3000`, `5173`, `5174` y `5175`; si alguno está ocupado, falla antes de
-modificar datos y no termina procesos ajenos. Crea una base PostgreSQL efímera, aplica migraciones, ejecuta
-`pnpm --filter @invitaciones/api managed-demo:seed` antes de iniciar Vite, corre el journey Playwright en Chromium y
-elimina únicamente la base, storage y procesos creados por la propia ejecución. Las credenciales continúan en
-`apps/api/var/managed-demo/credentials.json`, fuera de control de versiones.
+El comando exige libres los puertos `3000`, `5173`, `5174` y `5175`, más el offset indicado (por defecto `0`);
+si alguno está ocupado, falla antes de modificar datos y no termina procesos ajenos. Crea una base PostgreSQL
+efímera, aplica migraciones, ejecuta el seed Managed antes de iniciar Vite y corre los journeys en Chromium.
+Las credenciales temporales viven exclusivamente en el storage de esa ejecución, bajo `var/managed-m01-e2e/`;
+elimina únicamente la base, storage y procesos propios. No sobrescribe el artefacto del demo compartido.
+
+Certificación aislada ACCESS_CONTROL y regresiones PostgreSQL:
+
+```bash
+pnpm test:e2e:access-control
+pnpm test:e2e:access-control -- --integration-only
+```
+
+Ambos comandos crean y eliminan su propia base. El primero exige libres `5300`, `5373`, `5374` y `5375`.
+No ejecutar integración destructiva contra una base compartida. Los journeys con credenciales usan un reporter
+con redacción y no publican capturas, traces ni vídeo. Ver [certificación DT09](docs/05-implementacion/M02_B01_DT09_CERTIFICATION.md).
 
 Filtrar una app:
 

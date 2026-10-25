@@ -1,13 +1,23 @@
-import { expect, test, type BrowserContext, type Page } from '@playwright/test';
+import { expect, test, type APIRequestContext, type BrowserContext, type Page } from '@playwright/test';
+import { randomUUID } from 'node:crypto';
+import { createRequire } from 'node:module';
+import sharp from 'sharp';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 const EVENT_ID = '15000000-0000-4000-8000-000000000005';
 const CLIENT_ID = '15000000-0000-4000-8000-000000000001';
 const CROSS_TENANT_EVENT_ID = process.env.MANAGED_E2E_CROSS_TENANT_EVENT_ID ?? '15000000-0000-4000-8000-000000000102';
-const ADMIN_URL = 'http://localhost:5174';
-const CLIENT_URL = 'http://localhost:5173';
-const API_URL = 'http://localhost:3000/api/v1';
+const ADMIN_URL = process.env.MANAGED_E2E_ADMIN_URL ?? 'http://localhost:5174';
+const CLIENT_URL = process.env.MANAGED_E2E_CLIENT_URL ?? 'http://localhost:5173';
+const API_URL = process.env.MANAGED_E2E_API_URL ?? 'http://localhost:3000/api/v1';
+const SCANNER_URL = process.env.MANAGED_E2E_SCANNER_URL ?? 'http://localhost:5175';
+const requireScanner = createRequire(join(process.cwd(), 'apps/scanner/package.json'));
+const decodeQr = requireScanner('jsqr') as (
+  pixels: Uint8ClampedArray,
+  width: number,
+  height: number
+) => { data: string } | null;
 
 interface ManagedDemoCredentials {
   users: {
@@ -16,19 +26,22 @@ interface ManagedDemoCredentials {
   };
 }
 
-test('certifica el journey Managed M01 y sus negativos release-critical', async ({ browser }, testInfo) => {
+test('certifica el journey Managed M01 y sus negativos release-critical', async ({ browser }) => {
   const credentials = JSON.parse(
-    await readFile(join(process.cwd(), 'apps/api/var/managed-demo/credentials.json'), 'utf8')
+    await readFile(
+      process.env.MANAGED_DEMO_ARTIFACT_PATH ?? join(process.cwd(), 'apps/api/var/managed-demo/credentials.json'),
+      'utf8'
+    )
   ) as ManagedDemoCredentials;
   const requestedApiPaths: string[] = [];
   const contexts: BrowserContext[] = [];
-  const pages: Array<{ name: string; page: Page }> = [];
 
   const createContext = async () => {
     const context = await browser.newContext();
     context.on('request', (request) => {
       const url = new URL(request.url());
-      if (url.origin === 'http://localhost:3000') requestedApiPaths.push(url.pathname);
+      if (url.origin === new URL(API_URL).origin)
+        requestedApiPaths.push(url.pathname.replace(/\/(scanner|invitations)\/[^/]+/gu, '/$1/[redacted]'));
     });
     contexts.push(context);
     return context;
@@ -42,12 +55,6 @@ test('certifica el journey Managed M01 y sus negativos release-critical', async 
   const plannerPage = await plannerContext.newPage();
   const publicPage = await publicContext.newPage();
   const scannerPage = await scannerContext.newPage();
-  pages.push(
-    { name: 'admin', page: adminPage },
-    { name: 'planner', page: plannerPage },
-    { name: 'public', page: publicPage },
-    { name: 'scanner', page: scannerPage }
-  );
   let scannerUrl = '';
 
   try {
@@ -115,11 +122,11 @@ test('certifica el journey Managed M01 y sus negativos release-critical', async 
       expect(invitationUrl).toBeTruthy();
       await publicPage.goto(invitationUrl!);
       await expect(publicPage.getByRole('heading', { name: 'Boda de Elena & Mateo' })).toBeVisible();
-      await expect(publicPage.getByRole('heading', { name: 'Tu asistencia' })).toBeVisible();
+      await expect(publicPage.getByRole('button', { name: 'Confirmar asistencia', exact: true })).toBeVisible();
     });
 
     await test.step('9. Diego Torres realiza RSVP real', async () => {
-      await publicPage.getByLabel('Tu asistencia').getByRole('button', { name: 'Confirmar asistencia' }).click();
+      await publicPage.getByRole('button', { name: 'Confirmar asistencia', exact: true }).click();
       const dialog = publicPage.getByRole('dialog', { name: 'Confirmación de asistencia' });
       await expect(dialog).toBeVisible();
       const responsePromise = publicPage.waitForResponse(
@@ -128,7 +135,7 @@ test('certifica el journey Managed M01 y sus negativos release-critical', async 
       await dialog.getByRole('button', { name: 'Confirmar asistencia' }).click();
       expect((await responsePromise).status()).toBe(200);
       await expect(publicPage.getByText('Tu confirmación quedó guardada.')).toBeVisible();
-      await expect(publicPage.getByText('Asistencia confirmada')).toBeVisible();
+      await expect(publicPage.getByRole('button', { name: 'Modificar acompañantes', exact: true })).toBeVisible();
     });
 
     await test.step('10. Planner observa Confirmada', async () => {
@@ -180,7 +187,7 @@ test('certifica el journey Managed M01 y sus negativos release-critical', async 
       expect((await responsePromise).status()).toBe(201);
       await expect(plannerPage.getByRole('heading', { name: 'Acceso recién creado: Recepción MG-05' })).toBeVisible();
       scannerUrl = await plannerPage.getByLabel('Enlace Scanner').inputValue();
-      expect(scannerUrl).toMatch(/^http:\/\/localhost:5175\/scanner\/st1\./u);
+      expect(scannerUrl.startsWith(`${SCANNER_URL}/scanner/st1.`)).toBe(true);
     });
 
     await test.step('14. Staff abre Scanner con el token generado por UI', async () => {
@@ -276,11 +283,6 @@ test('certifica el journey Managed M01 y sus negativos release-critical', async 
       );
       expect(financialPath, `Unexpected financial request: ${financialPath}`).toBeUndefined();
     });
-  } catch (error) {
-    await Promise.allSettled(
-      pages.map(({ name, page }) => page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true }))
-    );
-    throw error;
   } finally {
     await Promise.allSettled(contexts.map((context) => context.close()));
   }
@@ -288,8 +290,8 @@ test('certifica el journey Managed M01 y sus negativos release-critical', async 
 
 async function loginAdmin(page: Page, credentials: { email: string; password: string }) {
   await page.goto(`${ADMIN_URL}/login`);
-  await page.getByLabel('Correo electronico').fill(credentials.email);
-  await page.getByLabel('Contrasena').fill(credentials.password);
+  await page.getByLabel('Correo electrónico').fill(credentials.email);
+  await page.getByLabel('Contraseña').fill(credentials.password);
   await page.getByRole('button', { name: 'Entrar al panel' }).click();
 }
 
@@ -305,3 +307,260 @@ async function assertRedirectedToEvents(page: Page, url: string) {
   await expect(page).toHaveURL(`${CLIENT_URL}/eventos`);
   await expect(page.getByRole('heading', { name: 'Eventos' })).toBeVisible();
 }
+
+for (const serviceCode of ['FLYER', 'FLIPBOOK'] as const) {
+  test(`DT09 M01 ${serviceCode}: Provider creates/prepares/activates, Planner registers, public RSVP/QR and idempotent Scanner`, async ({
+    browser
+  }) => {
+    const credentials = JSON.parse(
+      await readFile(process.env.MANAGED_DEMO_ARTIFACT_PATH!, 'utf8')
+    ) as ManagedDemoCredentials;
+    const provider = await browser.newContext(),
+      planner = await browser.newContext(),
+      publicContext = await browser.newContext();
+    try {
+      await managedPost(provider.request, '/auth/login', credentials.users.platformAdmin, 200);
+      await managedPost(planner.request, '/auth/login', credentials.users.planner, 200);
+      const me = await (await planner.request.get(`${API_URL}/auth/me`)).json();
+      const event = await managedPost(
+        provider.request,
+        `/admin/clients/${CLIENT_ID}/events/managed`,
+        { name: `DT09 M01 ${serviceCode}`, serviceCode, capacity: 3, assignedPlannerUserId: me.id },
+        201
+      );
+      const base = `/admin/clients/${CLIENT_ID}/events/${event.id}`;
+      const update = await provider.request.patch(`${API_URL}${base}`, {
+        headers: { Origin: CLIENT_URL },
+        data: {
+          socialType: 'OTHER',
+          eventDateTime: '2035-01-01T18:00:00Z',
+          timeZone: 'America/Mexico_City',
+          confirmationEnabled: true,
+          locationUrl: 'https://example.com/location',
+          giftRegistryUrl: 'https://example.com/gifts'
+        }
+      });
+      expect(update.status()).toBe(200);
+      await managedPost(
+        planner.request,
+        `/events/${event.id}/contacts`,
+        { name: 'Invitado M01', whatsappPhone: '+525512345678' },
+        201
+      );
+      const png = await sharp({ create: { width: 480, height: 680, channels: 3, background: '#f3eee6' } })
+        .png()
+        .toBuffer();
+      async function upload(fileType: string) {
+        const response = await provider.request.post(`${API_URL}${base}/design/file-assets`, {
+          headers: { Origin: CLIENT_URL },
+          multipart: { fileType, file: { name: 'invitation.png', mimeType: 'image/png', buffer: png } }
+        });
+        expect(response.status()).toBe(201);
+        return response.json();
+      }
+      let pageId: string | undefined;
+      if (serviceCode === 'FLYER') {
+        const initial = await upload('FLYER_INITIAL_IMAGE'),
+          qr = await upload('FLYER_QR_IMAGE');
+        await managedPost(
+          provider.request,
+          `${base}/design/flyer`,
+          { initialAssetId: initial.id, qrAssetId: qr.id },
+          201
+        );
+      } else {
+        await managedPost(provider.request, `${base}/design/flipbook`, {}, 201);
+        for (let index = 0; index < 3; index++) {
+          const asset = await upload('FLIPBOOK_PAGE_IMAGE');
+          const design = await managedPost(
+            provider.request,
+            `${base}/design/flipbook/pages`,
+            { fileAssetId: asset.id },
+            201
+          );
+          if (index === 1) pageId = design.pages[1].id as string;
+        }
+      }
+      for (const action of serviceCode === 'FLYER'
+        ? ['RSVP', 'LOCATION', 'GIFT_REGISTRY', 'QR_AREA']
+        : ['RSVP', 'QR_AREA'])
+        await managedPost(
+          provider.request,
+          `${base}/hotspots`,
+          {
+            visualOwnerType: serviceCode === 'FLYER' ? 'FLYER' : 'FLIPBOOK_PAGE',
+            ...(pageId ? { flipbookPageId: pageId } : {}),
+            action,
+            x: 0.1,
+            y: ['RSVP', 'LOCATION', 'GIFT_REGISTRY', 'QR_AREA'].indexOf(action) * 0.2 + 0.1,
+            width: 0.2,
+            height: 0.2,
+            priority: 1
+          },
+          201
+        );
+      const readiness = await (await provider.request.get(`${API_URL}${base}/design/readiness`)).json();
+      expect(readiness.complete).toBe(true);
+      const activationKey = randomUUID();
+      const activated = await managedPost(provider.request, `${base}/activate`, {}, 200, activationKey);
+      expect(activated).toMatchObject({ status: 'ACTIVE' });
+      expect(activated.activatedAt).toBeTruthy();
+      expect(await managedPost(provider.request, `${base}/activate`, {}, 200, activationKey)).toEqual(activated);
+      const plannerPage = await planner.newPage();
+      await plannerPage.goto(`${CLIENT_URL}/eventos/${event.id}?seccion=invitaciones`);
+      const invitationUrl = await plannerPage.getByRole('link', { name: 'Abrir invitación' }).getAttribute('href');
+      const publicPage = await publicContext.newPage();
+      await publicPage.goto(invitationUrl!);
+      await expect(publicPage.getByRole('heading', { name: `DT09 M01 ${serviceCode}` })).toBeVisible();
+      if (serviceCode === 'FLIPBOOK') {
+        const reader = publicPage.locator('.flipbook-reader');
+        await expect(reader).toHaveAttribute('data-visible-pages', '0');
+        await publicPage.getByRole('button', { name: 'Pausar animación automática' }).click();
+        await reader.press('ArrowRight');
+        await expect(reader).not.toHaveAttribute('data-visible-pages', '0');
+      }
+      await publicPage.getByRole('button', { name: 'Confirmar asistencia', exact: true }).click();
+      const dialog = publicPage.getByRole('dialog', { name: 'Confirmación de asistencia' });
+      await dialog.getByRole('button', { name: 'Confirmar asistencia' }).click();
+      await expect(publicPage.getByText('Tu confirmación quedó guardada.')).toBeVisible();
+      const invitationToken = new URL(invitationUrl!).pathname.split('/').at(-1)!;
+      const svg = await publicContext.request.get(`${API_URL}/public/invitations/${invitationToken}/qr.svg`);
+      expect(svg.status()).toBe(200);
+      const { data, info } = await sharp(await svg.body())
+        .ensureAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+      const decoded = decodeQr(new Uint8ClampedArray(data), info.width, info.height);
+      expect(Boolean(decoded)).toBe(true);
+      const staff = await managedPost(planner.request, `/events/${event.id}/staff-tokens`, { alias: 'M01 QR' }, 201);
+      const available = await managedPost(
+        publicContext.request,
+        `/scanner/${staff.token}/scan`,
+        { qrToken: decoded!.data },
+        200
+      );
+      expect(available.status).toBe('AVAILABLE');
+      const key = randomUUID();
+      const body = {
+        invitationId: available.invitation.id,
+        assistantIds: available.pendingAssistants.map((assistant: { id: string }) => assistant.id)
+      };
+      const checked = await managedPost(publicContext.request, `/scanner/${staff.token}/check-in`, body, 200, key);
+      expect(checked.status).toBe('CHECKED_IN');
+      expect(await managedPost(publicContext.request, `/scanner/${staff.token}/check-in`, body, 200, key)).toEqual(
+        checked
+      );
+      await managedPost(planner.request, `/events/${event.id}/close`, {}, 200);
+      expect((await publicContext.request.get(`${API_URL}/scanner/${staff.token}/session`)).status()).toBe(401);
+    } finally {
+      await Promise.all([provider.close(), planner.close(), publicContext.close()]);
+    }
+  });
+}
+
+async function managedPost(request: APIRequestContext, path: string, data: object, status: number, key = randomUUID()) {
+  const response = await request.post(`${API_URL}${path}`, {
+    headers: { Origin: CLIENT_URL, 'Idempotency-Key': key },
+    data
+  });
+  const body = await response.json();
+  expect(response.status(), `M01 HTTP domain code ${body.code ?? 'OK'}`).toBe(status);
+  return body;
+}
+
+test('DT09 PHYSICAL_QR legacy: authorized generation, SVG, unique use and original post-close replay', async ({
+  browser
+}) => {
+  const credentials = JSON.parse(
+    await readFile(process.env.MANAGED_DEMO_ARTIFACT_PATH!, 'utf8')
+  ) as ManagedDemoCredentials;
+  const provider = await browser.newContext(),
+    planner = await browser.newContext(),
+    staffContext = await browser.newContext();
+  try {
+    await managedPost(provider.request, '/auth/login', credentials.users.platformAdmin, 200);
+    await managedPost(
+      planner.request,
+      '/auth/login',
+      { email: 'legacy-physical@example.invalid', password: credentials.users.planner.password },
+      200
+    );
+    const services = await (await planner.request.get(`${API_URL}/services`)).json();
+    const physical = services.find((service: { code: string }) => service.code === 'PHYSICAL_QR');
+    expect(Boolean(physical)).toBe(true);
+    const event = await managedPost(
+      planner.request,
+      '/events',
+      {
+        name: 'DT09 PHYSICAL_QR legacy',
+        serviceId: physical.id,
+        socialType: 'OTHER',
+        capacity: 3,
+        eventDateTime: '2035-01-01T18:00:00Z',
+        timeZone: 'America/Mexico_City'
+      },
+      201
+    );
+    const batch = await managedPost(
+      planner.request,
+      `/events/${event.id}/physical-passes/generate`,
+      { quantity: 2 },
+      200
+    );
+    const me = await (await planner.request.get(`${API_URL}/auth/me`)).json();
+    await managedPost(
+      provider.request,
+      `/admin/finance/clients/${me.clientId}/assign-credits`,
+      { credits: 1000, reason: 'DT09 isolated legacy regression fixture' },
+      201
+    );
+    await managedPost(
+      provider.request,
+      `/admin/clients/${me.clientId}/events/${event.id}/commercial-authorization`,
+      { acceptanceConfirmed: true },
+      200
+    );
+    const activationKey = randomUUID();
+    const activation = await managedPost(planner.request, `/events/${event.id}/activate`, {}, 200, activationKey);
+    expect(activation.event).toMatchObject({ status: 'ACTIVE', serviceCode: 'PHYSICAL_QR', accessMode: null });
+    expect(activation.receipt).toBeTruthy();
+    expect(activation.event.purchasedCreditsUsed).toBeGreaterThan(0);
+    expect(await managedPost(planner.request, `/events/${event.id}/activate`, {}, 200, activationKey)).toEqual(
+      activation
+    );
+    const balance = await (await planner.request.get(`${API_URL}/finance/balance`)).json();
+    expect(balance.purchasedCredits).toBe(1000 - activation.event.purchasedCreditsUsed);
+    const page = await planner.newPage();
+    await page.goto(`${CLIENT_URL}/eventos/${event.id}`);
+    await expect(page.getByRole('heading', { name: 'DT09 PHYSICAL_QR legacy', exact: true })).toBeVisible();
+    expect((await planner.request.get(`${API_URL}/events/${event.id}/access-operations`)).status()).toBe(403);
+    const svg = await planner.request.get(`${API_URL}/events/${event.id}/physical-passes/${batch.passes[0].id}/svg`);
+    expect(svg.status()).toBe(200);
+    const { data, info } = await sharp(await svg.body(), { density: 160 })
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const qr = decodeQr(new Uint8ClampedArray(data), info.width, info.height);
+    expect(Boolean(qr)).toBe(true);
+    const staff = await managedPost(
+      planner.request,
+      `/events/${event.id}/staff-tokens`,
+      { alias: 'Legacy físico' },
+      201
+    );
+    const key = randomUUID();
+    const path = `/scanner/${staff.token}/physical-passes/scan`;
+    const used = await managedPost(staffContext.request, path, { qrToken: qr!.data }, 200, key);
+    expect(used).toMatchObject({ status: 'USED', passNumber: 1 });
+    const duplicate = await staffContext.request.post(`${API_URL}${path}`, {
+      headers: { Origin: CLIENT_URL, 'Idempotency-Key': randomUUID() },
+      data: { qrToken: qr!.data }
+    });
+    expect(duplicate.status()).toBe(409);
+    await managedPost(planner.request, `/events/${event.id}/close`, {}, 200);
+    // Legacy deliberately retains this historical replay rule; B01 anonymous reauthorizes current Staff.
+    expect(await managedPost(staffContext.request, path, { qrToken: qr!.data }, 200, key)).toEqual(used);
+  } finally {
+    await Promise.all([provider.close(), planner.close(), staffContext.close()]);
+  }
+});

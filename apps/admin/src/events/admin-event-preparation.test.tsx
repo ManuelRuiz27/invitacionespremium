@@ -1667,9 +1667,13 @@ describe('Admin Event preparation surfaces', () => {
       }))
     );
 
-    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    // This route resolves auth, Event, Client and Floorplan asynchronously.
+    // Drain the React work before observing its surface or driving its callbacks.
+    await act(async () => {
+      renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    });
     await screen.findByTestId('admin-floorplan-surface');
-    act(() => {
+    await act(async () => {
       (floorplanHarness.props?.onSeatSelect as (seatId: string, options: { additive: boolean }) => void)('seat-s1', {
         additive: false
       });
@@ -1680,7 +1684,7 @@ describe('Admin Event preparation surfaces', () => {
     expect(await screen.findByText('2 lugares seleccionados')).toBeInTheDocument();
     expect(screen.getByText('Asiento B · Mesa Principal')).toBeInTheDocument();
     expect(screen.getByText('Las acciones siguientes se aplican solo a Asiento B.')).toBeInTheDocument();
-    act(() => {
+    await act(async () => {
       (floorplanHarness.props?.onSeatMove as (seatId: string, point: { x: number; y: number }) => void)('seat-s1', {
         x: 0.3,
         y: 0.3

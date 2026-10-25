@@ -1,4 +1,7 @@
 import { randomUUID } from 'node:crypto';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { cpus, totalmem } from 'node:os';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -38,7 +41,9 @@ describe('DT08 authoritative access operations, privacy and MVCC', () => {
       INVITATION_TOKEN_SIGNING_SECRET: 'dt08-integration-signing-secret-at-least-32-bytes'
     });
     app = await createApp();
-    await app.init();
+    // Supertest must not create/close a fresh ephemeral listener per request
+    // while the load case has other requests in flight.
+    await app.listen(0, '127.0.0.1');
     db = app.get(PrismaService);
   }, 60_000);
   beforeEach(reset, 60_000);
@@ -46,6 +51,212 @@ describe('DT08 authoritative access operations, privacy and MVCC', () => {
     if (db) await reset();
     if (app) await app.close();
   }, 60_000);
+
+  it.each(['NOMINAL', 'ANONYMOUS'] as const)(
+    'DT09 measures 150 %s rights with two concurrent readers, history and dashboard traffic',
+    async (mode) => {
+      const f = await fixture(mode);
+      await patch(f, { capacity: 150, floorplanEnabled: true }).expect(200);
+      const first = await tableFixture(f);
+      const tables = [first.id];
+      for (let index = 1; index < 5; index++)
+        tables.push((await secondTable(f, first.floorplanId, 'TABLE', `Mesa ${index}`)).id);
+      await db.floorplanShape.updateMany({ where: { eventId: f.id }, data: { capacity: 30 } });
+      let materials: Material[];
+      if (mode === 'NOMINAL') {
+        const csv =
+          'name,whatsapp_phone,group\n' +
+          Array.from({ length: 150 }, (_, i) => `Persona ${i},,Grupo ${i % 5}`).join('\n');
+        const preview = await request(app.getHttpServer())
+          .post(`/api/v1/events/${f.id}/contacts/import/preview`)
+          .set('Cookie', f.cookie)
+          .set('Origin', origin)
+          .attach('file', Buffer.from(csv), 'pilot.csv')
+          .expect(201);
+        await post(
+          `/api/v1/events/${f.id}/contacts/import/commit`,
+          f.cookie,
+          { previewId: preview.body.previewId },
+          randomUUID()
+        ).expect(200);
+        const people = await db.assistant.findMany({ where: { eventId: f.id }, orderBy: { id: 'asc' } });
+        for (let index = 0; index < people.length; index++) {
+          await issue(f, people[index]!.id).expect(201);
+          await assign(f, people[index]!.id, tables[Math.floor(index / 30)]!);
+        }
+        materials = (await db.assistantAccessCredential.findMany({ where: { eventId: f.id } })).map((c) => ({
+          ...c,
+          passNumber: null
+        }));
+        for (let index = 0; index < 3; index++) {
+          const previous = materials[index]!;
+          await revokeNominal(f, previous.id).expect(200);
+          const replacement = await issue(f, previous.assistantId!).expect(201);
+          materials[index] = {
+            ...(await db.assistantAccessCredential.findUniqueOrThrow({ where: { id: replacement.body.id as string } })),
+            passNumber: null
+          };
+        }
+      } else {
+        for (const tableShapeId of tables)
+          await post(
+            `/api/v1/admin/clients/${f.client.id}/events/${f.id}/physical-passes/generate`,
+            f.providerCookie,
+            { quantity: 30, tableShapeId },
+            randomUUID()
+          ).expect(200);
+        const original = await db.physicalPass.findFirstOrThrow({ where: { eventId: f.id } });
+        await revokePhysical(f, original.id).expect(200);
+        await generate(f, original.floorplanShapeId!).expect(200);
+        materials = (await db.physicalPass.findMany({ where: { eventId: f.id, revokedAt: null } })).map((p) => ({
+          ...p,
+          assistantId: null
+        }));
+      }
+      expect(materials).toHaveLength(150);
+      await activate(f).expect(200);
+      const tokens = [await staff(f), await staff(f)];
+      const before = await db.$queryRaw<Array<{ deadlocks: number; rollbacks: bigint }>>`
+        SELECT deadlocks, xact_rollback AS rollbacks FROM pg_stat_database WHERE datname=current_database()`;
+      const latencies: number[] = [],
+        dashboardLatencies: number[] = [];
+      let completed = 0,
+        errors = 0,
+        lockSamples = 0,
+        maxLockWaiters = 0,
+        readersRunning = 2,
+        serializationConflicts = 0,
+        deadlockConflicts = 0;
+      const transactionFailureCodes: Record<string, number> = {};
+      type Run = <T>(
+        work: (tx: Prisma.TransactionClient) => Promise<T>,
+        options?: { isolationLevel?: Prisma.TransactionIsolationLevel; maxWait?: number; timeout?: number }
+      ) => Promise<T>;
+      const runTransaction = db.$transaction.bind(db) as Run;
+      const observed: Run = async (work, options) => {
+        try {
+          return await runTransaction(work, options);
+        } catch (error) {
+          const code = typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : '';
+          transactionFailureCodes[code] = (transactionFailureCodes[code] ?? 0) + 1;
+          if (String(error).includes('40P01')) deadlockConflicts++;
+          else if (code === 'P2034' || String(error).includes('40001')) serializationConflicts++;
+          throw error;
+        }
+      };
+      // Observe actual failed PostgreSQL transactions; never substitute results or skip locks/retries.
+      const transactionObserver = vi.spyOn(db, '$transaction').mockImplementation(observed as typeof db.$transaction);
+      const cpu = process.cpuUsage(),
+        memoryBefore = process.memoryUsage().rss,
+        started = performance.now();
+      const recordScan = async (material: Material, token: string) => {
+        const start = performance.now();
+        const response = await scan(f, material, token);
+        latencies.push(performance.now() - start);
+        if (response.status !== 200) errors++;
+        completed++;
+      };
+      const outcomes = await Promise.allSettled([
+        ...tokens.map(async (token, reader) => {
+          try {
+            for (let index = reader; index < materials.length; index += 2) await recordScan(materials[index]!, token);
+          } finally {
+            readersRunning--;
+          }
+        }),
+        (async () => {
+          do {
+            const start = performance.now();
+            const response = await operations(f).expect(200);
+            dashboardLatencies.push(performance.now() - start);
+            assertArithmetic(response.body as AccessOperationsDto);
+            expect(response.body.entered).toBeLessThanOrEqual(150);
+            const [sample] = await db.$queryRaw<Array<{ count: bigint }>>`
+              SELECT count(*) FROM pg_stat_activity WHERE datname=current_database() AND wait_event_type='Lock'`;
+            lockSamples++;
+            maxLockWaiters = Math.max(maxLockWaiters, Number(sample!.count));
+          } while (readersRunning > 0);
+        })()
+      ]);
+      transactionObserver.mockRestore();
+      for (const outcome of outcomes) if (outcome.status === 'rejected') throw outcome.reason;
+      expect(completed).toBe(150);
+      const elapsedMs = performance.now() - started,
+        cpuUsed = process.cpuUsage(cpu);
+      const result = (await operations(f).expect(200)).body as AccessOperationsDto;
+      const action = mode === 'NOMINAL' ? 'CHECK_IN_CREATE' : 'PHYSICAL_PASS_USE';
+      const auditCount = await db.auditLog.count({ where: { eventId: f.id, action } });
+      if (mode === 'ANONYMOUS') {
+        expect(await db.contact.count({ where: { eventId: f.id } })).toBe(0);
+      }
+      await noFinance();
+      const after = await db.$queryRaw<Array<{ deadlocks: number; rollbacks: bigint }>>`
+        SELECT deadlocks, xact_rollback AS rollbacks FROM pg_stat_database WHERE datname=current_database()`;
+      const percentile = (samples: number[], percentile: number) =>
+        [...samples].sort((a, b) => a - b)[Math.ceil(samples.length * percentile) - 1]!;
+      // Local pilot gates, chosen before measurement: two gates / 150 rights, human-paced reception.
+      // These bound server latency only and are not a contractual production SLA.
+      const measurement = {
+        mode,
+        rights: 150,
+        readers: 2,
+        tables: 5,
+        errors,
+        elapsedMs,
+        scanner: { samples: latencies.length, p50Ms: percentile(latencies, 0.5), p95Ms: percentile(latencies, 0.95) },
+        dashboard: {
+          samples: dashboardLatencies.length,
+          p50Ms: percentile(dashboardLatencies, 0.5),
+          p95Ms: percentile(dashboardLatencies, 0.95)
+        },
+        database: {
+          deadlocksDelta: Number(after[0]!.deadlocks - before[0]!.deadlocks),
+          rollbackDelta: Number(after[0]!.rollbacks - before[0]!.rollbacks),
+          lockSamples,
+          maxLockWaiters,
+          serializationConflicts,
+          deadlockConflicts,
+          transactionFailureCodes,
+          retryObservation: 'failed real transactions observed before bounded service retries; rollback stats may lag'
+        },
+        process: {
+          cpuUserMs: cpuUsed.user / 1000,
+          cpuSystemMs: cpuUsed.system / 1000,
+          rssBeforeBytes: memoryBefore,
+          rssAfterBytes: process.memoryUsage().rss
+        },
+        environment: {
+          node: process.version,
+          platform: process.platform,
+          cpu: cpus()[0]?.model,
+          logicalCpus: cpus().length,
+          ramBytes: totalmem(),
+          postgres: (await db.$queryRaw<Array<{ version: string }>>`SHOW server_version`)[0]
+        },
+        gates: { scannerP95Ms: 2000, dashboardP95Ms: 1500, unexpectedErrors: 0, deadlocks: 0 },
+        generatedAt: new Date().toISOString()
+      };
+      const path = process.env.DT09_PERF_DIR
+        ? join(process.env.DT09_PERF_DIR, `${mode.toLowerCase()}.json`)
+        : undefined;
+      if (path) {
+        await mkdir(dirname(path), { recursive: true });
+        await writeFile(path, JSON.stringify(measurement, null, 2));
+      }
+      console.info('[DT09 aggregate performance]', JSON.stringify(measurement));
+      expect(result).toMatchObject({ activeRights: 150, entered: 150, pending: 0, availableCapacity: 0 });
+      expect(result.tables).toHaveLength(5);
+      expect(auditCount).toBe(150);
+      expect(await db.checkIn.count({ where: { eventId: f.id, revertedAt: null } })).toBe(mode === 'NOMINAL' ? 150 : 0);
+      if (mode === 'ANONYMOUS')
+        expect(await db.physicalPass.count({ where: { eventId: f.id, usedAt: { not: null } } })).toBe(150);
+      expect(errors).toBe(0);
+      expect(measurement.database.deadlocksDelta).toBe(0);
+      expect(measurement.scanner.p95Ms).toBeLessThanOrEqual(2000);
+      expect(measurement.dashboard.p95Ms).toBeLessThanOrEqual(1500);
+    },
+    300_000
+  );
 
   it.each(['NOMINAL', 'ANONYMOUS'] as const)(
     'reads empty %s preparation with PostgreSQL time and no side effects',
@@ -679,15 +890,15 @@ describe('DT08 authoritative access operations, privacy and MVCC', () => {
         randomUUID()
       ).expect(201);
   }
-  async function secondTable(f: Fixture, floorplanId: string, mode: 'TABLE' | 'SEAT') {
+  async function secondTable(f: Fixture, floorplanId: string, mode: 'TABLE' | 'SEAT', name = 'Mesa B') {
     const table = await db.floorplanShape.create({
       data: {
         eventId: f.id,
         floorplanId,
         kind: 'TABLE',
         geometry: 'RECTANGLE',
-        name: 'Mesa B',
-        normalizedName: 'mesa b',
+        name,
+        normalizedName: name.toLowerCase(),
         capacity: mode === 'TABLE' ? 2 : 0,
         x: 0.4,
         y: 0.4,

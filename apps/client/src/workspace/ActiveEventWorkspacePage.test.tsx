@@ -849,10 +849,14 @@ describe('Active Event seating workspace', () => {
     expect(within(summary).getByText('Capacidad').parentElement).toHaveTextContent('2000');
     expect(within(summary).getByText('Asignados').parentElement).toHaveTextContent('400');
     expect(within(summary).getByText('Disponibles').parentElement).toHaveTextContent('1600');
-    fireEvent.click(await screen.findByRole('button', { name: 'Mesa 200 · 10' }));
-    expect(await screen.findByTestId('seating-tablet-drawer')).toBeInTheDocument();
-    expect(await screen.findByRole('heading', { name: '200', level: 2 })).toBeInTheDocument();
-    expect(await screen.findAllByRole('checkbox', { name: /Seleccionar Persona/ })).toHaveLength(50);
+    // Scope accessible queries to the surface being operated. Walking the full
+    // 200-table + portal DOM for every checkbox repeatedly computes all styles in jsdom.
+    fireEvent.click(
+      within(await screen.findByTestId('planner-floorplan-surface')).getByRole('button', { name: 'Mesa 200 · 10' })
+    );
+    const drawer = within(await screen.findByTestId('seating-tablet-drawer'));
+    expect(await drawer.findByRole('heading', { name: '200', level: 2 })).toBeInTheDocument();
+    expect(await drawer.findAllByRole('checkbox', { name: /Seleccionar Persona/ })).toHaveLength(50);
     expect((seatingFloorplanHarness.props?.floorplan as Floorplan).shapes).toHaveLength(200);
     expect(seatingFloorplanHarness.props?.readOnly).toBe(true);
     expect(api.floorplan.get).toHaveBeenCalledOnce();
@@ -860,19 +864,25 @@ describe('Active Event seating workspace', () => {
     for (const [, query] of vi.mocked(api.floorplan.seating).mock.calls) expect(query.limit).toBe(50);
     expect(vi.mocked(api.floorplan.seating).mock.calls.length).toBeLessThan(5);
 
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Seleccionar Persona 1' }));
-    const assign = screen.getByRole('button', { name: 'Asignar 1 a 200' });
+    fireEvent.click(drawer.getByRole('checkbox', { name: 'Seleccionar Persona 1' }));
+    const assign = drawer.getByRole('button', { name: 'Asignar 1 a 200' });
     fireEvent.click(assign);
     fireEvent.click(assign);
     expect(api.floorplan.assign).toHaveBeenCalledOnce();
-    resolveAssign({
-      changes: [
-        { assistantId: firstPage.items[0]!.assistantId, fromTableId: null, toTableId: largeFloorplan.shapes.at(-1)!.id }
-      ],
-      affectedTables: [{ tableId: largeFloorplan.shapes.at(-1)!.id, occupancy: 1, capacity: 10 }]
-    });
+    await act(async () =>
+      resolveAssign({
+        changes: [
+          {
+            assistantId: firstPage.items[0]!.assistantId,
+            fromTableId: null,
+            toTableId: largeFloorplan.shapes.at(-1)!.id
+          }
+        ],
+        affectedTables: [{ tableId: largeFloorplan.shapes.at(-1)!.id, occupancy: 1, capacity: 10 }]
+      })
+    );
     await waitFor(() => expect(screen.getByText(/Cambio guardado|actualizando la distribución/i)).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: 'Ver siguientes 50' }));
+    fireEvent.click(drawer.getByRole('button', { name: 'Ver siguientes 50' }));
     await waitFor(() =>
       expect(api.floorplan.seating).toHaveBeenLastCalledWith(
         workspaceEvent.id,

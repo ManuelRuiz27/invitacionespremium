@@ -18,6 +18,50 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  pilot-browser-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      DATABASE_POOL_MAX: 5
+      AUTH_COOKIE_SECURE: 'false'
+      AUTH_COOKIE_PATH: '/'
+      AUTH_COOKIE_SAME_SITE: lax
+      LOG_LEVEL: error
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.15.1
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter '@invitaciones/client^...' build
+      - run: pnpm --filter @invitaciones/api db:generate
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: node --test scripts/qa-redaction.test.mjs
+      - name: M01 Managed and PHYSICAL_QR legacy in owned resources
+        run: pnpm test:e2e:managed
+      - name: ACCESS_CONTROL NOMINAL and ANONYMOUS in owned resources
+        run: pnpm test:e2e:access-control
+      # No browser artifacts: single-delivery Staff/public credentials appear in these journeys.
+
   flipbook-browser-qa:
     runs-on: ubuntu-latest
     timeout-minutes: 15

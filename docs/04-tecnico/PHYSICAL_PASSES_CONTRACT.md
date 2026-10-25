@@ -208,6 +208,12 @@ misma cantidad continúan usando llaves nuevas.
 
 ## Auditoría, PostgreSQL y concurrencia
 
+DT09 mide contención con dos lectores y 150 pases. El retry de consumo conserva veinte intentos,
+Serializable, locks y la misma intención/clave; entre conflictos cede fuera de la transacción con
+espera acotada de 5–59 ms para evitar starvation. Si agota el presupuesto devuelve el código existente
+`409 PHYSICAL_PASS_CONCURRENCY_CONFLICT`, sin filtrar una excepción Prisma ni dejar escrituras parciales.
+Generación/revocación, reglas de uso y replay legacy no cambian.
+
 Cada lote registra una sola `PHYSICAL_PASS_GENERATE`; el primer uso, una sola `PHYSICAL_PASS_USE` con
 actor `STAFF_TOKEN`. Solo contienen IDs técnicos, cantidad/rango/Mesa o número/Mesa/timestamp. Cualquier
 fallo revierte la operación.

@@ -2,6 +2,12 @@
 
 ## Alcance
 
+DT09 corrige el gate de preparación Provider para `PLANNER + MANAGED`: las rutas Admin de diseño
+y assets no requieren commercial lock ni design kickoff pagado. Conservan actor Platform Admin,
+tenant/Evento exactos, estados de preparación, ownership de assets, readiness y auditoría. Client
+Managed sigue sin mutaciones técnicas. Self-Service conserva autorización comercial y kickoff;
+Organización y ACCESS_CONTROL no reciben una capacidad digital nueva. No cambia Finance ni activación.
+
 `InvitationDesignModule` administra la configuración autenticada de invitaciones digitales antes de
 activar un Evento. CODEX-061 incluye Flyer, Flipbook, Hotspots, readiness del diseño, asociación con
 FileAssets, ownership y auditoría transaccional. No incluye RSVP público, QR generado, scanner, croquis,

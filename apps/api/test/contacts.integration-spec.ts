@@ -40,6 +40,34 @@ describe('Contacts, groups, and CSV imports', () => {
     await app.close();
   }, 60_000);
 
+  it('DT09 registers legacy digital Contacts in a Provider-created Managed Event with complete basic data', async () => {
+    const owner = await createClientUser(UserRole.INDEPENDENT_PLANNER);
+    await prisma.client.update({ where: { id: owner.clientId }, data: { operatingProfile: 'MANAGED' } });
+    const provider = await createUser(null, UserRole.PLATFORM_ADMIN);
+    await prisma.service.create({ data: { code: 'FLYER' } });
+    const cookie = await login(provider.email);
+    const created = await mutate('post', `/admin/clients/${owner.clientId}/events/managed`, cookie, {
+      name: 'DT09 Managed',
+      serviceCode: 'FLYER',
+      capacity: 3,
+      assignedPlannerUserId: owner.userId
+    }).expect(201);
+    await mutate('patch', `/admin/clients/${owner.clientId}/events/${created.body.id}`, cookie, {
+      socialType: 'OTHER',
+      eventDateTime: '2035-01-01T18:00:00Z',
+      timeZone: 'America/Mexico_City',
+      confirmationEnabled: true,
+      locationUrl: 'https://example.com/location',
+      giftRegistryUrl: 'https://example.com/gifts'
+    }).expect(200);
+    const plannerCookie = await login(owner.email);
+    await mutate('post', `/events/${created.body.id}/contacts`, plannerCookie, {
+      name: 'Invitado M01',
+      whatsappPhone: '+525512345678'
+    }).expect(201);
+    expect(await prisma.contact.count({ where: { eventId: created.body.id as string } })).toBe(1);
+  });
+
   it('enforces ownership, preparation state, same-event groups, normalization, and PII-safe audit', async () => {
     const owner = await createClientUser(UserRole.INDEPENDENT_PLANNER);
     const outsider = await createClientUser(UserRole.INDEPENDENT_PLANNER);
