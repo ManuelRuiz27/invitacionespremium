@@ -2,7 +2,8 @@
 
 Fecha de ejecución: 2026-10-23–25, America/Mexico_City. Base funcional:
 [`6945b9d326c5502b1812fee270461300dcc0ed29`](https://github.com/ManuelRuiz27/invitacionespremium/commit/6945b9d326c5502b1812fee270461300dcc0ed29).
-**QA local completo aprobado; SHA/CI remoto pendientes de registrar. NO-GO presencial.**
+SHA funcional evaluado: [`d5a2d2a589219baed18dc5eb6148b267d446ae7e`](https://github.com/ManuelRuiz27/invitacionespremium/commit/d5a2d2a589219baed18dc5eb6148b267d446ae7e).
+**QA local completo aprobado; CI requiere cerrar instalación Flipbook. NO-GO presencial.**
 M01 sigue siendo la dirección principal; esta certificación corresponde exclusivamente al piloto separado M02-B01.
 No autoriza un lanzamiento comercial, nuevas licencias, roles ni capacidades.
 
@@ -87,7 +88,7 @@ No convertir ejecuciones focalizadas en aprobación global. Estado durante el ci
 | Migración limpia / upgrade legacy | Aprobados en base efímera y caso legacy de `events.integration-spec.ts`. |
 | Flipbook global | 74/74 Chromium/WebKit, sin retries (283.49 s harness / 4.7 min Playwright). |
 | Build global | 8/8 tareas aprobadas (47.77 s del gate); warnings de tamaño de bundle existentes, sin error. |
-| CI del código publicado / SHA | Pendientes de publicación y comprobación; no equivalen a QA local verde. |
+| CI inicial DT09 | [40218604104](https://github.com/ManuelRuiz27/invitacionespremium/actions/runs/40218604104), SHA `d5a2d2a589219baed18dc5eb6148b267d446ae7e`: quality/pilot success; Flipbook cancelado en APT, sin ejecutar tests. |
 
 Una ejecución Admin del 24 al 25 atravesó suspensión: Vitest informó 70,977 s, incluyendo 38,009 s
 de import y 32,895 s de tests; 1/2 falló por superficie ausente al reanudar. Se conserva como ejecución
@@ -100,6 +101,15 @@ Falló WebKit en `REQ-02 corner preview preserves only the stationary leaf curl`
 El workflow DT09 conserva ambos jobs y `cancel-in-progress: true` por rama; agrega `pilot-browser-qa`
 con ambos harness aislados. No se publican artefactos de journeys con credenciales operativas.
 El CI del SHA final debe comprobarse después de un único push, sin pushes sucesivos que lo cancelen.
+
+El primer CI DT09 agotó los 15 minutos del job Flipbook descargando dependencias desde
+`azure.archive.ubuntu.com`; el log termina en `Get:190 ... gstreamer1.0-plugins-bad` y cancelación,
+antes de lanzar Playwright. Quality y piloto acabaron en success. Se conserva este resultado como
+**gate no aprobado**. Ajuste acotado: ejecutar sólo el job Flipbook en
+`mcr.microsoft.com/playwright:v1.55.0-noble`, cuya versión coincide con `@playwright/test` del repo.
+La [imagen oficial](https://playwright.dev/docs/docker) incluye navegadores/dependencias; se comprobó
+que el manifest de esa versión existe. Se elimina el paso APT y se mantienen timeout de job, timeouts
+de test, 74 casos, dos navegadores y cero retries. El siguiente CI debe validar realmente los tests.
 
 ## M01 y compatibilidad legacy
 
@@ -177,6 +187,7 @@ No se agregan índices ni se atribuye latencia a una query particular sin medici
 | Carga ANONYMOUS pierde entradas por agotamiento de retries | 3/150 errores 500, P2034 bajo dos lectores + dashboard | Backoff con jitter de 5–59 ms fuera de transacción, máximo original 20; al agotarse devuelve el 409 existente, sin filtrar Prisma. |
 | WebKit Flipbook 73/74 en CI base | Coordenadas de hover medidas antes de terminar la transformación CSS externa; engine READ no acredita fin de esa transición | Test espera `Animation.finished` del volumen antes de medir. Repetición 10/10 y global 74/74; CI pendiente. Sin alterar el motor. |
 | Harness M01 no ejecutable con servicios existentes | Puertos Docker/WSL ocupados y artefacto de credenciales compartido | Offset acotado, credenciales por ejecución, limpieza propia y entrada real `src/main.ts`. |
+| CI Flipbook cancelado antes de tests | Run 40218604104 consumió 15 min descargando APT; quality/pilot success | Imagen oficial Playwright 1.55.0 Noble con deps preinstaladas, mismo límite de 15 min y mismas pruebas; pendiente confirmar CI del ajuste. |
 | Formato local incluye artefactos ignorados | `var/qa` y `var/ngrok-public-test.yml` no están versionados; el segundo apareció en el cierre del 24 de octubre | Exclusiones exactas de esos recursos; no se modifica el túnel local ni se omite código versionado. |
 
 ## Seguridad, privacidad y retención

@@ -65,6 +65,10 @@ jobs:
   flipbook-browser-qa:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Match @playwright/test exactly; avoid reinstalling WebKit's OS dependencies through APT.
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.0-noble
+      options: --init --ipc=host
     steps:
       - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v6
@@ -78,7 +82,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Build Client workspace dependencies
         run: pnpm --filter '@invitaciones/client^...' build
-      - run: pnpm exec playwright install --with-deps chromium webkit
       - run: pnpm exec playwright test -c playwright.flipbook.config.ts
       - name: Upload Flipbook visual evidence
         if: always()
