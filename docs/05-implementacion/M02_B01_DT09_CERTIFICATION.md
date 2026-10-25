@@ -2,10 +2,28 @@
 
 Fecha de ejecución: 2026-10-23–25, America/Mexico_City. Base funcional:
 [`6945b9d326c5502b1812fee270461300dcc0ed29`](https://github.com/ManuelRuiz27/invitacionespremium/commit/6945b9d326c5502b1812fee270461300dcc0ed29).
-SHA anterior evaluado: [`453209db173aba488d9dffd0a8a78ba4c3b87089`](https://github.com/ManuelRuiz27/invitacionespremium/commit/453209db173aba488d9dffd0a8a78ba4c3b87089).
-**QA local del ajuste exponencial aprobado; CI del ajuste final pendiente. NO-GO técnico integral hasta verificarlo; NO-GO presencial por aceptación física pendiente.**
+SHA funcional certificado: [`6bb23ea0a6f5fbc5e68f45bc595dc551b54df4c0`](https://github.com/ManuelRuiz27/invitacionespremium/commit/6bb23ea0a6f5fbc5e68f45bc595dc551b54df4c0).
+CI comprobado: [40229610836](https://github.com/ManuelRuiz27/invitacionespremium/actions/runs/40229610836),
+`quality`, `pilot-browser-qa` y `flipbook-browser-qa`: **success**.
+**GO técnico automatizado para este alcance; NO-GO presencial por aceptación física pendiente.**
 M01 sigue siendo la dirección principal; esta certificación corresponde exclusivamente al piloto separado M02-B01.
 No autoriza un lanzamiento comercial, nuevas licencias, roles ni capacidades.
+
+El ajuste final de Scanner está en [`0cf43b48e2bb5de71fa7e4ebfb536e65fec251af`](https://github.com/ManuelRuiz27/invitacionespremium/commit/0cf43b48e2bb5de71fa7e4ebfb536e65fec251af).
+Durante su CI se publicó el commit adicional `6bb23ea` de vistas previas Open Graph, conservado sin
+modificaciones por DT09; canceló el job quality anterior mediante la concurrencia vigente. Se certifica
+el árbol actualizado completo, incluidos sus 17 tests Client y un test API adicionales.
+El commit posterior de esta acta sólo actualiza documentación/evidencia; la entrega incluye su SHA y
+comprobación independiente de CI, sin alterar apps, tests, harness ni pipeline.
+
+## Archivos y alcance de la entrega
+
+El [diff completo DT09 desde DT08](https://github.com/ManuelRuiz27/invitacionespremium/compare/6945b9d326c5502b1812fee270461300dcc0ed29...0cf43b48e2bb5de71fa7e4ebfb536e65fec251af)
+enumera los 31 archivos: cuatro correcciones backend, dos suites de integración, tests/configuración
+Admin/Client, tres E2E, dos harness, reporter/redacción, configs Playwright/CI/formato, README,
+tres contratos afectados y certificación/runbook/handoff/índice. No hay migraciones ni DTO manuales.
+El [cambio adicional Open Graph](https://github.com/ManuelRuiz27/invitacionespremium/commit/6bb23ea0a6f5fbc5e68f45bc595dc551b54df4c0)
+queda separado de las correcciones DT09. Esta acta final actualiza certificación, JSON agregado, handoff e índice.
 
 ## Ambiente y reproducibilidad
 
@@ -66,7 +84,7 @@ es independiente y permanece pendiente para las doce filas.
 
 ## Suites globales y CI
 
-No convertir ejecuciones focalizadas en aprobación global. Estado durante el cierre:
+No convertir ejecuciones focalizadas en aprobación global. Resultados locales y del CI funcional certificado:
 
 | Gate | Resultado |
 | --- | --- |
@@ -82,12 +100,12 @@ No convertir ejecuciones focalizadas en aprobación global. Estado durante el ci
 | Repetición Flipbook REQ-02 | Primera Windows 10/10; tras reproducir Linux y corregir hit-testing, Linux 10/10 (cinco Chromium/cinco WebKit), cero retries. |
 | E2E M02 completo | 3/3, más conciliación SQL de Finance/RSVP/CheckIn/auditoría/Staff, aprobado. |
 | E2E M01 completo | 4/4, repetición posterior al ajuste exponencial y SQL de aislamiento financiero aprobados (86.82 s harness). |
-| Unidades API / SDK | 381/381 API; 150/150 SDK más 9/9 verificaciones Node. |
+| Unidades API / SDK | 382/382 API en CI final (381 DT09 + 1 adicional); 150/150 SDK más 9/9 verificaciones Node. |
 | Unidades Scanner / packages / Landing | 62/62 Scanner; 100/100 Floorplan; 6/6 UI; 60/60 Landing. |
-| Unidades Client | 433/433 en 28 archivos (228.51 s); caso 200 Mesas 2.05 s dentro de la suite global. |
-| Unidades Admin | 242/242 en 15 archivos (451.47 s); Serpentina 565 ms dentro de la suite global. |
-| Unidades globales | `pnpm test --force`: 11/11 tareas, 0 caché, 823.57 s; 1,443 comprobaciones (1,434 Vitest + 9 Node). |
-| Integración API completa | 450/450 en 35 archivos tras el ajuste exponencial (685.71 s Vitest, 696.82 s harness con migraciones/limpieza). |
+| Unidades Client | 450/450 en 29 archivos en CI final (90.39 s; 433 DT09 + 17 adicionales). Global local DT09: 433/433 (228.51 s); caso 200 Mesas 2.05 s. |
+| Unidades Admin | 242/242 en 15 archivos en CI final (103.67 s). Global local: 242/242 (451.47 s), Serpentina 565 ms. |
+| Unidades globales | CI final: 11/11 tareas, 1,461 comprobaciones (1,452 Vitest + 9 Node). Local DT09 `pnpm test --force`: 11/11, 0 caché, 823.57 s, 1,443 comprobaciones antes del cambio adicional. |
+| Integración API completa | CI final: 450/450 en 35 archivos (310.59 s). Local tras el ajuste exponencial: 450/450 (685.71 s Vitest, 696.82 s harness con migraciones/limpieza). |
 | Migración limpia / upgrade legacy | Aprobados en base efímera y caso legacy de `events.integration-spec.ts`. |
 | Primera suite Flipbook Windows | 74/74 Chromium/WebKit, sin retries (283.49 s); precede la corrección final de hit-testing. |
 | Flipbook final Linux | 74/74 Chromium/WebKit (5.8 min), con hover y vídeos completos; misma imagen que CI. |
@@ -96,10 +114,12 @@ No convertir ejecuciones focalizadas en aprobación global. Estado durante el ci
 | CI inicial DT09 | [40218604104](https://github.com/ManuelRuiz27/invitacionespremium/actions/runs/40218604104), SHA `d5a2d2a589219baed18dc5eb6148b267d446ae7e`: quality/pilot success; Flipbook cancelado en APT, sin ejecutar tests. |
 | CI con imagen preinstalada | [40220218632](https://github.com/ManuelRuiz27/invitacionespremium/actions/runs/40220218632), SHA `2e5d8bd3ac157d67ef6cd0bb928ae3ec3212ad8e`: quality/pilot success; Flipbook 73/74, mismo hover WebKit pendiente. |
 | CI del ajuste Flipbook | [40223035975](https://github.com/ManuelRuiz27/invitacionespremium/actions/runs/40223035975), SHA `453209db173aba488d9dffd0a8a78ba4c3b87089`: Flipbook/pilot success; quality 449/450, carga NOMINAL con 3 errores/150. |
+| CI interrumpido por push adicional | [40229026555](https://github.com/ManuelRuiz27/invitacionespremium/actions/runs/40229026555), SHA `0cf43b48e2bb5de71fa7e4ebfb536e65fec251af`: Flipbook 74/74 y piloto success; quality cancelado durante unitarias, integración/build no ejecutados. No acredita gate global. |
+| CI funcional certificado | [40229610836](https://github.com/ManuelRuiz27/invitacionespremium/actions/runs/40229610836), SHA `6bb23ea0a6f5fbc5e68f45bc595dc551b54df4c0`: tres jobs success; 1,461 unidades, 450 integraciones, M01 4/4, M02 3/3, Flipbook 74/74 (3.7 min), build 8/8. |
 
 Una ejecución Admin del 24 al 25 atravesó suspensión: Vitest informó 70,977 s, incluyendo 38,009 s
 de import y 32,895 s de tests; 1/2 falló por superficie ausente al reanudar. Se conserva como ejecución
-interrumpida y **no acredita estabilidad**. Se repite completa la validación pendiente con el entorno activo;
+interrumpida y **no acredita estabilidad**. Las suites globales posteriores aprobaron con el entorno activo;
 no se aumentan timeouts para absorber una suspensión.
 
 La ejecución base [DT08 CI 40021069784](https://github.com/ManuelRuiz27/invitacionespremium/actions/runs/40021069784)
@@ -117,7 +137,7 @@ antes de lanzar Playwright. Quality y piloto acabaron en success. Se conserva es
 La [imagen oficial](https://playwright.dev/docs/docker) incluye navegadores/dependencias; se comprobó
 que el manifest de esa versión existe. Se elimina el paso APT y se mantienen timeout de job, timeouts
 de test, 74 casos, dos navegadores y cero retries. El CI siguiente ejecutó los 74 en 3.8 min y expuso
-la causa restante del hover; el ajuste de infraestructura queda validado, el gate Flipbook todavía no.
+la causa restante del hover; en esa ejecución quedó validada la infraestructura, todavía no el gate Flipbook.
 
 La espera CSS inicial pasó 10/10 y 74/74 en Windows, pero fue insuficiente en Linux WebKit (73/74).
 Se reprodujo localmente con **la misma imagen Linux** y Playwright remoto, sin cambiar el motor ni
@@ -126,7 +146,7 @@ devuelve un descendiente de `.stf__block` y el hover entra en `fold_corner`. Tam
 88%/92% y 12%/12%. El rectángulo envolvente de la transformación 3D no acredita el área de hit-testing.
 El test ahora usa esos puntos dentro de la banda de esquina y exige que alcancen el libro real antes
 de mover el puntero. Conserva todas las assertions de curl, hojas, click sin giro y navegación.
-Este fallo real de test se conserva como **gate no aprobado** hasta las suites completas y CI posteriores.
+Ese fallo real de test se conserva como **ejecución no aprobada**; las suites completas y CI posteriores lo resuelven.
 
 La primera suite completa con navegador Linux remoto obtuvo 72/74: el hover ya pasó; ambos casos de
 vídeo fallaron sólo al adjuntar la evidencia porque `video.path()` no ofrece una ruta local en conexión
@@ -152,8 +172,8 @@ locks y claves. La carga ahora conserva status/código permitido de fallos y lat
 de p50/p95. Foco exponencial: 36/36, 150/150 por modalidad, errores cero; ANONYMOUS recupera 15 P2034.
 La validación local posterior del 25 de octubre aprueba Prisma, OpenAPI/SDK sin drift, formato, lint,
 typecheck, 381 unidades API, 62 Scanner, integración completa 450/450, M01 4/4, M02 3/3 y build.
-Ambas cargas terminan 150/150, sin errores ni deadlocks. CI del ajuste exponencial permanece pendiente;
-los resultados de ejecuciones anteriores no lo sustituyen.
+Ambas cargas terminan 150/150, sin errores ni deadlocks. El CI funcional certificado confirma 450/450,
+ambas cargas sin errores, los E2E completos y build; los resultados anteriores no sustituyen ese gate.
 
 ## M01 y compatibilidad legacy
 
@@ -224,6 +244,18 @@ variabilidad local y justifica no prometer un SLA. La latencia de respuestas fal
 El cuello demostrado fue agotamiento de retries serializables; esta evidencia no demuestra un índice faltante.
 No se agregan índices ni se atribuye latencia a una query particular sin medición SQL.
 
+CI Linux del árbol certificado (Node 22.16.0, PostgreSQL 16.15, AMD EPYC 9V45, 4 lógicos, 16.77 GB):
+
+| Modalidad | Scanner p50 / p95 / máximo | Panel p50 / p95 | Muestras panel | Duración | Errores / deadlocks | P2034 recuperados |
+| --- | --- | --- | ---: | ---: | --- | ---: |
+| NOMINAL | 32.34 / 37.60 / 51.83 ms | 31.67 / 36.58 ms | 73 | 2.47 s | 0 / 0 | 0 |
+| ANONYMOUS | 14.02 / 25.66 / 1,161.44 ms | 16.59 / 19.48 ms | 131 | 2.35 s | 0 / 0 | 18 |
+
+Ambas cargas confirman 150 ingresos/0 pendientes, cinco Mesas y 150 auditorías; todos los umbrales pasan.
+CPU del worker: 2.05/1.93 s; RSS 518.22→569.81 MB y 621.26→679.06 MB. Máximo un waiter;
+rollbacks estadísticos 0/14, frente a 0/18 conflictos observados. El JSON conserva estos agregados
+y el SHA/run de origen; no se mezclan los entornos ni se extrapolan sus cifras a producción.
+
 ## Defectos demostrados y correcciones acotadas
 
 | Incidencia | Evidencia / causa | Corrección |
@@ -231,9 +263,9 @@ No se agregan índices ni se atribuye latencia a una query particular sin medici
 | UI global DT08 Client 432/433, Admin 240/242 | Casos aislados y global serial inicial verdes; render MUI/jsdom costoso, promesas/updates React pendientes y búsquedas sobre 200 Mesas | Un worker por suite UI; `act` asíncrono para preparación/resolución; consultas de 50 personas dentro del drawer. Sin aumentar timeouts ni quitar assertions. |
 | Contacto con teléfono devuelve 500 en API real bajo tsx | M01 nuevo desde cero: dependencia de PhoneNormalizer ausente con metadata implícita | `@Inject(AppConfigService)` explícito; HTTP de regresión y journeys de CSV/contactos. |
 | Provider no puede preparar diseño Managed nuevo | M01 devuelve 409 por exigir price lock/design kickoff Self-Service | Exención exclusivamente de Planner MANAGED digital en el gate Admin existente, después de comprobar tenant. Client técnico y Self-Service mantienen su política; no cambia Finance/activación. |
-| Carga ANONYMOUS pierde entradas por agotamiento de retries | Inicial 3/150 errores 500; pausa lineal posterior aún deja 1/150 en otra ejecución | Backoff exponencial con jitter 5–374 ms fuera de transacción, máximo original 20; 409 existente al agotarse. Integración posterior 450/450, carga 150/150 y cero errores; CI pendiente. |
-| Carga NOMINAL pierde entradas en Linux CI | Run 40223035975: 3/150 errores 500, 75 P2034 y 147 ingresos, aunque ejecuciones anteriores pasaron | Mismo backoff exponencial 5–374 ms y 20 intentos; `CHECK_IN_CONCURRENCY_CONFLICT` 409 al agotarse. Integración posterior 450/450, carga 150/150 y cero errores; CI pendiente. |
-| WebKit Flipbook 73/74 en CI base y primer CI Linux | El punto 95%/8% del bounding box 3D alcanza el fondo en Linux WebKit, demostrado con `elementFromPoint` y eventos reales; esperar CSS no bastó | Esperar geometría estable, usar puntos de esquina dentro del libro y exigir hit-testing real; mismas assertions. Linux 10/10 repetidos y 74/74 completo; CI final pendiente. No cambia el motor. |
+| Carga ANONYMOUS pierde entradas por agotamiento de retries | Inicial 3/150 errores 500; pausa lineal posterior aún deja 1/150 en otra ejecución | Backoff exponencial con jitter 5–374 ms fuera de transacción, máximo original 20; 409 existente al agotarse. Integración local/CI posterior 450/450, carga 150/150 y cero errores. |
+| Carga NOMINAL pierde entradas en Linux CI | Run 40223035975: 3/150 errores 500, 75 P2034 y 147 ingresos, aunque ejecuciones anteriores pasaron | Mismo backoff exponencial 5–374 ms y 20 intentos; `CHECK_IN_CONCURRENCY_CONFLICT` 409 al agotarse. Integración local/CI posterior 450/450, carga 150/150 y cero errores. |
+| WebKit Flipbook 73/74 en CI base y primer CI Linux | El punto 95%/8% del bounding box 3D alcanza el fondo en Linux WebKit, demostrado con `elementFromPoint` y eventos reales; esperar CSS no bastó | Esperar geometría estable, usar puntos de esquina dentro del libro y exigir hit-testing real; mismas assertions. Linux 10/10 repetidos y 74/74 completo; CI certificado 74/74. No cambia el motor. |
 | Harness M01 no ejecutable con servicios existentes | Puertos Docker/WSL ocupados y artefacto de credenciales compartido | Offset acotado, credenciales por ejecución, limpieza propia y entrada real `src/main.ts`. |
 | CI Flipbook cancelado antes de tests | Run 40218604104 consumió 15 min descargando APT; quality/pilot success | Imagen oficial Playwright 1.55.0 Noble con deps preinstaladas; run 40220218632 ejecuta los 74 en 3.8 min, mismo límite de 15 min. Su fallo de hover se trata por separado. |
 | Formato local incluye artefactos ignorados | `var/qa` y `var/ngrok-public-test.yml` no están versionados; el segundo apareció en el cierre del 24 de octubre | Exclusiones exactas de esos recursos; no se modifica el túnel local ni se omite código versionado. |
@@ -261,7 +293,9 @@ La [matriz manual y guía de contingencias](./M02_B01_PILOT_OPERATIONS_RUNBOOK.m
 pendientes: cámara trasera/denegada, impreso/pantalla, tamaño/ángulo/luz, red lenta, cortes antes/después de envío,
 reanudación, Staff expirado y cierre. No se implementa offline ni bypass.
 
-**NO-GO para piloto presencial / certificación física pendiente.** El GO técnico automatizado permanece
-pendiente hasta registrar todos los gates y comprobar el CI remoto del SHA final. M02 comercial requiere
-decisión separada de Product. La evidencia física debe incluir dispositivo/SO/navegador, fecha, responsable,
+**GO técnico automatizado sobre el SHA funcional certificado, con todos sus gates y CI remoto verdes.**
+No quedan regresiones automatizadas conocidas sin resolver en este alcance.
+**NO-GO para piloto presencial / certificación física pendiente:** faltan las 36 celdas de aceptación
+manual (12 escenarios × 3 familias de dispositivos), contingencias y soporte aprobados.
+M02 comercial requiere decisión separada de Product. La evidencia física debe incluir dispositivo/SO/navegador, fecha, responsable,
 resultado y ubicación identificable con secretos ocultos, además de soporte y contingencias aceptados.

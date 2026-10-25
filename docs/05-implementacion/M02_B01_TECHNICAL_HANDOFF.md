@@ -1,14 +1,17 @@
 # M02-B01 — Handoff técnico para el equipo de desarrollo
 
-Estado: **HANDOFF TÉCNICO — DT09 QA LOCAL APROBADO; CI PENDIENTE; NO-GO PRESENCIAL**
+Estado: **HANDOFF TÉCNICO — DT09 GO AUTOMATIZADO / CI VERDE; NO-GO PRESENCIAL**
 
 **DT09 (2026-10-23–25):** certificación del piloto separado con pruebas PostgreSQL, 150 derechos por
 modalidad, E2E M01/PHYSICAL_QR y M02, estabilidad UI y privacidad de evidencias. Correcciones puntuales
-de inyección de teléfono, preparación Provider Managed y retries de uso físico; sin nuevas entidades,
+de inyección de teléfono, preparación Provider Managed y retries nominales/anónimos; sin nuevas entidades,
 roles, migraciones ni cambios en Finance. Ver [certificación y gates](./M02_B01_DT09_CERTIFICATION.md)
 y [operación/aceptación física](./M02_B01_PILOT_OPERATIONS_RUNBOOK.md). El usuario confirmó que no hay
 pruebas físicas: Android/Chrome, iPhone/Safari y tablet permanecen pendientes; **no autoriza piloto
-presencial ni lanzamiento comercial**. El informe distingue QA local y CI final; las entradas siguientes
+presencial ni lanzamiento comercial**. SHA funcional certificado: `6bb23ea0a6f5fbc5e68f45bc595dc551b54df4c0`,
+[CI 40229610836](https://github.com/ManuelRuiz27/invitacionespremium/actions/runs/40229610836): tres jobs success,
+1,461 unidades, 450 integraciones, M01 4/4, M02 3/3, Flipbook 74/74 y build. El informe distingue QA local,
+CI y el cambio adicional Open Graph conservado; las entradas siguientes
 son históricas y no sustituyen su dictamen.
 
 **DT08 (2026-10-23):** panel de ingresos y aforo de sólo lectura para NOMINAL y ANONYMOUS.

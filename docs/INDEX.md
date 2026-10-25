@@ -204,7 +204,7 @@ Hallazgos centrales de MG-00:
 
 - `01-producto/06B_MODELO_02_SALON_JARDIN_ORGANIZACION.md` — M02.
 - `01-producto/06B1_M02_B01_ACCESOS_QR_NOMINAL_ANONIMO.md` — **M02-B01 REQUERIMIENTOS FUNCIONALES APROBADOS (2026-10-19)**; QR nominal individual o anónimo por Evento, sin RSVP/diseño obligatorio; **no autoriza código**.
-- `05-implementacion/M02_B01_TECHNICAL_HANDOFF.md` — **HANDOFF TÉCNICO EN EJECUCIÓN**; DT02A–DT08 implementados, DT09 en cierre; NO-GO presencial y decisiones históricas documentadas.
+- `05-implementacion/M02_B01_TECHNICAL_HANDOFF.md` — **DT09 GO AUTOMATIZADO / CI VERDE**; DT02A–DT09 implementados y validados, NO-GO presencial por aceptación física pendiente; decisiones históricas documentadas.
 - `05-implementacion/M02_B01_DT00_RUNTIME_AUDIT.md` — **DT00 COMPLETADO**: auditoría estática verificable de código y contratos, con bloqueos para M02 Managed Organización.
 - `05-implementacion/M02_B01_DT01_ACCESS_ARCHITECTURE_ADR.md` — **DT01 PARCIALMENTE RATIFICADO**: Product aprobó `ACCESS_CONTROL` y modo `NOMINAL|ANONYMOUS` por Evento; esquema/API y resto de arquitectura pendiente para code.
 - `05-implementacion/M02_B01_DT01_SQL_COMPATIBILITY_GATE.md` — **REVISIÓN ESTÁTICA SQL COMPLETADA**: incompatibilidades concretas con activación Managed Organización, Contactos, CheckIn y PhysicalPass; ejecución de PostgreSQL pendiente.
@@ -221,7 +221,7 @@ Hallazgos centrales de MG-00:
 - `04-tecnico/ACCESS_CONTROL_READINESS_CONTRACT.md` — **Contrato implementado DT06**: reglas NOMINAL/ANONYMOUS, transiciones de preparación, activación SQL y endpoints de lectura.
 - `04-tecnico/ACCESS_CONTROL_OPERATIONS_CONTRACT.md` — **Contrato DT08**: métricas PostgreSQL consistentes, Mesas, detalle mínimo paginado, permisos y privacidad.
 - `05-implementacion/M02_B01_DT08_IMPLEMENTATION.md` — **DT08 IMPLEMENTADO**: resolver de sólo lectura, paneles Client/Admin, concurrencia y QA reproducible.
-- `05-implementacion/M02_B01_DT09_CERTIFICATION.md` — **DT09 CERTIFICACIÓN EN CIERRE**: RF01–RF12, regresiones, gates globales, E2E M01/M02, concurrencia, carga 150 y CI del código entregado; NO-GO presencial por pruebas físicas pendientes.
+- `05-implementacion/M02_B01_DT09_CERTIFICATION.md` — **DT09 GO AUTOMATIZADO / CI VERDE, NO-GO PRESENCIAL**: RF01–RF12, regresiones cerradas, 1,461 unidades, 450 integraciones, E2E M01/M02/Flipbook, concurrencia y carga 150 sin errores; pruebas físicas pendientes.
 - `05-implementacion/M02_B01_PILOT_OPERATIONS_RUNBOOK.md` — preparación, materiales, Staff, recepción, contingencias, cierre y matriz manual pendiente Android/Chrome, iPhone/Safari y tablet.
 - `04-tecnico/NOMINAL_ACCESS_CREDENTIALS_CONTRACT.md` — **Contrato implementado DT03** para credenciales nominales individuales, endpoints, tokens y revocación.
 - `01-producto/06C_MODELO_03_LICENCIA_AUTOSERVICIO.md` — M03 / Self-Service.
