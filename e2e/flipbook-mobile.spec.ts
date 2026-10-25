@@ -27,7 +27,9 @@ async function installInitialLeafCapture(page: Page) {
 async function captureInitialLeafFrames(page: Page, query: string): Promise<InitialLeafFrame[]> {
   await open(page, query);
   await page.evaluate(() => new Promise(requestAnimationFrame));
-  return page.evaluate(() => (window as Window & { __initialLeafFrames: InitialLeafFrame[] }).__initialLeafFrames);
+  return page.evaluate(
+    () => (window as unknown as Window & { __initialLeafFrames: InitialLeafFrame[] }).__initialLeafFrames
+  );
 }
 
 function expectStableInitialLeaf(frames: InitialLeafFrame[]) {
@@ -200,7 +202,9 @@ test('REQ-04 cover geometry stays fixed through initialization and full reload',
     await page.locator('.stf__item.--shown img').first().waitFor();
     await page.evaluate(() => new Promise(requestAnimationFrame));
     expectStableInitialLeaf(
-      await page.evaluate(() => (window as Window & { __initialLeafFrames: InitialLeafFrame[] }).__initialLeafFrames)
+      await page.evaluate(
+        () => (window as unknown as Window & { __initialLeafFrames: InitialLeafFrame[] }).__initialLeafFrames
+      )
     );
   }
 });
@@ -541,8 +545,11 @@ test('automatic page turns in real time with video evidence', async ({ browser, 
   } finally {
     const video = page.video();
     await context.close();
-    if (video)
-      await info.attach(`automatic-reader-${browserName}`, { path: await video.path(), contentType: 'video/webm' });
+    if (video) {
+      const videoPath = info.outputPath(`automatic-reader-${browserName}.webm`);
+      await video.saveAs(videoPath);
+      await info.attach(`automatic-reader-${browserName}`, { path: videoPath, contentType: 'video/webm' });
+    }
   }
 });
 
@@ -627,7 +634,7 @@ test('safe area budget, adjacent preload and access to the public document', asy
 
 test.describe('desktop and tablet regression', () => {
   test.use({ isMobile: false, hasTouch: false });
-  test('REQ-02 corner preview preserves only the stationary leaf curl', async ({ page, browserName }, info) => {
+  test('REQ-02 corner preview preserves only the stationary leaf curl', async ({ page }, info) => {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await open(page, '?pages=6');
     await next(page).click();
@@ -640,8 +647,18 @@ test.describe('desktop and tablet regression', () => {
     });
     const rect = (await page.locator('.stf__block').boundingBox())!;
     const curl = () => folded.evaluate((element) => getComputedStyle(element, '::after').content);
+    const hoverCorner = async (x: number, y: number) => {
+      const point = { x: rect.x + rect.width * x, y: rect.y + rect.height * y };
+      // A projected 3D bounding box includes space outside the hit-tested leaf.
+      // Linux WebKit sends the old 95%/8% point to the stage, not the book.
+      expect(
+        await page.evaluate((p) => Boolean(document.elementFromPoint(p.x, p.y)?.closest('.stf__block')), point),
+        'The hover must reach the real book, rather than its enclosing stage'
+      ).toBe(true);
+      await page.mouse.move(point.x, point.y);
+    };
     for (const y of [0.08, 0.92]) {
-      await page.mouse.move(rect.x + rect.width * (browserName === 'chromium' ? 0.88 : 0.95), rect.y + rect.height * y);
+      await hoverCorner(0.88, y);
       await expect(reader(page)).toHaveAttribute('data-corner-preview', 'true');
       await expect(folded).toHaveClass(/--simple/);
       await expect.poll(curl).toBe('""');
@@ -656,10 +673,7 @@ test.describe('desktop and tablet regression', () => {
     await shot(page, info, 'desktop-req02-settled-curl');
 
     // A preview that actually lifts the folded leaf still hides its settled curl.
-    await page.mouse.move(
-      rect.x + rect.width * (browserName === 'chromium' ? 0.1 : 0.05),
-      rect.y + rect.height * (browserName === 'chromium' ? 0.12 : 0.08)
-    );
+    await hoverCorner(0.12, 0.12);
     await expect(reader(page)).toHaveAttribute('data-corner-preview', 'true');
     await expect(folded).not.toHaveClass(/--simple/);
     await expect.poll(curl).toBe('none');

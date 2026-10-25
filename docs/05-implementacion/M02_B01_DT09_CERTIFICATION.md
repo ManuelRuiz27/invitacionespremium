@@ -3,7 +3,7 @@
 Fecha de ejecución: 2026-10-23–25, America/Mexico_City. Base funcional:
 [`6945b9d326c5502b1812fee270461300dcc0ed29`](https://github.com/ManuelRuiz27/invitacionespremium/commit/6945b9d326c5502b1812fee270461300dcc0ed29).
 SHA funcional evaluado: [`d5a2d2a589219baed18dc5eb6148b267d446ae7e`](https://github.com/ManuelRuiz27/invitacionespremium/commit/d5a2d2a589219baed18dc5eb6148b267d446ae7e).
-**QA local completo aprobado; CI requiere cerrar instalación Flipbook. NO-GO presencial.**
+**QA local completo aprobado, incluidos Linux y Windows; CI del ajuste final pendiente. NO-GO presencial.**
 M01 sigue siendo la dirección principal; esta certificación corresponde exclusivamente al piloto separado M02-B01.
 No autoriza un lanzamiento comercial, nuevas licencias, roles ni capacidades.
 
@@ -11,6 +11,8 @@ No autoriza un lanzamiento comercial, nuevas licencias, roles ni capacidades.
 
 Windows, Node 22.18.0, pnpm 11.15.1, PostgreSQL 16.14 real en Docker; Intel i3-1215U,
 8 procesadores lógicos y 16.84 GB de RAM. Chromium/WebKit de Playwright 1.55.0.
+El diagnóstico y la suite Linux usan los navegadores de la imagen Playwright 1.55.0 Noble,
+con cliente Playwright remoto de la misma versión y forwarding de loopback al Vite propio.
 Las mediciones usan loopback, API NestJS y transacciones reales; no son un SLA ni una garantía de producción.
 
 Cada harness crea una base única, aplica todas las migraciones y usa storage y secretos propios.
@@ -74,9 +76,10 @@ No convertir ejecuciones focalizadas en aprobación global. Estado durante el ci
 | Formato global | Aprobado tras excluir únicamente artefactos locales ignorados. |
 | Lint global / harness | 8/8 tareas globales y lint de E2E/scripts/configs aprobados. |
 | Typecheck global | 11/11 tareas aprobadas. |
+| Typecheck directo E2E Flipbook | Aprobado; dos casts preexistentes de frames se explicitan con `unknown`, sin cambiar JavaScript emitido (SHA256 `9cf3aeb2b0d93462eb25fc16d61e20c97e7703a7c9c5656fade37c6273f68005`). |
 | Redacción de secretos | 1/1 aprobado. |
 | Repetición de casos UI DT08 | 3 rondas independientes: 6/6 Admin y 3/3 Client; timeouts originales. |
-| Repetición Flipbook REQ-02 | 10/10, cinco Chromium y cinco WebKit, sin retries (104 s). |
+| Repetición Flipbook REQ-02 | Primera Windows 10/10; tras reproducir Linux y corregir hit-testing, Linux 10/10 (cinco Chromium/cinco WebKit), cero retries. |
 | E2E M02 completo | 3/3, más conciliación SQL de Finance/RSVP/CheckIn/auditoría/Staff, aprobado. |
 | E2E M01 completo | 4/4, repetición final del 25 de octubre y SQL de aislamiento financiero aprobados (112.36 s harness). |
 | Unidades API / SDK | 381/381 API; 150/150 SDK más 9/9 verificaciones Node. |
@@ -86,9 +89,12 @@ No convertir ejecuciones focalizadas en aprobación global. Estado durante el ci
 | Unidades globales | `pnpm test --force`: 11/11 tareas, 0 caché, 823.57 s; 1,443 comprobaciones (1,434 Vitest + 9 Node). |
 | Integración API completa | 450/450 en 35 archivos (782.67 s Vitest, 836.17 s harness con migraciones/limpieza). |
 | Migración limpia / upgrade legacy | Aprobados en base efímera y caso legacy de `events.integration-spec.ts`. |
-| Flipbook global | 74/74 Chromium/WebKit, sin retries (283.49 s harness / 4.7 min Playwright). |
+| Primera suite Flipbook Windows | 74/74 Chromium/WebKit, sin retries (283.49 s); precede la corrección final de hit-testing. |
+| Flipbook final Linux | 74/74 Chromium/WebKit (5.8 min), con hover y vídeos completos; misma imagen que CI. |
+| Flipbook final Windows | 74/74 Chromium/WebKit (4.7 min), tras hit-testing y guardado portable de vídeo. |
 | Build global | 8/8 tareas aprobadas (47.77 s del gate); warnings de tamaño de bundle existentes, sin error. |
 | CI inicial DT09 | [40218604104](https://github.com/ManuelRuiz27/invitacionespremium/actions/runs/40218604104), SHA `d5a2d2a589219baed18dc5eb6148b267d446ae7e`: quality/pilot success; Flipbook cancelado en APT, sin ejecutar tests. |
+| CI con imagen preinstalada | [40220218632](https://github.com/ManuelRuiz27/invitacionespremium/actions/runs/40220218632), SHA `2e5d8bd3ac157d67ef6cd0bb928ae3ec3212ad8e`: quality/pilot success; Flipbook 73/74, mismo hover WebKit pendiente. |
 
 Una ejecución Admin del 24 al 25 atravesó suspensión: Vitest informó 70,977 s, incluyendo 38,009 s
 de import y 32,895 s de tests; 1/2 falló por superficie ausente al reanudar. Se conserva como ejecución
@@ -109,7 +115,23 @@ antes de lanzar Playwright. Quality y piloto acabaron en success. Se conserva es
 `mcr.microsoft.com/playwright:v1.55.0-noble`, cuya versión coincide con `@playwright/test` del repo.
 La [imagen oficial](https://playwright.dev/docs/docker) incluye navegadores/dependencias; se comprobó
 que el manifest de esa versión existe. Se elimina el paso APT y se mantienen timeout de job, timeouts
-de test, 74 casos, dos navegadores y cero retries. El siguiente CI debe validar realmente los tests.
+de test, 74 casos, dos navegadores y cero retries. El CI siguiente ejecutó los 74 en 3.8 min y expuso
+la causa restante del hover; el ajuste de infraestructura queda validado, el gate Flipbook todavía no.
+
+La espera CSS inicial pasó 10/10 y 74/74 en Windows, pero fue insuficiente en Linux WebKit (73/74).
+Se reprodujo localmente con **la misma imagen Linux** y Playwright remoto, sin cambiar el motor ni
+simular eventos: `elementFromPoint` en 95%/8% del bounding box devuelve `flipbook-stage`; en 88%/8%
+devuelve un descendiente de `.stf__block` y el hover entra en `fold_corner`. También se comprobaron
+88%/92% y 12%/12%. El rectángulo envolvente de la transformación 3D no acredita el área de hit-testing.
+El test ahora usa esos puntos dentro de la banda de esquina y exige que alcancen el libro real antes
+de mover el puntero. Conserva todas las assertions de curl, hojas, click sin giro y navegación.
+Este fallo real de test se conserva como **gate no aprobado** hasta las suites completas y CI posteriores.
+
+La primera suite completa con navegador Linux remoto obtuvo 72/74: el hover ya pasó; ambos casos de
+vídeo fallaron sólo al adjuntar la evidencia porque `video.path()` no ofrece una ruta local en conexión
+remota. Se reemplaza por `video.saveAs(info.outputPath(...))`, conservando el vídeo y todas sus assertions.
+Las suites completas posteriores aprobaron Linux 74/74 (5.8 min) y Windows 74/74 (4.7 min),
+con guardado de vídeo y hover efectivos. Ese 72/74 tampoco se presenta como gate aprobado.
 
 ## M01 y compatibilidad legacy
 
@@ -185,9 +207,9 @@ No se agregan índices ni se atribuye latencia a una query particular sin medici
 | Contacto con teléfono devuelve 500 en API real bajo tsx | M01 nuevo desde cero: dependencia de PhoneNormalizer ausente con metadata implícita | `@Inject(AppConfigService)` explícito; HTTP de regresión y journeys de CSV/contactos. |
 | Provider no puede preparar diseño Managed nuevo | M01 devuelve 409 por exigir price lock/design kickoff Self-Service | Exención exclusivamente de Planner MANAGED digital en el gate Admin existente, después de comprobar tenant. Client técnico y Self-Service mantienen su política; no cambia Finance/activación. |
 | Carga ANONYMOUS pierde entradas por agotamiento de retries | 3/150 errores 500, P2034 bajo dos lectores + dashboard | Backoff con jitter de 5–59 ms fuera de transacción, máximo original 20; al agotarse devuelve el 409 existente, sin filtrar Prisma. |
-| WebKit Flipbook 73/74 en CI base | Coordenadas de hover medidas antes de terminar la transformación CSS externa; engine READ no acredita fin de esa transición | Test espera `Animation.finished` del volumen antes de medir. Repetición 10/10 y global 74/74; CI pendiente. Sin alterar el motor. |
+| WebKit Flipbook 73/74 en CI base y primer CI Linux | El punto 95%/8% del bounding box 3D alcanza el fondo en Linux WebKit, demostrado con `elementFromPoint` y eventos reales; esperar CSS no bastó | Esperar geometría estable, usar puntos de esquina dentro del libro y exigir hit-testing real; mismas assertions. Linux 10/10 repetidos y 74/74 completo; CI final pendiente. No cambia el motor. |
 | Harness M01 no ejecutable con servicios existentes | Puertos Docker/WSL ocupados y artefacto de credenciales compartido | Offset acotado, credenciales por ejecución, limpieza propia y entrada real `src/main.ts`. |
-| CI Flipbook cancelado antes de tests | Run 40218604104 consumió 15 min descargando APT; quality/pilot success | Imagen oficial Playwright 1.55.0 Noble con deps preinstaladas, mismo límite de 15 min y mismas pruebas; pendiente confirmar CI del ajuste. |
+| CI Flipbook cancelado antes de tests | Run 40218604104 consumió 15 min descargando APT; quality/pilot success | Imagen oficial Playwright 1.55.0 Noble con deps preinstaladas; run 40220218632 ejecuta los 74 en 3.8 min, mismo límite de 15 min. Su fallo de hover se trata por separado. |
 | Formato local incluye artefactos ignorados | `var/qa` y `var/ngrok-public-test.yml` no están versionados; el segundo apareció en el cierre del 24 de octubre | Exclusiones exactas de esos recursos; no se modifica el túnel local ni se omite código versionado. |
 
 ## Seguridad, privacidad y retención
