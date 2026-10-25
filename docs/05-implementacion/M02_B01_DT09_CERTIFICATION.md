@@ -2,8 +2,8 @@
 
 Fecha de ejecución: 2026-10-23–25, America/Mexico_City. Base funcional:
 [`6945b9d326c5502b1812fee270461300dcc0ed29`](https://github.com/ManuelRuiz27/invitacionespremium/commit/6945b9d326c5502b1812fee270461300dcc0ed29).
-SHA funcional evaluado: [`d5a2d2a589219baed18dc5eb6148b267d446ae7e`](https://github.com/ManuelRuiz27/invitacionespremium/commit/d5a2d2a589219baed18dc5eb6148b267d446ae7e).
-**QA local completo aprobado, incluidos Linux y Windows; CI del ajuste final pendiente. NO-GO presencial.**
+SHA anterior evaluado: [`453209db173aba488d9dffd0a8a78ba4c3b87089`](https://github.com/ManuelRuiz27/invitacionespremium/commit/453209db173aba488d9dffd0a8a78ba4c3b87089).
+**QA local del ajuste exponencial aprobado; CI del ajuste final pendiente. NO-GO técnico integral hasta verificarlo; NO-GO presencial por aceptación física pendiente.**
 M01 sigue siendo la dirección principal; esta certificación corresponde exclusivamente al piloto separado M02-B01.
 No autoriza un lanzamiento comercial, nuevas licencias, roles ni capacidades.
 
@@ -31,7 +31,7 @@ pnpm format:check
 pnpm lint
 pnpm typecheck
 pnpm test
-$env:DT09_PERF_DIR = Join-Path (Get-Location) 'var/qa/dt09-performance-final'
+$env:DT09_PERF_DIR = Join-Path (Get-Location) 'var/qa/dt09-performance-exponential-full'
 pnpm test:e2e:access-control -- --integration-only
 pnpm test:e2e:managed -- --port-offset=1000
 pnpm test:e2e:access-control
@@ -81,20 +81,21 @@ No convertir ejecuciones focalizadas en aprobación global. Estado durante el ci
 | Repetición de casos UI DT08 | 3 rondas independientes: 6/6 Admin y 3/3 Client; timeouts originales. |
 | Repetición Flipbook REQ-02 | Primera Windows 10/10; tras reproducir Linux y corregir hit-testing, Linux 10/10 (cinco Chromium/cinco WebKit), cero retries. |
 | E2E M02 completo | 3/3, más conciliación SQL de Finance/RSVP/CheckIn/auditoría/Staff, aprobado. |
-| E2E M01 completo | 4/4, repetición final del 25 de octubre y SQL de aislamiento financiero aprobados (112.36 s harness). |
+| E2E M01 completo | 4/4, repetición posterior al ajuste exponencial y SQL de aislamiento financiero aprobados (86.82 s harness). |
 | Unidades API / SDK | 381/381 API; 150/150 SDK más 9/9 verificaciones Node. |
 | Unidades Scanner / packages / Landing | 62/62 Scanner; 100/100 Floorplan; 6/6 UI; 60/60 Landing. |
 | Unidades Client | 433/433 en 28 archivos (228.51 s); caso 200 Mesas 2.05 s dentro de la suite global. |
 | Unidades Admin | 242/242 en 15 archivos (451.47 s); Serpentina 565 ms dentro de la suite global. |
 | Unidades globales | `pnpm test --force`: 11/11 tareas, 0 caché, 823.57 s; 1,443 comprobaciones (1,434 Vitest + 9 Node). |
-| Integración API completa | 450/450 en 35 archivos (782.67 s Vitest, 836.17 s harness con migraciones/limpieza). |
+| Integración API completa | 450/450 en 35 archivos tras el ajuste exponencial (685.71 s Vitest, 696.82 s harness con migraciones/limpieza). |
 | Migración limpia / upgrade legacy | Aprobados en base efímera y caso legacy de `events.integration-spec.ts`. |
 | Primera suite Flipbook Windows | 74/74 Chromium/WebKit, sin retries (283.49 s); precede la corrección final de hit-testing. |
 | Flipbook final Linux | 74/74 Chromium/WebKit (5.8 min), con hover y vídeos completos; misma imagen que CI. |
 | Flipbook final Windows | 74/74 Chromium/WebKit (4.7 min), tras hit-testing y guardado portable de vídeo. |
-| Build global | 8/8 tareas aprobadas (47.77 s del gate); warnings de tamaño de bundle existentes, sin error. |
+| Build global | 8/8 tareas aprobadas tras el ajuste exponencial (21.70 s del gate); warnings de tamaño de bundle existentes, sin error. |
 | CI inicial DT09 | [40218604104](https://github.com/ManuelRuiz27/invitacionespremium/actions/runs/40218604104), SHA `d5a2d2a589219baed18dc5eb6148b267d446ae7e`: quality/pilot success; Flipbook cancelado en APT, sin ejecutar tests. |
 | CI con imagen preinstalada | [40220218632](https://github.com/ManuelRuiz27/invitacionespremium/actions/runs/40220218632), SHA `2e5d8bd3ac157d67ef6cd0bb928ae3ec3212ad8e`: quality/pilot success; Flipbook 73/74, mismo hover WebKit pendiente. |
+| CI del ajuste Flipbook | [40223035975](https://github.com/ManuelRuiz27/invitacionespremium/actions/runs/40223035975), SHA `453209db173aba488d9dffd0a8a78ba4c3b87089`: Flipbook/pilot success; quality 449/450, carga NOMINAL con 3 errores/150. |
 
 Una ejecución Admin del 24 al 25 atravesó suspensión: Vitest informó 70,977 s, incluyendo 38,009 s
 de import y 32,895 s de tests; 1/2 falló por superficie ausente al reanudar. Se conserva como ejecución
@@ -132,6 +133,27 @@ vídeo fallaron sólo al adjuntar la evidencia porque `video.path()` no ofrece u
 remota. Se reemplaza por `video.saveAs(info.outputPath(...))`, conservando el vídeo y todas sus assertions.
 Las suites completas posteriores aprobaron Linux 74/74 (5.8 min) y Windows 74/74 (4.7 min),
 con guardado de vídeo y hover efectivos. Ese 72/74 tampoco se presenta como gate aprobado.
+
+Run 40223035975 confirma Flipbook 74/74 (4.3 min) y piloto success, pero quality detecta un defecto
+real bajo carga NOMINAL en Linux: 147 ingresos/150, tres errores 500 Prisma y 75 conflictos P2034.
+Entorno de esa medición: Node 22.16.0, PostgreSQL 16.15, Xeon 8573C/4 lógicos, 16.77 GB RAM.
+Las ejecuciones nominales anteriores verdes no descartan el agotamiento por snapshots repetidos.
+Se aplica al scan nominal el mismo backoff/jitter fuera de transacción ya medido para anónimos,
+sin cambiar sus 20 intentos ni su autorización; agotamiento devuelve el 409 existente.
+La suite focalizada posterior pasa 36/36; la validación posterior se registra abajo.
+El 449/450 y la latencia de sus respuestas fallidas se conservan como **medición rechazada**.
+
+La siguiente integración local, aún con pausas lineales, midió un error ANONYMOUS/150 y 85 P2034.
+Se detuvo exclusivamente su Vitest tras verificar PID y ascendencia del harness; éste ejecutó su
+limpieza propia. No se atribuye un código HTTP que esa instrumentación todavía no conservaba ni
+se acredita una suite completa interrumpida. Ambos scans pasan a backoff **exponencial** (base 5 ms,
+cap 250 ms, jitter adicional hasta la mitad; pausas 5–374 ms), manteniendo veinte intentos, transacciones,
+locks y claves. La carga ahora conserva status/código permitido de fallos y latencia máxima, además
+de p50/p95. Foco exponencial: 36/36, 150/150 por modalidad, errores cero; ANONYMOUS recupera 15 P2034.
+La validación local posterior del 25 de octubre aprueba Prisma, OpenAPI/SDK sin drift, formato, lint,
+typecheck, 381 unidades API, 62 Scanner, integración completa 450/450, M01 4/4, M02 3/3 y build.
+Ambas cargas terminan 150/150, sin errores ni deadlocks. CI del ajuste exponencial permanece pendiente;
+los resultados de ejecuciones anteriores no lo sustituyen.
 
 ## M01 y compatibilidad legacy
 
@@ -180,21 +202,24 @@ cero errores inesperados, cero deadlocks, 150 ingresos/0 pendientes y una audito
 Permiten interacción continua de dos lectores con margen en este equipo; no sustituyen una medición de staging
 ni amplían el límite certificado más allá de estos 150 derechos.
 
-Medición final del 25 de octubre, dentro de la integración global:
+Medición local del 25 de octubre posterior al ajuste exponencial, dentro de la integración completa 450/450:
 
 | Modalidad | Scanner p50 / p95 | Panel p50 / p95 | Muestras panel | Duración carga | Errores / deadlocks | Conflictos recuperados |
 | --- | --- | --- | ---: | ---: | --- | ---: |
-| NOMINAL | 82.30 / 124.50 ms | 48.73 / 67.25 ms | 127 | 6.83 s | 0 / 0 | 0 |
-| ANONYMOUS | 87.97 / 721.90 ms | 47.82 / 64.99 ms | 233 | 12.43 s | 0 / 0 | 111 P2034 |
+| NOMINAL | 96.80 / 168.47 ms | 57.59 / 93.16 ms | 120 | 7.95 s | 0 / 0 | 0 |
+| ANONYMOUS | 39.53 / 86.79 ms | 31.43 / 41.45 ms | 195 | 6.92 s | 0 / 0 | 39 P2034 |
 
-150 respuestas de ingreso por modalidad; las 127/233 muestras de locks observaron como máximo un waiter.
-Rollbacks medidos: 0/111. CPU del worker: 4.17/9.55 s; RSS antes/después: 389.2→457.7 MB y
-460.8→536.9 MB, respectivamente. [JSON agregado reproducible](./M02_B01_DT09_PERFORMANCE.json)
-conserva precisión, entorno, recursos y la ejecución rechazada anterior a la corrección, sin identificadores.
+150 respuestas de ingreso por modalidad; las 120/195 muestras de locks observaron como máximo un waiter.
+Máximos Scanner: 206.95 ms NOMINAL y **2,521.60 ms ANONYMOUS**; panel: 182.36/85.95 ms.
+El gate es p95, no una garantía por petición: una respuesta anónima superó dos segundos y terminó bien.
+Rollbacks medidos: 0/38 (las estadísticas pueden retrasarse respecto a los 39 conflictos observados).
+CPU del worker: 5.20/4.78 s; RSS antes/después: 425.79→493.81 MB y 514.87→565.22 MB,
+respectivamente, usando MB decimales. [JSON agregado reproducible](./M02_B01_DT09_PERFORMANCE.json)
+conserva precisión, entorno, recursos y mediciones históricas/rechazadas, sin identificadores.
 
 Antes del ajuste ANONYMOUS produjo 3 errores 500/150 (2%) y 75 conflictos serializables. La primera
 ejecución focalizada posterior pasó 150/150 sin errores (p95 301.88 ms, 69 conflictos recuperados);
-la repetición final anterior también termina sin errores. La diferencia entre 302 y 722 ms muestra
+una repetición lineal pasó con p95 721.90 ms antes de volver a fallar en otra ejecución. Esa variabilidad muestra
 variabilidad local y justifica no prometer un SLA. La latencia de respuestas fallidas no es un benchmark aceptado.
 El cuello demostrado fue agotamiento de retries serializables; esta evidencia no demuestra un índice faltante.
 No se agregan índices ni se atribuye latencia a una query particular sin medición SQL.
@@ -206,7 +231,8 @@ No se agregan índices ni se atribuye latencia a una query particular sin medici
 | UI global DT08 Client 432/433, Admin 240/242 | Casos aislados y global serial inicial verdes; render MUI/jsdom costoso, promesas/updates React pendientes y búsquedas sobre 200 Mesas | Un worker por suite UI; `act` asíncrono para preparación/resolución; consultas de 50 personas dentro del drawer. Sin aumentar timeouts ni quitar assertions. |
 | Contacto con teléfono devuelve 500 en API real bajo tsx | M01 nuevo desde cero: dependencia de PhoneNormalizer ausente con metadata implícita | `@Inject(AppConfigService)` explícito; HTTP de regresión y journeys de CSV/contactos. |
 | Provider no puede preparar diseño Managed nuevo | M01 devuelve 409 por exigir price lock/design kickoff Self-Service | Exención exclusivamente de Planner MANAGED digital en el gate Admin existente, después de comprobar tenant. Client técnico y Self-Service mantienen su política; no cambia Finance/activación. |
-| Carga ANONYMOUS pierde entradas por agotamiento de retries | 3/150 errores 500, P2034 bajo dos lectores + dashboard | Backoff con jitter de 5–59 ms fuera de transacción, máximo original 20; al agotarse devuelve el 409 existente, sin filtrar Prisma. |
+| Carga ANONYMOUS pierde entradas por agotamiento de retries | Inicial 3/150 errores 500; pausa lineal posterior aún deja 1/150 en otra ejecución | Backoff exponencial con jitter 5–374 ms fuera de transacción, máximo original 20; 409 existente al agotarse. Integración posterior 450/450, carga 150/150 y cero errores; CI pendiente. |
+| Carga NOMINAL pierde entradas en Linux CI | Run 40223035975: 3/150 errores 500, 75 P2034 y 147 ingresos, aunque ejecuciones anteriores pasaron | Mismo backoff exponencial 5–374 ms y 20 intentos; `CHECK_IN_CONCURRENCY_CONFLICT` 409 al agotarse. Integración posterior 450/450, carga 150/150 y cero errores; CI pendiente. |
 | WebKit Flipbook 73/74 en CI base y primer CI Linux | El punto 95%/8% del bounding box 3D alcanza el fondo en Linux WebKit, demostrado con `elementFromPoint` y eventos reales; esperar CSS no bastó | Esperar geometría estable, usar puntos de esquina dentro del libro y exigir hit-testing real; mismas assertions. Linux 10/10 repetidos y 74/74 completo; CI final pendiente. No cambia el motor. |
 | Harness M01 no ejecutable con servicios existentes | Puertos Docker/WSL ocupados y artefacto de credenciales compartido | Offset acotado, credenciales por ejecución, limpieza propia y entrada real `src/main.ts`. |
 | CI Flipbook cancelado antes de tests | Run 40218604104 consumió 15 min descargando APT; quality/pilot success | Imagen oficial Playwright 1.55.0 Noble con deps preinstaladas; run 40220218632 ejecuta los 74 en 3.8 min, mismo límite de 15 min. Su fallo de hover se trata por separado. |

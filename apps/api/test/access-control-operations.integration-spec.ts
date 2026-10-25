@@ -120,6 +120,7 @@ describe('DT08 authoritative access operations, privacy and MVCC', () => {
         SELECT deadlocks, xact_rollback AS rollbacks FROM pg_stat_database WHERE datname=current_database()`;
       const latencies: number[] = [],
         dashboardLatencies: number[] = [];
+      const failedResponses: Record<string, number> = {};
       let completed = 0,
         errors = 0,
         lockSamples = 0,
@@ -153,7 +154,15 @@ describe('DT08 authoritative access operations, privacy and MVCC', () => {
         const start = performance.now();
         const response = await scan(f, material, token);
         latencies.push(performance.now() - start);
-        if (response.status !== 200) errors++;
+        if (response.status !== 200) {
+          errors++;
+          const code =
+            typeof response.body?.code === 'string' && /^[A-Z][A-Z0-9_]{0,79}$/u.test(response.body.code)
+              ? response.body.code
+              : 'UNCLASSIFIED';
+          const failure = `${response.status}:${code}`;
+          failedResponses[failure] = (failedResponses[failure] ?? 0) + 1;
+        }
         completed++;
       };
       const outcomes = await Promise.allSettled([
@@ -202,12 +211,19 @@ describe('DT08 authoritative access operations, privacy and MVCC', () => {
         readers: 2,
         tables: 5,
         errors,
+        failedResponses,
         elapsedMs,
-        scanner: { samples: latencies.length, p50Ms: percentile(latencies, 0.5), p95Ms: percentile(latencies, 0.95) },
+        scanner: {
+          samples: latencies.length,
+          p50Ms: percentile(latencies, 0.5),
+          p95Ms: percentile(latencies, 0.95),
+          maxMs: Math.max(...latencies)
+        },
         dashboard: {
           samples: dashboardLatencies.length,
           p50Ms: percentile(dashboardLatencies, 0.5),
-          p95Ms: percentile(dashboardLatencies, 0.95)
+          p95Ms: percentile(dashboardLatencies, 0.95),
+          maxMs: Math.max(...dashboardLatencies)
         },
         database: {
           deadlocksDelta: Number(after[0]!.deadlocks - before[0]!.deadlocks),

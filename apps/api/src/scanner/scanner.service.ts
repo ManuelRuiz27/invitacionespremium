@@ -291,7 +291,21 @@ export class ScannerService {
         if (isActiveCheckInUniqueError(error)) throw assistantAlreadyCheckedIn();
         if (isCheckInFloorplanTableError(error)) throw scannerTableAssignmentRequired();
         if (String(error).includes('check_in_floorplan_seat_required')) throw scannerSeatAssignmentRequired();
-        if ((isRetryable(error) || isIdempotencyUniqueError(error)) && attempt < MAX_ATTEMPTS - 1) continue;
+        if (isRetryable(error) || isIdempotencyUniqueError(error)) {
+          if (attempt === MAX_ATTEMPTS - 1)
+            throw new DomainError(
+              'CHECK_IN_CONCURRENCY_CONFLICT',
+              'The check-in operation could not be serialized.',
+              HttpStatus.CONFLICT
+            );
+          // Yield outside the transaction so a busy second reader cannot
+          // repeatedly force the same stale snapshot through all 20 attempts.
+          const backoffMs = Math.min(5 * 2 ** attempt, 250);
+          await new Promise((resolve) =>
+            setTimeout(resolve, backoffMs + Math.floor(Math.random() * Math.ceil(backoffMs / 2)))
+          );
+          continue;
+        }
         throw error;
       }
     }

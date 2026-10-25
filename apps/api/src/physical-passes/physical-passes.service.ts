@@ -521,8 +521,9 @@ export class PhysicalPassesService {
             throw physicalPassError('PHYSICAL_PASS_CONCURRENCY_CONFLICT', 'Physical pass use could not be serialized.');
           // Yield outside the transaction: synchronized gates otherwise keep
           // acquiring stale snapshots and can starve one reader for 20 attempts.
+          const backoffMs = Math.min(5 * 2 ** attempt, 250);
           await new Promise((resolve) =>
-            setTimeout(resolve, Math.min(5 * (attempt + 1), 50) + Math.floor(Math.random() * 10))
+            setTimeout(resolve, backoffMs + Math.floor(Math.random() * Math.ceil(backoffMs / 2)))
           );
           continue;
         }

@@ -42,6 +42,13 @@ descubre identificadores; la autorización y el estado se vuelven a evaluar bajo
 reversión usan `Serializable`. Scan y search son lecturas con locks en `READ COMMITTED`, para que una
 lectura que esperó a una mutación ganadora observe su commit en vez de conservar un snapshot anterior.
 
+DT09: el scan atómico `ACCESS_CONTROL+NOMINAL` conserva sus 20 intentos y reautoriza Evento/Staff
+en cada transacción. Ante conflicto serializable o carrera de llave idempotente espera 5–374 ms con
+backoff exponencial (base 5 ms, cap 250 ms más jitter) fuera de la transacción antes del siguiente intento. Una carga real de 150 derechos
+con dos lectores demostró agotamiento sin esa pausa. Al agotarse responde el código existente
+`409 CHECK_IN_CONCURRENCY_CONFLICT`, sin filtrar la excepción Prisma. No cambia firma, snapshot,
+orden de locks, auditoría ni los flujos de QR familiar legacy o reversión.
+
 ## Búsqueda exacta
 
 El texto se recorta, colapsa espacios y acepta 1–160 caracteres. Se compara de manera exacta y sin
