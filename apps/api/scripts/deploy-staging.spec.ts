@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   deployStaging,
+  netlifyDeployArgs,
   parseRailwayDeployment,
   railwayUpArgs,
   resolveMonorepoRoot,
@@ -21,6 +22,18 @@ afterEach(async () => {
 });
 
 describe('staging deployment planning', () => {
+  it('deploys Client with its Edge Functions configuration and the completed build', () => {
+    const root = resolve('repo');
+    const directory = resolve(root, 'apps/client/dist');
+    const args = netlifyDeployArgs(directory, 'staging:abc', '@invitaciones/client');
+    expect(args.slice(0, 4)).toEqual(['--package=netlify-cli@27.1.0', 'dlx', 'netlify', 'deploy']);
+    expect(args).toContain('--no-build');
+    expect(args[args.indexOf('--filter') + 1]).toBe('@invitaciones/client');
+    expect(args[args.indexOf('--dir') + 1]).toBe(directory);
+    const landing = netlifyDeployArgs(directory, 'staging:abc', '@invitaciones/landing');
+    expect(landing[landing.indexOf('--filter') + 1]).toBe('@invitaciones/landing');
+  });
+
   it('targets Railway project, environment and service without detach', () => {
     const args = railwayUpArgs(target, 'staging:abc');
     expect(args).toContain('--project');

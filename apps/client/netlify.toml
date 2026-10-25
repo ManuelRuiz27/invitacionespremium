@@ -1,6 +1,7 @@
 [build]
 command = "corepack enable && pnpm install --frozen-lockfile && pnpm --filter @invitaciones/client build"
 publish = "apps/client/dist"
+edge_functions = "apps/client/dist-edge"
 ignore = "exit 0"
 
 [build.environment]

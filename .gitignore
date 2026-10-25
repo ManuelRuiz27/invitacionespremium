@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-edge/
 apps/client/dist-floorplan-profile/
 coverage/
 .turbo/

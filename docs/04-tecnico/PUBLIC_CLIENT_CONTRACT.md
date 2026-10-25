@@ -115,6 +115,30 @@ resolución autoritativa con el token, generación y `AbortSignal` originales. E
 según corresponda, muestra AVAILABLE sin Confirmación abierta, solo CANCELLED, CLOSED con su Álbum
 permitido o el estado no disponible ante `404`. No existe loop automático.
 
+## Vista previa Open Graph de Invitaciones
+
+Netlify ejecuta `invitation-preview` para `GET /invitacion/:invitationToken` e incorpora los metadatos
+en el HTML inicial, conservando el shell y los scripts de la SPA. No depende de JavaScript del crawler.
+Consume el requester público existente del SDK con `credentials: omit`, sin cookies, con timeout de
+tres segundos y sin cache ni seguimiento de redirects. El backend conserva la autoridad de disponibilidad.
+
+Sólo una proyección `AVAILABLE` válida produce título del Evento, descripción neutra e imagen:
+`flyerInitialAsset` para Flyer o la página con menor posición para Flipbook. El `contentPath` debe
+pertenecer exactamente al token actual y al UUID del asset; su URL absoluta usa el origen de la API
+configurada. Nunca se selecciona `flyerQrAsset`, el QR individual, datos nominales, teléfono ni Álbum.
+La lectura posterior de la imagen usa el endpoint público existente y conserva sus validaciones.
+
+Se incluyen Open Graph y Twitter `summary_large_image`. Todo texto se escapa para HTML. La página
+individual usa `private, no-store`, `no-referrer` y `noindex, nofollow, noarchive`; no se registran
+tokens, respuestas ni errores. `CLOSED`, `CANCELLED`, errores HTTP, red o respuestas incompatibles
+mantienen el HTML neutro y permiten que la SPA resuelva su estado normal. Los proveedores externos
+pueden conservar una vista previa obtenida antes de una cancelación.
+
+El build de Client genera `dist` y `dist-edge` con el mismo `VITE_API_BASE_URL`. `netlify.toml` declara
+el segundo como directorio de Edge Functions, fuera del publish estático. El despliegue CLI de staging
+usa explícitamente ese config y los artefactos ya construidos; un host que sólo sirva `dist` no ejecuta
+la vista previa dinámica. No se crean endpoints, DTOs, entidades, estados ni mutaciones adicionales.
+
 ## QR
 
 El botón “Ver mi QR” y el Hotspot operativo existen únicamente con `qr.available === true`. El SVG se

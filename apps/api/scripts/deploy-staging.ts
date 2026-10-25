@@ -46,6 +46,23 @@ export interface StagingCommandExecutor {
   ): Promise<string>;
 }
 
+export function netlifyDeployArgs(directory: string, message: string, packageName: string): string[] {
+  return [
+    '--package=netlify-cli@27.1.0',
+    'dlx',
+    'netlify',
+    'deploy',
+    '--prod',
+    '--dir',
+    directory,
+    '--message',
+    message,
+    '--filter',
+    packageName,
+    '--no-build'
+  ];
+}
+
 const defaultExecutor: StagingCommandExecutor = { run: runCommand, capture: runCapturedCommand };
 
 export interface RailwayTarget {
@@ -201,18 +218,17 @@ export async function deployStaging(
     await rm(directory, { recursive: true, force: true });
     await executor.run('pnpm', ['--filter', site.packageName, 'build'], { cwd: root, env: environment });
     await validateNetlifyDist(root, directory);
-    await executor.run(
-      'pnpm',
-      ['dlx', 'netlify-cli@27.1.0', 'deploy', '--prod', '--dir', directory, '--message', message],
-      {
-        cwd: root,
-        env: {
-          ...environment,
-          NETLIFY_AUTH_TOKEN: netlifyToken,
-          NETLIFY_SITE_ID: requiredEnvironment(environment, site.siteVariable)
-        }
+    if (site.packageName === '@invitaciones/client') {
+      await access(resolve(root, 'apps/client/dist-edge/invitation-preview.js'));
+    }
+    await executor.run('pnpm', netlifyDeployArgs(directory, message, site.packageName), {
+      cwd: root,
+      env: {
+        ...environment,
+        NETLIFY_AUTH_TOKEN: netlifyToken,
+        NETLIFY_SITE_ID: requiredEnvironment(environment, site.siteVariable)
       }
-    );
+    });
   }
   await executor.run('pnpm', ['--filter', '@invitaciones/api', 'staging:smoke', '--', '--confirm-staging'], {
     cwd: root,
