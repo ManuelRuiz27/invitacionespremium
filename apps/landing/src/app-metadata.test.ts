@@ -7,9 +7,9 @@ describe('landing metadata and URL policy', () => {
     const legacyBrand = ['Soft', 'Monky'].join('-');
     expect(appMetadata.appName).toBe('Landing');
     expect(appMetadata.title).toContain('InvitacionesPremium');
-    expect(appMetadata.title).toContain('Gestión digital de invitados');
+    expect(appMetadata.title).toContain('Invitaciones digitales y control de acceso QR');
     expect(appMetadata.title).not.toContain(legacyBrand);
-    expect(appMetadata.description).toContain('invitaciones');
+    expect(appMetadata.description).toContain('Invitaciones');
     expect(appMetadata.description).toContain('confirmaciones');
     expect(appMetadata.description).not.toContain('Plataforma SaaS');
     expect(appMetadata.description.length).toBeGreaterThan(50);

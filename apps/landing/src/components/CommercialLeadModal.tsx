@@ -51,13 +51,20 @@ const emptyValues: FormValues = {
 export interface CommercialLeadModalProps {
   open: boolean;
   opportunityType: CommercialOpportunityType;
+  initialNotes?: string;
   onClose: () => void;
   client?: LandingCommercialLeadsClient;
 }
 
-export function CommercialLeadModal({ open, opportunityType, onClose, client: clientProp }: CommercialLeadModalProps) {
+export function CommercialLeadModal({
+  open,
+  opportunityType,
+  initialNotes = '',
+  onClose,
+  client: clientProp
+}: CommercialLeadModalProps) {
   const client = useMemo(() => clientProp ?? createLandingCommercialLeadsClient(), [clientProp]);
-  const [values, setValues] = useState<FormValues>(emptyValues);
+  const [values, setValues] = useState<FormValues>(() => ({ ...emptyValues, notes: initialNotes }));
   const [errors, setErrors] = useState<FieldErrors>({});
   const [status, setStatus] = useState<FormStatus>('idle');
   const [requestMessage, setRequestMessage] = useState<string>();
@@ -72,11 +79,11 @@ export function CommercialLeadModal({ open, opportunityType, onClose, client: cl
     controllerRef.current = undefined;
     submissionIdRef.current = undefined;
     submittingRef.current = false;
-    setValues(emptyValues);
+    setValues({ ...emptyValues, notes: initialNotes });
     setErrors({});
     setStatus('idle');
     setRequestMessage(undefined);
-  }, []);
+  }, [initialNotes]);
 
   useEffect(() => {
     if (!open) reset();

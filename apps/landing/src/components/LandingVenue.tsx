@@ -11,7 +11,13 @@ import { ProductProofPicture } from './ProductProofPicture';
 
 const landingContent = getLandingConfig();
 
-export function LandingVenue({ onOpenCommercial }: { onOpenCommercial: () => void }) {
+export function LandingVenue({
+  onOpenCommercial,
+  onOpenPersonalization
+}: {
+  onOpenCommercial: () => void;
+  onOpenPersonalization: () => void;
+}) {
   const headingId = 'landing-venue-heading';
 
   return (
@@ -31,13 +37,16 @@ export function LandingVenue({ onOpenCommercial }: { onOpenCommercial: () => voi
               align="left"
               dark
             />
+            <Typography sx={{ ...landingTokens.typography.body, color: landingTokens.colors.dark.textMuted, mb: 3 }}>
+              {landingContent.venue.pricingNotice}
+            </Typography>
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', color: landingTokens.colors.dark.text }}>
               <StorefrontIcon aria-hidden sx={{ mt: 0.5 }} />
               <Box>
                 <Button
                   variant="contained"
                   onClick={onOpenCommercial}
-                  sx={{ ...landingTokens.typography.headline, textTransform: 'none', borderRadius: 0, mb: 1 }}
+                  sx={{ ...landingTokens.buttons.primary, textTransform: 'none', mb: 2 }}
                 >
                   {landingContent.venue.cta}
                 </Button>
@@ -92,7 +101,7 @@ export function LandingVenue({ onOpenCommercial }: { onOpenCommercial: () => voi
               <ProductProofPicture
                 avif={checkinAvif}
                 webp={checkinWebp}
-                alt="Confirmación real de ingreso registrado"
+                alt="Registro de ingreso del flujo digital de demostración"
                 width={780}
                 height={380}
                 sx={{
@@ -105,8 +114,28 @@ export function LandingVenue({ onOpenCommercial }: { onOpenCommercial: () => voi
                 }}
               />
             </Box>
+            <Typography variant="caption" sx={{ display: 'block', color: landingTokens.colors.dark.textMuted, mt: 2 }}>
+              {landingContent.venue.proofCaption}
+            </Typography>
           </Grid>
         </Grid>
+        <Box sx={{ mt: { xs: 8, md: 10 }, pt: 5, borderTop: landingTokens.borders.hairlineDark, maxWidth: 820 }}>
+          <Typography
+            component="h3"
+            sx={{ ...landingTokens.typography.headline, color: landingTokens.colors.dark.text, fontSize: '1.75rem' }}
+          >
+            {landingContent.venue.personalization.title}
+          </Typography>
+          <Typography sx={{ ...landingTokens.typography.body, color: landingTokens.colors.dark.textMuted, mt: 2 }}>
+            {landingContent.venue.personalization.description}
+          </Typography>
+          <Typography sx={{ ...landingTokens.typography.body, color: landingTokens.colors.dark.textMuted, mt: 2 }}>
+            {landingContent.venue.personalization.notice}
+          </Typography>
+          <Button variant="outlined" onClick={onOpenPersonalization} sx={{ ...landingTokens.buttons.secondary, mt: 3 }}>
+            {landingContent.venue.personalization.cta}
+          </Button>
+        </Box>
       </LandingContainer>
     </Box>
   );

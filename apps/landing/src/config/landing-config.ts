@@ -9,29 +9,30 @@ export interface LandingConfigOptions {
 }
 
 const productName = 'InvitacionesPremium';
-const seoTitle = `${productName} — Gestión digital de invitados para Planners`;
+const seoTitle = `${productName} | Invitaciones digitales y control de acceso QR`;
 const seoDescription =
-  'InvitacionesPremium prepara la operación digital del evento para que el Planner gestione invitaciones, confirmaciones, mesas y accesos.';
+  'Invitaciones digitales Flyer y Flipbook, confirmaciones RSVP, mesas y control de acceso QR. Servicios gestionados para planners, salones y jardines.';
 
 const commercialContent = {
   brand: {
     name: productName,
-    tagline: 'Gestión digital de invitados para Planners.'
+    tagline: 'Invitaciones y operación de eventos.'
   },
   nav: [
-    { label: 'Producto', href: '#producto' },
+    { label: 'Invitaciones', href: '#servicios' },
+    { label: 'Precios', href: '#precios' },
+    { label: 'Salones', href: '#venues' },
     { label: 'Cómo funciona', href: '#como-funciona' },
-    { label: 'Servicios', href: '#servicios' },
     { label: 'Para Planners', href: '#planners' },
     { label: 'FAQ', href: '#faq' }
   ],
   hero: {
-    badge: 'Servicio gestionado para Planners',
-    title: 'Tú organizas el evento. Nosotros preparamos la operación digital.',
+    badge: 'Invitaciones digitales y operación gestionada',
+    title: 'Invitaciones memorables. Accesos bajo control.',
     subtitle:
-      'Te entregamos un evento listo para trabajar para que gestiones invitados, confirmaciones, mesas y accesos sin encargarte de la configuración técnica.',
-    primaryCta: 'Ver cómo funciona',
-    secondaryCta: 'Conocer los servicios'
+      'Diseñamos la invitación y preparamos la operación digital de tu evento: confirmaciones, mesas y acceso QR según el servicio que elijas.',
+    primaryCta: 'Explorar invitaciones',
+    secondaryCta: 'Soluciones para salones'
   },
   problem: {
     title: 'Organizar un Evento no debería significar perseguir mensajes y listas',
@@ -82,46 +83,47 @@ const commercialContent = {
     ]
   },
   services: {
-    title: 'Tres formas de acompañar a tus invitados',
+    title: 'Elige la experiencia que merece tu evento',
     subtitle:
-      'La experiencia de invitación puede cambiar; la gestión de invitados, mesas y accesos permanece conectada.',
+      'Flyer y Flipbook con confirmación de asistencia, o control QR por evento sin invitación visual. Nuestro equipo prepara la parte técnica.',
     items: [
       {
         code: 'PHYSICAL_QR',
-        name: 'Gestión de Invitados',
-        description:
-          'Para eventos que ya cuentan con su propia invitación y necesitan ordenar invitados, mesas y acceso.',
+        name: 'QR / EventOps',
+        description: 'Control de acceso por evento con pases físicos QR numerados, sin diseño de invitación.',
         features: [
-          'Gestión de invitados y acompañantes',
-          'Organización de mesas cuando aplica',
+          'Pases numerados de uso individual y único',
+          'Mesas y croquis cuando aplica',
           'Accesos temporales para tu equipo de recepción',
-          'Búsqueda y registro de entrada',
-          'No incluye formulario público de confirmación'
+          'Validación de ingreso con Scanner',
+          'Sin RSVP público ni álbum'
         ]
       },
       {
         code: 'FLYER',
-        name: 'Invitación Digital',
+        name: 'Flyer digital',
         description: 'Una invitación personalizada conectada con toda la operación de tus invitados.',
         features: [
-          'Invitación digital preparada por nuestro equipo',
-          'Confirmaciones y acompañantes',
+          'Diseño personalizado de dos piezas principales',
+          'Confirmación RSVP y acompañantes',
+          'Hasta dos rondas consolidadas de diseño',
           'Gestión de invitados',
-          'Organización de mesas',
+          'Organización de mesas cuando aplica',
           'Accesos temporales para Staff',
           'Registro de entrada'
         ]
       },
       {
         code: 'FLIPBOOK',
-        name: 'Invitación Premium',
+        name: 'Flipbook Premium',
         description: 'Una experiencia visual tipo revista conectada con toda la operación de tus invitados.',
         features: [
           'Hasta 10 páginas',
           'Experiencia visual premium',
-          'Confirmaciones y acompañantes',
+          'Confirmación RSVP y acompañantes',
+          'Hasta dos rondas consolidadas de diseño',
           'Gestión de invitados',
-          'Organización de mesas',
+          'Organización de mesas cuando aplica',
           'Accesos temporales para Staff',
           'Registro de entrada'
         ]
@@ -129,9 +131,27 @@ const commercialContent = {
     ]
   },
   pricing: {
-    title: 'Servicios y precios',
+    title: 'Precios por evento',
     subtitle: 'Compara el precio por evento para hasta 50, 100 o 150 personas.',
-    note: 'Precio por evento · MXN'
+    note: 'MXN antes de IVA · Tarifas por evento según capacidad. Los planes para salones se cotizan por separado.'
+  },
+  howItWorks: {
+    title: 'Nosotros preparamos. Tú organizas.',
+    subtitle: 'Un equipo detrás de la tecnología, con un alcance definido para cada modalidad.',
+    steps: [
+      ['01', 'Cuéntanos qué necesitas', 'Revisamos invitaciones, control de acceso y capacidad de tu evento.'],
+      ['02', 'Nosotros preparamos', 'Configuramos el evento y, cuando corresponde, diseñamos la invitación.'],
+      [
+        '03',
+        'Tú organizas',
+        'Gestionas invitados y RSVP en Flyer/Flipbook, o distribuyes pases en la modalidad anónima.'
+      ],
+      [
+        '04',
+        'Tu equipo recibe',
+        'Tu personal valida los QR con conexión a internet y consulta el estado de los ingresos.'
+      ]
+    ]
   },
   planners: {
     title: 'Nosotros preparamos. Tú operas el evento.',
@@ -151,33 +171,46 @@ const commercialContent = {
         description: 'Creas accesos temporales para que tu Staff opere únicamente ese evento.'
       }
     ],
-    commercialCta: 'Solicitar una demo',
+    commercialCta: 'Demo para Planners',
     notice: 'La solicitud inicia una conversación comercial. No crea una cuenta ni activa servicios automáticamente.'
   },
   venue: {
-    title: 'Soluciones para salones y jardines',
+    title: 'Tu salón recibe invitados. Nosotros preparamos la tecnología.',
     subtitle:
-      'Esta modalidad se evalúa de forma comercial y no forma parte del lanzamiento M01 Managed para Planner independiente.',
+      'Evaluamos contigo una operación gestionada para tu salón o jardín: preparamos el evento y tu equipo distribuye pases QR numerados y valida cada ingreso.',
     bulletPoints: [
       {
-        title: 'Mismo núcleo operativo',
-        description: 'La modalidad futura reutiliza la gestión de invitados, mesas y acceso del producto.'
+        title: 'Pases QR de un solo uso',
+        description: 'La modalidad anónima identifica folios, sin nombres de invitados ni confirmación RSVP.'
       },
       {
-        title: 'Organización y ownership explícitos',
-        description: 'Cualquier extensión debe conservar los roles y límites definidos para Organizaciones.'
+        title: 'Preparación técnica gestionada',
+        description: 'Nuestro equipo configura el evento y el croquis cuando aplica; tu personal opera la recepción.'
       },
       {
-        title: 'Sin capacidad implícita por volumen',
-        description: 'El volumen comercial no habilita permisos ni funciones adicionales por sí solo.'
+        title: 'Visibilidad de tu operación',
+        description: 'Consulta pases vigentes, utilizados y pendientes, y su distribución por mesas cuando aplica.'
       }
     ],
-    cta: 'Hablar con nuestro equipo',
-    notice: 'Esta modalidad no forma parte de la landing activa M01.'
+    cta: 'Solicitar propuesta para mi salón',
+    pricingNotice: 'Planes gestionados bajo cotización. Revisamos capacidad, preparación y condiciones contigo.',
+    notice:
+      'Estamos coordinando demostraciones y propuestas. La activación en eventos presenciales está sujeta a las validaciones operativas finales.',
+    proofCaption:
+      'Imágenes de demostración del flujo digital con invitados; los pases anónimos se consultan por folio.',
+    personalization: {
+      title: 'Tu identidad. Tu experiencia digital.',
+      description:
+        'Podemos evaluar un proyecto de interfaz exclusiva con tu identidad visual y dominio o subdominio propio, conectado a la plataforma central de InvitacionesPremium.',
+      notice:
+        'Desarrollo a medida sujeto a alcance, plazo y cotización por separado. Su disponibilidad se acuerda antes de contratar; no incluye un backend dedicado.',
+      cta: 'Cotizar interfaz exclusiva',
+      inquiry: 'Me interesa cotizar una interfaz exclusiva para mi salón, con identidad visual y dominio propio.'
+    }
   },
   faq: {
     title: 'Preguntas frecuentes',
-    subtitle: 'Respuestas sobre el servicio Managed que hoy ofrecemos a Planners independientes.',
+    subtitle: 'Invitaciones por evento, propuestas para salones y preparación gestionada.',
     items: [
       {
         question: '¿Qué prepara InvitacionesPremium?',
@@ -197,7 +230,7 @@ const commercialContent = {
       {
         question: '¿Cómo funciona el acceso el día del evento?',
         answer:
-          'El Planner habilita accesos temporales para su equipo. Staff puede buscar o escanear, identificar a los asistentes y registrar su entrada únicamente dentro de ese evento.'
+          'El Planner habilita accesos temporales para su equipo. En Flyer/Flipbook se consulta la invitación y se registra la entrada de asistentes; con pases anónimos se valida el folio y su uso, sin identificar personas.'
       },
       {
         question: '¿Puedo crear una cuenta y preparar eventos por mi cuenta?',
@@ -205,9 +238,33 @@ const commercialContent = {
           'No en el lanzamiento M01 actual. El autoservicio se conserva como capacidad futura; el alta y la preparación se realizan hoy como parte del servicio gestionado.'
       },
       {
+        question: '¿Qué diferencia hay entre Flyer y Flipbook?',
+        answer:
+          'Flyer incluye dos piezas gráficas principales; Flipbook ofrece hasta diez páginas. Ambos incluyen confirmación RSVP, acceso QR y hasta dos rondas consolidadas de diseño.'
+      },
+      {
+        question: '¿Los pases QR anónimos identifican a mis invitados?',
+        answer:
+          'No. Identifican un folio único y su estado de uso, sin registrar el nombre de una persona ni requerir RSVP. Esta propuesta para salones se cotiza por separado de las invitaciones digitales.'
+      },
+      {
+        question: '¿Ya puedo activar el servicio para mi salón?',
+        answer:
+          'Puedes solicitar una demostración y una propuesta. El inicio de la operación presencial está sujeto a las validaciones operativas finales y a la aprobación de lanzamiento.'
+      },
+      {
+        question: '¿Puedo usar mi dominio y colores?',
+        answer:
+          'Se puede evaluar una interfaz exclusiva como proyecto de desarrollo aparte, conectada a la misma plataforma central. El alcance, el plazo y la disponibilidad se acuerdan en la cotización.'
+      },
+      {
+        question: '¿Funciona sin internet?',
+        answer: 'La validación de ingreso requiere conexión con el servidor. No ofrecemos operación offline.'
+      },
+      {
         question: '¿Cómo se contrata?',
         answer:
-          'La contratación se acuerda directamente con InvitacionesPremium. En esta fase no dependemos de compra de créditos, checkout ni pagos automáticos dentro de la plataforma.'
+          'Solicita una propuesta para Planners o para tu salón. Revisamos capacidad, modalidad y alcance; la solicitud no crea una cuenta ni activa servicios automáticamente.'
       }
     ]
   },
@@ -252,10 +309,11 @@ const commercialContent = {
     success: 'Tu cuenta fue creada. Inicia sesión para continuar.'
   },
   cta: {
-    title: '¿Organizas eventos y quieres operar invitados sin cargar con la parte técnica?',
+    title: 'Hablemos de tu próximo evento.',
     description:
-      'Solicita una demo del flujo Managed y revisa cómo InvitacionesPremium prepara el evento para que tú puedas operarlo.',
-    primaryCta: 'Solicitar una demo'
+      'Cuéntanos si trabajas como Planner o si buscas una solución para tu salón. Nuestro equipo te ayuda a definir el alcance.',
+    primaryCta: 'Demo para Planners',
+    secondaryCta: 'Solicitar propuesta para mi salón'
   },
   footer: {
     copyright: `© 2026 ${productName}. Todos los derechos reservados.`,

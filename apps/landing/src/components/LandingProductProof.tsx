@@ -34,7 +34,7 @@ const scenes: readonly ProofScene[] = [
     number: '01',
     label: 'Reciben su invitación',
     title: 'Toda la información del evento en una experiencia clara',
-    description: 'Una Invitación Digital o Invitación Premium preparada para cada invitado.',
+    description: 'Una invitación Flyer o Flipbook preparada para cada invitado.',
     avif: invitationAnimatedWebp,
     webp: invitationAnimatedGif,
     video: invitationVideoWebm,
@@ -47,7 +47,7 @@ const scenes: readonly ProofScene[] = [
     number: '02',
     label: 'Confirman su asistencia',
     title: 'Respuestas y acompañantes sin perseguir mensajes',
-    description: 'Cada invitación concentra la confirmación dentro del mismo recorrido.',
+    description: 'En Flyer y Flipbook, cada invitación concentra la confirmación y los acompañantes permitidos.',
     avif: rsvpAvif,
     webp: rsvpWebp,
     alt: 'Formulario real de confirmación de asistencia',
@@ -123,7 +123,7 @@ export function LandingProductProof() {
         <LandingSectionIntro
           headingId="landing-product-proof-heading"
           title="Así acompañamos a tus invitados"
-          subtitle="De la invitación a la llegada, cada paso se conecta con el siguiente."
+          subtitle="Recorrido de demostración de Flyer y Flipbook: invitación, RSVP, mesas y recepción. Los pases anónimos tienen un flujo distinto, sin RSVP."
           align="left"
           dark={false}
         />

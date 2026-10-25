@@ -10,45 +10,46 @@ import { LandingHero } from '../LandingHero';
 import { LandingProductProof } from '../LandingProductProof';
 import { LandingServices } from '../LandingServices';
 
+vi.mock('../../pricing-client', () => ({ createLandingPricingClient: () => undefined }));
+
 const content = getLandingConfig();
 const renderWithTheme = (node: ReactNode) => render(<AppThemeProvider>{node}</AppThemeProvider>);
 
-describe('M01 Managed landing presentation', () => {
-  it('publishes only the active M01 information architecture', () => {
+describe('Managed landing commercial presentation', () => {
+  it('publishes working invitation, pricing and Venue navigation without self-service promises', () => {
     expect(content.nav.map((item) => item.href)).toEqual([
-      '#producto',
-      '#como-funciona',
       '#servicios',
+      '#precios',
+      '#venues',
+      '#como-funciona',
       '#planners',
       '#faq'
     ]);
     renderWithTheme(<App />);
     for (const item of content.nav) expect(document.querySelector(item.href)).toBeInTheDocument();
-    expect(document.querySelector('#precios')).toBeNull();
-    expect(document.querySelector('#venues')).toBeNull();
+    for (const link of document.querySelectorAll<HTMLAnchorElement>('a[href^="#"]')) {
+      expect(document.querySelector(link.hash)).toBeInTheDocument();
+    }
     expect(screen.queryByText(/Crear cuenta de Planner/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Planner Partner/i)).not.toBeInTheDocument();
   });
 
   it('uses the Managed Hero promise and routes its CTAs to active sections', () => {
-    document.body.insertAdjacentHTML(
-      'beforeend',
-      '<section id="producto"></section><section id="servicios"></section>'
-    );
-    const product = document.getElementById('producto')!;
+    document.body.insertAdjacentHTML('beforeend', '<section id="venues"></section><section id="servicios"></section>');
+    const venues = document.getElementById('venues')!;
     const services = document.getElementById('servicios')!;
-    product.scrollIntoView = vi.fn();
+    venues.scrollIntoView = vi.fn();
     services.scrollIntoView = vi.fn();
     renderWithTheme(<LandingHero />);
     expect(
       screen.getByRole('heading', {
         level: 1,
-        name: 'Tú organizas el evento. Nosotros preparamos la operación digital.'
+        name: 'Invitaciones memorables. Accesos bajo control.'
       })
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Ver cómo funciona' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Conocer los servicios' }));
-    expect(product.scrollIntoView).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole('button', { name: 'Explorar invitaciones' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Soluciones para salones' }));
+    expect(venues.scrollIntoView).toHaveBeenCalledOnce();
     expect(services.scrollIntoView).toHaveBeenCalledOnce();
   });
 
@@ -69,9 +70,9 @@ describe('M01 Managed landing presentation', () => {
   it('keeps the three operational services without promising Reports or Album', () => {
     expect(content.services.items.map((service) => service.code)).toEqual(['PHYSICAL_QR', 'FLYER', 'FLIPBOOK']);
     expect(content.services.items.map((service) => service.name)).toEqual([
-      'Gestión de Invitados',
-      'Invitación Digital',
-      'Invitación Premium'
+      'QR / EventOps',
+      'Flyer digital',
+      'Flipbook Premium'
     ]);
     renderWithTheme(<LandingServices />);
     expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(3);
@@ -79,11 +80,15 @@ describe('M01 Managed landing presentation', () => {
     expect(screen.queryByText(/álbum del evento/i)).not.toBeInTheDocument();
   });
 
-  it('uses one Managed commercial conversion instead of public pricing, registration or Venue paths', () => {
+  it('offers explicit Planner and Venue conversions without checkout', () => {
     const openCommercial = vi.fn();
-    renderWithTheme(<LandingCta onOpenCommercial={openCommercial} />);
+    const openVenue = vi.fn();
+    renderWithTheme(<LandingCta onOpenCommercial={openCommercial} onOpenVenue={openVenue} />);
     fireEvent.click(screen.getByRole('button', { name: content.cta.primaryCta }));
     expect(openCommercial).toHaveBeenCalledOnce();
+    expect(openVenue).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: content.cta.secondaryCta }));
+    expect(openVenue).toHaveBeenCalledOnce();
     expect(screen.queryByText(/créditos/i)).not.toBeInTheDocument();
   });
 
@@ -92,7 +97,8 @@ describe('M01 Managed landing presentation', () => {
     renderWithTheme(<LandingHeader onOpenCommercial={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Abrir menú de navegación' }));
     const drawer = screen.getByRole('navigation', { name: 'Navegación principal' });
-    for (const item of content.nav) expect(within(drawer).getByText(item.label)).toBeInTheDocument();
+    for (const item of content.nav)
+      expect(within(drawer).getByRole('button', { name: item.label })).toBeInTheDocument();
     expect(within(drawer).getByRole('button', { name: content.cta.primaryCta })).toBeInTheDocument();
   });
 

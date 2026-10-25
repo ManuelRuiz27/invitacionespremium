@@ -2,11 +2,17 @@ import { getLandingConfig } from '../config/landing-config';
 import { landingTokens } from '../theme/landing-theme';
 import { Button, Stack, Typography } from '@mui/material';
 import { Box } from '@mui/material';
-import { LandingContainer } from './primitives';
+import { LandingActionGroup, LandingContainer } from './primitives';
 
 const content = getLandingConfig();
 
-export function LandingCta({ onOpenCommercial }: { onOpenCommercial: () => void }) {
+export function LandingCta({
+  onOpenCommercial,
+  onOpenVenue
+}: {
+  onOpenCommercial: () => void;
+  onOpenVenue: () => void;
+}) {
   return (
     <Box
       component="section"
@@ -36,17 +42,22 @@ export function LandingCta({ onOpenCommercial }: { onOpenCommercial: () => void 
           >
             {content.cta.description}
           </Typography>
-          <Button
-            variant="contained"
-            size="large"
-            onClick={onOpenCommercial}
-            sx={{
-              ...landingTokens.buttons.primary,
-              px: 4
-            }}
-          >
-            {content.cta.primaryCta}
-          </Button>
+          <LandingActionGroup>
+            <Button
+              variant="contained"
+              size="large"
+              onClick={onOpenCommercial}
+              sx={{
+                ...landingTokens.buttons.primary,
+                px: 4
+              }}
+            >
+              {content.cta.primaryCta}
+            </Button>
+            <Button variant="outlined" size="large" onClick={onOpenVenue} sx={landingTokens.buttons.secondary}>
+              {content.cta.secondaryCta}
+            </Button>
+          </LandingActionGroup>
         </Stack>
       </LandingContainer>
     </Box>

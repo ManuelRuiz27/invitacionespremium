@@ -111,7 +111,7 @@ export function LandingHeader({ onOpenCommercial, config }: LandingHeaderProps) 
             <Box
               component="nav"
               aria-label="Navegación principal"
-              sx={{ display: 'flex', alignItems: 'center', gap: 4 }}
+              sx={{ display: 'flex', alignItems: 'center', gap: 2 }}
             >
               {landingContent.nav.map((item) => (
                 <Box
@@ -125,6 +125,7 @@ export function LandingHeader({ onOpenCommercial, config }: LandingHeaderProps) 
                   sx={{
                     color: landingTokens.colors.base.textMuted,
                     textDecoration: 'none',
+                    whiteSpace: 'nowrap',
                     ...landingTokens.typography.eyebrow,
                     transition: `color ${landingTokens.transitions.duration} ${landingTokens.transitions.easing}`,
                     '&:hover': { color: landingTokens.colors.base.text },
@@ -150,7 +151,8 @@ export function LandingHeader({ onOpenCommercial, config }: LandingHeaderProps) 
                   px: 2.5,
                   py: 0.85,
                   ...landingTokens.typography.headline,
-                  fontSize: '0.88rem'
+                  fontSize: '0.88rem',
+                  whiteSpace: 'nowrap'
                 }}
               >
                 Iniciar sesión
@@ -168,7 +170,8 @@ export function LandingHeader({ onOpenCommercial, config }: LandingHeaderProps) 
                   px: 2.75,
                   py: 0.85,
                   ...landingTokens.typography.headline,
-                  fontSize: '0.88rem'
+                  fontSize: '0.88rem',
+                  whiteSpace: 'nowrap'
                 }}
               >
                 {landingContent.cta.primaryCta}

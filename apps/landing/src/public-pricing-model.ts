@@ -1,4 +1,5 @@
 import type { PublicPricing } from '@invitaciones/api-client';
+import { getLandingConfig, type LandingConfig } from './config/landing-config';
 
 export type PublicSku = 'PHYSICAL_QR' | 'FLYER' | 'FLIPBOOK';
 
@@ -12,7 +13,7 @@ export interface PublicPricingBracket {
 
 export interface PublicPricingRow {
   readonly serviceCode: PublicSku;
-  readonly displayName: 'Gestión de Invitados' | 'Invitación Digital' | 'Invitación Premium';
+  readonly displayName: LandingConfig['services']['items'][number]['name'];
   readonly brackets: readonly PublicPricingBracket[];
 }
 
@@ -22,11 +23,6 @@ export interface PublicPricingMatrix {
 }
 
 const skuOrder: readonly PublicSku[] = ['PHYSICAL_QR', 'FLYER', 'FLIPBOOK'];
-const displayNames: Record<PublicSku, PublicPricingRow['displayName']> = {
-  PHYSICAL_QR: 'Gestión de Invitados',
-  FLYER: 'Invitación Digital',
-  FLIPBOOK: 'Invitación Premium'
-};
 const expectedBrackets = [
   { capacityMin: 1, capacityMax: 50, label: 'Hasta 50' },
   { capacityMin: 51, capacityMax: 100, label: 'Hasta 100' },
@@ -58,7 +54,8 @@ export function buildPublicPricingMatrix(prices: PublicPricing[]): PublicPricing
         amountMxnCents: price.amountMxnCents
       });
     }
-    rows.push({ serviceCode, displayName: displayNames[serviceCode], brackets });
+    const service = getLandingConfig().services.items.find((item) => item.code === serviceCode)!;
+    rows.push({ serviceCode, displayName: service.name, brackets });
   }
 
   return { columns: ['Hasta 50', 'Hasta 100', 'Hasta 150'], rows };

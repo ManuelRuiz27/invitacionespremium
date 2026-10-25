@@ -74,7 +74,7 @@ export function LandingHero({ config }: LandingHeroProps) {
               <Button
                 variant="contained"
                 size="large"
-                onClick={() => scrollToLandingSection('#producto')}
+                onClick={() => scrollToLandingSection('#servicios')}
                 sx={landingTokens.buttons.primary}
               >
                 {content.hero.primaryCta}
@@ -83,7 +83,7 @@ export function LandingHero({ config }: LandingHeroProps) {
                 variant="outlined"
                 size="large"
                 endIcon={<ArrowForwardIcon />}
-                onClick={() => scrollToLandingSection('#servicios')}
+                onClick={() => scrollToLandingSection('#venues')}
                 sx={landingTokens.buttons.secondary}
               >
                 {content.hero.secondaryCta}
