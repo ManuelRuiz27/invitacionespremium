@@ -56,6 +56,11 @@ jobs:
       - run: pnpm --filter @invitaciones/api db:generate
       - run: pnpm exec playwright install --with-deps chromium
       - run: node --test scripts/qa-redaction.test.mjs
+      - name: UX02 safe publication and current user instructions
+        run: |
+          pnpm access-control-guide:test
+          pnpm access-control-guide:verify
+          pnpm access-control-guide:render
       - name: M01 Managed and PHYSICAL_QR legacy in owned resources
         run: pnpm test:e2e:managed
       - name: ACCESS_CONTROL NOMINAL and ANONYMOUS in owned resources

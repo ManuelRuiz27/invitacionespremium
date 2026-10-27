@@ -1,0 +1,924 @@
+{
+  "version": 1,
+  "sourceCommit": "2bcc3651b3bcf03848fcc42b1877d5888cc38c0d",
+  "runtimeSha256": "54a50a99921d675592eedc78474b177d4ba1ca46cd8f20ae5d2b67089d6dd940",
+  "captures": [
+    {
+      "file": "admin-00-entrar.png",
+      "surface": "admin",
+      "mode": "AMBOS",
+      "route": "/login",
+      "anchor": "Entrar al panel",
+      "width": 1440,
+      "height": 900,
+      "sha256": "3e158322852f1382c5451b2312838caa35b993a20be2d1c123f1c90da1176873",
+      "masks": [
+        {
+          "x": 881,
+          "y": 474.1875,
+          "width": 470,
+          "height": 56
+        }
+      ],
+      "focus": {
+        "x": 881,
+        "y": 554.1875,
+        "width": 470,
+        "height": 46
+      },
+      "dialog": null
+    },
+    {
+      "file": "admin-02-crear-salon.png",
+      "surface": "admin",
+      "mode": "AMBOS",
+      "route": "/clientes",
+      "anchor": "Crear organizacion",
+      "width": 1440,
+      "height": 900,
+      "sha256": "52707c8d3773a324c9b94a86f7063d06cb8bcc2e3839cfc627f81cc68dde97ba",
+      "masks": [
+        {
+          "x": 444,
+          "y": 443.546875,
+          "width": 552,
+          "height": 56
+        }
+      ],
+      "focus": {
+        "x": 838.25,
+        "y": 622.453125,
+        "width": 173.75,
+        "height": 42
+      },
+      "dialog": {
+        "x": 420,
+        "y": 227.546875,
+        "width": 600,
+        "height": 444.90625
+      }
+    },
+    {
+      "file": "admin-03-preparar-salon.png",
+      "surface": "admin",
+      "mode": "AMBOS",
+      "route": "/clientes/[referencia]",
+      "anchor": "Preparar salón para control de acceso",
+      "width": 1440,
+      "height": 900,
+      "sha256": "e8cdb795d5199c294efd895cff8d48981710cde72a41d60b677ed2377e24e268",
+      "masks": [],
+      "focus": {
+        "x": 313,
+        "y": 305.59375,
+        "width": 1070,
+        "height": 46
+      },
+      "dialog": null
+    },
+    {
+      "file": "admin-03b-responsable.png",
+      "surface": "admin",
+      "mode": "AMBOS",
+      "route": "/clientes/[referencia]",
+      "anchor": "Guardar",
+      "width": 1440,
+      "height": 900,
+      "sha256": "e62c7fcb9b5c339950a90feb9e4afc1001aa15a77c1750bec813623b664dca96",
+      "masks": [
+        {
+          "x": 444,
+          "y": 475.796875,
+          "width": 552,
+          "height": 56
+        }
+      ],
+      "focus": {
+        "x": 915.484375,
+        "y": 559.796875,
+        "width": 96.515625,
+        "height": 42
+      },
+      "dialog": {
+        "x": 420,
+        "y": 290.203125,
+        "width": 600,
+        "height": 319.59375
+      }
+    },
+    {
+      "file": "salon-00-entrar.png",
+      "surface": "salon",
+      "mode": "AMBOS",
+      "route": "/login",
+      "anchor": "Iniciar sesión",
+      "width": 1440,
+      "height": 900,
+      "sha256": "591332a17e56ffcf4f6f77841f63fe26a1006e5e5c0d1a5ed40c4552922641b5",
+      "masks": [
+        {
+          "x": 854.59375,
+          "y": 450.9375,
+          "width": 400.40625,
+          "height": 56
+        }
+      ],
+      "focus": {
+        "x": 854.59375,
+        "y": 530.9375,
+        "width": 400.40625,
+        "height": 46
+      },
+      "dialog": null
+    },
+    {
+      "file": "admin-04-crear-evento.png",
+      "surface": "admin",
+      "mode": "NOMINAL",
+      "route": "/eventos?clientId=[referencia]",
+      "anchor": "Crear evento",
+      "width": 1440,
+      "height": 900,
+      "sha256": "ad57d3e2203aa44792d1ec42cba207933e3da35b00aedfdd4f72110d03b2b10f",
+      "masks": [
+        {
+          "x": 444,
+          "y": 231,
+          "width": 552,
+          "height": 21
+        },
+        {
+          "x": 444,
+          "y": 591,
+          "width": 552,
+          "height": 21
+        }
+      ],
+      "focus": {
+        "x": 881.828125,
+        "y": 726,
+        "width": 130.171875,
+        "height": 42
+      },
+      "dialog": {
+        "x": 420,
+        "y": 124,
+        "width": 600,
+        "height": 652
+      }
+    },
+    {
+      "file": "admin-05-preparar-evento.png",
+      "surface": "admin",
+      "mode": "NOMINAL",
+      "route": "/eventos/[referencia]/preparar/datos",
+      "anchor": "Guardar datos",
+      "width": 1440,
+      "height": 900,
+      "sha256": "eccfec6d2cbe8fedf3a8ce92c83d424b998bcaf6cfc5ccc832f7aeabed61e466",
+      "masks": [
+        {
+          "x": 296,
+          "y": -86,
+          "width": 663.40625,
+          "height": 25.59375
+        }
+      ],
+      "focus": {
+        "x": 313,
+        "y": 857.78125,
+        "width": 1070,
+        "height": 42
+      },
+      "dialog": null
+    },
+    {
+      "file": "admin-06-requisitos.png",
+      "surface": "admin",
+      "mode": "NOMINAL",
+      "route": "/eventos/[referencia]/preparar/accesos",
+      "anchor": "Hay requisitos pendientes antes de activar.",
+      "width": 1440,
+      "height": 900,
+      "sha256": "0f0d1081939348e4256e8bf33f1fd03d4b971e3966b2e797efbedd6ac1379dc5",
+      "masks": [
+        {
+          "x": 296,
+          "y": 223,
+          "width": 663.40625,
+          "height": 25.59375
+        }
+      ],
+      "focus": {
+        "x": 363,
+        "y": 401.78125,
+        "width": 299,
+        "height": 37
+      },
+      "dialog": null
+    },
+    {
+      "file": "salon-02-resumen.png",
+      "surface": "salon",
+      "mode": "NOMINAL",
+      "route": "/eventos/[referencia]",
+      "anchor": "Solicitar activación a InvitacionesPremium",
+      "width": 1440,
+      "height": 900,
+      "sha256": "931b919c8729a43d9d0a5599fc6d49dd80804db71b9a08e816a33cf0c36e7707",
+      "masks": [],
+      "focus": {
+        "x": 296,
+        "y": 684.421875,
+        "width": 896,
+        "height": 25.59375
+      },
+      "dialog": null
+    },
+    {
+      "file": "salon-03-invitados.png",
+      "surface": "salon",
+      "mode": "NOMINAL",
+      "route": "/eventos/[referencia]?seccion=invitados",
+      "anchor": "Agregar",
+      "width": 1440,
+      "height": 900,
+      "sha256": "69714100f845ff195d5b9c74fbea5ab5c556a41cf896db4173b6bf7740d2b2e7",
+      "masks": [],
+      "focus": {
+        "x": 838,
+        "y": 655.421875,
+        "width": 95.515625,
+        "height": 56
+      },
+      "dialog": null
+    },
+    {
+      "file": "salon-04-importar.png",
+      "surface": "salon",
+      "mode": "NOMINAL",
+      "route": "/eventos/[referencia]?seccion=invitados",
+      "anchor": "Confirmar importación",
+      "width": 1440,
+      "height": 900,
+      "sha256": "3d781ed9160d922d2eff45d1411444b484ac85eef90505ebd0533ab86c6aa019",
+      "masks": [],
+      "focus": {
+        "x": 272,
+        "y": 777.796875,
+        "width": 202.53125,
+        "height": 42
+      },
+      "dialog": null
+    },
+    {
+      "file": "salon-05-emitir.png",
+      "surface": "salon",
+      "mode": "NOMINAL",
+      "route": "/eventos/[referencia]?seccion=accesos",
+      "anchor": "Emitir credencial",
+      "width": 1440,
+      "height": 900,
+      "sha256": "a83c5dc72ca4425d0719cfbfa7da5ff8a30ad51c18396d2866ec3896b931ee2d",
+      "masks": [],
+      "focus": {
+        "x": 272,
+        "y": 757.234375,
+        "width": 159.8125,
+        "height": 44
+      },
+      "dialog": null
+    },
+    {
+      "file": "salon-05b-credenciales.png",
+      "surface": "salon",
+      "mode": "NOMINAL",
+      "route": "/eventos/[referencia]?seccion=accesos",
+      "anchor": "Credenciales individuales",
+      "width": 1440,
+      "height": 900,
+      "sha256": "7719d5ad54c6c1b746af903353086b8cba3b8a19a7d002828b613f8ac795d315",
+      "masks": [],
+      "focus": {
+        "x": 272,
+        "y": 412.984375,
+        "width": 1128,
+        "height": 28.0625
+      },
+      "dialog": null
+    },
+    {
+      "file": "salon-06-material.png",
+      "surface": "salon",
+      "mode": "NOMINAL",
+      "route": "/eventos/[referencia]?seccion=accesos",
+      "anchor": "Exportar seleccionados a PDF (5)",
+      "width": 1440,
+      "height": 900,
+      "sha256": "840825b13aac278a88573e221316d1bc1e75dce045c4fd4ba73b894787d87c7b",
+      "masks": [],
+      "focus": {
+        "x": 272,
+        "y": 498.640625,
+        "width": 1128,
+        "height": 44
+      },
+      "dialog": null
+    },
+    {
+      "file": "admin-07b-listo.png",
+      "surface": "admin",
+      "mode": "NOMINAL",
+      "route": "/eventos/[referencia]/preparar/accesos",
+      "anchor": "Activar evento",
+      "width": 1440,
+      "height": 900,
+      "sha256": "4596cb1cb84f66cd68c94f5a4dbf9b40cfff25791ff090d26634cb5270d2601d",
+      "masks": [
+        {
+          "x": 296,
+          "y": 223,
+          "width": 663.40625,
+          "height": 25.59375
+        }
+      ],
+      "focus": {
+        "x": 1258.96875,
+        "y": 188.796875,
+        "width": 141.03125,
+        "height": 42
+      },
+      "dialog": null
+    },
+    {
+      "file": "admin-08-evento-activo.png",
+      "surface": "admin",
+      "mode": "NOMINAL",
+      "route": "/eventos/[referencia]/preparar/accesos",
+      "anchor": "La activación ya fue realizada.",
+      "width": 1440,
+      "height": 900,
+      "sha256": "2c4b172ce0a23afe0ef760c19d5cae09a92c9f1789705d4a1af5ad3d8424069e",
+      "masks": [
+        {
+          "x": 296,
+          "y": 223,
+          "width": 663.40625,
+          "height": 25.59375
+        }
+      ],
+      "focus": {
+        "x": 363,
+        "y": 474.78125,
+        "width": 207,
+        "height": 37
+      },
+      "dialog": null
+    },
+    {
+      "file": "salon-09-staff.png",
+      "surface": "salon",
+      "mode": "NOMINAL",
+      "route": "/eventos/[referencia]?seccion=staff",
+      "anchor": "Crear acceso",
+      "width": 1440,
+      "height": 900,
+      "sha256": "d047a6ed2ed6e14ee9b937495d494055410cd00546472aaed9749cad501cd23a",
+      "masks": [],
+      "focus": {
+        "x": 1062.828125,
+        "y": 494.234375,
+        "width": 129.171875,
+        "height": 56
+      },
+      "dialog": null
+    },
+    {
+      "file": "salon-09b-compartir.png",
+      "surface": "salon",
+      "mode": "NOMINAL",
+      "route": "/eventos/[referencia]?seccion=staff",
+      "anchor": "Copiar enlace",
+      "width": 1440,
+      "height": 900,
+      "sha256": "e167ee469fa16f967ef1091a2280346f9f63d432567e8bb84e93d589c841e2cc",
+      "masks": [
+        {
+          "x": 293,
+          "y": 468.609375,
+          "width": 878,
+          "height": 56
+        },
+        {
+          "x": 293,
+          "y": 540.609375,
+          "width": 878,
+          "height": 56
+        }
+      ],
+      "focus": {
+        "x": 293,
+        "y": 612.609375,
+        "width": 162.09375,
+        "height": 42
+      },
+      "dialog": null
+    },
+    {
+      "file": "salon-10-scanner.png",
+      "surface": "scanner",
+      "mode": "NOMINAL",
+      "route": "/scanner/[oculto]",
+      "anchor": "Scanner",
+      "width": 390,
+      "height": 844,
+      "sha256": "1ed978343a736fe8c923125b7e032619bdb5c04c864a4ca4cc708c4141e97622",
+      "masks": [
+        {
+          "x": 16,
+          "y": 71.390625,
+          "width": 358,
+          "height": 477.328125
+        }
+      ],
+      "focus": {
+        "x": 0,
+        "y": 777.75,
+        "width": 390,
+        "height": 58.25
+      },
+      "dialog": null
+    },
+    {
+      "file": "salon-11-ingreso.png",
+      "surface": "scanner",
+      "mode": "NOMINAL",
+      "route": "/scanner/[oculto]",
+      "anchor": "Siguiente escaneo",
+      "width": 390,
+      "height": 844,
+      "sha256": "c21bbf46d32101f5b11abce5e774b2bc57fd61fa40fb0293b5e25ef5926b8d91",
+      "masks": [],
+      "focus": {
+        "x": 16,
+        "y": 141.390625,
+        "width": 358,
+        "height": 48
+      },
+      "dialog": null
+    },
+    {
+      "file": "salon-12-aforo.png",
+      "surface": "salon",
+      "mode": "NOMINAL",
+      "route": "/eventos/[referencia]?seccion=ingresos",
+      "anchor": "Accesos vigentes\n5\nIngresados\n1\nPendientes\n4\nCapacidad disponible\n25",
+      "width": 1440,
+      "height": 900,
+      "sha256": "13e832793e6f7408dcdee9f78e456c498ce4fb606e4d8d60e6c8e239775949bd",
+      "masks": [],
+      "focus": {
+        "x": 272,
+        "y": 462.640625,
+        "width": 1128,
+        "height": 70.0625
+      },
+      "dialog": null
+    },
+    {
+      "file": "admin-09-aforo.png",
+      "surface": "admin",
+      "mode": "NOMINAL",
+      "route": "/eventos/[referencia]",
+      "anchor": "Ingresos y aforo\nActualizar\n\nModalidad: Nominal\n\nÚltima lectura del servidor: 27/10/2026, 10:48:15 a.m.\n\nAccesos vigentes\n5\nIngresados\n1\nPendientes\n4\nCapacidad disponible\n25\n\nLa capacidad disponible permite emitir nuevos derechos de acceso. Los pendientes son accesos vigentes que aún no han ingresado.\n\nCapacidad total: 30\n\nEmitidos históricos: 5\n\nRevocados históricos: 0\n\nEvento sin Croquis: se muestran los totales del Evento.",
+      "width": 1440,
+      "height": 900,
+      "sha256": "94f6837804dbfc10a4d1993a8b2346ab011338e48a64119a17a2101ffa8714a4",
+      "masks": [
+        {
+          "x": 296,
+          "y": 950.96875,
+          "width": 1104,
+          "height": 21
+        },
+        {
+          "x": 296,
+          "y": 971.96875,
+          "width": 1104,
+          "height": 21
+        },
+        {
+          "x": 296,
+          "y": 992.96875,
+          "width": 1104,
+          "height": 21
+        }
+      ],
+      "focus": {
+        "x": 296,
+        "y": 517.53125,
+        "width": 1104,
+        "height": 383.84375
+      },
+      "dialog": null
+    },
+    {
+      "file": "admin-04-crear-evento-numerados.png",
+      "surface": "admin",
+      "mode": "ANONYMOUS",
+      "route": "/eventos?clientId=[referencia]",
+      "anchor": "Crear evento",
+      "width": 1440,
+      "height": 900,
+      "sha256": "80a18066c4d6e9196ae60be77fe7c32d6969e771d22cf15581164def04abaeb3",
+      "masks": [
+        {
+          "x": 444,
+          "y": 231,
+          "width": 552,
+          "height": 21
+        },
+        {
+          "x": 444,
+          "y": 591,
+          "width": 552,
+          "height": 21
+        }
+      ],
+      "focus": {
+        "x": 881.828125,
+        "y": 726,
+        "width": 130.171875,
+        "height": 42
+      },
+      "dialog": {
+        "x": 420,
+        "y": 124,
+        "width": 600,
+        "height": 652
+      }
+    },
+    {
+      "file": "admin-05-preparar-evento-numerados.png",
+      "surface": "admin",
+      "mode": "ANONYMOUS",
+      "route": "/eventos/[referencia]/preparar/datos",
+      "anchor": "Guardar datos",
+      "width": 1440,
+      "height": 900,
+      "sha256": "c8e583baa8e3ff5af5ba8428ae6817f9f6ed2557b8fac6c29e815660d7d4d43f",
+      "masks": [
+        {
+          "x": 296,
+          "y": -86,
+          "width": 594.8125,
+          "height": 25.59375
+        }
+      ],
+      "focus": {
+        "x": 313,
+        "y": 857.78125,
+        "width": 1070,
+        "height": 42
+      },
+      "dialog": null
+    },
+    {
+      "file": "admin-06-requisitos-numerados.png",
+      "surface": "admin",
+      "mode": "ANONYMOUS",
+      "route": "/eventos/[referencia]/preparar/accesos",
+      "anchor": "Hay requisitos pendientes antes de activar.",
+      "width": 1440,
+      "height": 900,
+      "sha256": "7aaa1369f1e0d99f71ab3fa9e1a42456e1b5e049a8f42820018d70e0e9a51d1c",
+      "masks": [
+        {
+          "x": 296,
+          "y": 223,
+          "width": 594.8125,
+          "height": 25.59375
+        }
+      ],
+      "focus": {
+        "x": 363,
+        "y": 401.78125,
+        "width": 299,
+        "height": 37
+      },
+      "dialog": null
+    },
+    {
+      "file": "salon-02-resumen-numerados.png",
+      "surface": "salon",
+      "mode": "ANONYMOUS",
+      "route": "/eventos/[referencia]",
+      "anchor": "Solicitar activación a InvitacionesPremium",
+      "width": 1440,
+      "height": 900,
+      "sha256": "49f9f1f1a074626f2c8a8e11312f5b321026596f23fde45f1b08c8af5d5b0ef9",
+      "masks": [],
+      "focus": {
+        "x": 296,
+        "y": 739.015625,
+        "width": 896,
+        "height": 25.59375
+      },
+      "dialog": null
+    },
+    {
+      "file": "admin-07-pases-anonimos.png",
+      "surface": "admin",
+      "mode": "ANONYMOUS",
+      "route": "/eventos/[referencia]/preparar/accesos",
+      "anchor": "Generar lote",
+      "width": 1440,
+      "height": 900,
+      "sha256": "6e8506b5ac159c66585e836e8d4a21f16771f6fe492019ea4edb9c73202c3543",
+      "masks": [
+        {
+          "x": 296,
+          "y": 200,
+          "width": 594.8125,
+          "height": 25.59375
+        }
+      ],
+      "focus": {
+        "x": 313,
+        "y": 858.0625,
+        "width": 1070,
+        "height": 42
+      },
+      "dialog": null
+    },
+    {
+      "file": "salon-06-material-numerados.png",
+      "surface": "salon",
+      "mode": "ANONYMOUS",
+      "route": "/eventos/[referencia]?seccion=accesos",
+      "anchor": "Exportar seleccionados a PDF (5)",
+      "width": 1440,
+      "height": 900,
+      "sha256": "e6a4eb3d75a42128e7de16d5bf654182ec1ea029963fd8489365d3c4dd7f2f42",
+      "masks": [],
+      "focus": {
+        "x": 272,
+        "y": 543.046875,
+        "width": 1128,
+        "height": 44
+      },
+      "dialog": null
+    },
+    {
+      "file": "admin-07b-listo-numerados.png",
+      "surface": "admin",
+      "mode": "ANONYMOUS",
+      "route": "/eventos/[referencia]/preparar/accesos",
+      "anchor": "Activar evento",
+      "width": 1440,
+      "height": 900,
+      "sha256": "3e29f0bb6e1649296b54b26d5473c8f4b1144eef2a428a37c83174e5164b69f8",
+      "masks": [
+        {
+          "x": 296,
+          "y": 223,
+          "width": 594.8125,
+          "height": 25.59375
+        }
+      ],
+      "focus": {
+        "x": 1258.96875,
+        "y": 188.796875,
+        "width": 141.03125,
+        "height": 42
+      },
+      "dialog": null
+    },
+    {
+      "file": "admin-08-evento-activo-numerados.png",
+      "surface": "admin",
+      "mode": "ANONYMOUS",
+      "route": "/eventos/[referencia]/preparar/accesos",
+      "anchor": "La activación ya fue realizada.",
+      "width": 1440,
+      "height": 900,
+      "sha256": "b2a25f27dda10dd29298452766bf1bcf8eb55412f4bec96bef2af34ebd934a32",
+      "masks": [
+        {
+          "x": 296,
+          "y": 223,
+          "width": 594.8125,
+          "height": 25.59375
+        }
+      ],
+      "focus": {
+        "x": 363,
+        "y": 474.78125,
+        "width": 207,
+        "height": 37
+      },
+      "dialog": null
+    },
+    {
+      "file": "salon-09-staff-numerados.png",
+      "surface": "salon",
+      "mode": "ANONYMOUS",
+      "route": "/eventos/[referencia]?seccion=staff",
+      "anchor": "Crear acceso",
+      "width": 1440,
+      "height": 900,
+      "sha256": "8bca4302b7d8e07755273fd4723c452587159283ad7a1ff3d6566d62243c0114",
+      "masks": [],
+      "focus": {
+        "x": 1062.828125,
+        "y": 494.234375,
+        "width": 129.171875,
+        "height": 56
+      },
+      "dialog": null
+    },
+    {
+      "file": "salon-09b-compartir-numerados.png",
+      "surface": "salon",
+      "mode": "ANONYMOUS",
+      "route": "/eventos/[referencia]?seccion=staff",
+      "anchor": "Copiar enlace",
+      "width": 1440,
+      "height": 900,
+      "sha256": "c92bd3a18d4c84d13e2329ad61b2aad05174bb2d221d2c4c1a238d713e84d98d",
+      "masks": [
+        {
+          "x": 293,
+          "y": 468.609375,
+          "width": 878,
+          "height": 56
+        },
+        {
+          "x": 293,
+          "y": 540.609375,
+          "width": 878,
+          "height": 56
+        }
+      ],
+      "focus": {
+        "x": 293,
+        "y": 612.609375,
+        "width": 162.09375,
+        "height": 42
+      },
+      "dialog": null
+    },
+    {
+      "file": "salon-10-scanner-numerados.png",
+      "surface": "scanner",
+      "mode": "ANONYMOUS",
+      "route": "/scanner/[oculto]",
+      "anchor": "Scanner",
+      "width": 390,
+      "height": 844,
+      "sha256": "373c1b1802818aabbf0febeabd1e35ea6eb06a0b52163c7659ae98cdccce68c7",
+      "masks": [
+        {
+          "x": 16,
+          "y": 71.390625,
+          "width": 358,
+          "height": 477.328125
+        }
+      ],
+      "focus": {
+        "x": 0,
+        "y": 777.75,
+        "width": 390,
+        "height": 58.25
+      },
+      "dialog": null
+    },
+    {
+      "file": "salon-11-ingreso-numerados.png",
+      "surface": "scanner",
+      "mode": "ANONYMOUS",
+      "route": "/scanner/[oculto]",
+      "anchor": "Siguiente escaneo",
+      "width": 390,
+      "height": 844,
+      "sha256": "4b8eb09e91cfc743d91ddc51fc4970148027ae4ad981ffc19bbe960e348c6f72",
+      "masks": [],
+      "focus": {
+        "x": 16,
+        "y": 141.390625,
+        "width": 358,
+        "height": 48
+      },
+      "dialog": null
+    },
+    {
+      "file": "salon-12-aforo-numerados.png",
+      "surface": "salon",
+      "mode": "ANONYMOUS",
+      "route": "/eventos/[referencia]?seccion=ingresos",
+      "anchor": "Accesos vigentes\n5\nIngresados\n1\nPendientes\n4\nCapacidad disponible\n25",
+      "width": 1440,
+      "height": 900,
+      "sha256": "6265a89a5f2d103643b04d4fe2fc68bf689865d2ffd253ad7a98623723997965",
+      "masks": [],
+      "focus": {
+        "x": 272,
+        "y": 462.640625,
+        "width": 1128,
+        "height": 70.0625
+      },
+      "dialog": null
+    },
+    {
+      "file": "salon-07-pases.png",
+      "surface": "salon",
+      "mode": "ANONYMOUS",
+      "route": "/eventos/[referencia]?seccion=accesos",
+      "anchor": "Pases físicos",
+      "width": 1440,
+      "height": 900,
+      "sha256": "f0502846703b51e18c0ddc41124742d5307ffb958583f48a6c655a81094322ef",
+      "masks": [],
+      "focus": {
+        "x": 272,
+        "y": 339.984375,
+        "width": 1128,
+        "height": 28.0625
+      },
+      "dialog": null
+    },
+    {
+      "file": "admin-09-aforo-numerados.png",
+      "surface": "admin",
+      "mode": "ANONYMOUS",
+      "route": "/eventos/[referencia]",
+      "anchor": "Ingresos y aforo\nActualizar\n\nModalidad: Anónima\n\nÚltima lectura del servidor: 27/10/2026, 10:48:43 a.m.\n\nAccesos vigentes\n5\nIngresados\n1\nPendientes\n4\nCapacidad disponible\n25\n\nLa capacidad disponible permite emitir nuevos derechos de acceso. Los pendientes son accesos vigentes que aún no han ingresado.\n\nCapacidad total: 30\n\nEmitidos históricos: 6\n\nRevocados históricos: 1\n\nEvento sin Croquis: se muestran los totales del Evento.",
+      "width": 1440,
+      "height": 900,
+      "sha256": "aa605c64c03bcdd9d7218e0b820fe01f92574926cc195ff79634b8292303bc76",
+      "masks": [
+        {
+          "x": 296,
+          "y": 950.96875,
+          "width": 1104,
+          "height": 21
+        },
+        {
+          "x": 296,
+          "y": 971.96875,
+          "width": 1104,
+          "height": 21
+        },
+        {
+          "x": 296,
+          "y": 992.96875,
+          "width": 1104,
+          "height": 21
+        }
+      ],
+      "focus": {
+        "x": 296,
+        "y": 517.53125,
+        "width": 1104,
+        "height": 383.84375
+      },
+      "dialog": null
+    },
+    {
+      "file": "admin-01-clientes.png",
+      "surface": "admin",
+      "mode": "AMBOS",
+      "route": "/clientes",
+      "anchor": "Crear organizacion",
+      "width": 1440,
+      "height": 900,
+      "sha256": "c6e646958e8cfb56a013dd0c98ff88ae5df6c9355caa8c3553623b191da8d18d",
+      "masks": [],
+      "focus": {
+        "x": 1202.25,
+        "y": 122.796875,
+        "width": 197.75,
+        "height": 42
+      },
+      "dialog": null
+    },
+    {
+      "file": "salon-01-eventos.png",
+      "surface": "salon",
+      "mode": "AMBOS",
+      "route": "/eventos",
+      "anchor": "Boda de Mariana y Alejandro",
+      "width": 1440,
+      "height": 900,
+      "sha256": "9db0423634800df98a1c7ce30be09ea992f3d3de6dedef38a6ad49523ce787b6",
+      "masks": [],
+      "focus": {
+        "x": 272,
+        "y": 279.1875,
+        "width": 266,
+        "height": 24.1875
+      },
+      "dialog": null
+    }
+  ]
+}

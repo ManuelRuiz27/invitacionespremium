@@ -134,6 +134,16 @@ Ambos comandos crean y eliminan su propia base. El primero exige libres `5300`, 
 No ejecutar integración destructiva contra una base compartida. Los journeys con credenciales usan un reporter
 con redacción y no publican capturas, traces ni vídeo. Ver [certificación DT09](docs/05-implementacion/M02_B01_DT09_CERTIFICATION.md).
 
+Manuales visuales de control de acceso (capturas reales, datos ficticios y base local efímera):
+
+```bash
+pnpm access-control-guide:capture
+pnpm access-control-guide:test
+pnpm access-control-guide:verify
+```
+
+PDF, fuentes editables e instrucciones: [guías de usuario](docs/guias-usuario/control-de-acceso/README.md).
+
 Filtrar una app:
 
 ```bash

@@ -29,7 +29,11 @@
     "staging:verify-secrets": "pnpm --filter @invitaciones/api staging:verify-secrets",
     "staging:smoke": "pnpm --filter @invitaciones/api staging:smoke",
     "staging:backup": "pnpm --filter @invitaciones/api staging:backup",
-    "staging:restore": "pnpm --filter @invitaciones/api staging:restore"
+    "staging:restore": "pnpm --filter @invitaciones/api staging:restore",
+    "access-control-guide:capture": "node scripts/run-access-control-e2e.mjs --guide && node scripts/access-control-guide/render.mjs && node scripts/access-control-guide/verify.mjs",
+    "access-control-guide:render": "node scripts/access-control-guide/render.mjs",
+    "access-control-guide:verify": "node scripts/access-control-guide/verify.mjs",
+    "access-control-guide:test": "tsc -p tsconfig.access-control-guide.json && node --test scripts/access-control-guide/*.test.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
