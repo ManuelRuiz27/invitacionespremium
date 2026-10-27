@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { adminQueryKeys } from '../app/query-client';
 import { AdminClientFinancePanel } from '../finance/AdminClientFinancePanel';
+import { ManagedClientCommercialPanel } from '../managed-plans/ManagedClientCommercialPanel';
 import { adminErrorMessage } from '../shared/admin-error';
 import {
   clientStatusLabel,
@@ -324,6 +325,18 @@ function AdminClientDetail({ apiClient, clientId }: { apiClient: ApiClient; clie
           </Stack>
         </CardContent>
       </Card>
+      {managedOrganization ? (
+        <Card>
+          <CardContent>
+            <ManagedClientCommercialPanel
+              key={clientId}
+              apiClient={apiClient}
+              clientId={clientId}
+              assignable={data.status === 'ACTIVE'}
+            />
+          </CardContent>
+        </Card>
+      ) : null}
       {!managedOrganization ? (
         <Card>
           <CardContent>

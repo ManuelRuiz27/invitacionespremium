@@ -1,5 +1,20 @@
 # Contrato de la aplicacion Platform Admin
 
+## PR02 — Planes Gestionados y contratación comercial
+
+El catálogo incorpora **Planes Gestionados**: seis combinaciones Estándar/Privada y
+Esencial/Frecuente/Intensivo, disponibilidad, precios actuales/futuros/históricos y nuevas versiones
+con vigencia. El detalle `ORGANIZATION + MANAGED` incorpora **Plan comercial**, snapshot de términos,
+historial de contratos y consumo actual/histórico. Usa exclusivamente las rutas Provider del
+[contrato PR02](./MANAGED_PLANS_CONTRACT.md), sin operación Client, cambios de permisos ni Finance.
+
+Los importes se capturan y muestran en MXN antes de IVA; no hay conversión a créditos. La versión
+aceptada es la vigente al asignar; los meses de consumo se anclan al inicio contractual en
+America/Mexico_City. Todos los contadores vienen de API. Las mutaciones usan cuerpo y clave
+idempotente estables, lock contra doble envío y bloqueo de navegación ante incertidumbre.
+Los pagos, facturación, renovaciones, extraordinarios y frontend privado siguen siendo manuales
+o proyectos posteriores; la Licencia Privada no despliega infraestructura.
+
 ## M02-B01-UX01 — alta y preparación contextual del salón
 
 El alta administrativa de Organización permite elegir perfil operativo; la UI preselecciona

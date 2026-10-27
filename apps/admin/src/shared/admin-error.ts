@@ -13,6 +13,19 @@ const messages: Record<string, string> = {
   PRICE_OVERLAP: 'La vigencia se solapa con otro precio del mismo servicio, canal y rango o volumen.',
   PRICE_HISTORY_IMMUTABLE: 'El historial de precios es inmutable; solo puede cerrarse la vigencia.',
   CURRENT_PRICE_NOT_FOUND: 'No existe un precio vigente para esa combinacion.',
+  MANAGED_PLAN_NOT_FOUND: 'El plan gestionado ya no está disponible.',
+  MANAGED_PLAN_VERSION_NOT_FOUND: 'La versión comercial ya no está disponible.',
+  MANAGED_PLAN_VERSION_OVERLAP: 'La vigencia se solapa con otra versión comercial de este plan.',
+  MANAGED_PLAN_INVALID_CONFIGURATION: 'Revisa los importes, la duración y los límites del plan gestionado.',
+  MANAGED_PLAN_IDEMPOTENCY_CONFLICT: 'El intento comercial no coincide con la operación original.',
+  MANAGED_PLAN_CONCURRENT_UPDATE:
+    'Hubo otro cambio simultáneo. Reintenta la misma operación con sus datos y referencia originales.',
+  MANAGED_CONTRACT_CLIENT_NOT_ELIGIBLE: 'Sólo una Organización activa y gestionada puede aceptar este contrato.',
+  MANAGED_CONTRACT_VERSION_NOT_CURRENT:
+    'La versión aceptada ya no está vigente o disponible. Actualiza las versiones y confirma los términos nuevamente.',
+  MANAGED_CONTRACT_OVERLAP: 'La Organización ya tiene un contrato que coincide con ese período.',
+  MANAGED_CONTRACT_NOT_FOUND: 'El contrato comercial no está disponible para esta Organización.',
+  MANAGED_CONTRACT_INCONSISTENT: 'No pudimos verificar las condiciones del contrato. Consulta con soporte.',
   PROMOTION_NOT_FOUND: 'La promocion no esta disponible.',
   PROMOTION_ALREADY_ACTIVE: 'La promocion ya esta activa.',
   PROMOTION_ALREADY_INACTIVE: 'La promocion ya esta inactiva.',
@@ -55,7 +68,7 @@ export function adminErrorMessage(error: unknown): AdminErrorMessage {
               : error.status === 429 || error.status >= 500
                 ? 'El resultado no pudo confirmarse. Puedes reintentar la misma intencion.'
                 : 'La solicitud no pudo completarse.'),
-      uncertain: error.status === 429 || error.status >= 500
+      uncertain: error.status === 429 || error.status >= 500 || error.code === 'MANAGED_PLAN_CONCURRENT_UPDATE'
     };
     if (error.operationId) result.operationId = error.operationId;
     return result;

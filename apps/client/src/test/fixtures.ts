@@ -164,6 +164,14 @@ export function loginResult(user: AuthUser): LoginResult {
 
 export function mockApiClient(user: AuthUser = independentUser): ApiClient {
   return {
+    adminManagedPlans: {
+      list: vi.fn().mockResolvedValue([]),
+      createVersion: vi.fn(),
+      setAvailability: vi.fn(),
+      listContracts: vi.fn().mockResolvedValue([]),
+      assignContract: vi.fn(),
+      getConsumption: vi.fn()
+    },
     auth: {
       login: vi.fn().mockResolvedValue(loginResult(user)),
       logout: vi.fn().mockResolvedValue(undefined),

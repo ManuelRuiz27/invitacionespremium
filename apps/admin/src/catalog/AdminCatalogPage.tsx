@@ -50,6 +50,7 @@ import {
 } from './catalog-format';
 import { useCatalogMutationState } from './useCatalogMutationState';
 import { PublicPricingMatrix, type StandardPriceTarget } from './PublicPricingMatrix';
+import { ManagedPlansSection } from '../managed-plans/ManagedPlansSection';
 
 type ServiceReference = Pick<AdminService, 'id' | 'code'> & { isActive?: boolean };
 
@@ -105,7 +106,7 @@ export function AdminCatalogPage({ apiClient }: { apiClient: ApiClient }) {
     <Stack spacing={3}>
       <PageHeader
         title="Catálogo"
-        description="Servicios referenciados, historial de precios y elegibilidad de promociones."
+        description="Servicios, tarifas por Evento, planes gestionados e historial comercial."
       />
       {notice ? (
         <Alert severity="success" onClose={() => setNotice('')}>
@@ -122,6 +123,7 @@ export function AdminCatalogPage({ apiClient }: { apiClient: ApiClient }) {
           <Tab label="Servicios" />
           <Tab label="Precios" />
           <Tab label="Promociones" />
+          <Tab label="Planes Gestionados" />
         </Tabs>
       </Paper>
       {tab === 0 ? (
@@ -140,14 +142,15 @@ export function AdminCatalogPage({ apiClient }: { apiClient: ApiClient }) {
           onNotice={setNotice}
           onReviewServices={() => setTab(0)}
         />
-      ) : (
+      ) : tab === 2 ? (
         <PromotionsSection
           apiClient={apiClient}
           query={promotions}
           references={serviceReferences}
           onNotice={setNotice}
         />
-      )}
+      ) : null}
+      <ManagedPlansSection apiClient={apiClient} active={tab === 3} />
     </Stack>
   );
 }

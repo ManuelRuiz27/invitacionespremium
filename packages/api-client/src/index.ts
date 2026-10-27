@@ -8,7 +8,8 @@ import {
   createAdminEventPreparationClient,
   createAdminFinanceClient,
   createAdminReportsClient,
-  createAdminCommercialLeadsClient
+  createAdminCommercialLeadsClient,
+  createAdminManagedPlansClient
 } from './admin';
 import { createAuthClient } from './auth';
 import { createEventConfirmationClient } from './confirmation';
@@ -117,6 +118,7 @@ export function createApiClient(config: ApiClientRuntimeConfig) {
     adminEventPreparation: createAdminEventPreparationClient(request),
     adminFinance: createAdminFinanceClient(request),
     adminCatalog: createAdminCatalogClient(request),
+    adminManagedPlans: createAdminManagedPlansClient(request),
     adminReports: createAdminReportsClient(request),
     adminAudit: createAdminAuditClient(request),
     adminCommercialLeads: createAdminCommercialLeadsClient(request),

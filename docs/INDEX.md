@@ -72,6 +72,7 @@ Estos documentos describen comportamiento real y siguen siendo autoridad técnic
 
 ## Core
 
+- `04-tecnico/MANAGED_PLANS_CONTRACT.md` — PR02: catálogo y contratos Managed versionados; consumo administrativo sin Finance ni cuotas en activación.
 - `04-tecnico/CLIENTS_CONTRACT.md`
 - `04-tecnico/EVENTS_CONTRACT.md`
 - `04-tecnico/EVENT_ACTIVATION_CONTRACT.md`

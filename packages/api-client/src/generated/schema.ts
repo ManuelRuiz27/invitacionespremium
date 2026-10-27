@@ -800,6 +800,38 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/clients/{clientId}/managed-contracts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ManagedContractsController_list"];
+        put?: never;
+        post: operations["ManagedContractsController_assign"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/clients/{clientId}/managed-contracts/{contractId}/consumption": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ManagedContractsController_consumption"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/clients/{clientId}/restore": {
         parameters: {
             query?: never;
@@ -1084,6 +1116,54 @@ export type paths = {
         get: operations["AdminFinanceController_monthlyCut"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/managed-plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ManagedPlansController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/managed-plans/{planId}/availability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ManagedPlansController_setAvailability"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/managed-plans/{planId}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ManagedPlansController_createVersion"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3069,6 +3149,15 @@ export type components = {
             /** Format: uuid */
             tableShapeId: string;
         };
+        AssignManagedContractRequestDto: {
+            /** Format: uuid */
+            planVersionId: string;
+            /**
+             * Format: date
+             * @description Contract start date in America/Mexico_City.
+             */
+            startsOn: string;
+        };
         AssignSeatingRequestDto: {
             assistantIds: string[];
             /** Format: uuid */
@@ -3485,6 +3574,25 @@ export type components = {
             x: number;
             y: number;
         };
+        CreateManagedPlanVersionRequestDto: {
+            commercialName: string;
+            /** @enum {number} */
+            contractMonths: 12;
+            eventCapacity: number;
+            extraEventAmountMxnCents: number;
+            includedEventsPerMonth: number;
+            includedEventsPerYear: number | null;
+            initialFeeMxnCents: number;
+            monthlyAmountMxnCents: number;
+            monthlyEventLimit: number;
+            /**
+             * Format: date-time
+             * @description Omit to apply immediately at server transaction time; explicit instants must not be in the past.
+             */
+            validFrom?: string;
+            /** Format: date-time */
+            validUntil?: string | null;
+        };
         CreateOrganizationRequestDto: {
             /** Format: email */
             adminEmail: string;
@@ -3717,6 +3825,8 @@ export type components = {
             /** Format: date-time */
             updatedAt: string;
         };
+        /** @enum {string} */
+        EventStatus: "DRAFT" | "CONFIGURED" | "READY_TO_ACTIVATE" | "ACTIVE" | "EVENT_DAY" | "CLOSED" | "ALBUM_PUBLISHED" | "ARCHIVED" | "CANCELLED";
         /** @enum {string} */
         FileAssetOwnerType: "FLYER" | "FLIPBOOK_PAGE" | "FLOORPLAN" | "ALBUM_PHOTO" | "GENERATED_REPORT" | "INVITATION" | "PHYSICAL_PASS";
         FileAssetResponseDto: {
@@ -4098,6 +4208,144 @@ export type components = {
             /** Format: date-time */
             expiresAt: string;
             user: components["schemas"]["AuthUserDto"];
+        };
+        ManagedConsumedEventDto: {
+            /** Format: date-time */
+            activatedAt: string;
+            /** @description Cancelled activations remain consumed and require manual commercial review. */
+            cancelled: boolean;
+            /** Format: uuid */
+            eventId: string;
+            extraordinary: boolean;
+            name: string | null;
+            periodIndex: number;
+            status: components["schemas"]["EventStatus"];
+        };
+        ManagedConsumptionPeriodDto: {
+            /** @description Included quota remaining in this historical period; no rollover. */
+            availableEvents: number;
+            cancelledEvents: number;
+            /**
+             * Format: date
+             * @description Exclusive period end date.
+             */
+            endsOn: string;
+            extraordinaryEvents: number;
+            includedUsedEvents: number;
+            index: number;
+            /** Format: date */
+            startsOn: string;
+            usedEvents: number;
+        };
+        ManagedConsumptionResponseDto: {
+            /** @description Remaining annual included pool, or null for monthly-only plans. */
+            annualAvailableEvents: number | null;
+            /** Format: date-time */
+            asOf: string;
+            /** @description Available included events in the current period; zero outside the contract. */
+            availableEvents: number;
+            cancelledEvents: number;
+            /** Format: uuid */
+            clientId: string;
+            /** Format: uuid */
+            contractId: string;
+            currentPeriodIndex: number | null;
+            events: components["schemas"]["ManagedConsumedEventDto"][];
+            extraordinaryEvents: number;
+            includedUsedEvents: number;
+            periods: components["schemas"]["ManagedConsumptionPeriodDto"][];
+            usedEvents: number;
+        };
+        ManagedContractResponseDto: {
+            /** Format: date-time */
+            acceptedAt: string;
+            /** Format: uuid */
+            clientId: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            createdByUserId: string;
+            /**
+             * Format: date
+             * @description Exclusive contractual end date.
+             */
+            endsOn: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            planVersionId: string;
+            /** Format: date */
+            startsOn: string;
+            /** @enum {string} */
+            status: "FUTURE" | "CURRENT" | "EXPIRED";
+            terms: components["schemas"]["ManagedContractTermsDto"];
+        };
+        ManagedContractTermsDto: {
+            beforeTax: boolean;
+            commercialName: string;
+            contractMonths: number;
+            /** @enum {string} */
+            currency: "MXN";
+            eventCapacity: number;
+            extraEventAmountMxnCents: number;
+            includedEventsPerMonth: number;
+            includedEventsPerYear: number | null;
+            initialFeeMxnCents: number;
+            modality: components["schemas"]["ManagedPlanModality"];
+            monthlyAmountMxnCents: number;
+            monthlyEventLimit: number;
+            /** Format: uuid */
+            planId: string;
+            /** Format: uuid */
+            planVersionId: string;
+            tier: components["schemas"]["ManagedPlanTier"];
+            /** Format: date-time */
+            validFrom: string;
+            /** Format: date-time */
+            validUntil: string | null;
+        };
+        /** @enum {string} */
+        ManagedPlanModality: "STANDARD" | "PRIVATE";
+        ManagedPlanResponseDto: {
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            currentVersionId: string | null;
+            /** Format: uuid */
+            id: string;
+            isAvailable: boolean;
+            modality: components["schemas"]["ManagedPlanModality"];
+            tier: components["schemas"]["ManagedPlanTier"];
+            /** Format: date-time */
+            updatedAt: string;
+            versions: components["schemas"]["ManagedPlanVersionResponseDto"][];
+        };
+        /** @enum {string} */
+        ManagedPlanTier: "ESSENTIAL" | "FREQUENT" | "INTENSIVE";
+        ManagedPlanVersionResponseDto: {
+            commercialName: string;
+            contractMonths: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            createdByUserId: string | null;
+            eventCapacity: number;
+            extraEventAmountMxnCents: number;
+            /** Format: uuid */
+            id: string;
+            includedEventsPerMonth: number;
+            includedEventsPerYear: number | null;
+            initialFeeMxnCents: number;
+            monthlyAmountMxnCents: number;
+            monthlyEventLimit: number;
+            /** Format: uuid */
+            planId: string;
+            /** @enum {string} */
+            status: "CURRENT" | "FUTURE" | "EXPIRED";
+            /** Format: date-time */
+            validFrom: string;
+            /** Format: date-time */
+            validUntil: string | null;
         };
         ManualPaymentRequestDto: {
             allocations?: components["schemas"]["DebtLotAllocationRequestDto"][];
@@ -4790,6 +5038,9 @@ export type components = {
             isActive: boolean;
             /** Format: date-time */
             updatedAt: string;
+        };
+        SetManagedPlanAvailabilityRequestDto: {
+            isAvailable: boolean;
         };
         StaffTokenResponseDto: {
             alias: string;
@@ -6270,6 +6521,69 @@ export interface operations {
             };
         };
     };
+    ManagedContractsController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedContractResponseDto"][];
+                };
+            };
+        };
+    };
+    ManagedContractsController_assign: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignManagedContractRequestDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedContractResponseDto"];
+                };
+            };
+        };
+    };
+    ManagedContractsController_consumption: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedConsumptionResponseDto"];
+                };
+            };
+        };
+    };
     AdminClientsController_restore: {
         parameters: {
             query?: never;
@@ -6650,6 +6964,75 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FinanceCutResponseDto"];
+                };
+            };
+        };
+    };
+    ManagedPlansController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedPlanResponseDto"][];
+                };
+            };
+        };
+    };
+    ManagedPlansController_setAvailability: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetManagedPlanAvailabilityRequestDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedPlanResponseDto"];
+                };
+            };
+        };
+    };
+    ManagedPlansController_createVersion: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateManagedPlanVersionRequestDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedPlanVersionResponseDto"];
                 };
             };
         };

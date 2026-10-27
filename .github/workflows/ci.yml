@@ -60,6 +60,8 @@ jobs:
         run: pnpm test:e2e:managed
       - name: ACCESS_CONTROL NOMINAL and ANONYMOUS in owned resources
         run: pnpm test:e2e:access-control
+      - name: PR01 public catalog and PR02 managed commercial contracts in owned resources
+        run: pnpm run test:e2e:public-catalog
       # No browser artifacts: single-delivery Staff/public credentials appear in these journeys.
 
   flipbook-browser-qa:

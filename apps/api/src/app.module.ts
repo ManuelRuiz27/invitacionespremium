@@ -28,6 +28,7 @@ import { PilotObservationsModule } from './pilot-observations/pilot-observations
 import { CommercialLeadsModule } from './commercial-leads/commercial-leads.module';
 import { UnitEconomicsModule } from './unit-economics/unit-economics.module';
 import { NominalAccessModule } from './nominal-access/nominal-access.module';
+import { ManagedPlansModule } from './managed-plans/managed-plans.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { NominalAccessModule } from './nominal-access/nominal-access.module';
     UnitEconomicsModule,
     ContactsModule,
     NominalAccessModule,
+    ManagedPlansModule,
     ScheduleModule.forRoot()
   ],
   controllers: [HealthController],

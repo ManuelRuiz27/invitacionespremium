@@ -8,6 +8,8 @@ pnpm-lock.yaml
 graphify-out/
 # Ignored local QA downloads/captures; no versioned source lives here.
 var/qa/
+# Ignored local recovery snapshot from PR01; no versioned source lives here.
+var/pr01-recovery/
 # Ignored local tunnel configuration; never part of the source tree.
 var/ngrok-public-test.yml
 apps/api/prisma/schema.prisma

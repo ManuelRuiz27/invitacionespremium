@@ -178,6 +178,14 @@ type AdminTestApiClient = Omit<ApiClient, 'floorplan'> & {
 
 export function mockAdminApi(user: AuthUser = platformAdmin): AdminTestApiClient {
   return {
+    adminManagedPlans: {
+      list: vi.fn().mockResolvedValue([]),
+      createVersion: vi.fn(),
+      setAvailability: vi.fn(),
+      listContracts: vi.fn().mockResolvedValue([]),
+      assignContract: vi.fn(),
+      getConsumption: vi.fn()
+    },
     auth: {
       login: vi.fn().mockResolvedValue({ user, expiresAt: '2026-08-03T00:00:00.000Z' }),
       logout: vi.fn().mockResolvedValue(undefined),

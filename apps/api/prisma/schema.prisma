@@ -378,6 +378,8 @@ model Client {
   fileAssets       FileAsset[]
   generatedReports GeneratedReport[]
 
+  managedPlanContracts ManagedPlanContract[]
+
   @@index([type, status, deletedAt])
   @@index([status, deletedAt])
   @@map("client")
@@ -416,9 +418,91 @@ model User {
   revokedAccessCredentials   AssistantAccessCredential[] @relation("NominalCredentialRevoker")
   nominalAccessOperations    NominalAccessCredentialOperation[]
 
+  createdManagedContracts ManagedPlanContract[] @relation("ManagedPlanContractCreator")
+
   @@index([clientId])
   @@index([role, deletedAt])
   @@map("app_user")
+}
+
+enum ManagedPlanModality {
+  STANDARD
+  PRIVATE
+
+  @@map("managed_plan_modality")
+}
+
+enum ManagedPlanTier {
+  ESSENTIAL
+  FREQUENT
+  INTENSIVE
+
+  @@map("managed_plan_tier")
+}
+
+model ManagedPlan {
+  id          String               @id @default(uuid()) @db.Uuid
+  modality    ManagedPlanModality
+  tier        ManagedPlanTier
+  isAvailable Boolean              @default(true) @map("is_available")
+  createdAt   DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  versions    ManagedPlanVersion[]
+
+  @@unique([modality, tier])
+  @@map("managed_plan")
+}
+
+model ManagedPlanVersion {
+  id                       String                @id @default(uuid()) @db.Uuid
+  planId                   String                @map("plan_id") @db.Uuid
+  commercialName           String                @map("commercial_name") @db.VarChar(160)
+  monthlyAmountMxnCents    Int                   @map("monthly_amount_mxn_cents")
+  initialFeeMxnCents       Int                   @map("initial_fee_mxn_cents")
+  extraEventAmountMxnCents Int                   @map("extra_event_amount_mxn_cents")
+  contractMonths           Int                   @map("contract_months")
+  includedEventsPerMonth   Int                   @map("included_events_per_month")
+  monthlyEventLimit        Int                   @map("monthly_event_limit")
+  includedEventsPerYear    Int?                  @map("included_events_per_year")
+  eventCapacity            Int                   @map("event_capacity")
+  validFrom                DateTime              @map("valid_from") @db.Timestamptz(6)
+  validUntil               DateTime?             @map("valid_until") @db.Timestamptz(6)
+  createdByUserId          String?               @map("created_by_user_id") @db.Uuid
+  createdAt                DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  plan                     ManagedPlan           @relation(fields: [planId], references: [id], onDelete: Restrict)
+  contracts                ManagedPlanContract[]
+
+  @@index([planId, validFrom, validUntil])
+  @@map("managed_plan_version")
+}
+
+model ManagedPlanContract {
+  id              String             @id @default(uuid()) @db.Uuid
+  clientId        String             @map("client_id") @db.Uuid
+  planVersionId   String             @map("plan_version_id") @db.Uuid
+  startsOn        DateTime           @map("starts_on") @db.Date
+  endsOn          DateTime           @map("ends_on") @db.Date
+  acceptedAt      DateTime           @default(now()) @map("accepted_at") @db.Timestamptz(6)
+  terms           Json
+  createdByUserId String             @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  client          Client             @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  planVersion     ManagedPlanVersion @relation(fields: [planVersionId], references: [id], onDelete: Restrict)
+  createdByUser   User               @relation("ManagedPlanContractCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@index([clientId, startsOn, endsOn])
+  @@map("managed_plan_contract")
+}
+
+model ManagedPlanOperation {
+  idempotencyKey   String   @id @map("idempotency_key") @db.VarChar(128)
+  kind             String   @db.VarChar(40)
+  actorUserId      String   @map("actor_user_id") @db.Uuid
+  requestSignature String   @map("request_signature") @db.Char(64)
+  resultSnapshot   Json     @map("result_snapshot")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("managed_plan_operation")
 }
 
 model AuthSession {
@@ -725,6 +809,7 @@ model Event {
   @@index([clientId, assignedPlannerUserId, status, deletedAt])
   @@index([eventDateTime, status, deletedAt])
   @@index([activatedAt])
+  @@index([clientId, activatedAt, id])
   @@index([commercialAuthorizedAt])
   @@index([designKickoffAt])
   @@map("event")
