@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "sourceCommit": "e51be8fb76bf3ea5c5261c5c3cc5d60eecef5abd",
-  "runtimeSha256": "848fc43c7b54f9e5be6aa50ac536b3957434675b3fe92a6747c83e4fac9115bd",
+  "sourceCommit": "db2a811",
+  "runtimeSha256": "1298290e32b3f7a31bfb727e00d79d8140d1affc1a793b7b7d016fe2ad32ff5c",
   "captures": [
     {
       "file": "admin-00-entrar.png",
@@ -66,7 +66,7 @@
       "anchor": "Preparar salón para control de acceso",
       "width": 1440,
       "height": 900,
-      "sha256": "070ef2cd0eb0a1b881237330764195407794ca02a0d93a6cfa62946d37255ebf",
+      "sha256": "6bebc4803be1942ff47fe7d1275a5b8ada1632758a81968abbfdc8f6374f7238",
       "masks": [],
       "focus": {
         "x": 313,
@@ -401,7 +401,7 @@
       "anchor": "Copiar enlace",
       "width": 1440,
       "height": 900,
-      "sha256": "b39c8291cc2be27e6b97e0fd34c41dcdca1b33b0107b94fb9e72fff897653785",
+      "sha256": "a8249a8405e2362ebbfb67b14f2f9dc20a0519c3853dd048439801e1221a4fcd",
       "masks": [
         {
           "x": 293,
@@ -475,7 +475,7 @@
       "anchor": "Accesos vigentes\n5\nIngresados\n1\nPendientes\n4\nCapacidad disponible\n25",
       "width": 1440,
       "height": 900,
-      "sha256": "c91e37f0381d07a24caf12e432bc7b2749e7b7abd7c69872f5485467493c5f98",
+      "sha256": "6755fb5a5dd80fc8b3faf570f8654ab1a0e03ea32130fc487fd8d857754db920",
       "masks": [],
       "focus": {
         "x": 272,
@@ -490,10 +490,10 @@
       "surface": "admin",
       "mode": "NOMINAL",
       "route": "/eventos/[referencia]",
-      "anchor": "Ingresos y aforo\nActualizar\n\nModalidad: Nominal\n\nÚltima lectura del servidor: 27/10/2026, 12:23:44 p.m.\n\nAccesos vigentes\n5\nIngresados\n1\nPendientes\n4\nCapacidad disponible\n25\n\nLa capacidad disponible permite emitir nuevos derechos de acceso. Los pendientes son accesos vigentes que aún no han ingresado.\n\nCapacidad total: 30\n\nEmitidos históricos: 5\n\nRevocados históricos: 0\n\nEvento sin Croquis: se muestran los totales del Evento.",
+      "anchor": "Ingresos y aforo\nActualizar\n\nModalidad: Nominal\n\nÚltima lectura del servidor: 27/10/2026, 12:53:02 p.m.\n\nAccesos vigentes\n5\nIngresados\n1\nPendientes\n4\nCapacidad disponible\n25\n\nLa capacidad disponible permite emitir nuevos derechos de acceso. Los pendientes son accesos vigentes que aún no han ingresado.\n\nCapacidad total: 30\n\nEmitidos históricos: 5\n\nRevocados históricos: 0\n\nEvento sin Croquis: se muestran los totales del Evento.",
       "width": 1440,
       "height": 900,
-      "sha256": "78fa7c98af3c318bdee510321f772065f68dd3081ad07ea5e94eb204690fd601",
+      "sha256": "e87e552d73a3606e859a720b3fcb7532b0930e76e6cdf6251c83dc1551ddb7c9",
       "masks": [
         {
           "x": 296,
@@ -571,7 +571,7 @@
         {
           "x": 296,
           "y": -86,
-          "width": 612.984375,
+          "width": 609.421875,
           "height": 25.59375
         }
       ],
@@ -591,12 +591,12 @@
       "anchor": "Hay requisitos pendientes antes de activar.",
       "width": 1440,
       "height": 900,
-      "sha256": "5f95fdaae261f9509e32df3fc99be9844773260b00ad5bba24fd79ce07a30c7d",
+      "sha256": "033634736958b46c0db680593250e0d78a9bd115163c3fba2c8153a2b4fb575f",
       "masks": [
         {
           "x": 296,
           "y": 223,
-          "width": 612.984375,
+          "width": 609.421875,
           "height": 25.59375
         }
       ],
@@ -634,12 +634,12 @@
       "anchor": "Generar lote",
       "width": 1440,
       "height": 900,
-      "sha256": "4d92c96d9dc2d76768180293c40fc2db85f557eb66a4881289d6f3ed7d1ceaf8",
+      "sha256": "ef109892f8291bd3c35bf236870235a868c8cbe6e9212f95673bc51c36d2e2be",
       "masks": [
         {
           "x": 296,
           "y": 200,
-          "width": 612.984375,
+          "width": 609.421875,
           "height": 25.59375
         }
       ],
@@ -677,12 +677,12 @@
       "anchor": "Activar evento",
       "width": 1440,
       "height": 900,
-      "sha256": "42b7f095d1da3fbc25ea3ff826d6e165307783c259e5c6818c42bacaee1a135d",
+      "sha256": "752f5934d2faf70f8e3a62d7e710f6f411d853effd8a49317f5dc87b25b8657c",
       "masks": [
         {
           "x": 296,
           "y": 223,
-          "width": 612.984375,
+          "width": 609.421875,
           "height": 25.59375
         }
       ],
@@ -702,12 +702,12 @@
       "anchor": "La activación ya fue realizada.",
       "width": 1440,
       "height": 900,
-      "sha256": "88650eb38c10565326e1821cc776fbc1c12db4a823d90a8a5dde8c449af44e00",
+      "sha256": "3b6bd34ff32730931cf34c099722d1923f8309daa1dc452629f2041bcc7af624",
       "masks": [
         {
           "x": 296,
           "y": 223,
-          "width": 612.984375,
+          "width": 609.421875,
           "height": 25.59375
         }
       ],
@@ -745,7 +745,7 @@
       "anchor": "Copiar enlace",
       "width": 1440,
       "height": 900,
-      "sha256": "c64ac4afb6ebbf544d78958eec51fe5bed4f9fcd81c0806088ec3115d0c77d29",
+      "sha256": "6ca103cf4d3c978d0c8d017aa60f3d9092cd982384ab8f92d50176287cf044cf",
       "masks": [
         {
           "x": 293,
@@ -819,7 +819,7 @@
       "anchor": "Accesos vigentes\n5\nIngresados\n1\nPendientes\n4\nCapacidad disponible\n25",
       "width": 1440,
       "height": 900,
-      "sha256": "60a45b16127664023f665198f4bf9ccd7466b6cc5b730303c0d9da395e2f7786",
+      "sha256": "826384300f2877c3d4c71bd4ffd1d0f450b120375743806f49f264cb3f7f4752",
       "masks": [],
       "focus": {
         "x": 272,
@@ -852,10 +852,10 @@
       "surface": "admin",
       "mode": "ANONYMOUS",
       "route": "/eventos/[referencia]",
-      "anchor": "Ingresos y aforo\nActualizar\n\nModalidad: Anónima\n\nÚltima lectura del servidor: 27/10/2026, 12:24:10 p.m.\n\nAccesos vigentes\n5\nIngresados\n1\nPendientes\n4\nCapacidad disponible\n25\n\nLa capacidad disponible permite emitir nuevos derechos de acceso. Los pendientes son accesos vigentes que aún no han ingresado.\n\nCapacidad total: 30\n\nEmitidos históricos: 6\n\nRevocados históricos: 1\n\nEvento sin Croquis: se muestran los totales del Evento.",
+      "anchor": "Ingresos y aforo\nActualizar\n\nModalidad: Anónima\n\nÚltima lectura del servidor: 27/10/2026, 12:53:28 p.m.\n\nAccesos vigentes\n5\nIngresados\n1\nPendientes\n4\nCapacidad disponible\n25\n\nLa capacidad disponible permite emitir nuevos derechos de acceso. Los pendientes son accesos vigentes que aún no han ingresado.\n\nCapacidad total: 30\n\nEmitidos históricos: 6\n\nRevocados históricos: 1\n\nEvento sin Croquis: se muestran los totales del Evento.",
       "width": 1440,
       "height": 900,
-      "sha256": "405f9dbb942382fb609f10df6b25d45eab380755921c10e04a88e89882f5d925",
+      "sha256": "5bf7c96d1edbf14984e600f55b106fea4edb87dbd67f7889bd41e9702ddae773",
       "masks": [
         {
           "x": 296,
@@ -892,7 +892,7 @@
       "anchor": "Crear organizacion",
       "width": 1440,
       "height": 900,
-      "sha256": "a4705c2527e51ef83145f8798865e5e7977bf011e1148ef554b0c51c31c20da9",
+      "sha256": "8809dea45caf68fd882b2fba42954b4968e74f68150c1bd7247812540bd9ae00",
       "masks": [],
       "focus": {
         "x": 1205.421875,
