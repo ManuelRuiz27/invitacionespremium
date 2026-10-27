@@ -157,7 +157,11 @@ test('PR01: inactive service → missing rate → nine public rates → future r
   const initialFrom = await page.evaluate(() => {
     const date = new Date(Date.now() - 1000);
     const pad = (number: number) => String(number).padStart(2, '0');
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+    // datetime-local canonically omits zero seconds; Playwright requires that exact value.
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`.replace(
+      /:00$/u,
+      ''
+    );
   });
   await page.getByLabel('Inicio de vigencia').fill(initialFrom);
   await page.getByRole('button', { name: 'Confirmar precio' }).click();
@@ -184,7 +188,11 @@ test('PR01: inactive service → missing rate → nine public rates → future r
     const pad = (number: number) => String(number).padStart(2, '0');
     return {
       iso: date.toISOString(),
-      local: `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+      local:
+        `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`.replace(
+          /:00$/u,
+          ''
+        )
     };
   });
   await page.getByLabel('Inicio de vigencia').fill(future.local);

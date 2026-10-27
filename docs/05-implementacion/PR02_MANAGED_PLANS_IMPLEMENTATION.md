@@ -114,6 +114,15 @@ en la estación Windows; no demuestra que cada fallo de la primera ejecución te
 No se cambiaron Croquis ni sus pruebas, ni se aumentaron sus esperas. El resultado global completo
 debe contrastarse con el CI remoto de la entrega.
 
+En el [primer CI remoto de PR02](https://github.com/ManuelRuiz27/invitacionespremium/actions/runs/40543691179)
+pasó el job Quality completo: unitarias Client **466/466**, Admin **269/269**, integración API
+**471/471** y builds **8/8**, además de los otros paquetes indicados arriba. También pasaron Flipbook
+**74/74** y el recorrido PR02. El job piloto detectó un defecto previo del test PR01: Chromium normaliza
+`datetime-local` omitiendo segundos `00`, mientras Playwright exige que el valor escrito coincida con
+esa representación. Se reprodujo el rechazo exacto de `2026-10-27T16:48:00`; la corrección normaliza
+los dos valores de fecha del test y verifica tanto segundos cero como no cero. No cambia vigencias,
+precios, aplicación, límites ni timeouts.
+
 El formato global excluye únicamente la carpeta `var/pr01-recovery/`, ignorada por Git y con una copia
 local de archivos generados anterior a PR02. No contiene código fuente versionado; no se alteró su
 contenido ni se ocultaron archivos de la entrega.
