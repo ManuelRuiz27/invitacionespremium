@@ -213,7 +213,7 @@ describe('catalogo administrativo', () => {
     expect(screen.getByLabelText('Nombre')).toHaveValue('Intervalo invalido');
   });
 
-  it('bloquea precio DEMO distinto de cero y solapamiento aparente antes del POST', async () => {
+  it('bloquea DEMO distinto de cero y conserva el rechazo autoritativo de solapamientos incompatibles', async () => {
     const demoApi = mockAdminApi();
     const demoService = { ...service, id: 'service-demo', code: 'DEMO' as const };
     vi.mocked(demoApi.adminCatalog.createService).mockResolvedValue(demoService);
@@ -236,6 +236,7 @@ describe('catalogo administrativo', () => {
 
     const overlapApi = mockAdminApi();
     vi.mocked(overlapApi.adminCatalog.listPrices).mockResolvedValue([price]);
+    vi.mocked(overlapApi.adminCatalog.createPrice).mockRejectedValue(new ApiError(409, 'PRICE_OVERLAP', 'conflicto'));
     renderAdminApp(overlapApi, '/catalogo');
     await screen.findByRole('heading', { name: /cat[aá]logo/i });
     await userEvent.click(screen.getByRole('tab', { name: 'Precios' }));
@@ -245,8 +246,33 @@ describe('catalogo administrativo', () => {
     await userEvent.type(screen.getByLabelText('Creditos'), '12');
     fireEvent.change(screen.getByLabelText('Inicio de vigencia'), { target: { value: '2027-08-03T12:00:00' } });
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar precio' }));
-    expect(await screen.findByText(/vigencia aparente se solapa/i)).toBeVisible();
-    expect(overlapApi.adminCatalog.createPrice).not.toHaveBeenCalled();
+    expect(await screen.findByText(/vigencia se solapa/i)).toBeVisible();
+    expect(overlapApi.adminCatalog.createPrice).toHaveBeenCalledTimes(1);
+  });
+
+  it('programa el reemplazo futuro de una tarifa abierta y recarga el cierre autoritativo anterior', async () => {
+    const api = mockAdminApi();
+    const future = new Date('2099-08-03T12:00:00').toISOString();
+    const replacement = { ...price, id: 'price-future', credits: 225, validFrom: future };
+    vi.mocked(api.adminCatalog.listPrices).mockResolvedValue([price]);
+    vi.mocked(api.adminCatalog.createPrice).mockImplementation(async () => {
+      vi.mocked(api.adminCatalog.listPrices).mockResolvedValue([{ ...price, validUntil: future }, replacement]);
+      return replacement;
+    });
+    renderAdminApp(api, '/catalogo');
+    await screen.findByRole('heading', { name: /cat[aá]logo/i });
+    await userEvent.click(screen.getByRole('tab', { name: 'Precios' }));
+    await userEvent.click(screen.getAllByRole('button', { name: 'Programar cambio' })[0]!);
+    expect(screen.getByLabelText('Servicio')).toHaveTextContent('Flyer');
+    expect(screen.getByLabelText('Capacidad mínima')).toHaveValue(1);
+    expect(screen.getByLabelText('Capacidad máxima')).toHaveValue(50);
+    await userEvent.type(screen.getByLabelText('Creditos'), '225');
+    fireEvent.change(screen.getByLabelText('Inicio de vigencia'), { target: { value: '2099-08-03T12:00:00' } });
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar precio' }));
+    await waitFor(() => expect(api.adminCatalog.createPrice).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(api.adminCatalog.listPrices).toHaveBeenCalledTimes(2));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByText(/Programada: 225 créditos/)).toBeVisible();
   });
 
   it('muestra targets legibles y deja UUID como referencia secundaria', async () => {

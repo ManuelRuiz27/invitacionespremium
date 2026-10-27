@@ -11,8 +11,9 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const requireFromApi = createRequire(join(root, 'apps/api/package.json'));
 const { Client } = requireFromApi('pg');
 const children = [];
-const ports = [5300, 5373, 5374, 5375];
-const name = `invitacionespremium_dt07_${Date.now()}_${randomBytes(4).toString('hex')}`;
+const publicCatalog = process.argv.includes('--public-catalog');
+const ports = publicCatalog ? [5300, 5374, 5376] : [5300, 5373, 5374, 5375];
+const name = `invitacionespremium_${publicCatalog ? 'pr01' : 'dt07'}_${Date.now()}_${randomBytes(4).toString('hex')}`;
 const storage = join(root, 'var', 'managed-demo', name);
 let maintenance,
   created = false;
@@ -28,6 +29,8 @@ try {
     });
   }
   const isolated = new URL(process.env.DATABASE_URL);
+  if (publicCatalog && !['localhost', '127.0.0.1', '[::1]'].includes(isolated.hostname))
+    throw new Error('Public catalog QA requires local PostgreSQL; no remote database was modified.');
   const admin = new URL(isolated);
   admin.pathname = '/postgres';
   maintenance = admin.toString();
@@ -46,12 +49,15 @@ try {
     AUTH_COOKIE_SECURE: 'false',
     AUTH_COOKIE_PATH: '/',
     AUTH_COOKIE_SAME_SITE: 'lax',
-    CORS_ORIGINS: 'http://localhost:5373,http://localhost:5374,http://localhost:5375,http://localhost:5173',
+    CORS_ORIGINS: publicCatalog
+      ? 'http://localhost:5374,http://localhost:5376'
+      : 'http://localhost:5373,http://localhost:5374,http://localhost:5375,http://localhost:5173',
     VITE_API_BASE_URL: 'http://localhost:5300/api/v1',
     VITE_SOCKET_URL: 'http://localhost:5300',
     VITE_ADMIN_APP_URL: 'http://localhost:5374',
     VITE_CLIENT_APP_URL: 'http://localhost:5373',
     VITE_SCANNER_APP_URL: 'http://localhost:5375',
+    ...(publicCatalog ? { VITE_APP_URL: 'http://localhost:5376' } : {}),
     PUBLIC_INVITATION_BASE_URL: 'http://localhost:5373/invitacion',
     INVITATION_TOKEN_SIGNING_SECRET: randomBytes(48).toString('base64url'),
     DT07_E2E_PASSWORD: randomBytes(24).toString('base64url')
@@ -79,13 +85,29 @@ try {
   }
   if (!process.argv.includes('--integration-only')) {
     await seed(isolated.toString(), environment.DT07_E2E_PASSWORD);
+    if (publicCatalog) {
+      await run(['--filter', '@invitaciones/api', 'services-pricing:seed'], environment);
+      // Fixture only in this run's fresh database: reproduce an inactive Flyer and one elapsed rate.
+      await sql(isolated.toString(), `UPDATE service SET is_active=false WHERE code='FLYER'`);
+      await sql(
+        isolated.toString(),
+        `UPDATE service_price SET valid_from=now()-interval '2 minutes',valid_until=now()-interval '1 minute'
+        WHERE service_id=(SELECT id FROM service WHERE code='FLYER') AND pricing_version=2
+        AND commercial_channel='STANDARD' AND capacity_min=1 AND capacity_max=50`
+      );
+    }
     start(['--filter', '@invitaciones/api', 'exec', 'tsx', 'src/main.ts'], environment);
     await ready('http://localhost:5300/api/v1/health');
-    for (const [app, port] of [
-      ['client', 5373],
-      ['admin', 5374],
-      ['scanner', 5375]
-    ]) {
+    for (const [app, port] of publicCatalog
+      ? [
+          ['admin', 5374],
+          ['landing', 5376]
+        ]
+      : [
+          ['client', 5373],
+          ['admin', 5374],
+          ['scanner', 5375]
+        ]) {
       start(
         [
           '--filter',
@@ -101,8 +123,29 @@ try {
         environment
       );
     }
-    await Promise.all([5373, 5374, 5375].map((port) => ready(`http://localhost:${port}`)));
-    await run(['exec', 'playwright', 'test', '--config', 'playwright.access-control.config.ts'], environment);
+    await Promise.all(
+      (publicCatalog ? [5374, 5376] : [5373, 5374, 5375]).map((port) => ready(`http://localhost:${port}`))
+    );
+    await run(
+      [
+        'exec',
+        'playwright',
+        'test',
+        '--config',
+        publicCatalog ? 'playwright.public-catalog.config.ts' : 'playwright.access-control.config.ts'
+      ],
+      environment
+    );
+    if (publicCatalog) {
+      const current = await sql(
+        isolated.toString(),
+        `SELECT count(*)::int AS count FROM service_price p JOIN service s ON s.id=p.service_id
+        WHERE s.is_active AND s.code IN ('PHYSICAL_QR','FLYER','FLIPBOOK') AND p.pricing_version=2
+        AND p.commercial_channel='STANDARD' AND p.valid_from<=now() AND (p.valid_until IS NULL OR now()<p.valid_until)`
+      );
+      if (current.rows[0].count !== 9) throw new Error('PR01 did not finish with nine effective public prices.');
+      process.stdout.write('[PR01] Nine effective STANDARD prices; isolated fixture only.\n');
+    }
     const integrity = await sql(
       isolated.toString(),
       `SELECT

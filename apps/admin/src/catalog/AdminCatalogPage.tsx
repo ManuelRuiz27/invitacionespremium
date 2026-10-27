@@ -43,13 +43,13 @@ import { ConfirmSensitiveActionDialog } from '../shared/ConfirmSensitiveActionDi
 import {
   clientTypeLabels,
   intervalLabel,
-  intervalsOverlap,
   promotionScopeLabels,
   serviceLabels,
   toIso,
   toLocalInput
 } from './catalog-format';
 import { useCatalogMutationState } from './useCatalogMutationState';
+import { PublicPricingMatrix, type StandardPriceTarget } from './PublicPricingMatrix';
 
 type ServiceReference = Pick<AdminService, 'id' | 'code'> & { isActive?: boolean };
 
@@ -133,7 +133,13 @@ export function AdminCatalogPage({ apiClient }: { apiClient: ApiClient }) {
           onNotice={setNotice}
         />
       ) : tab === 1 ? (
-        <PricesSection apiClient={apiClient} query={prices} references={serviceReferences} onNotice={setNotice} />
+        <PricesSection
+          apiClient={apiClient}
+          query={prices}
+          references={serviceReferences}
+          onNotice={setNotice}
+          onReviewServices={() => setTab(0)}
+        />
       ) : (
         <PromotionsSection
           apiClient={apiClient}
@@ -245,6 +251,7 @@ function ServicesSection({
           onSaved={(service) => {
             onServiceSaved(service);
             void queryClient.invalidateQueries({ queryKey: adminQueryKeys.prices });
+            void queryClient.invalidateQueries({ queryKey: adminQueryKeys.publicPricing });
             void queryClient.invalidateQueries({ queryKey: adminQueryKeys.promotions });
             setEditing(null);
           }}
@@ -260,25 +267,39 @@ function PricesSection({
   apiClient,
   query,
   references,
-  onNotice
+  onNotice,
+  onReviewServices
 }: {
   apiClient: ApiClient;
   query: UseQueryResult<AdminPrice[]>;
   references: ServiceReference[];
   onNotice: (message: string) => void;
+  onReviewServices: () => void;
 }) {
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState<StandardPriceTarget | 'create' | null>(null);
   const [closing, setClosing] = useState<AdminPrice | null>(null);
   if (query.isPending) return <AdminLoadingState label="Cargando historial de precios..." />;
   if (query.isError) return <AdminErrorState onRetry={() => void query.refetch()} />;
   return (
     <Stack spacing={2}>
+      <PublicPricingMatrix
+        apiClient={apiClient}
+        prices={query.data}
+        references={references}
+        refreshing={query.isFetching}
+        onRefresh={() => void query.refetch()}
+        onConfigure={setCreating}
+        onReviewServices={onReviewServices}
+      />
+      <Typography component="h2" variant="h3">
+        Historial de precios · todos los canales
+      </Typography>
       <Box>
         <Button
           variant="contained"
           startIcon={<AddOutlined />}
-          onClick={() => setCreating(true)}
-          disabled={references.length === 0}
+          onClick={() => setCreating('create')}
+          disabled={references.length === 0 || query.isFetching}
         >
           Crear precio
         </Button>
@@ -356,9 +377,9 @@ function PricesSection({
         <PriceDialog
           apiClient={apiClient}
           open
-          prices={query.data}
           references={references}
-          onClose={() => setCreating(false)}
+          initialTarget={creating === 'create' ? undefined : creating}
+          onClose={() => setCreating(null)}
           onNotice={onNotice}
         />
       ) : null}
@@ -726,28 +747,29 @@ function ServiceDialog({
 function PriceDialog({
   apiClient,
   open,
-  prices,
   references,
+  initialTarget,
   onClose,
   onNotice
 }: {
   apiClient: ApiClient;
   open: boolean;
-  prices: AdminPrice[];
   references: ServiceReference[];
+  initialTarget?: StandardPriceTarget | undefined;
   onClose: () => void;
   onNotice: (message: string) => void;
 }) {
-  const [serviceId, setServiceId] = useState('');
+  const [serviceId, setServiceId] = useState(initialTarget?.serviceId ?? '');
   const [commercialChannel, setCommercialChannel] = useState<CreateAdminPriceInput['commercialChannel']>('STANDARD');
-  const [capacityMin, setCapacityMin] = useState('1');
-  const [capacityMax, setCapacityMax] = useState('50');
+  const [capacityMin, setCapacityMin] = useState(String(initialTarget?.capacityMin ?? 1));
+  const [capacityMax, setCapacityMax] = useState(String(initialTarget?.capacityMax ?? 50));
   const [venueTier, setVenueTier] = useState<NonNullable<CreateAdminPriceInput['venueTier']>>('ONE_TO_TWO');
   const [credits, setCredits] = useState('');
   const [from, setFrom] = useState('');
   const [until, setUntil] = useState('');
   const [validationError, setValidationError] = useState('');
   const mutation = useCatalogMutationState('catalog-price', 'create');
+  const formLocked = mutation.busy || mutation.needsReconciliation;
   const queryClient = useQueryClient();
   const buildBody = () => {
     const numeric = Number(credits);
@@ -755,6 +777,7 @@ function PriceDialog({
     const maximum = Number(capacityMax);
     if (
       !serviceId ||
+      !credits.trim() ||
       !Number.isInteger(numeric) ||
       numeric < 0 ||
       !from ||
@@ -778,22 +801,6 @@ function PriceDialog({
       setValidationError('El fin de vigencia debe ser posterior al inicio.');
       return null;
     }
-    if (
-      prices.some(
-        (price) =>
-          price.serviceId === serviceId &&
-          price.commercialChannel === commercialChannel &&
-          price.capacityMin === (body.capacityMin ?? null) &&
-          price.capacityMax === (body.capacityMax ?? null) &&
-          price.venueTier === (body.venueTier ?? null) &&
-          intervalsOverlap(price, body)
-      )
-    ) {
-      setValidationError(
-        'La vigencia aparente se solapa con otro precio. El backend realizara la validacion definitiva.'
-      );
-      return null;
-    }
     const code = references.find((item) => item.id === serviceId)?.code;
     if (code === 'DEMO' && numeric !== 0) {
       setValidationError('Demo debe conservar precio de cero creditos.');
@@ -809,6 +816,8 @@ function PriceDialog({
       (signal) => apiClient.adminCatalog.createPrice(body, signal),
       (result) => {
         queryClient.setQueryData<AdminPrice[]>(adminQueryKeys.prices, (items = []) => [...items, result]);
+        void queryClient.invalidateQueries({ queryKey: adminQueryKeys.prices });
+        void queryClient.invalidateQueries({ queryKey: adminQueryKeys.publicPricing });
         onNotice('El Precio fue confirmado por la respuesta autoritativa.');
         onClose();
       }
@@ -828,6 +837,7 @@ function PriceDialog({
       },
       {
         applied: () => {
+          void queryClient.invalidateQueries({ queryKey: adminQueryKeys.publicPricing });
           onNotice('La consulta autoritativa confirma que el Precio ya fue creado.');
           onClose();
         }
@@ -839,7 +849,13 @@ function PriceDialog({
       <DialogTitle>Crear precio</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>
-          <TextField select label="Servicio" value={serviceId} onChange={(e) => setServiceId(e.target.value)}>
+          <TextField
+            disabled={formLocked}
+            select
+            label="Servicio"
+            value={serviceId}
+            onChange={(e) => setServiceId(e.target.value)}
+          >
             {references.map((item) => (
               <MenuItem key={item.id} value={item.id}>
                 {serviceLabels[item.code]}
@@ -849,6 +865,7 @@ function PriceDialog({
           <TextField
             select
             label="Canal comercial"
+            disabled={formLocked}
             value={commercialChannel}
             onChange={(e) => setCommercialChannel(e.target.value as CreateAdminPriceInput['commercialChannel'])}
           >
@@ -862,6 +879,7 @@ function PriceDialog({
             <TextField
               select
               label="Volumen efectivo M-1"
+              disabled={formLocked}
               value={venueTier}
               onChange={(e) => setVenueTier(e.target.value as NonNullable<CreateAdminPriceInput['venueTier']>)}
             >
@@ -875,12 +893,14 @@ function PriceDialog({
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
               <TextField
                 label="Capacidad mínima"
+                disabled={formLocked}
                 type="number"
                 value={capacityMin}
                 onChange={(e) => setCapacityMin(e.target.value)}
               />
               <TextField
                 label="Capacidad máxima"
+                disabled={formLocked}
                 type="number"
                 value={capacityMax}
                 onChange={(e) => setCapacityMax(e.target.value)}
@@ -889,6 +909,7 @@ function PriceDialog({
           )}
           <TextField
             label="Creditos"
+            disabled={formLocked}
             type="number"
             value={credits}
             onChange={(e) => setCredits(e.target.value)}
@@ -896,6 +917,7 @@ function PriceDialog({
           />
           <TextField
             label="Inicio de vigencia"
+            disabled={formLocked}
             type="datetime-local"
             value={from}
             onChange={(e) => setFrom(e.target.value)}
@@ -903,14 +925,16 @@ function PriceDialog({
           />
           <TextField
             label="Fin de vigencia (opcional)"
+            disabled={formLocked}
             type="datetime-local"
             value={until}
             onChange={(e) => setUntil(e.target.value)}
             slotProps={{ inputLabel: { shrink: true }, htmlInput: { step: 1 } }}
           />
           <Alert severity="info">
-            Revisa Servicio, tipo de Cliente, creditos y el intervalo [inicio, fin). El historial no se edita: un precio
-            vigente solo puede cerrarse.
+            Revisa servicio, canal, créditos y el intervalo [inicio, fin). La API admite reemplazos futuros de una
+            tarifa abierta del mismo rango y cierra la anterior al inicio de la nueva vigencia. Rechaza solapamientos
+            incompatibles y cambios al historial transcurrido.
           </Alert>
           {validationError ? <Alert severity="error">{validationError}</Alert> : null}
           {mutation.error ? <Alert severity="error">{mutation.error}</Alert> : null}
@@ -961,6 +985,7 @@ function ClosePriceDialog({
         queryClient.setQueryData<AdminPrice[]>(adminQueryKeys.prices, (items = []) =>
           items.map((item) => (item.id === result.id ? result : item))
         );
+        void queryClient.invalidateQueries({ queryKey: adminQueryKeys.publicPricing });
         onNotice('El cierre del Precio fue confirmado por la respuesta autoritativa.');
         onClose();
       }
@@ -981,6 +1006,7 @@ function ClosePriceDialog({
       },
       {
         applied: () => {
+          void queryClient.invalidateQueries({ queryKey: adminQueryKeys.publicPricing });
           onNotice('La consulta autoritativa confirma que el Precio ya fue cerrado.');
           onClose();
         },

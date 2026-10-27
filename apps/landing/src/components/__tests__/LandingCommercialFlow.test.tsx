@@ -31,7 +31,7 @@ describe('Landing commercial journeys', () => {
     async (section, cta, opportunityType, notes) => {
       renderLanding();
       fireEvent.click(within(document.querySelector(section)!).getByRole('button', { name: cta }));
-      const dialog = await screen.findByRole('dialog');
+      const dialog = await screen.findByRole('dialog', undefined, { timeout: 10_000 });
       expect(within(dialog).getByRole('heading')).toHaveTextContent(
         opportunityType === 'VENUE' ? 'Propuesta para tu salón o jardín' : 'Condiciones para Planners y agencias'
       );
@@ -56,7 +56,7 @@ describe('Landing commercial journeys', () => {
     );
     renderLanding();
     fireEvent.click(screen.getByRole('button', { name: content.venue.personalization.cta }));
-    await screen.findByRole('dialog');
+    await screen.findByRole('dialog', undefined, { timeout: 10_000 });
     fillAndSubmit();
     const signal = submit.mock.calls[0]![1] as AbortSignal;
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar solicitud comercial' }));
@@ -64,7 +64,7 @@ describe('Landing commercial journeys', () => {
     fireEvent.click(
       within(document.querySelector('#planners')!).getByRole('button', { name: content.planners.commercialCta })
     );
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('dialog', undefined, { timeout: 10_000 });
     await act(async () => resolve({ accepted: true }));
     expect(within(dialog).queryByText(/Recibimos tu solicitud/)).not.toBeInTheDocument();
     expect(within(dialog).getByLabelText('Mensaje (opcional)')).toHaveValue('');

@@ -10,7 +10,7 @@ const messages: Record<string, string> = {
   SERVICE_NOT_FOUND: 'El Servicio no esta disponible.',
   SERVICE_ALREADY_EXISTS: 'Ya existe un Servicio con ese codigo.',
   PRICE_NOT_FOUND: 'El precio no esta disponible.',
-  PRICE_OVERLAP: 'La vigencia se solapa con otro precio del mismo Servicio y tipo de Cliente.',
+  PRICE_OVERLAP: 'La vigencia se solapa con otro precio del mismo servicio, canal y rango o volumen.',
   PRICE_HISTORY_IMMUTABLE: 'El historial de precios es inmutable; solo puede cerrarse la vigencia.',
   CURRENT_PRICE_NOT_FOUND: 'No existe un precio vigente para esa combinacion.',
   PROMOTION_NOT_FOUND: 'La promocion no esta disponible.',

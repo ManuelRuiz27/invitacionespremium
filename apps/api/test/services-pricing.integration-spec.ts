@@ -20,6 +20,8 @@ import {
   VenuePriceTier
 } from '../src/generated/prisma/client';
 import { ServicesPricingService } from '../src/services-pricing/services-pricing.service';
+import { AuditedMutationService } from '../src/audit/audited-mutation.service';
+import { seedServicesPricing } from '../scripts/seed-services-pricing';
 
 const trustedOrigin = 'http://localhost:5173';
 const password = 'correct horse battery staple';
@@ -217,6 +219,143 @@ describe('Services, prices, and promotions', () => {
       expect(item).not.toHaveProperty('creditLine');
       expect(item).not.toHaveProperty('receipt');
     }
+  });
+
+  it('preserves an inactive Flyer and all seeded history, then republishes its three rates through Admin', async () => {
+    const adminCookie = await createPlatformAdminCookie();
+    const flyer = await prisma.service.findUniqueOrThrow({ where: { code: ServiceCode.FLYER } });
+    const history = await prisma.servicePrice.findMany({ orderBy: { id: 'asc' } });
+    await request(app.getHttpServer())
+      .patch(`/api/v1/admin/services/${flyer.id}`)
+      .set('Origin', trustedOrigin)
+      .set('Cookie', adminCookie)
+      .send({ isActive: false })
+      .expect(200);
+    await seedServicesPricing(app.get(AuditedMutationService));
+    expect(await prisma.servicePrice.findMany({ orderBy: { id: 'asc' } })).toEqual(history);
+    expect((await prisma.service.findUniqueOrThrow({ where: { id: flyer.id } })).isActive).toBe(false);
+    const incomplete = await request(app.getHttpServer()).get('/api/v1/public/pricing').expect(200);
+    expect(incomplete.body).toHaveLength(6);
+    expect(incomplete.body.some((item: { serviceCode: string }) => item.serviceCode === 'FLYER')).toBe(false);
+
+    await request(app.getHttpServer())
+      .patch(`/api/v1/admin/services/${flyer.id}`)
+      .set('Origin', trustedOrigin)
+      .set('Cookie', adminCookie)
+      .send({ isActive: true })
+      .expect(200);
+    const complete = await request(app.getHttpServer()).get('/api/v1/public/pricing').expect(200);
+    expect(complete.body).toHaveLength(9);
+    expect(
+      complete.body
+        .filter((item: { serviceCode: string }) => item.serviceCode === 'FLYER')
+        .map((item: { amountMxnCents: number }) => item.amountMxnCents)
+        .sort()
+    ).toEqual([450000, 550000, 650000]);
+    expect(await prisma.servicePrice.findMany({ orderBy: { id: 'asc' } })).toEqual(history);
+    expect(await prisma.auditLog.count({ where: { action: 'SERVICE_UPDATE', resourceId: flyer.id } })).toBe(2);
+  });
+
+  it('configures a missing current rate through Admin without reopening or duplicating its closed history', async () => {
+    const adminCookie = await createPlatformAdminCookie();
+    const old = await prisma.servicePrice.findFirstOrThrow({
+      where: {
+        service: { code: ServiceCode.FLYER },
+        commercialChannel: 'STANDARD',
+        capacityMin: 1,
+        capacityMax: 50
+      }
+    });
+    // Only this isolated test fixture starts with an already elapsed interval.
+    const closedAt = new Date(Date.now() - 30_000);
+    await prisma.servicePrice.update({ where: { id: old.id }, data: { validUntil: closedAt } });
+    const incomplete = await request(app.getHttpServer()).get('/api/v1/public/pricing').expect(200);
+    expect(incomplete.body).toHaveLength(8);
+    const input = {
+      serviceId: old.serviceId,
+      commercialChannel: 'STANDARD',
+      capacityMin: 1,
+      capacityMax: 50,
+      credits: 225,
+      validFrom: new Date(Date.now() - 1000).toISOString()
+    };
+    const created = await request(app.getHttpServer())
+      .post('/api/v1/admin/prices')
+      .set('Origin', trustedOrigin)
+      .set('Cookie', adminCookie)
+      .send(input)
+      .expect(201);
+    expect(created.body.id).not.toBe(old.id);
+    await request(app.getHttpServer())
+      .post('/api/v1/admin/prices')
+      .set('Origin', trustedOrigin)
+      .set('Cookie', adminCookie)
+      .send(input)
+      .expect(409);
+    expect(await prisma.servicePrice.count()).toBe(17);
+    expect(await prisma.servicePrice.findUnique({ where: { id: old.id } })).toMatchObject({
+      validUntil: closedAt,
+      credits: old.credits,
+      validFrom: old.validFrom
+    });
+    const complete = await request(app.getHttpServer()).get('/api/v1/public/pricing').expect(200);
+    expect(complete.body).toHaveLength(9);
+    expect(await prisma.auditLog.count({ where: { action: 'SERVICE_PRICE_CREATE' } })).toBe(1);
+  });
+
+  it('switches public pricing exactly at a scheduled boundary and preserves prior amounts and channels', async () => {
+    const adminCookie = await createPlatformAdminCookie();
+    const old = await prisma.servicePrice.findFirstOrThrow({
+      where: {
+        service: { code: ServiceCode.FLYER },
+        commercialChannel: 'STANDARD',
+        capacityMin: 1,
+        capacityMax: 50
+      }
+    });
+    const privateHistory = await prisma.servicePrice.findMany({
+      where: { commercialChannel: { in: ['PARTNER', 'VENUE'] } },
+      orderBy: { id: 'asc' }
+    });
+    const start = new Date(Date.now() + 60_000);
+    const created = await request(app.getHttpServer())
+      .post('/api/v1/admin/prices')
+      .set('Origin', trustedOrigin)
+      .set('Cookie', adminCookie)
+      .send({
+        serviceId: old.serviceId,
+        commercialChannel: 'STANDARD',
+        capacityMin: 1,
+        capacityMax: 50,
+        credits: 250,
+        validFrom: start.toISOString()
+      })
+      .expect(201);
+    const selectFlyer = (items: Awaited<ReturnType<ServicesPricingService['listPublicPricing']>>) =>
+      items.filter((item) => item.serviceCode === 'FLYER' && item.capacityMin === 1);
+    expect(selectFlyer(await servicesPricing.listPublicPricing(new Date(start.getTime() - 1)))).toMatchObject([
+      { credits: 225, amountMxnCents: 450000 }
+    ]);
+    const effective = await servicesPricing.listPublicPricing(start);
+    expect(effective).toHaveLength(9);
+    expect(selectFlyer(effective)).toMatchObject([{ credits: 250, amountMxnCents: 500000 }]);
+    expect(await prisma.servicePrice.findUnique({ where: { id: old.id } })).toMatchObject({
+      id: old.id,
+      credits: old.credits,
+      validFrom: old.validFrom,
+      validUntil: start,
+      createdAt: old.createdAt
+    });
+    expect(
+      await prisma.servicePrice.findMany({
+        where: { commercialChannel: { in: ['PARTNER', 'VENUE'] } },
+        orderBy: { id: 'asc' }
+      })
+    ).toEqual(privateHistory);
+    expect(created.body.id).not.toBe(old.id);
+    expect(await prisma.servicePrice.count()).toBe(17);
+    expect(await prisma.ledgerEntry.count()).toBe(0);
+    expect(await prisma.auditLog.count({ where: { action: 'SERVICE_PRICE_CREATE' } })).toBe(1);
   });
 
   it('uses only charged M-1 Events, retains partial refunds, and excludes full refunds for Venue volume', async () => {

@@ -20,6 +20,7 @@ export const adminQueryKeys = {
     ['admin-access-operations', clientId, eventId, accessMode] as const,
   finance: (clientId: string) => ['admin-client-finance', clientId] as const,
   prices: ['admin-prices'] as const,
+  publicPricing: ['admin-public-pricing'] as const,
   promotions: ['admin-promotions'] as const,
   reports: ['admin-reports'] as const,
   eventReports: (eventId: string) => ['admin-event-reports', eventId] as const,
