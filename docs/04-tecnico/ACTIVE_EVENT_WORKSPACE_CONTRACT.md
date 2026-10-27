@@ -1,5 +1,24 @@
 # Contrato del workspace operativo del Evento
 
+## ACCESS_CONTROL — guía y selección de material UX01
+
+El Resumen B01 muestra una guía contextual durante preparación y operación. Antes de activar, NOMINAL
+enlaza a registro, emisión y Mesas cuando hay Croquis; ANONYMOUS explica la generación de lotes por
+InvitacionesPremium y enlaza a revisión y descarga del material. Ambos solicitan activación al Provider.
+En ACTIVE/EVENT_DAY se priorizan material, Staff, apertura del Scanner desde su acceso autorizado e
+Ingresos y aforo. Se usan sólo las secciones existentes; las acciones de Staff dependen de su
+disponibilidad actual. No hay un wizard ni un cálculo alternativo de readiness.
+
+**Seleccionar todos los descargables** y **Limpiar selección** sólo modifican la selección local del
+PDF existente. NOMINAL incluye credenciales emitidas de sujetos vigentes sin CheckIn activo; ANONYMOUS
+incluye pases UNUSED. Las actualizaciones retiran selecciones que perdieron elegibilidad. La exportación
+vuelve a consultar material autoritativo y cada SVG antes de producir el PDF; errores no confirman una
+descarga. Se conservan el máximo de 150 derechos, las reglas de paginación y el formato de impresión.
+
+En NOMINAL, Invitados distingue contactos registrados y espacios restantes para registrar; los derechos
+de acceso vigentes y la capacidad para emitir se consultan en **Ingresos y aforo**. Los textos no
+modifican fórmulas ni reglas backend.
+
 ## ACCESS_CONTROL — consulta operativa DT08
 
 El workspace B01 incorpora `?seccion=ingresos`, **Ingresos y aforo**, durante preparación, operación

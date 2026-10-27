@@ -25,7 +25,8 @@ const createOrganizationSchema = z
   .object({
     name: clientNameSchema,
     adminEmail: emailSchema,
-    adminPassword: passwordSchema
+    adminPassword: passwordSchema,
+    operatingProfile: z.enum(ClientOperatingProfile).optional()
   })
   .strict();
 
@@ -94,6 +95,14 @@ export class CreateOrganizationRequestDto {
 
   @ApiProperty({ type: String, format: 'password', minLength: 12, maxLength: 1024, writeOnly: true })
   adminPassword!: string;
+
+  @ApiProperty({
+    enum: ClientOperatingProfile,
+    enumName: 'ClientOperatingProfile',
+    required: false,
+    description: 'Operating profile selected by Platform Admin; defaults to SELF_SERVICE when omitted.'
+  })
+  operatingProfile?: ClientOperatingProfile;
 }
 
 export class UpdateClientRequestDto {

@@ -17,7 +17,7 @@ const decodeQr = requireScanner('jsqr') as (
 ) => { data: string } | null;
 
 for (const mode of ['NOMINAL', 'ANONYMOUS'] as const) {
-  test(`DT08 ${mode}: Provider activation → authoritative access counters → Staff camera → updated counters`, async ({
+  test(`UX01 ${mode}: salon onboarding → contextual intake → activation → material → Staff camera → access counters`, async ({
     browser
   }) => {
     const providerContext = await browser.newContext();
@@ -45,20 +45,51 @@ for (const mode of ['NOMINAL', 'ANONYMOUS'] as const) {
     });
     try {
       await login(provider, admin, 'provider@dt07.example', true);
-      await provider.goto(`${admin}/eventos`);
-      await provider.getByRole('button', { name: 'Nuevo evento', exact: true }).click();
+      const suffix = randomUUID();
+      const salonName = `UX01 ${mode} ${suffix}`;
+      const plannerEmail = `planner-${suffix}@ux01.example`;
+      await provider.setViewportSize({ width: 390, height: 844 });
+      await provider.goto(`${admin}/clientes`);
+      await provider.getByRole('button', { name: 'Crear organizacion', exact: true }).click();
+      const organizationDialog = provider.getByRole('dialog');
+      await expect(organizationDialog.getByLabel('Perfil operativo')).toContainText(
+        'Gestionado por InvitacionesPremium'
+      );
+      await organizationDialog.getByLabel('Nombre de la organizacion').fill(salonName);
+      await organizationDialog
+        .getByLabel('Correo del Administrador de organizacion')
+        .fill(`admin-${suffix}@ux01.example`);
+      await organizationDialog.getByLabel('Contraseña inicial').fill(password);
+      await organizationDialog.getByRole('button', { name: 'Crear organizacion', exact: true }).click();
+      await expect(provider).toHaveURL(/\/clientes\/[^/]+$/u);
+      const clientId = new URL(provider.url()).pathname.split('/')[2]!;
+      await expect(provider.getByRole('heading', { name: 'Preparar salón para control de acceso' })).toBeVisible();
+      await expect(provider.getByRole('heading', { name: 'Finanzas', exact: true })).toHaveCount(0);
+      await expect(provider.getByRole('link', { name: 'Crear evento', exact: true })).toHaveAttribute(
+        'aria-disabled',
+        'true'
+      );
+      await provider.getByRole('button', { name: 'Agregar planner', exact: true }).first().click();
+      const plannerDialog = provider.getByRole('dialog');
+      await plannerDialog.getByLabel('Correo', { exact: true }).fill(plannerEmail);
+      await plannerDialog.getByLabel('Contraseña temporal').fill(password);
+      await plannerDialog.getByRole('button', { name: 'Guardar', exact: true }).click();
+      await expect(plannerDialog).toHaveCount(0);
+      await expect(provider.getByText(plannerEmail, { exact: true }).first()).toBeVisible();
+      await provider.getByRole('link', { name: 'Crear evento', exact: true }).click();
       const intake = provider.getByRole('dialog', { name: 'Nuevo evento' });
-      await intake.getByLabel('Cliente', { exact: true }).click();
-      await provider.getByRole('option', { name: /\[DT07\] Organización/u }).click();
+      await expect(intake.getByLabel('Cliente', { exact: true })).toContainText(salonName);
+      await expect(intake.getByLabel('Servicio', { exact: true })).toContainText('Control de acceso');
       await intake.getByLabel('Nombre del evento').fill(`DT07 ${mode}`);
       await intake.getByLabel('Modalidad de acceso').click();
       await provider.getByRole('option', { name: mode === 'NOMINAL' ? /Nominal/u : /Anónimo/u }).click();
       await intake.getByLabel('Capacidad', { exact: true }).fill('3');
       await intake.getByLabel('Planner responsable').click();
-      await provider.getByRole('option', { name: 'planner@dt07.example', exact: true }).click();
+      await provider.getByRole('option', { name: plannerEmail, exact: true }).click();
       await intake.getByRole('button', { name: 'Crear evento' }).click();
       await expect(provider).toHaveURL(/\/eventos\/[^/]+\/preparar\/datos$/u);
       const eventId = new URL(provider.url()).pathname.split('/')[2]!;
+      expect(new URL(provider.url()).searchParams.has('clientId')).toBe(false);
       await provider.getByLabel('Tipo social').click();
       await provider.getByRole('option', { name: 'OTHER', exact: true }).click();
       await provider.getByLabel('Fecha y hora', { exact: true }).fill('2035-01-01T18:00');
@@ -68,7 +99,17 @@ for (const mode of ['NOMINAL', 'ANONYMOUS'] as const) {
       await provider.getByRole('link', { name: 'Accesos', exact: true }).click();
       await expect(provider.getByText('Hay requisitos pendientes antes de activar.')).toBeVisible();
       await expect(provider.getByRole('button', { name: 'Activar evento', exact: true })).toHaveCount(0);
-      await login(organization, client, 'planner@dt07.example', false);
+      await login(organization, client, plannerEmail, false);
+      await organization.setViewportSize({ width: 390, height: 844 });
+      await organization.goto(`${client}/eventos/${eventId}`);
+      await expect(organization.getByText('Solicitar activación a InvitacionesPremium', { exact: true })).toBeVisible();
+      if (mode === 'NOMINAL') {
+        await expect(organization.getByRole('link', { name: 'Registrar invitados', exact: true })).toBeVisible();
+      } else {
+        await expect(
+          organization.getByText('Esperar la generación de lotes por InvitacionesPremium', { exact: true })
+        ).toBeVisible();
+      }
       await organization.goto(`${client}/eventos/${eventId}?seccion=${mode === 'NOMINAL' ? 'invitados' : 'accesos'}`);
 
       if (mode === 'NOMINAL') {
@@ -82,6 +123,10 @@ for (const mode of ['NOMINAL', 'ANONYMOUS'] as const) {
         await expect(organization.getByRole('list', { name: 'Lista de invitados' })).toContainText(
           'Invitado sin teléfono'
         );
+        await expect(organization.getByText('Invitados registrados: 1', { exact: true })).toBeVisible();
+        await expect(
+          organization.getByText('Espacios restantes para registrar invitados: 2', { exact: true })
+        ).toBeVisible();
         await organization.getByRole('link', { name: 'Credenciales individuales' }).click();
         await organization.getByRole('button', { name: 'Emitir credencial', exact: true }).click();
         await expect(organization.getByText('Credencial vigente', { exact: true })).toBeVisible();
@@ -99,10 +144,30 @@ for (const mode of ['NOMINAL', 'ANONYMOUS'] as const) {
       provider.once('dialog', (dialog) => dialog.accept());
       await provider.getByRole('button', { name: 'Activar evento', exact: true }).click();
       await expect(provider.getByText('El Evento quedó activo.', { exact: true })).toBeVisible();
+      await expect(provider.getByText('La activación ya fue realizada.', { exact: true })).toBeVisible();
       const authoritative = await orgContext.request.get(`${api}/events/${eventId}`);
       expect(authoritative.status()).toBe(200);
       const authoritativeEvent = await authoritative.json();
-      expect(authoritativeEvent).toMatchObject({ status: 'ACTIVE', accessMode: mode, hasAccessMaterial: true });
+      expect(authoritativeEvent).toMatchObject({
+        clientId,
+        status: 'ACTIVE',
+        accessMode: mode,
+        hasAccessMaterial: true
+      });
+
+      await provider.goto(`${admin}/eventos/${eventId}`);
+      await expect(provider.getByText(plannerEmail, { exact: true })).toBeVisible();
+      await expect(provider.getByText(mode === 'NOMINAL' ? 'Nominal' : 'Anónimo', { exact: true })).toBeVisible();
+      await expect(provider.getByText('Confirmaciones', { exact: true })).toHaveCount(0);
+      await provider.goto(`${admin}/eventos`);
+      const eventRow = provider.getByRole('row').filter({ hasText: `DT07 ${mode}` });
+      await expect(eventRow).toContainText(salonName);
+      await expect(eventRow).toContainText('Control de acceso');
+      await expect(eventRow).toContainText(mode === 'NOMINAL' ? 'Nominal' : 'Anónimo');
+      await expect(eventRow).not.toContainText(authoritativeEvent.assignedPlannerUserId);
+
+      await organization.goto(`${client}/eventos/${eventId}`);
+      await expect(organization.getByRole('link', { name: 'Crear Staff', exact: true })).toBeVisible();
 
       await organization.goto(`${client}/eventos/${eventId}?seccion=ingresos`);
       await expectOperationsFigures(organization, { activeRights: 1, entered: 0, pending: 1, availableCapacity: 2 });
@@ -132,11 +197,14 @@ for (const mode of ['NOMINAL', 'ANONYMOUS'] as const) {
       await downloadButton.click();
       const svg = await (await svgResponse).text();
       expect((await download).suggestedFilename()).toMatch(/\.svg$/u);
-      await organization
-        .getByRole('checkbox', {
-          name: mode === 'NOMINAL' ? 'Seleccionar credencial de Invitado sin teléfono' : 'Seleccionar folio 1'
-        })
-        .check();
+      const materialCheckbox = organization.getByRole('checkbox', {
+        name: mode === 'NOMINAL' ? 'Seleccionar credencial de Invitado sin teléfono' : 'Seleccionar folio 1'
+      });
+      await organization.getByRole('button', { name: 'Seleccionar todos los descargables', exact: true }).click();
+      await expect(materialCheckbox).toBeChecked();
+      await organization.getByRole('button', { name: 'Limpiar selección', exact: true }).click();
+      await expect(materialCheckbox).not.toBeChecked();
+      await organization.getByRole('button', { name: 'Seleccionar todos los descargables', exact: true }).click();
       const pdfDownload = organization.waitForEvent('download');
       await organization.getByRole('button', { name: 'Exportar seleccionados a PDF (1)', exact: true }).click();
       expect((await pdfDownload).suggestedFilename()).toMatch(/\.pdf$/u);

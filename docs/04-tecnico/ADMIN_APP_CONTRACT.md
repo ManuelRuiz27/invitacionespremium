@@ -1,5 +1,31 @@
 # Contrato de la aplicacion Platform Admin
 
+## M02-B01-UX01 — alta y preparación contextual del salón
+
+El alta administrativa de Organización permite elegir perfil operativo; la UI preselecciona
+**Gestionado por InvitacionesPremium**, mientras que la API conserva `SELF_SERVICE` al omitirlo.
+Tras una creación confirmada se navega a `/clientes/:clientId`. No hay envíos duplicados ni
+confirmaciones optimistas ante errores.
+
+El detalle `ORGANIZATION + MANAGED` presenta los pasos Organización creada, Agregar Planner responsable
+y Crear Evento de control de acceso a partir del Cliente y sus usuarios administrativos vigentes.
+Una consulta fallida ofrece reintento y no acredita un Planner inexistente. Este contexto omite
+`AdminClientFinancePanel`; Planner Managed y Self-Service conservan sus paneles anteriores.
+**Crear evento** navega al intake existente mediante `/eventos?clientId=:clientId`; sólo se preselecciona
+un Cliente activo de la lista administrativa autorizada. Se limpian los campos incompatibles al cambiar
+de Cliente. No se cotiza ni se pide aceptación financiera para ACCESS_CONTROL.
+
+La lista y el detalle presentan el servicio y la modalidad por nombre, junto con Cliente y estado.
+El detalle resuelve el correo del Planner mediante la consulta administrativa existente del Cliente;
+la lista no ejecuta consultas de usuarios por Evento. Los UUID de personas se reservan para soporte.
+ACCESS_CONTROL prioriza capacidad, modalidad, Croquis, Planner y acciones operativas y omite RSVP.
+
+La sección Accesos agrupa los blockers originales del backend en **Pendiente de InvitacionesPremium**
+y **Pendiente del salón**. Datos, infraestructura de Croquis y lotes anónimos corresponden al Provider;
+registro, credenciales y acomodo nominal corresponden al salón. Los enlaces a Datos/Croquis sólo se
+ofrecen cuando existe una acción administrativa aplicable. No se agrega operación nominal Provider ni
+se modifica el resolver de readiness. Se distinguen preparación completa y activación realizada.
+
 ## M02-B01-DT08 — consulta de ingresos y aforo
 
 El detalle administrativo de ACCESS_CONTROL integra **Ingresos y aforo**, con modalidad, capacidad,

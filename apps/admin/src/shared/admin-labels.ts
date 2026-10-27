@@ -40,3 +40,15 @@ export const formatDate = (value: string | null) =>
     : 'Sin definir';
 
 export const formatDateTime = formatDate;
+
+export const serviceCodeLabel = {
+  ACCESS_CONTROL: 'Control de acceso',
+  PHYSICAL_QR: 'QR / EventOps',
+  FLYER: 'Flyer',
+  FLIPBOOK: 'Flipbook',
+  DEMO: 'Demo'
+} as const;
+export const eventServiceLabel = (event: Pick<AdminEvent, 'serviceCode'>) =>
+  event.serviceCode ? serviceCodeLabel[event.serviceCode] : 'Sin asignar';
+export const accessModeLabel = (mode: AdminEvent['accessMode']) =>
+  mode === 'NOMINAL' ? 'Nominal' : mode === 'ANONYMOUS' ? 'Anónimo' : 'Sin definir';

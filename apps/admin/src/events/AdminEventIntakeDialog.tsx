@@ -15,7 +15,7 @@ import {
   Typography
 } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { adminQueryKeys } from '../app/query-client';
 import { adminErrorMessage } from '../shared/admin-error';
 
@@ -32,19 +32,33 @@ export function AdminEventIntakeDialog({
   apiClient,
   clients,
   open,
+  initialClientId = '',
   onClose
 }: {
   apiClient: ApiClient;
   clients: AdminClient[];
   open: boolean;
+  initialClientId?: string;
   onClose: () => void;
 }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const submitLock = useRef(false);
-  const [clientId, setClientId] = useState('');
+  const [clientId, setClientId] = useState(
+    () => clients.find((client) => client.id === initialClientId && client.status === 'ACTIVE')?.id ?? ''
+  );
   const [name, setName] = useState('');
-  const [serviceCode, setServiceCode] = useState<IntakeServiceCode>('PHYSICAL_QR');
+  const [serviceCode, setServiceCode] = useState<IntakeServiceCode>(() =>
+    clients.some(
+      (client) =>
+        client.id === initialClientId &&
+        client.status === 'ACTIVE' &&
+        client.type === 'ORGANIZATION' &&
+        client.operatingProfile === 'MANAGED'
+    )
+      ? 'ACCESS_CONTROL'
+      : 'PHYSICAL_QR'
+  );
   const [accessMode, setAccessMode] = useState<'NOMINAL' | 'ANONYMOUS' | ''>('');
   const [capacityInput, setCapacityInput] = useState('');
   const [assignedPlannerUserId, setAssignedPlannerUserId] = useState('');
@@ -55,7 +69,11 @@ export function AdminEventIntakeDialog({
   const managedM01 = managed && selectedClient.type === 'PLANNER';
   const managedOrganization = managed && selectedClient.type === 'ORGANIZATION';
   const capacity = Number(capacityInput);
-  const validIntakeInput = Boolean(clientId) && Number.isInteger(capacity) && capacity >= 1 && capacity <= 150;
+  const validIntakeInput =
+    Boolean(selectedClient && selectedClient.status === 'ACTIVE') &&
+    Number.isInteger(capacity) &&
+    capacity >= 1 &&
+    capacity <= 150;
   const users = useQuery({
     queryKey: adminQueryKeys.clientUsers(clientId),
     queryFn: ({ signal }) => apiClient.adminClients.listUsers(clientId, signal),
@@ -70,6 +88,17 @@ export function AdminEventIntakeDialog({
       apiClient.adminEvents.quoteIntake(clientId, { serviceCode: serviceCode as PaidServiceCode, capacity }, signal),
     enabled: open && validIntakeInput && !managed && serviceCode !== 'ACCESS_CONTROL'
   });
+
+  useEffect(() => {
+    if (!open || !initialClientId) return;
+    const initial = clients.find((client) => client.id === initialClientId && client.status === 'ACTIVE');
+    if (!initial) return;
+    setClientId(initial.id);
+    setServiceCode(
+      initial.type === 'ORGANIZATION' && initial.operatingProfile === 'MANAGED' ? 'ACCESS_CONTROL' : 'PHYSICAL_QR'
+    );
+    setAccessMode('');
+  }, [open, initialClientId, clients]);
 
   useEffect(() => {
     setAssignedPlannerUserId('');
@@ -152,7 +181,7 @@ export function AdminEventIntakeDialog({
     }
     if (
       (managed || selectedClient?.type === 'PLANNER') &&
-      !candidates.some((user) => user.id === assignedPlannerUserId)
+      (!users.isSuccess || !candidates.some((user) => user.id === assignedPlannerUserId))
     ) {
       setError('Selecciona una Planner responsable válida para este Cliente.');
       return;
@@ -259,7 +288,10 @@ export function AdminEventIntakeDialog({
           {managedOrganization && users.isSuccess && candidates.length === 0 ? (
             <Alert severity="warning">
               Esta Organización necesita una Planner responsable. Créala desde el detalle del Cliente antes de dar de
-              alta el Evento.
+              alta el Evento.{' '}
+              <Button component={Link} to={`/clientes/${clientId}?agregarPlanner=1`}>
+                Agregar planner
+              </Button>
             </Alert>
           ) : null}
           {!managed && quote.isFetching ? <Typography color="text.secondary">Calculando cotizacion…</Typography> : null}
@@ -303,7 +335,9 @@ export function AdminEventIntakeDialog({
             create.isPending ||
             !validIntakeInput ||
             (managed
-              ? !candidates.some((user) => user.id === assignedPlannerUserId) || (managedOrganization && !accessMode)
+              ? !users.isSuccess ||
+                !candidates.some((user) => user.id === assignedPlannerUserId) ||
+                (managedOrganization && !accessMode)
               : !quote.data?.coverage.sufficient)
           }
         >

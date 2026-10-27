@@ -14,7 +14,7 @@ import {
   Typography
 } from '@mui/material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useBeforeUnload, useBlocker } from 'react-router-dom';
 import { AttemptManager, isUncertainFailure } from '../../shared/attempt-manager';
 import { downloadBlob, errorMessage } from '../../shared/client-utils';
@@ -70,7 +70,10 @@ export function AccessMaterialPanel({ apiClient, event }: { apiClient: ApiClient
   });
 
   const refresh = async () => {
-    await queryClient.invalidateQueries({ queryKey: materialKey });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: materialKey }),
+      ...(nominal ? [queryClient.invalidateQueries({ queryKey: ['access-subjects', event.id] })] : [])
+    ]);
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['events', event.id] }),
       queryClient.invalidateQueries({ queryKey: ['access-readiness', event.id] }),
@@ -131,16 +134,26 @@ export function AccessMaterialPanel({ apiClient, event }: { apiClient: ApiClient
   const passes = material.data?.passes ?? [];
   const enabled = mutable && !busy && !uncertain;
   const downloadable = (!nominal || mutable) && !busy && !uncertain;
-  const selectable = nominal
-    ? credentials
-        .filter(
-          (credential) =>
-            credential.status === 'ISSUED' &&
-            !credential.hasActiveCheckIn &&
-            subjects.data?.some(({ id }) => id === credential.assistantId)
-        )
-        .map(({ id }) => id)
-    : passes.filter(({ status }) => status === 'UNUSED').map(({ id }) => id);
+  const selectable = useMemo(
+    () =>
+      nominal
+        ? (material.data?.nominal ?? [])
+            .filter(
+              (credential) =>
+                credential.status === 'ISSUED' &&
+                !credential.hasActiveCheckIn &&
+                subjects.data?.some(({ id }) => id === credential.assistantId)
+            )
+            .map(({ id }) => id)
+        : (material.data?.passes ?? []).filter(({ status }) => status === 'UNUSED').map(({ id }) => id),
+    [material.data, nominal, subjects.data]
+  );
+  useEffect(() => {
+    setSelected((current) => {
+      const next = new Set([...current].filter((id) => selectable.includes(id)));
+      return next.size === current.size ? current : next;
+    });
+  }, [selectable]);
   const toggle = (id: string) =>
     setSelected((current) => {
       const next = new Set(current);
@@ -172,6 +185,7 @@ export function AccessMaterialPanel({ apiClient, event }: { apiClient: ApiClient
     lock.current = true;
     setBusy(true);
     setError(undefined);
+    setNotice(undefined);
     try {
       // Revalidate the selected material before rendering; SVG also checks current validity.
       const latest = nominal
@@ -267,6 +281,14 @@ export function AccessMaterialPanel({ apiClient, event }: { apiClient: ApiClient
       <Button disabled={!downloadable || selected.size === 0} variant="outlined" onClick={() => void exportPdf()}>
         Exportar seleccionados a PDF ({selected.size})
       </Button>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+        <Button disabled={!downloadable || selectable.length === 0} onClick={() => setSelected(new Set(selectable))}>
+          Seleccionar todos los descargables
+        </Button>
+        <Button disabled={busy || Boolean(uncertain) || selected.size === 0} onClick={() => setSelected(new Set())}>
+          Limpiar selección
+        </Button>
+      </Stack>
       <Button disabled={busy} onClick={() => void refresh()}>
         Actualizar accesos
       </Button>

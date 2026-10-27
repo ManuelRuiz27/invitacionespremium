@@ -216,6 +216,121 @@ describe('Clients and Client users', () => {
       });
   });
 
+  it.each([
+    [undefined, ClientOperatingProfile.SELF_SERVICE],
+    [ClientOperatingProfile.SELF_SERVICE, ClientOperatingProfile.SELF_SERVICE],
+    [ClientOperatingProfile.MANAGED, ClientOperatingProfile.MANAGED]
+  ])('creates and audits an Organization with requested profile %s', async (requestedProfile, expectedProfile) => {
+    const platformAdmin = await createPlatformAdmin();
+    const platformCookie = await login(platformAdmin.email, platformAdmin.password);
+    const adminEmail = `org-admin-${randomUUID()}@example.com`;
+    const operationId = randomUUID();
+    const payload = {
+      name: `Salón ${randomUUID()}`,
+      adminEmail,
+      adminPassword: registrationPassword(),
+      ...(requestedProfile === undefined ? {} : { operatingProfile: requestedProfile })
+    };
+
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/admin/clients/organizations')
+      .set('Origin', trustedOrigin)
+      .set('Cookie', platformCookie)
+      .set('X-Operation-Id', operationId)
+      .send(payload)
+      .expect(201);
+    const clientId = String(response.body.client.id);
+    expect(response.body.client).toMatchObject({
+      type: ClientType.ORGANIZATION,
+      operatingProfile: expectedProfile,
+      commercialChannel: null
+    });
+    expect(response.body.user).toMatchObject({ email: adminEmail, clientId, role: UserRole.ORGANIZATION_ADMIN });
+    expect(
+      await prisma.client.findUniqueOrThrow({ where: { id: clientId }, select: { operatingProfile: true } })
+    ).toEqual({ operatingProfile: expectedProfile });
+    const audit = await prisma.auditLog.findFirstOrThrow({
+      where: { action: 'CLIENT_CREATE_ORGANIZATION', operationId }
+    });
+    expect(audit).toMatchObject({ actorId: platformAdmin.id, actorType: 'USER' });
+    expect(audit.metadata).toMatchObject({ clientType: ClientType.ORGANIZATION, operatingProfile: expectedProfile });
+    expect(audit.afterData).toMatchObject({
+      clientId,
+      operatingProfile: expectedProfile,
+      userId: String(response.body.user.id),
+      role: UserRole.ORGANIZATION_ADMIN
+    });
+    expect(JSON.stringify(audit)).not.toContain(adminEmail);
+    expect(JSON.stringify(audit)).not.toContain(registrationPassword());
+
+    const failedOperationId = randomUUID();
+    const clientCount = await prisma.client.count();
+    await request(app.getHttpServer())
+      .post('/api/v1/admin/clients/organizations')
+      .set('Origin', trustedOrigin)
+      .set('Cookie', platformCookie)
+      .set('X-Operation-Id', failedOperationId)
+      .send(payload)
+      .expect(409)
+      .expect((duplicate) => expect(duplicate.body.code).toBe('EMAIL_ALREADY_EXISTS'));
+    expect(await prisma.client.count()).toBe(clientCount);
+    expect(
+      await prisma.auditLog.count({ where: { action: 'CLIENT_CREATE_ORGANIZATION', operationId: failedOperationId } })
+    ).toBe(0);
+  });
+
+  it('restricts Managed Organization creation to the existing Provider route and role', async () => {
+    const independent = await registerPlanner(`Planner ${randomUUID()}`, `planner-${randomUUID()}@example.com`);
+    const organization = await prisma.client.create({
+      data: { type: ClientType.ORGANIZATION, operatingProfile: ClientOperatingProfile.MANAGED, name: 'Salón' }
+    });
+    const orgUsers = await Promise.all(
+      [UserRole.ORGANIZATION_ADMIN, UserRole.ORGANIZATION_PLANNER].map(async (role) =>
+        prisma.user.create({
+          data: {
+            clientId: organization.id,
+            role,
+            email: `${role.toLowerCase()}-${randomUUID()}@example.com`,
+            passwordHash: await hashPassword(registrationPassword())
+          }
+        })
+      )
+    );
+    const payload = {
+      name: 'Alta no permitida',
+      adminEmail: `forbidden-${randomUUID()}@example.com`,
+      adminPassword: registrationPassword(),
+      operatingProfile: ClientOperatingProfile.MANAGED
+    };
+    const clientCount = await prisma.client.count();
+    for (const email of [String(independent.body.user.email), ...orgUsers.map((user) => user.email)]) {
+      const cookie = await login(email, registrationPassword());
+      await request(app.getHttpServer())
+        .post('/api/v1/admin/clients/organizations')
+        .set('Origin', trustedOrigin)
+        .set('Cookie', cookie)
+        .send(payload)
+        .expect(403)
+        .expect((response) => expect(response.body.code).toBe('ROLE_FORBIDDEN'));
+    }
+    await request(app.getHttpServer())
+      .post('/api/v1/admin/clients/organizations')
+      .set('Origin', trustedOrigin)
+      .send(payload)
+      .expect(401);
+    await request(app.getHttpServer())
+      .post('/api/v1/clients/register-planner')
+      .set('Origin', trustedOrigin)
+      .send({
+        name: payload.name,
+        email: payload.adminEmail,
+        password: payload.adminPassword,
+        operatingProfile: payload.operatingProfile
+      })
+      .expect(400);
+    expect(await prisma.client.count()).toBe(clientCount);
+  });
+
   it('lets Platform Admin create and suspend an Organization without impersonation', async () => {
     const platformAdmin = await createPlatformAdmin();
     const platformCookie = await login(platformAdmin.email, platformAdmin.password);
@@ -347,10 +462,10 @@ describe('Clients and Client users', () => {
       .expect(201);
   }
 
-  async function createPlatformAdmin(): Promise<{ email: string; password: string }> {
+  async function createPlatformAdmin(): Promise<{ id: string; email: string; password: string }> {
     const email = `platform-${randomUUID()}@example.com`;
     const password = registrationPassword();
-    await prisma.user.create({
+    const user = await prisma.user.create({
       data: {
         email,
         passwordHash: await hashPassword(password),
@@ -359,7 +474,7 @@ describe('Clients and Client users', () => {
       }
     });
 
-    return { email, password };
+    return { id: user.id, email, password };
   }
 
   async function login(email: string, password: string): Promise<string> {

@@ -52,6 +52,26 @@ export function AccessControlWorkspace({
     ...(operational && scannerAppUrl ? [{ id: 'staff', label: 'Staff' }] : [])
   ];
   const section = sections.find(({ id }) => id === searchParams.get('seccion'))?.id ?? 'resumen';
+  const guide = operational
+    ? [
+        { label: 'Preparar material', section: 'accesos' },
+        { label: 'Crear Staff', section: scannerAppUrl ? 'staff' : undefined },
+        { label: 'Abrir Scanner en el dispositivo de recepción', section: scannerAppUrl ? 'staff' : undefined },
+        { label: 'Consultar Ingresos y aforo', section: 'ingresos' }
+      ]
+    : nominal
+      ? [
+          { label: 'Registrar invitados', section: 'invitados' },
+          { label: 'Emitir credenciales', section: 'accesos' },
+          ...(event.floorplanEnabled ? [{ label: 'Completar Mesas', section: 'mesas' }] : []),
+          { label: 'Solicitar activación a InvitacionesPremium', section: undefined }
+        ]
+      : [
+          { label: 'Esperar la generación de lotes por InvitacionesPremium', section: undefined },
+          { label: 'Revisar pases y folios', section: 'accesos' },
+          { label: 'Descargar e imprimir material', section: 'accesos' },
+          { label: 'Solicitar activación a InvitacionesPremium', section: undefined }
+        ];
   const readiness = useQuery({
     queryKey: ['access-readiness', event.id],
     queryFn: ({ signal }) => apiClient.events.getAccessReadiness(event.id, signal),
@@ -114,7 +134,7 @@ export function AccessControlWorkspace({
       {section === 'invitados' ? (
         <GuestManagementPanel apiClient={apiClient} event={event} readOnly={!preparing} />
       ) : section === 'accesos' ? (
-        <AccessMaterialPanel apiClient={apiClient} event={event} />
+        <AccessMaterialPanel key={`${event.id}:${event.accessMode}`} apiClient={apiClient} event={event} />
       ) : section === 'mesas' ? (
         <SeatingWorkspace apiClient={apiClient} event={event} />
       ) : section === 'ingresos' ? (
@@ -128,6 +148,42 @@ export function AccessControlWorkspace({
           </Typography>
           <Typography>Capacidad: {event.capacity ?? 'Pendiente'} personas</Typography>
           <Typography>{event.floorplanEnabled ? 'Con distribución de mesas' : 'Sin distribución de mesas'}</Typography>
+          {preparing || operational ? (
+            <Box component="section" aria-labelledby="access-guide-title">
+              <Typography id="access-guide-title" component="h3" variant="h4">
+                {operational ? 'Próximos pasos para recibir invitados' : 'Prepara tu evento'}
+              </Typography>
+              <Box component="ol" sx={{ pl: 3, '& li': { mb: 1 } }}>
+                {guide.map((step) => (
+                  <li key={step.label}>
+                    {step.section ? (
+                      <MuiLink
+                        component={Link}
+                        to={`/eventos/${event.id}?seccion=${step.section}`}
+                        sx={{ display: 'inline-flex', alignItems: 'center', minHeight: 44 }}
+                      >
+                        {step.label}
+                      </MuiLink>
+                    ) : (
+                      step.label
+                    )}
+                  </li>
+                ))}
+              </Box>
+              {operational ? (
+                <Typography color="text.secondary">
+                  {scannerAppUrl
+                    ? 'Desde Staff, crea el acceso y abre su enlace Scanner en el dispositivo de recepción.'
+                    : 'Solicita a InvitacionesPremium la habilitación del enlace de Scanner para crear accesos Staff.'}
+                </Typography>
+              ) : (
+                <Typography color="text.secondary">
+                  La preparación que se muestra abajo es la revisión vigente de InvitacionesPremium para activar el
+                  evento.
+                </Typography>
+              )}
+            </Box>
+          ) : null}
           {preparing && readiness.isPending ? <Typography role="status">Consultando preparación…</Typography> : null}
           {preparing && readiness.isError ? (
             <Alert severity="error" action={<Button onClick={() => void readiness.refetch()}>Reintentar</Button>}>

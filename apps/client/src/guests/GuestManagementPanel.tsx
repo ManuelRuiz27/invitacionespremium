@@ -149,11 +149,23 @@ export function GuestManagementPanel({
       <Typography component="h2" variant="h3">
         Invitados
       </Typography>
-      <Typography color={remaining !== null && remaining < 0 ? 'error' : 'text.secondary'}>
-        {nominalAccess ? `Invitados registrados: ${contacts.length}` : `Invitaciones: ${invitations.length}`} · Personas
-        contempladas: {authorized}
-        {remaining === null ? '' : ` · Lugares disponibles: ${remaining}`}
-      </Typography>
+      {nominalAccess ? (
+        <Stack spacing={0.5}>
+          <Typography>Invitados registrados: {contacts.length}</Typography>
+          <Typography color={remaining !== null && remaining < 0 ? 'error' : 'text.secondary'}>
+            Espacios restantes para registrar invitados: {remaining ?? 'Capacidad pendiente'}
+          </Typography>
+          <Typography color="text.secondary">
+            Los derechos de acceso vigentes y la capacidad disponible para emitir credenciales se consultan en Ingresos
+            y aforo.
+          </Typography>
+        </Stack>
+      ) : (
+        <Typography color={remaining !== null && remaining < 0 ? 'error' : 'text.secondary'}>
+          Invitaciones: {invitations.length} · Personas contempladas: {authorized}
+          {remaining === null ? '' : ` · Lugares disponibles: ${remaining}`}
+        </Typography>
+      )}
       {!canMutate ? (
         <Alert severity="info">La lista de invitados está disponible en modo de consulta para este evento.</Alert>
       ) : null}

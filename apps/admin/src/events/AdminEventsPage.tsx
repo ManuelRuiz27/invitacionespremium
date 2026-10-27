@@ -3,6 +3,7 @@ import type { ApiClient } from '@invitaciones/api-client';
 import { PageHeader, StatusChip } from '@invitaciones/ui';
 import { AddOutlined, ArrowForwardOutlined } from '@mui/icons-material';
 import {
+  Alert,
   Box,
   Button,
   Stack,
@@ -15,13 +16,15 @@ import {
   Typography
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { adminQueryKeys } from '../app/query-client';
-import { eventStatusLabel, formatDate } from '../shared/admin-labels';
+import { accessModeLabel, eventServiceLabel, eventStatusLabel, formatDate } from '../shared/admin-labels';
 import { AdminEmptyState, AdminErrorState, AdminLoadingState } from '../shared/AdminStates';
 import { AdminEventIntakeDialog } from './AdminEventIntakeDialog';
 
 export function AdminEventsPage({ apiClient }: { apiClient: ApiClient }) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedClientId = searchParams.get('clientId');
   const [creating, setCreating] = useState(false);
   const events = useQuery({
     queryKey: adminQueryKeys.events,
@@ -41,6 +44,11 @@ export function AdminEventsPage({ apiClient }: { apiClient: ApiClient }) {
         }}
       />
     );
+  const contextualClient = clients.data.find((client) => client.id === requestedClientId && client.status === 'ACTIVE');
+  const closeIntake = () => {
+    setCreating(false);
+    setSearchParams({});
+  };
   const clientNames = new Map(clients.data.map((client) => [client.id, client.name]));
   return (
     <Stack spacing={3}>
@@ -53,6 +61,11 @@ export function AdminEventsPage({ apiClient }: { apiClient: ApiClient }) {
           </Button>
         }
       />
+      {requestedClientId && !contextualClient ? (
+        <Alert severity="warning">
+          El Cliente solicitado no está disponible para crear Eventos. Selecciona un Cliente autorizado.
+        </Alert>
+      ) : null}
       {events.data.length === 0 ? (
         <AdminEmptyState title="Sin Eventos" />
       ) : (
@@ -95,9 +108,12 @@ export function AdminEventsPage({ apiClient }: { apiClient: ApiClient }) {
                     />
                   </TableCell>
                   <TableCell>{formatDate(event.eventDateTime)}</TableCell>
-                  <TableCell>{event.serviceId ? 'Configurado' : 'Sin asignar'}</TableCell>
-                  <TableCell>{event.createdByUserId}</TableCell>
-                  <TableCell>{event.assignedPlannerUserId ?? 'Sin asignar'}</TableCell>
+                  <TableCell>
+                    {eventServiceLabel(event)}
+                    {event.serviceCode === 'ACCESS_CONTROL' ? ` · ${accessModeLabel(event.accessMode)}` : ''}
+                  </TableCell>
+                  <TableCell>Usuario registrado</TableCell>
+                  <TableCell>{event.assignedPlannerUserId ? 'Planner asignado' : 'Sin asignar'}</TableCell>
                   <TableCell align="right">
                     <Button component={Link} to={`/eventos/${event.id}`} endIcon={<ArrowForwardOutlined />}>
                       Ver detalle
@@ -111,15 +127,15 @@ export function AdminEventsPage({ apiClient }: { apiClient: ApiClient }) {
       )}
       <Box>
         <Typography variant="caption" color="text.secondary">
-          El contrato actual entrega la coleccion completa sin filtros ni paginacion. El nombre del servicio no forma
-          parte de esta respuesta administrativa.
+          El contrato actual entrega la colección completa sin filtros ni paginación.
         </Typography>
       </Box>
       <AdminEventIntakeDialog
         apiClient={apiClient}
         clients={clients.data}
-        open={creating}
-        onClose={() => setCreating(false)}
+        open={creating || Boolean(contextualClient)}
+        initialClientId={contextualClient?.id ?? ''}
+        onClose={closeIntake}
       />
     </Stack>
   );

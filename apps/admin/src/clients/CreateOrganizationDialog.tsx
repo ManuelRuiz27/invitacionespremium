@@ -1,7 +1,18 @@
 import { useRef, useState } from 'react';
 import type { ApiClient } from '@invitaciones/api-client';
-import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField } from '@mui/material';
+import {
+  Alert,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  MenuItem,
+  Stack,
+  TextField
+} from '@mui/material';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { adminQueryKeys } from '../app/query-client';
 import { adminErrorMessage } from '../shared/admin-error';
 
@@ -15,19 +26,24 @@ export function CreateOrganizationDialog({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const lock = useRef(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [operatingProfile, setOperatingProfile] = useState<'MANAGED' | 'SELF_SERVICE'>('MANAGED');
   const [error, setError] = useState('');
   const mutation = useMutation({
-    mutationFn: () => apiClient.adminClients.createOrganization({ name, adminEmail: email, adminPassword: password }),
-    onSuccess: async () => {
+    mutationFn: () =>
+      apiClient.adminClients.createOrganization({ name, adminEmail: email, adminPassword: password, operatingProfile }),
+    onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: adminQueryKeys.clients });
       setName('');
       setEmail('');
       setPassword('');
+      setOperatingProfile('MANAGED');
       onClose();
+      await navigate(`/clientes/${result.client.id}`);
     },
     onError: (cause) => setError(adminErrorMessage(cause).message),
     onSettled: () => {
@@ -69,6 +85,17 @@ export function CreateOrganizationDialog({
             onChange={(event) => setPassword(event.target.value)}
             required
           />
+          <TextField
+            select
+            label="Perfil operativo"
+            value={operatingProfile}
+            disabled={mutation.isPending}
+            onChange={(event) => setOperatingProfile(event.target.value as typeof operatingProfile)}
+            helperText="El control de acceso B01 requiere el perfil Gestionado."
+          >
+            <MenuItem value="MANAGED">Gestionado por InvitacionesPremium</MenuItem>
+            <MenuItem value="SELF_SERVICE">Autoservicio</MenuItem>
+          </TextField>
           {error ? <Alert severity="error">{error}</Alert> : null}
         </Stack>
       </DialogContent>

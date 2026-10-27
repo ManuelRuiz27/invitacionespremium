@@ -106,6 +106,7 @@ export class ClientsService {
   ): Promise<ClientCreatedResponseDto> {
     const email = normalizeEmail(input.adminEmail);
     const passwordHash = await hashPassword(input.adminPassword);
+    const operatingProfile = input.operatingProfile ?? ClientOperatingProfile.SELF_SERVICE;
 
     try {
       return await this.auditedMutation.execute({
@@ -115,13 +116,13 @@ export class ClientsService {
         ...(operationId === undefined ? {} : { operationId }),
         metadata: {
           clientType: ClientType.ORGANIZATION,
-          operatingProfile: ClientOperatingProfile.SELF_SERVICE
+          operatingProfile
         },
         mutate: async (transaction) => {
           const client = await transaction.client.create({
             data: {
               type: ClientType.ORGANIZATION,
-              operatingProfile: ClientOperatingProfile.SELF_SERVICE,
+              operatingProfile,
               name: input.name
             }
           });

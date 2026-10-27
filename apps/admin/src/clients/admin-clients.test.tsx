@@ -43,7 +43,8 @@ describe('Admin Clients', () => {
       expect(api.adminClients.createOrganization).toHaveBeenCalledWith({
         name: 'Salon Nube',
         adminEmail: 'admin@nube.mx',
-        adminPassword: 'secret123'
+        adminPassword: 'secret123',
+        operatingProfile: 'MANAGED'
       })
     );
   });

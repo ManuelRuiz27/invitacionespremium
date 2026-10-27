@@ -163,43 +163,81 @@ export function AdminAccessSection({ apiClient, event }: { apiClient: ApiClient;
               <AdminErrorState onRetry={() => void readiness.refetch()} />
             ) : (
               <>
-                <Alert severity={readiness.data.complete ? 'success' : 'warning'}>
-                  {readiness.data.complete
-                    ? 'Accesos listos para activar.'
-                    : 'Hay requisitos pendientes antes de activar.'}
+                <Alert severity={event.activatedAt || readiness.data.complete ? 'success' : 'warning'}>
+                  {event.activatedAt
+                    ? 'La activación ya fue realizada.'
+                    : readiness.data.complete
+                      ? 'Accesos listos para activar.'
+                      : 'Hay requisitos pendientes antes de activar.'}
                 </Alert>
                 <Typography>
                   Accesos vigentes: {readiness.data.activeMaterialCount} · Capacidad:{' '}
                   {readiness.data.capacity ?? 'Sin definir'}
                 </Typography>
-                {readiness.data.blockers.map((code) => {
-                  const action =
-                    code === 'EVENT_ACCESS_SEATING_INCOMPLETE' && event.accessMode === 'NOMINAL'
-                      ? {
-                          message: 'La Organización debe completar el acomodo de los invitados desde Client.',
-                          section: undefined
-                        }
-                      : (blockerActions[code] ?? {
-                          message: 'Revisa el requisito técnico pendiente con soporte.'
-                        });
+                {(['provider', 'venue'] as const).map((owner) => {
+                  const blockers = readiness.data.blockers.filter((code) => {
+                    const venue =
+                      event.accessMode === 'NOMINAL' &&
+                      [
+                        'EVENT_ACCESS_MATERIAL_MISSING',
+                        'EVENT_ACCESS_CREDENTIAL_MISSING',
+                        'EVENT_ACCESS_SEATING_INCOMPLETE',
+                        'EVENT_ACCESS_MATERIAL_INCONSISTENT'
+                      ].includes(code);
+                    return owner === 'venue' ? venue : !venue;
+                  });
+                  if (blockers.length === 0) return null;
                   return (
-                    <Alert
-                      key={code}
-                      severity="warning"
-                      action={
-                        action.section ? (
-                          <Button
-                            component={Link}
-                            to={`/eventos/${event.id}/preparar/${action.section}`}
-                            color="inherit"
-                          >
-                            Revisar
-                          </Button>
-                        ) : undefined
-                      }
+                    <Stack
+                      key={owner}
+                      spacing={1}
+                      component="section"
+                      aria-label={owner === 'provider' ? 'Pendiente de InvitacionesPremium' : 'Pendiente del salón'}
                     >
-                      {action.message}
-                    </Alert>
+                      <Typography component="h3" variant="h6">
+                        {owner === 'provider' ? 'Pendiente de InvitacionesPremium' : 'Pendiente del salón'}
+                      </Typography>
+                      {blockers.map((code) => {
+                        const action =
+                          code === 'EVENT_ACCESS_MATERIAL_MISSING'
+                            ? {
+                                message:
+                                  event.accessMode === 'NOMINAL'
+                                    ? 'El salón debe registrar invitados y emitir sus credenciales desde Client.'
+                                    : 'Genera un lote de pases anónimos vigente.'
+                              }
+                            : code === 'EVENT_ACCESS_SEATING_INCOMPLETE' && event.accessMode === 'NOMINAL'
+                              ? { message: 'La Organización debe completar el acomodo de los invitados desde Client.' }
+                              : (blockerActions[code] ?? {
+                                  message: 'Revisa el requisito técnico pendiente con soporte.'
+                                });
+                        const section = 'section' in action ? action.section : undefined;
+                        const editable =
+                          !event.deletedAt && ['DRAFT', 'CONFIGURED', 'READY_TO_ACTIVATE'].includes(event.status);
+                        return (
+                          <Alert
+                            key={code}
+                            severity="warning"
+                            action={
+                              editable && section && (section !== 'croquis' || event.floorplanEnabled) ? (
+                                <Button
+                                  component={Link}
+                                  to={`/eventos/${event.id}/preparar/${section}`}
+                                  color="inherit"
+                                >
+                                  Revisar
+                                </Button>
+                              ) : undefined
+                            }
+                          >
+                            {action.message}
+                            <Typography component="span" sx={{ display: 'block' }} variant="caption">
+                              Referencia: {code}
+                            </Typography>
+                          </Alert>
+                        );
+                      })}
+                    </Stack>
                   );
                 })}
               </>

@@ -45,6 +45,7 @@ const pass = {
 const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M0 0h10v10z"/></svg>';
 
 beforeEach(() => {
+  vi.mocked(createPhysicalPassesPdf).mockClear();
   vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:access');
   vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
   vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
@@ -62,6 +63,218 @@ function setup(event: Event = nominalEvent) {
 }
 
 describe('ACCESS_CONTROL Client workspace', () => {
+  it.each([false, true])(
+    'guides nominal preparation using existing sections with floorplan=%s',
+    async (floorplanEnabled) => {
+      const api = setup({ ...nominalEvent, floorplanEnabled });
+      const actor = userEvent.setup();
+      const { router } = renderApp(api, `/eventos/${nominalEvent.id}`);
+      const guide = await screen.findByRole('region', { name: 'Prepara tu evento' });
+      expect(within(guide).getByRole('link', { name: 'Registrar invitados' })).toHaveAttribute(
+        'href',
+        `/eventos/${nominalEvent.id}?seccion=invitados`
+      );
+      expect(within(guide).getByRole('link', { name: 'Emitir credenciales' })).toHaveAttribute(
+        'href',
+        `/eventos/${nominalEvent.id}?seccion=accesos`
+      );
+      expect(within(guide).queryByRole('link', { name: 'Completar Mesas' }) !== null).toBe(floorplanEnabled);
+      expect(within(guide).getByText('Solicitar activación a InvitacionesPremium')).toBeInTheDocument();
+      expect(within(guide).queryByRole('link', { name: 'Crear Staff' })).not.toBeInTheDocument();
+      await actor.click(within(guide).getByRole('link', { name: 'Registrar invitados' }));
+      expect(router.state.location.search).toBe('?seccion=invitados');
+      expect(await screen.findByTestId('guest-management-panel')).toBeInTheDocument();
+    }
+  );
+
+  it('guides anonymous preparation without offering guest registration or generation', async () => {
+    const api = setup(anonymousEvent);
+    renderApp(api, `/eventos/${anonymousEvent.id}`);
+    const guide = await screen.findByRole('region', { name: 'Prepara tu evento' });
+    expect(within(guide).getByText('Esperar la generación de lotes por InvitacionesPremium')).toBeInTheDocument();
+    expect(within(guide).getByRole('link', { name: 'Revisar pases y folios' })).toHaveAttribute(
+      'href',
+      `/eventos/${anonymousEvent.id}?seccion=accesos`
+    );
+    expect(within(guide).getByRole('link', { name: 'Descargar e imprimir material' })).toBeInTheDocument();
+    expect(within(guide).queryByRole('link', { name: 'Registrar invitados' })).not.toBeInTheDocument();
+    expect(api.physicalPasses.generate).not.toHaveBeenCalled();
+  });
+
+  it.each(['ACTIVE', 'EVENT_DAY'] as const)(
+    'guides %s reception through material, Staff, Scanner and operations',
+    async (status) => {
+      const api = setup({ ...nominalEvent, status });
+      renderApp(api, `/eventos/${nominalEvent.id}`, undefined, 'https://scanner.example.test');
+      const guide = await screen.findByRole('region', { name: 'Próximos pasos para recibir invitados' });
+      expect(within(guide).getByRole('link', { name: 'Preparar material' })).toHaveAttribute(
+        'href',
+        `/eventos/${nominalEvent.id}?seccion=accesos`
+      );
+      for (const name of ['Crear Staff', 'Abrir Scanner en el dispositivo de recepción']) {
+        expect(within(guide).getByRole('link', { name })).toHaveAttribute(
+          'href',
+          `/eventos/${nominalEvent.id}?seccion=staff`
+        );
+      }
+      expect(within(guide).getByRole('link', { name: 'Consultar Ingresos y aforo' })).toHaveAttribute(
+        'href',
+        `/eventos/${nominalEvent.id}?seccion=ingresos`
+      );
+      expect(api.events.getAccessReadiness).not.toHaveBeenCalled();
+    }
+  );
+
+  it('does not offer Staff navigation when Scanner is unavailable', async () => {
+    const api = setup({ ...anonymousEvent, status: 'ACTIVE' });
+    renderApp(api, `/eventos/${anonymousEvent.id}`);
+    const guide = await screen.findByRole('region', { name: 'Próximos pasos para recibir invitados' });
+    expect(within(guide).queryByRole('link', { name: 'Crear Staff' })).not.toBeInTheDocument();
+    expect(within(guide).getByText(/Solicita a InvitacionesPremium la habilitación/)).toBeInTheDocument();
+  });
+
+  it.each(['CLOSED', 'CANCELLED', 'ARCHIVED'] as const)(
+    'keeps %s in consultation without an operational guide',
+    async (status) => {
+      const api = setup({ ...nominalEvent, status });
+      renderApp(api, `/eventos/${nominalEvent.id}`);
+      expect(await screen.findByText('Este evento está disponible en modo de consulta.')).toBeInTheDocument();
+      expect(screen.queryByRole('region', { name: 'Prepara tu evento' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('region', { name: 'Próximos pasos para recibir invitados' })).not.toBeInTheDocument();
+    }
+  );
+
+  it('distinguishes nominal registration space from authoritative access rights without RSVP queries', async () => {
+    const api = setup({ ...nominalEvent, capacity: 5 });
+    vi.mocked(api.contacts.list).mockResolvedValue([
+      contact,
+      { ...contact, id: 'contact-b', assistantId: 'assistant-b' }
+    ]);
+    renderApp(api, `/eventos/${nominalEvent.id}?seccion=invitados`);
+    expect(await screen.findByText('Invitados registrados: 2')).toBeInTheDocument();
+    expect(screen.getByText('Espacios restantes para registrar invitados: 3')).toBeInTheDocument();
+    expect(screen.getByText(/Los derechos de acceso vigentes.*Ingresos y aforo/)).toBeInTheDocument();
+    expect(screen.queryByText(/Personas contempladas|Lugares disponibles/)).not.toBeInTheDocument();
+    expect(api.invitations.list).not.toHaveBeenCalled();
+    expect(api.nominalAccessCredentials.list).not.toHaveBeenCalled();
+  });
+
+  it('selects all nominal printable credentials while excluding revoked, checked-in and retired identities', async () => {
+    const api = setup();
+    vi.mocked(api.contacts.list).mockResolvedValue([
+      contact,
+      { ...contact, id: 'contact-b', assistantId: 'assistant-b', name: 'Luis' },
+      { ...contact, id: 'contact-c', assistantId: 'assistant-c', name: 'Eva' }
+    ]);
+    vi.mocked(api.nominalAccessCredentials.list).mockResolvedValue([
+      credential,
+      { ...credential, id: 'revoked', status: 'REVOKED' },
+      { ...credential, id: 'checked-in', assistantId: 'assistant-b', hasActiveCheckIn: true },
+      { ...credential, id: 'retired', assistantId: 'assistant-retired' },
+      { ...credential, id: 'credential-c', assistantId: 'assistant-c' }
+    ]);
+    const actor = userEvent.setup();
+    renderApp(api, `/eventos/${nominalEvent.id}?seccion=accesos`);
+    await actor.click(await screen.findByRole('button', { name: 'Seleccionar todos los descargables' }));
+    expect(screen.getByRole('button', { name: 'Exportar seleccionados a PDF (2)' })).toBeEnabled();
+    expect(screen.getByRole('checkbox', { name: 'Seleccionar credencial de Luis' })).not.toBeChecked();
+    await actor.click(screen.getByRole('button', { name: 'Exportar seleccionados a PDF (2)' }));
+    await waitFor(() => expect(createPhysicalPassesPdf).toHaveBeenCalled());
+    expect(
+      vi
+        .mocked(createPhysicalPassesPdf)
+        .mock.calls.at(-1)![0]
+        .passes.map(({ id }) => id)
+    ).toEqual([credential.id, 'credential-c']);
+    await actor.click(screen.getByRole('button', { name: 'Limpiar selección' }));
+    expect(screen.getByRole('button', { name: 'Exportar seleccionados a PDF (0)' })).toBeDisabled();
+    expect(api.nominalAccessCredentials.issue).not.toHaveBeenCalled();
+  });
+
+  it('selects only unused anonymous material and prunes selection after a refreshed revocation', async () => {
+    const api = setup(anonymousEvent);
+    vi.mocked(api.physicalPasses.list).mockResolvedValue([
+      pass,
+      { ...pass, id: 'unused-b', passNumber: 2 },
+      { ...pass, id: 'used', status: 'USED', passNumber: 3 },
+      { ...pass, id: 'revoked', status: 'REVOKED', passNumber: 4 }
+    ]);
+    const actor = userEvent.setup();
+    renderApp(api, `/eventos/${anonymousEvent.id}?seccion=accesos`);
+    await actor.click(await screen.findByRole('button', { name: 'Seleccionar todos los descargables' }));
+    expect(screen.getByRole('button', { name: 'Exportar seleccionados a PDF (2)' })).toBeEnabled();
+    vi.mocked(api.physicalPasses.list).mockResolvedValue([
+      { ...pass, status: 'REVOKED' },
+      { ...pass, id: 'unused-b', passNumber: 2 }
+    ]);
+    await actor.click(screen.getByRole('button', { name: 'Actualizar accesos' }));
+    await screen.findByRole('button', { name: 'Exportar seleccionados a PDF (1)' });
+    await actor.click(screen.getByRole('button', { name: 'Exportar seleccionados a PDF (1)' }));
+    await waitFor(() => expect(createPhysicalPassesPdf).toHaveBeenCalled());
+    expect(vi.mocked(createPhysicalPassesPdf).mock.calls.at(-1)![0].passes).toEqual([
+      { id: 'unused-b', passNumber: 2 }
+    ]);
+  });
+
+  it('prunes nominal selection after a registered identity is withdrawn', async () => {
+    const api = setup();
+    vi.mocked(api.nominalAccessCredentials.list).mockResolvedValue([credential]);
+    const actor = userEvent.setup();
+    renderApp(api, `/eventos/${nominalEvent.id}?seccion=accesos`);
+    await actor.click(await screen.findByRole('button', { name: 'Seleccionar todos los descargables' }));
+    vi.mocked(api.contacts.list).mockResolvedValue([]);
+    await actor.click(screen.getByRole('button', { name: 'Actualizar accesos' }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Exportar seleccionados a PDF (0)' })).toBeDisabled()
+    );
+    expect(screen.getByRole('button', { name: 'Seleccionar todos los descargables' })).toBeDisabled();
+  });
+
+  it('revalidates all-selected material before PDF and removes invalid access without producing a PDF', async () => {
+    const api = setup(anonymousEvent);
+    vi.mocked(api.physicalPasses.list)
+      .mockResolvedValueOnce([pass])
+      .mockResolvedValue([{ ...pass, status: 'USED' }]);
+    const actor = userEvent.setup();
+    renderApp(api, `/eventos/${anonymousEvent.id}?seccion=accesos`);
+    await actor.click(await screen.findByRole('button', { name: 'Seleccionar todos los descargables' }));
+    await actor.click(screen.getByRole('button', { name: 'Exportar seleccionados a PDF (1)' }));
+    expect(
+      await screen.findByText('La vigencia de la selección cambió. Revisa los accesos antes de exportar.')
+    ).toBeInTheDocument();
+    expect(createPhysicalPassesPdf).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Exportar seleccionados a PDF (0)' })).toBeDisabled();
+  });
+
+  it('does not claim a download or selection on network failure', async () => {
+    const api = setup(anonymousEvent);
+    vi.mocked(api.physicalPasses.list).mockRejectedValue(new TypeError('Network'));
+    renderApp(api, `/eventos/${anonymousEvent.id}?seccion=accesos`);
+    expect(await screen.findByText('No pudimos cargar los accesos.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Seleccionar todos los descargables' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/PDF preparado/)).not.toBeInTheDocument();
+    expect(createPhysicalPassesPdf).not.toHaveBeenCalled();
+  });
+
+  it('clears a prior PDF success when authoritative revalidation fails on the next export', async () => {
+    const api = setup(anonymousEvent);
+    vi.mocked(api.physicalPasses.list).mockResolvedValue([pass]);
+    const actor = userEvent.setup();
+    renderApp(api, `/eventos/${anonymousEvent.id}?seccion=accesos`);
+    await actor.click(await screen.findByRole('button', { name: 'Seleccionar todos los descargables' }));
+    await actor.click(screen.getByRole('button', { name: 'Exportar seleccionados a PDF (1)' }));
+    expect(await screen.findByText('PDF preparado con los accesos seleccionados vigentes.')).toBeInTheDocument();
+    vi.mocked(api.physicalPasses.list).mockRejectedValueOnce(new TypeError('Network'));
+    await actor.click(screen.getByRole('button', { name: 'Exportar seleccionados a PDF (1)' }));
+    await waitFor(() =>
+      expect(screen.queryByText('PDF preparado con los accesos seleccionados vigentes.')).not.toBeInTheDocument()
+    );
+    expect(createPhysicalPassesPdf).toHaveBeenCalledOnce();
+    expect(
+      await screen.findByText('No se pudo completar la operación. Revisa tu conexión e inténtalo de nuevo.')
+    ).toBeInTheDocument();
+  });
+
   it('keeps nominal preparation in the existing workspace without RSVP, builders or Finance', async () => {
     const api = setup();
     renderApp(api, `/eventos/${nominalEvent.id}`);

@@ -74,6 +74,14 @@ Platform Admin no reutiliza rutas operativas como impersonación. Usa:
 
 Crear una Organización crea atómicamente su usuario `ORGANIZATION_ADMIN`.
 
+`POST /admin/clients/organizations` acepta `operatingProfile` opcional con los valores existentes
+`MANAGED` y `SELF_SERVICE`. Al omitirlo conserva `SELF_SERVICE` por compatibilidad. Para este alta,
+la selección explícita de `MANAGED` pertenece exclusivamente a esta ruta Provider de `PLATFORM_ADMIN`; no se
+añade al registro público ni a las mutaciones operativas de Cliente. El perfil elegido se persiste
+en la misma transacción `Serializable` que la Organización, su Admin inicial y la auditoría
+`CLIENT_CREATE_ORGANIZATION`; tanto `metadata` como `afterData` registran el perfil real utilizado.
+Este alta no crea Planner ni Evento y no modifica clasificación comercial, Finance ni esquema.
+
 ## Suspensión
 
 Un Cliente suspendido:

@@ -7,7 +7,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import { adminQueryKeys } from '../app/query-client';
 import { adminErrorMessage } from '../shared/admin-error';
-import { eventStatusLabel, formatDate } from '../shared/admin-labels';
+import { accessModeLabel, eventServiceLabel, eventStatusLabel, formatDate } from '../shared/admin-labels';
 import { AdminErrorState, AdminLoadingState } from '../shared/AdminStates';
 import { ConfirmSensitiveActionDialog } from '../shared/ConfirmSensitiveActionDialog';
 import { isAbortError, type AdminScopedOperation, useAdminOperationScope } from '../shared/useAdminOperationScope';
@@ -34,6 +34,11 @@ function AdminEventDetail({ apiClient, eventId }: { apiClient: ApiClient; eventI
     queryKey: adminQueryKeys.client(event.data?.clientId ?? ''),
     queryFn: ({ signal }) => apiClient.adminClients.get(event.data!.clientId, signal),
     enabled: Boolean(event.data?.clientId)
+  });
+  const users = useQuery({
+    queryKey: adminQueryKeys.clientUsers(event.data?.clientId ?? ''),
+    queryFn: ({ signal }) => apiClient.adminClients.listUsers(event.data!.clientId, signal),
+    enabled: Boolean(event.data?.clientId && event.data.assignedPlannerUserId)
   });
   const restore = useMutation({
     mutationFn: (operation: AdminScopedOperation) => apiClient.adminEvents.restore(eventId, operation.signal),
@@ -62,6 +67,18 @@ function AdminEventDetail({ apiClient, eventId }: { apiClient: ApiClient; eventI
   if (event.isPending) return <AdminLoadingState label="Cargando Evento..." />;
   if (event.isError) return <AdminErrorState onRetry={() => void event.refetch()} />;
   const data = event.data;
+  const accessControl = data.serviceCode === 'ACCESS_CONTROL';
+  const planner = users.isSuccess
+    ? users.data.find(
+        (user) =>
+          user.id === data.assignedPlannerUserId &&
+          user.clientId === data.clientId &&
+          (user.role === 'ORGANIZATION_PLANNER' || user.role === 'INDEPENDENT_PLANNER')
+      )
+    : undefined;
+  const plannerLabel = !data.assignedPlannerUserId
+    ? 'Sin asignar'
+    : (planner?.email ?? (users.isPending ? 'Consultando Planner…' : 'Planner asignado; identidad no disponible'));
   return (
     <Stack spacing={3}>
       <Button component={Link} to="/eventos" startIcon={<ArrowBackOutlined />} sx={{ alignSelf: 'flex-start' }}>
@@ -69,9 +86,9 @@ function AdminEventDetail({ apiClient, eventId }: { apiClient: ApiClient; eventI
       </Button>
       <PageHeader
         title={data.name ?? 'Evento sin nombre'}
-        description="Detalle administrativo con provenance y responsabilidad operativa separadas."
+        description={`${eventServiceLabel(data)}${accessControl ? ` · ${accessModeLabel(data.accessMode)}` : ''}`}
         action={
-          <Stack direction="row" spacing={1}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
             {!data.deletedAt ? (
               <Button variant="outlined" startIcon={<PersonOutlined />} onClick={() => setAssigning(true)}>
                 Cambiar planner
@@ -103,15 +120,23 @@ function AdminEventDetail({ apiClient, eventId }: { apiClient: ApiClient; eventI
               label="Cliente"
               value={client.data?.name ?? (client.isPending ? 'Cargando...' : 'Cliente no disponible')}
             />
+            <Field label="Servicio" value={eventServiceLabel(data)} />
+            <Field label="Capacidad" value={data.capacity?.toString() ?? 'Sin definir'} />
+            {accessControl ? <Field label="Modalidad" value={accessModeLabel(data.accessMode)} /> : null}
+            <Field label="Croquis" value={data.floorplanEnabled ? 'Habilitado' : 'Deshabilitado'} />
+            <Field label="Planner asignada" value={plannerLabel} />
             <Field label="Fecha del Evento" value={formatDate(data.eventDateTime)} />
             <Field label="Zona horaria" value={data.timeZone ?? 'Sin definir'} />
             <Field label="Tipo social" value={data.socialType ?? 'Sin definir'} />
-            <Field label="Capacidad" value={data.capacity?.toString() ?? 'Sin definir'} />
-            <Field label="Servicio" value={data.serviceId ? 'Configurado' : 'Sin asignar'} />
-            <Field label="Creador" value={data.createdByUserId} />
-            <Field label="Planner asignada" value={data.assignedPlannerUserId ?? 'Sin asignar'} />
-            <Field label="Confirmaciones" value={data.confirmationEnabled ? 'Habilitadas' : 'Deshabilitadas'} />
-            <Field label="Croquis" value={data.floorplanEnabled ? 'Habilitado' : 'Deshabilitado'} />
+            <Field label="Creador" value="Usuario registrado" />
+            {!accessControl ? (
+              <Field label="Confirmaciones" value={data.confirmationEnabled ? 'Habilitadas' : 'Deshabilitadas'} />
+            ) : null}
+            {users.isError ? (
+              <Grid size={12}>
+                <Button onClick={() => void users.refetch()}>Reintentar identidad del Planner</Button>
+              </Grid>
+            ) : null}
             <Grid size={12}>
               <Divider />
             </Grid>
@@ -126,6 +151,12 @@ function AdminEventDetail({ apiClient, eventId }: { apiClient: ApiClient; eventI
       (data.accessMode === 'NOMINAL' || data.accessMode === 'ANONYMOUS') ? (
         <AdminAccessOperationsPanel key={`${data.id}:${data.accessMode}`} apiClient={apiClient} event={data} />
       ) : null}
+      <details>
+        <summary>Referencias técnicas para soporte</summary>
+        <Typography variant="body2">Evento: {data.id}</Typography>
+        <Typography variant="body2">Creador: {data.createdByUserId}</Typography>
+        <Typography variant="body2">Planner: {data.assignedPlannerUserId ?? 'Sin asignar'}</Typography>
+      </details>
       <ConfirmSensitiveActionDialog
         open={restoring}
         title="Restaurar Evento"

@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { AdminClientUser, ApiClient } from '@invitaciones/api-client';
 import { PageHeader, StatusChip } from '@invitaciones/ui';
 import { ArrowBackOutlined, PersonAddOutlined } from '@mui/icons-material';
 import { Alert, Box, Button, Card, CardContent, Divider, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { adminQueryKeys } from '../app/query-client';
 import { AdminClientFinancePanel } from '../finance/AdminClientFinancePanel';
 import { adminErrorMessage } from '../shared/admin-error';
@@ -38,6 +38,7 @@ export function AdminClientDetailPage({ apiClient }: { apiClient: ApiClient }) {
 
 function AdminClientDetail({ apiClient, clientId }: { apiClient: ApiClient; clientId: string }) {
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
   const [action, setAction] = useState<ClientAction>(null);
   const [name, setName] = useState('');
   const [reason, setReason] = useState('');
@@ -58,6 +59,16 @@ function AdminClientDetail({ apiClient, clientId }: { apiClient: ApiClient; clie
     queryFn: ({ signal }) => apiClient.adminClients.listUsers(clientId, signal),
     enabled: Boolean(clientId)
   });
+
+  const managedOrganization = client.data?.type === 'ORGANIZATION' && client.data.operatingProfile === 'MANAGED';
+  const events = useQuery({
+    queryKey: adminQueryKeys.events,
+    queryFn: ({ signal }) => apiClient.adminEvents.list(signal),
+    enabled: managedOrganization
+  });
+  useEffect(() => {
+    if (client.data?.type === 'ORGANIZATION' && searchParams.get('agregarPlanner') === '1') setAction('planner');
+  }, [client.data?.type, searchParams]);
 
   const refresh = async () => {
     await Promise.all([
@@ -145,6 +156,10 @@ function AdminClientDetail({ apiClient, clientId }: { apiClient: ApiClient; clie
   if (client.isPending) return <AdminLoadingState label="Cargando detalle del Cliente..." />;
   if (client.isError) return <AdminErrorState onRetry={() => void client.refetch()} />;
   const data = client.data;
+  const planners = users.isSuccess ? users.data.filter((user) => user.role === 'ORGANIZATION_PLANNER') : [];
+  const clientEvents = events.isSuccess
+    ? events.data.filter((event) => event.clientId === clientId && !event.deletedAt)
+    : [];
   const dialogAction = editingUser ? 'user' : action;
   return (
     <Stack spacing={4}>
@@ -158,6 +173,56 @@ function AdminClientDetail({ apiClient, clientId }: { apiClient: ApiClient; clie
           <StatusChip label={clientStatusLabel[data.status]} tone={data.status === 'ACTIVE' ? 'success' : 'warning'} />
         }
       />
+      {managedOrganization ? (
+        <Card component="section" aria-labelledby="venue-preparation-title">
+          <CardContent>
+            <Stack spacing={2}>
+              <Typography id="venue-preparation-title" variant="h2">
+                Preparar salón para control de acceso
+              </Typography>
+              <Typography>1. Organización creada: {data.name}.</Typography>
+              <Typography>2. Agregar Planner responsable.</Typography>
+              {users.isPending ? (
+                <AdminLoadingState label="Consultando Planner responsable…" />
+              ) : users.isError ? (
+                <Alert severity="error">
+                  No pudimos verificar los Planners.{' '}
+                  <Button onClick={() => void users.refetch()}>Reintentar Planners</Button>
+                </Alert>
+              ) : planners.length > 0 ? (
+                <Alert severity="success">
+                  Planner responsable disponible: {planners.map((planner) => planner.email).join(', ')}.
+                </Alert>
+              ) : (
+                <Typography color="text.secondary">Agrega un Planner para poder crear el Evento.</Typography>
+              )}
+              <Typography>3. Crear Evento de control de acceso.</Typography>
+              {events.isError ? (
+                <Alert severity="error">
+                  No pudimos consultar los Eventos.{' '}
+                  <Button onClick={() => void events.refetch()}>Reintentar Eventos</Button>
+                </Alert>
+              ) : events.isSuccess && clientEvents.length > 0 ? (
+                <Typography>
+                  Eventos creados: {clientEvents.length}.{' '}
+                  <Button component={Link} to={`/eventos/${clientEvents[0]!.id}`}>
+                    Ver evento
+                  </Button>
+                </Typography>
+              ) : null}
+              <Button
+                component={Link}
+                to={`/eventos?clientId=${encodeURIComponent(clientId)}`}
+                variant="contained"
+                disabled={!users.isSuccess || planners.length === 0 || data.status !== 'ACTIVE'}
+                sx={{ alignSelf: 'flex-start' }}
+              >
+                Crear evento
+              </Button>
+            </Stack>
+          </CardContent>
+        </Card>
+      ) : null}
       <Card>
         <CardContent>
           <Stack spacing={2}>
@@ -259,11 +324,13 @@ function AdminClientDetail({ apiClient, clientId }: { apiClient: ApiClient; clie
           </Stack>
         </CardContent>
       </Card>
-      <Card>
-        <CardContent>
-          <AdminClientFinancePanel apiClient={apiClient} clientId={clientId} />
-        </CardContent>
-      </Card>
+      {!managedOrganization ? (
+        <Card>
+          <CardContent>
+            <AdminClientFinancePanel apiClient={apiClient} clientId={clientId} />
+          </CardContent>
+        </Card>
+      ) : null}
       <ConfirmSensitiveActionDialog
         open={Boolean(dialogAction)}
         title={

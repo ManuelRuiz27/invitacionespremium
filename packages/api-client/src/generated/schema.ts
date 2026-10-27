@@ -3491,6 +3491,8 @@ export type components = {
             /** Format: password */
             adminPassword: string;
             name: string;
+            /** @description Operating profile selected by Platform Admin; defaults to SELF_SERVICE when omitted. */
+            operatingProfile?: components["schemas"]["ClientOperatingProfile"];
         };
         CreatePlannerUserRequestDto: {
             /** Format: email */
