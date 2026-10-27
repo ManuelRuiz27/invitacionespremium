@@ -565,17 +565,18 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     void setSeatingMode(seatingMode);
   };
   const upload = async (file: File, confirmSvgMappingDetach = false) => {
-    const svg = file.type === 'image/svg+xml';
-    if (!svg && !['image/jpeg', 'image/png'].includes(file.type)) {
+    const sourceType = floorplanFileSourceType(file);
+    if (!sourceType) {
       showValidationMessage('Selecciona una imagen JPG, PNG o SVG.');
       return;
     }
     const updated = await runMutation(
       'uploading',
       async () => {
-        const asset = svg
-          ? await apiClient.adminEventPreparation.uploadFloorplanSvgAsset(event.clientId, event.id, file)
-          : await apiClient.adminEventPreparation.uploadFloorplanAsset(event.clientId, event.id, file);
+        const asset =
+          sourceType === 'SVG'
+            ? await apiClient.adminEventPreparation.uploadFloorplanSvgAsset(event.clientId, event.id, file)
+            : await apiClient.adminEventPreparation.uploadFloorplanAsset(event.clientId, event.id, file);
         return floorplan
           ? apiClient.adminEventPreparation.replaceFloorplanImage(event.clientId, event.id, {
               imageAssetId: asset.id,
@@ -592,7 +593,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     await refreshAfterConfirmedMutation();
   };
   const requestUpload = async (file: File) => {
-    if (!['image/jpeg', 'image/png', 'image/svg+xml'].includes(file.type)) {
+    if (!floorplanFileSourceType(file)) {
       showValidationMessage('Selecciona una imagen JPG, PNG o SVG.');
       return;
     }
@@ -1150,6 +1151,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
                   : undefined
               }
               disabled={readOnly}
+              readOnly={finalized}
               onSelect={selectShape}
               onSeatSelect={(seatId, options) => {
                 if (editing || readOnly) return;
@@ -1500,6 +1502,13 @@ function ShapeInspector({
   );
 }
 
+function floorplanFileSourceType(file: File): 'SVG' | 'RASTER' | undefined {
+  // Browser metadata only routes the upload; the backend validates and sanitizes the bytes.
+  if (/\.svg$/i.test(file.name) || file.type === 'image/svg+xml') return 'SVG';
+  if (/\.(jpe?g|png)$/i.test(file.name) || ['image/jpeg', 'image/png'].includes(file.type)) return 'RASTER';
+  return undefined;
+}
+
 function UploadButton({
   label,
   disabled,
@@ -1521,7 +1530,7 @@ function UploadButton({
       <input
         hidden
         type="file"
-        accept="image/png,image/jpeg,image/svg+xml"
+        accept=".svg,.jpg,.jpeg,.png,image/png,image/jpeg,image/svg+xml"
         onChange={(event) => {
           const input = event.currentTarget;
           const file = input.files?.[0];
@@ -1572,6 +1581,12 @@ function mutationMessage(kind: Mutation, cause: unknown) {
     if (cause.code === 'FLOORPLAN_SHAPE_NOT_FOUND')
       return 'Esta mesa o zona ya no está disponible. Actualizamos el plano.';
     if (cause.code === 'FLOORPLAN_TABLE_OCCUPIED') return 'Esta mesa tiene lugares asignados y no puede eliminarse.';
+    if (cause.code === 'FILE_SVG_INVALID')
+      return 'El archivo SVG no es válido. Vuelve a exportarlo y carga el nuevo archivo.';
+    if (cause.code === 'FILE_SVG_UNSAFE')
+      return 'El SVG contiene contenido no permitido. Exporta una versión sin scripts ni recursos externos.';
+    if (cause.code === 'FILE_SVG_LIMIT_EXCEEDED')
+      return 'El SVG supera los límites de tamaño o complejidad. Simplifica el plano y vuelve a cargarlo.';
   }
   if (kind === 'deleting') return 'No pudimos eliminar este elemento. Inténtalo nuevamente.';
   if (kind === 'locking') return 'No pudimos finalizar la distribución. Inténtalo nuevamente.';
