@@ -235,11 +235,27 @@ jobs:
           cat typecheck.log
           exit 1
 
-      - name: Unit tests
-        run: pnpm test
+      - name: Validate focused integration selection
+        run: node --test scripts/access-control-integration-selection.test.mjs
 
       - name: API integration tests
-        run: pnpm --filter @invitaciones/api test:integration
+        env:
+          DT09_PERF_DIR: ${{ github.workspace }}/var/qa/perf01
+          DT09_EXPLAIN: '1'
+        # Run before all workspace unit tests to fail earlier, without duplicating any case.
+        run: pnpm test:e2e:access-control -- --integration-only
+
+      - name: Upload performance diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: perf01-performance
+          path: var/qa/perf01/*.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Unit tests
+        run: pnpm test
 
       - name: Upload OpenAPI artifact
         uses: actions/upload-artifact@v7

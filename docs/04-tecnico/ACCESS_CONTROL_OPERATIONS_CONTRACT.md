@@ -28,6 +28,15 @@ no recalcula readiness y no publica realtime. Timeout transaccional 10 segundos;
 `asOf` es `transaction_timestamp()` de PostgreSQL. No se acumulan deltas ni se consultan snapshots
 históricos de nombres, CheckIn o reportes. No se usa `FloorplanShape.occupancy` como ingreso.
 
+PERF01: la transacción establece `SET LOCAL jit = off` para esta proyección OLTP acotada. Evita
+compilar el árbol de expresiones con LLVM por petición; no modifica consultas, índices, snapshot,
+locks, permisos ni contadores. El ajuste termina al confirmar o revertir la transacción y no cambia
+los defaults de las conexiones del pool. DT09 conserva 150 derechos, dos lectores y p95 de panel
+≤1,500 ms; registra adquisición (checkout más BEGIN), cuerpo/cierre transaccional, proyección SQL y
+residual HTTP (autenticación/transporte/serialización). Exige 20 muestras iniciadas durante los scans,
+sin añadir muestras posteriores. El harness ofrece `--nominal-performance`; los planes diagnósticos
+se ejecutan sólo después de la carga en su base efímera y no forman parte de la latencia medida.
+
 | Contador | NOMINAL | ANONYMOUS |
 | --- | --- | --- |
 | `capacity` | Event.capacity | Event.capacity |

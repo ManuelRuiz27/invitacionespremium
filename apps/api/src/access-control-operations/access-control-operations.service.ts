@@ -24,6 +24,9 @@ export class AccessControlOperationsService {
       async (tx) => {
         // MVCC only: no Event/Staff/material locks, no readiness writes or audit effects.
         await tx.$executeRaw`SET TRANSACTION READ ONLY`;
+        // This bounded OLTP projection cannot amortize LLVM compilation. Keep the
+        // setting local to this snapshot; pooled connections retain their defaults.
+        await tx.$executeRaw`SET LOCAL jit = off`;
         const provider = clientId !== undefined;
         if (provider) {
           if (

@@ -134,6 +134,25 @@ Ambos comandos crean y eliminan su propia base. El primero exige libres `5300`, 
 No ejecutar integración destructiva contra una base compartida. Los journeys con credenciales usan un reporter
 con redacción y no publican capturas, traces ni vídeo. Ver [certificación DT09](docs/05-implementacion/M02_B01_DT09_CERTIFICATION.md).
 
+QA de rendimiento por niveles (siempre PostgreSQL real y base efímera propia):
+
+```bash
+# A: sólo DT09 NOMINAL, 150 derechos y dos lectores; exige exactamente un caso ejecutado.
+pnpm test:e2e:access-control -- --nominal-performance
+# B: operaciones, cargas NOMINAL/ANONYMOUS, Scanner, emisión y concurrencia.
+pnpm test:e2e:access-control -- --integration-only '--integration-files=access-control-operations,scanner,physical-passes,nominal-access'
+```
+
+`DT09_PERF_DIR` conserva JSON agregados y tiempos por operación; `DT09_EXPLAIN=1` agrega planes
+`EXPLAIN (ANALYZE, BUFFERS, SETTINGS)` después de la carga, fuera de los percentiles HTTP y sólo en
+la base propia del harness. `DT09_FORCE_DASHBOARD_JIT=1` reproduce el coste de compilación en una
+ejecución diagnóstica separada: no representa los defaults de PostgreSQL y no debe mezclarse con
+la línea base normal. La lectura mantiene el límite original de 1,500 ms y exige al menos 20 muestras
+iniciadas durante la carga; no agrega consultas para completar muestras después de los escaneos.
+Nivel C: una vez estable A/B, el workflow CI conserva formato, lint, typecheck, unidades, integración
+completa, builds y los E2E M01/M02/Flipbook. Ejecuta integración antes de las unidades globales para
+fallar antes, sin repetir casos; publica los diagnósticos agregados incluso ante fallo.
+
 Manuales visuales de control de acceso (capturas reales, datos ficticios y base local efímera):
 
 ```bash

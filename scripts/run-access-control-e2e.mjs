@@ -1,11 +1,12 @@
 import { spawn } from 'node:child_process';
 import { randomBytes, randomUUID, scryptSync } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { mkdir, rm } from 'node:fs/promises';
+import { mkdir, readFile, rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import net from 'node:net';
 import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertNominalPerformanceResult, integrationSelection } from './access-control-integration-selection.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const requireFromApi = createRequire(join(root, 'apps/api/package.json'));
@@ -14,6 +15,8 @@ const children = [];
 const services = [];
 const publicCatalog = process.argv.includes('--public-catalog');
 const guide = process.argv.includes('--guide');
+const { integrationOnly, runIntegration, testArgs } = integrationSelection(process.argv.slice(2));
+const nominalPerformance = process.argv.includes('--nominal-performance');
 if (guide && (publicCatalog || process.argv.includes('--integration-only')))
   throw new Error('Guide capture cannot be combined with another journey.');
 const ports = publicCatalog ? [5300, 5374, 5376] : [5300, 5373, 5374, 5375];
@@ -41,7 +44,7 @@ if (guide)
 try {
   for (const file of ['.env', 'apps/api/.env']) if (existsSync(join(root, file))) process.loadEnvFile(join(root, file));
   if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL required to create the isolated DT07 database.');
-  for (const port of process.argv.includes('--integration-only') ? [] : ports) {
+  for (const port of integrationOnly ? [] : ports) {
     await new Promise((ok, fail) => {
       const server = net.createServer();
       server.once('error', () => fail(new Error(`DT07 port ${port} is occupied; no external process was stopped.`)));
@@ -90,28 +93,31 @@ try {
     environment.PLAYWRIGHT_NO_COPY_PROMPT = '1';
     environment.NODE_OPTIONS = `${process.env.NODE_OPTIONS ?? ''} --dns-result-order=ipv4first`.trim();
   }
+  if (nominalPerformance) environment.DT09_PERF_DIR ??= join(storage, 'performance');
   await run(['--filter', '@invitaciones/api', 'db:migrate:deploy'], environment);
-  if (process.argv.includes('--integration') || process.argv.includes('--integration-only')) {
-    const selected =
-      process.argv
-        .find((arg) => arg.startsWith('--integration-files='))
-        ?.split('=')[1]
-        ?.split(',') ?? [];
-    if (selected.some((file) => !/^[a-z][a-z0-9-]+$/u.test(file)))
-      throw new Error('Invalid integration file selection.');
+  if (runIntegration) {
     await run(
       [
         '--filter',
         '@invitaciones/api',
         'test:integration',
-        ...selected.map((file) => `test/${file}.integration-spec.ts`),
+        ...testArgs,
+        ...(nominalPerformance
+          ? ['--reporter=default', '--reporter=json', `--outputFile.json=${join(storage, 'nominal-result.json')}`]
+          : []),
         '--pool=threads',
         '--maxWorkers=1'
       ],
       environment
     );
+    if (nominalPerformance) {
+      assertNominalPerformanceResult(JSON.parse(await readFile(join(storage, 'nominal-result.json'), 'utf8')));
+      process.stdout.write(
+        `[PERF01 NOMINAL] ${await readFile(join(environment.DT09_PERF_DIR, 'nominal.json'), 'utf8')}\n`
+      );
+    }
   }
-  if (!process.argv.includes('--integration-only')) {
+  if (!integrationOnly) {
     await seed(isolated.toString(), environment.DT07_E2E_PASSWORD);
     if (publicCatalog) {
       await run(['--filter', '@invitaciones/api', 'services-pricing:seed'], environment);

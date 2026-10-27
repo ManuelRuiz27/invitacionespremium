@@ -14,6 +14,7 @@ import { recomputeAccessControlPreparationStatus } from '../src/events/access-co
 import { NominalAccessTokenService } from '../src/nominal-access/nominal-access-token.service';
 import { PhysicalPassTokenService } from '../src/physical-passes/physical-pass-token.service';
 import { Prisma } from '../src/generated/prisma/client';
+import { dashboardObserver } from './access-operations-performance-observer';
 import type {
   AccessOperationsDto,
   AccessOperationalSummaryDto,
@@ -24,6 +25,10 @@ import type {
 const origin = 'http://localhost:5173',
   password = 'correct horse battery staple';
 type Mode = 'NOMINAL' | 'ANONYMOUS';
+type TransactionRun = <T>(
+  work: (tx: Prisma.TransactionClient) => Promise<T>,
+  options?: { isolationLevel?: Prisma.TransactionIsolationLevel; maxWait?: number; timeout?: number }
+) => Promise<T>;
 
 describe('DT08 authoritative access operations, privacy and MVCC', () => {
   type Fixture = Awaited<ReturnType<typeof fixture>>;
@@ -120,6 +125,13 @@ describe('DT08 authoritative access operations, privacy and MVCC', () => {
         SELECT deadlocks, xact_rollback AS rollbacks FROM pg_stat_database WHERE datname=current_database()`;
       const latencies: number[] = [],
         dashboardLatencies: number[] = [];
+      const dashboardTraffic: Array<{
+        startedAtMs: number;
+        elapsedMs: number;
+        scansAtStart: number;
+        scansAtEnd: number;
+        outsideTransactionMs: number;
+      }> = [];
       const failedResponses: Record<string, number> = {};
       let completed = 0,
         errors = 0,
@@ -134,15 +146,21 @@ describe('DT08 authoritative access operations, privacy and MVCC', () => {
         options?: { isolationLevel?: Prisma.TransactionIsolationLevel; maxWait?: number; timeout?: number }
       ) => Promise<T>;
       const runTransaction = db.$transaction.bind(db) as Run;
+      const dashboard = dashboardObserver(db);
       const observed: Run = async (work, options) => {
+        const isDashboard = options?.isolationLevel === Prisma.TransactionIsolationLevel.RepeatableRead;
+        const started = performance.now();
+        const observation = isDashboard ? dashboard.observe(work, started) : undefined;
         try {
-          return await runTransaction(work, options);
+          return await runTransaction(observation?.work ?? work, options);
         } catch (error) {
           const code = typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : '';
           transactionFailureCodes[code] = (transactionFailureCodes[code] ?? 0) + 1;
           if (String(error).includes('40P01')) deadlockConflicts++;
           else if (code === 'P2034' || String(error).includes('40001')) serializationConflicts++;
           throw error;
+        } finally {
+          observation?.completed();
         }
       };
       // Observe actual failed PostgreSQL transactions; never substitute results or skip locks/retries.
@@ -176,8 +194,19 @@ describe('DT08 authoritative access operations, privacy and MVCC', () => {
         (async () => {
           do {
             const start = performance.now();
+            const scansAtStart = completed,
+              transactionIndex = dashboard.transactions.length;
             const response = await operations(f).expect(200);
-            dashboardLatencies.push(performance.now() - start);
+            const elapsedMs = performance.now() - start;
+            dashboardLatencies.push(elapsedMs);
+            const tx = dashboard.transactions[transactionIndex]!;
+            dashboardTraffic.push({
+              startedAtMs: start - started,
+              elapsedMs,
+              scansAtStart,
+              scansAtEnd: completed,
+              outsideTransactionMs: elapsedMs - tx.acquisitionMs - tx.bodyMs - tx.completionMs
+            });
             assertArithmetic(response.body as AccessOperationsDto);
             expect(response.body.entered).toBeLessThanOrEqual(150);
             const [sample] = await db.$queryRaw<Array<{ count: bigint }>>`
@@ -191,7 +220,15 @@ describe('DT08 authoritative access operations, privacy and MVCC', () => {
       for (const outcome of outcomes) if (outcome.status === 'rejected') throw outcome.reason;
       expect(completed).toBe(150);
       const elapsedMs = performance.now() - started,
-        cpuUsed = process.cpuUsage(cpu);
+        cpuUsed = process.cpuUsage(cpu),
+        memoryAfter = process.memoryUsage().rss;
+      if (process.env.DT09_EXPLAIN === '1' && process.env.DT09_PERF_DIR) {
+        await mkdir(process.env.DT09_PERF_DIR, { recursive: true });
+        await writeFile(
+          join(process.env.DT09_PERF_DIR, `${mode.toLowerCase()}-plans.json`),
+          JSON.stringify(await dashboard.explain(), null, 2)
+        );
+      }
       const result = (await operations(f).expect(200)).body as AccessOperationsDto;
       const action = mode === 'NOMINAL' ? 'CHECK_IN_CREATE' : 'PHYSICAL_PASS_USE';
       const auditCount = await db.auditLog.count({ where: { eventId: f.id, action } });
@@ -223,7 +260,29 @@ describe('DT08 authoritative access operations, privacy and MVCC', () => {
           samples: dashboardLatencies.length,
           p50Ms: percentile(dashboardLatencies, 0.5),
           p95Ms: percentile(dashboardLatencies, 0.95),
-          maxMs: Math.max(...dashboardLatencies)
+          maxMs: Math.max(...dashboardLatencies),
+          acquisitionP95Ms: percentile(
+            dashboard.transactions.map((tx) => tx.acquisitionMs),
+            0.95
+          ),
+          transactionBodyP95Ms: percentile(
+            dashboard.transactions.map((tx) => tx.bodyMs),
+            0.95
+          ),
+          projectionP95Ms: percentile(
+            dashboard.transactions.flatMap((tx) =>
+              tx.operations.filter((op) => op.operation === 'projection').map((op) => op.elapsedMs)
+            ),
+            0.95
+          ),
+          completionP95Ms: percentile(
+            dashboard.transactions.map((tx) => tx.completionMs),
+            0.95
+          ),
+          outsideTransactionP95Ms: percentile(
+            dashboardTraffic.map((sample) => sample.outsideTransactionMs),
+            0.95
+          )
         },
         database: {
           deadlocksDelta: Number(after[0]!.deadlocks - before[0]!.deadlocks),
@@ -239,17 +298,19 @@ describe('DT08 authoritative access operations, privacy and MVCC', () => {
           cpuUserMs: cpuUsed.user / 1000,
           cpuSystemMs: cpuUsed.system / 1000,
           rssBeforeBytes: memoryBefore,
-          rssAfterBytes: process.memoryUsage().rss
+          rssAfterBytes: memoryAfter
         },
         environment: {
           node: process.version,
           platform: process.platform,
+          forcedDashboardJit: process.env.DT09_FORCE_DASHBOARD_JIT === '1',
+          autoExplain: process.env.DT09_AUTO_EXPLAIN === '1',
           cpu: cpus()[0]?.model,
           logicalCpus: cpus().length,
           ramBytes: totalmem(),
           postgres: (await db.$queryRaw<Array<{ version: string }>>`SHOW server_version`)[0]
         },
-        gates: { scannerP95Ms: 2000, dashboardP95Ms: 1500, unexpectedErrors: 0, deadlocks: 0 },
+        gates: { scannerP95Ms: 2000, dashboardP95Ms: 1500, dashboardMinSamples: 20, unexpectedErrors: 0, deadlocks: 0 },
         generatedAt: new Date().toISOString()
       };
       const path = process.env.DT09_PERF_DIR
@@ -258,6 +319,18 @@ describe('DT08 authoritative access operations, privacy and MVCC', () => {
       if (path) {
         await mkdir(dirname(path), { recursive: true });
         await writeFile(path, JSON.stringify(measurement, null, 2));
+        await writeFile(
+          join(dirname(path), `${mode.toLowerCase()}-operations.json`),
+          JSON.stringify(
+            {
+              scannerLatenciesMs: latencies,
+              dashboardTraffic,
+              transactions: dashboard.transactions
+            },
+            null,
+            2
+          )
+        );
       }
       console.info('[DT09 aggregate performance]', JSON.stringify(measurement));
       expect(result).toMatchObject({ activeRights: 150, entered: 150, pending: 0, availableCapacity: 0 });
@@ -270,9 +343,36 @@ describe('DT08 authoritative access operations, privacy and MVCC', () => {
       expect(measurement.database.deadlocksDelta).toBe(0);
       expect(measurement.scanner.p95Ms).toBeLessThanOrEqual(2000);
       expect(measurement.dashboard.p95Ms).toBeLessThanOrEqual(1500);
+      expect(dashboardLatencies.length).toBeGreaterThanOrEqual(20);
+      expect(dashboardTraffic.every((sample) => sample.scansAtStart < 150)).toBe(true);
     },
     300_000
   );
+
+  it('keeps the dashboard JIT setting local to its read-only snapshot and pooled connection', async () => {
+    const f = await fixture('NOMINAL');
+    const [before] = await db.$queryRaw<Array<{ jit: string }>>`SELECT current_setting('jit') AS jit`;
+    const original = db.$transaction.bind(db) as TransactionRun;
+    let observed: string | undefined;
+    const intercepted: TransactionRun = (work, options) =>
+      original(async (tx) => {
+        // The service must override an enabled setting, without leaking it to the pool.
+        await tx.$executeRaw`SET LOCAL jit = on`;
+        const result = await work(tx);
+        const [setting] = await tx.$queryRaw<Array<{ jit: string }>>`SELECT current_setting('jit') AS jit`;
+        observed = setting!.jit;
+        return result;
+      }, options);
+    const spy = vi.spyOn(db, '$transaction').mockImplementation(intercepted as typeof db.$transaction);
+    try {
+      await operations(f).expect(200);
+      expect(observed).toBe('off');
+    } finally {
+      spy.mockRestore();
+    }
+    const [after] = await db.$queryRaw<Array<{ jit: string }>>`SELECT current_setting('jit') AS jit`;
+    expect(after).toEqual(before);
+  });
 
   it.each(['NOMINAL', 'ANONYMOUS'] as const)(
     'reads empty %s preparation with PostgreSQL time and no side effects',
