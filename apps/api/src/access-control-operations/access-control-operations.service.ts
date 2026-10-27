@@ -24,9 +24,6 @@ export class AccessControlOperationsService {
       async (tx) => {
         // MVCC only: no Event/Staff/material locks, no readiness writes or audit effects.
         await tx.$executeRaw`SET TRANSACTION READ ONLY`;
-        // This bounded OLTP projection cannot amortize LLVM compilation. Keep the
-        // setting local to this snapshot; pooled connections retain their defaults.
-        await tx.$executeRaw`SET LOCAL jit = off`;
         const provider = clientId !== undefined;
         if (provider) {
           if (
@@ -76,7 +73,8 @@ export class AccessControlOperationsService {
         fp AS (SELECT f.* FROM floorplan f JOIN e ON f.event_id=e.id WHERE f.deleted_at IS NULL AND e.floorplan_enabled),
         tables AS (SELECT s.* FROM floorplan_shape s JOIN fp ON s.floorplan_id=fp.id AND s.event_id=fp.event_id
           WHERE s.deleted_at IS NULL AND s.kind='TABLE'),
-        material AS (SELECT c.assistant_id, min(c.id::text)::uuid AS credential_id, count(*) AS copies
+        -- Compute credential grouping once, even when join cardinalities are underestimated.
+        material AS MATERIALIZED (SELECT c.assistant_id, min(c.id::text)::uuid AS credential_id, count(*) AS copies
           FROM assistant_access_credential c JOIN e ON c.event_id=e.id
           WHERE e.access_mode='NOMINAL' AND c.revoked_at IS NULL GROUP BY c.assistant_id),
         rights AS (

@@ -10,10 +10,16 @@ function requireIsolatedDatabase() {
     throw new Error('Performance diagnostics require the harness-owned isolated database.');
 }
 
-async function forceJit(tx: Prisma.TransactionClient) {
-  await tx.$executeRaw`SET LOCAL jit_above_cost = 0`;
-  await tx.$executeRaw`SET LOCAL jit_inline_above_cost = 0`;
-  await tx.$executeRaw`SET LOCAL jit_optimize_above_cost = 0`;
+type PlanNode = { 'Subplan Name'?: string; 'Actual Loops'?: number; Plans?: PlanNode[] };
+type ExplainResult = Array<{ 'QUERY PLAN': Array<{ Plan: PlanNode }> }>;
+
+function materialExecutions(node: PlanNode): number | undefined {
+  if (node['Subplan Name'] === 'CTE material') return node['Actual Loops'];
+  for (const child of node.Plans ?? []) {
+    const loops = materialExecutions(child);
+    if (loops !== undefined) return loops;
+  }
+  return undefined;
 }
 
 // Test-only observation. Never logs parameters, identities, cookies or tokens.
@@ -33,18 +39,6 @@ export function dashboardObserver(db: PrismaService) {
         const entered = performance.now();
         sample.acquisitionMs = entered - started; // Pool checkout plus BEGIN, not SQL execution.
         transactions.push(sample);
-        if (process.env.DT09_FORCE_DASHBOARD_JIT === '1') {
-          requireIsolatedDatabase();
-          await forceJit(tx);
-        }
-        if (process.env.DT09_AUTO_EXPLAIN === '1' && transactions.length <= 2) {
-          requireIsolatedDatabase();
-          await tx.$executeRawUnsafe("LOAD 'auto_explain'");
-          await tx.$executeRawUnsafe('SET LOCAL auto_explain.log_min_duration = 0');
-          await tx.$executeRawUnsafe('SET LOCAL auto_explain.log_analyze = on');
-          await tx.$executeRawUnsafe('SET LOCAL auto_explain.log_buffers = on');
-          await tx.$executeRawUnsafe('SET LOCAL auto_explain.log_format = json');
-        }
         async function timed<R>(operation: string, run: () => Promise<R>): Promise<R> {
           const start = performance.now();
           try {
@@ -63,9 +57,7 @@ export function dashboardObserver(db: PrismaService) {
               };
             if (property === '$executeRaw')
               return (strings: TemplateStringsArray, ...values: unknown[]) =>
-                timed(strings[0]?.includes('jit') ? 'executionSettings' : 'readOnly', () =>
-                  target.$executeRaw(strings, ...values)
-                );
+                timed('readOnly', () => target.$executeRaw(strings, ...values));
             if (property === 'event')
               return {
                 findFirst: (...args: Parameters<typeof tx.event.findFirst>) =>
@@ -90,25 +82,33 @@ export function dashboardObserver(db: PrismaService) {
     requireIsolatedDatabase();
     if (!projection) throw new Error('No dashboard projection observed.');
     const query = projection;
-    const plans = [];
     // After load, outside every HTTP sample. Never changes data or database statistics.
-    for (const disableJit of [false, true]) {
-      plans.push(
-        await db.$transaction(
-          async (tx) => {
-            await tx.$executeRaw`SET TRANSACTION READ ONLY`;
-            if (disableJit) await tx.$executeRaw`SET LOCAL jit = off`;
-            else if (process.env.DT09_FORCE_DASHBOARD_JIT === '1') await forceJit(tx);
-            return {
-              jit: disableJit ? 'disabled' : process.env.DT09_FORCE_DASHBOARD_JIT === '1' ? 'forced' : 'server-default',
-              plan: await tx.$queryRaw(Prisma.sql`EXPLAIN (ANALYZE, BUFFERS, SETTINGS, FORMAT JSON) ${query}`)
-            };
-          },
-          { timeout: 10000 }
-        )
-      );
-    }
-    return plans;
+    return db.$transaction(
+      async (tx) => {
+        await tx.$executeRaw`SET TRANSACTION READ ONLY`;
+        const plans = [];
+        for (const materialization of ['inline-baseline', 'bounded'] as const) {
+          // Reconstruct only the original SQL keyword for a same-snapshot diagnostic comparison.
+          const candidate =
+            materialization === 'bounded'
+              ? query
+              : Prisma.sql(
+                  query.strings.map((part) => part.replace('material AS MATERIALIZED', 'material AS')),
+                  ...query.values
+                );
+          const plan = await tx.$queryRaw<ExplainResult>(
+            Prisma.sql`EXPLAIN (ANALYZE, BUFFERS, SETTINGS, FORMAT JSON) ${candidate}`
+          );
+          plans.push({
+            materialization,
+            plan,
+            materialAggregationExecutions: materialExecutions(plan[0]!['QUERY PLAN'][0]!.Plan) ?? 0
+          });
+        }
+        return plans;
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, maxWait: 5000, timeout: 10000 }
+    );
   }
   return { transactions, observe, explain };
 }

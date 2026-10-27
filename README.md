@@ -145,9 +145,9 @@ pnpm test:e2e:access-control -- --integration-only '--integration-files=access-c
 
 `DT09_PERF_DIR` conserva JSON agregados y tiempos por operación; `DT09_EXPLAIN=1` agrega planes
 `EXPLAIN (ANALYZE, BUFFERS, SETTINGS)` después de la carga, fuera de los percentiles HTTP y sólo en
-la base propia del harness. `DT09_FORCE_DASHBOARD_JIT=1` reproduce el coste de compilación en una
-ejecución diagnóstica separada: no representa los defaults de PostgreSQL y no debe mezclarse con
-la línea base normal. La lectura mantiene el límite original de 1,500 ms y exige al menos 20 muestras
+la base propia del harness. Compara la CTE original inline y la agrupación materializada en el mismo
+snapshot y verifica que la agrupación nominal se evalúe una sola vez. La lectura mantiene el límite
+original de 1,500 ms y exige al menos 20 muestras
 iniciadas durante la carga; no agrega consultas para completar muestras después de los escaneos.
 Nivel C: una vez estable A/B, el workflow CI conserva formato, lint, typecheck, unidades, integración
 completa, builds y los E2E M01/M02/Flipbook. Ejecuta integración antes de las unidades globales para

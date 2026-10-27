@@ -25,10 +25,6 @@ import type {
 const origin = 'http://localhost:5173',
   password = 'correct horse battery staple';
 type Mode = 'NOMINAL' | 'ANONYMOUS';
-type TransactionRun = <T>(
-  work: (tx: Prisma.TransactionClient) => Promise<T>,
-  options?: { isolationLevel?: Prisma.TransactionIsolationLevel; maxWait?: number; timeout?: number }
-) => Promise<T>;
 
 describe('DT08 authoritative access operations, privacy and MVCC', () => {
   type Fixture = Awaited<ReturnType<typeof fixture>>;
@@ -222,11 +218,16 @@ describe('DT08 authoritative access operations, privacy and MVCC', () => {
       const elapsedMs = performance.now() - started,
         cpuUsed = process.cpuUsage(cpu),
         memoryAfter = process.memoryUsage().rss;
+      let materialAggregationExecutions: number | undefined;
       if (process.env.DT09_EXPLAIN === '1' && process.env.DT09_PERF_DIR) {
         await mkdir(process.env.DT09_PERF_DIR, { recursive: true });
+        const plans = await dashboard.explain();
+        materialAggregationExecutions = plans.find(
+          (plan) => plan.materialization === 'bounded'
+        )?.materialAggregationExecutions;
         await writeFile(
           join(process.env.DT09_PERF_DIR, `${mode.toLowerCase()}-plans.json`),
-          JSON.stringify(await dashboard.explain(), null, 2)
+          JSON.stringify(plans, null, 2)
         );
       }
       const result = (await operations(f).expect(200)).body as AccessOperationsDto;
@@ -261,6 +262,7 @@ describe('DT08 authoritative access operations, privacy and MVCC', () => {
           p50Ms: percentile(dashboardLatencies, 0.5),
           p95Ms: percentile(dashboardLatencies, 0.95),
           maxMs: Math.max(...dashboardLatencies),
+          materialAggregationExecutions,
           acquisitionP95Ms: percentile(
             dashboard.transactions.map((tx) => tx.acquisitionMs),
             0.95
@@ -303,8 +305,6 @@ describe('DT08 authoritative access operations, privacy and MVCC', () => {
         environment: {
           node: process.version,
           platform: process.platform,
-          forcedDashboardJit: process.env.DT09_FORCE_DASHBOARD_JIT === '1',
-          autoExplain: process.env.DT09_AUTO_EXPLAIN === '1',
           cpu: cpus()[0]?.model,
           logicalCpus: cpus().length,
           ramBytes: totalmem(),
@@ -345,34 +345,11 @@ describe('DT08 authoritative access operations, privacy and MVCC', () => {
       expect(measurement.dashboard.p95Ms).toBeLessThanOrEqual(1500);
       expect(dashboardLatencies.length).toBeGreaterThanOrEqual(20);
       expect(dashboardTraffic.every((sample) => sample.scansAtStart < 150)).toBe(true);
+      if (mode === 'NOMINAL' && materialAggregationExecutions !== undefined)
+        expect(materialAggregationExecutions).toBe(1);
     },
     300_000
   );
-
-  it('keeps the dashboard JIT setting local to its read-only snapshot and pooled connection', async () => {
-    const f = await fixture('NOMINAL');
-    const [before] = await db.$queryRaw<Array<{ jit: string }>>`SELECT current_setting('jit') AS jit`;
-    const original = db.$transaction.bind(db) as TransactionRun;
-    let observed: string | undefined;
-    const intercepted: TransactionRun = (work, options) =>
-      original(async (tx) => {
-        // The service must override an enabled setting, without leaking it to the pool.
-        await tx.$executeRaw`SET LOCAL jit = on`;
-        const result = await work(tx);
-        const [setting] = await tx.$queryRaw<Array<{ jit: string }>>`SELECT current_setting('jit') AS jit`;
-        observed = setting!.jit;
-        return result;
-      }, options);
-    const spy = vi.spyOn(db, '$transaction').mockImplementation(intercepted as typeof db.$transaction);
-    try {
-      await operations(f).expect(200);
-      expect(observed).toBe('off');
-    } finally {
-      spy.mockRestore();
-    }
-    const [after] = await db.$queryRaw<Array<{ jit: string }>>`SELECT current_setting('jit') AS jit`;
-    expect(after).toEqual(before);
-  });
 
   it.each(['NOMINAL', 'ANONYMOUS'] as const)(
     'reads empty %s preparation with PostgreSQL time and no side effects',

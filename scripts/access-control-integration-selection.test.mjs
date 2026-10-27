@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { assertNominalPerformanceResult, integrationSelection } from './access-control-integration-selection.mjs';
 
 test('NOMINAL shortcut selects the single load case and never starts browser services', () => {
@@ -56,4 +58,19 @@ test('a renamed or skipped benchmark cannot silently pass the harness', () => {
       testResults: [{ assertionResults: [{ status: 'passed', fullName: fullName.replace('NOMINAL', 'ANONYMOUS') }] }]
     })
   );
+});
+
+test('NOMINAL shortcut rejects a remote database before connecting or creating resources', () => {
+  const result = spawnSync(
+    process.execPath,
+    [fileURLToPath(new URL('./run-access-control-e2e.mjs', import.meta.url)), '--nominal-performance'],
+    {
+      cwd: fileURLToPath(new URL('..', import.meta.url)),
+      env: { ...process.env, DATABASE_URL: 'postgresql://test@example.invalid/shared' },
+      encoding: 'utf8',
+      windowsHide: true
+    }
+  );
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /NOMINAL performance requires local PostgreSQL/u);
 });

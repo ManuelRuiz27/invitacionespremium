@@ -52,6 +52,8 @@ try {
     });
   }
   const isolated = new URL(process.env.DATABASE_URL);
+  if (nominalPerformance && !['localhost', '127.0.0.1', '[::1]'].includes(isolated.hostname))
+    throw new Error('NOMINAL performance requires local PostgreSQL; no remote database was modified.');
   if (guide && !['localhost', '127.0.0.1', '[::1]'].includes(isolated.hostname))
     throw new Error('Guide capture requires loopback PostgreSQL; no remote database was modified.');
   if (publicCatalog && !['localhost', '127.0.0.1', '[::1]'].includes(isolated.hostname))
