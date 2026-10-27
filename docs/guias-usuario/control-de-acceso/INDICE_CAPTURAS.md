@@ -1,6 +1,6 @@
 # Índice de capturas UX02
 
-39 capturas nuevas del producto real. Datos ficticios; secretos y cámara enmascarados antes de escribir PNG. Fuente de código: 2bcc3651b3bcf03848fcc42b1877d5888cc38c0d. Mesas opcionales fuera de este escenario.
+39 capturas nuevas del producto real. Datos ficticios; secretos y cámara enmascarados antes de escribir PNG. Fuente de código: e51be8fb76bf3ea5c5261c5c3cc5d60eecef5abd. Mesas opcionales fuera de este escenario.
 
 | Captura | Superficie | Modalidad | Resolución | Máscaras |
 | --- | --- | --- | --- | --- |
