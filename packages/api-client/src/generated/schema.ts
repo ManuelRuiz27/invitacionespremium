@@ -816,6 +816,86 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/clients/{clientId}/managed-contracts/{contractId}/collections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ManagedCollectionsController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/clients/{clientId}/managed-contracts/{contractId}/collections/extraordinary-charges": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ManagedCollectionsController_confirmExtra"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/clients/{clientId}/managed-contracts/{contractId}/collections/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ManagedCollectionsController_history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/clients/{clientId}/managed-contracts/{contractId}/collections/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ManagedCollectionsController_pay"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/clients/{clientId}/managed-contracts/{contractId}/collections/payments/{paymentId}/reverse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ManagedCollectionsController_reverse"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/clients/{clientId}/managed-contracts/{contractId}/consumption": {
         parameters: {
             query?: never;
@@ -4209,6 +4289,92 @@ export type components = {
             expiresAt: string;
             user: components["schemas"]["AuthUserDto"];
         };
+        ManagedCollectionAlertsDto: {
+            endingWithin30Days: boolean;
+            expiredWithoutSuccessor: boolean;
+            overdueInstallments: number;
+        };
+        ManagedCollectionHistoryEntryDto: {
+            actorLabel: string;
+            actorUserId: string;
+            amountMxnCents: number;
+            /** Format: date */
+            effectiveOn: string;
+            extraordinaryChargeId: string | null;
+            id: string;
+            /** @enum {string} */
+            kind: "PAYMENT" | "REVERSAL" | "EXTRA_CONFIRM";
+            /** @enum {string|null} */
+            method: "TRANSFER" | "CASH" | "CARD" | "OTHER" | null;
+            notes: string | null;
+            obligationId: string;
+            /** Format: date-time */
+            occurredAt: string;
+            paymentId: string | null;
+            reference: string | null;
+            reversalReason: string | null;
+            reversed: boolean;
+        };
+        ManagedCollectionObligationDto: {
+            amountMxnCents: number;
+            balanceMxnCents: number;
+            /** @enum {string} */
+            concept: "IMPLEMENTATION" | "MONTHLY" | "EXTRAORDINARY";
+            /** Format: date */
+            dueOn: string;
+            eventId: string | null;
+            extraordinaryChargeId: string | null;
+            id: string;
+            installmentNumber: number | null;
+            label: string;
+            overdue: boolean;
+            paidMxnCents: number;
+            /** @enum {string} */
+            status: "PENDING" | "PARTIAL" | "PAID" | "OVERDUE";
+        };
+        ManagedCollectionPaymentRequestDto: {
+            /** @description Net MXN cents before IVA. */
+            amountMxnCents: number;
+            /** @enum {string} */
+            concept: "IMPLEMENTATION" | "MONTHLY" | "EXTRAORDINARY";
+            /**
+             * Format: date
+             * @description Effective civil date, not after today in America/Mexico_City.
+             */
+            effectiveOn: string;
+            /** Format: uuid */
+            extraordinaryChargeId: string | null;
+            installmentNumber: number | null;
+            /** @enum {string} */
+            method: "TRANSFER" | "CASH" | "CARD" | "OTHER";
+            notes?: string | null;
+            reference?: string | null;
+        };
+        ManagedCollectionReversalRequestDto: {
+            reason: string;
+        };
+        ManagedCollectionsResponseDto: {
+            alerts: components["schemas"]["ManagedCollectionAlertsDto"];
+            beforeTax: boolean;
+            clientId: string;
+            contractId: string;
+            /** @enum {string} */
+            currency: "MXN";
+            extraordinaryCandidates: components["schemas"]["ManagedExtraordinaryCandidateDto"][];
+            history: components["schemas"]["ManagedCollectionHistoryEntryDto"][];
+            obligations: components["schemas"]["ManagedCollectionObligationDto"][];
+            summary: components["schemas"]["ManagedCollectionSummaryDto"];
+            /** Format: date */
+            today: string;
+        };
+        ManagedCollectionSummaryDto: {
+            balanceMxnCents: number;
+            dueMxnCents: number;
+            futureMxnCents: number;
+            overdueMxnCents: number;
+            paidMxnCents: number;
+            totalMxnCents: number;
+        };
         ManagedConsumedEventDto: {
             /** Format: date-time */
             activatedAt: string;
@@ -4303,6 +4469,21 @@ export type components = {
             validFrom: string;
             /** Format: date-time */
             validUntil: string | null;
+        };
+        ManagedExtraordinaryCandidateDto: {
+            /** Format: date-time */
+            activatedAt: string;
+            amountMxnCents: number;
+            cancelled: boolean;
+            confirmedChargeId: string | null;
+            /** Format: date-time */
+            eventDateTime: string | null;
+            eventId: string;
+            name: string | null;
+        };
+        ManagedExtraordinaryChargeRequestDto: {
+            /** Format: uuid */
+            eventId: string;
         };
         /** @enum {string} */
         ManagedPlanModality: "STANDARD" | "PRIVATE";
@@ -6561,6 +6742,119 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ManagedContractResponseDto"];
+                };
+            };
+        };
+    };
+    ManagedCollectionsController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedCollectionsResponseDto"];
+                };
+            };
+        };
+    };
+    ManagedCollectionsController_confirmExtra: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ManagedExtraordinaryChargeRequestDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedCollectionsResponseDto"];
+                };
+            };
+        };
+    };
+    ManagedCollectionsController_history: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedCollectionHistoryEntryDto"][];
+                };
+            };
+        };
+    };
+    ManagedCollectionsController_pay: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ManagedCollectionPaymentRequestDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedCollectionsResponseDto"];
+                };
+            };
+        };
+    };
+    ManagedCollectionsController_reverse: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ManagedCollectionReversalRequestDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedCollectionsResponseDto"];
                 };
             };
         };

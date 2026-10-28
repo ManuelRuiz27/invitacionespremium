@@ -138,6 +138,10 @@ PR02 no añade una publicación pública de planes ni precios constantes en Land
 
 ## Manual para PR03
 
+PR03 incorpora el registro administrativo de obligaciones, pagos, reversiones y extraordinarios
+confirmados descrito en [PR03_MANAGED_COLLECTIONS](../05-implementacion/PR03_MANAGED_COLLECTIONS.md).
+Reutiliza este calendario, los términos aceptados y la proyección de consumo sin modificar sus reglas.
+
 Siguen manuales la firma comercial, seguimiento de pagos, cobro mensual y de extraordinarios,
 facturación/CFDI, renovación, resolución de cancelaciones y desarrollo del frontend privado.
 No hay proveedor de suscripciones, checkout, bloqueo por pago, promociones de licencias ni automatización

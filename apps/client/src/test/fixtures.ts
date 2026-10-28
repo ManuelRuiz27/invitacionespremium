@@ -170,7 +170,12 @@ export function mockApiClient(user: AuthUser = independentUser): ApiClient {
       setAvailability: vi.fn(),
       listContracts: vi.fn().mockResolvedValue([]),
       assignContract: vi.fn(),
-      getConsumption: vi.fn()
+      getConsumption: vi.fn(),
+      getCollections: vi.fn(),
+      getCollectionHistory: vi.fn(),
+      registerPayment: vi.fn(),
+      reversePayment: vi.fn(),
+      confirmExtraordinary: vi.fn()
     },
     auth: {
       login: vi.fn().mockResolvedValue(loginResult(user)),

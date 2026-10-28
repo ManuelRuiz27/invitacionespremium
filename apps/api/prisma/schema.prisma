@@ -490,6 +490,10 @@ model ManagedPlanContract {
   planVersion     ManagedPlanVersion @relation(fields: [planVersionId], references: [id], onDelete: Restrict)
   createdByUser   User               @relation("ManagedPlanContractCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
 
+  collectionPayments ManagedCollectionPayment[]
+  extraordinaryCharges ManagedExtraordinaryCharge[]
+
+  @@unique([id, clientId])
   @@index([clientId, startsOn, endsOn])
   @@map("managed_plan_contract")
 }
@@ -503,6 +507,49 @@ model ManagedPlanOperation {
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@map("managed_plan_operation")
+}
+
+model ManagedExtraordinaryCharge {
+  id                String                     @id @default(uuid()) @db.Uuid
+  contractId        String                     @map("contract_id") @db.Uuid
+  clientId          String                     @map("client_id") @db.Uuid
+  eventId           String                     @map("event_id") @db.Uuid
+  amountMxnCents    Int                        @map("amount_mxn_cents")
+  dueOn             DateTime                   @map("due_on") @db.Date
+  confirmedAt       DateTime                   @default(now()) @map("confirmed_at") @db.Timestamptz(6)
+  confirmedByUserId String                     @map("confirmed_by_user_id") @db.Uuid
+  contract          ManagedPlanContract        @relation(fields: [contractId, clientId], references: [id, clientId], onDelete: Restrict)
+  event             Event                      @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  payments          ManagedCollectionPayment[]
+
+  @@unique([contractId, eventId])
+  @@index([eventId])
+  @@map("managed_extraordinary_charge")
+}
+
+model ManagedCollectionPayment {
+  id                    String                      @id @default(uuid()) @db.Uuid
+  contractId            String                      @map("contract_id") @db.Uuid
+  clientId              String                      @map("client_id") @db.Uuid
+  concept               String                      @db.VarChar(20)
+  installmentNumber     Int?                        @map("installment_number")
+  extraordinaryChargeId String?                     @map("extraordinary_charge_id") @db.Uuid
+  amountMxnCents        Int                         @map("amount_mxn_cents")
+  effectiveOn           DateTime                    @map("effective_on") @db.Date
+  method                String                      @db.VarChar(12)
+  reference             String?                     @db.VarChar(120)
+  notes                 String?                     @db.VarChar(1000)
+  registeredAt          DateTime                    @default(now()) @map("registered_at") @db.Timestamptz(6)
+  registeredByUserId    String                      @map("registered_by_user_id") @db.Uuid
+  reversedAt            DateTime?                   @map("reversed_at") @db.Timestamptz(6)
+  reversedByUserId      String?                     @map("reversed_by_user_id") @db.Uuid
+  reversalReason        String?                     @map("reversal_reason") @db.VarChar(500)
+  contract              ManagedPlanContract         @relation(fields: [contractId, clientId], references: [id, clientId], onDelete: Restrict)
+  extraordinaryCharge   ManagedExtraordinaryCharge? @relation(fields: [extraordinaryChargeId], references: [id], onDelete: Restrict)
+
+  @@index([contractId, registeredAt, id])
+  @@index([extraordinaryChargeId])
+  @@map("managed_collection_payment")
 }
 
 model AuthSession {
@@ -720,6 +767,7 @@ model DebtPaymentAllocation {
 }
 
 model Event {
+  managedExtraordinaryCharges         ManagedExtraordinaryCharge[]
   id                                 String                            @id @default(uuid()) @db.Uuid
   clientId                           String                            @map("client_id") @db.Uuid
   createdByUserId                    String                            @map("created_by_user_id") @db.Uuid

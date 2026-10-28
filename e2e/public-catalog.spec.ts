@@ -98,6 +98,123 @@ async function createManagedSalon(page: Page) {
   return (await response.json()).client.id as string;
 }
 
+test('PR03: partial payment → full settlement → audited reversal → individually confirmed extraordinary on mobile', async ({
+  page
+}, testInfo) => {
+  await page.goto(`${admin}/login`);
+  await page.getByLabel(/correo/i).fill('provider@dt07.example');
+  await page.getByLabel(/contrase/i).fill(process.env.DT07_E2E_PASSWORD!);
+  await page.getByRole('button', { name: 'Entrar al panel', exact: true }).click();
+  await expect(page).not.toHaveURL(/\/login/u);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const clientId = await createManagedSalon(page);
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Mexico_City',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(new Date());
+  await assignEssential(page, clientId, today);
+  const contracts = await (await page.request.get(`${api}/admin/clients/${clientId}/managed-contracts`)).json();
+  const path = `${api}/admin/clients/${clientId}/managed-contracts/${contracts[0].id}/collections`;
+  const panel = page.getByRole('region', { name: 'Cobros y pagos', exact: true });
+  const obligations = panel.getByRole('table', { name: 'Obligaciones comerciales' });
+  await expect(obligations.getByRole('row')).toHaveCount(14);
+  const month = obligations
+    .getByRole('row')
+    .filter({ has: page.getByRole('rowheader', { name: 'Mensualidad 1', exact: true }) });
+  await month.getByRole('button', { name: 'Registrar pago' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Importe neto MXN', { exact: true }).fill('1000.00');
+  await dialog.getByLabel('Referencia (opcional)', { exact: true }).fill('PR03 banco manual');
+  await expect(dialog.getByRole('button', { name: 'Confirmar registro' })).toBeDisabled();
+  await dialog.getByRole('checkbox').check();
+  await dialog.getByRole('button', { name: 'Confirmar registro' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(month.getByText('Parcial', { exact: true })).toBeVisible();
+  await expect(panel.getByText('Referencia: PR03 banco manual', { exact: true })).toBeVisible();
+  let state = await (await page.request.get(path)).json();
+  expect(state.obligations[1]).toMatchObject({ paidMxnCents: 100000, status: 'PARTIAL' });
+  await month.getByRole('button', { name: 'Registrar pago' }).click();
+  await dialog.getByRole('checkbox').check();
+  await dialog.getByRole('button', { name: 'Confirmar registro' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(month.getByText('Pagado', { exact: true })).toBeVisible();
+  await panel.getByRole('button', { name: 'Revertir pago', exact: true }).first().click();
+  await dialog.getByLabel('Motivo de reversión', { exact: true }).fill('Transferencia duplicada en registro');
+  await dialog.getByRole('checkbox').check();
+  await dialog.getByRole('button', { name: 'Confirmar registro' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(panel.getByText('Pago revertido', { exact: true })).toBeVisible();
+  state = await (await page.request.get(path)).json();
+  expect(state.obligations[1]).toMatchObject({ balanceMxnCents: 100000, status: 'PARTIAL' });
+  expect(state.history.map((entry: { kind: string }) => entry.kind)).toEqual(['PAYMENT', 'PAYMENT', 'REVERSAL']);
+  const plannerResponse = await page.request.post(`${api}/admin/clients/${clientId}/users/planner`, {
+    headers: { Origin: admin },
+    data: { email: `pr03-${randomUUID()}@example.test`, password: process.env.DT07_E2E_PASSWORD! }
+  });
+  expect(plannerResponse.status()).toBe(201);
+  const planner = await plannerResponse.json();
+  for (let index = 0; index < 5; index++) {
+    const created = await page.request.post(`${api}/admin/clients/${clientId}/events/managed`, {
+      headers: { Origin: admin, 'Idempotency-Key': randomUUID() },
+      data: {
+        name: `PR03 evento ${index + 1}`,
+        serviceCode: 'ACCESS_CONTROL',
+        accessMode: 'ANONYMOUS',
+        capacity: 1,
+        assignedPlannerUserId: planner.id
+      }
+    });
+    expect(created.status()).toBe(201);
+    const event = await created.json();
+    const eventPath = `${api}/admin/clients/${clientId}/events/${event.id}`;
+    expect(
+      (
+        await page.request.patch(eventPath, {
+          headers: { Origin: admin },
+          data: { socialType: 'OTHER', eventDateTime: '2035-01-01T18:00:00Z', timeZone: 'America/Mexico_City' }
+        })
+      ).status()
+    ).toBe(200);
+    expect(
+      (
+        await page.request.post(`${eventPath}/physical-passes/generate`, {
+          headers: { Origin: admin, 'Idempotency-Key': randomUUID() },
+          data: { quantity: 1 }
+        })
+      ).status()
+    ).toBe(200);
+    expect(
+      (
+        await page.request.post(`${eventPath}/activate`, {
+          headers: { Origin: admin, 'Idempotency-Key': randomUUID() },
+          data: {}
+        })
+      ).status()
+    ).toBe(200);
+  }
+  await panel.getByRole('button', { name: 'Actualizar cobros', exact: true }).click();
+  await expect(panel.getByText('PR03 evento 5', { exact: true })).toBeVisible();
+  await panel.getByRole('button', { name: 'Confirmar extraordinario', exact: true }).click();
+  await dialog.getByRole('checkbox').check();
+  await dialog.getByRole('button', { name: 'Confirmar registro' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(panel.getByText('Cargo confirmado', { exact: true })).toBeVisible();
+  await expect(obligations.getByRole('row')).toHaveCount(15);
+  state = await (await page.request.get(path)).json();
+  expect(state.obligations.at(-1)).toMatchObject({
+    concept: 'EXTRAORDINARY',
+    amountMxnCents: contracts[0].terms.extraEventAmountMxnCents
+  });
+  expect(state.history.filter((entry: { kind: string }) => entry.kind === 'EXTRA_CONFIRM')).toHaveLength(1);
+  await page.reload();
+  await expect(panel.getByText('Pago revertido', { exact: true })).toBeVisible();
+  await expect(panel.getByText('Cargo confirmado', { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await panel.screenshot({ path: testInfo.outputPath('pr03-collections-mobile.png') });
+});
+
 async function assignEssential(page: Page, clientId: string, startsOn: string) {
   await page.goto(`${admin}/clientes/${clientId}`);
   await page.getByRole('button', { name: 'Asignar plan comercial', exact: true }).click();

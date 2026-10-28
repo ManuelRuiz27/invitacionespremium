@@ -184,7 +184,30 @@ export function mockAdminApi(user: AuthUser = platformAdmin): AdminTestApiClient
       setAvailability: vi.fn(),
       listContracts: vi.fn().mockResolvedValue([]),
       assignContract: vi.fn(),
-      getConsumption: vi.fn()
+      getConsumption: vi.fn(),
+      getCollections: vi.fn().mockImplementation(async (clientId: string, contractId: string) => ({
+        clientId,
+        contractId,
+        today: '2026-10-28',
+        currency: 'MXN',
+        beforeTax: true,
+        summary: {
+          totalMxnCents: 0,
+          paidMxnCents: 0,
+          balanceMxnCents: 0,
+          overdueMxnCents: 0,
+          dueMxnCents: 0,
+          futureMxnCents: 0
+        },
+        alerts: { overdueInstallments: 0, endingWithin30Days: false, expiredWithoutSuccessor: false },
+        obligations: [],
+        extraordinaryCandidates: [],
+        history: []
+      })),
+      getCollectionHistory: vi.fn().mockResolvedValue([]),
+      registerPayment: vi.fn(),
+      reversePayment: vi.fn(),
+      confirmExtraordinary: vi.fn()
     },
     auth: {
       login: vi.fn().mockResolvedValue({ user, expiresAt: '2026-08-03T00:00:00.000Z' }),

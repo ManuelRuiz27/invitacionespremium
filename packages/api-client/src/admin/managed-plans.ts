@@ -1,5 +1,13 @@
 import type { components } from '../generated/schema';
 import { isRecord, type ApiRequester } from '../api-client';
+import {
+  isManagedCollections,
+  isManagedCollectionHistory,
+  type RegisterManagedPaymentInput,
+  type ReverseManagedPaymentInput,
+  type ConfirmManagedExtraordinaryInput
+} from './managed-collections';
+export type * from './managed-collections';
 
 type S = components['schemas'];
 export type AdminManagedPlan = S['ManagedPlanResponseDto'];
@@ -62,6 +70,75 @@ export function createAdminManagedPlansClient(request: ApiRequester) {
       request(
         { path: `${contracts(clientId)}/${id(contractId)}/consumption`, response: 'json', ...withSignal(signal) },
         isConsumption
+      ),
+    getCollections: (clientId: string, contractId: string, signal?: AbortSignal) =>
+      request(
+        { path: `${contracts(clientId)}/${id(contractId)}/collections`, response: 'json', ...withSignal(signal) },
+        isManagedCollections
+      ),
+    getCollectionHistory: (clientId: string, contractId: string, signal?: AbortSignal) =>
+      request(
+        {
+          path: `${contracts(clientId)}/${id(contractId)}/collections/history`,
+          response: 'json',
+          ...withSignal(signal)
+        },
+        isManagedCollectionHistory
+      ),
+    registerPayment: (
+      clientId: string,
+      contractId: string,
+      body: RegisterManagedPaymentInput,
+      key: string,
+      signal?: AbortSignal
+    ) =>
+      request(
+        {
+          method: 'POST',
+          path: `${contracts(clientId)}/${id(contractId)}/collections/payments`,
+          body,
+          headers: { 'Idempotency-Key': key },
+          response: 'json',
+          ...withSignal(signal)
+        },
+        isManagedCollections
+      ),
+    reversePayment: (
+      clientId: string,
+      contractId: string,
+      paymentId: string,
+      body: ReverseManagedPaymentInput,
+      key: string,
+      signal?: AbortSignal
+    ) =>
+      request(
+        {
+          method: 'POST',
+          path: `${contracts(clientId)}/${id(contractId)}/collections/payments/${id(paymentId)}/reverse`,
+          body,
+          headers: { 'Idempotency-Key': key },
+          response: 'json',
+          ...withSignal(signal)
+        },
+        isManagedCollections
+      ),
+    confirmExtraordinary: (
+      clientId: string,
+      contractId: string,
+      body: ConfirmManagedExtraordinaryInput,
+      key: string,
+      signal?: AbortSignal
+    ) =>
+      request(
+        {
+          method: 'POST',
+          path: `${contracts(clientId)}/${id(contractId)}/collections/extraordinary-charges`,
+          body,
+          headers: { 'Idempotency-Key': key },
+          response: 'json',
+          ...withSignal(signal)
+        },
+        isManagedCollections
       )
   };
 }

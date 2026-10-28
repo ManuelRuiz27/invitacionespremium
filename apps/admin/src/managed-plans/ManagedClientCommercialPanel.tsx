@@ -37,6 +37,7 @@ import {
   managedTierLabel
 } from './managed-plan-format';
 import { useManagedPlanMutation } from './useManagedPlanMutation';
+import { ManagedCollectionsPanel } from './ManagedCollectionsPanel';
 
 const contractStatusLabel: Record<AdminManagedContract['status'], string> = {
   CURRENT: 'Vigente',
@@ -63,6 +64,7 @@ export function ManagedClientCommercialPanel({
   const [assigning, setAssigning] = useState(false);
   const [selectedId, setSelectedId] = useState('');
   const [notice, setNotice] = useState('');
+  const [collectionsLocked, setCollectionsLocked] = useState(false);
   const selected =
     contracts.data?.find((contract) => contract.id === selectedId) ??
     contracts.data?.find((contract) => contract.status === 'CURRENT') ??
@@ -75,7 +77,7 @@ export function ManagedClientCommercialPanel({
         </Typography>
         <Button
           variant="outlined"
-          disabled={!assignable || contracts.isPending || contracts.isError}
+          disabled={!assignable || contracts.isPending || contracts.isError || collectionsLocked}
           onClick={() => setAssigning(true)}
         >
           Asignar plan comercial
@@ -97,7 +99,7 @@ export function ManagedClientCommercialPanel({
       ) : null}
       {contracts.isPending ? (
         <AdminLoadingState label="Cargando contratación comercial…" />
-      ) : contracts.isError ? (
+      ) : !contracts.data ? (
         <AdminErrorState onRetry={() => void contracts.refetch()} />
       ) : !contracts.data.length ? (
         <Typography>Sin plan comercial contratado.</Typography>
@@ -106,6 +108,7 @@ export function ManagedClientCommercialPanel({
           <TextField
             select
             label="Contrato y vigencia"
+            disabled={collectionsLocked}
             value={selected?.id ?? ''}
             onChange={(event) => setSelectedId(event.target.value)}
           >
@@ -143,6 +146,13 @@ export function ManagedClientCommercialPanel({
                   <Typography variant="caption">Versión aceptada: {selected.planVersionId}</Typography>
                 </Stack>
               </Paper>
+              <ManagedCollectionsPanel
+                key={`${clientId}:${selected.id}`}
+                apiClient={apiClient}
+                clientId={clientId}
+                contractId={selected.id}
+                onLockChange={setCollectionsLocked}
+              />
               <ManagedContractConsumption
                 key={selected.id}
                 apiClient={apiClient}

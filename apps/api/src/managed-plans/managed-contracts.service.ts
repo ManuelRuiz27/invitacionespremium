@@ -152,29 +152,7 @@ export class ManagedContractsService {
         const contract = await tx.managedPlanContract.findFirst({ where: { id: contractId, clientId } });
         if (!contract)
           throw new DomainError('MANAGED_CONTRACT_NOT_FOUND', 'Managed contract not found.', HttpStatus.NOT_FOUND);
-        const { now, start, end } = (
-          await tx.$queryRaw<{ now: Date; start: Date; end: Date }[]>`
-        SELECT transaction_timestamp() AS "now",
-        (${contractDate(contract.startsOn)}::date::timestamp AT TIME ZONE 'America/Mexico_City') AS "start",
-        (${contractDate(contract.endsOn)}::date::timestamp AT TIME ZONE 'America/Mexico_City') AS "end"
-      `
-        )[0]!;
-        const rows = await tx.event.findMany({
-          where: {
-            clientId,
-            activatedAt: { gte: start, lt: end, lte: now },
-            activatedService: { code: ServiceCode.ACCESS_CONTROL }
-          },
-          select: { id: true, name: true, activatedAt: true, status: true },
-          orderBy: [{ activatedAt: 'asc' }, { id: 'asc' }]
-        });
-        // Deliberately include cancelled/soft-deleted activations: no automatic quota refund.
-        return projectManagedConsumption(
-          contract,
-          parseManagedContractTerms(contract.terms),
-          rows.map((row) => ({ ...row, activatedAt: row.activatedAt! })),
-          now
-        );
+        return managedContractConsumption(tx, contract);
       },
       { isolationLevel: 'RepeatableRead', maxWait: 5000, timeout: 10_000 }
     );
@@ -218,5 +196,35 @@ function contractOverlap() {
     'MANAGED_CONTRACT_OVERLAP',
     'The contract overlaps another assignment for this Organization.',
     HttpStatus.CONFLICT
+  );
+}
+
+// Shared by PR02 reads and PR03 confirmation in the caller's transaction.
+export async function managedContractConsumption(
+  tx: Prisma.TransactionClient,
+  contract: ManagedPlanContract
+): Promise<ManagedConsumptionResponseDto> {
+  const { now, start, end } = (
+    await tx.$queryRaw<{ now: Date; start: Date; end: Date }[]>`
+        SELECT transaction_timestamp() AS "now",
+        (${contractDate(contract.startsOn)}::date::timestamp AT TIME ZONE 'America/Mexico_City') AS "start",
+        (${contractDate(contract.endsOn)}::date::timestamp AT TIME ZONE 'America/Mexico_City') AS "end"
+      `
+  )[0]!;
+  const rows = await tx.event.findMany({
+    where: {
+      clientId: contract.clientId,
+      activatedAt: { gte: start, lt: end, lte: now },
+      activatedService: { code: ServiceCode.ACCESS_CONTROL }
+    },
+    select: { id: true, name: true, activatedAt: true, status: true },
+    orderBy: [{ activatedAt: 'asc' }, { id: 'asc' }]
+  });
+  // Deliberately include cancelled/soft-deleted activations: no automatic quota refund.
+  return projectManagedConsumption(
+    contract,
+    parseManagedContractTerms(contract.terms),
+    rows.map((row) => ({ ...row, activatedAt: row.activatedAt! })),
+    now
   );
 }
