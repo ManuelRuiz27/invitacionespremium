@@ -1,5 +1,16 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
+  "globalDependencies": [
+    ".nvmrc",
+    "tsconfig.base.json",
+    "eslint.config.mjs",
+    "prettier.config.mjs",
+    ".env",
+    "apps/*/.env*",
+    "packages/*/.env*",
+    "apps/api/prisma/**",
+    "apps/api/openapi/openapi.json"
+  ],
   "globalEnv": [
     "NODE_ENV",
     "PORT",
@@ -27,6 +38,7 @@
     },
     "test": {
       "dependsOn": ["^build"],
+      "cache": false,
       "outputs": ["coverage/**"]
     },
     "dev": {

@@ -51,8 +51,15 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
+      - name: Restore Turbo build and validation cache
+        uses: actions/cache@v5
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-all-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-all-${{ hashFiles('pnpm-lock.yaml') }}-
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter '@invitaciones/client^...' build
+      - run: pnpm exec turbo run build --filter='@invitaciones/client^...'
       - run: pnpm --filter @invitaciones/api db:generate
       - run: pnpm exec playwright install --with-deps chromium
       - run: node --test scripts/qa-redaction.test.mjs
@@ -86,9 +93,16 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
+      - name: Restore Turbo build and validation cache
+        uses: actions/cache@v5
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-all-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-all-${{ hashFiles('pnpm-lock.yaml') }}-
       - run: pnpm install --frozen-lockfile
       - name: Build Client workspace dependencies
-        run: pnpm --filter '@invitaciones/client^...' build
+        run: pnpm exec turbo run build --filter='@invitaciones/client^...'
       - run: pnpm exec playwright test -c playwright.flipbook.config.ts
       - name: Upload Flipbook visual evidence
         if: always()
@@ -100,7 +114,7 @@ jobs:
             playwright-report/ui03b/
           retention-days: 14
 
-  quality:
+  checks:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -146,6 +160,13 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
+      - name: Restore Turbo build and validation cache
+        uses: actions/cache@v5
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-all-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-all-${{ hashFiles('pnpm-lock.yaml') }}-
 
       - name: Install dependencies
         id: install
@@ -165,26 +186,6 @@ jobs:
         run: |
           tail -n 100 pnpm-install.log
           exit 1
-
-      - name: Validate Prisma schema
-        run: pnpm --filter @invitaciones/api db:validate
-
-      - name: Apply Prisma migrations
-        run: pnpm --filter @invitaciones/api db:migrate:deploy
-
-      - name: Generate OpenAPI
-        run: pnpm --filter @invitaciones/api openapi:generate
-
-      - name: Generate typed API client
-        run: pnpm --filter @invitaciones/api-client generate
-
-      - name: Check typed API client drift
-        run: |
-          pnpm --filter @invitaciones/api-client generate:check
-          git diff --exit-code -- packages/api-client/src/generated/schema.ts
-
-      - name: Verify API client routes
-        run: pnpm --filter @invitaciones/api-client verify:openapi-routes
 
       - name: Format check
         id: format
@@ -216,6 +217,26 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Validate QA tooling and integration selection
+        run: pnpm qa:tooling:test
+
+      - name: Validate Prisma schema
+        run: pnpm --filter @invitaciones/api db:validate
+
+      - name: Apply Prisma migrations
+        run: pnpm --filter @invitaciones/api db:migrate:deploy
+
+      - name: Generate OpenAPI
+        run: pnpm --filter @invitaciones/api openapi:generate
+
+      - name: Check typed API client drift
+        run: |
+          pnpm --filter @invitaciones/api-client generate:check
+          git diff --exit-code -- packages/api-client/src/generated/schema.ts
+
+      - name: Verify API client routes
+        run: pnpm --filter @invitaciones/api-client verify:openapi-routes
+
       - name: Typecheck
         id: typecheck
         continue-on-error: true
@@ -235,28 +256,6 @@ jobs:
           cat typecheck.log
           exit 1
 
-      - name: Validate focused integration selection
-        run: node --test scripts/access-control-integration-selection.test.mjs
-
-      - name: API integration tests
-        env:
-          DT09_PERF_DIR: ${{ github.workspace }}/var/qa/perf01
-          DT09_EXPLAIN: '1'
-        # Run before all workspace unit tests to fail earlier, without duplicating any case.
-        run: pnpm test:e2e:access-control -- --integration-only
-
-      - name: Upload performance diagnostics
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: perf01-performance
-          path: var/qa/perf01/*.json
-          if-no-files-found: ignore
-          retention-days: 7
-
-      - name: Unit tests
-        run: pnpm test
-
       - name: Upload OpenAPI artifact
         uses: actions/upload-artifact@v7
         with:
@@ -266,3 +265,110 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NODE_ENV: test
+      LOG_LEVEL: error
+      # Prisma config requires a URL even for generation. No database is started
+      # or contacted by units; port 1 makes an accidental live dependency fail.
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:1/qa_unit_generation
+    strategy:
+      fail-fast: false
+      matrix:
+        # These suites share no processes, filesystem or mutable DB across runners.
+        suite: [admin, client, other]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.15.1
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Restore Turbo build and validation cache
+        uses: actions/cache@v5
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ matrix.suite || 'all' }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ matrix.suite || 'all' }}-${{ hashFiles('pnpm-lock.yaml') }}-
+      - run: pnpm install --frozen-lockfile
+      - name: Unit tests (always execute; dependency builds may hit cache)
+        env:
+          SUITE: ${{ matrix.suite }}
+        run: |
+          case "$SUITE" in
+            admin|client) pnpm exec turbo run test --concurrency=1 --filter="@invitaciones/$SUITE" ;;
+            other) pnpm exec turbo run test --concurrency=1 --filter='!@invitaciones/admin' --filter='!@invitaciones/client' ;;
+            *) exit 1 ;;
+          esac
+
+  api-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NODE_ENV: test
+      API_PORT: 3000
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      DATABASE_POOL_MAX: 5
+      DATABASE_CONNECTION_TIMEOUT_MS: 5000
+      DATABASE_IDLE_TIMEOUT_MS: 30000
+      CORS_ORIGINS: http://localhost:5173
+      LOG_LEVEL: error
+      SWAGGER_ENABLED: 'true'
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.15.1
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: API integration tests (exclusive PostgreSQL runner)
+        env:
+          DT09_PERF_DIR: ${{ github.workspace }}/var/qa/perf01
+          DT09_EXPLAIN: '1'
+        # One owned DB, files serial, one worker. No other load during DT09.
+        run: pnpm test:e2e:access-control -- --integration-only
+      - name: Upload performance diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: perf01-performance
+          path: var/qa/perf01/*.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # Preserve the historical required check name. Skips/cancellations also fail it.
+  quality:
+    if: always()
+    needs: [checks, unit-tests, api-integration, pilot-browser-qa, flipbook-browser-qa]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require every QA job to succeed
+        env:
+          QA_RESULTS: ${{ toJSON(needs) }}
+        run: |
+          node -e 'const jobs = Object.entries(JSON.parse(process.env.QA_RESULTS)); for (const [name, job] of jobs) console.log(name + ": " + job.result); if (jobs.length !== 5 || jobs.some(([, job]) => job.result !== "success")) process.exit(1);'

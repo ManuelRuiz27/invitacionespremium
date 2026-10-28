@@ -97,6 +97,40 @@ pnpm format:check
 pnpm ci
 ```
 
+QA local por alcance (QA02):
+
+```bash
+# Cambios staged/unstaged y archivos nuevos desde HEAD: formato seleccionado, tooling, lint,
+# typecheck y unidades relacionadas; dependencias compartidas incluyen consumidores.
+pnpm qa:quick
+pnpm qa:quick -- --files=apps/client/src/workspace/access-control/AccessOperationsPanel.tsx
+# Suites completas de los workspaces afectados, dependencias, builds y journeys aplicables.
+pnpm qa:focused -- --files=apps/scanner/src/App.tsx
+# Para revisar cambios ya confirmados en un commit:
+pnpm qa:focused -- --base=HEAD~1
+# Todas las validaciones de CI, incluyendo PostgreSQL real, M01/M02, PR01/PR02,
+# Flipbook Chromium/WebKit y guías. No admite filtros.
+pnpm qa:full
+# Mostrar selección y comandos sin ejecutar validaciones ni crear recursos:
+pnpm qa:focused -- --files=apps/scanner/src/App.tsx --dry-run
+```
+
+`--files` usa rutas relativas separadas por comas (entre comillas en PowerShell si hay varias).
+`--base` incluye también cambios locales y archivos nuevos. Cambios de configuración global
+seleccionan todos los workspaces; en modo focalizado, los cambios de API incluyen el SDK y sus consumidores.
+El modo rápido usa `vitest related` para fuentes de una app y conserva suites completas para
+configuración, dependencias y consumidores. Si Vitest no encuentra pruebas relacionadas, falla:
+usar el modo focalizado para comprobar la suite completa, sin aceptar un resultado vacío.
+
+Los modos focalizado/completo requieren Chromium y WebKit instalados
+(`pnpm exec playwright install chromium webkit`), PostgreSQL local con permiso de crear bases,
+y puertos libres `5300/5373/5374/5375/5376`, `4000/6173/6174/6175` y `5183` según los journeys.
+OpenAPI e integración crean bases propias y las eliminan al terminar; nunca aplican migraciones
+sobre la base compartida. Las cargas DT09 se ejecutan solas y en serie.
+`pnpm ci` conserva su alcance histórico de validaciones estáticas, unidades y build;
+`pnpm qa:full` agrega todos los controles remotos. Detalles y mediciones:
+[QA02](docs/05-implementacion/QA02_CI_QA_EXECUTION.md).
+
 Comandos de API:
 
 ```bash
