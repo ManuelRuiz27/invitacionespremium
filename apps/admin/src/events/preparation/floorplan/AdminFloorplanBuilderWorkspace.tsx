@@ -26,27 +26,19 @@ import {
   type InventoryConfiguration,
   type PendingTable
 } from '@invitaciones/floorplan';
-import ContentCopyRounded from '@mui/icons-material/ContentCopyRounded';
-import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
-import ImageOutlined from '@mui/icons-material/ImageOutlined';
-import LockOpenRounded from '@mui/icons-material/LockOpenRounded';
-import LockRounded from '@mui/icons-material/LockRounded';
 import TableRestaurantRounded from '@mui/icons-material/TableRestaurantRounded';
 import {
   Alert,
   Box,
   Button,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle,
   Drawer,
-  MenuItem,
   Paper,
   Stack,
-  TextField,
   Typography,
   useMediaQuery,
   useTheme
@@ -55,24 +47,18 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useBlocker } from 'react-router-dom';
 import { adminErrorMessage } from '../../../shared/admin-error';
 import { AdminErrorState, AdminLoadingState } from '../../../shared/AdminStates';
+import { AdminFloorplanPreparationHeader } from './AdminFloorplanPreparationHeader';
+import { AdminFloorplanSeatControls, AdminFloorplanSeatRenameDialog } from './AdminFloorplanSeatControls';
+import { AdminFloorplanShapeInspector } from './AdminFloorplanShapeInspector';
+import {
+  AdminFloorplanSourceEmptyState,
+  AdminFloorplanSourceReplacementDialog,
+  AdminFloorplanUploadButton
+} from './AdminFloorplanSourceControls';
+import { AdminFloorplanSvgMappingInspector } from './AdminFloorplanSvgMappingInspector';
 
 type EditorMode = 'idle' | 'mapping-source' | 'placing-preset' | 'placing-seat' | 'creating-draft' | 'editing-existing';
 type Mutation = 'uploading' | 'saving' | 'duplicating' | 'deleting' | 'locking' | 'unlocking' | 'placing' | 'seating';
-type Geometry = AdminFloorplanShapeInput['geometry'];
-const mappingPresets = ['Mesa', 'Pista', 'DJ / escenario', 'Baños', 'Barra', 'Entrada', 'Zona'] as const;
-
-const initialPolygon = [
-  { x: 0.12, y: 0.12 },
-  { x: 0.88, y: 0.12 },
-  { x: 0.88, y: 0.88 },
-  { x: 0.12, y: 0.88 }
-];
-const geometryLabels: ReadonlyArray<{ value: Geometry; label: string; zonesOnly?: boolean }> = [
-  { value: 'CIRCLE', label: 'Redonda' },
-  { value: 'SQUARE', label: 'Cuadrada' },
-  { value: 'RECTANGLE', label: 'Rectangular' },
-  { value: 'POLYGON', label: 'Forma personalizada', zonesOnly: true }
-];
 const emptyDraft = (): AdminFloorplanShapeInput => ({
   name: '',
   kind: 'TABLE',
@@ -793,37 +779,15 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   if (loadError) return <AdminErrorState onRetry={() => void load().catch(() => setLoadError(true))} />;
   if (notFound || !floorplan) {
     return (
-      <Paper
-        variant="outlined"
-        sx={{ minHeight: 430, display: 'grid', placeItems: 'center', p: 3, borderRadius: 3, bgcolor: 'grey.50' }}
-      >
-        <Stack spacing={2} sx={{ alignItems: 'center', maxWidth: 520, textAlign: 'center' }}>
-          <ImageOutlined color="primary" sx={{ fontSize: 56 }} />
-          <Typography component="h2" variant="h4">
-            Comienza con el plano del lugar
-          </Typography>
-          <Typography color="text.secondary">Sube una imagen JPG, PNG o SVG para distribuir Mesas y Zonas.</Typography>
-          <UploadButton
-            label={mutation === 'uploading' ? 'Subiendo plano...' : 'Subir plano'}
-            disabled={pending || accessEventReadOnly}
-            onFile={requestUpload}
-          />
-          {validationMessage ? <Alert severity="warning">{validationMessage}</Alert> : null}
-          {message ? <Alert severity="error">{message}</Alert> : null}
-          {refreshRequired ? (
-            <Alert
-              severity="warning"
-              action={
-                <Button color="inherit" onClick={() => void refreshAuthoritative()}>
-                  Actualizar plano
-                </Button>
-              }
-            >
-              No pudimos confirmar si el plano se creó. Actualiza antes de volver a subirlo.
-            </Alert>
-          ) : null}
-        </Stack>
-      </Paper>
+      <AdminFloorplanSourceEmptyState
+        uploading={mutation === 'uploading'}
+        disabled={pending || accessEventReadOnly}
+        validationMessage={validationMessage}
+        message={message}
+        refreshRequired={refreshRequired}
+        onFile={requestUpload}
+        onRefresh={() => void refreshAuthoritative()}
+      />
     );
   }
 
@@ -846,75 +810,32 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   );
   const inspector =
     !finalized && mode === 'mapping-source' ? (
-      <Paper component="section" variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
-        <Stack spacing={2}>
-          <Box>
-            <Typography component="h3" variant="h6">
-              Clasificar {mappingName.trim() || mappingPreset}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Nuevo elemento del plano
-            </Typography>
-          </Box>
-          <Typography variant="body2" color="text.secondary">
-            Guarda o cancela antes de seleccionar otro elemento.
-          </Typography>
-          <TextField
-            select
-            label="Tipo de elemento"
-            value={mappingPreset}
-            disabled={readOnly}
-            onChange={(event) => {
-              setMappingPreset(event.target.value);
-              setMappingName(
-                createUniqueFloorplanName(
-                  event.target.value,
-                  floorplan.shapes.map((shape) => shape.name)
-                )
-              );
-            }}
-          >
-            {mappingPresets.map((preset) => (
-              <MenuItem key={preset} value={preset}>
-                {preset}
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField
-            label="Nombre"
-            required
-            value={mappingName}
-            disabled={readOnly}
-            onChange={(event) => setMappingName(event.target.value)}
-          />
-          {mappingPreset === 'Mesa' && floorplan.seatingMode === 'TABLE' ? (
-            <TextField
-              label="Número de lugares"
-              required
-              type="number"
-              value={mappingCapacity}
-              disabled={readOnly}
-              slotProps={{ htmlInput: { min: 1, step: 1 } }}
-              onChange={(event) => setMappingCapacity(Number(event.target.value))}
-            />
-          ) : mappingPreset === 'Mesa' ? (
-            <Typography variant="body2">La capacidad se calcula a partir de los lugares.</Typography>
-          ) : null}
-          <Button
-            variant="contained"
-            disabled={readOnly || refreshRequired || reconciliationError}
-            onClick={() => void mapSource()}
-          >
-            Guardar
-          </Button>
-          <Button disabled={pending} onClick={cancel}>
-            Cancelar
-          </Button>
-        </Stack>
-      </Paper>
+      <AdminFloorplanSvgMappingInspector
+        mappingPreset={mappingPreset}
+        mappingName={mappingName}
+        mappingCapacity={mappingCapacity}
+        seatingMode={floorplan.seatingMode}
+        readOnly={readOnly}
+        pending={pending}
+        refreshRequired={refreshRequired}
+        reconciliationError={reconciliationError}
+        onPresetChange={(preset) => {
+          setMappingPreset(preset);
+          setMappingName(
+            createUniqueFloorplanName(
+              preset,
+              floorplan.shapes.map((shape) => shape.name)
+            )
+          );
+        }}
+        onNameChange={setMappingName}
+        onCapacityChange={setMappingCapacity}
+        onSave={() => void mapSource()}
+        onCancel={cancel}
+      />
     ) : !finalized && editing ? (
-      <ShapeInspector
-        mode={mode}
+      <AdminFloorplanShapeInspector
+        creating={mode === 'creating-draft'}
         value={draft}
         disabled={readOnly}
         mapped={Boolean(selected?.sourceElementId)}
@@ -928,109 +849,32 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     ) : null;
   return (
     <Stack spacing={1.5} component="section" aria-labelledby="admin-floorplan-title">
-      <Stack
-        direction={{ xs: 'column', md: 'row' }}
-        useFlexGap
-        spacing={1}
-        sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between' }}
-      >
-        <Box sx={{ flex: '1 1 auto', minWidth: 0 }}>
-          <Typography id="admin-floorplan-title" component="h2" variant="h5">
-            Croquis
-          </Typography>
-          {floorplan.locked ? (
-            <Typography variant="body2" color="text.secondary">
-              Distribución finalizada. Vista de solo lectura.
-            </Typography>
-          ) : null}
-        </Box>
-        <Stack direction="row" useFlexGap spacing={1} sx={{ flex: '0 1 auto', flexWrap: 'wrap', alignItems: 'center' }}>
-          <Chip
-            label={
-              mutation
-                ? 'Guardando...'
-                : reconciliationError
-                  ? 'Guardado · falta actualizar'
-                  : validationMessage
-                    ? 'Revisa los datos'
-                    : message || refreshRequired
-                      ? 'Error al guardar'
-                      : dirty
-                        ? 'Cambios sin guardar'
-                        : 'Guardado'
-            }
-            color={
-              mutation
-                ? 'warning'
-                : reconciliationError || validationMessage
-                  ? 'warning'
-                  : message || refreshRequired
-                    ? 'error'
-                    : dirty
-                      ? 'warning'
-                      : 'success'
-            }
-            variant="outlined"
-            aria-live="polite"
-          />
-          <Chip label={`${floorplan.shapes.length} elementos · ${places} lugares`} variant="outlined" />
-          {finalized ? (
-            <Chip label={floorplan.seatingMode === 'TABLE' ? 'Por mesa' : 'Por lugar exacto'} variant="outlined" />
-          ) : (
-            <TextField
-              select
-              size="small"
-              label="Acomodo"
-              value={floorplan.seatingMode}
-              disabled={readOnly || editing}
-              onChange={(event) => requestSeatingModeChange(event.target.value as 'TABLE' | 'SEAT')}
-              sx={{ minWidth: 148 }}
-            >
-              <MenuItem value="TABLE">Por mesa</MenuItem>
-              {!anonymousAccess ? <MenuItem value="SEAT">Por lugar exacto</MenuItem> : null}
-            </TextField>
-          )}
-          {!finalized ? (
-            <UploadButton label="Cambiar plano" disabled={readOnly || editing} onFile={requestUpload} />
-          ) : null}
-          <Button
-            variant={floorplan.locked ? 'contained' : 'outlined'}
-            startIcon={floorplan.locked ? <LockOpenRounded /> : <LockRounded />}
-            disabled={pending || editing || pendingTables.length > 0 || accessEventReadOnly}
-            onClick={() => void changeLock()}
-            sx={{ minHeight: 44 }}
-          >
-            {floorplan.locked ? 'Editar distribución' : 'Finalizar distribución'}
-          </Button>
-        </Stack>
-      </Stack>
-      {validationMessage ? <Alert severity="warning">{validationMessage}</Alert> : null}
-      {message ? <Alert severity="error">{message}</Alert> : null}
-      {reconciliationError ? (
-        <Alert
-          severity="warning"
-          action={
-            <Button color="inherit" onClick={() => void refreshAuthoritative()}>
-              Actualizar plano
-            </Button>
-          }
-        >
-          Guardado · falta actualizar. La acción no se repetirá.
-        </Alert>
-      ) : null}
-      {refreshRequired && !reconciliationError ? (
-        <Alert
-          severity="warning"
-          action={
-            <Button color="inherit" onClick={() => void refreshAuthoritative()}>
-              Actualizar plano
-            </Button>
-          }
-        >
-          No pudimos confirmar el estado final. Conservamos tu trabajo local; actualiza el plano antes de decidir si
-          reintentas.
-        </Alert>
-      ) : null}
+      <AdminFloorplanPreparationHeader
+        locked={floorplan.locked}
+        finalized={finalized}
+        seatingMode={floorplan.seatingMode}
+        elementCount={floorplan.shapes.length}
+        places={places}
+        pending={pending}
+        readOnly={readOnly}
+        editing={editing}
+        hasPendingTables={pendingTables.length > 0}
+        accessEventReadOnly={accessEventReadOnly}
+        anonymousAccess={anonymousAccess}
+        reconciliationError={reconciliationError}
+        validationMessage={validationMessage}
+        message={message}
+        refreshRequired={refreshRequired}
+        dirty={dirty}
+        sourceControl={
+          !finalized ? (
+            <AdminFloorplanUploadButton label="Cambiar plano" disabled={readOnly || editing} onFile={requestUpload} />
+          ) : null
+        }
+        onSeatingModeChange={requestSeatingModeChange}
+        onChangeLock={() => void changeLock()}
+        onRefresh={() => void refreshAuthoritative()}
+      />
       <Box
         sx={{
           display: 'grid',
@@ -1077,66 +921,22 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
             </Alert>
           ) : null}
           {!finalized && floorplan.seatingMode === 'SEAT' && selected?.kind === 'TABLE' ? (
-            <Stack spacing={1} sx={{ mb: 1 }}>
-              <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap' }}>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  disabled={readOnly || mode === 'placing-seat'}
-                  onClick={addSeat}
-                >
-                  Agregar lugar
-                </Button>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  disabled={readOnly || !floorplan.seats.some((seat) => seat.floorplanShapeId === selected.id)}
-                  onClick={() => void renumberSeats()}
-                >
-                  Renumerar lugares
-                </Button>
-              </Stack>
-              {selectedSeat ? (
-                <Stack spacing={0.75} sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1 }}>
-                  <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
-                    <Typography variant="subtitle2">
-                      {selectedSeat.label} · {selected.name}
-                    </Typography>
-                    {selectedSeats.length > 1 ? (
-                      <Chip size="small" label={`${selectedSeats.length} lugares seleccionados`} />
-                    ) : null}
-                  </Stack>
-                  {selectedSeats.length > 1 ? (
-                    <Typography variant="caption" color="text.secondary">
-                      Las acciones siguientes se aplican solo a {selectedSeat.label}.
-                    </Typography>
-                  ) : null}
-                  <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap' }}>
-                    <Button size="small" disabled={readOnly} onClick={openRenameSeat}>
-                      Renombrar
-                    </Button>
-                    <Button size="small" disabled={readOnly} onClick={() => void duplicateSeat()}>
-                      Duplicar
-                    </Button>
-                    <Button
-                      size="small"
-                      disabled={readOnly || selectedSeat.occupied}
-                      onClick={() => void updateSeat(selectedSeat.id, { isBlocked: !selectedSeat.isBlocked })}
-                    >
-                      {selectedSeat.isBlocked ? 'Desbloquear' : 'Bloquear'}
-                    </Button>
-                    <Button
-                      size="small"
-                      color="error"
-                      disabled={readOnly || selectedSeat.occupied}
-                      onClick={() => void removeSeat()}
-                    >
-                      Eliminar {selectedSeat.label}
-                    </Button>
-                  </Stack>
-                </Stack>
-              ) : null}
-            </Stack>
+            <AdminFloorplanSeatControls
+              readOnly={readOnly}
+              placingSeat={mode === 'placing-seat'}
+              hasSeats={floorplan.seats.some((seat) => seat.floorplanShapeId === selected.id)}
+              tableName={selected.name}
+              selectedSeat={selectedSeat}
+              selectedSeatCount={selectedSeats.length}
+              onAdd={addSeat}
+              onRenumber={() => void renumberSeats()}
+              onRename={openRenameSeat}
+              onDuplicate={() => void duplicateSeat()}
+              onToggleBlocked={() => {
+                if (selectedSeat) void updateSeat(selectedSeat.id, { isBlocked: !selectedSeat.isBlocked });
+              }}
+              onRemove={() => void removeSeat()}
+            />
           ) : null}
           {imageUrl ? (
             <FloorplanSurface
@@ -1269,54 +1069,22 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
           </Button>
         </DialogActions>
       </Dialog>
-      <Dialog open={renameSeatOpen} onClose={closeRenameSeat}>
-        <Box
-          component="form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            submitRenameSeat();
-          }}
-        >
-          <DialogTitle>Renombrar lugar</DialogTitle>
-          <DialogContent>
-            <TextField
-              autoFocus
-              fullWidth
-              label="Nombre del lugar"
-              value={renameSeatLabel}
-              onChange={(event) => setRenameSeatLabel(event.target.value)}
-            />
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={closeRenameSeat}>Cancelar</Button>
-            <Button type="submit" variant="contained">
-              Guardar
-            </Button>
-          </DialogActions>
-        </Box>
-      </Dialog>
-      <Dialog open={Boolean(sourceReplacementCandidate)} onClose={() => setSourceReplacementCandidate(undefined)}>
-        <DialogTitle>¿Reemplazar el plano SVG?</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            El plano actual tiene elementos vinculados. Al reemplazarlo se desvincularán de este SVG; las mesas, los
-            lugares y las asignaciones se conservarán para que puedas vincularlos de nuevo si lo necesitas.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setSourceReplacementCandidate(undefined)}>Cancelar</Button>
-          <Button
-            variant="contained"
-            onClick={() => {
-              const candidate = sourceReplacementCandidate;
-              setSourceReplacementCandidate(undefined);
-              if (candidate) void upload(candidate, true);
-            }}
-          >
-            Reemplazar y desvincular
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <AdminFloorplanSeatRenameDialog
+        open={renameSeatOpen}
+        label={renameSeatLabel}
+        onLabelChange={setRenameSeatLabel}
+        onClose={closeRenameSeat}
+        onSubmit={submitRenameSeat}
+      />
+      <AdminFloorplanSourceReplacementDialog
+        open={Boolean(sourceReplacementCandidate)}
+        onClose={() => setSourceReplacementCandidate(undefined)}
+        onConfirm={() => {
+          const candidate = sourceReplacementCandidate;
+          setSourceReplacementCandidate(undefined);
+          if (candidate) void upload(candidate, true);
+        }}
+      />
     </Stack>
   );
 }
@@ -1352,196 +1120,11 @@ function Palette({
   );
 }
 
-function ShapeInspector({
-  mode,
-  value,
-  disabled,
-  capacityDerived,
-  mapped = false,
-  onUnlink,
-  onChange,
-  onSave,
-  onDuplicate,
-  onDelete,
-  onCancel
-}: {
-  mode: EditorMode;
-  value: AdminFloorplanShapeInput;
-  disabled: boolean;
-  capacityDerived: boolean;
-  mapped?: boolean;
-  onUnlink?: () => void;
-  onChange: (value: AdminFloorplanShapeInput) => void;
-  onSave: () => void;
-  onDuplicate?: () => void;
-  onDelete?: () => void;
-  onCancel: () => void;
-}) {
-  const [moreOptionsOpen, setMoreOptionsOpen] = useState(false);
-  const table = value.kind === 'TABLE';
-  const objectName = value.name || (table ? 'Mesa' : 'Zona');
-  return (
-    <Paper component="section" variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
-      <Stack spacing={2}>
-        <Box>
-          {mapped ? (
-            <>
-              <Typography component="h3" variant="h6">
-                Editar {objectName}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Elemento vinculado al plano
-              </Typography>
-            </>
-          ) : (
-            <>
-              <Typography variant="overline" color="text.secondary">
-                {mode === 'creating-draft' ? 'Nuevo elemento' : table ? 'Mesa seleccionada' : 'Zona seleccionada'}
-              </Typography>
-              <Typography component="h3" variant="h6">
-                {table ? 'Mesa' : 'Zona'}
-              </Typography>
-            </>
-          )}
-        </Box>
-        {mapped ? (
-          <Typography variant="body2" color="text.secondary">
-            Guarda o cancela antes de seleccionar otro elemento.
-          </Typography>
-        ) : null}
-        <TextField
-          label={table ? 'Nombre o número' : 'Nombre de zona'}
-          value={value.name}
-          disabled={disabled}
-          onChange={(event) => onChange({ ...value, name: event.target.value })}
-        />
-        {table && capacityDerived ? (
-          <Typography variant="body2" color="text.secondary">
-            {value.capacity} lugares
-          </Typography>
-        ) : table ? (
-          <TextField
-            label="Número de lugares"
-            type="number"
-            value={value.capacity}
-            disabled={disabled}
-            slotProps={{ htmlInput: { min: 1, step: 1 } }}
-            onChange={(event) => onChange({ ...value, capacity: Number(event.target.value) })}
-          />
-        ) : null}
-        {mapped ? (
-          <Chip label="Vinculado al plano" variant="outlined" />
-        ) : (
-          <TextField
-            select
-            label="Forma"
-            value={value.geometry}
-            disabled={disabled}
-            onChange={(event) => {
-              const geometry = event.target.value as Geometry;
-              onChange(
-                normalizeFloorplanShape({
-                  ...value,
-                  geometry,
-                  ...(geometry === 'CIRCLE' || geometry === 'SQUARE'
-                    ? { height: value.width, polygonPoints: null }
-                    : geometry === 'POLYGON'
-                      ? { polygonPoints: initialPolygon }
-                      : { polygonPoints: null })
-                })
-              );
-            }}
-          >
-            {geometryLabels
-              .filter((option) => !option.zonesOnly || !table)
-              .map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
-          </TextField>
-        )}
-        {onUnlink ? (
-          <Stack spacing={0.5} sx={{ alignItems: 'flex-start' }}>
-            <Button size="small" disabled={disabled} onClick={() => setMoreOptionsOpen((open) => !open)}>
-              Más opciones
-            </Button>
-            {moreOptionsOpen ? (
-              <Button size="small" disabled={disabled} onClick={onUnlink}>
-                Desvincular del plano
-              </Button>
-            ) : null}
-          </Stack>
-        ) : null}
-        <Stack direction="row" spacing={1}>
-          <Button variant="contained" disabled={disabled} onClick={onSave} sx={{ minHeight: 44, flex: 1 }}>
-            {mode === 'creating-draft' ? `Agregar ${table ? 'mesa' : 'zona'}` : 'Guardar cambios'}
-          </Button>
-          <Button disabled={disabled} onClick={onCancel} sx={{ minHeight: 44 }}>
-            Cancelar
-          </Button>
-        </Stack>
-        {onDuplicate ? (
-          <Button startIcon={<ContentCopyRounded />} disabled={disabled} onClick={onDuplicate} sx={{ minHeight: 44 }}>
-            Duplicar
-          </Button>
-        ) : null}
-        {onDelete ? (
-          <Button
-            color="error"
-            startIcon={<DeleteOutlineRounded />}
-            disabled={disabled}
-            onClick={onDelete}
-            sx={{ minHeight: 44 }}
-          >
-            {table ? 'Eliminar mesa' : 'Eliminar zona'}
-          </Button>
-        ) : null}
-      </Stack>
-    </Paper>
-  );
-}
-
 function floorplanFileSourceType(file: File): 'SVG' | 'RASTER' | undefined {
   // Browser metadata only routes the upload; the backend validates and sanitizes the bytes.
   if (/\.svg$/i.test(file.name) || file.type === 'image/svg+xml') return 'SVG';
   if (/\.(jpe?g|png)$/i.test(file.name) || ['image/jpeg', 'image/png'].includes(file.type)) return 'RASTER';
   return undefined;
-}
-
-function UploadButton({
-  label,
-  disabled,
-  onFile
-}: {
-  label: string;
-  disabled: boolean;
-  onFile: (file: File) => Promise<void>;
-}) {
-  return (
-    <Button
-      component="label"
-      variant="outlined"
-      disabled={disabled}
-      startIcon={<ImageOutlined />}
-      sx={{ minHeight: 44 }}
-    >
-      {label}
-      <input
-        hidden
-        type="file"
-        accept=".svg,.jpg,.jpeg,.png,image/png,image/jpeg,image/svg+xml"
-        onChange={(event) => {
-          const input = event.currentTarget;
-          const file = input.files?.[0];
-          if (file)
-            void onFile(file).finally(() => {
-              input.value = '';
-            });
-        }}
-      />
-    </Button>
-  );
 }
 
 function useAdminFloorplanImageUrl(apiClient: ApiClient, event: AdminEvent, assetId?: string) {
