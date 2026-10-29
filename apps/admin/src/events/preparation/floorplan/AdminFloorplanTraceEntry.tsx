@@ -7,7 +7,6 @@ export function AdminFloorplanTraceEntry({
   disabled,
   canAddTable,
   svgAvailable,
-  selectedTableName,
   onToolChange,
   onAddTable
 }: {
@@ -19,18 +18,44 @@ export function AdminFloorplanTraceEntry({
   onToolChange: (tool: FloorplanConstructionTool) => void;
   onAddTable: () => void;
 }) {
+  if (tool === 'trace')
+    return (
+      <Stack
+        component="section"
+        aria-label="Herramientas de Calca"
+        direction="row"
+        spacing={1}
+        useFlexGap
+        sx={{ alignItems: 'center', flexWrap: 'wrap' }}
+      >
+        <Typography component="h3" variant="subtitle1" sx={{ mr: 'auto' }}>
+          Calcar distribución
+        </Typography>
+        <Button variant="contained" disabled={!canAddTable} onClick={onAddTable} sx={{ minHeight: 44 }}>
+          Agregar mesa
+        </Button>
+        <Button disabled={disabled} aria-pressed={false} onClick={() => onToolChange('manual')} sx={{ minHeight: 44 }}>
+          Manual
+        </Button>
+        <Button
+          disabled={disabled || !svgAvailable}
+          title={svgAvailable ? undefined : 'Disponible con un plano SVG'}
+          onClick={() => onToolChange('svg')}
+          sx={{ minHeight: 44 }}
+        >
+          Mapeo SVG
+        </Button>
+        <Button disabled={disabled} onClick={() => onToolChange('entry')} sx={{ minHeight: 44 }}>
+          Salir de Calca
+        </Button>
+      </Stack>
+    );
   return (
     <Stack component="section" aria-labelledby="floorplan-construction-title" spacing={1.5} sx={{ py: 1 }}>
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ justifyContent: 'space-between' }}>
         <Box>
           <Typography id="floorplan-construction-title" component="h3" variant="h6">
-            {tool === 'entry'
-              ? 'Plano listo para calcar'
-              : tool === 'trace'
-                ? 'Mesas sobre el plano'
-                : tool === 'manual'
-                  ? 'Construcción manual'
-                  : 'Mapeo SVG'}
+            {tool === 'entry' ? 'Plano listo para calcar' : tool === 'manual' ? 'Construcción manual' : 'Mapeo SVG'}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             {tool === 'svg'
@@ -43,7 +68,7 @@ export function AdminFloorplanTraceEntry({
         <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
           <Button
             variant="contained"
-            aria-pressed={tool === 'trace'}
+            aria-pressed={false}
             disabled={disabled}
             onClick={() => onToolChange('trace')}
             sx={{ minHeight: 44 }}
@@ -71,14 +96,6 @@ export function AdminFloorplanTraceEntry({
           </Button>
         </Stack>
       </Stack>
-      {tool === 'trace' ? (
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: { sm: 'center' } }}>
-          <Button variant="outlined" disabled={!canAddTable} onClick={onAddTable} sx={{ minHeight: 44 }}>
-            Agregar mesa
-          </Button>
-          {selectedTableName ? <Typography variant="body2">Mesa seleccionada: {selectedTableName}</Typography> : null}
-        </Stack>
-      ) : null}
     </Stack>
   );
 }

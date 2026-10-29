@@ -42,6 +42,25 @@ const floorplan: Floorplan = {
 };
 
 describe('FloorplanSurface', () => {
+  it('fits the complete image in Trace and reports its actual coordinate space for placement', async () => {
+    const onCanvasPlace = vi.fn();
+    render(
+      <FloorplanSurface
+        floorplan={floorplan}
+        imageUrl="blob:plan"
+        disabled={false}
+        tracePresentation
+        onSelect={vi.fn()}
+        onDraftChange={vi.fn()}
+        onCanvasPlace={onCanvasPlace}
+      />
+    );
+    await screen.findByTestId('production-konva-renderer');
+    expect(renderer.props).toEqual(expect.objectContaining({ tracePresentation: true, width: 672, height: 336 }));
+    act(() => (renderer.props?.onCanvasPlace as (point: { x: number; y: number }) => void)({ x: 0.4, y: 0.5 }));
+    expect(onCanvasPlace).toHaveBeenCalledWith({ x: 0.4, y: 0.5 }, undefined, { width: 672, height: 336 });
+  });
+
   beforeEach(() => {
     renderer.props = undefined;
     class ImageStub {

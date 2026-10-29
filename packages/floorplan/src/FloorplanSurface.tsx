@@ -28,9 +28,9 @@ export function FloorplanSurface(props: FloorplanSurfaceProps) {
   const setOwnerRef = useCallback(
     (node: HTMLDivElement | null) => {
       ownerRef.current = node;
-      measureOwner(node);
+      if (!props.tracePresentation) measureOwner(node);
     },
-    [measureOwner]
+    [measureOwner, props.tracePresentation]
   );
   const [image, setImage] = useState<HTMLImageElement>();
   const [viewport, setViewport] = useState(defaultViewport);
@@ -61,10 +61,15 @@ export function FloorplanSurface(props: FloorplanSurfaceProps) {
     };
   }, [props.imageUrl]);
 
+  const stageWidth =
+    props.tracePresentation && image?.naturalWidth && image.naturalHeight && ownerSize.height
+      ? Math.min(ownerSize.width, (Math.max(1, ownerSize.height - 64) * image.naturalWidth) / image.naturalHeight)
+      : ownerSize.width;
   const stageHeight = useMemo(() => {
-    if (!image?.naturalWidth || !ownerSize.width) return 0;
-    return (ownerSize.width * image.naturalHeight) / image.naturalWidth;
-  }, [image, ownerSize.width]);
+    if (!image?.naturalWidth || !stageWidth) return 0;
+    return (stageWidth * image.naturalHeight) / image.naturalWidth;
+  }, [image, stageWidth]);
+
   const useKonva = Boolean(image && image.src === props.imageUrl && ownerSize.width > 0 && stageHeight > 0);
 
   const changeDraft = (next: FloorplanShapeInput) => {
@@ -91,12 +96,18 @@ export function FloorplanSurface(props: FloorplanSurfaceProps) {
     snap,
     showSeats,
     panEnabled: panEnabled || spacePanEnabled,
-    onDraftChange: changeDraft
+    onDraftChange: changeDraft,
+    onCanvasPlace:
+      props.tracePresentation && props.onCanvasPlace
+        ? (point: { x: number; y: number }, pendingId?: string) =>
+            props.onCanvasPlace?.(point, pendingId, { width: stageWidth, height: stageHeight })
+        : props.onCanvasPlace
   };
 
   return (
     <Box
       sx={{
+        ...(props.tracePresentation ? { display: 'flex', flexDirection: 'column', flex: '1 1 0', minHeight: 0 } : {}),
         overflow: 'hidden',
         border: `1px solid ${floorplanColors.line}`,
         borderRadius: 2,
@@ -104,8 +115,31 @@ export function FloorplanSurface(props: FloorplanSurfaceProps) {
         boxShadow: '0 18px 48px rgba(23, 35, 60, 0.08)'
       }}
     >
-      <Box sx={{ position: 'relative', minHeight: { xs: 360, md: 520 }, display: 'grid', placeItems: 'center' }}>
-        <Box sx={{ position: 'absolute', zIndex: 2, top: 12, left: 12, right: 12, pointerEvents: 'none' }}>
+      <Box
+        ref={props.tracePresentation ? measureOwner : undefined}
+        sx={{
+          position: 'relative',
+          minHeight: props.tracePresentation ? 0 : { xs: 360, md: 520 },
+          display: props.tracePresentation ? 'flex' : 'grid',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flex: props.tracePresentation ? '1 1 0' : undefined,
+          placeItems: 'center'
+        }}
+      >
+        <Box
+          sx={{
+            position: props.tracePresentation ? 'relative' : 'absolute',
+            zIndex: 2,
+            top: props.tracePresentation ? 0 : 12,
+            left: props.tracePresentation ? 0 : 12,
+            right: props.tracePresentation ? 0 : 12,
+            width: props.tracePresentation ? '100%' : undefined,
+            py: props.tracePresentation ? 0.5 : 0,
+            pointerEvents: 'none'
+          }}
+        >
           <Box
             sx={{
               display: 'flex',
@@ -142,7 +176,13 @@ export function FloorplanSurface(props: FloorplanSurfaceProps) {
           data-testid="floorplan-renderer-host"
           tabIndex={0}
           aria-label="Superficie interactiva del plano"
-          sx={{ width: '100%', overflow: 'hidden', bgcolor: floorplanColors.canvas }}
+          sx={{
+            width: props.tracePresentation && stageWidth ? stageWidth : '100%',
+            maxWidth: '100%',
+            overflow: 'hidden',
+            bgcolor: floorplanColors.canvas,
+            flexShrink: 0
+          }}
           onPointerDownCapture={() => ownerRef.current?.focus({ preventScroll: true })}
           onKeyDown={(event) => {
             if (event.code === 'Space') {
@@ -202,7 +242,7 @@ export function FloorplanSurface(props: FloorplanSurfaceProps) {
               <LazyKonvaRenderer
                 {...rendererProps}
                 image={image}
-                width={ownerSize.width}
+                width={stageWidth}
                 height={stageHeight}
                 viewport={viewport}
                 onViewportChange={setViewport}

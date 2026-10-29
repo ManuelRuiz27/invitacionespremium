@@ -56,6 +56,28 @@ const detailedFloorplan: Floorplan = {
 };
 
 describe('FloorplanDomRenderer', () => {
+  it('keeps Trace transparent and movable without Sticker resize controls in the DOM fallback', () => {
+    const props = {
+      floorplan,
+      imageUrl: 'blob:plan',
+      disabled: false,
+      showSeats: false,
+      snap: false,
+      selectedId: table.id,
+      draft: table,
+      onSelect: vi.fn(),
+      onDraftChange: vi.fn()
+    };
+    const view = render(<FloorplanDomRenderer {...props} tracePresentation />);
+    expect(screen.getByLabelText('Mover mesa seleccionada')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Cambiar tamaño/ })).not.toBeInTheDocument();
+    expect(view.container.querySelector('.MuiChip-root')).toBeNull();
+    expect(screen.queryByText('8 lugares')).not.toBeInTheDocument();
+    view.rerender(<FloorplanDomRenderer {...props} />);
+    expect(screen.getByRole('button', { name: /Cambiar tamaño/ })).toBeInTheDocument();
+    expect(screen.getByText('8 lugares')).toBeInTheDocument();
+  });
+
   it('keeps mapped SVG geometry transparent, selects its shape and preserves manual stickers', () => {
     const mapped = { ...table, id: 'mapped', name: 'Mesa SVG', sourceElementId: 'private-source-id' };
     const onSelect = vi.fn();

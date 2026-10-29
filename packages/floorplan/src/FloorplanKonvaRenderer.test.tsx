@@ -130,6 +130,32 @@ const touchEvent = (touches: Array<{ clientX: number; clientY: number }>, preven
 });
 
 describe('FloorplanKonvaRenderer de producción', () => {
+  it('uses a transparent Trace reference with drag but no Sticker transformer, keeping the default editor', () => {
+    const onDraftChange = vi.fn();
+    const view = render(
+      <FloorplanKonvaRenderer
+        {...props({ draft: table, selectedId: table.id, tracePresentation: true, onDraftChange })}
+      />
+    );
+    const reference = latest('Circle', 'floorplan-trace-reference');
+    expect(reference.props.fill).toBe('rgba(0,0,0,0)');
+    expect(reference.props.shadowBlur).toBeUndefined();
+    expect(view.container.querySelector('[data-konva-type="Transformer"]')).toBeNull();
+    const editable = latest('Group', 'floorplan-editable-shape');
+    expect(editable.props.draggable).toBe(true);
+    act(() =>
+      (editable.props.onDragEnd as (event: object) => void)({
+        target: { ...editable.node, rotation: () => 0 },
+        evt: { preventDefault: vi.fn() }
+      })
+    );
+    expect(onDraftChange).toHaveBeenCalledOnce();
+    view.rerender(<FloorplanKonvaRenderer {...props({ draft: table, selectedId: table.id })} />);
+    expect(view.container.querySelector('[data-konva-type="Transformer"]')).not.toBeNull();
+    expect(view.container.querySelector('[data-konva-name="floorplan-trace-reference"]')).toBeNull();
+    expect(latest('Circle', 'floorplan-shape-body').props.fill).toBe(floorplanColors.paper);
+  });
+
   it('retains the SVG image and transparent mapped hit area alongside manual shapes', () => {
     const mapped = { ...table, id: 'mapped', sourceElementId: 'source-circle' };
     const onSelect = vi.fn();

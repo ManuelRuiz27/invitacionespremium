@@ -5,6 +5,7 @@ import { Alert, Box, Button, Chip, MenuItem, Stack, TextField, Typography } from
 import type { ReactNode } from 'react';
 
 export function AdminFloorplanPreparationHeader({
+  compact = false,
   locked,
   finalized,
   seatingMode,
@@ -26,6 +27,7 @@ export function AdminFloorplanPreparationHeader({
   onChangeLock,
   onRefresh
 }: {
+  compact?: boolean;
   locked: boolean;
   finalized: boolean;
   seatingMode: AdminFloorplan['seatingMode'];
@@ -47,13 +49,44 @@ export function AdminFloorplanPreparationHeader({
   onChangeLock: () => void;
   onRefresh: () => void;
 }) {
+  const controls = (
+    <>
+      <Chip label={`${elementCount} elementos · ${places} lugares`} variant="outlined" />
+      {finalized ? (
+        <Chip label={seatingMode === 'TABLE' ? 'Por mesa' : 'Por lugar exacto'} variant="outlined" />
+      ) : (
+        <TextField
+          select
+          size="small"
+          label="Acomodo"
+          value={seatingMode}
+          disabled={readOnly || editing}
+          onChange={(event) => onSeatingModeChange(event.target.value as 'TABLE' | 'SEAT')}
+          sx={{ minWidth: 148 }}
+        >
+          <MenuItem value="TABLE">Por mesa</MenuItem>
+          {!anonymousAccess ? <MenuItem value="SEAT">Por lugar exacto</MenuItem> : null}
+        </TextField>
+      )}
+      {sourceControl}
+      <Button
+        variant={locked ? 'contained' : 'outlined'}
+        startIcon={locked ? <LockOpenRounded /> : <LockRounded />}
+        disabled={pending || editing || hasPendingTables || accessEventReadOnly}
+        onClick={onChangeLock}
+        sx={{ minHeight: 44 }}
+      >
+        {locked ? 'Editar distribución' : 'Finalizar distribución'}
+      </Button>
+    </>
+  );
   return (
     <>
       <Stack
-        direction={{ xs: 'column', md: 'row' }}
+        direction={compact ? 'row' : { xs: 'column', md: 'row' }}
         useFlexGap
         spacing={1}
-        sx={{ alignItems: { md: 'center' }, justifyContent: 'space-between' }}
+        sx={{ alignItems: compact ? 'center' : { md: 'center' }, justifyContent: 'space-between' }}
       >
         <Box sx={{ flex: '1 1 auto', minWidth: 0 }}>
           <Typography id="admin-floorplan-title" component="h2" variant="h5">
@@ -94,33 +127,42 @@ export function AdminFloorplanPreparationHeader({
             variant="outlined"
             aria-live="polite"
           />
-          <Chip label={`${elementCount} elementos · ${places} lugares`} variant="outlined" />
-          {finalized ? (
-            <Chip label={seatingMode === 'TABLE' ? 'Por mesa' : 'Por lugar exacto'} variant="outlined" />
+          {compact ? (
+            <Box component="details" sx={{ position: 'relative' }}>
+              {compact ? (
+                <Typography component="summary" variant="body2" sx={{ cursor: 'pointer', p: 1.25 }}>
+                  Opciones del croquis
+                </Typography>
+              ) : null}
+              <Stack
+                direction="row"
+                useFlexGap
+                spacing={1}
+                sx={{
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  ...(compact
+                    ? {
+                        position: 'absolute',
+                        right: 0,
+                        top: '100%',
+                        width: 'min(440px, 85vw)',
+                        p: 2,
+                        bgcolor: 'background.paper',
+                        border: 1,
+                        borderColor: 'divider',
+                        boxShadow: 4,
+                        zIndex: 5
+                      }
+                    : {})
+                }}
+              >
+                {controls}
+              </Stack>
+            </Box>
           ) : (
-            <TextField
-              select
-              size="small"
-              label="Acomodo"
-              value={seatingMode}
-              disabled={readOnly || editing}
-              onChange={(event) => onSeatingModeChange(event.target.value as 'TABLE' | 'SEAT')}
-              sx={{ minWidth: 148 }}
-            >
-              <MenuItem value="TABLE">Por mesa</MenuItem>
-              {!anonymousAccess ? <MenuItem value="SEAT">Por lugar exacto</MenuItem> : null}
-            </TextField>
+            controls
           )}
-          {sourceControl}
-          <Button
-            variant={locked ? 'contained' : 'outlined'}
-            startIcon={locked ? <LockOpenRounded /> : <LockRounded />}
-            disabled={pending || editing || hasPendingTables || accessEventReadOnly}
-            onClick={onChangeLock}
-            sx={{ minHeight: 44 }}
-          >
-            {locked ? 'Editar distribución' : 'Finalizar distribución'}
-          </Button>
         </Stack>
       </Stack>
       {validationMessage ? <Alert severity="warning">{validationMessage}</Alert> : null}

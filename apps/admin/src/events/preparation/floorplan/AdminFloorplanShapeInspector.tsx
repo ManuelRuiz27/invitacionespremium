@@ -24,6 +24,7 @@ export function AdminFloorplanShapeInspector({
   disabled,
   capacityDerived,
   simple = false,
+  traceSeatCount,
   showTraceNextStep = false,
   mapped = false,
   onUnlink,
@@ -38,6 +39,7 @@ export function AdminFloorplanShapeInspector({
   disabled: boolean;
   capacityDerived: boolean;
   simple?: boolean;
+  traceSeatCount?: number;
   showTraceNextStep?: boolean;
   mapped?: boolean;
   onUnlink?: () => void;
@@ -50,6 +52,82 @@ export function AdminFloorplanShapeInspector({
   const [moreOptionsOpen, setMoreOptionsOpen] = useState(false);
   const table = value.kind === 'TABLE';
   const objectName = value.name || (table ? 'Mesa' : 'Zona');
+  if (simple)
+    return (
+      <Paper component="section" aria-label="Mesa en Calca" variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+        <Stack direction="row" useFlexGap spacing={1.5} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+          <Typography component="h3" variant="subtitle2">
+            {creating ? 'Nueva referencia' : 'Mesa seleccionada'}
+          </Typography>
+          <TextField
+            size="small"
+            label="Nombre o número"
+            value={value.name}
+            disabled={disabled}
+            onChange={(event) => onChange({ ...value, name: event.target.value })}
+            sx={{ width: 180 }}
+          />
+          {capacityDerived ? (
+            <Typography variant="body2" color="text.secondary">
+              {creating
+                ? 'La capacidad se calcula al definir los lugares.'
+                : `${traceSeatCount ?? value.capacity} lugares definidos`}
+            </Typography>
+          ) : (
+            <TextField
+              size="small"
+              label="Número de lugares"
+              type="number"
+              value={value.capacity}
+              disabled={disabled}
+              slotProps={{ htmlInput: { min: 1, step: 1 } }}
+              onChange={(event) => onChange({ ...value, capacity: Number(event.target.value) })}
+              sx={{ width: 150 }}
+            />
+          )}
+          <Button variant="contained" disabled={disabled} onClick={onSave} sx={{ minHeight: 44 }}>
+            {creating ? 'Agregar mesa' : 'Guardar cambios'}
+          </Button>
+          <Button disabled={disabled} onClick={onCancel} sx={{ minHeight: 44 }}>
+            Cancelar
+          </Button>
+          {showTraceNextStep ? (
+            <Button variant="outlined" disabled sx={{ minHeight: 44 }}>
+              Trazar lugares
+            </Button>
+          ) : null}
+          {onDuplicate || onDelete || onUnlink ? (
+            <Box component="details">
+              <Typography component="summary" variant="body2" sx={{ cursor: 'pointer', p: 1 }}>
+                Más opciones
+              </Typography>
+              <Stack direction="row" spacing={1}>
+                {onDuplicate ? (
+                  <Button disabled={disabled} onClick={onDuplicate}>
+                    Duplicar
+                  </Button>
+                ) : null}
+                {onDelete ? (
+                  <Button color="error" disabled={disabled} onClick={onDelete}>
+                    Eliminar mesa
+                  </Button>
+                ) : null}
+                {onUnlink ? (
+                  <Button disabled={disabled} onClick={onUnlink}>
+                    Desvincular del plano
+                  </Button>
+                ) : null}
+              </Stack>
+            </Box>
+          ) : null}
+        </Stack>
+        <Typography variant="caption" color="text.secondary">
+          {showTraceNextStep
+            ? 'Mesa preparada. El trazado de lugares aún no está disponible en Calca.'
+            : 'La referencia marca el mueble del plano. Arrástrala para ajustar su posición; guarda o cancela los cambios.'}
+        </Typography>
+      </Paper>
+    );
   return (
     <Paper component="section" variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
       <Stack spacing={2}>

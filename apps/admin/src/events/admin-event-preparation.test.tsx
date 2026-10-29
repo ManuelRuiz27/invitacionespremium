@@ -241,7 +241,9 @@ describe('Admin Event preparation surfaces', () => {
           ...(seatingMode === 'TABLE' ? { capacity: 6 } : {})
         })
       );
-      await userEvent.click(screen.getByRole('button', { name: 'Mesa Calca' }));
+      expect(floorplanHarness.props?.selectedId).toBe('trace-parent');
+      expect(screen.getByLabelText('Nombre o número')).toHaveValue('Mesa Calca');
+      expect(screen.queryByRole('presentation')).not.toBeInTheDocument();
       if (seatingMode === 'SEAT') {
         expect(screen.getByRole('button', { name: 'Trazar lugares' })).toBeDisabled();
         expect(screen.queryByRole('button', { name: 'Agregar lugar' })).not.toBeInTheDocument();
@@ -271,19 +273,77 @@ describe('Admin Event preparation surfaces', () => {
       await userEvent.click(screen.getByRole('button', { name: 'Agregar mesa' }));
       act(() => canvasPlace()({ x: 0.45, y: 0.5 }));
       expect(screen.getByText('Manual', { selector: 'button' })).toBeDisabled();
-      expect(screen.getByText('Calcar distribución', { selector: 'button' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Salir de Calca' })).toBeDisabled();
       await userEvent.click(enabledButton('Cancelar'));
       expect(api.adminEventPreparation.createFloorplanShape).not.toHaveBeenCalled();
       expectNoSeatWrites(api);
       await userEvent.click(await screen.findByRole('button', { name: parent.name }));
       expect(screen.getByRole('button', { name: 'Trazar lugares' })).toBeVisible();
       expect(screen.getByRole('button', { name: 'Trazar lugares' })).toBeDisabled();
+      expect(floorplanHarness.props?.tracePresentation).toBe(true);
+      expect(document.querySelector('.MuiModal-root .MuiBackdrop-root')).toBeNull();
       await userEvent.click(enabledButton('Cancelar'));
       await chooseManual();
       expect((await screen.findAllByRole('button', { name: 'Mesa redonda' }))[0]).toBeInTheDocument();
       expect(screen.getByTestId('admin-floorplan-surface')).toBe(canvas);
     }
   );
+
+  it.each([
+    { width: 1600, height: 1000 },
+    { width: 1000, height: 1600 },
+    { width: 1000, height: 1000 }
+  ])(
+    'centers a Trace reference at the clicked point on a $width × $height plan and cancels without writes',
+    async (size) => {
+      const api = preparedFloorplanApi(floorplan());
+      renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+      await userEvent.click(await screen.findByRole('button', { name: 'Calcar distribución' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Agregar mesa' }));
+      act(() =>
+        (
+          floorplanHarness.props?.onCanvasPlace as (
+            point: { x: number; y: number },
+            id: undefined,
+            size: { width: number; height: number }
+          ) => void
+        )({ x: 0.4, y: 0.5 }, undefined, size)
+      );
+      const draft = floorplanHarness.props?.draft as AdminFloorplanShape;
+      const side = 0.08 * Math.min(size.width, size.height);
+      expect(draft.x * size.width + side / 2).toBeCloseTo(0.4 * size.width);
+      expect(draft.y * size.height + side / 2).toBeCloseTo(0.5 * size.height);
+      await userEvent.click(enabledButton('Cancelar'));
+      expect(api.adminEventPreparation.createFloorplanShape).not.toHaveBeenCalled();
+      expectNoSeatWrites(api);
+    }
+  );
+
+  it('retains the confirmed Trace parent during refresh failure without replaying the write', async () => {
+    const initial = floorplan({ seatingMode: 'SEAT' });
+    const api = preparedFloorplanApi(initial);
+    const saved = shape({ id: 'confirmed-trace', name: 'Mesa confirmada' });
+    vi.mocked(api.adminEventPreparation.createFloorplanShape).mockResolvedValue(saved);
+    vi.mocked(api.adminEventPreparation.getFloorplan)
+      .mockResolvedValueOnce(initial)
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValue({ ...initial, shapes: [saved] });
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await userEvent.click(await screen.findByRole('button', { name: 'Calcar distribución' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Agregar mesa' }));
+    act(() => canvasPlace()({ x: 0.4, y: 0.5 }));
+    fireEvent.change(screen.getByLabelText('Nombre o número'), { target: { value: saved.name } });
+    fireEvent.click(enabledButton('Agregar mesa'));
+    await screen.findByText('Guardado · falta actualizar. La acción no se repetirá.');
+    expect(floorplanHarness.props?.selectedId).toBe(saved.id);
+    expect(screen.getByRole('button', { name: 'Trazar lugares' })).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Actualizar plano' }));
+    await waitFor(() => expect(api.adminEventPreparation.getFloorplan).toHaveBeenCalledTimes(3));
+    expect(floorplanHarness.props?.selectedId).toBe(saved.id);
+    expect(api.adminEventPreparation.createFloorplanShape).toHaveBeenCalledOnce();
+    expect(api.adminEventPreparation.updateFloorplanShape).not.toHaveBeenCalled();
+    expectNoSeatWrites(api);
+  });
 
   it('keeps an existing zero-capacity exact parent editable without creating a seat', async () => {
     const parent = shape({ capacity: 0, availableCapacity: 0 });

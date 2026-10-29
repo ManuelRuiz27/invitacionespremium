@@ -14,6 +14,7 @@ export interface FloorplanRendererProps {
   imageUrl: string;
   selectedId?: string | undefined;
   draft?: FloorplanShapeInput | undefined;
+  tracePresentation?: boolean | undefined;
   disabled: boolean;
   showSeats: boolean;
   snap: boolean;
@@ -21,7 +22,8 @@ export interface FloorplanRendererProps {
   readOnly?: boolean | undefined;
   onSelect: (shape: FloorplanShape) => void;
   onDraftChange: (shape: FloorplanShapeInput) => void;
-  onCanvasPlace?: ((point: { x: number; y: number }, pendingId?: string) => void) | undefined;
+  onCanvasPlace?:
+    ((point: { x: number; y: number }, pendingId?: string, canvasSize?: RenderedSize) => void) | undefined;
   captureCanvasClicks?: boolean | undefined;
   selectedSeatId?: string | undefined;
   selectedSeatIds?: readonly string[] | undefined;
@@ -192,6 +194,7 @@ export function FloorplanDomRenderer(props: FloorplanRendererProps) {
             disabled={props.disabled || Boolean(props.draft) || Boolean(props.captureCanvasClicks)}
             readOnly={props.readOnly}
             showSeats={props.showSeats}
+            tracePresentation={props.tracePresentation}
             onClick={() => props.onSelect(shape)}
           />
         );
@@ -218,6 +221,7 @@ export function FloorplanDomRenderer(props: FloorplanRendererProps) {
           snap={props.snap}
           ownerRef={ownerRef}
           showSeats={props.showSeats}
+          tracePresentation={props.tracePresentation}
           onChange={props.onDraftChange}
         />
       ) : null}
@@ -351,6 +355,7 @@ function ShapeButton({
   disabled,
   readOnly,
   showSeats,
+  tracePresentation,
   onClick
 }: {
   shape: FloorplanShape;
@@ -359,6 +364,7 @@ function ShapeButton({
   disabled: boolean;
   readOnly?: boolean | undefined;
   showSeats: boolean;
+  tracePresentation?: boolean | undefined;
   onClick: () => void;
 }) {
   const kind = shape.kind === 'TABLE' ? 'Mesa' : 'Zona';
@@ -378,7 +384,11 @@ function ShapeButton({
         borderStyle: 'solid',
         borderColor: selected ? 'warning.main' : shape.kind === 'TABLE' ? 'primary.dark' : 'warning.dark',
         bgcolor: 'transparent',
-        boxShadow: selected ? '0 0 0 3px rgba(245, 158, 11, 0.4), 0 0 14px rgba(245, 158, 11, 0.6)' : undefined,
+        borderRadius: tracePresentation && shape.geometry === 'CIRCLE' ? '50%' : undefined,
+        boxShadow:
+          !tracePresentation && selected
+            ? '0 0 0 3px rgba(245, 158, 11, 0.4), 0 0 14px rgba(245, 158, 11, 0.6)'
+            : undefined,
         transform: `rotate(${shape.rotation}deg)`,
         transformOrigin: 'center',
         cursor: disabled ? 'default' : 'pointer',
@@ -387,7 +397,13 @@ function ShapeButton({
         '&:focus-visible': { outline: '3px solid', outlineColor: 'warning.main', outlineOffset: 3 }
       }}
     >
-      <ShapeSurface shape={shape} selected={selected} showSeats={showSeats} colorKey={shape.id} />
+      <ShapeSurface
+        tracePresentation={tracePresentation}
+        shape={shape}
+        selected={selected}
+        showSeats={showSeats}
+        colorKey={shape.id}
+      />
     </Box>
   );
 }
@@ -396,16 +412,38 @@ function ShapeSurface({
   shape,
   selected,
   showSeats,
-  colorKey
+  colorKey,
+  tracePresentation
 }: {
   shape: FloorplanShapeInput;
   selected: boolean;
   showSeats: boolean;
   colorKey: string;
+  tracePresentation?: boolean | undefined;
 }) {
   const table = shape.kind === 'TABLE';
   const background = stickerColor(colorKey, !table);
   const seats = table && showSeats ? visualSeats(shape.geometry, shape.capacity, 100, 100, 10) : [];
+  if (tracePresentation && table)
+    return (
+      <Typography
+        component="span"
+        variant="caption"
+        sx={{
+          position: 'absolute',
+          bottom: 'calc(100% + 4px)',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          whiteSpace: 'nowrap',
+          bgcolor: 'rgba(255,255,255,.9)',
+          color: 'primary.dark',
+          px: 0.5,
+          lineHeight: 1.5
+        }}
+      >
+        {shape.name || 'Nueva mesa'}
+      </Typography>
+    );
   return (
     <>
       {seats.map((seat, index) => (
@@ -459,6 +497,7 @@ function EditableShape({
   snap,
   ownerRef,
   showSeats,
+  tracePresentation,
   onChange
 }: {
   shape: FloorplanShapeInput;
@@ -467,6 +506,7 @@ function EditableShape({
   snap: boolean;
   ownerRef: React.RefObject<HTMLDivElement | null>;
   showSeats: boolean;
+  tracePresentation?: boolean | undefined;
   onChange: (shape: FloorplanShapeInput) => void;
 }) {
   const [preview, setPreview] = useState(shape);
@@ -571,7 +611,8 @@ function EditableShape({
         transform: `rotate(${preview.rotation}deg)`,
         transformOrigin: 'center',
         border: '3px solid',
-        borderColor: 'warning.dark',
+        borderColor: tracePresentation ? 'primary.main' : 'warning.dark',
+        borderRadius: tracePresentation && preview.geometry === 'CIRCLE' ? '50%' : undefined,
         zIndex: 3,
         overflow: 'visible'
       }}
@@ -581,42 +622,50 @@ function EditableShape({
         onPointerDown={(event) => startPointer(event, 'move')}
         sx={{ position: 'absolute', inset: 0, cursor: disabled ? 'default' : 'move', touchAction: 'none' }}
       >
-        <ShapeSurface shape={preview} selected showSeats={showSeats} colorKey={preview.name} />
+        <ShapeSurface
+          tracePresentation={tracePresentation}
+          shape={preview}
+          selected
+          showSeats={showSeats}
+          colorKey={preview.name}
+        />
       </Box>
-      <Box
-        component="button"
-        type="button"
-        disabled={disabled}
-        aria-label={`Cambiar tamaño de ${preview.name || (preview.kind === 'TABLE' ? 'la mesa' : 'la zona')}`}
-        onPointerDown={(event) => {
-          event.stopPropagation();
-          startPointer(event, 'resize');
-        }}
-        sx={{
-          position: 'absolute',
-          right: -22,
-          bottom: -22,
-          width: 44,
-          height: 44,
-          p: 0,
-          border: 0,
-          bgcolor: 'transparent',
-          cursor: disabled ? 'default' : 'nwse-resize',
-          touchAction: 'none',
-          '&::after': {
-            content: '""',
+      {!tracePresentation ? (
+        <Box
+          component="button"
+          type="button"
+          disabled={disabled}
+          aria-label={`Cambiar tamaño de ${preview.name || (preview.kind === 'TABLE' ? 'la mesa' : 'la zona')}`}
+          onPointerDown={(event) => {
+            event.stopPropagation();
+            startPointer(event, 'resize');
+          }}
+          sx={{
             position: 'absolute',
-            right: 8,
-            bottom: 8,
-            width: 13,
-            height: 13,
-            borderRight: '4px solid',
-            borderBottom: '4px solid',
-            borderColor: 'warning.dark'
-          },
-          '&:focus-visible': { outline: '3px solid', outlineColor: 'warning.main' }
-        }}
-      />
+            right: -22,
+            bottom: -22,
+            width: 44,
+            height: 44,
+            p: 0,
+            border: 0,
+            bgcolor: 'transparent',
+            cursor: disabled ? 'default' : 'nwse-resize',
+            touchAction: 'none',
+            '&::after': {
+              content: '""',
+              position: 'absolute',
+              right: 8,
+              bottom: 8,
+              width: 13,
+              height: 13,
+              borderRight: '4px solid',
+              borderBottom: '4px solid',
+              borderColor: 'warning.dark'
+            },
+            '&:focus-visible': { outline: '3px solid', outlineColor: 'warning.main' }
+          }}
+        />
+      ) : null}
       {preview.geometry === 'POLYGON'
         ? preview.polygonPoints?.map((point, index) => (
             <Box
