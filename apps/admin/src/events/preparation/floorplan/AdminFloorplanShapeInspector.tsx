@@ -23,6 +23,8 @@ export function AdminFloorplanShapeInspector({
   value,
   disabled,
   capacityDerived,
+  simple = false,
+  showTraceNextStep = false,
   mapped = false,
   onUnlink,
   onChange,
@@ -35,6 +37,8 @@ export function AdminFloorplanShapeInspector({
   value: AdminFloorplanShapeInput;
   disabled: boolean;
   capacityDerived: boolean;
+  simple?: boolean;
+  showTraceNextStep?: boolean;
   mapped?: boolean;
   onUnlink?: () => void;
   onChange: (value: AdminFloorplanShapeInput) => void;
@@ -83,7 +87,7 @@ export function AdminFloorplanShapeInspector({
         />
         {table && capacityDerived ? (
           <Typography variant="body2" color="text.secondary">
-            {value.capacity} lugares
+            {creating ? 'La capacidad se calcula al definir los lugares.' : `${value.capacity} lugares`}
           </Typography>
         ) : table ? (
           <TextField
@@ -97,7 +101,7 @@ export function AdminFloorplanShapeInspector({
         ) : null}
         {mapped ? (
           <Chip label="Vinculado al plano" variant="outlined" />
-        ) : (
+        ) : !simple ? (
           <TextField
             select
             label="Forma"
@@ -126,7 +130,7 @@ export function AdminFloorplanShapeInspector({
                 </MenuItem>
               ))}
           </TextField>
-        )}
+        ) : null}
         {onUnlink ? (
           <Stack spacing={0.5} sx={{ alignItems: 'flex-start' }}>
             <Button size="small" disabled={disabled} onClick={() => setMoreOptionsOpen((open) => !open)}>
@@ -147,6 +151,16 @@ export function AdminFloorplanShapeInspector({
             Cancelar
           </Button>
         </Stack>
+        {showTraceNextStep ? (
+          <Stack spacing={0.75}>
+            <Button variant="outlined" disabled sx={{ minHeight: 44 }}>
+              Trazar lugares
+            </Button>
+            <Typography variant="caption" color="text.secondary">
+              Mesa preparada. El trazado de lugares aún no está disponible en Calca.
+            </Typography>
+          </Stack>
+        ) : null}
         {onDuplicate ? (
           <Button startIcon={<ContentCopyRounded />} disabled={disabled} onClick={onDuplicate} sx={{ minHeight: 44 }}>
             Duplicar

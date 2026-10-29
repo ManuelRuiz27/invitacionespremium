@@ -87,6 +87,7 @@ describe('Admin Event preparation surfaces', () => {
       // The first direct builder navigation also loads the lazy preparation route.
       await screen.findByTestId('admin-floorplan-surface', {}, { timeout: 10_000 });
       await waitFor(() => expect(floorplanHarness.props?.svgSource).toBeDefined());
+      await userEvent.click(screen.getByRole('button', { name: 'Mapeo SVG' }));
       act(() => (floorplanHarness.props!.onSourceSelect as (id: string) => void)('private-circle'));
       expect(await screen.findByRole('heading', { name: 'Clasificar Mesa' })).toBeInTheDocument();
       expect(screen.getByText('Nuevo elemento del plano')).toBeInTheDocument();
@@ -146,6 +147,7 @@ describe('Admin Event preparation surfaces', () => {
     });
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
     await waitFor(() => expect(floorplanHarness.props?.svgSource).toBeDefined());
+    await userEvent.click(screen.getByRole('button', { name: 'Mapeo SVG' }));
     act(() => (floorplanHarness.props!.onSourceSelect as (id: string) => void)('private-path'));
     await userEvent.click(screen.getByRole('combobox', { name: 'Tipo de elemento' }));
     for (const name of ['Mesa', 'Pista', 'DJ / escenario', 'Baños', 'Barra', 'Entrada', 'Zona']) {
@@ -179,6 +181,140 @@ describe('Admin Event preparation surfaces', () => {
     });
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
   });
+  it.each(
+    (
+      [
+        { mime: 'image/jpeg', sourceType: 'RASTER' },
+        { mime: 'image/png', sourceType: 'RASTER' },
+        { mime: 'image/svg+xml', sourceType: 'SVG' }
+      ] as const
+    ).flatMap((source) => (['TABLE', 'SEAT'] as const).map((seatingMode) => ({ ...source, seatingMode })))
+  )(
+    'reopens $mime in $seatingMode and creates one Trace parent without seats or selection writes',
+    async ({ mime, sourceType, seatingMode }) => {
+      let current = floorplan({
+        seatingMode,
+        image: { fileAssetId: 'trace-source', contentPath: '/private', sourceType }
+      });
+      const api = preparedFloorplanApi(current);
+      vi.mocked(api.adminEventPreparation.floorplanAssetContent).mockResolvedValue(new Blob(['plan'], { type: mime }));
+      vi.mocked(api.adminEventPreparation.getFloorplanSvgSource).mockResolvedValue(svgSource('trace-source'));
+      vi.mocked(api.adminEventPreparation.createFloorplanShape).mockImplementation(
+        async (_clientId, _eventId, input) => {
+          const created = shape({ ...input, id: 'trace-parent' });
+          current = { ...current, shapes: [created] };
+          vi.mocked(api.adminEventPreparation.getFloorplan).mockResolvedValue(current);
+          return created;
+        }
+      );
+      const view = renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+      const canvas = await screen.findByTestId('admin-floorplan-surface');
+      expect(screen.getByRole('heading', { name: 'Plano listo para calcar' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Mesa redonda' })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Mapeo SVG' })).toHaveProperty('disabled', sourceType !== 'SVG');
+      await userEvent.click(screen.getByRole('button', { name: 'Calcar distribución' }));
+      expect(screen.getByTestId('admin-floorplan-surface')).toBe(canvas);
+      expect(api.adminEventPreparation.createFloorplanShape).not.toHaveBeenCalled();
+      await userEvent.click(screen.getByRole('button', { name: 'Agregar mesa' }));
+      expect(floorplanHarness.props?.captureCanvasClicks).toBe(true);
+      expect(api.adminEventPreparation.createFloorplanShape).not.toHaveBeenCalled();
+      act(() => canvasPlace()({ x: 0.4, y: 0.5 }));
+      fireEvent.change((await screen.findAllByLabelText('Nombre o número')).at(-1)!, {
+        target: { value: 'Mesa Calca' }
+      });
+      expect(screen.queryByLabelText('Forma')).not.toBeInTheDocument();
+      if (seatingMode === 'TABLE') {
+        fireEvent.change(screen.getAllByLabelText('Número de lugares').at(-1)!, { target: { value: '6' } });
+      } else {
+        expect(screen.queryByLabelText('Número de lugares')).not.toBeInTheDocument();
+        expect(screen.getByText('La capacidad se calcula al definir los lugares.')).toBeInTheDocument();
+      }
+      const save = enabledButton('Agregar mesa');
+      fireEvent.click(save);
+      fireEvent.click(save);
+      await waitFor(() => expect(api.adminEventPreparation.getFloorplan).toHaveBeenCalledTimes(2));
+      expect(api.adminEventPreparation.createFloorplanShape).toHaveBeenCalledOnce();
+      expect(vi.mocked(api.adminEventPreparation.createFloorplanShape).mock.calls[0]![2]).toEqual(
+        expect.objectContaining({
+          name: 'Mesa Calca',
+          kind: 'TABLE',
+          ...(seatingMode === 'TABLE' ? { capacity: 6 } : {})
+        })
+      );
+      await userEvent.click(screen.getByRole('button', { name: 'Mesa Calca' }));
+      if (seatingMode === 'SEAT') {
+        expect(screen.getByRole('button', { name: 'Trazar lugares' })).toBeDisabled();
+        expect(screen.queryByRole('button', { name: 'Agregar lugar' })).not.toBeInTheDocument();
+        expect(floorplanHarness.props?.onSeatMove).toBeUndefined();
+      }
+      expectNoSeatWrites(api);
+      view.unmount();
+      renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+      await userEvent.click(await screen.findByRole('button', { name: 'Calcar distribución' }));
+      await userEvent.click(await screen.findByRole('button', { name: 'Mesa Calca' }));
+      expect(api.adminEventPreparation.createFloorplanShape).toHaveBeenCalledOnce();
+      expect(api.adminEventPreparation.updateFloorplanShape).not.toHaveBeenCalled();
+      expect(api.adminEventPreparation.setFloorplanSeatingMode).not.toHaveBeenCalled();
+      expectNoSeatWrites(api);
+    }
+  );
+
+  it.each([1440, 1024])(
+    'keeps the same canvas and Manual available after canceling a Trace draft at width %d',
+    async (width) => {
+      setAdminViewportWidth(width);
+      const parent = shape({ id: 'existing-trace-parent', capacity: 0, availableCapacity: 0 });
+      const api = preparedFloorplanApi(floorplan({ seatingMode: 'SEAT', shapes: [parent] }));
+      renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+      const canvas = await screen.findByTestId('admin-floorplan-surface');
+      await userEvent.click(screen.getByRole('button', { name: 'Calcar distribución' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Agregar mesa' }));
+      act(() => canvasPlace()({ x: 0.45, y: 0.5 }));
+      expect(screen.getByText('Manual', { selector: 'button' })).toBeDisabled();
+      expect(screen.getByText('Calcar distribución', { selector: 'button' })).toBeDisabled();
+      await userEvent.click(enabledButton('Cancelar'));
+      expect(api.adminEventPreparation.createFloorplanShape).not.toHaveBeenCalled();
+      expectNoSeatWrites(api);
+      await userEvent.click(await screen.findByRole('button', { name: parent.name }));
+      expect(screen.getByRole('button', { name: 'Trazar lugares' })).toBeVisible();
+      expect(screen.getByRole('button', { name: 'Trazar lugares' })).toBeDisabled();
+      await userEvent.click(enabledButton('Cancelar'));
+      await chooseManual();
+      expect((await screen.findAllByRole('button', { name: 'Mesa redonda' }))[0]).toBeInTheDocument();
+      expect(screen.getByTestId('admin-floorplan-surface')).toBe(canvas);
+    }
+  );
+
+  it('keeps an existing zero-capacity exact parent editable without creating a seat', async () => {
+    const parent = shape({ capacity: 0, availableCapacity: 0 });
+    const api = preparedFloorplanApi(floorplan({ seatingMode: 'SEAT', shapes: [parent] }));
+    vi.mocked(api.adminEventPreparation.updateFloorplanShape).mockResolvedValue({ ...parent, name: 'Mesa padre' });
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await userEvent.click(await screen.findByRole('button', { name: parent.name }));
+    fireEvent.change(screen.getAllByLabelText('Nombre o número').at(-1)!, { target: { value: 'Mesa padre' } });
+    await userEvent.click(enabledButton('Guardar cambios'));
+    await waitFor(() => expect(api.adminEventPreparation.updateFloorplanShape).toHaveBeenCalledOnce());
+    expect(vi.mocked(api.adminEventPreparation.updateFloorplanShape).mock.calls[0]![3]).toEqual(
+      expect.objectContaining({ name: 'Mesa padre', capacity: 0 })
+    );
+    expectNoSeatWrites(api);
+  });
+
+  it('keeps decorative-zone editing in Manual while Calca selects only parent tables', async () => {
+    const zone = shape({ id: 'zone-trace', name: 'Pista', kind: 'DECORATIVE_ZONE', capacity: 0 });
+    const api = preparedFloorplanApi(floorplan({ shapes: [zone] }));
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await userEvent.click(await screen.findByRole('button', { name: 'Calcar distribución' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Pista' }));
+    expect(screen.queryByLabelText('Nombre de zona')).not.toBeInTheDocument();
+    await chooseManual();
+    await userEvent.click(within(screen.getByTestId('admin-floorplan-surface')).getByRole('button', { name: 'Pista' }));
+    expect(screen.getAllByLabelText('Nombre de zona').at(-1)).toHaveValue('Pista');
+    expect(api.adminEventPreparation.createFloorplanShape).not.toHaveBeenCalled();
+    expect(api.adminEventPreparation.updateFloorplanShape).not.toHaveBeenCalled();
+    expectNoSeatWrites(api);
+  });
+
   it('offers preparation only for non-deleted Events', async () => {
     const api = mockAdminApi();
     const view = renderAdminApp(api, `/eventos/${adminEvent.id}`);
@@ -865,6 +1001,7 @@ describe('Admin Event preparation surfaces', () => {
     const zone = shape({ id: 'zone-a', name: 'Pista', kind: 'DECORATIVE_ZONE', capacity: 0, geometry: 'RECTANGLE' });
     const api = preparedFloorplanApi(floorplan({ shapes: [zone] }));
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await chooseManual();
     await userEvent.click(
       within(await screen.findByTestId('admin-floorplan-surface')).getByRole('button', { name: 'Pista' })
     );
@@ -877,6 +1014,7 @@ describe('Admin Event preparation surfaces', () => {
     const api = preparedFloorplanApi();
     vi.mocked(api.adminEventPreparation.createFloorplanShape).mockResolvedValue(shape());
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await chooseManual();
     await userEvent.click((await screen.findAllByRole('button', { name: 'Mesa redonda' }))[0]!);
     expect(api.adminEventPreparation.createFloorplanShape).not.toHaveBeenCalled();
     act(() => canvasPlace()({ x: 0.5, y: 0.5 }));
@@ -1002,6 +1140,7 @@ describe('Admin Event preparation surfaces', () => {
     );
     vi.mocked(api.adminEventPreparation.getFloorplan).mockResolvedValueOnce(floorplan()).mockResolvedValue(locked);
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await chooseManual();
     await userEvent.click(await screen.findByRole('button', { name: 'Finalizar distribución' }));
     expect((await screen.findAllByRole('button', { name: 'Mesa redonda' }))[0]).toBeDisabled();
     expect(screen.getByLabelText('Acomodo')).toBeInTheDocument();
@@ -1021,6 +1160,7 @@ describe('Admin Event preparation surfaces', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Editar distribución' }));
     await waitFor(() => expect(floorplanHarness.props?.disabled).toBe(false));
     expect(floorplanHarness.props?.readOnly).toBe(false);
+    await chooseManual();
     expect((await screen.findAllByRole('button', { name: 'Mesa redonda' }))[0]).toBeEnabled();
     expect(screen.getByLabelText('Acomodo')).toHaveTextContent('Por lugar exacto');
     expect(screen.getByRole('button', { name: 'Cambiar plano' })).toBeInTheDocument();
@@ -1151,6 +1291,7 @@ describe('Admin Event preparation surfaces', () => {
     await screen.findByTestId('admin-floorplan-surface');
     expect((floorplanHarness.props?.floorplan as AdminFloorplan).shapes).toHaveLength(count);
     expect(screen.getAllByTestId('admin-floorplan-surface')).toHaveLength(1);
+    await chooseManual();
     expect((await screen.findAllByRole('button', { name: 'Mesa redonda' }))[0]).toBeEnabled();
     expect(api.adminEventPreparation.getFloorplan).toHaveBeenCalledOnce();
   });
@@ -1205,8 +1346,8 @@ describe('Admin Event preparation surfaces', () => {
     const api = preparedFloorplanApi(floorplan({ shapes: scaleAdminShapes(200) }));
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
     expect(await screen.findByTestId('admin-floorplan-surface', {}, { timeout: 10_000 })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Agregar mesa o zona' })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Agregar mesa o zona' }));
+    expect(screen.queryByRole('button', { name: 'Mesa redonda' })).not.toBeInTheDocument();
+    await chooseManual();
     expect((await screen.findAllByRole('button', { name: 'Mesa redonda' }))[0]).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Preparar dos mesas' })).toBeInTheDocument();
   });
@@ -1214,6 +1355,7 @@ describe('Admin Event preparation surfaces', () => {
   it('keeps multi-table inventory available from the provider palette', async () => {
     const api = preparedFloorplanApi();
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await chooseManual();
     await userEvent.click((await screen.findAllByRole('button', { name: 'Crear varias mesas' }))[0]!);
     await userEvent.click(screen.getByRole('button', { name: 'Preparar dos mesas' }));
     expect(await screen.findByText('Mesas pendientes')).toBeInTheDocument();
@@ -1308,6 +1450,7 @@ describe('Admin Event preparation surfaces', () => {
       name: 'Pista 2'
     });
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await chooseManual();
     await userEvent.click(
       within(await screen.findByTestId('admin-floorplan-surface')).getByRole('button', { name: zone.name })
     );
@@ -1428,6 +1571,7 @@ describe('Admin Event preparation surfaces', () => {
   it('keeps pending inventory dirty until its local work is resolved', async () => {
     const api = preparedFloorplanApi();
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await chooseManual();
     await userEvent.click((await screen.findAllByRole('button', { name: 'Crear varias mesas' }))[0]!);
     await userEvent.click(screen.getByRole('button', { name: 'Preparar dos mesas' }));
     await screen.findByText('Cambios sin guardar');
@@ -1502,6 +1646,7 @@ describe('Admin Event preparation surfaces', () => {
       floorplan({ seatingMode: 'SEAT', shapes: [table], seats: [firstSeat!, secondSeat!] })
     );
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await chooseManual();
     await screen.findByTestId('admin-floorplan-surface');
 
     act(() => {
@@ -1553,6 +1698,7 @@ describe('Admin Event preparation surfaces', () => {
       .mockResolvedValueOnce(reloaded);
     vi.mocked(api.adminEventPreparation.updateFloorplanSeat).mockResolvedValue({ ...seat, isBlocked: true });
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await chooseManual();
     await userEvent.click(await screen.findByRole('button', { name: seat.label }));
     await userEvent.click(screen.getByRole('button', { name: 'Bloquear' }));
     await waitFor(() => expect(floorplanHarness.props?.floorplan).toEqual(reloaded));
@@ -1616,6 +1762,7 @@ describe('Admin Event preparation surfaces', () => {
     });
     vi.mocked(api.adminEventPreparation.removeFloorplanSeat).mockResolvedValue(undefined);
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await chooseManual();
     await screen.findByTestId('admin-floorplan-surface');
     await userEvent.click(await screen.findByRole('button', { name: seat.label }));
     await userEvent.click(screen.getByRole('button', { name: 'Renombrar' }));
@@ -1680,6 +1827,7 @@ describe('Admin Event preparation surfaces', () => {
     vi.mocked(api.adminEventPreparation.updateFloorplanSeat).mockResolvedValue({ ...seat, label: 'Lugar de honor' });
 
     renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await chooseManual();
     await screen.findByTestId('admin-floorplan-surface');
     await userEvent.click(await screen.findByRole('button', { name: seat.label }));
     expect(await screen.findByText('Lugar 1 · Mesa de honor')).toBeInTheDocument();
@@ -1735,6 +1883,7 @@ describe('Admin Event preparation surfaces', () => {
       renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
     });
     await screen.findByTestId('admin-floorplan-surface');
+    await chooseManual();
     await act(async () => {
       (floorplanHarness.props?.onSeatSelect as (seatId: string, options: { additive: boolean }) => void)('seat-s1', {
         additive: false
@@ -1908,9 +2057,23 @@ function canvasPlace() {
 }
 
 async function chooseStickerAndPlace(label: string, point = { x: 0.5, y: 0.5 }) {
+  await chooseManual();
   await userEvent.click((await screen.findAllByRole('button', { name: label }))[0]!);
   expect(canvasPlace()).toEqual(expect.any(Function));
   act(() => canvasPlace()(point));
+}
+
+async function chooseManual() {
+  const button = await screen.findByRole('button', { name: 'Manual' });
+  if (button.getAttribute('aria-pressed') !== 'true') await userEvent.click(button);
+}
+
+function expectNoSeatWrites(api: ReturnType<typeof preparedFloorplanApi>) {
+  expect(api.adminEventPreparation.createFloorplanSeat).not.toHaveBeenCalled();
+  expect(api.adminEventPreparation.updateFloorplanSeat).not.toHaveBeenCalled();
+  expect(api.adminEventPreparation.batchFloorplanSeats).not.toHaveBeenCalled();
+  expect(api.adminEventPreparation.renumberFloorplanSeats).not.toHaveBeenCalled();
+  expect(api.adminEventPreparation.removeFloorplanSeat).not.toHaveBeenCalled();
 }
 
 function catalogPrice(serviceId: string, serviceCode: AdminPrice['serviceCode']): AdminPrice {

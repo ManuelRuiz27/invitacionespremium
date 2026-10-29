@@ -56,6 +56,7 @@ import {
   AdminFloorplanUploadButton
 } from './AdminFloorplanSourceControls';
 import { AdminFloorplanSvgMappingInspector } from './AdminFloorplanSvgMappingInspector';
+import { AdminFloorplanTraceEntry, type FloorplanConstructionTool } from './AdminFloorplanTraceEntry';
 
 type EditorMode = 'idle' | 'mapping-source' | 'placing-preset' | 'placing-seat' | 'creating-draft' | 'editing-existing';
 type Mutation = 'uploading' | 'saving' | 'duplicating' | 'deleting' | 'locking' | 'unlocking' | 'placing' | 'seating';
@@ -91,6 +92,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   const [loading, setLoading] = useState(event.floorplanEnabled);
   const [loadError, setLoadError] = useState(false);
   const [mode, setMode] = useState<EditorMode>('idle');
+  const [constructionTool, setConstructionTool] = useState<FloorplanConstructionTool>('entry');
   const [selectedId, setSelectedId] = useState<string>();
   const [selectedSeatId, setSelectedSeatId] = useState<string>();
   const [selectedSeatIds, setSelectedSeatIds] = useState<string[]>([]);
@@ -213,6 +215,12 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     setSelectedPresetId(undefined);
     setDraft(emptyDraft());
     setInspectorOpen(false);
+  };
+  const chooseConstructionTool = (tool: FloorplanConstructionTool) => {
+    if (readOnly || dirty || refreshRequired || reconciliationError) return;
+    if (constructionTool !== tool) cancel();
+    setConstructionTool(tool);
+    setCompactCatalogOpen(tool === 'manual' && compactLayout);
   };
 
   useEffect(() => {
@@ -337,6 +345,8 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   };
   const selectShape = (shape: AdminFloorplanShape) => {
     if (editing || floorplan?.locked || pending) return;
+    if ((constructionTool === 'entry' || constructionTool === 'trace') && shape.kind !== 'TABLE') return;
+    if (constructionTool === 'entry') setConstructionTool('trace');
     setSelectedPresetId(undefined);
     setSelectedId(shape.id);
     setSelectedSourceElementId(shape.sourceElementId ?? undefined);
@@ -576,6 +586,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     setFloorplan(updated);
     setNotFound(false);
     cancel();
+    setConstructionTool('entry');
     await refreshAfterConfirmedMutation();
   };
   const requestUpload = async (file: File) => {
@@ -597,7 +608,11 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
       );
       return;
     }
-    if (draft.kind === 'TABLE' && (!Number.isInteger(draft.capacity) || draft.capacity < 1)) {
+    if (
+      draft.kind === 'TABLE' &&
+      floorplan?.seatingMode !== 'SEAT' &&
+      (!Number.isInteger(draft.capacity) || draft.capacity < 1)
+    ) {
       showValidationMessage('Indica un número de lugares mayor a cero.');
       return;
     }
@@ -841,6 +856,10 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
         mapped={Boolean(selected?.sourceElementId)}
         {...(selected?.sourceElementId ? { onUnlink: () => void unlinkSource() } : {})}
         capacityDerived={floorplan?.seatingMode === 'SEAT'}
+        simple={constructionTool === 'trace' && draft.kind === 'TABLE'}
+        showTraceNextStep={
+          constructionTool === 'trace' && floorplan.seatingMode === 'SEAT' && selected?.kind === 'TABLE'
+        }
         onChange={setDraft}
         onSave={() => void save()}
         {...(selected ? { onDuplicate: () => void duplicate(), onDelete: () => void remove() } : {})}
@@ -875,18 +894,36 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
         onChangeLock={() => void changeLock()}
         onRefresh={() => void refreshAuthoritative()}
       />
+      {!finalized && imageUrl ? (
+        <AdminFloorplanTraceEntry
+          tool={constructionTool}
+          disabled={readOnly || dirty || refreshRequired || reconciliationError}
+          canAddTable={!readOnly && !editing && !refreshRequired && !reconciliationError && !pendingTables.length}
+          svgAvailable={floorplan.image.sourceType === 'SVG'}
+          selectedTableName={selected?.kind === 'TABLE' ? selected.name : undefined}
+          onToolChange={chooseConstructionTool}
+          onAddTable={() => selectPreset('round-table')}
+        />
+      ) : null}
       <Box
         sx={{
           display: 'grid',
           gridTemplateColumns: {
             xs: 'minmax(0, 1fr)',
-            lg: finalized ? 'minmax(0, 1fr)' : inspector ? '248px minmax(0, 1fr) 320px' : '248px minmax(0, 1fr)'
+            lg:
+              !finalized && constructionTool === 'manual'
+                ? inspector
+                  ? '248px minmax(0, 1fr) 320px'
+                  : '248px minmax(0, 1fr)'
+                : inspector
+                  ? 'minmax(0, 1fr) 320px'
+                  : 'minmax(0, 1fr)'
           },
           gap: 1.5,
           alignItems: 'start'
         }}
       >
-        {!finalized ? (
+        {!finalized && constructionTool === 'manual' ? (
           <Box component="aside" sx={{ px: 0.5, display: { xs: 'none', lg: 'block' } }}>
             <Stack spacing={1.5}>
               <Palette
@@ -920,7 +957,11 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
                 : 'Haz click o toca el punto del plano donde quieres colocar el elemento.'}
             </Alert>
           ) : null}
-          {!finalized && floorplan.seatingMode === 'SEAT' && selected?.kind === 'TABLE' ? (
+          {!finalized &&
+          constructionTool !== 'entry' &&
+          constructionTool !== 'trace' &&
+          floorplan.seatingMode === 'SEAT' &&
+          selected?.kind === 'TABLE' ? (
             <AdminFloorplanSeatControls
               readOnly={readOnly}
               placingSeat={mode === 'placing-seat'}
@@ -954,7 +995,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
               readOnly={finalized}
               onSelect={selectShape}
               onSeatSelect={(seatId, options) => {
-                if (editing || readOnly) return;
+                if (editing || readOnly || constructionTool === 'entry' || constructionTool === 'trace') return;
                 const seat = floorplan.seats.find((candidate) => candidate.id === seatId);
                 if (!seat) return;
                 setSelectedId(seat.floorplanShapeId);
@@ -972,11 +1013,17 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
               onCanvasPlace={
                 mode === 'placing-preset' || mode === 'placing-seat' || pendingTables.length ? placeOnCanvas : undefined
               }
-              captureCanvasClicks={mode === 'placing-seat'}
-              onSeatMove={(seatId, point) => void moveSeat(seatId, point)}
+              captureCanvasClicks={
+                mode === 'placing-seat' || (constructionTool === 'trace' && mode === 'placing-preset')
+              }
+              onSeatMove={
+                constructionTool === 'manual' || constructionTool === 'svg'
+                  ? (seatId, point) => void moveSeat(seatId, point)
+                  : undefined
+              }
               svgSource={svgSource}
               selectedSourceElementId={selectedSourceElementId}
-              onSourceSelect={selectSource}
+              onSourceSelect={constructionTool === 'svg' ? selectSource : undefined}
               dock={
                 !finalized && mode === 'idle' ? (
                   <FloorplanTray
@@ -1005,7 +1052,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
           </Box>
         ) : null}
       </Box>
-      {!finalized ? (
+      {!finalized && constructionTool === 'manual' ? (
         <Box sx={{ display: { xs: 'block', lg: 'none' } }}>
           <Button
             variant="outlined"
