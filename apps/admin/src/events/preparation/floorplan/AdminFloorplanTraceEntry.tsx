@@ -6,13 +6,19 @@ export function AdminFloorplanTraceEntry({
   tool,
   disabled,
   canAddTable,
+  canReview,
+  reviewLoading,
   svgAvailable,
   onToolChange,
-  onAddTable
+  onAddTable,
+  onReview
 }: {
   tool: FloorplanConstructionTool;
   disabled: boolean;
   canAddTable: boolean;
+  canReview: boolean;
+  reviewLoading: boolean;
+  onReview: () => void;
   svgAvailable: boolean;
   selectedTableName: string | undefined;
   onToolChange: (tool: FloorplanConstructionTool) => void;
@@ -33,6 +39,9 @@ export function AdminFloorplanTraceEntry({
         </Typography>
         <Button variant="contained" disabled={!canAddTable} onClick={onAddTable} sx={{ minHeight: 44 }}>
           Agregar mesa
+        </Button>
+        <Button variant="outlined" disabled={!canReview} onClick={onReview} sx={{ minHeight: 44 }}>
+          {reviewLoading ? 'Actualizando plano…' : 'Revisar distribución'}
         </Button>
         <Button disabled={disabled} aria-pressed={false} onClick={() => onToolChange('manual')} sx={{ minHeight: 44 }}>
           Manual

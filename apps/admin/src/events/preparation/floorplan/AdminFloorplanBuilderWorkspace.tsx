@@ -60,6 +60,7 @@ import { AdminFloorplanSvgMappingInspector } from './AdminFloorplanSvgMappingIns
 import { AdminFloorplanTraceEntry, type FloorplanConstructionTool } from './AdminFloorplanTraceEntry';
 import { AdminFloorplanTraceSession } from './AdminFloorplanTraceSession';
 import { AdminFloorplanTraceCorrection } from './AdminFloorplanTraceCorrection';
+import { AdminFloorplanTraceReview } from './AdminFloorplanTraceReview';
 import { nextTraceSeatLabel, nextDuplicateSeatLabel } from './floorplan-trace-label';
 
 type EditorMode =
@@ -99,6 +100,7 @@ const editable = (shape: AdminFloorplanShape): AdminFloorplanShapeInput => ({
 export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient: ApiClient; event: AdminEvent }) {
   const mutationLock = useRef(false);
   const refreshLock = useRef(false);
+  const lockRecoveryTarget = useRef<boolean | undefined>(undefined);
   const traceSession = useRef<{ parentId: string } | undefined>(undefined);
   const traceWriteLock = useRef(false);
   const authoritativeFloorplan = useRef<AdminFloorplan | undefined>(undefined);
@@ -109,6 +111,11 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   const [loading, setLoading] = useState(event.floorplanEnabled);
   const [loadError, setLoadError] = useState(false);
   const [mode, setMode] = useState<EditorMode>('idle');
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  useEffect(() => {
+    if (floorplan?.locked) setReviewOpen(false);
+  }, [floorplan?.locked]);
   const [constructionTool, setConstructionTool] = useState<FloorplanConstructionTool>('entry');
   const [selectedId, setSelectedId] = useState<string>();
   const [selectedSeatId, setSelectedSeatId] = useState<string>();
@@ -243,7 +250,16 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     setInspectorOpen(false);
   };
   const chooseConstructionTool = (tool: FloorplanConstructionTool) => {
-    if (readOnly || dirty || refreshRequired || reconciliationError || traceSession.current) return;
+    if (
+      reviewOpen ||
+      reviewLoading ||
+      readOnly ||
+      dirty ||
+      refreshRequired ||
+      reconciliationError ||
+      traceSession.current
+    )
+      return;
     if (constructionTool !== tool) cancel();
     setConstructionTool(tool);
     setCompactCatalogOpen(tool === 'manual' && compactLayout);
@@ -315,6 +331,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   ) => {
     if (mutationLock.current || accessEventReadOnly) return undefined;
     mutationLock.current = true;
+    lockRecoveryTarget.current = undefined;
     setMutation(kind);
     setMessage(undefined);
     setValidationMessage(undefined);
@@ -348,12 +365,20 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     try {
       const latest = await load();
       adoptRecoveredFloorplan(latest);
+      if (lockRecoveryTarget.current !== undefined) {
+        if (latest.locked === lockRecoveryTarget.current) {
+          setMessage(undefined);
+          setValidationMessage(undefined);
+        }
+        lockRecoveryTarget.current = undefined;
+      }
       if (constructionTool === 'trace' && !dirty) {
         const parent = latest.shapes.find((shape) => shape.id === selectedId);
         if (parent) setDraft(editable(parent));
       }
       setRefreshRequired(false);
       setReconciliationError(false);
+      return latest;
     } catch {
       if (!reconciliationError) setRefreshRequired(true);
     } finally {
@@ -453,6 +478,8 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   };
   const canTraceSeats =
     constructionTool === 'trace' &&
+    !reviewOpen &&
+    !reviewLoading &&
     floorplan?.seatingMode === 'SEAT' &&
     selected?.kind === 'TABLE' &&
     !readOnly &&
@@ -555,7 +582,9 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   };
   const traceCorrectionBlocked = () =>
     constructionTool === 'trace' &&
-    (mode !== 'correcting-seats' ||
+    (reviewOpen ||
+      reviewLoading ||
+      mode !== 'correcting-seats' ||
       layoutEventReadOnly ||
       traceBusy ||
       Boolean(traceSession.current) ||
@@ -566,7 +595,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   const selectSeat = (seatId: string, options: { additive: boolean }) => {
     const trace = constructionTool === 'trace';
     if (
-      (trace && renameSeatOpen) ||
+      (trace && (renameSeatOpen || reviewOpen || reviewLoading)) ||
       readOnly ||
       constructionTool === 'entry' ||
       (trace
@@ -972,16 +1001,62 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     }
     if (placed) await refreshAfterConfirmedMutation();
   };
+  const canReview =
+    constructionTool === 'trace' &&
+    !finalized &&
+    !reviewOpen &&
+    !reviewLoading &&
+    !pending &&
+    !traceBusy &&
+    !dirty &&
+    !refreshRequired &&
+    !reconciliationError &&
+    !traceSession.current &&
+    !renameSeatOpen &&
+    !pendingTables.length &&
+    ['idle', 'editing-existing', 'correcting-seats'].includes(mode);
+  const openReview = async () => {
+    if (!canReview || mutationLock.current || refreshLock.current) return;
+    setReviewLoading(true);
+    try {
+      const latest = await refreshAuthoritative();
+      if (latest && !latest.locked) setReviewOpen(true);
+    } finally {
+      setReviewLoading(false);
+    }
+  };
   const changeLock = async () => {
-    if (!floorplan || accessEventReadOnly) return;
+    if (
+      !floorplan ||
+      accessEventReadOnly ||
+      mutationLock.current ||
+      refreshLock.current ||
+      pending ||
+      traceBusy ||
+      reviewLoading ||
+      dirty ||
+      refreshRequired ||
+      reconciliationError ||
+      traceSession.current ||
+      pendingTables.length
+    )
+      return;
+    const targetLocked = !floorplan.locked;
     const kind = floorplan.locked ? 'unlocking' : 'locking';
     const updated = await runMutation(kind, () =>
       floorplan.locked
         ? apiClient.adminEventPreparation.unlockFloorplan(event.clientId, event.id)
         : apiClient.adminEventPreparation.lockFloorplan(event.clientId, event.id)
     );
-    if (!updated) return;
+    if (!updated) {
+      if (authoritativeFloorplan.current?.locked === targetLocked) {
+        setMessage(undefined);
+        setValidationMessage(undefined);
+      } else lockRecoveryTarget.current = targetLocked;
+      return;
+    }
     setFloorplan(updated);
+    setReviewOpen(false);
     cancel();
     await refreshAfterConfirmedMutation();
   };
@@ -1066,6 +1141,13 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
         onSave={() => void mapSource()}
         onCancel={cancel}
       />
+    ) : !finalized && reviewOpen ? (
+      <AdminFloorplanTraceReview
+        floorplan={floorplan}
+        disabled={pending || traceBusy || refreshRequired || reconciliationError}
+        onBack={() => setReviewOpen(false)}
+        onFinalize={() => void changeLock()}
+      />
     ) : !finalized && mode === 'tracing-seats' && selected ? (
       <AdminFloorplanTraceSession
         tableName={selected.name}
@@ -1104,7 +1186,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
       <AdminFloorplanShapeInspector
         creating={mode === 'creating-draft'}
         value={draft}
-        disabled={readOnly}
+        disabled={readOnly || reviewLoading}
         mapped={Boolean(selected?.sourceElementId)}
         {...(selected?.sourceElementId ? { onUnlink: () => void unlinkSource() } : {})}
         capacityDerived={floorplan?.seatingMode === 'SEAT'}
@@ -1153,7 +1235,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
         places={places}
         pending={pending}
         readOnly={readOnly}
-        editing={editing}
+        editing={editing || reviewOpen || reviewLoading || refreshRequired || reconciliationError}
         hasPendingTables={pendingTables.length > 0}
         accessEventReadOnly={accessEventReadOnly}
         anonymousAccess={anonymousAccess}
@@ -1164,20 +1246,33 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
         dirty={dirty}
         sourceControl={
           !finalized ? (
-            <AdminFloorplanUploadButton label="Cambiar plano" disabled={readOnly || editing} onFile={requestUpload} />
+            <AdminFloorplanUploadButton
+              label="Cambiar plano"
+              disabled={readOnly || editing || reviewOpen || reviewLoading}
+              onFile={requestUpload}
+            />
           ) : null
         }
         onSeatingModeChange={requestSeatingModeChange}
-        onChangeLock={() => void changeLock()}
+        onChangeLock={() => {
+          if (constructionTool === 'trace' && !floorplan.locked && !reviewOpen) void openReview();
+          else void changeLock();
+        }}
         onRefresh={() => void refreshAuthoritative()}
       />
       {constructionTool === 'trace' && traceNotice ? <Alert severity="warning">{traceNotice}</Alert> : null}
-      {!finalized && imageUrl ? (
+      {!finalized && imageUrl && !reviewOpen ? (
         <AdminFloorplanTraceEntry
           tool={constructionTool}
-          disabled={readOnly || dirty || refreshRequired || reconciliationError || mode === 'tracing-seats'}
+          canReview={canReview}
+          reviewLoading={reviewLoading}
+          onReview={() => void openReview()}
+          disabled={
+            readOnly || reviewLoading || dirty || refreshRequired || reconciliationError || mode === 'tracing-seats'
+          }
           canAddTable={
             !readOnly &&
+            !reviewLoading &&
             !dirty &&
             !refreshRequired &&
             !reconciliationError &&
@@ -1281,22 +1376,29 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
               selectedSeatId={selectedSeatId}
               selectedSeatIds={selectedSeatIds}
               draft={
-                (mode === 'creating-draft' || mode === 'editing-existing') && !selected?.sourceElementId
+                !reviewOpen && (mode === 'creating-draft' || mode === 'editing-existing') && !selected?.sourceElementId
                   ? draft
                   : undefined
               }
               disabled={
                 readOnly ||
+                reviewOpen ||
+                reviewLoading ||
                 traceBusy ||
                 (constructionTool === 'trace' &&
                   (refreshRequired || reconciliationError || layoutEventReadOnly || renameSeatOpen))
               }
-              readOnly={finalized}
-              onSelect={selectShape}
+              readOnly={finalized || reviewOpen}
+              onSelect={reviewOpen || reviewLoading ? () => undefined : selectShape}
               onSeatSelect={selectSeat}
               onDraftChange={setDraft}
               onCanvasPlace={
-                mode === 'placing-preset' || mode === 'placing-seat' || mode === 'tracing-seats' || pendingTables.length
+                !reviewOpen &&
+                !reviewLoading &&
+                (mode === 'placing-preset' ||
+                  mode === 'placing-seat' ||
+                  mode === 'tracing-seats' ||
+                  pendingTables.length)
                   ? placeOnCanvas
                   : undefined
               }
@@ -1306,9 +1408,11 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
                 (constructionTool === 'trace' && mode === 'placing-preset')
               }
               onSeatMove={
-                constructionTool === 'manual' ||
-                constructionTool === 'svg' ||
-                (constructionTool === 'trace' && !traceCorrectionBlocked())
+                !reviewOpen &&
+                !reviewLoading &&
+                (constructionTool === 'manual' ||
+                  constructionTool === 'svg' ||
+                  (constructionTool === 'trace' && !traceCorrectionBlocked()))
                   ? (seatId, point) => void moveSeat(seatId, point)
                   : undefined
               }

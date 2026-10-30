@@ -182,6 +182,207 @@ describe('Admin Event preparation surfaces', () => {
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
   });
 
+  it.each(['RASTER', 'SVG'] as const)(
+    'CALCA05 reads authoritative TABLE capacities and returns with selection intact for %s',
+    async (sourceType) => {
+      const original = floorplan({
+        image: { fileAssetId: 'review-source', contentPath: '/private', sourceType },
+        shapes: [shape({ capacity: 7 }), shape({ id: 'zone', name: 'Pista', kind: 'DECORATIVE_ZONE', capacity: 0 })]
+      });
+      const latest = {
+        ...original,
+        shapes: [shape({ capacity: 23 }), shape({ id: 'table-b', name: 'Mesa B', capacity: 11 }), original.shapes[1]!]
+      };
+      const api = preparedFloorplanApi(original);
+      vi.mocked(api.adminEventPreparation.getFloorplan).mockResolvedValueOnce(original).mockResolvedValue(latest);
+      vi.mocked(api.adminEventPreparation.getFloorplanSvgSource).mockResolvedValue(svgSource('review-source'));
+      renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+      await userEvent.click(await screen.findByRole('button', { name: 'Calcar distribución' }, { timeout: 10_000 }));
+      await userEvent.click(screen.getByRole('button', { name: 'Mesa Principal' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Revisar distribución' }));
+      const review = await screen.findByRole('region', { name: 'Revisión de distribución' });
+      expect(within(review).getByText('2 mesas · 1 zona · 34 lugares de capacidad configurada')).toBeVisible();
+      expect(within(review).getByText('Mesa Principal: 23 lugares configurados')).toBeVisible();
+      expect(floorplanHarness.props?.readOnly).toBe(true);
+      expect(floorplanHarness.props?.onSeatMove).toBeUndefined();
+      expect(floorplanHarness.props?.onCanvasPlace).toBeUndefined();
+      await userEvent.click(within(review).getByRole('button', { name: 'Volver a corregir' }));
+      expect(floorplanHarness.props?.selectedId).toBe('table-a');
+      expect(floorplanHarness.props?.readOnly).toBe(false);
+      expect((floorplanHarness.props?.floorplan as AdminFloorplan).shapes).toEqual(latest.shapes);
+      expect(api.adminEventPreparation.lockFloorplan).not.toHaveBeenCalled();
+      expect(api.adminEventPreparation.setFloorplanSeatingMode).not.toHaveBeenCalled();
+      expectNoSeatWrites(api);
+    }
+  );
+
+  it('CALCA05 shows defined, blocked and authoritative assignable places without blocking an empty table', async () => {
+    const fixture = traceFixture();
+    fixture.state = {
+      ...fixture.state,
+      shapes: [
+        shape({ capacity: 0 }),
+        shape({ id: 'empty', name: 'Mesa vacía', capacity: 0 }),
+        shape({ id: 'api-capacity', name: 'Mesa API', capacity: 5 })
+      ],
+      seats: [
+        { ...serpentineSeats('table-a')[0]!, isBlocked: true },
+        { ...serpentineSeats('api-capacity')[1]!, id: 'defined-free' }
+      ]
+    };
+    vi.mocked(fixture.api.adminEventPreparation.lockFloorplan).mockImplementation(async () => {
+      fixture.state = { ...fixture.state, locked: true, lockedAt: adminEvent.updatedAt };
+      return fixture.state;
+    });
+    await openTraceParent(fixture.api);
+    await userEvent.click(screen.getByRole('button', { name: 'Revisar distribución' }));
+    const review = await screen.findByRole('region', { name: 'Revisión de distribución' });
+    expect(within(review).getByText('3 mesas · 0 zonas · 2 lugares definidos · 1 bloqueado')).toBeVisible();
+    expect(within(review).getByText('Mesa API: 5 asignables · 1 definido · 0 bloqueados')).toBeVisible();
+    expect(within(review).getByText('Sin lugares definidos')).toBeVisible();
+    expect(within(review).getByText('Sin lugares asignables')).toBeVisible();
+    const finalize = within(review).getByRole('button', { name: 'Finalizar distribución' });
+    expect(finalize).toBeEnabled();
+    fireEvent.click(finalize);
+    fireEvent.click(finalize);
+    await waitFor(() => expect(fixture.api.adminEventPreparation.lockFloorplan).toHaveBeenCalledOnce());
+    await screen.findByText('Distribución finalizada. Vista de solo lectura.');
+    expectNoSeatWrites(fixture.api);
+  });
+
+  it('CALCA05 serializes review reads and blocks review during drafts or active tracing', async () => {
+    const fixture = traceFixture();
+    await openTraceParent(fixture.api);
+    fireEvent.change(screen.getByLabelText('Nombre o número'), { target: { value: 'Borrador' } });
+    expect(screen.getByRole('button', { name: 'Revisar distribución' })).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Mesa Principal' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Trazar lugares' }));
+    expect(screen.getByRole('button', { name: 'Revisar distribución' })).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Terminar mesa' }));
+    let resolve!: (value: AdminFloorplan) => void;
+    vi.mocked(fixture.api.adminEventPreparation.getFloorplan).mockImplementationOnce(
+      () =>
+        new Promise((done) => {
+          resolve = done;
+        })
+    );
+    const button = screen.getByRole('button', { name: 'Revisar distribución' });
+    fireEvent.click(button);
+    fireEvent.click(button);
+    expect(fixture.api.adminEventPreparation.getFloorplan).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole('button', { name: 'Actualizando plano…' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Trazar lugares' })).toBeDisabled();
+    await act(async () => resolve(fixture.state));
+    await screen.findByRole('region', { name: 'Revisión de distribución' });
+    expectNoSeatWrites(fixture.api);
+  });
+
+  it('CALCA05 does not enter review or finalize when its authoritative read fails', async () => {
+    const fixture = traceFixture();
+    await openTraceParent(fixture.api);
+    vi.mocked(fixture.api.adminEventPreparation.getFloorplan).mockRejectedValueOnce(new Error('offline'));
+    await userEvent.click(screen.getByRole('button', { name: 'Revisar distribución' }));
+    await screen.findByRole('button', { name: 'Actualizar plano' });
+    expect(screen.queryByRole('region', { name: 'Revisión de distribución' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Revisar distribución' })).toBeDisabled();
+    expect(fixture.api.adminEventPreparation.lockFloorplan).not.toHaveBeenCalled();
+  });
+
+  it.each(['RASTER', 'SVG'] as const)(
+    'CALCA05 locks once despite failed refresh, reloads read-only, then unlocks %s',
+    async (sourceType) => {
+      const fixture = traceFixture();
+      fixture.state = {
+        ...fixture.state,
+        image: { fileAssetId: 'review-lock-source', contentPath: '/private', sourceType },
+        seats: serpentineSeats('table-a')
+      };
+      vi.mocked(fixture.api.adminEventPreparation.getFloorplanSvgSource).mockResolvedValue(
+        svgSource('review-lock-source')
+      );
+      let resolve!: (value: AdminFloorplan) => void;
+      vi.mocked(fixture.api.adminEventPreparation.lockFloorplan).mockImplementation(
+        () =>
+          new Promise((done) => {
+            resolve = done;
+          })
+      );
+      const view = await openTraceParent(fixture.api);
+      await userEvent.click(screen.getByRole('button', { name: 'Revisar distribución' }));
+      const review = await screen.findByRole('region', { name: 'Revisión de distribución' });
+      vi.mocked(fixture.api.adminEventPreparation.getFloorplan).mockRejectedValueOnce(new Error('GET failed'));
+      const finalize = within(review).getByRole('button', { name: 'Finalizar distribución' });
+      fireEvent.click(finalize);
+      fireEvent.click(finalize);
+      expect(screen.getByText('Guardando...')).toBeInTheDocument();
+      expect(fixture.api.adminEventPreparation.lockFloorplan).toHaveBeenCalledOnce();
+      fixture.state = { ...fixture.state, locked: true, lockedAt: adminEvent.updatedAt };
+      await act(async () => resolve(fixture.state));
+      await screen.findByText('Guardado · falta actualizar. La acción no se repetirá.');
+      expect(screen.getByRole('button', { name: 'Editar distribución' })).toBeDisabled();
+      await userEvent.click(screen.getByRole('button', { name: 'Actualizar plano' }));
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Editar distribución' })).toBeEnabled());
+      expect(fixture.api.adminEventPreparation.lockFloorplan).toHaveBeenCalledOnce();
+      view.unmount();
+      renderAdminApp(fixture.api, `/eventos/${adminEvent.id}/preparar/croquis`);
+      await screen.findByTestId('admin-floorplan-surface');
+      expect(floorplanHarness.props?.readOnly).toBe(true);
+      expect((floorplanHarness.props?.floorplan as AdminFloorplan).seats).toEqual(fixture.state.seats);
+      vi.mocked(fixture.api.adminEventPreparation.unlockFloorplan).mockImplementation(async () => {
+        fixture.state = { ...fixture.state, locked: false, lockedAt: null };
+        return fixture.state;
+      });
+      await userEvent.click(screen.getByRole('button', { name: 'Editar distribución' }));
+      await waitFor(() => expect(floorplanHarness.props?.readOnly).toBe(false));
+      expect(screen.queryByRole('region', { name: 'Revisión de distribución' })).not.toBeInTheDocument();
+      expect(fixture.api.adminEventPreparation.unlockFloorplan).toHaveBeenCalledOnce();
+      expectNoSeatWrites(fixture.api);
+    }
+  );
+
+  it.each([false, true])('CALCA05 stops an uncertain lock without replay; committed=%s', async (committed) => {
+    const fixture = traceFixture();
+    vi.mocked(fixture.api.adminEventPreparation.lockFloorplan).mockImplementation(async () => {
+      if (committed) fixture.state = { ...fixture.state, locked: true, lockedAt: adminEvent.updatedAt };
+      throw new Error('lost response');
+    });
+    await openTraceParent(fixture.api);
+    await userEvent.click(screen.getByRole('button', { name: 'Revisar distribución' }));
+    const review = await screen.findByRole('region', { name: 'Revisión de distribución' });
+    await userEvent.click(within(review).getByRole('button', { name: 'Finalizar distribución' }));
+    await screen.findByRole('button', { name: 'Actualizar plano' });
+    expect(within(review).getByRole('button', { name: 'Finalizar distribución' })).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Actualizar plano' }));
+    await waitFor(() => expect((floorplanHarness.props?.floorplan as AdminFloorplan).locked).toBe(committed));
+    if (committed) {
+      await screen.findByText('Distribución finalizada. Vista de solo lectura.');
+      expect(screen.queryByText('No pudimos finalizar la distribución. Inténtalo nuevamente.')).not.toBeInTheDocument();
+      expect(screen.getByText('Guardado', { exact: true })).toBeVisible();
+    } else
+      await waitFor(() => expect(within(review).getByRole('button', { name: 'Finalizar distribución' })).toBeEnabled());
+    expect(fixture.api.adminEventPreparation.lockFloorplan).toHaveBeenCalledOnce();
+  });
+
+  it.each(['PHYSICAL_QR', 'ACCESS_CONTROL'] as const)(
+    'CALCA05 review does not enable exact seating for restricted TABLE %s',
+    async (serviceCode) => {
+      const api = preparedFloorplanApi(floorplan({ shapes: [shape()] }));
+      vi.mocked(api.adminEvents.get).mockResolvedValue({
+        ...adminEvent,
+        serviceCode,
+        accessMode: serviceCode === 'ACCESS_CONTROL' ? 'ANONYMOUS' : null,
+        floorplanEnabled: true
+      });
+      renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+      await userEvent.click(await screen.findByRole('button', { name: 'Calcar distribución' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Revisar distribución' }));
+      await screen.findByRole('region', { name: 'Revisión de distribución' });
+      expect(api.adminEventPreparation.setFloorplanSeatingMode).not.toHaveBeenCalled();
+      expectNoSeatWrites(api);
+    }
+  );
+
   it.each([1440, 1024])(
     'CALCA04 selects, moves and batch-moves Trace Seats outside the parent bbox at %d',
     async (width) => {
