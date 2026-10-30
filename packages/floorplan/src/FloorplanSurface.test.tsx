@@ -59,6 +59,17 @@ describe('FloorplanSurface', () => {
     expect(renderer.props).toEqual(expect.objectContaining({ tracePresentation: true, width: 672, height: 336 }));
     act(() => (renderer.props?.onCanvasPlace as (point: { x: number; y: number }) => void)({ x: 0.4, y: 0.5 }));
     expect(onCanvasPlace).toHaveBeenCalledWith({ x: 0.4, y: 0.5 }, undefined, { width: 672, height: 336 });
+    onCanvasPlace.mockClear();
+    for (const name of [
+      'Acercar plano',
+      'Alejar plano',
+      'Ajustar plano a la vista',
+      'Activar modo mover plano',
+      'Activar ayuda para alinear'
+    ]) {
+      await userEvent.click(screen.getByRole('button', { name }));
+    }
+    expect(onCanvasPlace).not.toHaveBeenCalled();
   });
 
   beforeEach(() => {

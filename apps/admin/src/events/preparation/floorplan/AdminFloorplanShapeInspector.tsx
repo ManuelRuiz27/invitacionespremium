@@ -26,6 +26,8 @@ export function AdminFloorplanShapeInspector({
   simple = false,
   traceSeatCount,
   showTraceNextStep = false,
+  canTraceSeats = false,
+  onTraceSeats,
   mapped = false,
   onUnlink,
   onChange,
@@ -41,6 +43,8 @@ export function AdminFloorplanShapeInspector({
   simple?: boolean;
   traceSeatCount?: number;
   showTraceNextStep?: boolean;
+  canTraceSeats?: boolean;
+  onTraceSeats?: () => void;
   mapped?: boolean;
   onUnlink?: () => void;
   onChange: (value: AdminFloorplanShapeInput) => void;
@@ -92,7 +96,7 @@ export function AdminFloorplanShapeInspector({
             Cancelar
           </Button>
           {showTraceNextStep ? (
-            <Button variant="outlined" disabled sx={{ minHeight: 44 }}>
+            <Button variant="outlined" disabled={!canTraceSeats} onClick={onTraceSeats} sx={{ minHeight: 44 }}>
               Trazar lugares
             </Button>
           ) : null}
@@ -123,7 +127,7 @@ export function AdminFloorplanShapeInspector({
         </Stack>
         <Typography variant="caption" color="text.secondary">
           {showTraceNextStep
-            ? 'Mesa preparada. El trazado de lugares aún no está disponible en Calca.'
+            ? 'Mesa preparada. Selecciona Trazar lugares para marcar cada posición en el plano.'
             : 'La referencia marca el mueble del plano. Arrástrala para ajustar su posición; guarda o cancela los cambios.'}
         </Typography>
       </Paper>
@@ -231,7 +235,7 @@ export function AdminFloorplanShapeInspector({
         </Stack>
         {showTraceNextStep ? (
           <Stack spacing={0.75}>
-            <Button variant="outlined" disabled sx={{ minHeight: 44 }}>
+            <Button variant="outlined" disabled={!canTraceSeats} onClick={onTraceSeats} sx={{ minHeight: 44 }}>
               Trazar lugares
             </Button>
             <Typography variant="caption" color="text.secondary">

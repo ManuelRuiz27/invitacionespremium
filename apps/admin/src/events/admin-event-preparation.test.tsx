@@ -181,6 +181,308 @@ describe('Admin Event preparation surfaces', () => {
     });
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
   });
+
+  it('CALCA03 traces ten confirmed seats serially, ends with the parent selected and reloads stable identity', async () => {
+    const fixture = traceFixture();
+    const view = await openTraceParent(fixture.api);
+    await userEvent.click(screen.getByRole('button', { name: 'Trazar lugares' }));
+    for (let index = 0; index < 10; index++) {
+      act(() => canvasPlace()({ x: 0.2 + index * 0.03, y: 0.3 }));
+      await screen.findByText(`${index + 1} lugares confirmados`);
+    }
+    expect(fixture.api.adminEventPreparation.createFloorplanSeat).toHaveBeenCalledTimes(10);
+    expect(fixture.state.seats).toHaveLength(10);
+    expect(fixture.state.seats.map((seat) => seat.label)).toEqual(
+      Array.from({ length: 10 }, (_, i) => `Lugar ${i + 1}`)
+    );
+    expect(new Set(fixture.state.seats.map((seat) => seat.floorplanShapeId))).toEqual(new Set(['table-a']));
+    const identities = fixture.state.seats.map(({ id, label, floorplanShapeId }) => ({ id, label, floorplanShapeId }));
+    const stalePlacement = canvasPlace();
+    await userEvent.click(screen.getByRole('button', { name: 'Terminar mesa' }));
+    expect(floorplanHarness.props?.selectedId).toBe('table-a');
+    expect(screen.getByRole('button', { name: 'Trazar lugares' })).toBeEnabled();
+    expect(floorplanHarness.props?.onCanvasPlace).toBeUndefined();
+    act(() => stalePlacement({ x: 0.7, y: 0.7 }));
+    expect(fixture.api.adminEventPreparation.createFloorplanSeat).toHaveBeenCalledTimes(10);
+    view.unmount();
+    await openTraceParent(fixture.api);
+    expect(
+      (floorplanHarness.props?.floorplan as AdminFloorplan).seats.map(({ id, label, floorplanShapeId }) => ({
+        id,
+        label,
+        floorplanShapeId
+      }))
+    ).toEqual(identities);
+    expect(fixture.api.adminEventPreparation.removeFloorplanSeat).not.toHaveBeenCalled();
+    expect(fixture.api.adminEventPreparation.renumberFloorplanSeats).not.toHaveBeenCalled();
+  });
+
+  it('CALCA03 finds free labels after rename/delete gaps and reload instead of using seat count', async () => {
+    const fixture = traceFixture();
+    fixture.state = {
+      ...fixture.state,
+      seats: [
+        {
+          id: 'seed-1',
+          floorplanShapeId: 'table-a',
+          label: 'Lugar 1',
+          x: 0.1,
+          y: 0.1,
+          isBlocked: false,
+          occupied: false
+        },
+        {
+          id: 'seed-3',
+          floorplanShapeId: 'table-a',
+          label: 'lugar   3',
+          x: 0.2,
+          y: 0.1,
+          isBlocked: false,
+          occupied: false
+        },
+        {
+          id: 'seed-vip',
+          floorplanShapeId: 'table-a',
+          label: 'Cabecera',
+          x: 0.3,
+          y: 0.1,
+          isBlocked: false,
+          occupied: false
+        }
+      ]
+    };
+    const view = await openTraceParent(fixture.api);
+    await userEvent.click(screen.getByRole('button', { name: 'Trazar lugares' }));
+    for (const count of [4, 5]) {
+      act(() => canvasPlace()({ x: 0.5, y: 0.5 }));
+      await screen.findByText(`${count} lugares confirmados`);
+    }
+    expect(fixture.state.seats.slice(3).map((seat) => seat.label)).toEqual(['Lugar 2', 'Lugar 4']);
+    view.unmount();
+    fixture.state = {
+      ...fixture.state,
+      seats: fixture.state.seats
+        .filter((seat) => seat.id !== 'seed-1')
+        .map((seat) => (seat.label === 'Lugar 2' ? { ...seat, label: 'Preferente' } : seat))
+    };
+    await openTraceParent(fixture.api);
+    await userEvent.click(screen.getByRole('button', { name: 'Trazar lugares' }));
+    act(() => canvasPlace()({ x: 0.6, y: 0.5 }));
+    await screen.findByText('5 lugares confirmados');
+    expect(fixture.state.seats.at(-1)?.label).toBe('Lugar 1');
+    expect(new Set(fixture.state.seats.map((seat) => seat.label.trim().replace(/\s+/gu, ' ').toLowerCase())).size).toBe(
+      5
+    );
+  });
+
+  it('CALCA03 rejects additional gestures throughout POST and reconciliation and can finish during a write', async () => {
+    const fixture = traceFixture();
+    let resolvePost!: (value: AdminFloorplanSeat) => void;
+    let resolveRead!: (value: AdminFloorplan) => void;
+    vi.mocked(fixture.api.adminEventPreparation.createFloorplanSeat).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvePost = resolve;
+        })
+    );
+    await openTraceParent(fixture.api);
+    await userEvent.click(screen.getByRole('button', { name: 'Trazar lugares' }));
+    const place = canvasPlace();
+    act(() => {
+      place({ x: 0.3, y: 0.4 });
+      place({ x: 0.3, y: 0.4 });
+    });
+    expect(fixture.api.adminEventPreparation.createFloorplanSeat).toHaveBeenCalledOnce();
+    const saved: AdminFloorplanSeat = {
+      id: 'confirmed-seat',
+      floorplanShapeId: 'table-a',
+      label: 'Lugar 1',
+      x: 0.3,
+      y: 0.4,
+      isBlocked: false,
+      occupied: false
+    };
+    const leavePending = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(leavePending);
+    expect(leavePending.defaultPrevented).toBe(true);
+    fixture.state = { ...fixture.state, seats: [saved], shapes: [shape({ capacity: 1 })] };
+    vi.mocked(fixture.api.adminEventPreparation.getFloorplan).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveRead = resolve;
+        })
+    );
+    await act(async () => {
+      resolvePost(saved);
+    });
+    act(() => place({ x: 0.4, y: 0.4 }));
+    expect(fixture.api.adminEventPreparation.createFloorplanSeat).toHaveBeenCalledOnce();
+    await userEvent.click(screen.getByRole('button', { name: 'Terminar mesa' }));
+    await act(async () => {
+      resolveRead(fixture.state);
+    });
+    expect(floorplanHarness.props?.selectedId).toBe('table-a');
+    expect(screen.getByRole('button', { name: 'Trazar lugares' })).toBeEnabled();
+    act(() => place({ x: 0.5, y: 0.4 }));
+    expect(fixture.api.adminEventPreparation.createFloorplanSeat).toHaveBeenCalledOnce();
+    expect(fixture.state.seats).toEqual([saved]);
+  });
+
+  it.each(['locked', 'missing', 'TABLE'] as const)(
+    'CALCA03 adopts %s recovery without reactivating placement',
+    async (condition) => {
+      const fixture = traceFixture();
+      await openTraceParent(fixture.api);
+      await userEvent.click(screen.getByRole('button', { name: 'Trazar lugares' }));
+      const place = canvasPlace();
+      fixture.state = {
+        ...fixture.state,
+        locked: condition === 'locked',
+        shapes: condition === 'missing' ? [] : fixture.state.shapes,
+        seatingMode: condition === 'TABLE' ? 'TABLE' : 'SEAT'
+      };
+      vi.mocked(fixture.api.adminEventPreparation.createFloorplanSeat).mockRejectedValue(
+        new ApiError(409, 'FLOORPLAN_CONCURRENCY_CONFLICT', 'conflict')
+      );
+      act(() => place({ x: 0.3, y: 0.3 }));
+      await screen.findByText(/Trazado detenido/);
+      expect(screen.queryByRole('button', { name: 'Trazar lugares' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Terminar mesa' })).not.toBeInTheDocument();
+      if (condition !== 'TABLE') expect(floorplanHarness.props?.selectedId).toBeUndefined();
+      act(() => place({ x: 0.4, y: 0.3 }));
+      expect(fixture.api.adminEventPreparation.createFloorplanSeat).toHaveBeenCalledOnce();
+    }
+  );
+
+  it('CALCA03 rejects invalid points, drops and a dirty parent without Seat writes', async () => {
+    const fixture = traceFixture();
+    await openTraceParent(fixture.api);
+    fireEvent.change(screen.getByLabelText('Nombre o número'), { target: { value: 'Cambio local' } });
+    expect(screen.getByRole('button', { name: 'Trazar lugares' })).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Mesa Principal' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Trazar lugares' }));
+    act(() => {
+      for (const point of [
+        { x: NaN, y: 0.3 },
+        { x: 0.3, y: Infinity },
+        { x: -0.1, y: 0.3 },
+        { x: 0.3, y: 1.1 }
+      ])
+        canvasPlace()(point);
+      (floorplanHarness.props?.onCanvasPlace as (point: { x: number; y: number }, id: string) => void)(
+        { x: 0.3, y: 0.3 },
+        'dragged-table'
+      );
+    });
+    expectNoSeatWrites(fixture.api);
+  });
+
+  it.each(['CLOSED', 'CANCELLED'] as const)(
+    'CALCA03 does not expose tracing in terminal digital Event %s',
+    async (status) => {
+      const fixture = traceFixture();
+      vi.mocked(fixture.api.adminEvents.get).mockResolvedValue({
+        ...adminEvent,
+        serviceCode: 'FLYER',
+        floorplanEnabled: true,
+        status
+      });
+      renderAdminApp(fixture.api, `/eventos/${adminEvent.id}/preparar/croquis`);
+      await userEvent.click(await screen.findByRole('button', { name: 'Calcar distribución' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Mesa Principal' }));
+      expect(screen.queryByRole('button', { name: 'Trazar lugares' })).not.toBeInTheDocument();
+      expectNoSeatWrites(fixture.api);
+    }
+  );
+
+  it.each([
+    new Error('network'),
+    new ApiError(0, 'NETWORK_ERROR', 'network'),
+    new ApiError(504, 'TIMEOUT', 'timeout'),
+    new ApiError(429, 'RATE_LIMITED', 'limit'),
+    new ApiError(500, 'INTERNAL_ERROR', 'server'),
+    new ApiError(409, 'FLOORPLAN_CONCURRENCY_CONFLICT', 'conflict')
+  ])('CALCA03 stops on failure, recovers authority and never replays the POST: %s', async (failure) => {
+    const fixture = traceFixture();
+    vi.mocked(fixture.api.adminEventPreparation.createFloorplanSeat).mockRejectedValue(failure);
+    await openTraceParent(fixture.api);
+    await userEvent.click(screen.getByRole('button', { name: 'Trazar lugares' }));
+    const place = canvasPlace();
+    act(() => place({ x: 0.3, y: 0.3 }));
+    await screen.findByText(/Trazado detenido. Revisa los lugares confirmados/);
+    expect(screen.queryByRole('button', { name: 'Terminar mesa' })).not.toBeInTheDocument();
+    expect(floorplanHarness.props?.selectedId).toBe('table-a');
+    expect(fixture.api.adminEventPreparation.getFloorplan).toHaveBeenCalledTimes(2);
+    act(() => place({ x: 0.4, y: 0.4 }));
+    expect(fixture.api.adminEventPreparation.createFloorplanSeat).toHaveBeenCalledOnce();
+  });
+
+  it('CALCA03 reconciles an uncertain committed POST without replay, and requires an explicit new session', async () => {
+    const fixture = traceFixture();
+    const create = vi.mocked(fixture.api.adminEventPreparation.createFloorplanSeat).getMockImplementation()!;
+    vi.mocked(fixture.api.adminEventPreparation.createFloorplanSeat).mockImplementationOnce(async (...args) => {
+      await create(...args);
+      throw new Error('lost response');
+    });
+    await openTraceParent(fixture.api);
+    await userEvent.click(screen.getByRole('button', { name: 'Trazar lugares' }));
+    act(() => canvasPlace()({ x: 0.3, y: 0.3 }));
+    await screen.findByText(/Trazado detenido. Revisa los lugares confirmados/);
+    expect(fixture.state.seats).toHaveLength(1);
+    expect(fixture.api.adminEventPreparation.createFloorplanSeat).toHaveBeenCalledOnce();
+    expect(screen.getByText('1 lugares definidos')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Trazar lugares' }));
+    act(() => canvasPlace()({ x: 0.4, y: 0.3 }));
+    await screen.findByText('2 lugares confirmados');
+    expect(fixture.state.seats.map((seat) => seat.label)).toEqual(['Lugar 1', 'Lugar 2']);
+  });
+
+  it.each([false, true])(
+    'CALCA03 stops and blocks resumption when authoritative GET fails after POST success=%s',
+    async (success) => {
+      const fixture = traceFixture();
+      await openTraceParent(fixture.api);
+      vi.mocked(fixture.api.adminEventPreparation.getFloorplan).mockRejectedValueOnce(new Error('read unavailable'));
+      if (!success)
+        vi.mocked(fixture.api.adminEventPreparation.createFloorplanSeat).mockRejectedValueOnce(
+          new Error('unknown result')
+        );
+      await userEvent.click(screen.getByRole('button', { name: 'Trazar lugares' }));
+      const place = canvasPlace();
+      act(() => place({ x: 0.3, y: 0.3 }));
+      await screen.findByText(/Trazado detenido/);
+      expect(screen.getByRole('button', { name: 'Trazar lugares' })).toBeDisabled();
+      act(() => place({ x: 0.4, y: 0.3 }));
+      expect(fixture.api.adminEventPreparation.createFloorplanSeat).toHaveBeenCalledOnce();
+      await userEvent.click(screen.getByRole('button', { name: 'Actualizar plano' }));
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Trazar lugares' })).toBeEnabled());
+      expect(screen.queryByRole('button', { name: 'Terminar mesa' })).not.toBeInTheDocument();
+      expect(fixture.api.adminEventPreparation.createFloorplanSeat).toHaveBeenCalledOnce();
+    }
+  );
+
+  it.each(['TABLE', 'locked', 'missing', 'zone', 'Manual'] as const)(
+    'CALCA03 never exposes tracing for %s',
+    async (scenario) => {
+      const fixture = traceFixture();
+      fixture.state = {
+        ...fixture.state,
+        ...(scenario === 'TABLE' ? { seatingMode: 'TABLE' } : {}),
+        locked: scenario === 'locked',
+        shapes: scenario === 'missing' ? [] : [shape({ ...(scenario === 'zone' ? { kind: 'DECORATIVE_ZONE' } : {}) })]
+      };
+      renderAdminApp(fixture.api, `/eventos/${adminEvent.id}/preparar/croquis`);
+      await screen.findByTestId('admin-floorplan-surface');
+      if (scenario !== 'locked')
+        await userEvent.click(
+          screen.getByRole('button', { name: scenario === 'Manual' ? 'Manual' : 'Calcar distribución' })
+        );
+      if (scenario !== 'missing') await userEvent.click(screen.getByRole('button', { name: 'Mesa Principal' }));
+      expect(screen.queryByRole('button', { name: 'Trazar lugares' })).not.toBeInTheDocument();
+      expectNoSeatWrites(fixture.api);
+    }
+  );
   it.each(
     (
       [
@@ -245,7 +547,7 @@ describe('Admin Event preparation surfaces', () => {
       expect(screen.getByLabelText('Nombre o número')).toHaveValue('Mesa Calca');
       expect(screen.queryByRole('presentation')).not.toBeInTheDocument();
       if (seatingMode === 'SEAT') {
-        expect(screen.getByRole('button', { name: 'Trazar lugares' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Trazar lugares' })).toBeEnabled();
         expect(screen.queryByRole('button', { name: 'Agregar lugar' })).not.toBeInTheDocument();
         expect(floorplanHarness.props?.onSeatMove).toBeUndefined();
       }
@@ -279,7 +581,7 @@ describe('Admin Event preparation surfaces', () => {
       expectNoSeatWrites(api);
       await userEvent.click(await screen.findByRole('button', { name: parent.name }));
       expect(screen.getByRole('button', { name: 'Trazar lugares' })).toBeVisible();
-      expect(screen.getByRole('button', { name: 'Trazar lugares' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Trazar lugares' })).toBeEnabled();
       expect(floorplanHarness.props?.tracePresentation).toBe(true);
       expect(document.querySelector('.MuiModal-root .MuiBackdrop-root')).toBeNull();
       await userEvent.click(enabledButton('Cancelar'));
@@ -1999,6 +2301,52 @@ function preparedFloorplanApi(value: AdminFloorplan = floorplan()) {
   vi.mocked(api.adminEventPreparation.getFloorplan).mockResolvedValue(value);
   vi.mocked(api.adminEventPreparation.floorplanAssetContent).mockResolvedValue(new Blob(['image']));
   return api;
+}
+
+function traceFixture() {
+  let current = floorplan({ seatingMode: 'SEAT', shapes: [shape({ capacity: 0, availableCapacity: 0 })] });
+  const api = preparedFloorplanApi(current);
+  let sequence = 0;
+  vi.mocked(api.adminEventPreparation.getFloorplan).mockImplementation(async () => current);
+  vi.mocked(api.adminEventPreparation.createFloorplanSeat).mockImplementation(
+    async (_client, _event, parentId, input) => {
+      const created: AdminFloorplanSeat = {
+        ...input,
+        id: `confirmed-uuid-${++sequence}`,
+        floorplanShapeId: parentId,
+        isBlocked: false,
+        occupied: false
+      };
+      current = {
+        ...current,
+        seats: [...current.seats, created],
+        shapes: current.shapes.map((table) =>
+          table.id === parentId
+            ? { ...table, capacity: current.seats.filter((seat) => seat.floorplanShapeId === parentId).length + 1 }
+            : table
+        )
+      };
+      return created;
+    }
+  );
+  return {
+    api,
+    get state() {
+      return current;
+    },
+    set state(value: AdminFloorplan) {
+      current = value;
+    }
+  };
+}
+
+async function openTraceParent(api: ReturnType<typeof preparedFloorplanApi>) {
+  const view = renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+  await screen.findByTestId('admin-floorplan-surface');
+  await userEvent.click(screen.getByRole('button', { name: 'Calcar distribución' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Mesa Principal' }));
+  expect(screen.getByRole('button', { name: 'Trazar lugares' })).toBeEnabled();
+  return view;
 }
 
 function floorplan(overrides: Partial<AdminFloorplan> = {}): AdminFloorplan {

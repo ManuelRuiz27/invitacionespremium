@@ -130,6 +130,63 @@ const touchEvent = (touches: Array<{ clientX: number; clientY: number }>, preven
 });
 
 describe('FloorplanKonvaRenderer de producción', () => {
+  it('places only a fresh click in Trace, never drag, pan, wheel, pinch, double-click or outside-image points', () => {
+    const onCanvasPlace = vi.fn();
+    const base = props({ tracePresentation: true, captureCanvasClicks: true, onCanvasPlace });
+    const view = render(<FloorplanKonvaRenderer {...base} />);
+    let stage = latest('Stage').props;
+    const mouse = (x: number, y: number) => ({ evt: { clientX: x, clientY: y, button: 0 } });
+    const click = (x = 250, y = 200, detail = 1) => ({
+      evt: { button: 0, detail },
+      target: { name: () => 'floorplan-image', getStage: () => ({ getPointerPosition: () => ({ x, y }) }) }
+    });
+    act(() => {
+      (stage.onMouseDown as (event: unknown) => void)(mouse(250, 200));
+      (stage.onMouseMove as (event: unknown) => void)(mouse(280, 200));
+      (stage.onMouseUp as (event: unknown) => void)(mouse(280, 200));
+      (stage.onClick as (event: unknown) => void)(click());
+    });
+    expect(onCanvasPlace).not.toHaveBeenCalled();
+    act(() => {
+      (stage.onMouseDown as (event: unknown) => void)(mouse(250, 200));
+      (stage.onClick as (event: unknown) => void)(click());
+      (stage.onClick as (event: unknown) => void)(click(250, 200, 2));
+    });
+    expect(onCanvasPlace).toHaveBeenCalledOnce();
+    act(() => {
+      (stage.onDragStart as () => void)();
+      (stage.onClick as (event: unknown) => void)(click());
+      (stage.onMouseDown as (event: unknown) => void)(mouse(250, 200));
+      (stage.onClick as (event: unknown) => void)(click(-20, 200));
+      (stage.onWheel as (event: unknown) => void)({
+        evt: { deltaY: -100, preventDefault: vi.fn() },
+        target: click().target
+      });
+      (stage.onClick as (event: unknown) => void)(click());
+      (stage.onTouchStart as (event: unknown) => void)(
+        touchEvent([
+          { clientX: 1, clientY: 1 },
+          { clientX: 40, clientY: 40 }
+        ])
+      );
+      (stage.onTouchEnd as (event: unknown) => void)(touchEvent([]));
+      (stage.onTap as (event: unknown) => void)(click());
+    });
+    expect(onCanvasPlace).toHaveBeenCalledOnce();
+    view.rerender(<FloorplanKonvaRenderer {...base} panEnabled />);
+    stage = latest('Stage').props;
+    act(() => (stage.onMouseDown as (event: unknown) => void)(mouse(250, 200)));
+    view.rerender(<FloorplanKonvaRenderer {...base} />);
+    stage = latest('Stage').props;
+    act(() => (stage.onClick as (event: unknown) => void)(click()));
+    expect(onCanvasPlace).toHaveBeenCalledOnce();
+    act(() => {
+      (stage.onMouseDown as (event: unknown) => void)(mouse(250, 200));
+      (stage.onTap as (event: unknown) => void)(click());
+    });
+    expect(onCanvasPlace).toHaveBeenCalledTimes(2);
+  });
+
   it('uses a transparent Trace reference with drag but no Sticker transformer, keeping the default editor', () => {
     const onDraftChange = vi.fn();
     const view = render(

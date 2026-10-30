@@ -9,6 +9,7 @@ import { hasEqualPhysicalSides, shapeToStageRect, stageRectToShape } from './flo
 import { floorplanColors } from './floorplan-sticker-style';
 import { resolveSvgTableVisualState } from './floorplan-svg-table-state';
 import { visualSeats } from './floorplan-visual-seats';
+import { createPlacementGestureGuard } from './floorplan-placement-gesture';
 
 export interface ViewportState {
   scale: number;
@@ -26,6 +27,7 @@ export function FloorplanKonvaRenderer(
   }
 ) {
   const stageRef = useRef<Konva.Stage>(null);
+  const placementGesture = useRef(createPlacementGestureGuard());
   const cancelIndividualCommitRef = useRef(false);
   const pinchRef = useRef<
     | {
@@ -48,19 +50,34 @@ export function FloorplanKonvaRenderer(
   const selectedOccupancy = props.floorplan.shapes.find((shape) => shape.id === props.selectedId)?.occupancy ?? 0;
 
   const place = (event: KonvaEventObject<MouseEvent | TouchEvent>) => {
-    if (!props.onCanvasPlace || props.disabled) return;
+    if (
+      !props.onCanvasPlace ||
+      props.disabled ||
+      props.panEnabled ||
+      pinchRef.current ||
+      !placementGesture.current.canPlace()
+    )
+      return;
+    if (
+      event.evt &&
+      (('button' in event.evt && event.evt.button !== 0) || ('detail' in event.evt && event.evt.detail > 1))
+    )
+      return;
     const stage = event.target.getStage();
     if (!stage || (!props.captureCanvasClicks && event.target !== stage && event.target.name() !== 'floorplan-image'))
       return;
     const pointer = stage.getPointerPosition();
     if (!pointer) return;
-    props.onCanvasPlace({
-      x: Math.min(1, Math.max(0, (pointer.x - props.viewport.x) / props.viewport.scale / props.width)),
-      y: Math.min(1, Math.max(0, (pointer.y - props.viewport.y) / props.viewport.scale / props.height))
-    });
+    const point = {
+      x: (pointer.x - props.viewport.x) / props.viewport.scale / props.width,
+      y: (pointer.y - props.viewport.y) / props.viewport.scale / props.height
+    };
+    if (props.tracePresentation && (point.x < 0 || point.x > 1 || point.y < 0 || point.y > 1)) return;
+    props.onCanvasPlace({ x: Math.min(1, Math.max(0, point.x)), y: Math.min(1, Math.max(0, point.y)) });
   };
 
   const wheel = (event: KonvaEventObject<WheelEvent>) => {
+    placementGesture.current.cancel();
     event.evt.preventDefault();
     const stage = event.target.getStage();
     const pointer = stage?.getPointerPosition();
@@ -81,6 +98,9 @@ export function FloorplanKonvaRenderer(
   };
 
   const startPinch = (event: KonvaEventObject<TouchEvent>) => {
+    if (event.evt.touches.length === 1) placementGesture.current.start(event.evt.touches[0]!);
+    else placementGesture.current.cancel();
+    if (props.panEnabled) placementGesture.current.cancel();
     if (event.evt.touches.length !== 2) return;
     event.evt.preventDefault();
     const stage = stageRef.current;
@@ -103,6 +123,7 @@ export function FloorplanKonvaRenderer(
   };
 
   const movePinch = (event: KonvaEventObject<TouchEvent>) => {
+    if (event.evt.touches[0]) placementGesture.current.move(event.evt.touches[0]);
     const pinch = pinchRef.current;
     const stage = stageRef.current;
     if (!pinch || !stage || event.evt.touches.length !== 2) return;
@@ -120,6 +141,7 @@ export function FloorplanKonvaRenderer(
   };
 
   const finishPinch = (event: KonvaEventObject<TouchEvent>) => {
+    if (event.evt.changedTouches?.[0]) placementGesture.current.move(event.evt.changedTouches[0]);
     if (event.evt.touches.length >= 2 || !pinchRef.current) return;
     props.onViewportChange(pinchRef.current.viewport);
     pinchRef.current = undefined;
@@ -135,6 +157,14 @@ export function FloorplanKonvaRenderer(
       x={props.viewport.x}
       y={props.viewport.y}
       draggable={Boolean(props.panEnabled)}
+      onMouseDown={(event) => {
+        placementGesture.current.start(event.evt, event.evt.button === 0);
+        if (props.panEnabled) placementGesture.current.cancel();
+      }}
+      onMouseMove={(event) => placementGesture.current.move(event.evt)}
+      onMouseUp={(event) => placementGesture.current.move(event.evt)}
+      onTouchCancel={() => placementGesture.current.cancel()}
+      onDragStart={() => placementGesture.current.cancel()}
       onDragEnd={(event) => {
         if (!props.panEnabled || event.target.getType() !== 'Stage') return;
         props.onViewportChange({ ...props.viewport, x: event.target.x(), y: event.target.y() });

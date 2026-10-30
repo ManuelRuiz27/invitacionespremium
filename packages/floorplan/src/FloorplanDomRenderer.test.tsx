@@ -56,6 +56,49 @@ const detailedFloorplan: Floorplan = {
 };
 
 describe('FloorplanDomRenderer', () => {
+  it('does not place after drag, cancelled pointer, wheel or a pan gesture, and accepts the next primary click', () => {
+    vi.stubGlobal('PointerEvent', MouseEvent);
+    const onCanvasPlace = vi.fn();
+    const base = {
+      floorplan,
+      imageUrl: 'blob:plan',
+      disabled: false,
+      showSeats: false,
+      snap: false,
+      captureCanvasClicks: true,
+      onSelect: vi.fn(),
+      onDraftChange: vi.fn(),
+      onCanvasPlace
+    };
+    const view = render(<FloorplanDomRenderer {...base} />);
+    const owner = screen.getByLabelText('Plano interactivo de mesas y zonas');
+    vi.spyOn(owner, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 1000, height: 500 } as DOMRect);
+    fireEvent.pointerDown(owner, { clientX: 200, clientY: 200, button: 0 });
+    fireEvent.pointerMove(owner, { clientX: 230, clientY: 200 });
+    fireEvent.pointerUp(owner, { clientX: 230, clientY: 200 });
+    fireEvent.click(owner, { clientX: 230, clientY: 200 });
+    expect(onCanvasPlace).not.toHaveBeenCalled();
+    fireEvent.pointerDown(owner, { clientX: 200, clientY: 200, button: 0 });
+    fireEvent.click(owner, { clientX: 200, clientY: 200, detail: 1 });
+    fireEvent.click(owner, { clientX: 200, clientY: 200, detail: 2 });
+    expect(onCanvasPlace).toHaveBeenCalledOnce();
+    fireEvent.wheel(owner);
+    fireEvent.click(owner, { clientX: 200, clientY: 200 });
+    fireEvent.pointerDown(owner, { clientX: 200, clientY: 200, button: 0 });
+    fireEvent.pointerCancel(owner);
+    fireEvent.click(owner, { clientX: 200, clientY: 200 });
+    expect(onCanvasPlace).toHaveBeenCalledOnce();
+    view.rerender(<FloorplanDomRenderer {...base} panEnabled />);
+    fireEvent.pointerDown(owner, { clientX: 200, clientY: 200, button: 0 });
+    fireEvent.click(owner, { clientX: 200, clientY: 200 });
+    view.rerender(<FloorplanDomRenderer {...base} />);
+    fireEvent.click(owner, { clientX: 200, clientY: 200 });
+    expect(onCanvasPlace).toHaveBeenCalledOnce();
+    fireEvent.pointerDown(owner, { clientX: 200, clientY: 200, button: 0 });
+    fireEvent.click(owner, { clientX: 200, clientY: 200 });
+    expect(onCanvasPlace).toHaveBeenCalledTimes(2);
+  });
+
   it('keeps Trace transparent and movable without Sticker resize controls in the DOM fallback', () => {
     const props = {
       floorplan,

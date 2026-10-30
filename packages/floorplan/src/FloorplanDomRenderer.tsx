@@ -8,6 +8,7 @@ import { hasEqualPhysicalSides, stagePointToNormalized } from './floorplan-scene
 import { contrastingText, stickerColor } from './floorplan-sticker-style';
 import { resolveSvgTableVisualState } from './floorplan-svg-table-state';
 import { visualSeats } from './floorplan-visual-seats';
+import { createPlacementGestureGuard } from './floorplan-placement-gesture';
 
 export interface FloorplanRendererProps {
   floorplan: Omit<Floorplan, 'seatingMode' | 'seats'> & Pick<Partial<Floorplan>, 'seatingMode' | 'seats'>;
@@ -49,6 +50,7 @@ export function FloorplanDomRenderer(props: FloorplanRendererProps) {
       props.svgSource?.selectableElements.some((element) => element.sourceElementId === shape.sourceElementId)
   );
   const ownerRef = useRef<HTMLDivElement>(null);
+  const placementGesture = useRef(createPlacementGestureGuard());
   const [measureOwner, ownerSize] = useElementSize<HTMLDivElement>();
   const setOwnerRef = useCallback(
     (node: HTMLDivElement | null) => {
@@ -59,7 +61,7 @@ export function FloorplanDomRenderer(props: FloorplanRendererProps) {
   );
 
   const placeFromEvent = (clientX: number, clientY: number, pendingId?: string) => {
-    if (props.disabled) return;
+    if (props.disabled || props.panEnabled || !placementGesture.current.canPlace()) return;
     const bounds = ownerRef.current?.getBoundingClientRect();
     if (!bounds) return;
     props.onCanvasPlace?.(stagePointToNormalized(clientX, clientY, bounds), pendingId);
@@ -69,7 +71,17 @@ export function FloorplanDomRenderer(props: FloorplanRendererProps) {
     <Box
       ref={setOwnerRef}
       aria-label="Plano interactivo de mesas y zonas"
+      onPointerDownCapture={(event) => {
+        placementGesture.current.start(event, event.isPrimary !== false && event.button === 0);
+        if (props.panEnabled) placementGesture.current.cancel();
+      }}
+      onPointerMoveCapture={(event) => placementGesture.current.move(event)}
+      onPointerUpCapture={(event) => placementGesture.current.move(event)}
+      onPointerCancelCapture={() => placementGesture.current.cancel()}
+      onDragStartCapture={() => placementGesture.current.cancel()}
+      onWheelCapture={() => placementGesture.current.cancel()}
       onClick={(event) => {
+        if (event.detail > 1) return;
         if (!props.captureCanvasClicks && (event.target as HTMLElement).closest('button')) return;
         placeFromEvent(event.clientX, event.clientY);
       }}
