@@ -182,6 +182,215 @@ describe('Admin Event preparation surfaces', () => {
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
   });
 
+  it.each([1440, 1024])(
+    'CALCA04 selects, moves and batch-moves Trace Seats outside the parent bbox at %d',
+    async (width) => {
+      setAdminViewportWidth(width);
+      const fixture = traceFixture();
+      fixture.state = { ...fixture.state, seats: serpentineSeats('table-a') };
+      vi.mocked(fixture.api.adminEventPreparation.batchFloorplanSeats).mockImplementation(
+        async (_client, _event, input) => {
+          const seats = input.seats.map((change) => ({
+            ...fixture.state.seats.find((seat) => seat.id === change.seatId)!,
+            x: change.x!,
+            y: change.y!
+          }));
+          fixture.state = {
+            ...fixture.state,
+            seats: fixture.state.seats.map((seat) => seats.find((updated) => updated.id === seat.id) ?? seat)
+          };
+          return seats;
+        }
+      );
+      await openTraceParent(fixture.api);
+      act(() => selectTraceSeat('seat-s1'));
+      expect(floorplanHarness.props?.selectedId).toBe('table-a');
+      expect(floorplanHarness.props?.draft).toBeUndefined();
+      expect(screen.getByRole('region', { name: 'Corrección de lugares' })).toBeVisible();
+      expect(document.querySelector('.MuiModal-root')).toBeNull();
+      await act(async () => moveTraceSeat('seat-s1', { x: 0.7, y: 0.6 }));
+      await waitFor(() => expect(fixture.state.seats[0]?.x).toBeCloseTo(0.7));
+      act(() => selectTraceSeat('seat-s2', true));
+      const before = fixture.state.seats.slice(0, 2).map((seat) => ({ ...seat }));
+      await act(async () => moveTraceSeat('seat-s2', { x: 0.4, y: 0.3 }));
+      await waitFor(() => expect(fixture.api.adminEventPreparation.batchFloorplanSeats).toHaveBeenCalledTimes(2));
+      expect(fixture.state.seats[0]!.x - fixture.state.seats[1]!.x).toBeCloseTo(before[0]!.x - before[1]!.x);
+      expect(fixture.state.seats[0]!.y - fixture.state.seats[1]!.y).toBeCloseTo(before[0]!.y - before[1]!.y);
+      expect(fixture.state.seats[0]!.floorplanShapeId).toBe('table-a');
+      expect(fixture.api.adminEventPreparation.createFloorplanSeat).not.toHaveBeenCalled();
+      expect(fixture.api.adminEventPreparation.removeFloorplanSeat).not.toHaveBeenCalled();
+      expect(screen.getByText(/Acciones sólo al principal/)).toBeInTheDocument();
+    }
+  );
+
+  it('CALCA04 renames inline and renumbers while retaining UUID, parent and occupancy', async () => {
+    const fixture = traceFixture();
+    fixture.state = {
+      ...fixture.state,
+      seats: serpentineSeats('table-a').map((seat, i) => ({ ...seat, occupied: i === 0 }))
+    };
+    vi.mocked(fixture.api.adminEventPreparation.updateFloorplanSeat).mockImplementation(
+      async (_client, _event, id, input) => {
+        const updated = { ...fixture.state.seats.find((seat) => seat.id === id)!, ...input };
+        fixture.state = {
+          ...fixture.state,
+          seats: fixture.state.seats.map((seat) => (seat.id === id ? updated : seat))
+        };
+        return updated;
+      }
+    );
+    vi.mocked(fixture.api.adminEventPreparation.renumberFloorplanSeats).mockImplementation(async () => {
+      const seats = fixture.state.seats.map((seat, i) => ({ ...seat, label: `${i + 1}` }));
+      fixture.state = { ...fixture.state, seats };
+      return seats;
+    });
+    await openTraceParent(fixture.api);
+    act(() => selectTraceSeat('seat-s1'));
+    expect(screen.getByRole('button', { name: 'Bloquear' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Eliminar lugar' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Bloquear' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Eliminar lugar' }));
+    expect(fixture.api.adminEventPreparation.updateFloorplanSeat).not.toHaveBeenCalled();
+    expect(fixture.api.adminEventPreparation.removeFloorplanSeat).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Renombrar' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Nombre del lugar'), { target: { value: 'Cabecera preferente' } });
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar nombre' }));
+    await waitFor(() => expect(fixture.state.seats[0]?.label).toBe('Cabecera preferente'));
+    const identity = fixture.state.seats.map(({ id, floorplanShapeId, occupied }) => ({
+      id,
+      floorplanShapeId,
+      occupied
+    }));
+    await userEvent.click(screen.getByRole('button', { name: 'Renumerar lugares' }));
+    await waitFor(() => expect(fixture.api.adminEventPreparation.renumberFloorplanSeats).toHaveBeenCalledOnce());
+    expect(
+      fixture.state.seats.map(({ id, floorplanShapeId, occupied }) => ({ id, floorplanShapeId, occupied }))
+    ).toEqual(identity);
+    expect(fixture.api.adminEventPreparation.removeFloorplanSeat).not.toHaveBeenCalled();
+  });
+
+  it('CALCA04 duplicates with a normalized unique label and blocks, unblocks and deletes only the primary', async () => {
+    const fixture = traceFixture();
+    fixture.state = {
+      ...fixture.state,
+      seats: [
+        ...serpentineSeats('table-a'),
+        { ...serpentineSeats('table-a')[0]!, id: 'collision', label: ' asiento   a 2 ' }
+      ]
+    };
+    vi.mocked(fixture.api.adminEventPreparation.updateFloorplanSeat).mockImplementation(async (_c, _e, id, input) => {
+      const updated = { ...fixture.state.seats.find((seat) => seat.id === id)!, ...input };
+      fixture.state = { ...fixture.state, seats: fixture.state.seats.map((seat) => (seat.id === id ? updated : seat)) };
+      return updated;
+    });
+    vi.mocked(fixture.api.adminEventPreparation.removeFloorplanSeat).mockImplementation(async (_c, _e, id) => {
+      fixture.state = { ...fixture.state, seats: fixture.state.seats.filter((seat) => seat.id !== id) };
+    });
+    await openTraceParent(fixture.api);
+    act(() => selectTraceSeat('seat-s1'));
+    await userEvent.click(screen.getByRole('button', { name: 'Duplicar lugar' }));
+    await waitFor(() => expect(fixture.api.adminEventPreparation.createFloorplanSeat).toHaveBeenCalledOnce());
+    expect(fixture.state.seats.at(-1)?.label).toBe('Asiento A 3');
+    await userEvent.click(await screen.findByRole('button', { name: 'Bloquear' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Desbloquear' }));
+    await waitFor(() => expect(fixture.api.adminEventPreparation.updateFloorplanSeat).toHaveBeenCalledTimes(2));
+    await userEvent.click(screen.getByRole('button', { name: 'Eliminar lugar' }));
+    await waitFor(() => expect(fixture.api.adminEventPreparation.removeFloorplanSeat).toHaveBeenCalledOnce());
+    expect(fixture.state.seats).toHaveLength(4);
+    expect(floorplanHarness.props?.selectedId).toBe('table-a');
+  });
+
+  it('CALCA04 active tracing ignores stale selection/movement, and Manual adds a free label after gaps', async () => {
+    const fixture = traceFixture();
+    fixture.state = {
+      ...fixture.state,
+      seats: serpentineSeats('table-a')
+        .slice(0, 2)
+        .map((seat, i) => ({ ...seat, label: `Lugar ${i === 0 ? 1 : 3}` }))
+    };
+    await openTraceParent(fixture.api);
+    act(() => selectTraceSeat('seat-s1'));
+    const staleMove = floorplanHarness.props?.onSeatMove as (id: string, point: { x: number; y: number }) => void;
+    await userEvent.click(screen.getByRole('button', { name: 'Trazar lugares' }));
+    act(() => {
+      selectTraceSeat('seat-s2');
+      staleMove('seat-s1', { x: 0.8, y: 0.8 });
+    });
+    expect(floorplanHarness.props?.selectedSeatId).toBeUndefined();
+    expect(floorplanHarness.props?.onSeatMove).toBeUndefined();
+    expect(fixture.api.adminEventPreparation.batchFloorplanSeats).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Terminar mesa' }));
+    await chooseManual();
+    await userEvent.click(screen.getByRole('button', { name: 'Mesa Principal' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Agregar lugar' }));
+    act(() => canvasPlace()({ x: 0.5, y: 0.6 }));
+    await waitFor(() => expect(fixture.api.adminEventPreparation.createFloorplanSeat).toHaveBeenCalledOnce());
+    expect(fixture.state.seats.at(-1)?.label).toBe('Lugar 2');
+  });
+
+  it('CALCA04 keeps correction context on a concurrent move rejection and adopts occupied authority without replay', async () => {
+    const fixture = traceFixture();
+    fixture.state = { ...fixture.state, seats: serpentineSeats('table-a') };
+    vi.mocked(fixture.api.adminEventPreparation.batchFloorplanSeats).mockImplementation(async () => {
+      fixture.state = {
+        ...fixture.state,
+        seats: fixture.state.seats.map((seat) => ({ ...seat, occupied: seat.id === 'seat-s1' }))
+      };
+      throw new ApiError(409, 'FLOORPLAN_CONCURRENCY_CONFLICT', 'concurrent occupancy');
+    });
+    await openTraceParent(fixture.api);
+    act(() => selectTraceSeat('seat-s1'));
+    await act(async () => moveTraceSeat('seat-s1', { x: 0.8, y: 0.8 }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Bloquear' })).toBeDisabled());
+    expect(screen.getByRole('button', { name: 'Eliminar lugar' })).toBeDisabled();
+    expect(floorplanHarness.props?.selectedSeatId).toBe('seat-s1');
+    expect(floorplanHarness.props?.selectedId).toBe('table-a');
+    expect(fixture.state.seats[0]!.x).toBe(0.2);
+    expect(fixture.api.adminEventPreparation.batchFloorplanSeats).toHaveBeenCalledOnce();
+    await userEvent.click(screen.getByRole('button', { name: 'Renombrar' }));
+    fireEvent.change(screen.getByLabelText('Nombre del lugar'), { target: { value: 'Borrador local' } });
+    const leave = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(leave);
+    expect(leave.defaultPrevented).toBe(true);
+    expect(fixture.api.adminEventPreparation.updateFloorplanSeat).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar nombre' }));
+  });
+
+  it('CALCA04 follows the primary Seat parent and its SVG binding when additive selection changes', async () => {
+    const fixture = traceFixture();
+    const source = svgSource('trace-svg');
+    source.selectableElements.push({
+      sourceElementId: 'private-circle',
+      elementType: 'circle',
+      bbox: { x: 0.1, y: 0.1, width: 0.18, height: 0.18 }
+    });
+    const mapped = shape({
+      id: 'mapped-parent',
+      name: 'Mesa mapeada',
+      sourceElementId: source.selectableElements[0]!.sourceElementId
+    });
+    fixture.state = {
+      ...fixture.state,
+      image: { fileAssetId: 'trace-svg', contentPath: '/private', sourceType: 'SVG' },
+      shapes: [shape(), mapped],
+      seats: [serpentineSeats('table-a')[0]!, { ...serpentineSeats(mapped.id)[1]!, id: 'mapped-seat' }]
+    };
+    vi.mocked(fixture.api.adminEventPreparation.getFloorplanSvgSource).mockResolvedValue(source);
+    await openTraceParent(fixture.api);
+    act(() => {
+      selectTraceSeat('seat-s1');
+      selectTraceSeat('mapped-seat', true);
+    });
+    expect(floorplanHarness.props?.selectedId).toBe(mapped.id);
+    expect(floorplanHarness.props?.selectedSourceElementId).toBe(mapped.sourceElementId);
+    act(() => selectTraceSeat('mapped-seat', true));
+    expect(floorplanHarness.props?.selectedSeatId).toBe('seat-s1');
+    expect(floorplanHarness.props?.selectedId).toBe('table-a');
+    expect(floorplanHarness.props?.selectedSourceElementId).toBeUndefined();
+    expectNoSeatWrites(fixture.api);
+  });
+
   it('CALCA03 traces ten confirmed seats serially, ends with the parent selected and reloads stable identity', async () => {
     const fixture = traceFixture();
     const view = await openTraceParent(fixture.api);
@@ -2462,6 +2671,13 @@ function enabledButton(name: string) {
 
 function canvasPlace() {
   return floorplanHarness.props?.onCanvasPlace as (point: { x: number; y: number }) => void;
+}
+
+function selectTraceSeat(id: string, additive = false) {
+  (floorplanHarness.props?.onSeatSelect as (id: string, options: { additive: boolean }) => void)(id, { additive });
+}
+function moveTraceSeat(id: string, point: { x: number; y: number }) {
+  return (floorplanHarness.props?.onSeatMove as (id: string, point: { x: number; y: number }) => void)(id, point);
 }
 
 async function chooseStickerAndPlace(label: string, point = { x: 0.5, y: 0.5 }) {

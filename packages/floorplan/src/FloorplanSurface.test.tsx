@@ -42,6 +42,39 @@ const floorplan: Floorplan = {
 };
 
 describe('FloorplanSurface', () => {
+  it('exposes full focused/selected Trace seat labels through an accessible navigator without creating history', async () => {
+    const seats = Array.from({ length: 30 }, (_, i) => ({
+      id: `dense-${i}`,
+      label: `Lugar preferente con nombre completo ${i}`,
+      floorplanShapeId: table.id,
+      x: 0.2,
+      y: 0.2,
+      isBlocked: false,
+      occupied: false
+    }));
+    const onSeatSelect = vi.fn(),
+      onDraftChange = vi.fn();
+    render(
+      <FloorplanSurface
+        floorplan={{ ...floorplan, seatingMode: 'SEAT', seats }}
+        imageUrl="blob:plan"
+        disabled={false}
+        tracePresentation
+        onSelect={vi.fn()}
+        onDraftChange={onDraftChange}
+        onSeatSelect={onSeatSelect}
+      />
+    );
+    await screen.findByTestId('production-konva-renderer');
+    await userEvent.click(screen.getByText('Seleccionar lugar por nombre (30)'));
+    const button = screen.getByRole('button', { name: `${seats[0]!.label} · Uno · Disponible` });
+    fireEvent.focus(button);
+    expect(screen.getByTestId('floorplan-seat-label')).toHaveTextContent(seats[0]!.label);
+    fireEvent.click(button, { ctrlKey: true });
+    expect(onSeatSelect).toHaveBeenCalledWith('dense-0', { additive: true });
+    expect(screen.getByRole('button', { name: 'Deshacer cambio visual' })).toBeDisabled();
+    expect(onDraftChange).not.toHaveBeenCalled();
+  });
   it('fits the complete image in Trace and reports its actual coordinate space for placement', async () => {
     const onCanvasPlace = vi.fn();
     render(

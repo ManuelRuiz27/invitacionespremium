@@ -56,6 +56,72 @@ const detailedFloorplan: Floorplan = {
 };
 
 describe('FloorplanDomRenderer', () => {
+  it('restores the authoritative Trace point when a drag enters mutation/recovery', () => {
+    vi.stubGlobal('PointerEvent', MouseEvent);
+    const onSeatMove = vi.fn();
+    const props = {
+      floorplan: detailedFloorplan,
+      imageUrl: 'blob:plan',
+      disabled: false,
+      showSeats: false,
+      snap: false,
+      onSelect: vi.fn(),
+      onDraftChange: vi.fn(),
+      onSeatMove
+    };
+    const view = render(<FloorplanDomRenderer {...props} tracePresentation />);
+    const owner = screen.getByLabelText('Plano interactivo de mesas y zonas');
+    vi.spyOn(owner, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 1000, height: 500 } as DOMRect);
+    const seat = screen.getByRole('button', { name: /^Lugar 1,/ });
+    fireEvent.pointerDown(seat, { clientX: 200, clientY: 100, button: 0 });
+    fireEvent.pointerMove(seat, { clientX: 500, clientY: 250 });
+    fireEvent.pointerUp(seat, { clientX: 500, clientY: 250 });
+    expect(onSeatMove).toHaveBeenCalledOnce();
+    expect(seat).toHaveStyle({ left: '50%' });
+    view.rerender(<FloorplanDomRenderer {...props} tracePresentation disabled />);
+    expect(seat).toHaveStyle({ left: `${detailedFloorplan.seats![0]!.x * 100}%` });
+  });
+  it('keeps thirty dense Trace markers label-free while preserving full accessible names and focus', () => {
+    const seats = Array.from({ length: 30 }, (_, i) => ({
+      id: `dense-${i}`,
+      label: `Lugar preferente con nombre completo ${i}`,
+      floorplanShapeId: table.id,
+      x: 0.2 + (i % 6) * 0.03,
+      y: 0.2 + Math.floor(i / 6) * 0.03,
+      isBlocked: false,
+      occupied: false
+    }));
+    const onSeatSelect = vi.fn(),
+      onSeatMove = vi.fn(),
+      onSeatFocus = vi.fn();
+    const props = {
+      floorplan: { ...floorplan, seatingMode: 'SEAT' as const, seats },
+      imageUrl: 'blob:plan',
+      disabled: false,
+      showSeats: false,
+      snap: false,
+      onSelect: vi.fn(),
+      onDraftChange: vi.fn(),
+      onSeatSelect,
+      onSeatMove,
+      onSeatFocus
+    };
+    const view = render(<FloorplanDomRenderer {...props} tracePresentation />);
+    const owner = screen.getByLabelText('Plano interactivo de mesas y zonas');
+    expect(owner.textContent).not.toContain('Lugar preferente');
+    const first = screen.getByRole('button', { name: `Lugar ${seats[0]!.label}, disponible` });
+    expect(first).toHaveAttribute('title', seats[0]!.label);
+    fireEvent.focus(first);
+    expect(onSeatFocus).toHaveBeenCalledWith('dense-0');
+    fireEvent.click(first, { shiftKey: true });
+    expect(onSeatSelect).toHaveBeenCalledWith('dense-0', { additive: true });
+    view.rerender(<FloorplanDomRenderer {...props} tracePresentation captureCanvasClicks />);
+    fireEvent.click(first);
+    expect(onSeatSelect).toHaveBeenCalledOnce();
+    expect(onSeatMove).not.toHaveBeenCalled();
+    view.rerender(<FloorplanDomRenderer {...props} />);
+    expect(owner.textContent).toContain(seats[0]!.label);
+  });
   it('does not place after drag, cancelled pointer, wheel or a pan gesture, and accepts the next primary click', () => {
     vi.stubGlobal('PointerEvent', MouseEvent);
     const onCanvasPlace = vi.fn();

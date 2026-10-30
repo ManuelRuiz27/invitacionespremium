@@ -30,6 +30,7 @@ export interface FloorplanRendererProps {
   selectedSeatIds?: readonly string[] | undefined;
   onSeatSelect?: ((seatId: string, options: { additive: boolean }) => void) | undefined;
   onSeatMove?: ((seatId: string, point: { x: number; y: number }) => void) | undefined;
+  onSeatFocus?: ((seatId: string | undefined) => void) | undefined;
   svgSource?:
     | {
         selectableElements: Array<{
@@ -43,6 +44,12 @@ export interface FloorplanRendererProps {
 }
 
 export function FloorplanDomRenderer(props: FloorplanRendererProps) {
+  const renderedSeats = props.tracePresentation
+    ? [...(props.floorplan.seats ?? [])].sort((left, right) => {
+        const rank = (id: string) => (props.selectedSeatId === id ? 2 : props.selectedSeatIds?.includes(id) ? 1 : 0);
+        return rank(left.id) - rank(right.id);
+      })
+    : (props.floorplan.seats ?? []);
   const selectedIsMapped = props.floorplan.shapes.some(
     (shape) =>
       shape.id === props.selectedId &&
@@ -212,16 +219,18 @@ export function FloorplanDomRenderer(props: FloorplanRendererProps) {
         );
       })}
       {props.floorplan.seatingMode === 'SEAT'
-        ? (props.floorplan.seats ?? []).map((seat) => (
+        ? renderedSeats.map((seat) => (
             <SeatButton
               key={seat.id}
               seat={seat}
               selected={props.selectedSeatIds?.includes(seat.id) ?? props.selectedSeatId === seat.id}
-              disabled={props.disabled}
+              disabled={props.disabled || Boolean(props.tracePresentation && props.panEnabled)}
               placementActive={props.captureCanvasClicks === true}
               ownerRef={ownerRef}
               onSelect={(options) => props.onSeatSelect?.(seat.id, options)}
               onMove={props.onSeatMove}
+              tracePresentation={props.tracePresentation}
+              onFocus={props.onSeatFocus}
             />
           ))
         : null}
@@ -248,7 +257,9 @@ function SeatButton({
   placementActive,
   ownerRef,
   onSelect,
-  onMove
+  onMove,
+  tracePresentation,
+  onFocus
 }: {
   seat: NonNullable<FloorplanRendererProps['floorplan']['seats']>[number];
   selected: boolean;
@@ -257,21 +268,28 @@ function SeatButton({
   ownerRef: React.RefObject<HTMLDivElement | null>;
   onSelect: (options: { additive: boolean }) => void;
   onMove?: FloorplanRendererProps['onSeatMove'];
+  tracePresentation?: boolean | undefined;
+  onFocus?: FloorplanRendererProps['onSeatFocus'];
 }) {
   const [preview, setPreview] = useState({ x: seat.x, y: seat.y });
   const dragging = useRef(false);
   const suppressClick = useRef(false);
+  const traceDisabled = Boolean(tracePresentation && disabled);
   useEffect(() => {
     if (!dragging.current) setPreview({ x: seat.x, y: seat.y });
-  }, [seat.x, seat.y]);
+  }, [seat.x, seat.y, traceDisabled]);
   return (
     <Box
       component="button"
       type="button"
       aria-label={`Lugar ${seat.label}${seat.isBlocked ? ', bloqueado' : seat.occupied ? ', ocupado' : ', disponible'}`}
       aria-pressed={selected}
+      title={tracePresentation ? seat.label : undefined}
+      onFocus={() => onFocus?.(seat.id)}
+      onBlur={() => onFocus?.(undefined)}
       onClick={(event) => {
         event.stopPropagation();
+        if (disabled || placementActive) return;
         if (suppressClick.current) {
           suppressClick.current = false;
           return;
@@ -279,7 +297,7 @@ function SeatButton({
         onSelect({ additive: event.shiftKey || event.ctrlKey || event.metaKey });
       }}
       onPointerDown={(event) => {
-        if (disabled || !onMove) return;
+        if (disabled || placementActive || !onMove) return;
         event.stopPropagation();
         event.preventDefault();
         const bounds = ownerRef.current?.getBoundingClientRect();
@@ -331,14 +349,14 @@ function SeatButton({
         border: 0,
         bgcolor: 'transparent',
         color: 'text.primary',
-        zIndex: 3,
+        zIndex: tracePresentation ? (selected ? 6 : 5) : 3,
         cursor: disabled ? 'default' : onMove ? 'grab' : 'pointer',
         pointerEvents: placementActive ? 'none' : 'auto',
         touchAction: 'none',
         '&::after': {
           content: '""',
           position: 'absolute',
-          inset: 8,
+          inset: tracePresentation ? 15 : 8,
           borderRadius: '50%',
           border: 2,
           borderColor: selected
@@ -354,7 +372,7 @@ function SeatButton({
       }}
     >
       <Box component="span" sx={{ position: 'relative', zIndex: 1, fontSize: 11, fontWeight: 700 }}>
-        {seat.label}
+        {tracePresentation ? (seat.isBlocked ? '×' : '') : seat.label}
       </Box>
     </Box>
   );

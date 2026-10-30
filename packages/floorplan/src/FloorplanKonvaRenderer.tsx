@@ -39,6 +39,12 @@ export function FloorplanKonvaRenderer(
     | undefined
   >(undefined);
   const stageSize = { width: props.width, height: props.height };
+  const renderedSeats = props.tracePresentation
+    ? [...(props.floorplan.seats ?? [])].sort((left, right) => {
+        const rank = (id: string) => (props.selectedSeatId === id ? 2 : props.selectedSeatIds?.includes(id) ? 1 : 0);
+        return rank(left.id) - rank(right.id);
+      })
+    : (props.floorplan.seats ?? []);
   const selectedIsMapped = props.floorplan.shapes.some(
     (shape) =>
       shape.id === props.selectedId &&
@@ -146,6 +152,94 @@ export function FloorplanKonvaRenderer(
     props.onViewportChange(pinchRef.current.viewport);
     pinchRef.current = undefined;
   };
+
+  const seatNodes =
+    props.floorplan.seatingMode === 'SEAT'
+      ? renderedSeats.map((seat) => (
+          <Group
+            key={seat.id}
+            name="floorplan-seat"
+            _useStrictMode={Boolean(props.tracePresentation)}
+            x={seat.x * props.width}
+            y={seat.y * props.height}
+            listening={!props.captureCanvasClicks && !(props.tracePresentation && props.panEnabled)}
+            draggable={
+              !props.disabled &&
+              !props.captureCanvasClicks &&
+              !(props.tracePresentation && props.panEnabled) &&
+              Boolean(props.onSeatMove)
+            }
+            onClick={(event) => {
+              if (props.disabled || props.captureCanvasClicks || (props.tracePresentation && props.panEnabled)) return;
+              event.cancelBubble = true;
+              props.onSeatSelect?.(seat.id, {
+                additive: Boolean(event.evt.shiftKey || event.evt.ctrlKey || event.evt.metaKey)
+              });
+            }}
+            onTap={(event) => {
+              if (props.disabled || props.captureCanvasClicks || (props.tracePresentation && props.panEnabled)) return;
+              event.cancelBubble = true;
+              props.onSeatSelect?.(seat.id, { additive: false });
+            }}
+            onDragEnd={(event) => {
+              if (
+                !props.onSeatMove ||
+                props.disabled ||
+                props.captureCanvasClicks ||
+                (props.tracePresentation && props.panEnabled)
+              )
+                return;
+              event.cancelBubble = true;
+              props.onSeatMove(seat.id, {
+                x: Math.min(1, Math.max(0, event.target.x() / props.width)),
+                y: Math.min(1, Math.max(0, event.target.y() / props.height))
+              });
+            }}
+          >
+            <Circle
+              radius={
+                props.tracePresentation
+                  ? ((props.selectedSeatIds?.includes(seat.id) ?? props.selectedSeatId === seat.id) ? 7 : 5) /
+                    props.viewport.scale
+                  : 7
+              }
+              hitStrokeWidth={props.tracePresentation ? 34 / props.viewport.scale : 30}
+              fill={seat.isBlocked ? '#b0b6bf' : seat.occupied ? floorplanColors.accent : floorplanColors.paper}
+              stroke={
+                (props.selectedSeatIds?.includes(seat.id) ?? props.selectedSeatId === seat.id)
+                  ? floorplanColors.warning
+                  : floorplanColors.line
+              }
+              strokeWidth={
+                ((props.selectedSeatIds?.includes(seat.id) ?? props.selectedSeatId === seat.id) ? 3 : 1.5) /
+                (props.tracePresentation ? props.viewport.scale : 1)
+              }
+            />
+            {!props.tracePresentation ? (
+              <Text
+                text={seat.label}
+                x={-12}
+                y={-5}
+                width={24}
+                align="center"
+                fontSize={8}
+                fill={floorplanColors.ink}
+                listening={false}
+              />
+            ) : seat.isBlocked ? (
+              <Text
+                text="×"
+                x={-5 / props.viewport.scale}
+                y={-5 / props.viewport.scale}
+                width={10 / props.viewport.scale}
+                fontSize={10 / props.viewport.scale}
+                align="center"
+                listening={false}
+              />
+            ) : null}
+          </Group>
+        ))
+      : null;
 
   return (
     <Stage
@@ -296,58 +390,7 @@ export function FloorplanKonvaRenderer(
             />
           );
         })}
-        {props.floorplan.seatingMode === 'SEAT'
-          ? (props.floorplan.seats ?? []).map((seat) => (
-              <Group
-                key={seat.id}
-                name="floorplan-seat"
-                x={seat.x * props.width}
-                y={seat.y * props.height}
-                listening={!props.captureCanvasClicks}
-                draggable={!props.disabled && !props.captureCanvasClicks && Boolean(props.onSeatMove)}
-                onClick={(event) => {
-                  event.cancelBubble = true;
-                  props.onSeatSelect?.(seat.id, {
-                    additive: Boolean(event.evt.shiftKey || event.evt.ctrlKey || event.evt.metaKey)
-                  });
-                }}
-                onTap={(event) => {
-                  event.cancelBubble = true;
-                  props.onSeatSelect?.(seat.id, { additive: false });
-                }}
-                onDragEnd={(event) => {
-                  if (!props.onSeatMove) return;
-                  event.cancelBubble = true;
-                  props.onSeatMove(seat.id, {
-                    x: Math.min(1, Math.max(0, event.target.x() / props.width)),
-                    y: Math.min(1, Math.max(0, event.target.y() / props.height))
-                  });
-                }}
-              >
-                <Circle
-                  radius={7}
-                  hitStrokeWidth={30}
-                  fill={seat.isBlocked ? '#b0b6bf' : seat.occupied ? floorplanColors.accent : floorplanColors.paper}
-                  stroke={
-                    (props.selectedSeatIds?.includes(seat.id) ?? props.selectedSeatId === seat.id)
-                      ? floorplanColors.warning
-                      : floorplanColors.line
-                  }
-                  strokeWidth={(props.selectedSeatIds?.includes(seat.id) ?? props.selectedSeatId === seat.id) ? 3 : 1.5}
-                />
-                <Text
-                  text={seat.label}
-                  x={-12}
-                  y={-5}
-                  width={24}
-                  align="center"
-                  fontSize={8}
-                  fill={floorplanColors.ink}
-                  listening={false}
-                />
-              </Group>
-            ))
-          : null}
+        {!props.tracePresentation ? seatNodes : null}
         {selected && selectedRect ? (
           <EditableKonvaShape
             shape={selected}
@@ -361,6 +404,7 @@ export function FloorplanKonvaRenderer(
             onChange={props.onDraftChange}
           />
         ) : null}
+        {props.tracePresentation ? seatNodes : null}
       </Layer>
     </Stage>
   );

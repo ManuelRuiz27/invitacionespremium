@@ -130,6 +130,48 @@ const touchEvent = (touches: Array<{ clientX: number; clientY: number }>, preven
 });
 
 describe('FloorplanKonvaRenderer de producción', () => {
+  it('keeps dense Trace labels out of the canvas and preserves additive selection/move and active-trace exclusion', () => {
+    const seats = Array.from({ length: 30 }, (_, i) => ({
+      id: `dense-${i}`,
+      label: `Lugar preferente con nombre completo ${i}`,
+      floorplanShapeId: table.id,
+      x: 0.2 + (i % 6) * 0.03,
+      y: 0.2 + Math.floor(i / 6) * 0.03,
+      isBlocked: false,
+      occupied: false
+    }));
+    const onSeatSelect = vi.fn(),
+      onSeatMove = vi.fn();
+    const base = props({
+      floorplan: { ...floorplan, seatingMode: 'SEAT', seats },
+      tracePresentation: true,
+      onSeatSelect,
+      onSeatMove
+    });
+    const view = render(<FloorplanKonvaRenderer {...base} />);
+    expect(
+      konva.nodes.filter((node) => node.type === 'Text' && String(node.props.text).includes('Lugar preferente'))
+    ).toHaveLength(0);
+    let seat = latest('Group', 'floorplan-seat').props;
+    act(() => {
+      (seat.onClick as (event: unknown) => void)({ evt: { shiftKey: true }, cancelBubble: false });
+      (seat.onDragEnd as (event: unknown) => void)({ target: { x: () => 800, y: () => 400 }, cancelBubble: false });
+    });
+    expect(onSeatSelect).toHaveBeenCalledWith('dense-29', { additive: true });
+    expect(onSeatMove).toHaveBeenCalledWith('dense-29', { x: 0.8, y: 0.8 });
+    view.rerender(<FloorplanKonvaRenderer {...base} captureCanvasClicks />);
+    seat = latest('Group', 'floorplan-seat').props;
+    expect(seat.listening).toBe(false);
+    expect(seat.draggable).toBe(false);
+    act(() => {
+      (seat.onTap as (event: unknown) => void)({ cancelBubble: false });
+      (seat.onDragEnd as (event: unknown) => void)({ target: { x: () => 100, y: () => 100 } });
+    });
+    expect(onSeatSelect).toHaveBeenCalledOnce();
+    expect(onSeatMove).toHaveBeenCalledOnce();
+    view.rerender(<FloorplanKonvaRenderer {...base} tracePresentation={false} />);
+    expect(latest('Text').props.text).toBe(seats[29]!.label);
+  });
   it('places only a fresh click in Trace, never drag, pan, wheel, pinch, double-click or outside-image points', () => {
     const onCanvasPlace = vi.fn();
     const base = props({ tracePresentation: true, captureCanvasClicks: true, onCanvasPlace });

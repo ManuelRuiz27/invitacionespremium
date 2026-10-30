@@ -59,7 +59,8 @@ import {
 import { AdminFloorplanSvgMappingInspector } from './AdminFloorplanSvgMappingInspector';
 import { AdminFloorplanTraceEntry, type FloorplanConstructionTool } from './AdminFloorplanTraceEntry';
 import { AdminFloorplanTraceSession } from './AdminFloorplanTraceSession';
-import { nextTraceSeatLabel } from './floorplan-trace-label';
+import { AdminFloorplanTraceCorrection } from './AdminFloorplanTraceCorrection';
+import { nextTraceSeatLabel, nextDuplicateSeatLabel } from './floorplan-trace-label';
 
 type EditorMode =
   | 'idle'
@@ -67,6 +68,7 @@ type EditorMode =
   | 'placing-preset'
   | 'placing-seat'
   | 'tracing-seats'
+  | 'correcting-seats'
   | 'creating-draft'
   | 'editing-existing';
 type Mutation = 'uploading' | 'saving' | 'duplicating' | 'deleting' | 'locking' | 'unlocking' | 'placing' | 'seating';
@@ -111,6 +113,10 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   const [selectedId, setSelectedId] = useState<string>();
   const [selectedSeatId, setSelectedSeatId] = useState<string>();
   const [selectedSeatIds, setSelectedSeatIds] = useState<string[]>([]);
+  const seatSelection = useRef<string[]>([]);
+  useEffect(() => {
+    seatSelection.current = selectedSeatIds;
+  }, [selectedSeatIds]);
   const [svgSource, setSvgSource] = useState<AdminFloorplanSvgSource>();
   const [svgSourceError, setSvgSourceError] = useState(false);
   const [selectedSourceElementId, setSelectedSourceElementId] = useState<string>();
@@ -212,6 +218,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   const finalized = floorplan?.locked === true || accessEventReadOnly;
   const dirty =
     traceBusy ||
+    (constructionTool === 'trace' && renameSeatOpen && renameSeatLabel !== renameSeatTarget?.label) ||
     mode === 'mapping-source' ||
     mode === 'creating-draft' ||
     (mode === 'editing-existing' && Boolean(selected) && !sameShapeInput(draft, editable(selected!))) ||
@@ -454,7 +461,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     !refreshRequired &&
     !reconciliationError &&
     !traceBusy &&
-    mode === 'editing-existing';
+    (mode === 'editing-existing' || mode === 'correcting-seats');
   const finishTrace = (latest = authoritativeFloorplan.current) => {
     traceSession.current = undefined;
     const parent = latest?.shapes.find((shape) => shape.id === selectedId && shape.kind === 'TABLE');
@@ -546,6 +553,56 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
       setTraceBusy(false);
     }
   };
+  const traceCorrectionBlocked = () =>
+    constructionTool === 'trace' &&
+    (mode !== 'correcting-seats' ||
+      layoutEventReadOnly ||
+      traceBusy ||
+      Boolean(traceSession.current) ||
+      refreshRequired ||
+      reconciliationError ||
+      mutationLock.current ||
+      refreshLock.current);
+  const selectSeat = (seatId: string, options: { additive: boolean }) => {
+    const trace = constructionTool === 'trace';
+    if (
+      (trace && renameSeatOpen) ||
+      readOnly ||
+      constructionTool === 'entry' ||
+      (trace
+        ? dirty ||
+          layoutEventReadOnly ||
+          refreshRequired ||
+          reconciliationError ||
+          Boolean(traceSession.current) ||
+          !['idle', 'editing-existing', 'correcting-seats'].includes(mode)
+        : editing)
+    )
+      return;
+    const seat = floorplan?.seats.find((candidate) => candidate.id === seatId);
+    if (!seat || floorplan?.seatingMode !== 'SEAT') return;
+    const currentIds = seatSelection.current;
+    const next = options.additive
+      ? currentIds.includes(seatId)
+        ? currentIds.filter((id) => id !== seatId)
+        : [...currentIds, seatId]
+      : [seatId];
+    const primary = next.includes(seatId) ? seat : floorplan.seats.find((candidate) => candidate.id === next[0]);
+    const parent = floorplan.shapes.find(
+      (shape) => shape.id === (primary ?? seat).floorplanShapeId && shape.kind === 'TABLE'
+    );
+    if (!parent) return;
+    seatSelection.current = next;
+    setSelectedSeatIds(next);
+    setSelectedSeatId(primary?.id);
+    setSelectedId(parent.id);
+    if (trace) {
+      setSelectedSourceElementId(parent.sourceElementId ?? undefined);
+      setDraft(editable(parent));
+      setMode('correcting-seats');
+      setInspectorOpen(true);
+    }
+  };
   const addSeat = () => {
     if (!floorplan || !selected || selected.kind !== 'TABLE' || readOnly) return;
     setMode('placing-seat');
@@ -553,10 +610,9 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   };
   const placeSeat = async (point: { x: number; y: number }) => {
     if (!floorplan || !selected || selected.kind !== 'TABLE' || readOnly) return;
-    const tableSeats = floorplan.seats.filter((seat) => seat.floorplanShapeId === selected.id);
     const saved = await runMutation('seating', () =>
       apiClient.adminEventPreparation.createFloorplanSeat(event.clientId, event.id, selected.id, {
-        label: `Lugar ${tableSeats.length + 1}`,
+        label: nextTraceSeatLabel(floorplan.seats, selected.id),
         ...point
       })
     );
@@ -568,9 +624,11 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     await refreshAfterConfirmedMutation();
   };
   const moveSeat = async (seatId: string, point: { x: number; y: number }) => {
-    if (readOnly || !floorplan) return;
+    if (readOnly || !floorplan || traceCorrectionBlocked() || (constructionTool === 'trace' && renameSeatOpen)) return;
     const source = floorplan.seats.find((seat) => seat.id === seatId);
     if (!source) return;
+    if (constructionTool === 'trace' && !selectedSeatIds.includes(source.id))
+      selectSeat(source.id, { additive: false });
     const moving = selectedSeatIds.includes(seatId) ? selectedSeats : [source];
     const delta = clampSeatGroupDelta(moving, { x: point.x - source.x, y: point.y - source.y });
     const saved = await runMutation('seating', () =>
@@ -590,7 +648,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     await refreshAfterConfirmedMutation();
   };
   const renumberSeats = async () => {
-    if (!floorplan || !selected || selected.kind !== 'TABLE' || readOnly) return;
+    if (!floorplan || !selected || selected.kind !== 'TABLE' || readOnly || traceCorrectionBlocked()) return;
     const seatIds = floorplan.seats.filter((seat) => seat.floorplanShapeId === selected.id).map((seat) => seat.id);
     if (!seatIds.length) return;
     const saved = await runMutation('seating', () =>
@@ -604,7 +662,12 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     await refreshAfterConfirmedMutation();
   };
   const updateSeat = async (seatId: string, input: { label?: string; isBlocked?: boolean }) => {
-    if (readOnly) return;
+    if (
+      readOnly ||
+      traceCorrectionBlocked() ||
+      (input.isBlocked === true && floorplan?.seats.find((seat) => seat.id === seatId)?.occupied)
+    )
+      return;
     const saved = await runMutation('seating', () =>
       apiClient.adminEventPreparation.updateFloorplanSeat(event.clientId, event.id, seatId, input)
     );
@@ -615,7 +678,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     await refreshAfterConfirmedMutation();
   };
   const openRenameSeat = () => {
-    if (!selectedSeat || readOnly) return;
+    if (!selectedSeat || readOnly || traceCorrectionBlocked()) return;
     setRenameSeatTarget({ id: selectedSeat.id, label: selectedSeat.label });
     setRenameSeatLabel(selectedSeat.label);
     setRenameSeatOpen(true);
@@ -637,15 +700,8 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     void updateSeat(seatId, { label });
   };
   const duplicateSeat = async () => {
-    if (!selectedSeat || readOnly || !floorplan) return;
-    const labels = new Set(
-      floorplan.seats
-        .filter((seat) => seat.floorplanShapeId === selectedSeat.floorplanShapeId)
-        .map((seat) => seat.label)
-    );
-    let sequence = 2;
-    let label = `${selectedSeat.label} ${sequence}`;
-    while (labels.has(label)) label = `${selectedSeat.label} ${++sequence}`;
+    if (!selectedSeat || readOnly || !floorplan || traceCorrectionBlocked()) return;
+    const label = nextDuplicateSeatLabel(floorplan.seats, selectedSeat.floorplanShapeId, selectedSeat.label);
     const saved = await runMutation('seating', () =>
       apiClient.adminEventPreparation.createFloorplanSeat(event.clientId, event.id, selectedSeat.floorplanShapeId, {
         label,
@@ -660,7 +716,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     await refreshAfterConfirmedMutation();
   };
   const removeSeat = async () => {
-    if (!selectedSeat || readOnly) return;
+    if (!selectedSeat || readOnly || selectedSeat.occupied || traceCorrectionBlocked()) return;
     const removedId = selectedSeat.id;
     const succeeded = await runMutation('seating', async () => {
       await apiClient.adminEventPreparation.removeFloorplanSeat(event.clientId, event.id, removedId);
@@ -1017,6 +1073,33 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
         busy={traceBusy}
         onFinish={() => finishTrace()}
       />
+    ) : !finalized && mode === 'correcting-seats' && selected ? (
+      <AdminFloorplanTraceCorrection
+        tableName={selected.name}
+        seat={selectedSeat}
+        count={selectedSeats.length}
+        disabled={readOnly || traceCorrectionBlocked()}
+        canTrace={canTraceSeats}
+        renameOpen={renameSeatOpen}
+        renameLabel={renameSeatLabel}
+        onRenameLabel={setRenameSeatLabel}
+        onRename={openRenameSeat}
+        onSaveName={submitRenameSeat}
+        onCancelName={closeRenameSeat}
+        onDuplicate={() => void duplicateSeat()}
+        onToggleBlocked={() => {
+          if (selectedSeat) void updateSeat(selectedSeat.id, { isBlocked: !selectedSeat.isBlocked });
+        }}
+        onRemove={() => void removeSeat()}
+        onRenumber={() => void renumberSeats()}
+        onTrace={startTrace}
+        onTable={() => {
+          setSelectedSeatId(undefined);
+          setSelectedSeatIds([]);
+          setDraft(editable(selected));
+          setMode('editing-existing');
+        }}
+      />
     ) : !finalized && editing ? (
       <AdminFloorplanShapeInspector
         creating={mode === 'creating-draft'}
@@ -1202,24 +1285,15 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
                   ? draft
                   : undefined
               }
-              disabled={readOnly || traceBusy}
+              disabled={
+                readOnly ||
+                traceBusy ||
+                (constructionTool === 'trace' &&
+                  (refreshRequired || reconciliationError || layoutEventReadOnly || renameSeatOpen))
+              }
               readOnly={finalized}
               onSelect={selectShape}
-              onSeatSelect={(seatId, options) => {
-                if (editing || readOnly || constructionTool === 'entry' || constructionTool === 'trace') return;
-                const seat = floorplan.seats.find((candidate) => candidate.id === seatId);
-                if (!seat) return;
-                setSelectedId(seat.floorplanShapeId);
-                setSelectedSeatIds((current) => {
-                  const next = options.additive
-                    ? current.includes(seat.id)
-                      ? current.filter((id) => id !== seat.id)
-                      : [...current, seat.id]
-                    : [seat.id];
-                  setSelectedSeatId(next.includes(seat.id) ? seat.id : next[0]);
-                  return next;
-                });
-              }}
+              onSeatSelect={selectSeat}
               onDraftChange={setDraft}
               onCanvasPlace={
                 mode === 'placing-preset' || mode === 'placing-seat' || mode === 'tracing-seats' || pendingTables.length
@@ -1232,7 +1306,9 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
                 (constructionTool === 'trace' && mode === 'placing-preset')
               }
               onSeatMove={
-                constructionTool === 'manual' || constructionTool === 'svg'
+                constructionTool === 'manual' ||
+                constructionTool === 'svg' ||
+                (constructionTool === 'trace' && !traceCorrectionBlocked())
                   ? (seatId, point) => void moveSeat(seatId, point)
                   : undefined
               }
@@ -1341,7 +1417,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
         </DialogActions>
       </Dialog>
       <AdminFloorplanSeatRenameDialog
-        open={renameSeatOpen}
+        open={renameSeatOpen && constructionTool !== 'trace'}
         label={renameSeatLabel}
         onLabelChange={setRenameSeatLabel}
         onClose={closeRenameSeat}

@@ -33,6 +33,7 @@ export function FloorplanSurface(props: FloorplanSurfaceProps) {
     [measureOwner, props.tracePresentation]
   );
   const [image, setImage] = useState<HTMLImageElement>();
+  const [focusedSeatId, setFocusedSeatId] = useState<string>();
   const [viewport, setViewport] = useState(defaultViewport);
   const [snap, setSnap] = useState(false);
   const [showSeats, setShowSeats] = useState(false);
@@ -97,6 +98,7 @@ export function FloorplanSurface(props: FloorplanSurfaceProps) {
     showSeats,
     panEnabled: panEnabled || spacePanEnabled,
     onDraftChange: changeDraft,
+    onSeatFocus: props.tracePresentation ? setFocusedSeatId : props.onSeatFocus,
     onCanvasPlace:
       props.tracePresentation && props.onCanvasPlace
         ? (point: { x: number; y: number }, pendingId?: string) =>
@@ -256,27 +258,85 @@ export function FloorplanSurface(props: FloorplanSurfaceProps) {
 
       {props.dock}
 
-      <Box
-        component="details"
-        sx={{ borderTop: `1px solid ${floorplanColors.line}`, bgcolor: floorplanColors.paper, px: 2, py: 1.25 }}
-      >
-        <Typography component="summary" id="floorplan-elements-title" variant="subtitle2" sx={{ cursor: 'pointer' }}>
-          Mesas y zonas ({props.floorplan.shapes.length})
-        </Typography>
-        <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap', pt: 1.25 }}>
-          {props.floorplan.shapes.map((shape) => (
-            <Button
-              key={shape.id}
-              size="small"
-              variant={props.selectedId === shape.id ? 'contained' : 'outlined'}
-              disabled={props.disabled || Boolean(props.draft)}
-              onClick={() => props.onSelect(shape)}
-              sx={{ minHeight: 44 }}
+      {props.tracePresentation &&
+        (() => {
+          const seat =
+            props.floorplan.seats?.find((candidate) => candidate.id === focusedSeatId) ??
+            props.floorplan.seats?.find((candidate) => candidate.id === props.selectedSeatId);
+          const parent = props.floorplan.shapes.find((shape) => shape.id === seat?.floorplanShapeId);
+          return seat ? (
+            <Typography
+              role="status"
+              data-testid="floorplan-seat-label"
+              variant="body2"
+              sx={{ px: 2, py: 0.75, bgcolor: 'background.paper', overflowWrap: 'anywhere' }}
             >
-              {shape.kind === 'TABLE' ? `${tableDisplayName(shape.name)} · ${shape.capacity}` : `Zona ${shape.name}`}
-            </Button>
-          ))}
-        </Stack>
+              {seat.label} · {parent?.name} · {seat.isBlocked ? 'Bloqueado' : seat.occupied ? 'Ocupado' : 'Disponible'}
+            </Typography>
+          ) : null;
+        })()}
+
+      <Box
+        sx={{
+          display: props.tracePresentation ? 'flex' : undefined,
+          alignItems: 'flex-start',
+          '& > details': props.tracePresentation ? { flex: '1 1 0', minWidth: 0 } : {}
+        }}
+      >
+        {props.tracePresentation && props.floorplan.seatingMode === 'SEAT' ? (
+          <Box component="details" sx={{ px: 2, py: 0.75, bgcolor: 'background.paper' }}>
+            <Typography component="summary" variant="subtitle2" sx={{ cursor: 'pointer' }}>
+              Seleccionar lugar por nombre ({props.floorplan.seats?.length ?? 0})
+            </Typography>
+            <Stack
+              direction="row"
+              useFlexGap
+              spacing={1}
+              sx={{ flexWrap: 'wrap', maxHeight: 180, overflow: 'auto', pt: 1 }}
+            >
+              {props.floorplan.seats?.map((seat) => (
+                <Button
+                  key={seat.id}
+                  size="small"
+                  aria-label={`${seat.label} · ${props.floorplan.shapes.find((shape) => shape.id === seat.floorplanShapeId)?.name} · ${seat.isBlocked ? 'Bloqueado' : seat.occupied ? 'Ocupado' : 'Disponible'}`}
+                  aria-pressed={props.selectedSeatIds?.includes(seat.id) ?? props.selectedSeatId === seat.id}
+                  disabled={props.disabled || props.captureCanvasClicks}
+                  onFocus={() => setFocusedSeatId(seat.id)}
+                  onBlur={() => setFocusedSeatId(undefined)}
+                  onClick={(event) =>
+                    props.onSeatSelect?.(seat.id, { additive: event.shiftKey || event.ctrlKey || event.metaKey })
+                  }
+                  sx={{ minHeight: 44 }}
+                >
+                  {seat.label}
+                </Button>
+              ))}
+            </Stack>
+          </Box>
+        ) : null}
+
+        <Box
+          component="details"
+          sx={{ borderTop: `1px solid ${floorplanColors.line}`, bgcolor: floorplanColors.paper, px: 2, py: 1.25 }}
+        >
+          <Typography component="summary" id="floorplan-elements-title" variant="subtitle2" sx={{ cursor: 'pointer' }}>
+            Mesas y zonas ({props.floorplan.shapes.length})
+          </Typography>
+          <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap', pt: 1.25 }}>
+            {props.floorplan.shapes.map((shape) => (
+              <Button
+                key={shape.id}
+                size="small"
+                variant={props.selectedId === shape.id ? 'contained' : 'outlined'}
+                disabled={props.disabled || Boolean(props.draft)}
+                onClick={() => props.onSelect(shape)}
+                sx={{ minHeight: 44 }}
+              >
+                {shape.kind === 'TABLE' ? `${tableDisplayName(shape.name)} · ${shape.capacity}` : `Zona ${shape.name}`}
+              </Button>
+            ))}
+          </Stack>
+        </Box>
       </Box>
     </Box>
   );
