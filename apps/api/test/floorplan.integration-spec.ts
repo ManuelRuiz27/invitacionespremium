@@ -591,6 +591,257 @@ describe('Floorplan and seating', () => {
     ).rejects.toMatchObject({ response: { code: 'SEATING_SELECTION_NOT_FOUND' } });
   });
 
+  it('CALCA-BLOCKER-01 clears exact unassignment atomically, releases the Seat and replays only the saved snapshot', async () => {
+    const fixture = await createExactSeatingFixture();
+    const assistantId = fixture.assistants[0]!.id;
+    const [firstSeat, nextSeat] = fixture.seats;
+    await floorplan.assignSeats(
+      fixture.event.id,
+      randomUUID(),
+      { assignments: [{ assistantId, seatId: firstSeat!.id }] },
+      fixture.principal
+    );
+    const pair = () =>
+      prisma.assistant.findUniqueOrThrow({
+        where: { id: assistantId },
+        select: { floorplanShapeId: true, floorplanSeatId: true }
+      });
+    const before = await pair();
+    expect(before).toEqual({ floorplanShapeId: firstSeat!.floorplanShapeId, floorplanSeatId: firstSeat!.id });
+    await floorplan.unlockAdministrative(fixture.client.id, fixture.event.id, fixture.admin);
+    await expect(
+      floorplan.deleteSeatAdministrative(fixture.client.id, fixture.event.id, firstSeat!.id, fixture.admin)
+    ).rejects.toMatchObject({ response: { code: 'FLOORPLAN_SEAT_OCCUPIED' } });
+    await expect(
+      floorplan.updateSeatAdministrative(
+        fixture.client.id,
+        fixture.event.id,
+        firstSeat!.id,
+        { isBlocked: true },
+        fixture.admin
+      )
+    ).rejects.toMatchObject({ response: { code: 'FLOORPLAN_SEAT_OCCUPIED' } });
+    await floorplan.lockAdministrative(fixture.client.id, fixture.event.id, fixture.admin);
+    const publish = vi.spyOn(realtime, 'publishSeatingUpdated');
+    const key = randomUUID();
+    const unassign = () =>
+      request(app.getHttpServer())
+        .patch(`/api/v1/events/${fixture.event.id}/seating/${assistantId}`)
+        .set('Cookie', fixture.cookie)
+        .set('Idempotency-Key', key)
+        .send({ tableShapeId: null })
+        .expect(200);
+    const [first, concurrentReplay] = await Promise.all([unassign(), unassign()]);
+    expect(concurrentReplay.body).toEqual(first.body);
+    const after = await pair();
+    expect(after).toEqual({ floorplanShapeId: null, floorplanSeatId: null });
+    expect(first.body.changes).toEqual([{ assistantId, fromTableId: firstSeat!.floorplanShapeId, toTableId: null }]);
+    expect(
+      (await floorplan.get(fixture.event.id, fixture.principal)).seats.find((seat) => seat.id === firstSeat!.id)
+    ).toMatchObject({ occupied: false });
+    expect(await prisma.seatingOperation.count({ where: { idempotencyKey: key } })).toBe(1);
+    expect(
+      (await prisma.seatingOperation.findUniqueOrThrow({ where: { idempotencyKey: key } })).resultSnapshot
+    ).toEqual(first.body);
+    expect(await prisma.auditLog.count({ where: { eventId: fixture.event.id, action: 'SEATING_UPDATE' } })).toBe(1);
+    expect(publish).toHaveBeenCalledTimes(1);
+    expect(publish).toHaveBeenLastCalledWith(
+      expect.objectContaining({ eventName: 'seating.updated', data: first.body })
+    );
+    await floorplan.assignSeats(
+      fixture.event.id,
+      randomUUID(),
+      { assignments: [{ assistantId, seatId: nextSeat!.id }] },
+      fixture.principal
+    );
+    expect((await unassign()).body).toEqual(first.body);
+    expect(await pair()).toEqual({ floorplanShapeId: nextSeat!.floorplanShapeId, floorplanSeatId: nextSeat!.id });
+    expect(publish).toHaveBeenCalledTimes(2);
+    expect(await prisma.auditLog.count({ where: { eventId: fixture.event.id, action: 'SEATING_UPDATE' } })).toBe(1);
+    await floorplan.unlockAdministrative(fixture.client.id, fixture.event.id, fixture.admin);
+    await floorplan.deleteSeatAdministrative(fixture.client.id, fixture.event.id, firstSeat!.id, fixture.admin);
+    expect((await prisma.floorplanSeat.findUniqueOrThrow({ where: { id: firstSeat!.id } })).deletedAt).not.toBeNull();
+    process.stdout.write(
+      'CALCA-BLOCKER-01 DB evidence ' +
+        JSON.stringify({
+          assistantId,
+          before,
+          after,
+          releasedSeatDeleted: true,
+          unassignAuditCount: 1,
+          unassignOperationCount: 1
+        }) +
+        '\n'
+    );
+  });
+
+  it.each(['UPDATE', 'ASSIGN', 'FAMILY', 'GROUP'] as const)(
+    'CALCA-BLOCKER-01 rejects generic %s table targets in SEAT without changing either ID',
+    async (action) => {
+      const fixture = await createExactSeatingFixture();
+      const assistantId = fixture.assistants[0]!.id;
+      await floorplan.assignSeats(
+        fixture.event.id,
+        randomUUID(),
+        { assignments: [{ assistantId, seatId: fixture.seats[0]!.id }] },
+        fixture.principal
+      );
+      const key = randomUUID();
+      const audits = await prisma.auditLog.count({ where: { eventId: fixture.event.id } });
+      const tableShapeId = fixture.tables[1]!.id;
+      const mutate = () =>
+        action === 'UPDATE'
+          ? floorplan.updateSeating(fixture.event.id, assistantId, key, { tableShapeId }, fixture.principal)
+          : action === 'ASSIGN'
+            ? floorplan.assign(fixture.event.id, key, { assistantIds: [assistantId], tableShapeId }, fixture.principal)
+            : action === 'FAMILY'
+              ? floorplan.assignFamily(
+                  fixture.event.id,
+                  key,
+                  { invitationId: fixture.invitation.id, tableShapeId },
+                  fixture.principal
+                )
+              : floorplan.assignGroup(
+                  fixture.event.id,
+                  key,
+                  { groupId: fixture.group.id, tableShapeId },
+                  fixture.principal
+                );
+      await expect(mutate()).rejects.toMatchObject({ response: { code: 'SEATING_TABLE_INVALID' } });
+      expect(await prisma.assistant.findUniqueOrThrow({ where: { id: assistantId } })).toMatchObject({
+        floorplanShapeId: fixture.tables[0]!.id,
+        floorplanSeatId: fixture.seats[0]!.id
+      });
+      expect(await prisma.seatingOperation.count({ where: { idempotencyKey: key } })).toBe(0);
+      expect(await prisma.auditLog.count({ where: { eventId: fixture.event.id } })).toBe(audits);
+    }
+  );
+
+  it('CALCA-BLOCKER-01 explicit unassign releases a previously dangling exact reference in SEAT', async () => {
+    const fixture = await createExactSeatingFixture();
+    const assistantId = fixture.assistants[0]!.id;
+    await floorplan.assignSeats(
+      fixture.event.id,
+      randomUUID(),
+      { assignments: [{ assistantId, seatId: fixture.seats[0]!.id }] },
+      fixture.principal
+    );
+    // Reproduce the previously persisted P0 state using the real constraints, without disabling triggers.
+    await prisma.assistant.update({ where: { id: assistantId }, data: { floorplanShapeId: null } });
+    const publish = vi.spyOn(realtime, 'publishSeatingUpdated');
+    const result = await floorplan.updateSeating(
+      fixture.event.id,
+      assistantId,
+      randomUUID(),
+      { tableShapeId: null },
+      fixture.principal
+    );
+    expect(await prisma.assistant.findUniqueOrThrow({ where: { id: assistantId } })).toMatchObject({
+      floorplanShapeId: null,
+      floorplanSeatId: null
+    });
+    expect(result.changes).toEqual([{ assistantId, fromTableId: null, toTableId: null }]);
+    expect(publish).toHaveBeenCalledTimes(1);
+  });
+
+  it('CALCA-BLOCKER-01 exact moves preserve both IDs, scope isolation and existing check-in history', async () => {
+    const fixture = await createExactSeatingFixture();
+    const assistantId = fixture.assistants[0]!.id;
+    const assign = (seatId: string) =>
+      floorplan.assignSeats(
+        fixture.event.id,
+        randomUUID(),
+        { assignments: [{ assistantId, seatId }] },
+        fixture.principal
+      );
+    await assign(fixture.seats[0]!.id);
+    const staff = await createStaffToken(fixture);
+    await directCheckIn(fixture, staff.token.id, assistantId);
+    const checkIns = await prisma.checkIn.findMany({ where: { assistantId } });
+    await assign(fixture.seats[1]!.id);
+    expect(await prisma.assistant.findUniqueOrThrow({ where: { id: assistantId } })).toMatchObject({
+      floorplanShapeId: fixture.tables[1]!.id,
+      floorplanSeatId: fixture.seats[1]!.id
+    });
+    const foreign = await createFixture();
+    await expect(
+      floorplan.updateSeating(
+        fixture.event.id,
+        foreign.assistants[0]!.id,
+        randomUUID(),
+        { tableShapeId: null },
+        fixture.principal
+      )
+    ).rejects.toMatchObject({ response: { code: 'SEATING_SELECTION_NOT_FOUND' } });
+    await expect(
+      floorplan.updateSeating(foreign.event.id, assistantId, randomUUID(), { tableShapeId: null }, fixture.principal)
+    ).rejects.toMatchObject({ status: 404 });
+    await expect(
+      floorplan.assignSeats(
+        foreign.event.id,
+        randomUUID(),
+        { assignments: [{ assistantId: foreign.assistants[0]!.id, seatId: fixture.seats[1]!.id }] },
+        foreign.principal
+      )
+    ).rejects.toMatchObject({ status: 404 });
+    await floorplan.updateSeating(
+      fixture.event.id,
+      assistantId,
+      randomUUID(),
+      { tableShapeId: null },
+      fixture.principal
+    );
+    expect(await prisma.assistant.findUniqueOrThrow({ where: { id: assistantId } })).toMatchObject({
+      floorplanShapeId: null,
+      floorplanSeatId: null
+    });
+    expect(await prisma.checkIn.findMany({ where: { assistantId } })).toEqual(checkIns);
+    expect(
+      (await prisma.auditLog.findFirstOrThrow({ where: { eventId: fixture.event.id, action: 'SEATING_UPDATE' } }))
+        .afterData
+    ).toMatchObject({ postCheckIn: true });
+  });
+
+  it('CALCA-BLOCKER-01 preserves TABLE unassignment and no-op response semantics', async () => {
+    const fixture = await createFixture();
+    await floorplan.create(
+      fixture.event.id,
+      { imageAssetId: (await createAsset(fixture, 'table-release')).id },
+      fixture.principal
+    );
+    const table = await createTable(fixture);
+    const assistantId = fixture.assistants[0]!.id;
+    await floorplan.assign(
+      fixture.event.id,
+      randomUUID(),
+      { assistantIds: [assistantId], tableShapeId: table.id },
+      fixture.principal
+    );
+    const response = await floorplan.updateSeating(
+      fixture.event.id,
+      assistantId,
+      randomUUID(),
+      { tableShapeId: null },
+      fixture.principal
+    );
+    expect(response.changes).toEqual([{ assistantId, fromTableId: table.id, toTableId: null }]);
+    expect(await prisma.assistant.findUniqueOrThrow({ where: { id: assistantId } })).toMatchObject({
+      floorplanShapeId: null,
+      floorplanSeatId: null
+    });
+    expect(
+      (
+        await floorplan.updateSeating(
+          fixture.event.id,
+          assistantId,
+          randomUUID(),
+          { tableShapeId: null },
+          fixture.principal
+        )
+      ).changes
+    ).toEqual([]);
+  });
+
   it('assigns individual/family/group all-or-none and replays the exact persisted snapshot', async () => {
     const fixture = await createFixture({ secondFamily: true });
     await floorplan.create(
@@ -2716,6 +2967,57 @@ describe('Floorplan and seating', () => {
       { sourceElementId, kind: FloorplanShapeKind.TABLE, name, capacity: 2 },
       fixture.principal
     );
+  }
+
+  async function createExactSeatingFixture() {
+    const fixture = await createFixture();
+    const plan = await floorplan.create(
+      fixture.event.id,
+      { imageAssetId: (await createAsset(fixture, 'exact-release')).id },
+      fixture.principal
+    );
+    const tables = [await createTable(fixture), await createTable(fixture)];
+    // Seed an already-prepared detailed layout; this ticket does not change or certify mode switching/activation.
+    await prisma.floorplan.update({ where: { id: plan.id }, data: { seatingMode: 'SEAT' } });
+    const user = await prisma.user.create({
+      data: {
+        email: `${randomUUID()}@example.test`,
+        passwordHash: fixture.user.passwordHash,
+        role: UserRole.PLATFORM_ADMIN
+      }
+    });
+    const admin: AuthPrincipal = {
+      ...fixture.principal,
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+      clientId: null,
+      clientType: null,
+      clientStatus: null,
+      clientOperatingProfile: null
+    };
+    const seats = [];
+    for (const table of tables)
+      seats.push(
+        await floorplan.createSeatAdministrative(
+          fixture.client.id,
+          fixture.event.id,
+          table.id,
+          { label: 'Lugar 1', x: 0.2, y: 0.2 },
+          admin
+        )
+      );
+    await floorplan.lockAdministrative(fixture.client.id, fixture.event.id, admin);
+    await prisma.client.update({ where: { id: fixture.client.id }, data: { operatingProfile: 'MANAGED' } });
+    return {
+      ...fixture,
+      plan,
+      principal: { ...fixture.principal, clientOperatingProfile: 'MANAGED' as const },
+      tables,
+      seats,
+      admin,
+      cookie: await login(fixture.user.email)
+    };
   }
 
   async function createAsset(fixture: Awaited<ReturnType<typeof createFixture>>, label: string) {

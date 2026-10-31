@@ -1,0 +1,166 @@
+{
+  "baseHead": "c804002f7ee9e5a1eb53549d8fff07b35ef53d92",
+  "runtimeSha256": "25a2a14c42413d5459d282266ff9afccd93cb25add72777221fb6964446a4b2d",
+  "sourceSha256Lf": {
+    "apps/api/src/floorplan/floorplan.service.ts": "394e169cd6d5d9f42560bf992d5ff844a3a022a8114de6cd7e02f2594184fe14",
+    "apps/api/test/floorplan.integration-spec.ts": "8a6fb34b099069dec1a218db47e5e22997ccae1b3de299909b726b05fcc1cbe6"
+  },
+  "calca06Rerun": false,
+  "calca06ArtifactsChanged": false,
+  "fullQaRun": false,
+  "logs": [
+    {
+      "path": "var/qa/calca-blocker01/api-initial-red.log",
+      "sha256": "75af1e9b4aa4b9645146d79d0bd29df42016c0642a065751f33ce814f97d6f37",
+      "bytes": 75064,
+      "result": "HARNESS FAILED: new fixture used non-unique eventId as a Prisma unique key; 8 failed / 32 passed, product unchanged",
+      "summary": [
+        "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯",
+        " Test Files  1 failed (1)",
+        "      Tests  8 failed | 32 passed (40)",
+        "   Duration  51.17s (transform 1.95s, setup 0ms, import 5.78s, tests 44.77s, environment 0ms)"
+      ]
+    },
+    {
+      "path": "var/qa/calca-blocker01/api-red.log",
+      "sha256": "d3537fb03b15a86ba841bdad14a353071b2e071654cb7a2bfc1792376eb3c647",
+      "bytes": 34742,
+      "result": "RED before service fix: 8 failed / 32 passed. Includes P0 and generic path assertions, plus one invalid TABLE variant removed because mode-change trigger already clears exact references",
+      "summary": [
+        "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯",
+        " Test Files  1 failed (1)",
+        "      Tests  8 failed | 32 passed (40)",
+        "   Duration  48.87s (transform 2.05s, setup 0ms, import 5.20s, tests 43.42s, environment 0ms)"
+      ]
+    },
+    {
+      "path": "var/qa/calca-blocker01/api-green.log",
+      "sha256": "327a6d3933ce152b39ff3d27d79c60e72792ef09557d6fce5e52b715343410f4",
+      "bytes": 18798,
+      "result": "PASS: 39 unique integration cases; no source output capture",
+      "summary": [
+        " Test Files  1 passed (1)",
+        "      Tests  39 passed (39)",
+        "   Duration  45.18s (transform 1.88s, setup 0ms, import 4.97s, tests 39.99s, environment 0ms)"
+      ]
+    },
+    {
+      "path": "var/qa/calca-blocker01/client-seating.log",
+      "sha256": "2e71e9ecbe82edd2f13e8694925aea15a97c7318d8f6e74a90d29b2550ee9dee",
+      "bytes": 562,
+      "result": "PASS: 52 Client workspace cases",
+      "summary": [
+        " Test Files  1 passed (1)",
+        "      Tests  52 passed (52)",
+        "   Duration  34.02s (transform 1.41s, setup 1.53s, import 9.09s, tests 18.70s, environment 4.40s)"
+      ]
+    },
+    {
+      "path": "var/qa/calca-blocker01/api-db-evidence.log",
+      "sha256": "25b9855b7af2f1d2437797b858cfd164f6f1c09c15562d56b9f150f9769d9dc7",
+      "bytes": 19488,
+      "result": "PASS: separate 39-case confirmation with DB snapshot output; not counted as 39 additional unique cases",
+      "summary": [
+        " Test Files  1 passed (1)",
+        "      Tests  39 passed (39)",
+        "   Duration  43.67s (transform 1.96s, setup 0ms, import 5.10s, tests 38.36s, environment 0ms)"
+      ]
+    },
+    {
+      "path": "var/qa/calca-blocker01/client-realtime.log",
+      "sha256": "02a0f24e16dad44eb40cd0919118c06d2ad67cd5a47e30f09098b265dbef043a",
+      "bytes": 552,
+      "result": "PASS: 6 Client realtime cases",
+      "summary": [
+        " Test Files  1 passed (1)",
+        "      Tests  6 passed (6)",
+        "   Duration  3.79s (transform 187ms, setup 699ms, import 527ms, tests 11ms, environment 2.20s)"
+      ]
+    },
+    {
+      "path": "var/qa/calca-blocker01/api-unit-floorplan.log",
+      "sha256": "7f80bd779b8ed02758b66d8e1bdc758df97e21f9c4817dec13a845a2369c6780",
+      "bytes": 1784,
+      "result": "PASS: 58 API unit cases / 4 files",
+      "summary": [
+        " Test Files  4 passed (4)",
+        "      Tests  58 passed (58)",
+        "   Duration  4.35s (transform 1.62s, setup 0ms, import 10.32s, tests 101ms, environment 1ms)"
+      ]
+    },
+    {
+      "path": "var/qa/calca-blocker01/static-build.log",
+      "sha256": "536e3f731fa4d31fa0a2e5d05e1cdb0acf5b0f3a6f59d4dc1e594f08fdb2e82b",
+      "bytes": 11386,
+      "result": "PASS: 15 lint/typecheck/build tasks, API/Client and dependencies; 12 valid cache hits",
+      "summary": [
+        " Tasks:    15 successful, 15 total",
+        "  Time:    51.21s "
+      ]
+    },
+    {
+      "path": "var/qa/calca-blocker01/guide-publication.log",
+      "sha256": "190b02287e96ffeb44bb6c9893bb740f135cf464b0052080d302f7735960ed68",
+      "bytes": 18202,
+      "result": "PASS: mandatory official guide publication; not CALCA06 certification",
+      "summary": [
+        "[passed] UX02 real organization, both access modes, printable material and camera reception (98639 ms)",
+        "01_MANUAL_ADMIN: 14 Letter pages; images, print layout and mobile width verified.",
+        "02_MANUAL_SALON: 21 Letter pages; images, print layout and mobile width verified.",
+        "03_PRUEBA_USABILIDAD: 2 Letter pages; images, print layout and mobile width verified.",
+        "UX02: 39 PNG verified; complete inventory, hashes, masks and no decodable QR."
+      ]
+    },
+    {
+      "path": "var/qa/calca-blocker01/guide-tests.log",
+      "sha256": "80f431568abc5c85a214401798e36242569a28c08e5cd4f8de0959ad5d937b65",
+      "bytes": 3302,
+      "result": "PASS: official guide tests",
+      "summary": [
+        "# tests 5",
+        "# pass 5",
+        "# fail 0"
+      ]
+    },
+    {
+      "path": "var/qa/calca-blocker01/guide-verify-final.log",
+      "sha256": "77b57b2aed4c52f5d209d48c24f67d4bc61038f21f9af0643c966642306beac7",
+      "bytes": 1004,
+      "result": "PASS: publication after metadata-only PDF restoration",
+      "summary": [
+        "UX02: 39 PNG verified; complete inventory, hashes, masks and no decodable QR."
+      ]
+    }
+  ],
+  "finalChecks": {
+    "runtimeMatchesPublication": true,
+    "unchangedSourceAndHistoricalEvidence": [
+      "apps/client",
+      "apps/admin",
+      "apps/scanner",
+      "packages",
+      "scripts",
+      "apps/api/prisma",
+      "docs/05-implementacion/evidence/calca06",
+      "docs/05-implementacion/CALCA06_TRACE_MODE_CERTIFICATION.md"
+    ],
+    "ephemeralDatabasesLeft": [],
+    "pdfMetadataRestoration": [
+      {
+        "file": "docs/guias-usuario/control-de-acceso/01_MANUAL_ADMIN.pdf",
+        "restored": false,
+        "reason": "Content differs; retained"
+      },
+      {
+        "file": "docs/guias-usuario/control-de-acceso/02_MANUAL_SALON.pdf",
+        "restored": false,
+        "reason": "Content differs; retained"
+      },
+      {
+        "file": "docs/guias-usuario/control-de-acceso/03_PRUEBA_USABILIDAD.pdf",
+        "restored": true,
+        "reason": "Only CreationDate/ModDate metadata differs; content identical"
+      }
+    ]
+  }
+}

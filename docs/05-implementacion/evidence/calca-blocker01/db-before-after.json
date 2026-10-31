@@ -1,0 +1,17 @@
+{
+  "method": "Real HTTP PATCH and serializable service against PostgreSQL in isolated harness; fictitious UUIDs only. Captured through Prisma before/after assertions.",
+  "observation": {
+    "assistantId": "2c1eb445-9957-44e1-949d-a59e6de13804",
+    "before": {
+      "floorplanShapeId": "50e96a02-3dc8-4a29-9d29-ec5047ce186c",
+      "floorplanSeatId": "f379992e-fa1f-4563-9895-6e2ef78ce0c6"
+    },
+    "after": {
+      "floorplanShapeId": null,
+      "floorplanSeatId": null
+    },
+    "releasedSeatDeleted": true,
+    "unassignAuditCount": 1,
+    "unassignOperationCount": 1
+  }
+}

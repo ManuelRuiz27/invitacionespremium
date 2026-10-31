@@ -1359,10 +1359,13 @@ export class FloorplanService {
           ...seatingEligibility(event),
           invitation: { deletedAt: null, cancelledAt: null }
         },
-        select: { id: true, floorplanShapeId: true },
+        select: { id: true, floorplanShapeId: true, floorplanSeatId: true },
         orderBy: { id: 'asc' }
       });
       if (assistants.length !== assistantIds.length) throw seatingNotFound();
+      if (floorplan.seatingMode === FloorplanSeatingMode.SEAT && resolved.tableShapeId !== null) {
+        throw floorplanError('SEATING_TABLE_INVALID', 'Detailed seating assignment requires an exact seat.');
+      }
       const activeCheckIns = await tx.checkIn.findMany({
         where: { eventId, assistantId: { in: assistantIds }, revertedAt: null },
         select: { id: true, assistantId: true },
@@ -1377,7 +1380,10 @@ export class FloorplanService {
         `;
       }
       const changes = assistants
-        .filter(({ floorplanShapeId }) => floorplanShapeId !== resolved.tableShapeId)
+        .filter(
+          ({ floorplanShapeId, floorplanSeatId }) =>
+            floorplanShapeId !== resolved.tableShapeId || floorplanSeatId !== null
+        )
         .map(({ id, floorplanShapeId }) => ({
           assistantId: id,
           fromTableId: floorplanShapeId,
@@ -1401,7 +1407,8 @@ export class FloorplanService {
       if (changes.length > 0) {
         await tx.assistant.updateMany({
           where: { id: { in: changes.map(({ assistantId }) => assistantId) } },
-          data: { floorplanShapeId: resolved.tableShapeId }
+          // This path owns table-only assignments and unassignment, never an exact Seat assignment.
+          data: { floorplanShapeId: resolved.tableShapeId, floorplanSeatId: null }
         });
       }
       const tableIds = [
