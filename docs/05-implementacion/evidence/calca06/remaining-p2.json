@@ -1,0 +1,55 @@
+{
+  "fixedInCalca06": false,
+  "targetWaived": false,
+  "findings": [
+    {
+      "id": "TOUCH_TARGET_42PX",
+      "severity": "P2",
+      "observed": "Secondary correction/review controls retain 42px height; some disclosures are smaller. The 44x44 target remains unmet for those controls.",
+      "evidence": "screenshots.json: DOM controls measurements",
+      "workaround": "Pointer/keyboard with supervised use; this is not physical touch acceptance."
+    },
+    {
+      "id": "DECORATIVE_LABEL_OVERLAP",
+      "severity": "P2",
+      "observed": "Decorative Pista label competes with text already printed on the source plan.",
+      "evidence": "qa/calca05-decorative-reference-1440.png; historical capture re-inspected, same runtime hash, not a fresh CALCA06 run",
+      "workaround": "Zoom/pan and context; no promise that all source labels are readable at initial fit."
+    },
+    {
+      "id": "CLOSE_TRACE_POINTS",
+      "severity": "P2",
+      "observed": "Very close Trace points require zoom or selecting the Seat by name.",
+      "evidence": "attempts/attempt-6/landscape-1024-03-correction.png",
+      "workaround": "Current zoom plus Seleccionar lugar por nombre. Separate P1 applies to Planner exact-hit precision."
+    },
+    {
+      "id": "DISABLED_SVG_TOUCH_HELP",
+      "severity": "P2",
+      "observed": "Raster disables SVG mapping with a title-only explanation, weak for touch discovery.",
+      "evidence": "scenario-matrix.json: raster svgTool=disabled-with-title-only",
+      "workaround": "SVG mapping is visible and available with SVG sources; current operator guidance must explain the source requirement."
+    },
+    {
+      "id": "LABEL_CONTRAST_POLISH",
+      "severity": "P2",
+      "observed": "Trace suppresses long unselected labels and exposes the selected/focused full label. Normal finalized/consumer rendering retains label/contrast clutter.",
+      "evidence": "attempts/attempt-5/landscape-1440-02-trace-25.png and landscape-1440-05-finalized.png",
+      "workaround": "Trace zoom/name selection and contextual full accessible labels; does not resolve the P1 consumer hit-target issue."
+    },
+    {
+      "id": "TOUCH_MULTISELECT_LIMITATION",
+      "severity": "P2",
+      "observed": "Additive selection retains keyboard modifiers; no new touch-only multiselect gesture is certified.",
+      "evidence": "certify.mjs: correction uses Shift native gestures",
+      "workaround": "Keyboard modifier or correct one Seat at a time."
+    },
+    {
+      "id": "ASSIGN_SEATS_HTTP_STATUS",
+      "severity": "P2",
+      "observed": "assign-seats HTTP 201 differs from OpenAPI/SDK documented HTTP 200; successful body/UI remains usable.",
+      "evidence": "attempts/attempt-7/results.json",
+      "workaround": "Certification fixture explicitly expects observed 201 to continue; discrepancy remains open and no API/SDK change is made."
+    }
+  ]
+}

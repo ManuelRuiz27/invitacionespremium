@@ -1,0 +1,8 @@
+{
+    "origin":  "var/qa/calca05/1440-01-review-table.png",
+    "originPhase":  "CALCA-05",
+    "sourceRuntimeSha256":  "2128973ca424f148dfdf86e94675e20d4ece58d2bc4b37fea03657813419eace",
+    "file":  "calca05-decorative-reference-1440.png",
+    "sha256":  "4b6ceb2c7c8a8ba586ac3ae22ac3c3603e1dd64221944311cc4debc98061b4cc",
+    "purpose":  "Historical native capture re-inspected during CALCA-06 only for known P2 decorative label overlap. Not a new CALCA-06 browser run."
+}

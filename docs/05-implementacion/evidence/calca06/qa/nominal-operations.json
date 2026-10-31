@@ -1,0 +1,5588 @@
+{
+  "scannerLatenciesMs": [
+    69.99129999999786,
+    119.71359999999913,
+    95.89910000000236,
+    95.94480000000112,
+    103.53170000000318,
+    102.57630000000063,
+    102.57719999999972,
+    103.49460000000181,
+    101.37510000000111,
+    101.4448999999986,
+    103.43029999999999,
+    101.11779999999999,
+    94.27009999999791,
+    93.3234999999986,
+    99.67719999999827,
+    99.66779999999926,
+    94.6984999999986,
+    91.11039999999775,
+    106.4422999999988,
+    123.4887000000017,
+    142.28490000000238,
+    138.6206999999995,
+    108.26219999999739,
+    106.53659999999945,
+    115.18539999999848,
+    117.80270000000019,
+    110.009399999999,
+    107.94880000000194,
+    112.261599999998,
+    105.48229999999967,
+    99.80389999999898,
+    101.48340000000098,
+    97.76139999999941,
+    96.57530000000042,
+    95.91779999999926,
+    93.2476999999999,
+    90.73179999999775,
+    100.88069999999789,
+    105.11039999999775,
+    94.38140000000203,
+    92.50340000000142,
+    94.18999999999869,
+    94.24240000000282,
+    90.88310000000274,
+    93.4503999999979,
+    95.58450000000084,
+    93.78719999999885,
+    93.1772000000019,
+    96.73140000000058,
+    95.58120000000054,
+    88.40049999999974,
+    100.56559999999808,
+    109.2554999999993,
+    112.5557000000008,
+    133.07459999999992,
+    137.26060000000143,
+    117.34029999999984,
+    107.16159999999945,
+    111.0672999999988,
+    105.14219999999841,
+    97.14110000000073,
+    97.43370000000141,
+    95.01500000000306,
+    98.0576000000001,
+    98.03479999999763,
+    93.44679999999789,
+    98.89830000000075,
+    97.4684999999954,
+    90.98750000000291,
+    95.04450000000361,
+    97.08800000000338,
+    92.31089999999676,
+    98.17319999999745,
+    98.35619999999471,
+    94.26890000000276,
+    95.25329999999667,
+    93.77349999999569,
+    93.95500000000175,
+    96.42169999999896,
+    99.77330000000075,
+    95.59580000000278,
+    93.2989000000016,
+    98.41049999999814,
+    95.15340000000288,
+    91.12900000000081,
+    95.01269999999931,
+    100.78639999999723,
+    112.27080000000569,
+    107.6814000000013,
+    96.55260000000271,
+    100.1938999999984,
+    100.14110000000073,
+    93.7352000000028,
+    94.57570000000123,
+    98.91519999999582,
+    95.76989999999932,
+    92.54460000000108,
+    93.21579999999813,
+    94.30559999999969,
+    92.81920000000537,
+    98.18989999999758,
+    108.21270000000368,
+    106.97519999999349,
+    112.12909999999829,
+    128.2835999999952,
+    137.58030000000144,
+    142.78239999999641,
+    140.4890000000014,
+    129.2980000000025,
+    120.78540000000066,
+    115.68760000000475,
+    127.84120000000257,
+    159.1533999999956,
+    156.1530999999959,
+    118.482600000003,
+    106.42410000000382,
+    107.67199999999866,
+    100.72810000000027,
+    101.20090000000346,
+    100.65520000000106,
+    96.84569999999803,
+    95.91259999999602,
+    92.47440000000643,
+    93.85339999999997,
+    96.9974000000002,
+    105.89459999999963,
+    118.925900000002,
+    107.54950000000099,
+    92.79910000000382,
+    94.17669999999634,
+    91.80250000000524,
+    90.1140000000014,
+    93.83170000000246,
+    110.65920000000187,
+    121.68010000000504,
+    134.51480000000447,
+    142.51780000000144,
+    120.40780000000086,
+    104.72859999999491,
+    102.27429999999731,
+    98.36470000000554,
+    94.98309999999765,
+    93.16030000000319,
+    90.75590000000375,
+    94.09309999999823,
+    92.4922000000006,
+    88.59679999999935,
+    91.47539999999572,
+    90.61560000000463,
+    84.44610000000102
+  ],
+  "dashboardTraffic": [
+    {
+      "startedAtMs": 0.8120000000017171,
+      "elapsedMs": 94.64410000000134,
+      "scansAtStart": 0,
+      "scansAtEnd": 1,
+      "outsideTransactionMs": 39.81980000000112
+    },
+    {
+      "startedAtMs": 103.95060000000012,
+      "elapsedMs": 30.827400000001944,
+      "scansAtStart": 1,
+      "scansAtEnd": 2,
+      "outsideTransactionMs": 6.8871000000035565
+    },
+    {
+      "startedAtMs": 136.80200000000332,
+      "elapsedMs": 31.74029999999766,
+      "scansAtStart": 2,
+      "scansAtEnd": 3,
+      "outsideTransactionMs": 7.793399999998655
+    },
+    {
+      "startedAtMs": 171.14750000000276,
+      "elapsedMs": 32.0737999999983,
+      "scansAtStart": 3,
+      "scansAtEnd": 3,
+      "outsideTransactionMs": 7.651899999997113
+    },
+    {
+      "startedAtMs": 205.33020000000033,
+      "elapsedMs": 33.844600000000355,
+      "scansAtStart": 3,
+      "scansAtEnd": 4,
+      "outsideTransactionMs": 7.490300000001298
+    },
+    {
+      "startedAtMs": 241.39360000000306,
+      "elapsedMs": 35.009399999999005,
+      "scansAtStart": 4,
+      "scansAtEnd": 5,
+      "outsideTransactionMs": 8.151999999998225
+    },
+    {
+      "startedAtMs": 278.77549999999974,
+      "elapsedMs": 32.69050000000061,
+      "scansAtStart": 5,
+      "scansAtEnd": 5,
+      "outsideTransactionMs": 9.174800000000687
+    },
+    {
+      "startedAtMs": 314.7031999999999,
+      "elapsedMs": 39.253200000002835,
+      "scansAtStart": 5,
+      "scansAtEnd": 6,
+      "outsideTransactionMs": 9.548600000001898
+    },
+    {
+      "startedAtMs": 356.1114000000016,
+      "elapsedMs": 32.968300000000454,
+      "scansAtStart": 6,
+      "scansAtEnd": 7,
+      "outsideTransactionMs": 7.379099999998289
+    },
+    {
+      "startedAtMs": 391.1893000000018,
+      "elapsedMs": 33.18539999999848,
+      "scansAtStart": 7,
+      "scansAtEnd": 8,
+      "outsideTransactionMs": 9.778999999998632
+    },
+    {
+      "startedAtMs": 427.2316000000028,
+      "elapsedMs": 33.22190000000046,
+      "scansAtStart": 8,
+      "scansAtEnd": 8,
+      "outsideTransactionMs": 9.627400000001217
+    },
+    {
+      "startedAtMs": 463.5355000000018,
+      "elapsedMs": 39.12089999999807,
+      "scansAtStart": 8,
+      "scansAtEnd": 9,
+      "outsideTransactionMs": 9.594499999999243
+    },
+    {
+      "startedAtMs": 505.3586000000032,
+      "elapsedMs": 39.288799999998446,
+      "scansAtStart": 9,
+      "scansAtEnd": 10,
+      "outsideTransactionMs": 9.27219999999943
+    },
+    {
+      "startedAtMs": 548.445300000003,
+      "elapsedMs": 34.41579999999885,
+      "scansAtStart": 10,
+      "scansAtEnd": 11,
+      "outsideTransactionMs": 8.614399999998568
+    },
+    {
+      "startedAtMs": 585.0484000000033,
+      "elapsedMs": 31.980499999997846,
+      "scansAtStart": 11,
+      "scansAtEnd": 11,
+      "outsideTransactionMs": 7.6238999999950465
+    },
+    {
+      "startedAtMs": 620.4636000000028,
+      "elapsedMs": 36.10529999999926,
+      "scansAtStart": 11,
+      "scansAtEnd": 12,
+      "outsideTransactionMs": 10.351399999999558
+    },
+    {
+      "startedAtMs": 658.6353000000017,
+      "elapsedMs": 36.815599999998085,
+      "scansAtStart": 12,
+      "scansAtEnd": 13,
+      "outsideTransactionMs": 8.253899999996065
+    },
+    {
+      "startedAtMs": 698.5542999999998,
+      "elapsedMs": 31.34860000000117,
+      "scansAtStart": 13,
+      "scansAtEnd": 14,
+      "outsideTransactionMs": 7.630800000002637
+    },
+    {
+      "startedAtMs": 732.4544000000024,
+      "elapsedMs": 34.16939999999886,
+      "scansAtStart": 14,
+      "scansAtEnd": 14,
+      "outsideTransactionMs": 7.217599999999948
+    },
+    {
+      "startedAtMs": 769.7728000000025,
+      "elapsedMs": 36.540399999998044,
+      "scansAtStart": 14,
+      "scansAtEnd": 15,
+      "outsideTransactionMs": 10.970399999998335
+    },
+    {
+      "startedAtMs": 808.8876000000018,
+      "elapsedMs": 37.30789999999979,
+      "scansAtStart": 15,
+      "scansAtEnd": 16,
+      "outsideTransactionMs": 8.734400000001187
+    },
+    {
+      "startedAtMs": 848.7988000000005,
+      "elapsedMs": 33.43449999999939,
+      "scansAtStart": 16,
+      "scansAtEnd": 17,
+      "outsideTransactionMs": 6.845799999999144
+    },
+    {
+      "startedAtMs": 884.5632000000005,
+      "elapsedMs": 33.9330000000009,
+      "scansAtStart": 17,
+      "scansAtEnd": 18,
+      "outsideTransactionMs": 6.734000000000378
+    },
+    {
+      "startedAtMs": 920.5729000000028,
+      "elapsedMs": 48.604699999999866,
+      "scansAtStart": 18,
+      "scansAtEnd": 18,
+      "outsideTransactionMs": 9.243999999998778
+    },
+    {
+      "startedAtMs": 973.9835000000021,
+      "elapsedMs": 44.637299999998504,
+      "scansAtStart": 19,
+      "scansAtEnd": 19,
+      "outsideTransactionMs": 11.73189999999886
+    },
+    {
+      "startedAtMs": 1023.1035000000011,
+      "elapsedMs": 51.14280000000144,
+      "scansAtStart": 19,
+      "scansAtEnd": 20,
+      "outsideTransactionMs": 14.093300000004092
+    },
+    {
+      "startedAtMs": 1076.7904000000017,
+      "elapsedMs": 44.28610000000117,
+      "scansAtStart": 20,
+      "scansAtEnd": 21,
+      "outsideTransactionMs": 10.317200000001321
+    },
+    {
+      "startedAtMs": 1125.784300000003,
+      "elapsedMs": 37.15519999999742,
+      "scansAtStart": 21,
+      "scansAtEnd": 21,
+      "outsideTransactionMs": 10.005099999998492
+    },
+    {
+      "startedAtMs": 1166.124100000001,
+      "elapsedMs": 37.65929999999935,
+      "scansAtStart": 21,
+      "scansAtEnd": 22,
+      "outsideTransactionMs": 10.994800000000396
+    },
+    {
+      "startedAtMs": 1205.9404000000031,
+      "elapsedMs": 38.40740000000005,
+      "scansAtStart": 22,
+      "scansAtEnd": 23,
+      "outsideTransactionMs": 8.416300000000774
+    },
+    {
+      "startedAtMs": 1247.206900000001,
+      "elapsedMs": 38.701600000000326,
+      "scansAtStart": 23,
+      "scansAtEnd": 24,
+      "outsideTransactionMs": 8.319700000000012
+    },
+    {
+      "startedAtMs": 1288.318900000002,
+      "elapsedMs": 36.52309999999852,
+      "scansAtStart": 24,
+      "scansAtEnd": 24,
+      "outsideTransactionMs": 8.146099999998114
+    },
+    {
+      "startedAtMs": 1327.7186000000002,
+      "elapsedMs": 42.695700000000215,
+      "scansAtStart": 24,
+      "scansAtEnd": 25,
+      "outsideTransactionMs": 9.350500000000466
+    },
+    {
+      "startedAtMs": 1373.0908000000018,
+      "elapsedMs": 40.07140000000072,
+      "scansAtStart": 25,
+      "scansAtEnd": 26,
+      "outsideTransactionMs": 11.527299999997922
+    },
+    {
+      "startedAtMs": 1415.744200000001,
+      "elapsedMs": 41.27809999999954,
+      "scansAtStart": 26,
+      "scansAtEnd": 27,
+      "outsideTransactionMs": 10.147799999998824
+    },
+    {
+      "startedAtMs": 1459.3041000000012,
+      "elapsedMs": 38.24590000000171,
+      "scansAtStart": 27,
+      "scansAtEnd": 27,
+      "outsideTransactionMs": 11.367700000002515
+    },
+    {
+      "startedAtMs": 1499.9321000000018,
+      "elapsedMs": 48.393199999998615,
+      "scansAtStart": 27,
+      "scansAtEnd": 28,
+      "outsideTransactionMs": 11.087899999998626
+    },
+    {
+      "startedAtMs": 1553.3826000000008,
+      "elapsedMs": 38.939399999999296,
+      "scansAtStart": 28,
+      "scansAtEnd": 29,
+      "outsideTransactionMs": 10.030699999999342
+    },
+    {
+      "startedAtMs": 1594.9464000000007,
+      "elapsedMs": 38.02890000000116,
+      "scansAtStart": 29,
+      "scansAtEnd": 30,
+      "outsideTransactionMs": 8.807600000003731
+    },
+    {
+      "startedAtMs": 1635.5681000000004,
+      "elapsedMs": 39.08520000000135,
+      "scansAtStart": 30,
+      "scansAtEnd": 31,
+      "outsideTransactionMs": 8.248500000001513
+    },
+    {
+      "startedAtMs": 1677.1862,
+      "elapsedMs": 37.47400000000198,
+      "scansAtStart": 31,
+      "scansAtEnd": 32,
+      "outsideTransactionMs": 9.448800000001938
+    },
+    {
+      "startedAtMs": 1718.1455000000024,
+      "elapsedMs": 36.76039999999921,
+      "scansAtStart": 32,
+      "scansAtEnd": 32,
+      "outsideTransactionMs": 8.84400000000096
+    },
+    {
+      "startedAtMs": 1758.6342000000004,
+      "elapsedMs": 35.127300000000105,
+      "scansAtStart": 33,
+      "scansAtEnd": 33,
+      "outsideTransactionMs": 10.139800000000832
+    },
+    {
+      "startedAtMs": 1796.5614000000023,
+      "elapsedMs": 41.495999999999185,
+      "scansAtStart": 33,
+      "scansAtEnd": 34,
+      "outsideTransactionMs": 9.102999999999156
+    },
+    {
+      "startedAtMs": 1840.5762000000032,
+      "elapsedMs": 34.546299999998155,
+      "scansAtStart": 34,
+      "scansAtEnd": 35,
+      "outsideTransactionMs": 6.9627999999975145
+    },
+    {
+      "startedAtMs": 1877.3861000000034,
+      "elapsedMs": 36.46649999999863,
+      "scansAtStart": 35,
+      "scansAtEnd": 36,
+      "outsideTransactionMs": 9.726800000000367
+    },
+    {
+      "startedAtMs": 1916.7561000000023,
+      "elapsedMs": 37.543799999999464,
+      "scansAtStart": 36,
+      "scansAtEnd": 37,
+      "outsideTransactionMs": 7.548099999996339
+    },
+    {
+      "startedAtMs": 1956.5983000000015,
+      "elapsedMs": 36.5025999999998,
+      "scansAtStart": 37,
+      "scansAtEnd": 37,
+      "outsideTransactionMs": 10.124199999998382
+    },
+    {
+      "startedAtMs": 1995.5548000000017,
+      "elapsedMs": 37.40480000000025,
+      "scansAtStart": 37,
+      "scansAtEnd": 38,
+      "outsideTransactionMs": 11.081200000000536
+    },
+    {
+      "startedAtMs": 2035.459700000003,
+      "elapsedMs": 38.13159999999698,
+      "scansAtStart": 38,
+      "scansAtEnd": 39,
+      "outsideTransactionMs": 7.38539999999557
+    },
+    {
+      "startedAtMs": 2076.1116,
+      "elapsedMs": 35.395800000002055,
+      "scansAtStart": 39,
+      "scansAtEnd": 40,
+      "outsideTransactionMs": 8.998800000004849
+    },
+    {
+      "startedAtMs": 2114.2423000000017,
+      "elapsedMs": 35.38169999999809,
+      "scansAtStart": 40,
+      "scansAtEnd": 41,
+      "outsideTransactionMs": 7.460799999997107
+    },
+    {
+      "startedAtMs": 2151.9676,
+      "elapsedMs": 35.46050000000105,
+      "scansAtStart": 41,
+      "scansAtEnd": 41,
+      "outsideTransactionMs": 8.264600000002247
+    },
+    {
+      "startedAtMs": 2191.311300000001,
+      "elapsedMs": 34.4997000000003,
+      "scansAtStart": 42,
+      "scansAtEnd": 42,
+      "outsideTransactionMs": 10.182600000000093
+    },
+    {
+      "startedAtMs": 2228.2701000000015,
+      "elapsedMs": 36.952399999998306,
+      "scansAtStart": 42,
+      "scansAtEnd": 43,
+      "outsideTransactionMs": 8.146499999998923
+    },
+    {
+      "startedAtMs": 2267.6137000000017,
+      "elapsedMs": 38.65810000000056,
+      "scansAtStart": 43,
+      "scansAtEnd": 44,
+      "outsideTransactionMs": 7.074499999998807
+    },
+    {
+      "startedAtMs": 2308.975400000003,
+      "elapsedMs": 35.92689999999857,
+      "scansAtStart": 44,
+      "scansAtEnd": 45,
+      "outsideTransactionMs": 7.634399999999005
+    },
+    {
+      "startedAtMs": 2348.3339000000014,
+      "elapsedMs": 35.388999999999214,
+      "scansAtStart": 45,
+      "scansAtEnd": 46,
+      "outsideTransactionMs": 9.222000000001572
+    },
+    {
+      "startedAtMs": 2385.8371000000006,
+      "elapsedMs": 35.58490000000165,
+      "scansAtStart": 46,
+      "scansAtEnd": 46,
+      "outsideTransactionMs": 8.19770000000426
+    },
+    {
+      "startedAtMs": 2424.596700000002,
+      "elapsedMs": 35.23779999999897,
+      "scansAtStart": 47,
+      "scansAtEnd": 47,
+      "outsideTransactionMs": 10.062299999997776
+    },
+    {
+      "startedAtMs": 2461.798700000003,
+      "elapsedMs": 43.949799999998504,
+      "scansAtStart": 47,
+      "scansAtEnd": 48,
+      "outsideTransactionMs": 11.279199999997218
+    },
+    {
+      "startedAtMs": 2508.0879999999997,
+      "elapsedMs": 36.35900000000038,
+      "scansAtStart": 48,
+      "scansAtEnd": 49,
+      "outsideTransactionMs": 7.367400000002817
+    },
+    {
+      "startedAtMs": 2547.2714000000014,
+      "elapsedMs": 35.859199999998964,
+      "scansAtStart": 49,
+      "scansAtEnd": 50,
+      "outsideTransactionMs": 8.028800000000047
+    },
+    {
+      "startedAtMs": 2585.4544000000024,
+      "elapsedMs": 34.831200000000536,
+      "scansAtStart": 50,
+      "scansAtEnd": 51,
+      "outsideTransactionMs": 7.775399999998626
+    },
+    {
+      "startedAtMs": 2622.550800000001,
+      "elapsedMs": 42.027900000000955,
+      "scansAtStart": 51,
+      "scansAtEnd": 51,
+      "outsideTransactionMs": 9.970499999999447
+    },
+    {
+      "startedAtMs": 2667.519800000002,
+      "elapsedMs": 38.57470000000103,
+      "scansAtStart": 52,
+      "scansAtEnd": 52,
+      "outsideTransactionMs": 8.486700000001292
+    },
+    {
+      "startedAtMs": 2708.7539000000033,
+      "elapsedMs": 48.668399999998655,
+      "scansAtStart": 52,
+      "scansAtEnd": 53,
+      "outsideTransactionMs": 13.16309999999794
+    },
+    {
+      "startedAtMs": 2760.3384000000005,
+      "elapsedMs": 53.6275999999998,
+      "scansAtStart": 53,
+      "scansAtEnd": 54,
+      "outsideTransactionMs": 13.760600000001432
+    },
+    {
+      "startedAtMs": 2818.5022000000026,
+      "elapsedMs": 57.309799999999086,
+      "scansAtStart": 54,
+      "scansAtEnd": 55,
+      "outsideTransactionMs": 14.089099999997416
+    },
+    {
+      "startedAtMs": 2879.061300000001,
+      "elapsedMs": 55.49070000000211,
+      "scansAtStart": 55,
+      "scansAtEnd": 56,
+      "outsideTransactionMs": 12.967800000002171
+    },
+    {
+      "startedAtMs": 2937.6145000000033,
+      "elapsedMs": 38.20759999999791,
+      "scansAtStart": 56,
+      "scansAtEnd": 57,
+      "outsideTransactionMs": 9.845799999999144
+    },
+    {
+      "startedAtMs": 2981.1402000000016,
+      "elapsedMs": 36.66200000000026,
+      "scansAtStart": 57,
+      "scansAtEnd": 57,
+      "outsideTransactionMs": 9.048800000000483
+    },
+    {
+      "startedAtMs": 3021.3421000000017,
+      "elapsedMs": 43.514899999998306,
+      "scansAtStart": 57,
+      "scansAtEnd": 58,
+      "outsideTransactionMs": 11.76209999999628
+    },
+    {
+      "startedAtMs": 3067.7474,
+      "elapsedMs": 41.87130000000252,
+      "scansAtStart": 58,
+      "scansAtEnd": 59,
+      "outsideTransactionMs": 8.926300000002811
+    },
+    {
+      "startedAtMs": 3112.7776000000013,
+      "elapsedMs": 40.29950000000099,
+      "scansAtStart": 59,
+      "scansAtEnd": 60,
+      "outsideTransactionMs": 9.023700000001554
+    },
+    {
+      "startedAtMs": 3156.1090000000004,
+      "elapsedMs": 37.38680000000022,
+      "scansAtStart": 60,
+      "scansAtEnd": 61,
+      "outsideTransactionMs": 8.769500000002154
+    },
+    {
+      "startedAtMs": 3197.192500000001,
+      "elapsedMs": 38.52300000000105,
+      "scansAtStart": 61,
+      "scansAtEnd": 62,
+      "outsideTransactionMs": 9.611700000001292
+    },
+    {
+      "startedAtMs": 3238.201100000002,
+      "elapsedMs": 37.00209999999788,
+      "scansAtStart": 62,
+      "scansAtEnd": 63,
+      "outsideTransactionMs": 7.84939999999915
+    },
+    {
+      "startedAtMs": 3278.7160000000003,
+      "elapsedMs": 38.964600000002974,
+      "scansAtStart": 63,
+      "scansAtEnd": 63,
+      "outsideTransactionMs": 8.893100000004779
+    },
+    {
+      "startedAtMs": 3321.5858000000044,
+      "elapsedMs": 38.61379999999917,
+      "scansAtStart": 63,
+      "scansAtEnd": 64,
+      "outsideTransactionMs": 11.732499999998254
+    },
+    {
+      "startedAtMs": 3362.4713999999985,
+      "elapsedMs": 40.143800000005285,
+      "scansAtStart": 64,
+      "scansAtEnd": 65,
+      "outsideTransactionMs": 10.519300000007206
+    },
+    {
+      "startedAtMs": 3404.809799999999,
+      "elapsedMs": 40.18210000000545,
+      "scansAtStart": 65,
+      "scansAtEnd": 66,
+      "outsideTransactionMs": 6.976100000007136
+    },
+    {
+      "startedAtMs": 3448.437099999999,
+      "elapsedMs": 36.1275999999998,
+      "scansAtStart": 66,
+      "scansAtEnd": 67,
+      "outsideTransactionMs": 7.584800000004179
+    },
+    {
+      "startedAtMs": 3486.7423000000017,
+      "elapsedMs": 35.9997000000003,
+      "scansAtStart": 67,
+      "scansAtEnd": 68,
+      "outsideTransactionMs": 7.6754000000000815
+    },
+    {
+      "startedAtMs": 3524.9612000000016,
+      "elapsedMs": 40.13010000000213,
+      "scansAtStart": 68,
+      "scansAtEnd": 69,
+      "outsideTransactionMs": 10.815600000001723
+    },
+    {
+      "startedAtMs": 3568.433000000001,
+      "elapsedMs": 38.095900000000256,
+      "scansAtStart": 69,
+      "scansAtEnd": 69,
+      "outsideTransactionMs": 9.853199999997742
+    },
+    {
+      "startedAtMs": 3610.1548000000003,
+      "elapsedMs": 34.488600000004226,
+      "scansAtStart": 70,
+      "scansAtEnd": 70,
+      "outsideTransactionMs": 9.161500000009255
+    },
+    {
+      "startedAtMs": 3647.086400000004,
+      "elapsedMs": 36.67869999999675,
+      "scansAtStart": 70,
+      "scansAtEnd": 71,
+      "outsideTransactionMs": 7.593899999999849
+    },
+    {
+      "startedAtMs": 3686.688299999998,
+      "elapsedMs": 39.08430000000226,
+      "scansAtStart": 71,
+      "scansAtEnd": 72,
+      "outsideTransactionMs": 7.508500000003551
+    },
+    {
+      "startedAtMs": 3728.3466000000008,
+      "elapsedMs": 37.89890000000014,
+      "scansAtStart": 72,
+      "scansAtEnd": 73,
+      "outsideTransactionMs": 8.212700000003679
+    },
+    {
+      "startedAtMs": 3768.429100000005,
+      "elapsedMs": 38.936299999993935,
+      "scansAtStart": 73,
+      "scansAtEnd": 74,
+      "outsideTransactionMs": 8.36469999999099
+    },
+    {
+      "startedAtMs": 3809.8094999999994,
+      "elapsedMs": 35.64719999999943,
+      "scansAtStart": 74,
+      "scansAtEnd": 74,
+      "outsideTransactionMs": 9.117099999995844
+    },
+    {
+      "startedAtMs": 3850.0038999999997,
+      "elapsedMs": 36.684800000002724,
+      "scansAtStart": 75,
+      "scansAtEnd": 75,
+      "outsideTransactionMs": 8.894399999997404
+    },
+    {
+      "startedAtMs": 3888.8443000000007,
+      "elapsedMs": 39.116399999998976,
+      "scansAtStart": 75,
+      "scansAtEnd": 76,
+      "outsideTransactionMs": 10.75510000000213
+    },
+    {
+      "startedAtMs": 3930.8996000000006,
+      "elapsedMs": 38.96100000000297,
+      "scansAtStart": 76,
+      "scansAtEnd": 77,
+      "outsideTransactionMs": 7.673399999999674
+    },
+    {
+      "startedAtMs": 3971.9986000000026,
+      "elapsedMs": 37.095399999998335,
+      "scansAtStart": 77,
+      "scansAtEnd": 78,
+      "outsideTransactionMs": 7.1076000000030035
+    },
+    {
+      "startedAtMs": 4011.4480000000003,
+      "elapsedMs": 37.89890000000014,
+      "scansAtStart": 78,
+      "scansAtEnd": 79,
+      "outsideTransactionMs": 8.394799999994575
+    },
+    {
+      "startedAtMs": 4051.588899999999,
+      "elapsedMs": 39.11680000000342,
+      "scansAtStart": 79,
+      "scansAtEnd": 80,
+      "outsideTransactionMs": 8.628800000005867
+    },
+    {
+      "startedAtMs": 4093.0332000000017,
+      "elapsedMs": 36.55430000000342,
+      "scansAtStart": 80,
+      "scansAtEnd": 80,
+      "outsideTransactionMs": 10.778000000005704
+    },
+    {
+      "startedAtMs": 4133.645099999998,
+      "elapsedMs": 39.59460000000399,
+      "scansAtStart": 80,
+      "scansAtEnd": 81,
+      "outsideTransactionMs": 9.363100000009581
+    },
+    {
+      "startedAtMs": 4175.495700000003,
+      "elapsedMs": 39.48189999999886,
+      "scansAtStart": 81,
+      "scansAtEnd": 82,
+      "outsideTransactionMs": 10.09649999999965
+    },
+    {
+      "startedAtMs": 4217.846699999998,
+      "elapsedMs": 40.91910000000644,
+      "scansAtStart": 82,
+      "scansAtEnd": 83,
+      "outsideTransactionMs": 9.455900000008114
+    },
+    {
+      "startedAtMs": 4260.8665,
+      "elapsedMs": 36.599600000001374,
+      "scansAtStart": 83,
+      "scansAtEnd": 84,
+      "outsideTransactionMs": 8.74500000000262
+    },
+    {
+      "startedAtMs": 4300.519199999999,
+      "elapsedMs": 38.94380000000092,
+      "scansAtStart": 84,
+      "scansAtEnd": 85,
+      "outsideTransactionMs": 9.696800000005169
+    },
+    {
+      "startedAtMs": 4341.638999999999,
+      "elapsedMs": 35.68000000000029,
+      "scansAtStart": 85,
+      "scansAtEnd": 86,
+      "outsideTransactionMs": 8.435899999996764
+    },
+    {
+      "startedAtMs": 4380.079399999999,
+      "elapsedMs": 40.24060000000463,
+      "scansAtStart": 86,
+      "scansAtEnd": 86,
+      "outsideTransactionMs": 10.244400000003225
+    },
+    {
+      "startedAtMs": 4423.649500000003,
+      "elapsedMs": 50.35009999999602,
+      "scansAtStart": 86,
+      "scansAtEnd": 87,
+      "outsideTransactionMs": 14.400199999996403
+    },
+    {
+      "startedAtMs": 4476.675100000004,
+      "elapsedMs": 42.4007999999958,
+      "scansAtStart": 87,
+      "scansAtEnd": 88,
+      "outsideTransactionMs": 7.555999999996857
+    },
+    {
+      "startedAtMs": 4521.348900000001,
+      "elapsedMs": 43.233000000000175,
+      "scansAtStart": 88,
+      "scansAtEnd": 89,
+      "outsideTransactionMs": 8.268199999998615
+    },
+    {
+      "startedAtMs": 4567.009900000001,
+      "elapsedMs": 39.55750000000262,
+      "scansAtStart": 89,
+      "scansAtEnd": 90,
+      "outsideTransactionMs": 7.042200000003504
+    },
+    {
+      "startedAtMs": 4608.675400000004,
+      "elapsedMs": 38.72339999999531,
+      "scansAtStart": 90,
+      "scansAtEnd": 91,
+      "outsideTransactionMs": 9.734599999996135
+    },
+    {
+      "startedAtMs": 4649.6067,
+      "elapsedMs": 39.25800000000163,
+      "scansAtStart": 91,
+      "scansAtEnd": 92,
+      "outsideTransactionMs": 9.691200000001118
+    },
+    {
+      "startedAtMs": 4691.016800000001,
+      "elapsedMs": 39.4429999999993,
+      "scansAtStart": 92,
+      "scansAtEnd": 93,
+      "outsideTransactionMs": 11.243499999996857
+    },
+    {
+      "startedAtMs": 4733.2896,
+      "elapsedMs": 37.26290000000154,
+      "scansAtStart": 93,
+      "scansAtEnd": 93,
+      "outsideTransactionMs": 7.94100000000617
+    },
+    {
+      "startedAtMs": 4772.7419000000045,
+      "elapsedMs": 43.22069999999803,
+      "scansAtStart": 93,
+      "scansAtEnd": 94,
+      "outsideTransactionMs": 12.16189999999915
+    },
+    {
+      "startedAtMs": 4818.275000000005,
+      "elapsedMs": 38.60469999999623,
+      "scansAtStart": 94,
+      "scansAtEnd": 95,
+      "outsideTransactionMs": 7.0732999999963795
+    },
+    {
+      "startedAtMs": 4859.049300000002,
+      "elapsedMs": 40.59010000000126,
+      "scansAtStart": 95,
+      "scansAtEnd": 96,
+      "outsideTransactionMs": 7.7805999999982305
+    },
+    {
+      "startedAtMs": 4902.1963,
+      "elapsedMs": 35.78160000000207,
+      "scansAtStart": 96,
+      "scansAtEnd": 97,
+      "outsideTransactionMs": 7.1010000000023865
+    },
+    {
+      "startedAtMs": 4940.154100000003,
+      "elapsedMs": 37.73309999999765,
+      "scansAtStart": 97,
+      "scansAtEnd": 98,
+      "outsideTransactionMs": 7.467700000001059
+    },
+    {
+      "startedAtMs": 4980.4963000000025,
+      "elapsedMs": 39.322800000001735,
+      "scansAtStart": 98,
+      "scansAtEnd": 99,
+      "outsideTransactionMs": 8.083500000007916
+    },
+    {
+      "startedAtMs": 5021.880300000001,
+      "elapsedMs": 39.46519999999873,
+      "scansAtStart": 99,
+      "scansAtEnd": 100,
+      "outsideTransactionMs": 8.188800000003539
+    },
+    {
+      "startedAtMs": 5065.6170999999995,
+      "elapsedMs": 41.0593000000008,
+      "scansAtStart": 100,
+      "scansAtEnd": 100,
+      "outsideTransactionMs": 7.764900000001944
+    },
+    {
+      "startedAtMs": 5112.0079000000005,
+      "elapsedMs": 43.825700000001234,
+      "scansAtStart": 101,
+      "scansAtEnd": 101,
+      "outsideTransactionMs": 11.765600000006089
+    },
+    {
+      "startedAtMs": 5158.3259,
+      "elapsedMs": 45.770000000004075,
+      "scansAtStart": 101,
+      "scansAtEnd": 102,
+      "outsideTransactionMs": 11.384300000005169
+    },
+    {
+      "startedAtMs": 5207.168399999999,
+      "elapsedMs": 49.31010000000242,
+      "scansAtStart": 102,
+      "scansAtEnd": 103,
+      "outsideTransactionMs": 8.822000000007392
+    },
+    {
+      "startedAtMs": 5259.3236,
+      "elapsedMs": 57.15869999999995,
+      "scansAtStart": 103,
+      "scansAtEnd": 104,
+      "outsideTransactionMs": 9.43239999999787
+    },
+    {
+      "startedAtMs": 5319.6478000000025,
+      "elapsedMs": 51.67530000000261,
+      "scansAtStart": 104,
+      "scansAtEnd": 105,
+      "outsideTransactionMs": 10.207699999999022
+    },
+    {
+      "startedAtMs": 5374.708600000002,
+      "elapsedMs": 55.322299999999814,
+      "scansAtStart": 105,
+      "scansAtEnd": 106,
+      "outsideTransactionMs": 11.48859999999695
+    },
+    {
+      "startedAtMs": 5433.966400000001,
+      "elapsedMs": 67.02820000000065,
+      "scansAtStart": 106,
+      "scansAtEnd": 107,
+      "outsideTransactionMs": 13.326200000003155
+    },
+    {
+      "startedAtMs": 5506.037,
+      "elapsedMs": 51.86460000000079,
+      "scansAtStart": 107,
+      "scansAtEnd": 108,
+      "outsideTransactionMs": 10.99890000000596
+    },
+    {
+      "startedAtMs": 5562.1722000000045,
+      "elapsedMs": 50.289099999994505,
+      "scansAtStart": 108,
+      "scansAtEnd": 108,
+      "outsideTransactionMs": 11.315999999998894
+    },
+    {
+      "startedAtMs": 5615.432300000004,
+      "elapsedMs": 51.099499999996624,
+      "scansAtStart": 108,
+      "scansAtEnd": 109,
+      "outsideTransactionMs": 12.30729999999312
+    },
+    {
+      "startedAtMs": 5669.385600000005,
+      "elapsedMs": 51.65419999999722,
+      "scansAtStart": 109,
+      "scansAtEnd": 110,
+      "outsideTransactionMs": 11.459000000002561
+    },
+    {
+      "startedAtMs": 5724.0035000000025,
+      "elapsedMs": 45.81910000000062,
+      "scansAtStart": 110,
+      "scansAtEnd": 111,
+      "outsideTransactionMs": 9.33350000000064
+    },
+    {
+      "startedAtMs": 5774.822700000001,
+      "elapsedMs": 89.82050000000163,
+      "scansAtStart": 111,
+      "scansAtEnd": 112,
+      "outsideTransactionMs": 15.297299999998359
+    },
+    {
+      "startedAtMs": 5869.309300000004,
+      "elapsedMs": 53.94779999999446,
+      "scansAtStart": 112,
+      "scansAtEnd": 113,
+      "outsideTransactionMs": 13.14379999999801
+    },
+    {
+      "startedAtMs": 5926.028500000004,
+      "elapsedMs": 48.95499999999447,
+      "scansAtStart": 113,
+      "scansAtEnd": 114,
+      "outsideTransactionMs": 12.239899999993213
+    },
+    {
+      "startedAtMs": 5977.401099999999,
+      "elapsedMs": 40.304000000003725,
+      "scansAtStart": 114,
+      "scansAtEnd": 115,
+      "outsideTransactionMs": 8.687000000005355
+    },
+    {
+      "startedAtMs": 6020.149699999998,
+      "elapsedMs": 41.25900000000547,
+      "scansAtStart": 115,
+      "scansAtEnd": 115,
+      "outsideTransactionMs": 8.438400000006368
+    },
+    {
+      "startedAtMs": 6068.421700000003,
+      "elapsedMs": 45.5083999999988,
+      "scansAtStart": 116,
+      "scansAtEnd": 116,
+      "outsideTransactionMs": 10.729499999994005
+    },
+    {
+      "startedAtMs": 6116.447400000001,
+      "elapsedMs": 43.60029999999824,
+      "scansAtStart": 116,
+      "scansAtEnd": 117,
+      "outsideTransactionMs": 11.519899999999325
+    },
+    {
+      "startedAtMs": 6162.805300000004,
+      "elapsedMs": 42.42160000000149,
+      "scansAtStart": 117,
+      "scansAtEnd": 118,
+      "outsideTransactionMs": 10.260299999994459
+    },
+    {
+      "startedAtMs": 6208.310699999998,
+      "elapsedMs": 42.93920000000071,
+      "scansAtStart": 118,
+      "scansAtEnd": 119,
+      "outsideTransactionMs": 9.201099999998405
+    },
+    {
+      "startedAtMs": 6253.474400000003,
+      "elapsedMs": 41.372699999999895,
+      "scansAtStart": 119,
+      "scansAtEnd": 120,
+      "outsideTransactionMs": 6.821900000002643
+    },
+    {
+      "startedAtMs": 6298.501800000002,
+      "elapsedMs": 37.32069999999658,
+      "scansAtStart": 120,
+      "scansAtEnd": 121,
+      "outsideTransactionMs": 8.397199999992154
+    },
+    {
+      "startedAtMs": 6338.038100000002,
+      "elapsedMs": 35.29579999999987,
+      "scansAtStart": 121,
+      "scansAtEnd": 122,
+      "outsideTransactionMs": 8.142400000004272
+    },
+    {
+      "startedAtMs": 6375.425599999999,
+      "elapsedMs": 35.78870000000461,
+      "scansAtStart": 122,
+      "scansAtEnd": 123,
+      "outsideTransactionMs": 9.344199999999546
+    },
+    {
+      "startedAtMs": 6415.617800000004,
+      "elapsedMs": 34.52270000000135,
+      "scansAtStart": 123,
+      "scansAtEnd": 123,
+      "outsideTransactionMs": 9.621600000005856
+    },
+    {
+      "startedAtMs": 6452.329300000001,
+      "elapsedMs": 38.75310000000172,
+      "scansAtStart": 123,
+      "scansAtEnd": 124,
+      "outsideTransactionMs": 8.952000000004773
+    },
+    {
+      "startedAtMs": 6493.585200000005,
+      "elapsedMs": 38.27759999999398,
+      "scansAtStart": 124,
+      "scansAtEnd": 125,
+      "outsideTransactionMs": 9.793999999994412
+    },
+    {
+      "startedAtMs": 6535.083500000004,
+      "elapsedMs": 44.217499999998836,
+      "scansAtStart": 125,
+      "scansAtEnd": 126,
+      "outsideTransactionMs": 8.212899999998626
+    },
+    {
+      "startedAtMs": 6582.8181,
+      "elapsedMs": 36.873200000001816,
+      "scansAtStart": 126,
+      "scansAtEnd": 126,
+      "outsideTransactionMs": 8.011200000000827
+    },
+    {
+      "startedAtMs": 6622.1767,
+      "elapsedMs": 35.33729999999923,
+      "scansAtStart": 126,
+      "scansAtEnd": 127,
+      "outsideTransactionMs": 9.683100000002014
+    },
+    {
+      "startedAtMs": 6659.645700000005,
+      "elapsedMs": 34.390199999994365,
+      "scansAtStart": 127,
+      "scansAtEnd": 128,
+      "outsideTransactionMs": 7.913799999994808
+    },
+    {
+      "startedAtMs": 6696.488800000003,
+      "elapsedMs": 32.83780000000115,
+      "scansAtStart": 128,
+      "scansAtEnd": 129,
+      "outsideTransactionMs": 7.083100000003469
+    },
+    {
+      "startedAtMs": 6732.7101,
+      "elapsedMs": 31.334900000001653,
+      "scansAtStart": 129,
+      "scansAtEnd": 129,
+      "outsideTransactionMs": 7.818900000005669
+    },
+    {
+      "startedAtMs": 6768.122400000004,
+      "elapsedMs": 35.771999999997206,
+      "scansAtStart": 130,
+      "scansAtEnd": 130,
+      "outsideTransactionMs": 9.745199999997567
+    },
+    {
+      "startedAtMs": 6806.052800000001,
+      "elapsedMs": 36.83419999999751,
+      "scansAtStart": 130,
+      "scansAtEnd": 131,
+      "outsideTransactionMs": 10.344599999996717
+    },
+    {
+      "startedAtMs": 6844.918399999999,
+      "elapsedMs": 41.45550000000367,
+      "scansAtStart": 131,
+      "scansAtEnd": 132,
+      "outsideTransactionMs": 9.359000000004016
+    },
+    {
+      "startedAtMs": 6888.648799999999,
+      "elapsedMs": 48.890800000001036,
+      "scansAtStart": 132,
+      "scansAtEnd": 133,
+      "outsideTransactionMs": 7.321799999997893
+    },
+    {
+      "startedAtMs": 6940.324000000004,
+      "elapsedMs": 48.688099999999395,
+      "scansAtStart": 133,
+      "scansAtEnd": 134,
+      "outsideTransactionMs": 9.607799999997951
+    },
+    {
+      "startedAtMs": 6991.884999999998,
+      "elapsedMs": 42.405900000005204,
+      "scansAtStart": 134,
+      "scansAtEnd": 135,
+      "outsideTransactionMs": 9.42280000000028
+    },
+    {
+      "startedAtMs": 7039.658500000001,
+      "elapsedMs": 53.87170000000333,
+      "scansAtStart": 135,
+      "scansAtEnd": 135,
+      "outsideTransactionMs": 14.013700000003155
+    },
+    {
+      "startedAtMs": 7096.667100000002,
+      "elapsedMs": 56.77189999999973,
+      "scansAtStart": 135,
+      "scansAtEnd": 136,
+      "outsideTransactionMs": 20.51929999999993
+    },
+    {
+      "startedAtMs": 7156.519600000003,
+      "elapsedMs": 43.855799999997544,
+      "scansAtStart": 136,
+      "scansAtEnd": 137,
+      "outsideTransactionMs": 10.045500000000175
+    },
+    {
+      "startedAtMs": 7203.318600000002,
+      "elapsedMs": 41.90419999999722,
+      "scansAtStart": 137,
+      "scansAtEnd": 138,
+      "outsideTransactionMs": 8.68080000000191
+    },
+    {
+      "startedAtMs": 7248.436400000002,
+      "elapsedMs": 37.15649999999732,
+      "scansAtStart": 138,
+      "scansAtEnd": 139,
+      "outsideTransactionMs": 8.279899999994086
+    },
+    {
+      "startedAtMs": 7287.9108000000015,
+      "elapsedMs": 34.340400000000955,
+      "scansAtStart": 139,
+      "scansAtEnd": 139,
+      "outsideTransactionMs": 7.149999999994179
+    },
+    {
+      "startedAtMs": 7325.315100000003,
+      "elapsedMs": 34.57860000000073,
+      "scansAtStart": 140,
+      "scansAtEnd": 140,
+      "outsideTransactionMs": 10.20339999999851
+    },
+    {
+      "startedAtMs": 7363.106000000003,
+      "elapsedMs": 37.23809999999503,
+      "scansAtStart": 140,
+      "scansAtEnd": 141,
+      "outsideTransactionMs": 8.02079999999114
+    },
+    {
+      "startedAtMs": 7402.382500000003,
+      "elapsedMs": 34.14909999999509,
+      "scansAtStart": 141,
+      "scansAtEnd": 142,
+      "outsideTransactionMs": 7.446499999998196
+    },
+    {
+      "startedAtMs": 7438.877199999999,
+      "elapsedMs": 34.2728000000061,
+      "scansAtStart": 142,
+      "scansAtEnd": 143,
+      "outsideTransactionMs": 8.108400000004622
+    },
+    {
+      "startedAtMs": 7475.3920000000035,
+      "elapsedMs": 32.549999999995634,
+      "scansAtStart": 143,
+      "scansAtEnd": 143,
+      "outsideTransactionMs": 7.570599999991828
+    },
+    {
+      "startedAtMs": 7511.371500000005,
+      "elapsedMs": 39.09619999999995,
+      "scansAtStart": 144,
+      "scansAtEnd": 144,
+      "outsideTransactionMs": 12.337800000001153
+    },
+    {
+      "startedAtMs": 7553.983700000001,
+      "elapsedMs": 37.047700000002806,
+      "scansAtStart": 144,
+      "scansAtEnd": 145,
+      "outsideTransactionMs": 11.734400000001187
+    },
+    {
+      "startedAtMs": 7593.492900000001,
+      "elapsedMs": 37.83879999999772,
+      "scansAtStart": 145,
+      "scansAtEnd": 146,
+      "outsideTransactionMs": 10.116099999999278
+    },
+    {
+      "startedAtMs": 7633.488800000003,
+      "elapsedMs": 35.68149999999878,
+      "scansAtStart": 146,
+      "scansAtEnd": 147,
+      "outsideTransactionMs": 6.842700000001059
+    },
+    {
+      "startedAtMs": 7671.428100000001,
+      "elapsedMs": 33.76269999999931,
+      "scansAtStart": 147,
+      "scansAtEnd": 148,
+      "outsideTransactionMs": 9.150299999993877
+    },
+    {
+      "startedAtMs": 7707.2994,
+      "elapsedMs": 33.624000000003434,
+      "scansAtStart": 148,
+      "scansAtEnd": 149,
+      "outsideTransactionMs": 7.853400000007241
+    },
+    {
+      "startedAtMs": 7742.801300000003,
+      "elapsedMs": 29.413399999997637,
+      "scansAtStart": 149,
+      "scansAtEnd": 149,
+      "outsideTransactionMs": 7.03009999999631
+    },
+    {
+      "startedAtMs": 7774.3247999999985,
+      "elapsedMs": 30.33929999999964,
+      "scansAtStart": 149,
+      "scansAtEnd": 150,
+      "outsideTransactionMs": 7.25619999999617
+    }
+  ],
+  "transactions": [
+    {
+      "acquisitionMs": 2.5069000000003143,
+      "bodyMs": 50.956200000000536,
+      "completionMs": 1.3611999999993714,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.0901000000012573
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 10.53059999999823
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.490300000001298
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 37.25010000000111
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.7286999999996624,
+      "bodyMs": 20.856599999999162,
+      "completionMs": 1.3549999999995634,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.9546000000009371
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.84860000000117
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.0993000000016764
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 13.845300000000861
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.4112999999997555,
+      "bodyMs": 19.388200000001234,
+      "completionMs": 3.147399999998015,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.1734999999971478
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 3.578300000001036
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.0689000000020314
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 13.409500000001572
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.4170999999987544,
+      "bodyMs": 19.857700000000477,
+      "completionMs": 2.1471000000019558,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.381600000000617
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.100500000000466
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.0927999999985332
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 12.178599999999278
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.8364000000001397,
+      "bodyMs": 23.152900000000955,
+      "completionMs": 1.3649999999979627,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.0912000000025728
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 6.33009999999922
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 2.035599999999249
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 13.5724999999984
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.9089999999996508,
+      "bodyMs": 22.94550000000163,
+      "completionMs": 2.0028999999994994,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.8211000000010245
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.91359999999986
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.3928000000014435
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 15.717199999999139
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.5953000000008615,
+      "bodyMs": 20.41889999999694,
+      "completionMs": 1.5015000000021246,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.8871999999973923
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 3.597200000000157
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.0213000000003376
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 14.815899999997782
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 3.9710999999988417,
+      "bodyMs": 24.163300000000163,
+      "completionMs": 1.5702000000019325,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 2.1062999999994645
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.461800000000949
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.603900000001886
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 14.820299999999406
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.307300000000396,
+      "bodyMs": 21.60399999999936,
+      "completionMs": 1.6779000000024098,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.9418000000005122
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.0305999999982305
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.993400000003021
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 14.272200000003068
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.6017999999967287,
+      "bodyMs": 19.90900000000329,
+      "completionMs": 1.8955999999998312,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.9069000000017695
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 3.731099999997241
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.0516999999999825
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 14.094399999998132
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.6759999999994761,
+      "bodyMs": 20.411400000000867,
+      "completionMs": 1.5070999999988999,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.1254999999982829
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 3.888999999999214
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 0.9817000000002736
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 14.344600000000355
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 3.6432999999997264,
+      "bodyMs": 24.347099999999045,
+      "completionMs": 1.5360000000000582,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.749599999999191
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.668000000001484
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.0636999999987893
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 15.805599999999686
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.5617999999994936,
+      "bodyMs": 25.87970000000132,
+      "completionMs": 1.5750999999982014,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.9674000000013621
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.027200000000448
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 3.000099999997474
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 16.813500000000204
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.4317000000010012,
+      "bodyMs": 21.79360000000088,
+      "completionMs": 2.576099999998405,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.7847000000001572
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 3.9971999999979744
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.7828999999983353
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 15.121500000001106
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.565600000001723,
+      "bodyMs": 20.82760000000053,
+      "completionMs": 1.9634000000005472,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.8844000000026426
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.386899999997695
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 0.9635999999991327
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 13.539600000000064
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.7968000000000757,
+      "bodyMs": 21.130600000000413,
+      "completionMs": 1.8264999999992142,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.541799999999057
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 3.634699999998702
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.0868999999984226
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 14.809700000001612
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.7200000000011642,
+      "bodyMs": 25.147799999998824,
+      "completionMs": 1.6939000000020314,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.8513999999995576
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 7.136999999998807
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 2.656599999998434
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 14.429399999997258
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.509200000000419,
+      "bodyMs": 20.73830000000089,
+      "completionMs": 1.4702999999972235,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.8127999999996973
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.525899999996909
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.386399999999412
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 13.946400000000722
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.9840000000003783,
+      "bodyMs": 22.605899999998655,
+      "completionMs": 2.3618999999998778,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.9872999999970489
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.751599999999598
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.7318000000013853
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 15.063300000001618
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.8497999999999593,
+      "bodyMs": 21.797500000000582,
+      "completionMs": 1.9226999999991676,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.734599999999773
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.322599999999511
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.0839999999989232
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 15.593799999998737
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 3.5185999999994237,
+      "bodyMs": 23.67280000000028,
+      "completionMs": 1.3820999999988999,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 2.2828000000008615
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.021600000000035
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.3470999999990454
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 14.96020000000135
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.515000000003056,
+      "bodyMs": 23.01009999999951,
+      "completionMs": 2.0635999999976775,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.4104999999981374
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.058399999998073
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 2.903600000001461
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 14.574899999999616
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.3906999999999243,
+      "bodyMs": 24.177700000000186,
+      "completionMs": 1.6306000000004133,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.9703000000008615
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 6.242000000002008
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.4419999999990978
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 15.468699999997625
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 3.3801000000021304,
+      "bodyMs": 33.990499999999884,
+      "completionMs": 1.9900999999990745,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.4882000000034168
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.4200999999993655
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.8843000000015309
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 25.11699999999837
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.0952999999972235,
+      "bodyMs": 29.01180000000022,
+      "completionMs": 1.7983000000022002,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.511000000002241
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.807300000000396
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.8183000000026368
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 20.8153999999995
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 4.392899999998917,
+      "bodyMs": 30.83719999999812,
+      "completionMs": 1.8194000000003143,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 2.8744000000006054
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 7.910700000000361
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.975399999999354
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 17.989300000001094
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 3.7263999999995576,
+      "bodyMs": 27.493000000002212,
+      "completionMs": 2.749499999998079,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.287000000000262
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.7137000000002445
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 2.083099999999831
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 19.329299999997602
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.889999999999418,
+      "bodyMs": 23.564399999999296,
+      "completionMs": 1.6957000000002154,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.9029999999984284
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.589899999999034
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.2563999999983935
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 16.749299999999494
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.5943000000006577,
+      "bodyMs": 22.530899999997928,
+      "completionMs": 1.5393000000003667,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.878499999998894
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.195800000001327
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.3195999999988999
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 15.077100000002247
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.369800000000396,
+      "bodyMs": 25.77260000000024,
+      "completionMs": 1.8486999999986438,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.8477999999995518
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.076300000000629
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 2.257900000000518
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 18.525100000002567
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 3.2754000000022643,
+      "bodyMs": 25.404999999998836,
+      "completionMs": 1.7014999999992142,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.9406999999991967
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 3.808000000000902
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 2.0331999999980326
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 18.54899999999907
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 3.100800000000163,
+      "bodyMs": 23.417300000000978,
+      "completionMs": 1.8588999999992666,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.5285000000003492
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.8870999999999185
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.1203999999997905
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 15.822500000002037
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 4.317900000001828,
+      "bodyMs": 26.092499999998836,
+      "completionMs": 2.934799999999086,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.958199999997305
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 6.426500000001397
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.367099999999482
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 16.273600000000442
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.1961000000010245,
+      "bodyMs": 24.7484000000004,
+      "completionMs": 1.5996000000013737,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.0872999999992317
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.0244000000020606
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.3581000000012864
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 17.20470000000205
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.0028999999994994,
+      "bodyMs": 26.151300000001356,
+      "completionMs": 2.9760999999998603,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.1091000000014901
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.501000000000204
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 2.488900000000285
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 16.98660000000018
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.9520999999986088,
+      "bodyMs": 23.11330000000089,
+      "completionMs": 1.8127999999996973,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.8873999999996158
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.724600000001374
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.2014000000017404
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 16.2316000000028
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 3.1208000000005995,
+      "bodyMs": 31.738900000000285,
+      "completionMs": 2.4455999999991036,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.245200000001205
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.542199999999866
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.4523000000008324
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 23.428200000002107
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 3.9932999999982712,
+      "bodyMs": 23.001200000002427,
+      "completionMs": 1.914199999999255,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.8206000000027416
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.406600000002072
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.2723999999980151
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 16.427700000000186
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.3644999999996799,
+      "bodyMs": 25.852999999999156,
+      "completionMs": 2.0037999999985914,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.3308999999972002
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.458600000001752
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 2.6837000000014086
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 16.30789999999979
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.432300000000396,
+      "bodyMs": 26.607899999999063,
+      "completionMs": 1.7965000000003783,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.4791000000004715
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.98949999999968
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.5924999999988358
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 18.470000000001164
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.5024999999986903,
+      "bodyMs": 22.872400000000198,
+      "completionMs": 2.6503000000011525,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.0653000000020256
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.241699999998673
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.2986999999993714
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 16.20100000000093
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.882900000000518,
+      "bodyMs": 24.598599999997532,
+      "completionMs": 1.434900000000198,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.9226999999991676
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 7.3870999999999185
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.1258000000016182
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 15.097799999999552
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.8846000000012282,
+      "bodyMs": 21.47259999999733,
+      "completionMs": 1.630300000000716,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.9790999999968335
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.0349999999998545
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.0900000000001455
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 15.303800000001502
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 3.846399999998539,
+      "bodyMs": 26.853100000000268,
+      "completionMs": 1.6935000000012224,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.2449999999989814
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 6.683099999998376
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 2.0728999999992084
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 16.787099999997736
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.6597000000001572,
+      "bodyMs": 24.29859999999826,
+      "completionMs": 1.6252000000022235,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.3849999999983993
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.293600000000879
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.829200000000128
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 15.733000000000175
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.5924999999988358,
+      "bodyMs": 23.048600000001898,
+      "completionMs": 2.098599999997532,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.9054999999971187
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.431400000001304
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.1242999999994936
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 16.52479999999923
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.7527000000009139,
+      "bodyMs": 25.924699999999575,
+      "completionMs": 2.318300000002637,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.0292000000008557
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.040099999998347
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 2.247300000002724
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 18.54320000000007
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.4530000000013388,
+      "bodyMs": 22.922500000000582,
+      "completionMs": 2.0028999999994994,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.117500000000291
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.4284999999981665
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.391700000000128
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 15.918299999997544
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.267200000002049,
+      "bodyMs": 21.71059999999852,
+      "completionMs": 2.3457999999991443,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.29399999999805
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.180599999999686
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.468700000001263
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 14.70720000000074
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.8401000000012573,
+      "bodyMs": 27.111300000000483,
+      "completionMs": 1.7947999999996682,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.0711999999984982
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 8.490900000000693
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.3616000000001804
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 16.11670000000231
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.651899999997113,
+      "bodyMs": 23.226000000002387,
+      "completionMs": 1.5190999999977066,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.8081999999994878
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 3.7022999999971944
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.5816000000013446
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 17.076700000001438
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.7273000000022876,
+      "bodyMs": 23.927999999999884,
+      "completionMs": 2.2655999999988126,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.9621000000006461
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 3.724900000001071
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.3751000000011118
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 17.79160000000047
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.947599999999511,
+      "bodyMs": 23.699799999998504,
+      "completionMs": 1.5485000000007858,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.1072999999996682
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.050599999998667
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.1772999999993772
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 16.305200000002515
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.5987999999997555,
+      "bodyMs": 21.17450000000099,
+      "completionMs": 1.5437999999994645,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.0794000000023516
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.004699999997683
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.0936000000001513
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 14.939699999998993
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 4.112700000001496,
+      "bodyMs": 22.90679999999702,
+      "completionMs": 1.7864000000008673,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.6737999999968451
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.218000000000757
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.4932000000007974
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 14.459899999998015
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.4182000000000698,
+      "bodyMs": 28.334500000000844,
+      "completionMs": 1.8309000000008382,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.2608000000000175
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 6.673899999997957
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 2.5666999999994005
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 17.766899999998714
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.5243999999984226,
+      "bodyMs": 25.274499999999534,
+      "completionMs": 1.4936000000016065,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.8445000000028813
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.119099999999889
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.1068999999988591
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 18.143400000000838
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.602999999999156,
+      "bodyMs": 22.96809999999823,
+      "completionMs": 1.5959000000002561,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.0531000000009954
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 3.309499999999389
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.4786999999996624
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 17.050599999998667
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.4684999999990396,
+      "bodyMs": 24.480599999998958,
+      "completionMs": 1.4380999999993946,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.1499999999978172
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.338799999997718
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.1772999999993772
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 16.725899999997637
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.5433000000011816,
+      "bodyMs": 22.175799999997253,
+      "completionMs": 1.456400000002759,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.8258999999998196
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.66990000000078
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.1356999999989057
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 15.483499999998457
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.537400000001071,
+      "bodyMs": 28.551899999998568,
+      "completionMs": 1.5813000000016473,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.5280000000020664
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.883899999997084
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.7505999999993946
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 20.316499999997177
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.7553999999981897,
+      "bodyMs": 25.50890000000072,
+      "completionMs": 1.7272999999986496,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.9497000000010303
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 6.68500000000131
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 2.078799999999319
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 15.731100000000879
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.959100000000035,
+      "bodyMs": 24.22989999999845,
+      "completionMs": 1.6414000000004307,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.0208999999995285
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.293000000001484
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.552400000000489
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 17.29820000000109
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.5443000000013853,
+      "bodyMs": 23.886599999997998,
+      "completionMs": 1.6249000000025262,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.9304999999985739
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.661400000000867
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.106500000001688
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 17.134399999999005
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.1028000000005704,
+      "bodyMs": 28.31920000000173,
+      "completionMs": 1.6353999999992084,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.0311000000001513
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 3.845000000001164
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.1720000000022992
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 22.21270000000004
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.6070999999974447,
+      "bodyMs": 26.55210000000079,
+      "completionMs": 1.9288000000015018,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.2203000000008615
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.365200000000186
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.4307000000007974
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 19.469300000000658
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 3.6080000000001746,
+      "bodyMs": 30.057600000000093,
+      "completionMs": 1.8397000000004482,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.315999999998894
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 6.71310000000085
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 2.4681000000018685
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 19.48110000000088
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.091199999998935,
+      "bodyMs": 35.5028999999995,
+      "completionMs": 2.272899999999936,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.3544999999976426
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.46469999999681
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 4.818799999997282
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 23.79699999999866
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.907600000002276,
+      "bodyMs": 38.22220000000016,
+      "completionMs": 2.0908999999992375,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.5168000000012398
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 6.6358000000000175
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 2.485499999998865
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 27.49659999999858
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.6555000000007567,
+      "bodyMs": 35.7045999999973,
+      "completionMs": 4.16280000000188,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.4870999999984633
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 6.923800000000483
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 4.238199999999779
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 22.968399999997928
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.0509000000020023,
+      "bodyMs": 24.498199999998178,
+      "completionMs": 1.8126999999985856,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.1166999999986729
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.229999999999563
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.2834000000002561
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 17.800999999999476
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.914600000000064,
+      "bodyMs": 23.996500000001106,
+      "completionMs": 1.7020999999986088,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.1106999999974505
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.152099999999336
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.7351999999991676
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 16.929000000000087
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.2674000000006345,
+      "bodyMs": 27.107599999999366,
+      "completionMs": 2.3778000000020256,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.2695000000021537
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 6.563200000000506
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.4369999999980791
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 17.755099999998492
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 3.172599999998056,
+      "bodyMs": 28.17280000000028,
+      "completionMs": 1.5996000000013737,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 2.6961999999984982
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 6.512699999999313
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.3456000000005588
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 17.548600000001898
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.779900000001362,
+      "bodyMs": 27.385299999998097,
+      "completionMs": 2.1105999999999767,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.8557999999975436
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.132000000001426
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 2.856100000000879
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 18.474200000000565
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.9639999999999418,
+      "bodyMs": 24.02469999999812,
+      "completionMs": 2.628600000000006,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.8980000000010477
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.436099999998987
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.244299999998475
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 17.380300000000716
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.9271999999982654,
+      "bodyMs": 25.395500000002357,
+      "completionMs": 1.5885999999991327,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.0747000000010303
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.54490000000078
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.305899999999383
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 18.405400000003283
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.8739999999997963,
+      "bodyMs": 25.04070000000138,
+      "completionMs": 2.2379999999975553,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.1728000000002794
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 3.8473999999987427
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.1450999999979103
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 18.815899999997782
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.4606999999996333,
+      "bodyMs": 25.58390000000145,
+      "completionMs": 3.026899999997113,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.8973000000005413
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.6379999999990105
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.0362999999997555
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 17.95219999999972
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.5619999999980791,
+      "bodyMs": 23.609700000000885,
+      "completionMs": 1.7096000000019558,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.8497999999963213
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.786999999996624
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.1546999999991385
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 16.757900000004156
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 3.2572000000000116,
+      "bodyMs": 24.600399999995716,
+      "completionMs": 1.7669000000023516,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 2.2796000000016647
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.213900000002468
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.180000000000291
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 16.871299999998882
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.4874999999956344,
+      "bodyMs": 28.98800000000483,
+      "completionMs": 1.7304999999978463,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.8364000000001397
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 7.94550000000163
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 2.626400000001013
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 17.281999999999243
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.9223999999958323,
+      "bodyMs": 24.56640000000334,
+      "completionMs": 2.0539999999964493,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.927399999993213
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.864499999996042
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.7381999999997788
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 16.92609999999695
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.346899999996822,
+      "bodyMs": 24.28280000000086,
+      "completionMs": 1.6946000000025379,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.3527000000030966
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.03979999999865
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.174699999995937
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 17.574099999997998
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.261399999995774,
+      "bodyMs": 24.669800000003306,
+      "completionMs": 2.383300000001327,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.1040999999968335
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.598500000000058
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.1977999999944586
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 17.708000000005995
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.0474000000031083,
+      "bodyMs": 24.659299999999348,
+      "completionMs": 1.5360000000000582,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.0095000000001164
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.377899999999499
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.1653000000005704
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 18.0425000000032
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.576099999998405,
+      "bodyMs": 22.054700000000594,
+      "completionMs": 1.696299999995972,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.8513999999995576
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 3.9574000000066007
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.2880000000004657
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 15.900200000003679
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.2424000000028173,
+      "bodyMs": 25.223299999997835,
+      "completionMs": 1.6190999999962514,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.8304999999963911
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.7479999999995925
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.4692999999970198
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 16.112999999997555
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.679100000001199,
+      "bodyMs": 27.642800000001444,
+      "completionMs": 2.253899999996065,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.9967000000033295
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 6.044000000001688
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 2.0362999999997555
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 17.500299999999697
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.7485000000015134,
+      "bodyMs": 25.94919999999547,
+      "completionMs": 1.9884999999994761,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.0283999999955995
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.165199999995821
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.375399999997171
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 18.321900000002643
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.5918000000019674,
+      "bodyMs": 25.947299999999814,
+      "completionMs": 3.032500000001164,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.9261000000042259
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.82560000000376
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.2177000000010594
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 18.919999999998254
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.4812000000019907,
+      "bodyMs": 23.46140000000014,
+      "completionMs": 1.5875000000014552,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.9792000000015832
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 3.6198999999978696
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.1762000000016997
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 17.629800000002433
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.640400000003865,
+      "bodyMs": 24.057699999997567,
+      "completionMs": 2.0923000000038883,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.8202999999994063
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.703000000001339
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.0692999999955646
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 16.405500000000757
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.4064999999973224,
+      "bodyMs": 24.124400000000605,
+      "completionMs": 1.8303999999989173,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.302400000000489
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.546200000004319
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.4425000000046566
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 16.769099999997707
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.433500000006461,
+      "bodyMs": 27.17559999999503,
+      "completionMs": 2.6785000000018044,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.8539999999993597
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 7.423099999999977
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 2.3347999999969034
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 16.44959999999992
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.605199999998149,
+      "bodyMs": 25.676999999996042,
+      "completionMs": 1.7056000000011409,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.3056999999971595
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.45679999999993
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.0947000000014668
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 18.753700000001118
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.5235000000029686,
+      "bodyMs": 25.04660000000149,
+      "completionMs": 2.934000000001106,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.8790999999982887
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.651299999997718
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.110499999995227
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 18.343100000005506
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.9794999999940046,
+      "bodyMs": 26.110599999999977,
+      "completionMs": 2.397900000003574,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.9922000000005937
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.8902000000016415
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 0.9948000000003958
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 19.178500000001804
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.444100000000617,
+      "bodyMs": 22.649199999999837,
+      "completionMs": 1.6829999999972642,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.8554000000003725
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 3.69199999999546
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 0.9994999999980791
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 17.04819999999745
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.2276999999958207,
+      "bodyMs": 26.371299999998882,
+      "completionMs": 1.632499999999709,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.2615000000005239
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 6.14709999999468
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.2865999999994528
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 17.59830000000511
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 4.400000000001455,
+      "bodyMs": 23.07079999999405,
+      "completionMs": 1.914600000003702,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.345499999995809
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 3.780299999998533
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.1114999999990687
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 16.774199999999837
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.518499999998312,
+      "bodyMs": 27.244800000000396,
+      "completionMs": 1.6998999999996158,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.6558999999979278
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 7.282599999998638
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.7669000000023516
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 16.45440000000235
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.5222999999969034,
+      "bodyMs": 24.578200000003562,
+      "completionMs": 1.7540999999982887,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.8663000000015018
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.135499999996682
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.2528000000020256
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 18.26079999999638
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.8946999999971013,
+      "bodyMs": 25.721900000004098,
+      "completionMs": 1.6303999999945518,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.700700000001234
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.005199999999604
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.0559999999968568
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 19.893400000000838
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.7156000000031781,
+      "bodyMs": 23.127699999997276,
+      "completionMs": 2.4008000000030734,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.9599999999991269
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 3.4539999999979045
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.110499999995227
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 17.542099999998754
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.6557000000029802,
+      "bodyMs": 25.826600000000326,
+      "completionMs": 1.5138999999981024,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.0667000000030384
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.935199999999895
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.2888999999995576
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 17.47269999999844
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.5354999999981374,
+      "bodyMs": 31.788500000002387,
+      "completionMs": 1.625899999999092,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.5897000000040862
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.893199999998615
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 2.3255999999964843
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 21.878600000003644
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 3.1631999999954132,
+      "bodyMs": 30.046800000003714,
+      "completionMs": 1.6347999999998137,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 2.1107000000047265
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 6.156699999999546
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.9609999999956926
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 19.751600000003236
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.3505000000004657,
+      "bodyMs": 30.45640000000276,
+      "completionMs": 2.1578999999983353,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 3.7026999999943655
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 6.726199999997334
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.312099999995553
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 18.64639999999781
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.5169999999998254,
+      "bodyMs": 29.211699999999837,
+      "completionMs": 1.7865999999994528,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.2318000000013853
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 6.820800000001327
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 2.6915999999982887
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 18.403999999994994
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.6935999999986961,
+      "bodyMs": 25.766100000000733,
+      "completionMs": 1.5290999999997439,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.0464999999967404
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 3.9294000000008964
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.3281999999962864
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 19.397799999998824
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.3822000000000116,
+      "bodyMs": 26.129699999997683,
+      "completionMs": 2.0549000000028173,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.8580000000001746
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.222200000003795
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.09599999999773
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 18.88880000000063
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.7144000000043889,
+      "bodyMs": 23.626299999996263,
+      "completionMs": 2.858800000001793,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.9379000000044471
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.197500000002037
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.0899000000063097
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 17.347399999998743
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.6769999999960419,
+      "bodyMs": 26.058900000003632,
+      "completionMs": 1.5859999999956926,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.0694000000003143
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.0112000000008265
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.2214999999996508
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 19.701399999998102
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.3818000000028405,
+      "bodyMs": 26.02509999999893,
+      "completionMs": 2.651899999997113,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.7921000000060303
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.061799999995856
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.4487999999983003
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 19.652499999996508
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 3.126300000003539,
+      "bodyMs": 26.823599999996077,
+      "completionMs": 1.5815000000002328,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 2.6758000000045286
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.164600000003702
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.137300000002142
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 17.781499999997322
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.026300000004994,
+      "bodyMs": 27.9545999999973,
+      "completionMs": 2.8286000000007334,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.8055999999996857
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 7.210399999996298
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 2.2685999999957858
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 17.608699999997043
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.4944000000032247,
+      "bodyMs": 25.559299999993527,
+      "completionMs": 1.6269000000029337,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.893499999998312
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.554899999995541
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.135599999994156
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 18.916000000004715
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.7203999999983353,
+      "bodyMs": 26.99330000000191,
+      "completionMs": 1.5516999999963446,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.1968999999953667
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.75510000000213
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.1605999999956111
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 18.819799999997485
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.679999999993015,
+      "bodyMs": 27.333300000005693,
+      "completionMs": 2.2259999999951106,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.8844000000026426
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.071199999998498
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.4073999999964144
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 20.90299999999843
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.4619000000020606,
+      "bodyMs": 26.653800000000047,
+      "completionMs": 2.160699999993085,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.0233999999982188
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.245699999999488
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.123200000001816
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 20.193700000003446
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.164600000003702,
+      "bodyMs": 29.35179999999673,
+      "completionMs": 1.7779999999984284,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.8054000000047381
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.9254000000000815
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.4516999999977998
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 22.08749999999418
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.7256999999954132,
+      "bodyMs": 28.66939999999886,
+      "completionMs": 1.6650000000008731,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.9697000000014668
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.974200000004203
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.6535000000003492
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 19.9545999999973
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.9786000000021886,
+      "bodyMs": 29.460699999995995,
+      "completionMs": 1.9464000000007218,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.493799999996554
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.796900000001187
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.3597999999983585
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 21.72960000000603
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 4.565499999996973,
+      "bodyMs": 33.309000000001106,
+      "completionMs": 2.61359999999695,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.8306999999986147
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 7.252399999997579
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.7139999999999418
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 22.437700000002224
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.4922000000005937,
+      "bodyMs": 43.66270000000077,
+      "completionMs": 2.5714000000007218,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.1273000000001048
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 7.377500000002328
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 5.40240000000631
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 29.544600000001083
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.558600000003935,
+      "bodyMs": 36.47769999999582,
+      "completionMs": 2.43130000000383,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.2088000000003376
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 7.391199999998207
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.821700000000419
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 25.970900000000256
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.3919999999998254,
+      "bodyMs": 38.7786000000051,
+      "completionMs": 2.6630999999979394,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.338900000002468
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 6.1564999999973224
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 2.376300000003539
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 28.803700000004028
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.7870000000039,
+      "bodyMs": 47.52599999999802,
+      "completionMs": 3.388999999995576,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.5481999999974505
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 7.2101999999940745
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 2.9219999999986612
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 35.713199999998324
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.577499999999418,
+      "bodyMs": 34.22609999999986,
+      "completionMs": 4.062099999995553,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.3800999999948544
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 6.010099999999511
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.630700000001525
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 25.115100000002712
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.359599999996135,
+      "bodyMs": 33.7899000000034,
+      "completionMs": 2.823599999996077,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.3130999999993946
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 6.201600000000326
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.88640000000305
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 24.306299999996554
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.7044000000023516,
+      "bodyMs": 33.55529999999999,
+      "completionMs": 2.532500000001164,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.629000000000815
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 6.1261000000013155
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.3695999999981723
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 24.33520000000135
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 3.9336999999941327,
+      "bodyMs": 34.3125,
+      "completionMs": 1.9490000000005239,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 2.3427000000010594
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.704499999999825
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 2.917200000003504
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 24.286199999995006
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 4.065999999998894,
+      "bodyMs": 29.88130000000092,
+      "completionMs": 2.538300000000163,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.9620999999970081
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 6.06090000000404
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.679599999995844
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 20.103900000001886
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.7026000000041677,
+      "bodyMs": 69.60459999999875,
+      "completionMs": 2.2160000000003492,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.6670999999987544
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 8.411299999999756
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 3.174699999995937
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 56.24289999999746
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 3.3369000000020606,
+      "bodyMs": 35.378899999996065,
+      "completionMs": 2.0881999999983236,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.2114000000001397
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 6.5917999999946915
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 2.984199999998964
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 24.509899999997288
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.3941000000049826,
+      "bodyMs": 32.3752999999997,
+      "completionMs": 1.9456999999965774,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.9694000000017695
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 6.591200000002573
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 2.1437999999980093
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 22.594600000003993
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.742099999995844,
+      "bodyMs": 27.885199999996985,
+      "completionMs": 1.9897000000055414,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.0607999999992899
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 3.962099999997008
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.318700000003446
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 21.47939999999653
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.798399999999674,
+      "bodyMs": 29.327100000002247,
+      "completionMs": 1.6950999999971827,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.592000000004191
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.798900000001595
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.1607000000003609
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 21.703700000005483
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.7672999999995227,
+      "bodyMs": 31.434100000005856,
+      "completionMs": 1.577499999999418,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.4003999999986263
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.963799999997718
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.0434000000022934
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 23.952100000002247
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.629399999997986,
+      "bodyMs": 28.7528999999995,
+      "completionMs": 1.698100000001432,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.169000000001688
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 6.753899999996065
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.380699999994249
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 19.36579999999958
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.8175000000046566,
+      "bodyMs": 28.534299999999348,
+      "completionMs": 1.8095000000030268,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.1633999999976368
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.473700000002282
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 2.3975999999966007
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 19.42859999999928
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.502200000002631,
+      "bodyMs": 30.630700000001525,
+      "completionMs": 1.605199999998149,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.6661999999996624
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.77560000000085
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.5830000000059954
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 21.53729999999632
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.5939999999973224,
+      "bodyMs": 31.40190000000439,
+      "completionMs": 1.5548999999955413,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.5794000000023516
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 7.666000000004715
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.8677999999999884
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 20.223299999997835
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.5780000000013388,
+      "bodyMs": 25.641100000000733,
+      "completionMs": 1.7044000000023516,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.9711999999999534
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.36699999999837
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.576600000000326
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 18.65520000000106
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.301899999998568,
+      "bodyMs": 23.050100000000384,
+      "completionMs": 1.8013999999966472,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.3987000000051921
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 3.94709999999759
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.2226000000009662
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 16.408000000003085
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.713500000005297,
+      "bodyMs": 22.160100000000966,
+      "completionMs": 2.570899999998801,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.9139999999970314
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.681099999994331
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.0673999999999069
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 15.438999999998487
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.5810999999957858,
+      "bodyMs": 21.434000000001106,
+      "completionMs": 1.885999999998603,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.0859999999956926
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.8651000000027125
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.2104999999937718
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 14.212599999998929
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 4.041299999997136,
+      "bodyMs": 24.123100000004342,
+      "completionMs": 1.6366999999954714,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.9446000000025379
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.370899999994435
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.5164999999979045
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 16.223600000004808
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.5533999999970547,
+      "bodyMs": 24.899499999999534,
+      "completionMs": 2.0307000000029802,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.8759999999965657
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 6.177300000003015
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.7959999999948195
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 15.980500000005122
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.633800000003248,
+      "bodyMs": 32.22810000000027,
+      "completionMs": 2.142699999996694,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.15400000000227
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.583200000000943
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.6542000000044936
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 23.764400000000023
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.6912000000011176,
+      "bodyMs": 25.140299999999115,
+      "completionMs": 2.0305000000007567,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.325299999996787
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 6.4407999999966705
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.620999999999185
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 15.668400000002293
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.8603000000002794,
+      "bodyMs": 21.26980000000185,
+      "completionMs": 1.5240999999950873,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.0846000000019558
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.325799999998708
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.108700000004319
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 14.69199999999546
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.5679000000018277,
+      "bodyMs": 22.898600000000442,
+      "completionMs": 2.0098999999972875,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.8771000000051572
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.927499999997963
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.2476999999998952
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 14.784599999999045
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.8021000000007916,
+      "bodyMs": 22.000099999997474,
+      "completionMs": 1.952499999999418,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.8100000000049477
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.079599999997299
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.1965999999956694
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 15.85280000000057
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.9421000000002095,
+      "bodyMs": 19.604999999995925,
+      "completionMs": 1.9688999999998487,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.9839999999967404
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 3.534399999996822
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.489000000001397
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 13.540099999998347
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.5656999999991967,
+      "bodyMs": 22.96979999999894,
+      "completionMs": 1.4913000000015018,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.540899999999965
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.30970000000525
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.1241999999983818
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 15.931799999998475
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 3.0970000000015716,
+      "bodyMs": 21.764499999997497,
+      "completionMs": 1.628100000001723,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.0169000000023516
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.036599999999453
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.146099999998114
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 15.500599999999395
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.6713000000017928,
+      "bodyMs": 28.70669999999518,
+      "completionMs": 1.7185000000026776,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 2.345400000005611
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 7.646500000002561
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.4798000000009779
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 17.176100000004226
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.5016000000032363,
+      "bodyMs": 36.84479999999894,
+      "completionMs": 2.2226000000009662,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 2.0236000000004424
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 8.504399999997986
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 2.320899999998801
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 23.90849999999773
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.707699999999022,
+      "bodyMs": 33.9458999999988,
+      "completionMs": 2.4267000000036205,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.194999999999709
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 6.688800000003539
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.861400000001595
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 24.10099999999511
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.7445000000006985,
+      "bodyMs": 26.81180000000313,
+      "completionMs": 3.4268000000010943,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.0698999999949592
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.019399999997404
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.5578999999997905
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 19.09150000000227
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.16189999999915,
+      "bodyMs": 34.75880000000325,
+      "completionMs": 2.9372999999977765,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.3842999999978929
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 7.268499999998312
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 2.0173999999969965
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 23.99199999999837
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.735499999995227,
+      "bodyMs": 31.55050000000483,
+      "completionMs": 1.9665999999997439,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.573499999998603
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 6.511599999997998
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 2.3025999999954365
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 21.0541000000012
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 5.076099999998405,
+      "bodyMs": 26.673600000001898,
+      "completionMs": 2.0605999999970663,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 2.7862999999997555
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 6.080399999998917
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.4052999999985332
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 16.330300000001444
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.5511999999944237,
+      "bodyMs": 28.869900000005146,
+      "completionMs": 1.8022999999957392,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.1345999999975902
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 7.312099999995553
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 3.08969999999681
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 17.244900000005146
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.7049000000042724,
+      "bodyMs": 25.36819999999716,
+      "completionMs": 1.8035000000018044,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.3357000000032713
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.864900000000489
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.431799999998475
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 17.671800000003714
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.9034000000028755,
+      "bodyMs": 23.636100000003353,
+      "completionMs": 1.6509000000005472,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.355200000005425
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.4887000000017
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.3557999999975436
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 15.242200000000594
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.8634999999994761,
+      "bodyMs": 21.016300000002957,
+      "completionMs": 1.4953999999997905,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.8528000000005704
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.530400000003283
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.0976000000009662
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 14.472499999996217
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 3.132400000002235,
+      "bodyMs": 24.277600000001257,
+      "completionMs": 1.8073000000003958,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.9067999999970198
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 5.103900000001886
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.2822000000014668
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 15.921500000004016
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.4945999999981723,
+      "bodyMs": 23.560599999997066,
+      "completionMs": 1.647400000001653,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.9971000000005006
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.386899999997695
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.0733000000036554
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 17.03770000000077
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.9193000000013853,
+      "bodyMs": 22.44499999999971,
+      "completionMs": 1.8001000000003842,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.8301999999966938
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.148499999995693
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.2712000000028638
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 16.124299999995856
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.8184000000037486,
+      "bodyMs": 21.617299999998068,
+      "completionMs": 1.5437000000019907,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.0089000000007218
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.002199999995355
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.6972999999998137
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 14.851199999997334
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.6955000000016298,
+      "bodyMs": 23.54389999999694,
+      "completionMs": 1.5190000000002328,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.9089999999996508
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 7.067199999997683
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.0887000000002445
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 14.412100000001374
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.176999999996042,
+      "bodyMs": 21.313099999999395,
+      "completionMs": 1.8232000000061817,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.4049999999988358
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 3.6774999999979627
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.0872000000017579
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 15.077400000001944
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 3.635099999999511,
+      "bodyMs": 22.418399999995017,
+      "completionMs": 1.6692000000039116,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.8880999999964843
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.5625
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.564700000002631
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 15.339899999999034
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.5199999999967986,
+      "bodyMs": 25.57900000000518,
+      "completionMs": 1.7397999999957392,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 1.1771000000007916
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 6.917399999998452
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 2.3444999999992433
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 15.078999999997905
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 2.0309000000052038,
+      "bodyMs": 21.0112999999983,
+      "completionMs": 1.5702000000019325,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.7781000000031781
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 3.966899999999441
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.098600000004808
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 15.107100000001083
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.5684999999939464,
+      "bodyMs": 22.450500000006286,
+      "completionMs": 1.7515999999959604,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.9897000000055414
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 4.542399999998452
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 0.9655999999959022
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 15.894599999999627
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.3989000000001397,
+      "bodyMs": 19.362699999997858,
+      "completionMs": 1.6217000000033295,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.9063000000023749
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 3.814699999995355
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 1.0391000000017812
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 13.546300000001793
+        }
+      ]
+    },
+    {
+      "acquisitionMs": 1.3300000000017462,
+      "bodyMs": 20.1704000000027,
+      "completionMs": 1.5826999999990221,
+      "operations": [
+        {
+          "operation": "readOnly",
+          "elapsedMs": 0.6663000000044121
+        },
+        {
+          "operation": "eventAndOwnership",
+          "elapsedMs": 3.1767000000036205
+        },
+        {
+          "operation": "privacy",
+          "elapsedMs": 0.9222999999983585
+        },
+        {
+          "operation": "projection",
+          "elapsedMs": 15.345100000005914
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,346 @@
+{
+  "attempt": "attempt-8",
+  "scope": "svg-recovery-restrictions",
+  "startedAt": "2026-10-31T17:15:07.238Z",
+  "head": "fd0756d68946b91272a4363a67d3b2caa475bbe6",
+  "runtimeSha256": "2128973ca424f148dfdf86e94675e20d4ece58d2bc4b37fea03657813419eace",
+  "certificationScripts": {
+    "certify.mjs": "7ebe41ea1245ae273e399d03afd8fe603586ba5c0921ca07c50d0ac9e7f62e00",
+    "browser-helpers.mjs": "eac175c38370e1cf48079e867a1d3aeb5c4f07892e8399267eedd6fd75219b42",
+    "fixtures.mjs": "552edf002a7ef4844e83a64cf1819cd40f58d2b690bd8fdfac3d0449d4c12e50",
+    "run.mjs": "77d89e3744054d7b3ddaa90a91e534ec449ea731c119b3d57f30ad3ce909411e"
+  },
+  "environment": {
+    "node": "v22.18.0",
+    "platform": "win32",
+    "architecture": "x64",
+    "cpu": "12th Gen Intel(R) Core(TM) i3-1215U",
+    "logicalCpus": 8,
+    "memoryBytes": 16835407872,
+    "browser": "140.0.7339.16",
+    "network": "unthrottled loopback",
+    "physicalDevice": false,
+    "postgresql": "16.15"
+  },
+  "method": "Actual Chromium UI, Admin/Planner/Scanner/API and isolated PostgreSQL. Fictitious fixtures, serialized writes. Screenshots are native viewport captures; timing is automation wall time, not a human study. No exactly-once guarantee.",
+  "scenarios": [
+    {
+      "id": "SVG-100-1440",
+      "result": "PASS",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "canonicalSelectableElements": 100,
+      "nativeSelection": true,
+      "cancelCreatesNoShape": true
+    },
+    {
+      "id": "SVG-100-1024",
+      "result": "PASS",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "canonicalSelectableElements": 100,
+      "nativeSelection": true,
+      "cancelCreatesNoShape": true
+    },
+    {
+      "id": "SVG-security-negatives",
+      "result": "PASS",
+      "hostileUploadsRejected": 5,
+      "expectedStatus": 400,
+      "scripts": true,
+      "foreignObject": true,
+      "eventHandlers": true,
+      "dtdXxe": true,
+      "externalReferences": true
+    },
+    {
+      "id": "SVG-200-1440",
+      "result": "PASS",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "canonicalSelectableElements": 200,
+      "nativeSelection": true,
+      "cancelCreatesNoShape": true
+    },
+    {
+      "id": "SVG-200-1024",
+      "result": "PASS",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "canonicalSelectableElements": 200,
+      "nativeSelection": true,
+      "cancelCreatesNoShape": true
+    },
+    {
+      "id": "SVG-replacement-preservation",
+      "result": "PASS",
+      "cancelPreservesSource": true,
+      "explicitDetachConfirmation": true,
+      "shapeUuidsPreserved": true,
+      "seatIdentitySha256": "235f3b918638e51032aedeeeead6d227705687718946805818d59c1c25dc08b4",
+      "assignmentPreserved": true,
+      "bindingsCleared": true,
+      "newCanonicalElements": 100
+    }
+  ],
+  "timings": [],
+  "captures": [
+    {
+      "file": "svg-200-1440-trace.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "metrics": {
+        "horizontalOverflow": false,
+        "blockingModal": false,
+        "canvas": {
+          "x": 289.578125,
+          "y": 184,
+          "width": 860.84375,
+          "height": 538.03125
+        },
+        "surface": {
+          "x": 17,
+          "y": 118,
+          "width": 1406,
+          "height": 602.03125
+        },
+        "surfaceFraction": 0.653129581404321,
+        "controls": [
+          {
+            "label": "Opciones del croquis",
+            "tag": "summary",
+            "width": 181.78125,
+            "height": 41,
+            "disabled": false
+          },
+          {
+            "label": "Agregar mesa",
+            "tag": "button",
+            "width": 136.875,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Revisar distribución",
+            "tag": "button",
+            "width": 179.53125,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Manual",
+            "tag": "button",
+            "width": 89.125,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Mapeo SVG",
+            "tag": "button",
+            "width": 117.953125,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Salir de Calca",
+            "tag": "button",
+            "width": 131.515625,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Alejar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Acercar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Ajustar plano a la vista",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Activar modo mover plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Activar ayuda para alinear",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Mostrar sillas de referencia",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Mesas y zonas (0)",
+            "tag": "summary",
+            "width": 1374,
+            "height": 21.96875,
+            "disabled": false
+          }
+        ]
+      },
+      "sha256": "1629e6c6a078e0a2eaa7ebdbc5951b62a427f375ceae0f17ffd4995d38de0e81"
+    },
+    {
+      "file": "svg-200-1024-trace.png",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "metrics": {
+        "horizontalOverflow": false,
+        "blockingModal": false,
+        "canvas": {
+          "x": 187.171875,
+          "y": 184,
+          "width": 649.640625,
+          "height": 406.03125
+        },
+        "surface": {
+          "x": 17,
+          "y": 118,
+          "width": 990,
+          "height": 470.03125
+        },
+        "surfaceFraction": 0.5916988849639893,
+        "controls": [
+          {
+            "label": "Opciones del croquis",
+            "tag": "summary",
+            "width": 181.78125,
+            "height": 41,
+            "disabled": false
+          },
+          {
+            "label": "Agregar mesa",
+            "tag": "button",
+            "width": 136.875,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Revisar distribución",
+            "tag": "button",
+            "width": 179.53125,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Manual",
+            "tag": "button",
+            "width": 89.125,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Mapeo SVG",
+            "tag": "button",
+            "width": 117.953125,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Salir de Calca",
+            "tag": "button",
+            "width": 131.515625,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Alejar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Acercar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Ajustar plano a la vista",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Activar modo mover plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Activar ayuda para alinear",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Mostrar sillas de referencia",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Mesas y zonas (0)",
+            "tag": "summary",
+            "width": 958,
+            "height": 21.96875,
+            "disabled": false
+          }
+        ]
+      },
+      "sha256": "4501da5a3a7bc32363cfa7dbaf6f4b7088bdde81c6d5a806542de45a4dd2d343"
+    }
+  ],
+  "consumers": [],
+  "findings": [],
+  "failures": [
+    {
+      "scenario": "recovery-1440",
+      "name": "TimeoutError",
+      "message": "locator.click: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Calcar distribución', exact: true })\u001b[22m\n",
+      "classification": "Unclassified until evidence review; no product fix made"
+    }
+  ],
+  "status": "BLOCKED",
+  "finishedAt": "2026-10-31T17:16:08.111Z",
+  "fixtureAssistants": 1
+}

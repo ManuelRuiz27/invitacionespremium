@@ -122,6 +122,8 @@ Una fase no absorbe automáticamente la siguiente. Si su gate falla, se detiene 
 
 ### CALCA-06 — Certificación y prueba de reemplazo
 
+**Resultado ejecutado:** [certificación CALCA-06](./CALCA06_TRACE_MODE_CERTIFICATION.md) — **BLOCKED** para piloto controlado. El informe conserva la matriz, los fallos iniciales, los tiempos y los P0/P1/P2. Este resultado no autoriza limpieza de UI ni altera los contratos o límites siguientes.
+
 **Scope:** certificar las cinco pantallas/estados, medir ergonomía y preparación contra el recorrido previo, y registrar candidatos de reducción de UI. No añadir features ni eliminar código para conseguir el gate.
 
 **Gate:** recorrido con plano del cliente autorizado o fixture ficticio, sin OCR/IA, de upload a layout operacional. Escenarios: raster horizontal/vertical/cuadrado, SVG irregular, 50 y 150 lugares exactos; 50/100/200 Mesas y 100/200 elementos SVG como regresión gráfica, sin ampliar capacidad comercial del Evento. Desktop/tablet landscape, targets de 44 px y alternativas accesibles. Todos los P0 de seguridad, integridad, recovery y consumidores verdes. No afirmar flakiness cero ni mejora de tiempo sin datos comparables.

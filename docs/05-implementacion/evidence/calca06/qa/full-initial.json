@@ -1,0 +1,8 @@
+{
+    "endedAt":  "2026-10-30T21:43:16.3906820Z",
+    "exitCode":  0,
+    "elapsedSeconds":  2382.3593723,
+    "command":  "pnpm qa:full",
+    "startedAt":  "2026-10-30T21:03:34.0237033Z",
+    "head":  "fd0756d68946b91272a4363a67d3b2caa475bbe6"
+}

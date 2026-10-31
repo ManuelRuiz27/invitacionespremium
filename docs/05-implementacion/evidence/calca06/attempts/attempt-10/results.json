@@ -1,0 +1,310 @@
+{
+  "attempt": "attempt-10",
+  "scope": "capacity",
+  "startedAt": "2026-10-31T17:22:18.937Z",
+  "head": "fd0756d68946b91272a4363a67d3b2caa475bbe6",
+  "runtimeSha256": "2128973ca424f148dfdf86e94675e20d4ece58d2bc4b37fea03657813419eace",
+  "certificationScripts": {
+    "certify.mjs": "3db86d3a46da0e468c38725f6b083f4f90c67c540fb5c0ed2f7b4fedf07ee7a3",
+    "browser-helpers.mjs": "eac175c38370e1cf48079e867a1d3aeb5c4f07892e8399267eedd6fd75219b42",
+    "fixtures.mjs": "552edf002a7ef4844e83a64cf1819cd40f58d2b690bd8fdfac3d0449d4c12e50",
+    "run.mjs": "4119a1bb57f432163907aa29eebdd7eaed61e2eff86faec430cc5d764fb9287b"
+  },
+  "environment": {
+    "node": "v22.18.0",
+    "platform": "win32",
+    "architecture": "x64",
+    "cpu": "12th Gen Intel(R) Core(TM) i3-1215U",
+    "logicalCpus": 8,
+    "memoryBytes": 16835407872,
+    "browser": "140.0.7339.16",
+    "network": "unthrottled loopback",
+    "physicalDevice": false,
+    "postgresql": "16.15"
+  },
+  "method": "Actual Chromium UI, Admin/Planner/Scanner/API and isolated PostgreSQL. Fictitious fixtures, serialized writes. Screenshots are native viewport captures; timing is automation wall time, not a human study. No exactly-once guarantee.",
+  "scenarios": [
+    {
+      "id": "SEAT-capacity-after-mode-change-1440",
+      "result": "FAIL",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "tables": [
+        {
+          "name": "Mesa 1",
+          "idSha256": "99648d1791a91a830a5050b9a032f1badfad3f9730d6f1d9b1be7758645e897f",
+          "apiCapacity": 12,
+          "defined": 0,
+          "activeUnblocked": 0
+        },
+        {
+          "name": "Mesa 2",
+          "idSha256": "bf591a3484deaa0549bddd6a3c254daf31bc2f86c1881afcd62d1fdbae9fc8dd",
+          "apiCapacity": 24,
+          "defined": 0,
+          "activeUnblocked": 0
+        }
+      ],
+      "seatWrites": 0,
+      "warningVisible": true,
+      "frontendSummaryUsesCurrentApi": true
+    },
+    {
+      "id": "SEAT-capacity-after-mode-change-1024",
+      "result": "FAIL",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "tables": [
+        {
+          "name": "Mesa 1",
+          "idSha256": "99648d1791a91a830a5050b9a032f1badfad3f9730d6f1d9b1be7758645e897f",
+          "apiCapacity": 12,
+          "defined": 0,
+          "activeUnblocked": 0
+        },
+        {
+          "name": "Mesa 2",
+          "idSha256": "bf591a3484deaa0549bddd6a3c254daf31bc2f86c1881afcd62d1fdbae9fc8dd",
+          "apiCapacity": 24,
+          "defined": 0,
+          "activeUnblocked": 0
+        }
+      ],
+      "seatWrites": 0,
+      "warningVisible": true,
+      "frontendSummaryUsesCurrentApi": true
+    }
+  ],
+  "timings": [],
+  "captures": [
+    {
+      "file": "capacity-1440-review-zero-places.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "metrics": {
+        "horizontalOverflow": false,
+        "blockingModal": false,
+        "canvas": {
+          "x": 306.296875,
+          "y": 132,
+          "width": 827.390625,
+          "height": 517.125
+        },
+        "surface": {
+          "x": 17,
+          "y": 66,
+          "width": 1406,
+          "height": 581.125
+        },
+        "surfaceFraction": 0.6304488811728395,
+        "controls": [
+          {
+            "label": "Opciones del croquis",
+            "tag": "summary",
+            "width": 181.78125,
+            "height": 41,
+            "disabled": false
+          },
+          {
+            "label": "Alejar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Acercar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Ajustar plano a la vista",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Activar modo mover plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Mostrar sillas de referencia",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Seleccionar lugar por nombre (0)",
+            "tag": "summary",
+            "width": 671,
+            "height": 21.96875,
+            "disabled": false
+          },
+          {
+            "label": "Mesas y zonas (2)",
+            "tag": "summary",
+            "width": 671,
+            "height": 21.96875,
+            "disabled": false
+          },
+          {
+            "label": "Volver a corregir",
+            "tag": "button",
+            "width": 152.984375,
+            "height": 42,
+            "disabled": false
+          },
+          {
+            "label": "Finalizar distribución",
+            "tag": "button",
+            "width": 185.828125,
+            "height": 42,
+            "disabled": false
+          }
+        ]
+      },
+      "sha256": "203c211ce2d2055d29f6ca09952ba9056e54aac28497987f79a788663122cc76"
+    },
+    {
+      "file": "capacity-1024-review-zero-places.png",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "metrics": {
+        "horizontalOverflow": false,
+        "blockingModal": false,
+        "canvas": {
+          "x": 203.90625,
+          "y": 132,
+          "width": 616.1875,
+          "height": 385.125
+        },
+        "surface": {
+          "x": 17,
+          "y": 66,
+          "width": 990,
+          "height": 449.125
+        },
+        "surfaceFraction": 0.5653810501098633,
+        "controls": [
+          {
+            "label": "Opciones del croquis",
+            "tag": "summary",
+            "width": 181.78125,
+            "height": 41,
+            "disabled": false
+          },
+          {
+            "label": "Alejar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Acercar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Ajustar plano a la vista",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Activar modo mover plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Mostrar sillas de referencia",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Seleccionar lugar por nombre (0)",
+            "tag": "summary",
+            "width": 463,
+            "height": 21.96875,
+            "disabled": false
+          },
+          {
+            "label": "Mesas y zonas (2)",
+            "tag": "summary",
+            "width": 463,
+            "height": 21.96875,
+            "disabled": false
+          },
+          {
+            "label": "Volver a corregir",
+            "tag": "button",
+            "width": 152.984375,
+            "height": 42,
+            "disabled": false
+          },
+          {
+            "label": "Finalizar distribución",
+            "tag": "button",
+            "width": 185.828125,
+            "height": 42,
+            "disabled": false
+          }
+        ]
+      },
+      "sha256": "c14c0f58a2821f202fe40285ed6cdc89e62ac79da010aa97a653804e80da87fb"
+    }
+  ],
+  "consumers": [],
+  "findings": [
+    {
+      "id": "SEAT_MODE_CAPACITY_DESYNC",
+      "severity": "P1",
+      "problem": "TABLE to SEAT retains nonzero manual capacities on tables with zero active Seats; authoritative capacity disagrees with detailed seating contract",
+      "contract": "FLOORPLAN_DETAILED_SEATING_CONTRACT.md §7",
+      "observed": [
+        {
+          "name": "Mesa 1",
+          "idSha256": "99648d1791a91a830a5050b9a032f1badfad3f9730d6f1d9b1be7758645e897f",
+          "apiCapacity": 12,
+          "defined": 0,
+          "activeUnblocked": 0
+        },
+        {
+          "name": "Mesa 2",
+          "idSha256": "bf591a3484deaa0549bddd6a3c254daf31bc2f86c1881afcd62d1fdbae9fc8dd",
+          "apiCapacity": 24,
+          "defined": 0,
+          "activeUnblocked": 0
+        }
+      ],
+      "evidence": "capacity-1440-review-zero-places.png",
+      "action": "Separate backend correction; no frontend readiness rule or fix added"
+    }
+  ],
+  "failures": [],
+  "status": "BLOCKED",
+  "finishedAt": "2026-10-31T17:22:28.856Z",
+  "fixtureAssistants": 0
+}

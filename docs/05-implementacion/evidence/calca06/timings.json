@@ -1,0 +1,88 @@
+{
+  "unit": "seconds",
+  "baseline": null,
+  "improvementClaim": false,
+  "method": "Local automation wall time, loopback, serialized confirmation. No human-time or SLA claim.",
+  "observations": [
+    {
+      "scenario": "landscape-1440",
+      "enterSeconds": 0.20483849999999984,
+      "createOneTableSeconds": 0.3889737000000005,
+      "trace10Seconds": 2.0015175,
+      "trace25Seconds": 4.981044399999999,
+      "reviewSeconds": 0.2863697000000102,
+      "finalizeSeconds": 0.22566019999999845,
+      "attempt": "attempt-5"
+    },
+    {
+      "scenario": "portrait-1440",
+      "enterSeconds": 0.17244860000000337,
+      "createOneTableSeconds": 0.41659670000000915,
+      "trace10Seconds": 1.841795299999998,
+      "trace25Seconds": 4.709573300000003,
+      "reviewSeconds": 0.26832679999999526,
+      "finalizeSeconds": 0.21202419999999983,
+      "attempt": "attempt-5"
+    },
+    {
+      "scenario": "square-1440",
+      "enterSeconds": 0.1673487000000023,
+      "createOneTableSeconds": 0.4243301000000065,
+      "trace10Seconds": 1.921566000000006,
+      "trace25Seconds": 4.91362980000001,
+      "reviewSeconds": 0.16622969999999623,
+      "finalizeSeconds": 0.27468009999999776,
+      "attempt": "attempt-5"
+    },
+    {
+      "scenario": "svg-200-1440",
+      "enterSeconds": 0.28133280000000377,
+      "createOneTableSeconds": 0.37860039999999573,
+      "trace10Seconds": 2.2913588000000162,
+      "trace25Seconds": 5.313121700000018,
+      "reviewSeconds": 0.2513279000000039,
+      "finalizeSeconds": 0.182749599999981,
+      "attempt": "attempt-5"
+    },
+    {
+      "scenario": "landscape-1024",
+      "enterSeconds": 0.22271109999999864,
+      "createOneTableSeconds": 0.6037731999999997,
+      "trace10Seconds": 2.5740502000000016,
+      "trace25Seconds": 6.092861700000001,
+      "reviewSeconds": 0.2940619000000006,
+      "finalizeSeconds": 0.37805320000000936,
+      "attempt": "attempt-6"
+    },
+    {
+      "scenario": "portrait-1024",
+      "enterSeconds": 0.17817150000001128,
+      "createOneTableSeconds": 0.4389311999999918,
+      "trace10Seconds": 2.2262606999999988,
+      "trace25Seconds": 5.508205900000001,
+      "reviewSeconds": 0.24906810000000404,
+      "finalizeSeconds": 0.31160299999998825,
+      "attempt": "attempt-6"
+    },
+    {
+      "scenario": "square-1024",
+      "enterSeconds": 0.15939549999999872,
+      "createOneTableSeconds": 0.40909919999999694,
+      "trace10Seconds": 1.9971136999999872,
+      "trace25Seconds": 4.856788199999981,
+      "reviewSeconds": 0.22472729999999866,
+      "finalizeSeconds": 0.1813937000000151,
+      "attempt": "attempt-6"
+    },
+    {
+      "scenario": "svg-200-1024",
+      "enterSeconds": 0.21173130000001403,
+      "createOneTableSeconds": 0.5616320000000123,
+      "trace10Seconds": 2.6591745999999983,
+      "trace25Seconds": 6.117308799999999,
+      "reviewSeconds": 0.24621930000002612,
+      "finalizeSeconds": 0.197331199999986,
+      "attempt": "attempt-6"
+    }
+  ]
+}

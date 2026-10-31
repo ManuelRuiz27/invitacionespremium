@@ -1,0 +1,837 @@
+{
+  "attempt": "attempt-4",
+  "startedAt": "2026-10-30T22:07:33.594Z",
+  "head": "fd0756d68946b91272a4363a67d3b2caa475bbe6",
+  "runtimeSha256": "2128973ca424f148dfdf86e94675e20d4ece58d2bc4b37fea03657813419eace",
+  "certificationScripts": {
+    "certify.mjs": "c2e521d7cdee260a9b0b10432d6c8b4d24405d50af6a587dc1976696f6d259eb",
+    "browser-helpers.mjs": "58fe81fc7a091408efcc8b8f951b0f632774f848fa27f0319838c8c904102c89",
+    "fixtures.mjs": "552edf002a7ef4844e83a64cf1819cd40f58d2b690bd8fdfac3d0449d4c12e50",
+    "run.mjs": "00a5ed7fd17be2787ea40fb842c6c5d363f2da13dd80d7c81be78742d9f901bf"
+  },
+  "environment": {
+    "node": "v22.18.0",
+    "platform": "win32",
+    "architecture": "x64",
+    "cpu": "12th Gen Intel(R) Core(TM) i3-1215U",
+    "logicalCpus": 8,
+    "memoryBytes": 16835407872,
+    "browser": "140.0.7339.16",
+    "network": "unthrottled loopback",
+    "physicalDevice": false,
+    "postgresql": "16.15"
+  },
+  "method": "Actual Chromium UI, Admin/Planner/Scanner/API and isolated PostgreSQL. Fictitious fixtures, serialized writes. Screenshots are native viewport captures; timing is automation wall time, not a human study. No exactly-once guarantee.",
+  "scenarios": [
+    {
+      "id": "Manual-Trace-label-gaps",
+      "result": "PASS",
+      "manualLabel": "Lugar 1",
+      "traceLabel": "Lugar 2",
+      "newIdentities": true,
+      "existingParentPreserved": true,
+      "finalSeatCount": 150
+    },
+    {
+      "id": "occupied-protection",
+      "result": "PASS",
+      "apiRejectedBlockAndDelete": true,
+      "uiDisabled": true,
+      "renumberPreservedAssignmentAndUuids": true
+    },
+    {
+      "id": "released-seat-conflict-probe",
+      "result": "FAIL",
+      "expected": "unassigned Seat is released and removable",
+      "observed": {
+        "apiProjectsOccupied": false,
+        "deleteStatus": 409,
+        "deleteCode": "FLOORPLAN_SEAT_OCCUPIED"
+      }
+    },
+    {
+      "id": "landscape-1440",
+      "result": "FAIL",
+      "constructionResult": "PASS",
+      "sourceType": "RASTER",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "sourceSha256": "cb25874f67e6281fd7565ad72d555f3dbeff0fae62c82143c69af2b6d25af9cd",
+      "places": 150,
+      "tables": 6,
+      "uploadThroughUi": true,
+      "manualReachable": true,
+      "svgTool": "disabled-with-title-only",
+      "tracePostsAtCoreGate": 150,
+      "confirmedSeatsAtCoreGate": 150,
+      "serializedConfirmedPlacement": true,
+      "corrections": true,
+      "reviewAndLock": true,
+      "reloadIdentitySha256": "12898005d6d5683519b6de3c6c2e01d25d670a91f4d577a5aa6a7f2d587be84e",
+      "plannerScanner": "FAIL"
+    }
+  ],
+  "timings": [
+    {
+      "scenario": "landscape-1440",
+      "enterSeconds": 0.2064994999999999,
+      "createOneTableSeconds": 0.3946541000000007,
+      "trace10Seconds": 1.8494896999999983,
+      "trace25Seconds": 5.010430599999999,
+      "reviewSeconds": 0.330633600000001,
+      "finalizeSeconds": 0.4490074000000022
+    }
+  ],
+  "captures": [
+    {
+      "file": "landscape-1440-01-entry.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "metrics": {
+        "horizontalOverflow": false,
+        "blockingModal": false,
+        "canvas": {
+          "x": 297,
+          "y": 437,
+          "width": 1102,
+          "height": 688.75
+        },
+        "surface": {
+          "x": 297,
+          "y": 437,
+          "width": 1102,
+          "height": 688.75
+        },
+        "surfaceFraction": 0.5856500771604938,
+        "controls": [
+          {
+            "label": "Cerrar sesión",
+            "tag": "button",
+            "width": 152.6875,
+            "height": 42,
+            "disabled": false
+          },
+          {
+            "label": "Por mesa",
+            "tag": "div",
+            "width": 148,
+            "height": 40,
+            "disabled": false
+          },
+          {
+            "label": "Cambiar plano",
+            "tag": "label",
+            "width": 167,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Finalizar distribución",
+            "tag": "button",
+            "width": 211.828125,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Calcar distribución",
+            "tag": "button",
+            "width": 170.109375,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Manual",
+            "tag": "button",
+            "width": 91.125,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Alejar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Acercar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Ajustar plano a la vista",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Activar modo mover plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Activar ayuda para alinear",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Mostrar sillas de referencia",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          }
+        ]
+      },
+      "sha256": "4bd2fe2a26384885067e92f856812cf03bcbb512b3b8caef6c6efc4539fa075a"
+    },
+    {
+      "file": "landscape-1440-02-trace-25.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "metrics": {
+        "horizontalOverflow": false,
+        "blockingModal": false,
+        "canvas": {
+          "x": 289.578125,
+          "y": 184,
+          "width": 860.84375,
+          "height": 538.03125
+        },
+        "surface": {
+          "x": 17,
+          "y": 118,
+          "width": 1406,
+          "height": 602.03125
+        },
+        "surfaceFraction": 0.653129581404321,
+        "controls": [
+          {
+            "label": "Opciones del croquis",
+            "tag": "summary",
+            "width": 181.78125,
+            "height": 41,
+            "disabled": false
+          },
+          {
+            "label": "Alejar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Acercar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Ajustar plano a la vista",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Activar modo mover plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Activar ayuda para alinear",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Mostrar sillas de referencia",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Seleccionar lugar por nombre (25)",
+            "tag": "summary",
+            "width": 671,
+            "height": 21.96875,
+            "disabled": false
+          },
+          {
+            "label": "Mesas y zonas (6)",
+            "tag": "summary",
+            "width": 671,
+            "height": 21.96875,
+            "disabled": false
+          },
+          {
+            "label": "Terminar mesa",
+            "tag": "button",
+            "width": 143.0625,
+            "height": 44,
+            "disabled": false
+          }
+        ]
+      },
+      "sha256": "9a9d40b5c40ea8efc5d9c4661e53f10463081ae916ba4fd54838f3d37b0f0ab0"
+    },
+    {
+      "file": "landscape-1440-03-correction.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "metrics": {
+        "horizontalOverflow": false,
+        "blockingModal": false,
+        "canvas": {
+          "x": 343.09375,
+          "y": 184,
+          "width": 753.796875,
+          "height": 471.125
+        },
+        "surface": {
+          "x": 17,
+          "y": 118,
+          "width": 1406,
+          "height": 535.125
+        },
+        "surfaceFraction": 0.5805445601851852,
+        "controls": [
+          {
+            "label": "Opciones del croquis",
+            "tag": "summary",
+            "width": 181.78125,
+            "height": 41,
+            "disabled": false
+          },
+          {
+            "label": "Agregar mesa",
+            "tag": "button",
+            "width": 136.875,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Revisar distribución",
+            "tag": "button",
+            "width": 179.53125,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Manual",
+            "tag": "button",
+            "width": 89.125,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Salir de Calca",
+            "tag": "button",
+            "width": 131.515625,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Alejar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Acercar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Ajustar plano a la vista",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Activar modo mover plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Activar ayuda para alinear",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Mostrar sillas de referencia",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Seleccionar lugar por nombre (150)",
+            "tag": "summary",
+            "width": 671,
+            "height": 21.96875,
+            "disabled": false
+          },
+          {
+            "label": "Mesas y zonas (6)",
+            "tag": "summary",
+            "width": 671,
+            "height": 21.96875,
+            "disabled": false
+          },
+          {
+            "label": "Editar mesa",
+            "tag": "button",
+            "width": 121.296875,
+            "height": 42,
+            "disabled": false
+          },
+          {
+            "label": "Trazar lugares",
+            "tag": "button",
+            "width": 138.1875,
+            "height": 42,
+            "disabled": false
+          },
+          {
+            "label": "Renumerar lugares",
+            "tag": "button",
+            "width": 173.3125,
+            "height": 42,
+            "disabled": false
+          },
+          {
+            "label": "Renombrar",
+            "tag": "button",
+            "width": 116.953125,
+            "height": 42,
+            "disabled": false
+          },
+          {
+            "label": "Duplicar lugar",
+            "tag": "button",
+            "width": 137.875,
+            "height": 42,
+            "disabled": false
+          },
+          {
+            "label": "Bloquear",
+            "tag": "button",
+            "width": 101.1875,
+            "height": 42,
+            "disabled": false
+          },
+          {
+            "label": "Eliminar lugar",
+            "tag": "button",
+            "width": 136.796875,
+            "height": 42,
+            "disabled": false
+          }
+        ]
+      },
+      "sha256": "67fcd5022cf5daf2dd9e0455f5c2e1c035de382a43261848fdda8a9eccb8a354"
+    },
+    {
+      "file": "landscape-1440-04-review.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "metrics": {
+        "horizontalOverflow": false,
+        "blockingModal": false,
+        "canvas": {
+          "x": 371.09375,
+          "y": 132,
+          "width": 697.796875,
+          "height": 436.125
+        },
+        "surface": {
+          "x": 17,
+          "y": 66,
+          "width": 1406,
+          "height": 500.125
+        },
+        "surfaceFraction": 0.5425738811728396,
+        "controls": [
+          {
+            "label": "Opciones del croquis",
+            "tag": "summary",
+            "width": 181.78125,
+            "height": 41,
+            "disabled": false
+          },
+          {
+            "label": "Alejar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Acercar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Ajustar plano a la vista",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Activar modo mover plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Mostrar sillas de referencia",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Seleccionar lugar por nombre (150)",
+            "tag": "summary",
+            "width": 671,
+            "height": 21.96875,
+            "disabled": false
+          },
+          {
+            "label": "Mesas y zonas (6)",
+            "tag": "summary",
+            "width": 671,
+            "height": 21.96875,
+            "disabled": false
+          },
+          {
+            "label": "Volver a corregir",
+            "tag": "button",
+            "width": 152.984375,
+            "height": 42,
+            "disabled": false
+          },
+          {
+            "label": "Finalizar distribución",
+            "tag": "button",
+            "width": 185.828125,
+            "height": 42,
+            "disabled": false
+          }
+        ]
+      },
+      "sha256": "ca964be039da05f039617a8a8e689d340d20e7a26cf40dc7b3af311d4c18210e"
+    },
+    {
+      "file": "landscape-1440-05-finalized.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "metrics": {
+        "horizontalOverflow": false,
+        "blockingModal": false,
+        "canvas": {
+          "x": 297,
+          "y": 369.015625,
+          "width": 1102,
+          "height": 688.75
+        },
+        "surface": {
+          "x": 297,
+          "y": 369.015625,
+          "width": 1102,
+          "height": 688.75
+        },
+        "surfaceFraction": 0.5856500771604938,
+        "controls": [
+          {
+            "label": "Cerrar sesión",
+            "tag": "button",
+            "width": 152.6875,
+            "height": 42,
+            "disabled": false
+          },
+          {
+            "label": "Editar distribución",
+            "tag": "button",
+            "width": 192.078125,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Alejar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Acercar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Ajustar plano a la vista",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Activar modo mover plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Mostrar sillas de referencia",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          }
+        ]
+      },
+      "sha256": "d8f3e2fb631c1f6045a6a311c4633955f40f8ec86d5606b12f78676b3ba5c793"
+    },
+    {
+      "file": "portrait-1440-overview.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "metrics": {
+        "horizontalOverflow": false,
+        "blockingModal": false,
+        "canvas": {
+          "x": 556.625,
+          "y": 132,
+          "width": 326.75,
+          "height": 490.125
+        },
+        "surface": {
+          "x": 17,
+          "y": 66,
+          "width": 1406,
+          "height": 554.125
+        },
+        "surfaceFraction": 0.6011572145061729,
+        "controls": [
+          {
+            "label": "Opciones del croquis",
+            "tag": "summary",
+            "width": 181.78125,
+            "height": 41,
+            "disabled": false
+          },
+          {
+            "label": "Alejar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Acercar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Ajustar plano a la vista",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Activar modo mover plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Mostrar sillas de referencia",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Seleccionar lugar por nombre (50)",
+            "tag": "summary",
+            "width": 671,
+            "height": 21.96875,
+            "disabled": false
+          },
+          {
+            "label": "Mesas y zonas (2)",
+            "tag": "summary",
+            "width": 671,
+            "height": 21.96875,
+            "disabled": false
+          },
+          {
+            "label": "Volver a corregir",
+            "tag": "button",
+            "width": 152.984375,
+            "height": 42,
+            "disabled": false
+          },
+          {
+            "label": "Finalizar distribución",
+            "tag": "button",
+            "width": 185.828125,
+            "height": 42,
+            "disabled": false
+          }
+        ]
+      },
+      "sha256": "532214ed48947b846856c9fa2bf91b62e5905a7790046b0a363a487f9b5efeb8"
+    }
+  ],
+  "consumers": [
+    {
+      "mode": "SEAT",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "result": "FAIL",
+      "assign": false,
+      "move": false,
+      "scannerLocalization": false,
+      "unassign": false,
+      "failure": {
+        "id": "SEAT_UNASSIGN_RETAINS_SEAT",
+        "severity": "P0",
+        "problem": "Confirmed unassign clears parent TABLE but retains floorplanSeatId; persisted parent/place pair is inconsistent",
+        "expected": {
+          "table": null,
+          "seat": null,
+          "occupied": false
+        },
+        "observed": {
+          "httpStatus": 200,
+          "tableCleared": true,
+          "seatRetained": true,
+          "apiProjectsOccupied": false,
+          "sameSeatId": true,
+          "beforeHadTable": true,
+          "beforeHadSeat": true
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "stage": "initial-preassigned",
+        "impact": {
+          "apiProjectsOccupied": false,
+          "providerDeleteStatus": 409,
+          "providerDeleteCode": "FLOORPLAN_SEAT_OCCUPIED",
+          "unlockedForProbe": true
+        }
+      }
+    }
+  ],
+  "findings": [
+    {
+      "id": "SEAT_UNASSIGN_RETAINS_SEAT",
+      "severity": "P0",
+      "problem": "Confirmed unassign clears parent TABLE but retains floorplanSeatId; persisted parent/place pair is inconsistent",
+      "expected": {
+        "table": null,
+        "seat": null,
+        "occupied": false
+      },
+      "observed": {
+        "httpStatus": 200,
+        "tableCleared": true,
+        "seatRetained": true,
+        "apiProjectsOccupied": false,
+        "sameSeatId": true,
+        "beforeHadTable": true,
+        "beforeHadSeat": true
+      },
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "stage": "initial-preassigned",
+      "impact": {
+        "apiProjectsOccupied": false,
+        "providerDeleteStatus": 409,
+        "providerDeleteCode": "FLOORPLAN_SEAT_OCCUPIED",
+        "unlockedForProbe": true
+      }
+    },
+    {
+      "id": "DENSE_SEAT_HIT_TARGET",
+      "severity": "P1",
+      "problem": "A native click at a Seat center selected a different Seat in the dense Planner layout, including after using current zoom controls",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "zoom": 2.0736,
+      "expectedSeatSha256": "dbfa284326a3980f67c76ab98c872d39a061135f9b5b2ac2f40c8e69ce18b2bb",
+      "observedSeatSha256": "cf584ad61ceb79e6bf1230447d5401bd6eb4fa561964640fea5e2b9e42ac6674",
+      "intendedNormalizedPoint": {
+        "x": 0.33150371,
+        "y": 0.37560058
+      }
+    }
+  ],
+  "failures": [
+    {
+      "scenario": "portrait-1440",
+      "name": "Error",
+      "message": "locator.click: Error: strict mode violation: getByRole('dialog').getByRole('button', { name: 'Mesa 2 · Lugar Lugar 1' }) resolved to 11 elements:\n    1) <button tabindex=\"0\" type=\"button\" class=\"MuiButtonBase-root MuiButton-root MuiButton-text MuiButton-sizeMedium MuiButton-colorPrimary MuiButton-disableElevation css-dserza-MuiButtonBase-root-MuiButton-root\">Mesa 2 · Lugar Lugar 1</button> aka getByRole('button', { name: 'Mesa 2 · Lugar Lugar 1', exact: true })\n    2) <button tabindex=\"0\" type=\"button\" class=\"MuiButtonBase-root MuiButton-root MuiButton-text MuiButton-sizeMedium MuiButton-colorPrimary MuiButton-disableElevation css-dserza-MuiButtonBase-root-MuiButton-root\">Mesa 2 · Lugar Lugar 10</button> aka getByRole('button', { name: 'Mesa 2 · Lugar Lugar 10' })\n    3) <button tabindex=\"0\" type=\"button\" class=\"MuiButtonBase-root MuiButton-root MuiButton-text MuiButton-sizeMedium MuiButton-colorPrimary MuiButton-disableElevation css-dserza-MuiButtonBase-root-MuiButton-root\">Mesa 2 · Lugar Lugar 11</button> aka getByRole('button', { name: 'Mesa 2 · Lugar Lugar 11' })\n    4) <button tabindex=\"0\" type=\"button\" class=\"MuiButtonBase-root MuiButton-root MuiButton-text MuiButton-sizeMedium MuiButton-colorPrimary MuiButton-disableElevation css-dserza-MuiButtonBase-root-MuiButton-root\">Mesa 2 · Lugar Lugar 12</button> aka getByRole('button', { name: 'Mesa 2 · Lugar Lugar 12' })\n    5) <button tabindex=\"0\" type=\"button\" class=\"MuiButtonBase-root MuiButton-root MuiButton-text MuiButton-sizeMedium MuiButton-colorPrimary MuiButton-disableElevation css-dserza-MuiButtonBase-root-MuiButton-root\">Mesa 2 · Lugar Lugar 13</button> aka getByRole('button', { name: 'Mesa 2 · Lugar Lugar 13' })\n    6) <button tabindex=\"0\" type=\"button\" class=\"MuiButtonBase-root MuiButton-root MuiButton-text MuiButton-sizeMedium MuiButton-colorPrimary MuiButton-disableElevation css-dserza-MuiButtonBase-root-MuiButton-root\">Mesa 2 · Lugar Lugar 14</button> aka getByRole('button', { name: 'Mesa 2 · Lugar Lugar 14' })\n    7) <button tabindex=\"0\" type=\"button\" class=\"MuiButtonBase-root MuiButton-root MuiButton-text MuiButton-sizeMedium MuiButton-colorPrimary MuiButton-disableElevation css-dserza-MuiButtonBase-root-MuiButton-root\">Mesa 2 · Lugar Lugar 15</button> aka getByRole('button', { name: 'Mesa 2 · Lugar Lugar 15' })\n    8) <button tabindex=\"0\" type=\"button\" class=\"MuiButtonBase-root MuiButton-root MuiButton-text MuiButton-sizeMedium MuiButton-colorPrimary MuiButton-disableElevation css-dserza-MuiButtonBase-root-MuiButton-root\">Mesa 2 · Lugar Lugar 16</button> aka getByRole('button', { name: 'Mesa 2 · Lugar Lugar 16' })\n    9) <button tabindex=\"0\" type=\"button\" class=\"MuiButtonBase-root MuiButton-root MuiButton-text MuiButton-sizeMedium MuiButton-colorPrimary MuiButton-disableElevation css-dserza-MuiButtonBase-root-MuiButton-root\">Mesa 2 · Lugar Lugar 17</button> aka getByRole('button', { name: 'Mesa 2 · Lugar Lugar 17' })\n    10) <button tabindex=\"0\" type=\"button\" class=\"MuiButtonBase-root MuiButton-root MuiButton-text MuiButton-sizeMedium MuiButton-colorPrimary MuiButton-disableElevation css-dserza-MuiButtonBase-root-MuiButton-root\">Mesa 2 · Lugar Lugar 18</button> aka getByRole('button', { name: 'Mesa 2 · Lugar Lugar 18' })\n    ...\n\nCall log:\n\u001b[2m  - waiting for getByRole('dialog').getByRole('button', { name: 'Mesa 2 · Lugar Lugar 1' })\u001b[22m\n",
+      "classification": "Unclassified until evidence review; no product fix made"
+    }
+  ],
+  "status": "BLOCKED",
+  "finishedAt": "2026-10-30T22:09:22.950Z",
+  "fixtureAssistants": 2
+}

@@ -1,0 +1,1150 @@
+{
+  "productHead": "fd0756d68946b91272a4363a67d3b2caa475bbe6",
+  "recommendation": "BLOCKED",
+  "method": "Consolidated independent scopes; initial failures retained in execution ledger. Construction PASS never implies consumer PASS.",
+  "scenarios": [
+    {
+      "id": "Manual-Trace-label-gaps",
+      "result": "PASS",
+      "manualLabel": "Lugar 1",
+      "traceLabel": "Lugar 2",
+      "newIdentities": true,
+      "existingParentPreserved": true,
+      "finalSeatCount": 150,
+      "attempt": "attempt-5",
+      "evidence": "attempts/attempt-5/results.json"
+    },
+    {
+      "id": "occupied-protection",
+      "result": "PASS",
+      "apiRejectedBlockAndDelete": true,
+      "uiDisabled": true,
+      "renumberPreservedAssignmentAndUuids": true,
+      "attempt": "attempt-5",
+      "evidence": "attempts/attempt-5/results.json"
+    },
+    {
+      "id": "released-seat-conflict-probe",
+      "result": "FAIL",
+      "expected": "unassigned Seat is released and removable",
+      "observed": {
+        "apiProjectsOccupied": false,
+        "deleteStatus": 409,
+        "deleteCode": "FLOORPLAN_SEAT_OCCUPIED"
+      },
+      "attempt": "attempt-5",
+      "evidence": "attempts/attempt-5/results.json"
+    },
+    {
+      "id": "landscape-1440",
+      "result": "FAIL",
+      "constructionResult": "PASS",
+      "sourceType": "RASTER",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "sourceSha256": "cb25874f67e6281fd7565ad72d555f3dbeff0fae62c82143c69af2b6d25af9cd",
+      "places": 150,
+      "tables": 6,
+      "uploadThroughUi": true,
+      "manualReachable": true,
+      "svgTool": "disabled-with-title-only",
+      "tracePostsAtCoreGate": 150,
+      "confirmedSeatsAtCoreGate": 150,
+      "serializedConfirmedPlacement": true,
+      "corrections": true,
+      "reviewAndLock": true,
+      "reloadIdentitySha256": "4f5bc1b137332f152a7d9c39e999d629be48a032aab40aa0186a87445e996881",
+      "plannerScanner": "FAIL",
+      "attempt": "attempt-5",
+      "evidence": "attempts/attempt-5/results.json"
+    },
+    {
+      "id": "portrait-1440",
+      "result": "FAIL",
+      "constructionResult": "PASS",
+      "sourceType": "RASTER",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "sourceSha256": "9c158fc4c19ab71216eece27336285e37a598588525db6e002fe3521acfc543f",
+      "places": 50,
+      "tables": 2,
+      "uploadThroughUi": true,
+      "manualReachable": true,
+      "svgTool": "disabled-with-title-only",
+      "tracePostsAtCoreGate": 50,
+      "confirmedSeatsAtCoreGate": 50,
+      "serializedConfirmedPlacement": true,
+      "corrections": true,
+      "reviewAndLock": true,
+      "reloadIdentitySha256": "432ecde7ee4a1b1ff73f48c739c61b831042e4e534921744e9b8f432fa0e104f",
+      "plannerScanner": "FAIL",
+      "attempt": "attempt-5",
+      "evidence": "attempts/attempt-5/results.json"
+    },
+    {
+      "id": "square-1440",
+      "result": "FAIL",
+      "constructionResult": "PASS",
+      "sourceType": "RASTER",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "sourceSha256": "79fe1cde7d8b153aeba32f4090e30367d6e52e25bb90bd4eb17730c7f9586897",
+      "places": 50,
+      "tables": 2,
+      "uploadThroughUi": true,
+      "manualReachable": true,
+      "svgTool": "disabled-with-title-only",
+      "tracePostsAtCoreGate": 50,
+      "confirmedSeatsAtCoreGate": 50,
+      "serializedConfirmedPlacement": true,
+      "corrections": true,
+      "reviewAndLock": true,
+      "reloadIdentitySha256": "35463bd5a03524da2a14d142cef1056e7e38e6dc039902c8087192b2c11f5873",
+      "plannerScanner": "FAIL",
+      "attempt": "attempt-5",
+      "evidence": "attempts/attempt-5/results.json"
+    },
+    {
+      "id": "svg-200-1440",
+      "result": "FAIL",
+      "constructionResult": "PASS",
+      "sourceType": "SVG",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "sourceSha256": "4f87300890c60859273fc9fcc959e9e63b09d5eac23249ab82d78f94c40842e2",
+      "places": 50,
+      "tables": 2,
+      "uploadThroughUi": true,
+      "manualReachable": true,
+      "svgTool": "reachable",
+      "tracePostsAtCoreGate": 50,
+      "confirmedSeatsAtCoreGate": 50,
+      "serializedConfirmedPlacement": true,
+      "corrections": true,
+      "reviewAndLock": true,
+      "reloadIdentitySha256": "272c56ce6963b713bad27c099dd7319fd729d02172db08d3e94ede3192b1574b",
+      "plannerScanner": "FAIL",
+      "attempt": "attempt-5",
+      "evidence": "attempts/attempt-5/results.json"
+    },
+    {
+      "id": "landscape-1024",
+      "result": "FAIL",
+      "constructionResult": "PASS",
+      "sourceType": "RASTER",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "sourceSha256": "cb25874f67e6281fd7565ad72d555f3dbeff0fae62c82143c69af2b6d25af9cd",
+      "places": 150,
+      "tables": 6,
+      "uploadThroughUi": true,
+      "manualReachable": true,
+      "svgTool": "disabled-with-title-only",
+      "tracePostsAtCoreGate": 150,
+      "confirmedSeatsAtCoreGate": 150,
+      "serializedConfirmedPlacement": true,
+      "corrections": true,
+      "reviewAndLock": true,
+      "reloadIdentitySha256": "7ed6708e33a76ed9c84be3a3124b65ffde0d53809ef42f6d571b048c6bf46aec",
+      "plannerScanner": "FAIL",
+      "attempt": "attempt-6",
+      "evidence": "attempts/attempt-6/results.json"
+    },
+    {
+      "id": "portrait-1024",
+      "result": "FAIL",
+      "constructionResult": "PASS",
+      "sourceType": "RASTER",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "sourceSha256": "9c158fc4c19ab71216eece27336285e37a598588525db6e002fe3521acfc543f",
+      "places": 50,
+      "tables": 2,
+      "uploadThroughUi": true,
+      "manualReachable": true,
+      "svgTool": "disabled-with-title-only",
+      "tracePostsAtCoreGate": 50,
+      "confirmedSeatsAtCoreGate": 50,
+      "serializedConfirmedPlacement": true,
+      "corrections": true,
+      "reviewAndLock": true,
+      "reloadIdentitySha256": "79d2f907f66a0cfaf1352d78ddb48249a7c54f6915ea53852918d8aa7d430e19",
+      "plannerScanner": "FAIL",
+      "attempt": "attempt-6",
+      "evidence": "attempts/attempt-6/results.json"
+    },
+    {
+      "id": "square-1024",
+      "result": "FAIL",
+      "constructionResult": "PASS",
+      "sourceType": "RASTER",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "sourceSha256": "79fe1cde7d8b153aeba32f4090e30367d6e52e25bb90bd4eb17730c7f9586897",
+      "places": 50,
+      "tables": 2,
+      "uploadThroughUi": true,
+      "manualReachable": true,
+      "svgTool": "disabled-with-title-only",
+      "tracePostsAtCoreGate": 50,
+      "confirmedSeatsAtCoreGate": 50,
+      "serializedConfirmedPlacement": true,
+      "corrections": true,
+      "reviewAndLock": true,
+      "reloadIdentitySha256": "71c786462e3d50844593b4c7532447de1b46e4c4e21e374aa1ea1157b17f73b2",
+      "plannerScanner": "FAIL",
+      "attempt": "attempt-6",
+      "evidence": "attempts/attempt-6/results.json"
+    },
+    {
+      "id": "svg-200-1024",
+      "result": "FAIL",
+      "constructionResult": "PASS",
+      "sourceType": "SVG",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "sourceSha256": "4f87300890c60859273fc9fcc959e9e63b09d5eac23249ab82d78f94c40842e2",
+      "places": 50,
+      "tables": 2,
+      "uploadThroughUi": true,
+      "manualReachable": true,
+      "svgTool": "reachable",
+      "tracePostsAtCoreGate": 50,
+      "confirmedSeatsAtCoreGate": 50,
+      "serializedConfirmedPlacement": true,
+      "corrections": true,
+      "reviewAndLock": true,
+      "reloadIdentitySha256": "ab5ea5a930d5cc9b6c6d60ca00792fc33478f0a2c9029d2b2fc21662ae246ab5",
+      "plannerScanner": "FAIL",
+      "attempt": "attempt-6",
+      "evidence": "attempts/attempt-6/results.json"
+    },
+    {
+      "id": "TABLE-50-1440",
+      "result": "PASS",
+      "tables": 50,
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "configuredEventCapacity": 150,
+      "graphicRegressionOnly": true,
+      "createSeats": 0,
+      "selectedByName": true,
+      "authoritativeReview": true,
+      "attempt": "attempt-7",
+      "evidence": "attempts/attempt-7/results.json"
+    },
+    {
+      "id": "TABLE-50-1024",
+      "result": "PASS",
+      "tables": 50,
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "configuredEventCapacity": 150,
+      "graphicRegressionOnly": true,
+      "createSeats": 0,
+      "selectedByName": true,
+      "authoritativeReview": true,
+      "attempt": "attempt-7",
+      "evidence": "attempts/attempt-7/results.json"
+    },
+    {
+      "id": "TABLE-100-1440",
+      "result": "PASS",
+      "tables": 100,
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "configuredEventCapacity": 150,
+      "graphicRegressionOnly": true,
+      "createSeats": 0,
+      "selectedByName": true,
+      "authoritativeReview": true,
+      "attempt": "attempt-7",
+      "evidence": "attempts/attempt-7/results.json"
+    },
+    {
+      "id": "TABLE-100-1024",
+      "result": "FAIL",
+      "tables": 100,
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "configuredEventCapacity": 150,
+      "graphicRegressionOnly": true,
+      "createSeats": 0,
+      "selectedByName": true,
+      "authoritativeReview": true,
+      "attempt": "attempt-7",
+      "evidence": "attempts/attempt-7/results.json"
+    },
+    {
+      "id": "TABLE-200-1440",
+      "result": "FAIL",
+      "tables": 200,
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "configuredEventCapacity": 150,
+      "graphicRegressionOnly": true,
+      "createSeats": 0,
+      "selectedByName": true,
+      "authoritativeReview": true,
+      "attempt": "attempt-7",
+      "evidence": "attempts/attempt-7/results.json"
+    },
+    {
+      "id": "TABLE-200-1024",
+      "result": "FAIL",
+      "tables": 200,
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "configuredEventCapacity": 150,
+      "graphicRegressionOnly": true,
+      "createSeats": 0,
+      "selectedByName": true,
+      "authoritativeReview": true,
+      "attempt": "attempt-7",
+      "evidence": "attempts/attempt-7/results.json"
+    },
+    {
+      "id": "TABLE-consumers",
+      "result": "PASS",
+      "tables": 200,
+      "configuredEventCapacity": 150,
+      "plannerAssignMoveUnassign": true,
+      "scannerReadOnly": true,
+      "attempt": "attempt-7",
+      "evidence": "attempts/attempt-7/results.json"
+    },
+    {
+      "id": "SVG-100-1440",
+      "result": "PASS",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "canonicalSelectableElements": 100,
+      "nativeSelection": true,
+      "cancelCreatesNoShape": true,
+      "attempt": "attempt-8",
+      "evidence": "attempts/attempt-8/results.json"
+    },
+    {
+      "id": "SVG-100-1024",
+      "result": "PASS",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "canonicalSelectableElements": 100,
+      "nativeSelection": true,
+      "cancelCreatesNoShape": true,
+      "attempt": "attempt-8",
+      "evidence": "attempts/attempt-8/results.json"
+    },
+    {
+      "id": "SVG-200-1440",
+      "result": "PASS",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "canonicalSelectableElements": 200,
+      "nativeSelection": true,
+      "cancelCreatesNoShape": true,
+      "attempt": "attempt-8",
+      "evidence": "attempts/attempt-8/results.json"
+    },
+    {
+      "id": "SVG-200-1024",
+      "result": "PASS",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "canonicalSelectableElements": 200,
+      "nativeSelection": true,
+      "cancelCreatesNoShape": true,
+      "attempt": "attempt-8",
+      "evidence": "attempts/attempt-8/results.json"
+    },
+    {
+      "id": "SVG-security-negatives",
+      "result": "PASS",
+      "hostileUploadsRejected": 5,
+      "expectedStatus": 400,
+      "scripts": true,
+      "foreignObject": true,
+      "eventHandlers": true,
+      "dtdXxe": true,
+      "externalReferences": true,
+      "attempt": "attempt-8",
+      "evidence": "attempts/attempt-8/results.json"
+    },
+    {
+      "id": "SVG-replacement-preservation",
+      "result": "PASS",
+      "cancelPreservesSource": true,
+      "explicitDetachConfirmation": true,
+      "shapeUuidsPreserved": true,
+      "seatIdentitySha256": "235f3b918638e51032aedeeeead6d227705687718946805818d59c1c25dc08b4",
+      "assignmentPreserved": true,
+      "bindingsCleared": true,
+      "newCanonicalElements": 100,
+      "attempt": "attempt-8",
+      "evidence": "attempts/attempt-8/results.json"
+    },
+    {
+      "id": "recovery-1440",
+      "result": "PASS",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "tableModeNoTrace": true,
+      "noParentNoTrace": true,
+      "lockedNoTrace": true,
+      "pendingDoubleGesturePosts": 1,
+      "panZoomDragToolbarWrites": 0,
+      "touchPinchExercised": false,
+      "finishKeepsParent": true,
+      "afterFinishSeatPosts": 0,
+      "faults": [
+        {
+          "status": 409,
+          "attempts": 1,
+          "committed": 0,
+          "replayed": 0,
+          "stopped": true
+        },
+        {
+          "status": 429,
+          "attempts": 1,
+          "committed": 0,
+          "replayed": 0,
+          "stopped": true
+        },
+        {
+          "status": 503,
+          "attempts": 1,
+          "committed": 0,
+          "replayed": 0,
+          "stopped": true
+        },
+        {
+          "status": "transport-timeout-before-send",
+          "attempts": 1,
+          "committed": 0,
+          "replayed": 0,
+          "stopped": true
+        },
+        {
+          "status": "lost-response-after-real-commit",
+          "attempts": 1,
+          "committed": 1,
+          "replayed": 0,
+          "stopped": true
+        },
+        {
+          "status": "confirmed-write-refresh-503",
+          "attempts": 1,
+          "committed": 1,
+          "replayed": 0,
+          "stopped": true
+        },
+        {
+          "status": "real-concurrent-layout-lock-409",
+          "attempts": 1,
+          "committed": 0,
+          "replayed": 0,
+          "stopped": true
+        }
+      ],
+      "lockIntentions": 2,
+      "lockPosts": 2,
+      "unlockPosts": 1,
+      "confirmedLockRefreshFailureNoReplay": true,
+      "lostLockResponseNoReplay": true,
+      "finalIdentitySha256": "4b791bbf69429365521be6833ab2f506fafbdbb68a2fcba61722c9478fc10bbc",
+      "attempt": "attempt-9",
+      "evidence": "attempts/attempt-9/results.json"
+    },
+    {
+      "id": "recovery-1024",
+      "result": "PASS",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "tableModeNoTrace": true,
+      "noParentNoTrace": true,
+      "lockedNoTrace": true,
+      "pendingDoubleGesturePosts": 1,
+      "panZoomDragToolbarWrites": 0,
+      "touchPinchExercised": true,
+      "finishKeepsParent": true,
+      "afterFinishSeatPosts": 0,
+      "faults": [
+        {
+          "status": 409,
+          "attempts": 1,
+          "committed": 0,
+          "replayed": 0,
+          "stopped": true
+        },
+        {
+          "status": 429,
+          "attempts": 1,
+          "committed": 0,
+          "replayed": 0,
+          "stopped": true
+        },
+        {
+          "status": 503,
+          "attempts": 1,
+          "committed": 0,
+          "replayed": 0,
+          "stopped": true
+        },
+        {
+          "status": "transport-timeout-before-send",
+          "attempts": 1,
+          "committed": 0,
+          "replayed": 0,
+          "stopped": true
+        },
+        {
+          "status": "lost-response-after-real-commit",
+          "attempts": 1,
+          "committed": 1,
+          "replayed": 0,
+          "stopped": true
+        },
+        {
+          "status": "confirmed-write-refresh-503",
+          "attempts": 1,
+          "committed": 1,
+          "replayed": 0,
+          "stopped": true
+        },
+        {
+          "status": "real-concurrent-layout-lock-409",
+          "attempts": 1,
+          "committed": 0,
+          "replayed": 0,
+          "stopped": true
+        }
+      ],
+      "lockIntentions": 2,
+      "lockPosts": 2,
+      "unlockPosts": 1,
+      "confirmedLockRefreshFailureNoReplay": true,
+      "lostLockResponseNoReplay": true,
+      "finalIdentitySha256": "74360897c4f230b41cef005e4ad6a70b513e657073143ccdffc709f12c488233",
+      "attempt": "attempt-9",
+      "evidence": "attempts/attempt-9/results.json"
+    },
+    {
+      "id": "PHYSICAL_QR-restriction-1440",
+      "result": "FAIL",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "expected": "PHYSICAL_QR remains TABLE-only; no exact Seat construction",
+      "observed": {
+        "seatOptionOffered": true,
+        "seatingModeStatus": 200,
+        "tracingOffered": true,
+        "tracedPlaces": 1,
+        "service": "PHYSICAL_QR",
+        "profile": "SELF_SERVICE",
+        "mode": "SEAT",
+        "seats": 1
+      },
+      "attempt": "attempt-9",
+      "evidence": "attempts/attempt-9/results.json"
+    },
+    {
+      "id": "PHYSICAL_QR-restriction-1024",
+      "result": "FAIL",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "expected": "PHYSICAL_QR remains TABLE-only; no exact Seat construction",
+      "observed": {
+        "seatOptionOffered": true,
+        "seatingModeStatus": 200,
+        "tracingOffered": true,
+        "tracedPlaces": 1,
+        "service": "PHYSICAL_QR",
+        "profile": "SELF_SERVICE",
+        "mode": "SEAT",
+        "seats": 1
+      },
+      "attempt": "attempt-9",
+      "evidence": "attempts/attempt-9/results.json"
+    },
+    {
+      "id": "ANONYMOUS-TABLE-only",
+      "result": "PASS",
+      "apiRejectsExactMode": true,
+      "status": 409,
+      "seatsCreated": 0,
+      "attempt": "attempt-9",
+      "evidence": "attempts/attempt-9/results.json"
+    },
+    {
+      "id": "SEAT-capacity-after-mode-change-1440",
+      "result": "FAIL",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "tables": [
+        {
+          "name": "Mesa 1",
+          "idSha256": "99648d1791a91a830a5050b9a032f1badfad3f9730d6f1d9b1be7758645e897f",
+          "apiCapacity": 12,
+          "defined": 0,
+          "activeUnblocked": 0
+        },
+        {
+          "name": "Mesa 2",
+          "idSha256": "bf591a3484deaa0549bddd6a3c254daf31bc2f86c1881afcd62d1fdbae9fc8dd",
+          "apiCapacity": 24,
+          "defined": 0,
+          "activeUnblocked": 0
+        }
+      ],
+      "seatWrites": 0,
+      "warningVisible": true,
+      "frontendSummaryUsesCurrentApi": true,
+      "attempt": "attempt-10",
+      "evidence": "attempts/attempt-10/results.json"
+    },
+    {
+      "id": "SEAT-capacity-after-mode-change-1024",
+      "result": "FAIL",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "tables": [
+        {
+          "name": "Mesa 1",
+          "idSha256": "99648d1791a91a830a5050b9a032f1badfad3f9730d6f1d9b1be7758645e897f",
+          "apiCapacity": 12,
+          "defined": 0,
+          "activeUnblocked": 0
+        },
+        {
+          "name": "Mesa 2",
+          "idSha256": "bf591a3484deaa0549bddd6a3c254daf31bc2f86c1881afcd62d1fdbae9fc8dd",
+          "apiCapacity": 24,
+          "defined": 0,
+          "activeUnblocked": 0
+        }
+      ],
+      "seatWrites": 0,
+      "warningVisible": true,
+      "frontendSummaryUsesCurrentApi": true,
+      "attempt": "attempt-10",
+      "evidence": "attempts/attempt-10/results.json"
+    },
+    {
+      "id": "assign-seats-http-status",
+      "result": "FAIL",
+      "severity": "P2",
+      "expected": 200,
+      "observed": 201,
+      "attempt": "attempt-7",
+      "evidence": "attempts/attempt-7/results.json"
+    }
+  ],
+  "consumers": [
+    {
+      "mode": "SEAT",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "result": "FAIL",
+      "assign": false,
+      "move": false,
+      "scannerLocalization": false,
+      "unassign": false,
+      "failure": {
+        "id": "SEAT_UNASSIGN_RETAINS_SEAT",
+        "severity": "P0",
+        "problem": "Confirmed unassign clears parent TABLE but retains floorplanSeatId; persisted parent/place pair is inconsistent",
+        "expected": {
+          "table": null,
+          "seat": null,
+          "occupied": false
+        },
+        "observed": {
+          "httpStatus": 200,
+          "tableCleared": true,
+          "seatRetained": true,
+          "apiProjectsOccupied": false,
+          "sameSeatId": true,
+          "beforeHadTable": true,
+          "beforeHadSeat": true
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "stage": "initial-preassigned",
+        "impact": {
+          "apiProjectsOccupied": false,
+          "providerDeleteStatus": 409,
+          "providerDeleteCode": "FLOORPLAN_SEAT_OCCUPIED",
+          "unlockedForProbe": true
+        }
+      },
+      "attempt": "attempt-5"
+    },
+    {
+      "mode": "SEAT",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "result": "FAIL",
+      "assign": true,
+      "move": true,
+      "scannerLocalization": true,
+      "unassign": false,
+      "failure": {
+        "id": "SEAT_UNASSIGN_RETAINS_SEAT",
+        "severity": "P0",
+        "problem": "Confirmed unassign clears parent TABLE but retains floorplanSeatId; persisted parent/place pair is inconsistent",
+        "expected": {
+          "table": null,
+          "seat": null,
+          "occupied": false
+        },
+        "observed": {
+          "httpStatus": 200,
+          "tableCleared": true,
+          "seatRetained": true,
+          "apiProjectsOccupied": false,
+          "sameSeatId": true,
+          "beforeHadTable": true,
+          "beforeHadSeat": true
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "stage": "final"
+      },
+      "attempt": "attempt-5"
+    },
+    {
+      "mode": "SEAT",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "result": "FAIL",
+      "assign": true,
+      "move": true,
+      "scannerLocalization": true,
+      "unassign": false,
+      "failure": {
+        "id": "SEAT_UNASSIGN_RETAINS_SEAT",
+        "severity": "P0",
+        "problem": "Confirmed unassign clears parent TABLE but retains floorplanSeatId; persisted parent/place pair is inconsistent",
+        "expected": {
+          "table": null,
+          "seat": null,
+          "occupied": false
+        },
+        "observed": {
+          "httpStatus": 200,
+          "tableCleared": true,
+          "seatRetained": true,
+          "apiProjectsOccupied": false,
+          "sameSeatId": true,
+          "beforeHadTable": true,
+          "beforeHadSeat": true
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "stage": "final"
+      },
+      "attempt": "attempt-5"
+    },
+    {
+      "mode": "SEAT",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "result": "FAIL",
+      "assign": true,
+      "move": true,
+      "scannerLocalization": true,
+      "unassign": false,
+      "failure": {
+        "id": "SEAT_UNASSIGN_RETAINS_SEAT",
+        "severity": "P0",
+        "problem": "Confirmed unassign clears parent TABLE but retains floorplanSeatId; persisted parent/place pair is inconsistent",
+        "expected": {
+          "table": null,
+          "seat": null,
+          "occupied": false
+        },
+        "observed": {
+          "httpStatus": 200,
+          "tableCleared": true,
+          "seatRetained": true,
+          "apiProjectsOccupied": false,
+          "sameSeatId": true,
+          "beforeHadTable": true,
+          "beforeHadSeat": true
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "stage": "final"
+      },
+      "attempt": "attempt-5"
+    },
+    {
+      "mode": "SEAT",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "result": "FAIL",
+      "assign": true,
+      "move": true,
+      "scannerLocalization": true,
+      "unassign": false,
+      "failure": {
+        "id": "SEAT_UNASSIGN_RETAINS_SEAT",
+        "severity": "P0",
+        "problem": "Confirmed unassign clears parent TABLE but retains floorplanSeatId; persisted parent/place pair is inconsistent",
+        "expected": {
+          "table": null,
+          "seat": null,
+          "occupied": false
+        },
+        "observed": {
+          "httpStatus": 200,
+          "tableCleared": true,
+          "seatRetained": true,
+          "apiProjectsOccupied": false,
+          "sameSeatId": true,
+          "beforeHadTable": true,
+          "beforeHadSeat": true
+        },
+        "viewport": {
+          "width": 1024,
+          "height": 768
+        },
+        "stage": "final"
+      },
+      "attempt": "attempt-6"
+    },
+    {
+      "mode": "SEAT",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "result": "FAIL",
+      "assign": true,
+      "move": true,
+      "scannerLocalization": true,
+      "unassign": false,
+      "failure": {
+        "id": "SEAT_UNASSIGN_RETAINS_SEAT",
+        "severity": "P0",
+        "problem": "Confirmed unassign clears parent TABLE but retains floorplanSeatId; persisted parent/place pair is inconsistent",
+        "expected": {
+          "table": null,
+          "seat": null,
+          "occupied": false
+        },
+        "observed": {
+          "httpStatus": 200,
+          "tableCleared": true,
+          "seatRetained": true,
+          "apiProjectsOccupied": false,
+          "sameSeatId": true,
+          "beforeHadTable": true,
+          "beforeHadSeat": true
+        },
+        "viewport": {
+          "width": 1024,
+          "height": 768
+        },
+        "stage": "final"
+      },
+      "attempt": "attempt-6"
+    },
+    {
+      "mode": "SEAT",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "result": "FAIL",
+      "assign": true,
+      "move": true,
+      "scannerLocalization": true,
+      "unassign": false,
+      "failure": {
+        "id": "SEAT_UNASSIGN_RETAINS_SEAT",
+        "severity": "P0",
+        "problem": "Confirmed unassign clears parent TABLE but retains floorplanSeatId; persisted parent/place pair is inconsistent",
+        "expected": {
+          "table": null,
+          "seat": null,
+          "occupied": false
+        },
+        "observed": {
+          "httpStatus": 200,
+          "tableCleared": true,
+          "seatRetained": true,
+          "apiProjectsOccupied": false,
+          "sameSeatId": true,
+          "beforeHadTable": true,
+          "beforeHadSeat": true
+        },
+        "viewport": {
+          "width": 1024,
+          "height": 768
+        },
+        "stage": "final"
+      },
+      "attempt": "attempt-6"
+    },
+    {
+      "mode": "SEAT",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "result": "FAIL",
+      "assign": true,
+      "move": true,
+      "scannerLocalization": true,
+      "unassign": false,
+      "failure": {
+        "id": "SEAT_UNASSIGN_RETAINS_SEAT",
+        "severity": "P0",
+        "problem": "Confirmed unassign clears parent TABLE but retains floorplanSeatId; persisted parent/place pair is inconsistent",
+        "expected": {
+          "table": null,
+          "seat": null,
+          "occupied": false
+        },
+        "observed": {
+          "httpStatus": 200,
+          "tableCleared": true,
+          "seatRetained": true,
+          "apiProjectsOccupied": false,
+          "sameSeatId": true,
+          "beforeHadTable": true,
+          "beforeHadSeat": true
+        },
+        "viewport": {
+          "width": 1024,
+          "height": 768
+        },
+        "stage": "final"
+      },
+      "attempt": "attempt-6"
+    },
+    {
+      "mode": "TABLE",
+      "assign": true,
+      "move": true,
+      "unassign": true,
+      "scannerLocalization": true,
+      "readOnlyGeometry": true,
+      "minimalFields": true,
+      "attempt": "attempt-7"
+    },
+    {
+      "mode": "TABLE",
+      "assign": true,
+      "move": true,
+      "unassign": true,
+      "scannerLocalization": true,
+      "readOnlyGeometry": true,
+      "minimalFields": true,
+      "attempt": "attempt-7"
+    }
+  ],
+  "findings": [
+    {
+      "id": "SEAT_UNASSIGN_RETAINS_SEAT",
+      "severity": "P0",
+      "problem": "Confirmed unassign clears parent TABLE but retains floorplanSeatId; persisted parent/place pair is inconsistent",
+      "expected": {
+        "table": null,
+        "seat": null,
+        "occupied": false
+      },
+      "observed": {
+        "httpStatus": 200,
+        "tableCleared": true,
+        "seatRetained": true,
+        "apiProjectsOccupied": false,
+        "sameSeatId": true,
+        "beforeHadTable": true,
+        "beforeHadSeat": true
+      },
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "stage": "initial-preassigned",
+      "impact": {
+        "apiProjectsOccupied": false,
+        "providerDeleteStatus": 409,
+        "providerDeleteCode": "FLOORPLAN_SEAT_OCCUPIED",
+        "unlockedForProbe": true
+      },
+      "attempt": "attempt-5"
+    },
+    {
+      "id": "DENSE_SEAT_HIT_TARGET",
+      "severity": "P1",
+      "problem": "A native click at a Seat center selected a different Seat in the dense Planner layout, including after using current zoom controls",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "zoom": 2.0736,
+      "expectedSeatSha256": "7be89b00010b628bc8e6b8b06330620763fbdf0c9f6c69c4eef1c894e21c9fe4",
+      "observedSeatSha256": "4c9140865c8bb95aa7fdd0a2e715637e88f90687ff1c1271dba8c0cc3aabf392",
+      "intendedNormalizedPoint": {
+        "x": 0.33150371,
+        "y": 0.37560058
+      },
+      "attempt": "attempt-5"
+    },
+    {
+      "id": "DENSE_NAME_LIST_OVERLAP",
+      "severity": "P1",
+      "problem": "Canvas overlaps dense table-name list; pointer activation is blocked",
+      "occurrences": [
+        {
+          "tables": 100,
+          "viewport": {
+            "width": 1024,
+            "height": 768
+          },
+          "phase": "close",
+          "pointerTimeoutMs": 15000,
+          "evidence": "name-list-100-1024-close-0.png",
+          "keyboardFallback": true
+        },
+        {
+          "tables": 200,
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "phase": "close",
+          "pointerTimeoutMs": 15000,
+          "evidence": "name-list-200-1440-close-1.png",
+          "keyboardFallback": true
+        },
+        {
+          "tables": 200,
+          "viewport": {
+            "width": 1024,
+            "height": 768
+          },
+          "phase": "close",
+          "pointerTimeoutMs": 15000,
+          "evidence": "name-list-200-1024-close-2.png",
+          "keyboardFallback": true
+        }
+      ],
+      "attempt": "attempt-7"
+    },
+    {
+      "id": "PHYSICAL_QR_TABLE_ONLY",
+      "severity": "P1",
+      "contract": "FLOORPLAN_DETAILED_SEATING_CONTRACT.md §19 and FLOORPLAN_TRACE_MODE_UX.md §8",
+      "problem": "Exact Seat mode/tracing available for a TABLE-only physical-pass service",
+      "action": "Separate corrective ticket; no fix in CALCA-06",
+      "evidence": "physical-1440-observed-trace.png",
+      "attempt": "attempt-9"
+    },
+    {
+      "id": "SEAT_MODE_CAPACITY_DESYNC",
+      "severity": "P1",
+      "problem": "TABLE to SEAT retains nonzero manual capacities on tables with zero active Seats; authoritative capacity disagrees with detailed seating contract",
+      "contract": "FLOORPLAN_DETAILED_SEATING_CONTRACT.md §7",
+      "observed": [
+        {
+          "name": "Mesa 1",
+          "idSha256": "99648d1791a91a830a5050b9a032f1badfad3f9730d6f1d9b1be7758645e897f",
+          "apiCapacity": 12,
+          "defined": 0,
+          "activeUnblocked": 0
+        },
+        {
+          "name": "Mesa 2",
+          "idSha256": "bf591a3484deaa0549bddd6a3c254daf31bc2f86c1881afcd62d1fdbae9fc8dd",
+          "apiCapacity": 24,
+          "defined": 0,
+          "activeUnblocked": 0
+        }
+      ],
+      "evidence": "capacity-1440-review-zero-places.png",
+      "action": "Separate backend correction; no frontend readiness rule or fix added",
+      "attempt": "attempt-10"
+    },
+    {
+      "id": "ASSIGN_SEATS_HTTP_STATUS",
+      "severity": "P2",
+      "problem": "assign-seats returns HTTP 201 while generated OpenAPI documents HTTP 200",
+      "attempt": "attempt-7",
+      "observed": 201,
+      "documented": 200,
+      "evidence": "attempts/attempt-7/results.json",
+      "continuation": "Fixture setup asserts the observed 201 explicitly in attempt-8; discrepancy remains a finding, no API/SDK change."
+    }
+  ]
+}

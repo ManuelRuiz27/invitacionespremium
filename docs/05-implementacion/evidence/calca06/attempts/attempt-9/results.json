@@ -1,0 +1,763 @@
+{
+  "attempt": "attempt-9",
+  "scope": "recovery-restrictions",
+  "startedAt": "2026-10-31T17:17:05.770Z",
+  "head": "fd0756d68946b91272a4363a67d3b2caa475bbe6",
+  "runtimeSha256": "2128973ca424f148dfdf86e94675e20d4ece58d2bc4b37fea03657813419eace",
+  "certificationScripts": {
+    "certify.mjs": "67e7a74361deaf537dee8a74ca690045394a95796235fe31dd82628d69a34936",
+    "browser-helpers.mjs": "eac175c38370e1cf48079e867a1d3aeb5c4f07892e8399267eedd6fd75219b42",
+    "fixtures.mjs": "552edf002a7ef4844e83a64cf1819cd40f58d2b690bd8fdfac3d0449d4c12e50",
+    "run.mjs": "77d89e3744054d7b3ddaa90a91e534ec449ea731c119b3d57f30ad3ce909411e"
+  },
+  "environment": {
+    "node": "v22.18.0",
+    "platform": "win32",
+    "architecture": "x64",
+    "cpu": "12th Gen Intel(R) Core(TM) i3-1215U",
+    "logicalCpus": 8,
+    "memoryBytes": 16835407872,
+    "browser": "140.0.7339.16",
+    "network": "unthrottled loopback",
+    "physicalDevice": false,
+    "postgresql": "16.15"
+  },
+  "method": "Actual Chromium UI, Admin/Planner/Scanner/API and isolated PostgreSQL. Fictitious fixtures, serialized writes. Screenshots are native viewport captures; timing is automation wall time, not a human study. No exactly-once guarantee.",
+  "scenarios": [
+    {
+      "id": "recovery-1440",
+      "result": "PASS",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "tableModeNoTrace": true,
+      "noParentNoTrace": true,
+      "lockedNoTrace": true,
+      "pendingDoubleGesturePosts": 1,
+      "panZoomDragToolbarWrites": 0,
+      "touchPinchExercised": false,
+      "finishKeepsParent": true,
+      "afterFinishSeatPosts": 0,
+      "faults": [
+        {
+          "status": 409,
+          "attempts": 1,
+          "committed": 0,
+          "replayed": 0,
+          "stopped": true
+        },
+        {
+          "status": 429,
+          "attempts": 1,
+          "committed": 0,
+          "replayed": 0,
+          "stopped": true
+        },
+        {
+          "status": 503,
+          "attempts": 1,
+          "committed": 0,
+          "replayed": 0,
+          "stopped": true
+        },
+        {
+          "status": "transport-timeout-before-send",
+          "attempts": 1,
+          "committed": 0,
+          "replayed": 0,
+          "stopped": true
+        },
+        {
+          "status": "lost-response-after-real-commit",
+          "attempts": 1,
+          "committed": 1,
+          "replayed": 0,
+          "stopped": true
+        },
+        {
+          "status": "confirmed-write-refresh-503",
+          "attempts": 1,
+          "committed": 1,
+          "replayed": 0,
+          "stopped": true
+        },
+        {
+          "status": "real-concurrent-layout-lock-409",
+          "attempts": 1,
+          "committed": 0,
+          "replayed": 0,
+          "stopped": true
+        }
+      ],
+      "lockIntentions": 2,
+      "lockPosts": 2,
+      "unlockPosts": 1,
+      "confirmedLockRefreshFailureNoReplay": true,
+      "lostLockResponseNoReplay": true,
+      "finalIdentitySha256": "4b791bbf69429365521be6833ab2f506fafbdbb68a2fcba61722c9478fc10bbc"
+    },
+    {
+      "id": "recovery-1024",
+      "result": "PASS",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "tableModeNoTrace": true,
+      "noParentNoTrace": true,
+      "lockedNoTrace": true,
+      "pendingDoubleGesturePosts": 1,
+      "panZoomDragToolbarWrites": 0,
+      "touchPinchExercised": true,
+      "finishKeepsParent": true,
+      "afterFinishSeatPosts": 0,
+      "faults": [
+        {
+          "status": 409,
+          "attempts": 1,
+          "committed": 0,
+          "replayed": 0,
+          "stopped": true
+        },
+        {
+          "status": 429,
+          "attempts": 1,
+          "committed": 0,
+          "replayed": 0,
+          "stopped": true
+        },
+        {
+          "status": 503,
+          "attempts": 1,
+          "committed": 0,
+          "replayed": 0,
+          "stopped": true
+        },
+        {
+          "status": "transport-timeout-before-send",
+          "attempts": 1,
+          "committed": 0,
+          "replayed": 0,
+          "stopped": true
+        },
+        {
+          "status": "lost-response-after-real-commit",
+          "attempts": 1,
+          "committed": 1,
+          "replayed": 0,
+          "stopped": true
+        },
+        {
+          "status": "confirmed-write-refresh-503",
+          "attempts": 1,
+          "committed": 1,
+          "replayed": 0,
+          "stopped": true
+        },
+        {
+          "status": "real-concurrent-layout-lock-409",
+          "attempts": 1,
+          "committed": 0,
+          "replayed": 0,
+          "stopped": true
+        }
+      ],
+      "lockIntentions": 2,
+      "lockPosts": 2,
+      "unlockPosts": 1,
+      "confirmedLockRefreshFailureNoReplay": true,
+      "lostLockResponseNoReplay": true,
+      "finalIdentitySha256": "74360897c4f230b41cef005e4ad6a70b513e657073143ccdffc709f12c488233"
+    },
+    {
+      "id": "PHYSICAL_QR-restriction-1440",
+      "result": "FAIL",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "expected": "PHYSICAL_QR remains TABLE-only; no exact Seat construction",
+      "observed": {
+        "seatOptionOffered": true,
+        "seatingModeStatus": 200,
+        "tracingOffered": true,
+        "tracedPlaces": 1,
+        "service": "PHYSICAL_QR",
+        "profile": "SELF_SERVICE",
+        "mode": "SEAT",
+        "seats": 1
+      }
+    },
+    {
+      "id": "PHYSICAL_QR-restriction-1024",
+      "result": "FAIL",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "expected": "PHYSICAL_QR remains TABLE-only; no exact Seat construction",
+      "observed": {
+        "seatOptionOffered": true,
+        "seatingModeStatus": 200,
+        "tracingOffered": true,
+        "tracedPlaces": 1,
+        "service": "PHYSICAL_QR",
+        "profile": "SELF_SERVICE",
+        "mode": "SEAT",
+        "seats": 1
+      }
+    },
+    {
+      "id": "ANONYMOUS-TABLE-only",
+      "result": "PASS",
+      "apiRejectsExactMode": true,
+      "status": 409,
+      "seatsCreated": 0
+    }
+  ],
+  "timings": [],
+  "captures": [
+    {
+      "file": "recovery-1440-lock-confirmed-refresh-failed.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "metrics": {
+        "horizontalOverflow": false,
+        "blockingModal": false,
+        "canvas": {
+          "x": 297,
+          "y": 435.015625,
+          "width": 1102,
+          "height": 688.75
+        },
+        "surface": {
+          "x": 297,
+          "y": 435.015625,
+          "width": 1102,
+          "height": 688.75
+        },
+        "surfaceFraction": 0.5856500771604938,
+        "controls": [
+          {
+            "label": "Cerrar sesión",
+            "tag": "button",
+            "width": 152.6875,
+            "height": 42,
+            "disabled": false
+          },
+          {
+            "label": "Actualizar plano",
+            "tag": "button",
+            "width": 152.078125,
+            "height": 42,
+            "disabled": false
+          },
+          {
+            "label": "Alejar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Acercar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Ajustar plano a la vista",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Activar modo mover plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Mostrar sillas de referencia",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          }
+        ]
+      },
+      "sha256": "bb0e836c91808e97286b2f13a3ccba083001f0e66c722d8cc596a936bf4e78f0"
+    },
+    {
+      "file": "recovery-1440-lock-uncertain.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "metrics": {
+        "horizontalOverflow": false,
+        "blockingModal": false,
+        "canvas": {
+          "x": 402.296875,
+          "y": 255,
+          "width": 635.390625,
+          "height": 397.125
+        },
+        "surface": {
+          "x": 17,
+          "y": 189,
+          "width": 1406,
+          "height": 461.125
+        },
+        "surfaceFraction": 0.5002636959876543,
+        "controls": [
+          {
+            "label": "Opciones del croquis",
+            "tag": "summary",
+            "width": 181.78125,
+            "height": 41,
+            "disabled": false
+          },
+          {
+            "label": "Actualizar plano",
+            "tag": "button",
+            "width": 152.078125,
+            "height": 42,
+            "disabled": false
+          },
+          {
+            "label": "Alejar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Acercar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Ajustar plano a la vista",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Activar modo mover plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Mostrar sillas de referencia",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Seleccionar lugar por nombre (3)",
+            "tag": "summary",
+            "width": 671,
+            "height": 21.96875,
+            "disabled": false
+          },
+          {
+            "label": "Mesas y zonas (2)",
+            "tag": "summary",
+            "width": 671,
+            "height": 21.96875,
+            "disabled": false
+          }
+        ]
+      },
+      "sha256": "45df46bcf737aa8202ee50ac25af5185d52b1b773a5a17f378c8bdd251959f68"
+    },
+    {
+      "file": "recovery-1024-lock-confirmed-refresh-failed.png",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "metrics": {
+        "horizontalOverflow": false,
+        "blockingModal": false,
+        "canvas": {
+          "x": 289,
+          "y": 490.296875,
+          "width": 702,
+          "height": 438.75
+        },
+        "surface": {
+          "x": 289,
+          "y": 449.671875,
+          "width": 702,
+          "height": 520
+        },
+        "surfaceFraction": 0.46417236328125,
+        "controls": [
+          {
+            "label": "Cerrar sesión",
+            "tag": "button",
+            "width": 152.6875,
+            "height": 42,
+            "disabled": false
+          },
+          {
+            "label": "Actualizar plano",
+            "tag": "button",
+            "width": 152.078125,
+            "height": 42,
+            "disabled": false
+          },
+          {
+            "label": "Alejar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Acercar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Ajustar plano a la vista",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Activar modo mover plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Mostrar sillas de referencia",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          }
+        ]
+      },
+      "sha256": "8e2925aabcc99f6221aeb3d3206b421f5bb4bec000d6facabab81f977d643fa3"
+    },
+    {
+      "file": "recovery-1024-lock-uncertain.png",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "metrics": {
+        "horizontalOverflow": false,
+        "blockingModal": false,
+        "canvas": {
+          "x": 315.09375,
+          "y": 274,
+          "width": 393.796875,
+          "height": 246.125
+        },
+        "surface": {
+          "x": 17,
+          "y": 208,
+          "width": 990,
+          "height": 310.125
+        },
+        "surfaceFraction": 0.39040088653564453,
+        "controls": [
+          {
+            "label": "Opciones del croquis",
+            "tag": "summary",
+            "width": 181.78125,
+            "height": 41,
+            "disabled": false
+          },
+          {
+            "label": "Actualizar plano",
+            "tag": "button",
+            "width": 145.875,
+            "height": 61,
+            "disabled": false
+          },
+          {
+            "label": "Alejar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Acercar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Ajustar plano a la vista",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Activar modo mover plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Mostrar sillas de referencia",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Seleccionar lugar por nombre (3)",
+            "tag": "summary",
+            "width": 463,
+            "height": 21.96875,
+            "disabled": false
+          },
+          {
+            "label": "Mesas y zonas (2)",
+            "tag": "summary",
+            "width": 463,
+            "height": 21.96875,
+            "disabled": false
+          }
+        ]
+      },
+      "sha256": "36876715bd9a13bd40aa9aaa0843caf93d7e8e598d20dd50b05c952ad4263e2b"
+    },
+    {
+      "file": "physical-1440-observed-trace.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "metrics": {
+        "horizontalOverflow": false,
+        "blockingModal": false,
+        "canvas": {
+          "x": 289.578125,
+          "y": 184,
+          "width": 860.84375,
+          "height": 538.03125
+        },
+        "surface": {
+          "x": 17,
+          "y": 118,
+          "width": 1406,
+          "height": 602.03125
+        },
+        "surfaceFraction": 0.653129581404321,
+        "controls": [
+          {
+            "label": "Opciones del croquis",
+            "tag": "summary",
+            "width": 181.78125,
+            "height": 41,
+            "disabled": false
+          },
+          {
+            "label": "Alejar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Acercar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Ajustar plano a la vista",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Activar modo mover plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Activar ayuda para alinear",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Mostrar sillas de referencia",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Seleccionar lugar por nombre (1)",
+            "tag": "summary",
+            "width": 671,
+            "height": 21.96875,
+            "disabled": false
+          },
+          {
+            "label": "Mesas y zonas (1)",
+            "tag": "summary",
+            "width": 671,
+            "height": 21.96875,
+            "disabled": false
+          },
+          {
+            "label": "Terminar mesa",
+            "tag": "button",
+            "width": 143.0625,
+            "height": 44,
+            "disabled": false
+          }
+        ]
+      },
+      "sha256": "74dea9adf8a238a11a40528fe3576e69bba062a95572a416b3fd8a066767a9a6"
+    },
+    {
+      "file": "physical-1024-observed-trace.png",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "metrics": {
+        "horizontalOverflow": false,
+        "blockingModal": false,
+        "canvas": {
+          "x": 187.171875,
+          "y": 184,
+          "width": 649.640625,
+          "height": 406.03125
+        },
+        "surface": {
+          "x": 17,
+          "y": 118,
+          "width": 990,
+          "height": 470.03125
+        },
+        "surfaceFraction": 0.5916988849639893,
+        "controls": [
+          {
+            "label": "Opciones del croquis",
+            "tag": "summary",
+            "width": 181.78125,
+            "height": 41,
+            "disabled": false
+          },
+          {
+            "label": "Alejar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Acercar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Ajustar plano a la vista",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Activar modo mover plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Activar ayuda para alinear",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Mostrar sillas de referencia",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Seleccionar lugar por nombre (1)",
+            "tag": "summary",
+            "width": 463,
+            "height": 21.96875,
+            "disabled": false
+          },
+          {
+            "label": "Mesas y zonas (1)",
+            "tag": "summary",
+            "width": 463,
+            "height": 21.96875,
+            "disabled": false
+          },
+          {
+            "label": "Terminar mesa",
+            "tag": "button",
+            "width": 143.0625,
+            "height": 44,
+            "disabled": false
+          }
+        ]
+      },
+      "sha256": "3f157f9ee94e13fcc06012b699933a061a3c4c83b5ffc9093259df74b4493291"
+    }
+  ],
+  "consumers": [],
+  "findings": [
+    {
+      "id": "PHYSICAL_QR_TABLE_ONLY",
+      "severity": "P1",
+      "contract": "FLOORPLAN_DETAILED_SEATING_CONTRACT.md §19 and FLOORPLAN_TRACE_MODE_UX.md §8",
+      "problem": "Exact Seat mode/tracing available for a TABLE-only physical-pass service",
+      "action": "Separate corrective ticket; no fix in CALCA-06",
+      "evidence": "physical-1440-observed-trace.png"
+    }
+  ],
+  "failures": [],
+  "status": "BLOCKED",
+  "finishedAt": "2026-10-31T17:18:02.909Z",
+  "fixtureAssistants": 0
+}

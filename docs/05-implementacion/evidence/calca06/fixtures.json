@@ -1,0 +1,49 @@
+[
+  {
+    "key": "landscape",
+    "file": "fixtures/landscape.png",
+    "mime": "image/png",
+    "sourceType": "RASTER",
+    "width": 1600,
+    "height": 1000,
+    "sha256": "cb25874f67e6281fd7565ad72d555f3dbeff0fae62c82143c69af2b6d25af9cd"
+  },
+  {
+    "key": "portrait",
+    "file": "fixtures/portrait.png",
+    "mime": "image/png",
+    "sourceType": "RASTER",
+    "width": 1000,
+    "height": 1500,
+    "sha256": "9c158fc4c19ab71216eece27336285e37a598588525db6e002fe3521acfc543f"
+  },
+  {
+    "key": "square",
+    "file": "fixtures/square.png",
+    "mime": "image/png",
+    "sourceType": "RASTER",
+    "width": 1200,
+    "height": 1200,
+    "sha256": "79fe1cde7d8b153aeba32f4090e30367d6e52e25bb90bd4eb17730c7f9586897"
+  },
+  {
+    "key": "svg-100",
+    "file": "fixtures/irregular-100.svg",
+    "mime": "image/svg+xml",
+    "sourceType": "SVG",
+    "width": 1600,
+    "height": 1000,
+    "selectableElements": 100,
+    "sha256": "6a1147d2dd5b013e775485c106720fb607bfd8df3ec622d018cb67eb2e21a454"
+  },
+  {
+    "key": "svg-200",
+    "file": "fixtures/irregular-200.svg",
+    "mime": "image/svg+xml",
+    "sourceType": "SVG",
+    "width": 1600,
+    "height": 1000,
+    "selectableElements": 200,
+    "sha256": "4f87300890c60859273fc9fcc959e9e63b09d5eac23249ab82d78f94c40842e2"
+  }
+]

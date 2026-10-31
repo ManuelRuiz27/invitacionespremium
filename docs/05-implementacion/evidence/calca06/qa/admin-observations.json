@@ -1,0 +1,20 @@
+[
+  {
+    "name": "admin-observation-2",
+    "head": "fd0756d68946b91272a4363a67d3b2caa475bbe6",
+    "command": "pnpm --filter @invitaciones/admin exec vitest run src/events/admin-event-preparation.test.tsx --reporter=verbose",
+    "startedAt": "2026-10-30T21:43:31.217Z",
+    "endedAt": "2026-10-30T21:45:17.814Z",
+    "elapsedSeconds": 106.5972042,
+    "exitCode": 0
+  },
+  {
+    "name": "admin-observation-3",
+    "head": "fd0756d68946b91272a4363a67d3b2caa475bbe6",
+    "command": "pnpm --filter @invitaciones/admin exec vitest run src/events/admin-event-preparation.test.tsx --reporter=verbose",
+    "startedAt": "2026-10-30T21:45:17.816Z",
+    "endedAt": "2026-10-30T21:47:11.958Z",
+    "elapsedSeconds": 114.14116169999998,
+    "exitCode": 0
+  }
+]

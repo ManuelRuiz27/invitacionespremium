@@ -1,0 +1,577 @@
+{
+  "runtimeSha256": "2128973ca424f148dfdf86e94675e20d4ece58d2bc4b37fea03657813419eace",
+  "productUnchanged": true,
+  "checkedAt": "2026-10-31T17:23:53.877Z",
+  "qrMethod": "Full-frame jsQR; reject any nonempty binary payload, same criterion as guide verifier. Empty candidate objects contain no data.",
+  "emptyQrDetections": 7,
+  "pngs": 94,
+  "jsonFiles": 25,
+  "localLinks": 119,
+  "loopbackCatalogLeftovers": [],
+  "images": [
+    {
+      "file": "attempts/attempt-10/capacity-1024-review-zero-places.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-10/capacity-1440-review-zero-places.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-2/failure.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-2/landscape-1440-01-entry.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-2/landscape-1440-02-trace-25.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-2/landscape-1440-03-correction.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-2/landscape-1440-04-review.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-2/landscape-1440-05-finalized.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-3/failure.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-3/landscape-1440-01-entry.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-3/landscape-1440-02-trace-25.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-3/landscape-1440-03-correction.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-3/landscape-1440-04-review.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-3/landscape-1440-05-finalized.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-3/landscape-1440-unassign-failure.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-3/portrait-1440-overview.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-4/failure.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-4/landscape-1440-01-entry.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-4/landscape-1440-02-trace-25.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-4/landscape-1440-03-correction.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-4/landscape-1440-04-review.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-4/landscape-1440-05-finalized.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-4/landscape-1440-unassign-failure.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-4/portrait-1440-overview.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-5/failure.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-5/landscape-1024-01-entry.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-5/landscape-1440-01-entry.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-5/landscape-1440-02-trace-25.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-5/landscape-1440-03-correction.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-5/landscape-1440-04-review.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-5/landscape-1440-05-finalized.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-5/landscape-1440-unassign-failure.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-5/portrait-1440-exact-target-failure.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-5/portrait-1440-overview.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-5/portrait-1440-planner.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-5/portrait-1440-scanner.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-5/portrait-1440-unassign-failure.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-5/square-1440-exact-target-failure.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-5/square-1440-overview.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-5/square-1440-planner.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-5/square-1440-scanner.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-5/square-1440-unassign-failure.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-5/svg-200-1440-overview.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-5/svg-200-1440-planner.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-5/svg-200-1440-scanner.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-5/svg-200-1440-unassign-failure.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-6/failure.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-6/landscape-1024-01-entry.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-6/landscape-1024-02-trace-25.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-6/landscape-1024-03-correction.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-6/landscape-1024-04-review.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-6/landscape-1024-05-finalized.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-6/landscape-1024-exact-target-failure.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-6/landscape-1024-planner.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-6/landscape-1024-scanner.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-6/landscape-1024-unassign-failure.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-6/portrait-1024-overview.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-6/portrait-1024-planner.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-6/portrait-1024-scanner.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-6/portrait-1024-unassign-failure.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-6/square-1024-exact-target-failure.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-6/square-1024-overview.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-6/square-1024-planner.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-6/square-1024-scanner.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-6/square-1024-unassign-failure.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-6/svg-200-1024-exact-target-failure.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-6/svg-200-1024-overview.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-6/svg-200-1024-planner.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-6/svg-200-1024-scanner.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-6/svg-200-1024-unassign-failure.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-6/table-50-1024-review.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-6/table-50-1440-review.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-7/name-list-100-1024-close-0.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-7/name-list-200-1024-close-2.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-7/name-list-200-1440-close-1.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-7/svg-200-1024-trace.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-7/svg-200-1440-trace.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-7/table-200-1024-trace.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-7/table-200-1440-trace.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-7/table-50-1024-review.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-7/table-50-1440-review.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-8/failure.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-8/svg-200-1024-trace.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-8/svg-200-1440-trace.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-9/physical-1024-observed-trace.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-9/physical-1440-observed-trace.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-9/recovery-1024-lock-confirmed-refresh-failed.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-9/recovery-1024-lock-uncertain.png",
+      "width": 1024,
+      "height": 768,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-9/recovery-1440-lock-confirmed-refresh-failed.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "attempts/attempt-9/recovery-1440-lock-uncertain.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    },
+    {
+      "file": "fixtures/landscape.png",
+      "width": 1600,
+      "height": 1000,
+      "noDecodableQr": true
+    },
+    {
+      "file": "fixtures/portrait.png",
+      "width": 1000,
+      "height": 1500,
+      "noDecodableQr": true
+    },
+    {
+      "file": "fixtures/square.png",
+      "width": 1200,
+      "height": 1200,
+      "noDecodableQr": true
+    },
+    {
+      "file": "qa/calca05-decorative-reference-1440.png",
+      "width": 1440,
+      "height": 900,
+      "noDecodableQr": true
+    }
+  ]
+}

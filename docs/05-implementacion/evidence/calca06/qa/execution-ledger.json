@@ -1,0 +1,711 @@
+{
+  "dates": "2026-10-30 and 2026-10-31; UTC timestamps in metadata",
+  "allInitialFailuresRetained": true,
+  "noProductSourceChanges": true,
+  "logs": [
+    {
+      "file": "var/qa/calca06/admin-observation-2.log",
+      "bytes": 26489,
+      "sha256": "a8230066c992ce49337ad43ba660038db93a74b9b14ec60ea663c43a075aedb8",
+      "metadata": null,
+      "classification": "routine verification",
+      "completion": [
+        " ✓ src/events/admin-event-preparation.test.tsx > Admin Event preparation surfaces > CALCA03 stops on failure, recovers authority and never replays the POST: Error: network 519ms",
+        " ✓ src/events/admin-event-preparation.test.tsx > Admin Event preparation surfaces > CALCA03 stops on failure, recovers authority and never replays the POST: ApiError: network 532ms",
+        " ✓ src/events/admin-event-preparation.test.tsx > Admin Event preparation surfaces > CALCA03 stops on failure, recovers authority and never replays the POST: ApiError: timeout 534ms",
+        " ✓ src/events/admin-event-preparation.test.tsx > Admin Event preparation surfaces > CALCA03 stops on failure, recovers authority and never replays the POST: ApiError: limit 499ms",
+        " ✓ src/events/admin-event-preparation.test.tsx > Admin Event preparation surfaces > CALCA03 stops on failure, recovers authority and never replays the POST: ApiError: server 548ms",
+        " ✓ src/events/admin-event-preparation.test.tsx > Admin Event preparation surfaces > CALCA03 stops on failure, recovers authority and never replays the POST: ApiError: conflict 554ms",
+        " Test Files  1 passed (1)",
+        "      Tests  142 passed (142)"
+      ]
+    },
+    {
+      "file": "var/qa/calca06/admin-observation-3.log",
+      "bytes": 26490,
+      "sha256": "3e16c84cc6f1fd23ff680de87c1b3f700f57ee293a389f1ebca18ff6c4f89def",
+      "metadata": null,
+      "classification": "routine verification",
+      "completion": [
+        " ✓ src/events/admin-event-preparation.test.tsx > Admin Event preparation surfaces > CALCA03 stops on failure, recovers authority and never replays the POST: Error: network 628ms",
+        " ✓ src/events/admin-event-preparation.test.tsx > Admin Event preparation surfaces > CALCA03 stops on failure, recovers authority and never replays the POST: ApiError: network 542ms",
+        " ✓ src/events/admin-event-preparation.test.tsx > Admin Event preparation surfaces > CALCA03 stops on failure, recovers authority and never replays the POST: ApiError: timeout 533ms",
+        " ✓ src/events/admin-event-preparation.test.tsx > Admin Event preparation surfaces > CALCA03 stops on failure, recovers authority and never replays the POST: ApiError: limit 569ms",
+        " ✓ src/events/admin-event-preparation.test.tsx > Admin Event preparation surfaces > CALCA03 stops on failure, recovers authority and never replays the POST: ApiError: server 563ms",
+        " ✓ src/events/admin-event-preparation.test.tsx > Admin Event preparation surfaces > CALCA03 stops on failure, recovers authority and never replays the POST: ApiError: conflict 534ms",
+        " Test Files  1 passed (1)",
+        "      Tests  142 passed (142)"
+      ]
+    },
+    {
+      "file": "var/qa/calca06/admin-observations.log",
+      "bytes": 1316,
+      "sha256": "7be79e3639431b52c08c7c19e0bd7beff827b56bf2e70e60ae4043e0ed62e353",
+      "metadata": [
+        {
+          "name": "admin-observation-2",
+          "head": "fd0756d68946b91272a4363a67d3b2caa475bbe6",
+          "command": "pnpm --filter @invitaciones/admin exec vitest run src/events/admin-event-preparation.test.tsx --reporter=verbose",
+          "startedAt": "2026-10-30T21:43:31.217Z",
+          "endedAt": "2026-10-30T21:45:17.814Z",
+          "elapsedSeconds": 106.5972042,
+          "exitCode": 0
+        },
+        {
+          "name": "admin-observation-3",
+          "head": "fd0756d68946b91272a4363a67d3b2caa475bbe6",
+          "command": "pnpm --filter @invitaciones/admin exec vitest run src/events/admin-event-preparation.test.tsx --reporter=verbose",
+          "startedAt": "2026-10-30T21:45:17.816Z",
+          "endedAt": "2026-10-30T21:47:11.958Z",
+          "elapsedSeconds": 114.14116169999998,
+          "exitCode": 0
+        }
+      ],
+      "classification": "routine verification",
+      "completion": []
+    },
+    {
+      "file": "var/qa/calca06/browser-attempt-10.log",
+      "bytes": 16702,
+      "sha256": "77482faaa17b8af1f89e094ee71b039890f31fc8bfc23601716e77bf0b1c83a8",
+      "metadata": {
+        "attempt": "attempt-10",
+        "scope": "capacity",
+        "exitCode": 1,
+        "elapsedSeconds": 43.350409899999995,
+        "command": "pnpm exec node docs/05-implementacion/evidence/calca06/run.mjs",
+        "startedAt": "2026-10-31T17:21:47.4582397+00:00",
+        "endedAt": "2026-10-31T17:22:30.8136324+00:00"
+      },
+      "classification": "Additional authoritative capacity audit after TABLE to SEAT; new isolated fixture, not a green rerun",
+      "completion": [
+        "FAIL SEAT-capacity-after-mode-change-1440",
+        "FAIL SEAT-capacity-after-mode-change-1024",
+        "BLOCKED CALCA06 browser certification",
+        "[calca06-qa] Finance/CheckIn invariants and 0 known confirmed fixture Assistants preserved."
+      ]
+    },
+    {
+      "file": "var/qa/calca06/browser-attempt-2.log",
+      "bytes": 18004,
+      "sha256": "4657113b523aea59964fd053769258fd19560f230c5e9d2ecbea7bbb1e334934",
+      "metadata": {
+        "attempt": "attempt-2",
+        "exitCode": 1,
+        "elapsedSeconds": 102.64524,
+        "command": "pnpm exec node docs/05-implementacion/evidence/calca06/run.mjs",
+        "endedAt": "2026-10-30T21:50:28.1756229Z",
+        "startedAt": "2026-10-30T21:48:45.5268137Z"
+      },
+      "classification": "PRODUCT P0 first detection; consumer unassign did not release Seat",
+      "completion": [
+        "PASS Manual-Trace-label-gaps",
+        "PASS occupied-protection",
+        "Error: expect(received).toBe(expected) // Object.is equality"
+      ]
+    },
+    {
+      "file": "var/qa/calca06/browser-attempt-3.log",
+      "bytes": 17446,
+      "sha256": "d71a703de5bd31a2d24c3f9d888af574a0c002bdde75575c52402438c9057eeb",
+      "metadata": {
+        "attempt": "attempt-3",
+        "exitCode": 1,
+        "elapsedSeconds": 140.83023889999998,
+        "command": "pnpm exec node docs/05-implementacion/evidence/calca06/run.mjs",
+        "endedAt": "2026-10-30T22:00:31.5039872Z",
+        "startedAt": "2026-10-30T21:58:10.6692022Z"
+      },
+      "classification": "P0 retained; HARNESS native absolute pointer outside visible portrait target",
+      "completion": [
+        "PASS Manual-Trace-label-gaps",
+        "PASS occupied-protection",
+        "FAIL landscape-1440"
+      ]
+    },
+    {
+      "file": "var/qa/calca06/browser-attempt-4.log",
+      "bytes": 24052,
+      "sha256": "cb9404ce95a351dc97a84c22830c487f765be53709b9a9d93741b8ee90688b2d",
+      "metadata": {
+        "attempt": "attempt-4",
+        "exitCode": 1,
+        "elapsedSeconds": 125.7362299,
+        "command": "pnpm exec node docs/05-implementacion/evidence/calca06/run.mjs",
+        "endedAt": "2026-10-30T22:09:25.0277432Z",
+        "startedAt": "2026-10-30T22:07:19.2858415Z"
+      },
+      "classification": "P0 confirmed, P1 dense exact selection; HARNESS ambiguous substring selector",
+      "completion": [
+        "PASS Manual-Trace-label-gaps",
+        "PASS occupied-protection",
+        "FAIL released-seat-conflict-probe",
+        "FAIL landscape-1440",
+        "locator.click: Error: strict mode violation: getByRole('dialog').getByRole('button', { name: 'Mesa 2 · Lugar Lugar 1' "
+      ]
+    },
+    {
+      "file": "var/qa/calca06/browser-attempt-5.log",
+      "bytes": 18154,
+      "sha256": "792aeb2c708af927fc7784df88f17d1610558ab53956972cb92bc38db26f9e17",
+      "metadata": {
+        "attempt": "attempt-5",
+        "exitCode": 1,
+        "elapsedSeconds": 212.56808389999998,
+        "command": "pnpm exec node docs/05-implementacion/evidence/calca06/run.mjs",
+        "startedAt": "2026-10-30T22:15:23.6578497+00:00",
+        "endedAt": "2026-10-30T22:18:56.2350031+00:00"
+      },
+      "classification": "Four desktop construction PASS, consumer FAIL; HARNESS tablet Manual uses compact drawer heading",
+      "completion": [
+        "PASS Manual-Trace-label-gaps",
+        "PASS occupied-protection",
+        "FAIL released-seat-conflict-probe",
+        "FAIL landscape-1440",
+        "FAIL portrait-1440",
+        "FAIL square-1440",
+        "FAIL svg-200-1440",
+        "Error: expect(locator).toBeVisible() failed",
+        "Timeout:  5000ms"
+      ]
+    },
+    {
+      "file": "var/qa/calca06/browser-attempt-6.log",
+      "bytes": 21062,
+      "sha256": "1c14de6d3e6640d675d3a74f1b84a82c9856dc75c4e7af487b8b2ceedfae61e3",
+      "metadata": {
+        "attempt": "attempt-6",
+        "scope": "tablet-support",
+        "exitCode": 1,
+        "elapsedSeconds": 263.1815591,
+        "command": "pnpm exec node docs/05-implementacion/evidence/calca06/run.mjs",
+        "startedAt": "2026-10-31T17:05:57.0324061+00:00",
+        "endedAt": "2026-10-31T17:10:20.2139652+00:00"
+      },
+      "classification": "Four tablet construction PASS, consumer FAIL; PRODUCT P1 canvas overlaps dense table-name list at 100 tables / 1024px",
+      "completion": [
+        "FAIL landscape-1024",
+        "FAIL portrait-1024",
+        "FAIL square-1024",
+        "FAIL svg-200-1024",
+        "PASS TABLE-50-1440",
+        "PASS TABLE-50-1024",
+        "PASS TABLE-100-1440"
+      ]
+    },
+    {
+      "file": "var/qa/calca06/browser-attempt-7.log",
+      "bytes": 19120,
+      "sha256": "d4a880a6fd107fb0120226b542b49ebc00b1990afb0d93b2c60c546dc70c5e54",
+      "metadata": {
+        "attempt": "attempt-7",
+        "scope": "support",
+        "exitCode": 1,
+        "elapsedSeconds": 152.3344391,
+        "command": "pnpm exec node docs/05-implementacion/evidence/calca06/run.mjs",
+        "startedAt": "2026-10-31T17:11:24.1161470+00:00",
+        "endedAt": "2026-10-31T17:13:56.4527736+00:00"
+      },
+      "classification": "PRODUCT P1 dense name-list reproduced at 100/200 tables; P2 HTTP 201 instead of documented 200 stops replacement fixture setup. Not a green rerun.",
+      "completion": [
+        "PASS TABLE-50-1440",
+        "PASS TABLE-50-1024",
+        "PASS TABLE-100-1440",
+        "FAIL TABLE-100-1024",
+        "FAIL TABLE-200-1440",
+        "FAIL TABLE-200-1024",
+        "PASS TABLE-consumers",
+        "PASS SVG-100-1440",
+        "PASS SVG-100-1024",
+        "PASS SVG-200-1440",
+        "PASS SVG-200-1024"
+      ]
+    },
+    {
+      "file": "var/qa/calca06/browser-attempt-8.log",
+      "bytes": 17764,
+      "sha256": "119f6a4c0b6e9a4ee6abb229fe90fe25fa50b83c103970202cc76b2d6f2af7e6",
+      "metadata": {
+        "attempt": "attempt-8",
+        "scope": "svg-recovery-restrictions",
+        "exitCode": 1,
+        "elapsedSeconds": 77.4103032,
+        "command": "pnpm exec node docs/05-implementacion/evidence/calca06/run.mjs",
+        "startedAt": "2026-10-31T17:14:52.8317661+00:00",
+        "endedAt": "2026-10-31T17:16:10.2420693+00:00"
+      },
+      "classification": "SVG/security/replacement PASS; HARNESS attempted Trace entry after unlock when Trace context was already correctly preserved",
+      "completion": [
+        "PASS SVG-100-1440",
+        "PASS SVG-100-1024",
+        "PASS SVG-security-negatives",
+        "PASS SVG-200-1440",
+        "PASS SVG-200-1024",
+        "PASS SVG-replacement-preservation"
+      ]
+    },
+    {
+      "file": "var/qa/calca06/browser-attempt-9.log",
+      "bytes": 16804,
+      "sha256": "d1d7d39243b10b2e006f5ac5fdd6b06aa82a08b394924c68ef714c0ab1775621",
+      "metadata": {
+        "attempt": "attempt-9",
+        "scope": "recovery-restrictions",
+        "exitCode": 1,
+        "elapsedSeconds": 73.21922839999999,
+        "command": "pnpm exec node docs/05-implementacion/evidence/calca06/run.mjs",
+        "startedAt": "2026-10-31T17:16:51.5714891+00:00",
+        "endedAt": "2026-10-31T17:18:04.7926047+00:00"
+      },
+      "classification": "Recovery PASS both viewports; PHYSICAL_QR restriction FAIL both; ANONYMOUS PASS; completes BLOCKED with no harness error",
+      "completion": [
+        "PASS recovery-1440",
+        "PASS recovery-1024",
+        "FAIL PHYSICAL_QR-restriction-1440",
+        "FAIL PHYSICAL_QR-restriction-1024",
+        "PASS ANONYMOUS-TABLE-only",
+        "BLOCKED CALCA06 browser certification",
+        "[calca06-qa] Finance/CheckIn invariants and 0 known confirmed fixture Assistants preserved."
+      ]
+    },
+    {
+      "file": "var/qa/calca06/browser-initial.log",
+      "bytes": 3108,
+      "sha256": "03004a7ae820559b419f8253d93f88e3079496360b7d62687c3281539ddd074d",
+      "metadata": {
+        "attempt": "initial",
+        "exitCode": 1,
+        "elapsedSeconds": 0.6373168,
+        "command": "pnpm exec node docs/05-implementacion/evidence/calca06/run.mjs",
+        "endedAt": "2026-10-30T21:48:33.3014520Z",
+        "startedAt": "2026-10-30T21:48:32.6601803Z"
+      },
+      "classification": "HARNESS: wrong relative module import, before fixture/browser",
+      "completion": []
+    },
+    {
+      "file": "var/qa/calca06/evidence-format-attempt-10.log",
+      "bytes": 228,
+      "sha256": "1561527d2fbbe64fe012529150b59b04d7446b0bb2fe6bd4bffb7afa2c0b1823",
+      "metadata": null,
+      "classification": "routine verification",
+      "completion": []
+    },
+    {
+      "file": "var/qa/calca06/evidence-format-attempt-3.log",
+      "bytes": 528,
+      "sha256": "4d69dde109ea3fa230691a6b28cf9d7a948631f9a10f420b485c67c5c99dd987",
+      "metadata": null,
+      "classification": "routine verification",
+      "completion": []
+    },
+    {
+      "file": "var/qa/calca06/evidence-format-attempt-4.log",
+      "bytes": 528,
+      "sha256": "07baefa68e3910b399bc6944a0e4ab29ca7fa1e37278871db1e55380e4f0a15f",
+      "metadata": null,
+      "classification": "routine verification",
+      "completion": []
+    },
+    {
+      "file": "var/qa/calca06/evidence-format-attempt-6.log",
+      "bytes": 228,
+      "sha256": "2b198b93031a98853db9df1a29f677d77093a46b30d6a6d9487b04f46fa88a07",
+      "metadata": null,
+      "classification": "routine verification",
+      "completion": []
+    },
+    {
+      "file": "var/qa/calca06/evidence-format-attempt-7.log",
+      "bytes": 252,
+      "sha256": "cad25065f5c488bfbf3b3a2f32e819795f613dcd623973592d3556d7f32500b8",
+      "metadata": null,
+      "classification": "routine verification",
+      "completion": []
+    },
+    {
+      "file": "var/qa/calca06/evidence-format-attempt-8.log",
+      "bytes": 252,
+      "sha256": "61ede3a8798456be095e1cfdbe37003d1715882de2a5889571e76c6eb30643d9",
+      "metadata": null,
+      "classification": "routine verification",
+      "completion": []
+    },
+    {
+      "file": "var/qa/calca06/evidence-format-attempt-9.log",
+      "bytes": 144,
+      "sha256": "820257b57c643f4b73f61efb061baebfbf892be6af28e76e40b0d2580de4f7ef",
+      "metadata": null,
+      "classification": "routine verification",
+      "completion": []
+    },
+    {
+      "file": "var/qa/calca06/evidence-format-final.log",
+      "bytes": 528,
+      "sha256": "9f3da5a44d89eb4c43e308db96465f8058032f9255c37fb62d2d5aae6117c3d8",
+      "metadata": null,
+      "classification": "routine verification",
+      "completion": []
+    },
+    {
+      "file": "var/qa/calca06/evidence-format.log",
+      "bytes": 616,
+      "sha256": "046130e7353de8afe138a27953b902e43b3587a7834e9d4c7cba0df32dfbbd80",
+      "metadata": null,
+      "classification": "routine verification",
+      "completion": []
+    },
+    {
+      "file": "var/qa/calca06/evidence-lint-attempt-10.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "metadata": null,
+      "classification": "routine verification",
+      "completion": []
+    },
+    {
+      "file": "var/qa/calca06/evidence-lint-attempt-3.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "metadata": null,
+      "classification": "routine verification",
+      "completion": []
+    },
+    {
+      "file": "var/qa/calca06/evidence-lint-attempt-4.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "metadata": null,
+      "classification": "routine verification",
+      "completion": []
+    },
+    {
+      "file": "var/qa/calca06/evidence-lint-attempt-6.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "metadata": null,
+      "classification": "routine verification",
+      "completion": []
+    },
+    {
+      "file": "var/qa/calca06/evidence-lint-attempt-7.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "metadata": null,
+      "classification": "routine verification",
+      "completion": []
+    },
+    {
+      "file": "var/qa/calca06/evidence-lint-attempt-8.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "metadata": null,
+      "classification": "routine verification",
+      "completion": []
+    },
+    {
+      "file": "var/qa/calca06/evidence-lint-attempt-9.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "metadata": null,
+      "classification": "routine verification",
+      "completion": []
+    },
+    {
+      "file": "var/qa/calca06/evidence-lint-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "metadata": null,
+      "classification": "routine verification",
+      "completion": []
+    },
+    {
+      "file": "var/qa/calca06/evidence-lint-initial.log",
+      "bytes": 500,
+      "sha256": "783ab58d56771345e0ccd9964b206379228db0fb11d0ce7dbbcbea84c987cc98",
+      "metadata": null,
+      "classification": "HARNESS: unused readFile import; corrected in certification script only",
+      "completion": []
+    },
+    {
+      "file": "var/qa/calca06/evidence-verification-final.log",
+      "bytes": 864,
+      "sha256": "4c29c152f72ddfbfaba8cefec2108ce4fc3a2c7db070e59e2b093507b5a1b981",
+      "metadata": null,
+      "classification": "routine verification",
+      "completion": []
+    },
+    {
+      "file": "var/qa/calca06/evidence-verification-publication.log",
+      "bytes": 864,
+      "sha256": "77c82603f796c71f7d94fe066e651f7a03fad1b0c4212772bbc833fd3768015b",
+      "metadata": null,
+      "classification": "routine verification",
+      "completion": []
+    },
+    {
+      "file": "var/qa/calca06/evidence-verification.log",
+      "bytes": 1712,
+      "sha256": "6579ce899d47ea3c41cfbe675906024780727f0b9b85361dd7b7c215cd7df35b",
+      "metadata": null,
+      "classification": "HARNESS QR check rejected an empty jsQR candidate object with zero bytes; continued with existing guide criterion: reject nonempty usable payload. Original result retained.",
+      "completion": []
+    },
+    {
+      "file": "var/qa/calca06/full-initial.log",
+      "bytes": 399152,
+      "sha256": "7f7739463ad170a9ba02ebd2a675ce9c7e1b513df77d3625fa2b084e67b0ba09",
+      "metadata": {
+        "endedAt": "2026-10-30T21:43:16.3906820Z",
+        "exitCode": 0,
+        "elapsedSeconds": 2382.3593723,
+        "command": "pnpm qa:full",
+        "startedAt": "2026-10-30T21:03:34.0237033Z",
+        "head": "fd0756d68946b91272a4363a67d3b2caa475bbe6"
+      },
+      "classification": "routine verification",
+      "completion": [
+        "# tests 18",
+        "# pass 18",
+        "# fail 0",
+        "@invitaciones/api-client:test:  Test Files  15 passed (15)",
+        "@invitaciones/api-client:test:       Tests  169 passed (169)",
+        "@invitaciones/api-client:test: # tests 9",
+        "@invitaciones/api-client:test: # pass 9",
+        "@invitaciones/api-client:test: # fail 0",
+        "@invitaciones/ui:test:  Test Files  2 passed (2)",
+        "@invitaciones/ui:test:       Tests  6 passed (6)",
+        "@invitaciones/api:test:  Test Files  68 passed (68)",
+        "@invitaciones/api:test:       Tests  434 passed (434)",
+        "@invitaciones/floorplan:test:  Test Files  15 passed (15)",
+        "@invitaciones/floorplan:test:       Tests  110 passed (110)",
+        "@invitaciones/landing:test:  Test Files  9 passed (9)",
+        "@invitaciones/landing:test:       Tests  67 passed (67)",
+        "@invitaciones/scanner:test:  Test Files  7 passed (7)",
+        "@invitaciones/scanner:test:       Tests  62 passed (62)",
+        "@invitaciones/client:test:  Test Files  29 passed (29)",
+        "@invitaciones/client:test:       Tests  466 passed (466)",
+        "@invitaciones/admin:test:      ✓ CALCA03 stops on failure, recovers authority and never replays the POST: Error: network  550ms",
+        "@invitaciones/admin:test:      ✓ CALCA03 stops on failure, recovers authority and never replays the POST: ApiError: network  544ms",
+        "@invitaciones/admin:test:      ✓ CALCA03 stops on failure, recovers authority and never replays the POST: ApiError: timeout  611ms",
+        "@invitaciones/admin:test:      ✓ CALCA03 stops on failure, recovers authority and never replays the POST: ApiError: limit  523ms",
+        "@invitaciones/admin:test:      ✓ CALCA03 stops on failure, recovers authority and never replays the POST: ApiError: server  567ms",
+        "@invitaciones/admin:test:      ✓ CALCA03 stops on failure, recovers authority and never replays the POST: ApiError: conflict  568ms",
+        "@invitaciones/admin:test:      ✓ preserves input and key for an uncertain version (TypeError: offline), blocking editing and navigation  1382ms",
+        "@invitaciones/admin:test:      ✓ preserves input and key for an uncertain version (ApiError: Retry the same operation.), blocking editing and navigation  1266ms",
+        "@invitaciones/admin:test:      ✓ reconciles an uncertain payment with the same frozen body and key (TypeError: offline)  577ms",
+        "@invitaciones/admin:test:      ✓ reconciles an uncertain payment with the same frozen body and key (ApiError: Retry)  450ms",
+        "@invitaciones/admin:test:  Test Files  20 passed (20)",
+        "@invitaciones/admin:test:       Tests  345 passed (345)",
+        " Test Files  38 passed (38)",
+        "      Tests  481 passed (481)",
+        "[passed] certifica el journey Managed M01 y sus negativos release-critical (25668 ms)",
+        "[passed] DT09 M01 FLYER: Provider creates/prepares/activates, Planner registers, public RSVP/QR and idempotent Scanner (4092 ms)",
+        "[passed] DT09 M01 FLIPBOOK: Provider creates/prepares/activates, Planner registers, public RSVP/QR and idempotent Scanner (6351 ms)",
+        "[passed] DT09 PHYSICAL_QR legacy: authorized generation, SVG, unique use and original post-close replay (2373 ms)",
+        "[passed] UX01 NOMINAL: salon onboarding → contextual intake → activation → material → Staff camera → access counters (25490 ms)",
+        "[passed] UX01 ANONYMOUS: salon onboarding → contextual intake → activation → material → Staff camera → access counters (26478 ms)",
+        "[passed] DT09 same Organization: CSV/SEAT nominal and TABLE anonymous, two readers, reversal, reissue and terminal gates (7133 ms)",
+        "[passed] PR02: six managed plans → accepted contract → new price version → immutable old terms and new contract (15924 ms)",
+        "[passed] PR03: partial payment → full settlement → audited reversal → individually confirmed extraordinary on mobile (12293 ms)",
+        "[passed] PR01: inactive service → missing rate → nine public rates → future replacement → refreshed landing (29430 ms)",
+        "# tests 5",
+        "# pass 5",
+        "# fail 0",
+        "[qa:full] Passed in 2381.62s."
+      ]
+    },
+    {
+      "file": "var/qa/calca06/publication-format-check.log",
+      "bytes": 138,
+      "sha256": "fbdd37869c73ce85afb11ffefa058e0181874c073fdfee7d7a4b5086b7ea3b1b",
+      "metadata": null,
+      "classification": "routine verification",
+      "completion": []
+    },
+    {
+      "file": "var/qa/calca06/publication-format.log",
+      "bytes": 510,
+      "sha256": "99142089beb0d03cc3a62a16cb9958ce86268a4b827440f9e7748193f56a6ced",
+      "metadata": null,
+      "classification": "routine verification",
+      "completion": []
+    },
+    {
+      "file": "var/qa/calca06/qr-object-diagnosis.log",
+      "bytes": 234,
+      "sha256": "3cbd77777a84286d5ced5278569426343b9554456297406965e5b5a9952b7b59",
+      "metadata": null,
+      "classification": "routine verification",
+      "completion": []
+    }
+  ],
+  "attemptFailures": [
+    {
+      "attempt": "attempt-10",
+      "scope": "capacity",
+      "status": "BLOCKED",
+      "failures": [],
+      "scriptHashes": {
+        "certify.mjs": "3db86d3a46da0e468c38725f6b083f4f90c67c540fb5c0ed2f7b4fedf07ee7a3",
+        "browser-helpers.mjs": "eac175c38370e1cf48079e867a1d3aeb5c4f07892e8399267eedd6fd75219b42",
+        "fixtures.mjs": "552edf002a7ef4844e83a64cf1819cd40f58d2b690bd8fdfac3d0449d4c12e50",
+        "run.mjs": "4119a1bb57f432163907aa29eebdd7eaed61e2eff86faec430cc5d764fb9287b"
+      },
+      "scenarioCount": 2
+    },
+    {
+      "attempt": "attempt-2",
+      "scope": "all",
+      "status": "BLOCKED",
+      "failures": [
+        {
+          "scenario": "landscape-1440",
+          "name": "Error",
+          "message": "expect(received).toBe(expected) // Object.is equality\n\nExpected: null\nReceived: \"e011bd08-76c6-4dd5-b751-8b8aadaf1dff\"\n\nCall Log:\n- Timeout 5000ms exceeded while waiting on the predicate",
+          "classification": "Unclassified until evidence review; no product fix made"
+        }
+      ],
+      "scriptHashes": {
+        "certify.mjs": "91212378e829a302cfee8380cb7f140af1868159c2403c7c88b4bb44608ea0b2",
+        "browser-helpers.mjs": "be7e00425df66e36357f9aeddd3cab07e45e75cce4eeb25c47be603601e1681b",
+        "fixtures.mjs": "552edf002a7ef4844e83a64cf1819cd40f58d2b690bd8fdfac3d0449d4c12e50",
+        "run.mjs": "8bef613e6d2882dba9eb99530bb8103ca957c52f74ae0aacbf385b960c32cd34"
+      },
+      "scenarioCount": 2
+    },
+    {
+      "attempt": "attempt-3",
+      "scope": "all",
+      "status": "BLOCKED",
+      "failures": [
+        {
+          "scenario": "portrait-1440",
+          "name": "TimeoutError",
+          "message": "locator.check: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('checkbox', { name: 'Seleccionar Invitado de prueba', exact: true })\u001b[22m\n",
+          "classification": "Unclassified until evidence review; no product fix made"
+        }
+      ],
+      "scriptHashes": {
+        "certify.mjs": "56ae0526052092d4cc0d57bedd8c3c6a8d78bd785c8b1447f327800297b17065",
+        "browser-helpers.mjs": "0b3a48da82219e9558d393f3feb265b1ae663dc298c0b48bb52ba60fc1ebd2f7",
+        "fixtures.mjs": "552edf002a7ef4844e83a64cf1819cd40f58d2b690bd8fdfac3d0449d4c12e50",
+        "run.mjs": "00a5ed7fd17be2787ea40fb842c6c5d363f2da13dd80d7c81be78742d9f901bf"
+      },
+      "scenarioCount": 3
+    },
+    {
+      "attempt": "attempt-4",
+      "scope": "all",
+      "status": "BLOCKED",
+      "failures": [
+        {
+          "scenario": "portrait-1440",
+          "name": "Error",
+          "message": "locator.click: Error: strict mode violation: getByRole('dialog').getByRole('button', { name: 'Mesa 2 · Lugar Lugar 1' }) resolved to 11 elements:\n    1) <button tabindex=\"0\" type=\"button\" class=\"MuiButtonBase-root MuiButton-root MuiButton-text MuiButton-sizeMedium MuiButton-colorPrimary MuiButton-disableElevation css-dserza-MuiButtonBase-root-MuiButton-root\">Mesa 2 · Lugar Lugar 1</button> aka getByRole('button', { name: 'Mesa 2 · Lugar Lugar 1', exact: true })\n    2) <button tabindex=\"0\" type=\"button\" class=\"MuiButtonBase-root MuiButton-root MuiButton-text MuiButton-sizeMedium MuiButton-colorPrimary MuiButton-disableElevation css-dserza-MuiButtonBase-root-MuiButton-root\">Mesa 2 · Lugar Lugar 10</button> aka getByRole('button', { name: 'Mesa 2 · Lugar Lugar 10' })\n    3) <button tabindex=\"0\" type=\"button\" class=\"MuiButtonBase-root MuiButton-root MuiButton-text MuiButton-sizeMedium MuiButton-colorPrimary MuiButton-disableElevation css-dserza-MuiButtonBase-root-MuiButton-root\">Mesa 2 · Lugar Lugar 11</button> aka getByRole('button', { name: 'Mesa 2 · Lugar Lugar 11' })\n    4) <button tabindex=\"0\" type=\"button\" class=\"MuiButtonBase-root MuiButton-root MuiButton-text MuiButton-sizeMedium MuiButton-colorPrimary MuiButton-disableElevation css-dserza-MuiButtonBase-root-MuiButton-root\">Mesa 2 · Lugar Lugar 12</button> aka getByRole('button', { name: 'Mesa 2 · Lugar Lugar 12' })\n    5) <button tabindex=\"0\" type=\"button\" class=\"MuiButtonBase-root MuiButton-root MuiButton-text MuiButton-sizeMedium MuiButton-colorPrimary MuiButton-disableElevation css-dserza-MuiButtonBase-root-MuiButton-root\">Mesa 2 · Lugar Lugar 13</button> aka getByRole('button', { name: 'Mesa 2 · Lugar Lugar 13' })\n    6) <button tabindex=\"0\" type=\"button\" class=\"MuiButtonBase-root MuiButton-root MuiButton-text MuiButton-sizeMedium MuiButton-colorPrimary MuiButton-disableElevation css-dserza-MuiButtonBase-root-MuiButton-root\">Mesa 2 · Lugar Lugar 14</button> aka getByRole('button', { name: 'Mesa 2 · Lugar Lugar 14' })\n    7) <button tabindex=\"0\" type=\"button\" class=\"MuiButtonBase-root MuiButton-root MuiButton-text MuiButton-sizeMedium MuiButton-colorPrimary MuiButton-disableElevation css-dserza-MuiButtonBase-root-MuiButton-root\">Mesa 2 · Lugar Lugar 15</button> aka getByRole('button', { name: 'Mesa 2 · Lugar Lugar 15' })\n    8) <button tabindex=\"0\" type=\"button\" class=\"MuiButtonBase-root MuiButton-root MuiButton-text MuiButton-sizeMedium MuiButton-colorPrimary MuiButton-disableElevation css-dserza-MuiButtonBase-root-MuiButton-root\">Mesa 2 · Lugar Lugar 16</button> aka getByRole('button', { name: 'Mesa 2 · Lugar Lugar 16' })\n    9) <button tabindex=\"0\" type=\"button\" class=\"MuiButtonBase-root MuiButton-root MuiButton-text MuiButton-sizeMedium MuiButton-colorPrimary MuiButton-disableElevation css-dserza-MuiButtonBase-root-MuiButton-root\">Mesa 2 · Lugar Lugar 17</button> aka getByRole('button', { name: 'Mesa 2 · Lugar Lugar 17' })\n    10) <button tabindex=\"0\" type=\"button\" class=\"MuiButtonBase-root MuiButton-root MuiButton-text MuiButton-sizeMedium MuiButton-colorPrimary MuiButton-disableElevation css-dserza-MuiButtonBase-root-MuiButton-root\">Mesa 2 · Lugar Lugar 18</button> aka getByRole('button', { name: 'Mesa 2 · Lugar Lugar 18' })\n    ...\n\nCall log:\n\u001b[2m  - waiting for getByRole('dialog').getByRole('button', { name: 'Mesa 2 · Lugar Lugar 1' })\u001b[22m\n",
+          "classification": "Unclassified until evidence review; no product fix made"
+        }
+      ],
+      "scriptHashes": {
+        "certify.mjs": "c2e521d7cdee260a9b0b10432d6c8b4d24405d50af6a587dc1976696f6d259eb",
+        "browser-helpers.mjs": "58fe81fc7a091408efcc8b8f951b0f632774f848fa27f0319838c8c904102c89",
+        "fixtures.mjs": "552edf002a7ef4844e83a64cf1819cd40f58d2b690bd8fdfac3d0449d4c12e50",
+        "run.mjs": "00a5ed7fd17be2787ea40fb842c6c5d363f2da13dd80d7c81be78742d9f901bf"
+      },
+      "scenarioCount": 4
+    },
+    {
+      "attempt": "attempt-5",
+      "scope": "all",
+      "status": "BLOCKED",
+      "failures": [
+        {
+          "scenario": "landscape-1024",
+          "name": "Error",
+          "message": "expect(locator).toBeVisible() failed\n\nLocator:  getByRole('heading', { name: 'Construcción manual' })\nExpected: visible\nReceived: <element(s) not found>\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"to.be.visible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('heading', { name: 'Construcción manual' })\u001b[22m\n",
+          "classification": "Unclassified until evidence review; no product fix made"
+        }
+      ],
+      "scriptHashes": {
+        "certify.mjs": "b47578008925dd02dca14d8b33d3ff25a4ab2e7940f5bbf3a742896aad838fb1",
+        "browser-helpers.mjs": "7f48f9823c905c868510046d268d5df047e608b47dd4956ee89e45781ca58088",
+        "fixtures.mjs": "552edf002a7ef4844e83a64cf1819cd40f58d2b690bd8fdfac3d0449d4c12e50",
+        "run.mjs": "00a5ed7fd17be2787ea40fb842c6c5d363f2da13dd80d7c81be78742d9f901bf"
+      },
+      "scenarioCount": 7
+    },
+    {
+      "attempt": "attempt-6",
+      "scope": "tablet-support",
+      "status": "BLOCKED",
+      "failures": [
+        {
+          "scenario": "TABLE-scale",
+          "name": "TimeoutError",
+          "message": "locator.click: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('details').filter({ has: locator('summary').filter({ hasText: 'Mesas y zonas' }) }).locator('summary')\u001b[22m\n\u001b[2m    - locator resolved to <summary id=\"floorplan-elements-title\" class=\"MuiTypography-root MuiTypography-subtitle2 css-18065hv-MuiTypography-root\">Mesas y zonas (100)</summary>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <canvas width=\"990\" height=\"618\"></canvas> from <div class=\"MuiBox-root css-18ovfc\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <canvas width=\"990\" height=\"618\"></canvas> from <div class=\"MuiBox-root css-18ovfc\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    28 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - <canvas width=\"990\" height=\"618\"></canvas> from <div class=\"MuiBox-root css-18ovfc\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n",
+          "classification": "Unclassified until evidence review; no product fix made"
+        }
+      ],
+      "scriptHashes": {
+        "certify.mjs": "34fffc58b126141af7c06dbdd71d1507bef34ff51d1b0b6e99fba41b15f69f95",
+        "browser-helpers.mjs": "7f48f9823c905c868510046d268d5df047e608b47dd4956ee89e45781ca58088",
+        "fixtures.mjs": "552edf002a7ef4844e83a64cf1819cd40f58d2b690bd8fdfac3d0449d4c12e50",
+        "run.mjs": "4a9ab0b21ef80edf9ab580a08a0096f154533672c490e016b3034934ab526e5c"
+      },
+      "scenarioCount": 7
+    },
+    {
+      "attempt": "attempt-7",
+      "scope": "support",
+      "status": "BLOCKED",
+      "failures": [
+        {
+          "scenario": "SVG-replacement-preservation",
+          "name": "AssertionError",
+          "message": "POST /events/6a6ebb5c-d69f-4a37-9a2c-125b0127b4d2/seating/assign-seats: 201\n\n201 !== 200\n",
+          "classification": "Unclassified until evidence review; no product fix made"
+        }
+      ],
+      "scriptHashes": {
+        "certify.mjs": "14b22463ff69164b9bda002ea1118aca0cfb5e51aa8785692a2fe0d4e3f9e033",
+        "browser-helpers.mjs": "eac175c38370e1cf48079e867a1d3aeb5c4f07892e8399267eedd6fd75219b42",
+        "fixtures.mjs": "552edf002a7ef4844e83a64cf1819cd40f58d2b690bd8fdfac3d0449d4c12e50",
+        "run.mjs": "4a9ab0b21ef80edf9ab580a08a0096f154533672c490e016b3034934ab526e5c"
+      },
+      "scenarioCount": 11
+    },
+    {
+      "attempt": "attempt-8",
+      "scope": "svg-recovery-restrictions",
+      "status": "BLOCKED",
+      "failures": [
+        {
+          "scenario": "recovery-1440",
+          "name": "TimeoutError",
+          "message": "locator.click: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Calcar distribución', exact: true })\u001b[22m\n",
+          "classification": "Unclassified until evidence review; no product fix made"
+        }
+      ],
+      "scriptHashes": {
+        "certify.mjs": "7ebe41ea1245ae273e399d03afd8fe603586ba5c0921ca07c50d0ac9e7f62e00",
+        "browser-helpers.mjs": "eac175c38370e1cf48079e867a1d3aeb5c4f07892e8399267eedd6fd75219b42",
+        "fixtures.mjs": "552edf002a7ef4844e83a64cf1819cd40f58d2b690bd8fdfac3d0449d4c12e50",
+        "run.mjs": "77d89e3744054d7b3ddaa90a91e534ec449ea731c119b3d57f30ad3ce909411e"
+      },
+      "scenarioCount": 6
+    },
+    {
+      "attempt": "attempt-9",
+      "scope": "recovery-restrictions",
+      "status": "BLOCKED",
+      "failures": [],
+      "scriptHashes": {
+        "certify.mjs": "67e7a74361deaf537dee8a74ca690045394a95796235fe31dd82628d69a34936",
+        "browser-helpers.mjs": "eac175c38370e1cf48079e867a1d3aeb5c4f07892e8399267eedd6fd75219b42",
+        "fixtures.mjs": "552edf002a7ef4844e83a64cf1819cd40f58d2b690bd8fdfac3d0449d4c12e50",
+        "run.mjs": "77d89e3744054d7b3ddaa90a91e534ec449ea731c119b3d57f30ad3ce909411e"
+      },
+      "scenarioCount": 5
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "mode": "ANONYMOUS",
+  "rights": 150,
+  "readers": 2,
+  "tables": 5,
+  "errors": 0,
+  "failedResponses": {},
+  "elapsedMs": 6970.1177000000025,
+  "scanner": {
+    "samples": 150,
+    "p50Ms": 40.78199999999924,
+    "p95Ms": 80.88479999999981,
+    "maxMs": 3811.3881000000038
+  },
+  "dashboard": {
+    "samples": 180,
+    "p50Ms": 33.50279999999475,
+    "p95Ms": 49.36559999999736,
+    "maxMs": 79.53240000000369,
+    "acquisitionP95Ms": 3.7585000000035507,
+    "transactionBodyP95Ms": 31.425999999999476,
+    "projectionP95Ms": 22.248099999997066,
+    "completionP95Ms": 3.076600000000326,
+    "outsideTransactionP95Ms": 13.494299999998475
+  },
+  "database": {
+    "deadlocksDelta": 0,
+    "rollbackDelta": 16,
+    "lockSamples": 180,
+    "maxLockWaiters": 1,
+    "serializationConflicts": 19,
+    "deadlockConflicts": 0,
+    "transactionFailureCodes": {
+      "P2034": 19
+    },
+    "retryObservation": "failed real transactions observed before bounded service retries; rollback stats may lag"
+  },
+  "process": {
+    "cpuUserMs": 3922,
+    "cpuSystemMs": 953,
+    "rssBeforeBytes": 490172416,
+    "rssAfterBytes": 548134912
+  },
+  "environment": {
+    "node": "v22.18.0",
+    "platform": "win32",
+    "cpu": "12th Gen Intel(R) Core(TM) i3-1215U",
+    "logicalCpus": 8,
+    "ramBytes": 16835407872,
+    "postgres": {
+      "server_version": "16.15"
+    }
+  },
+  "gates": {
+    "scannerP95Ms": 2000,
+    "dashboardP95Ms": 1500,
+    "dashboardMinSamples": 20,
+    "unexpectedErrors": 0,
+    "deadlocks": 0
+  },
+  "generatedAt": "2026-10-30T21:20:06.444Z"
+}
