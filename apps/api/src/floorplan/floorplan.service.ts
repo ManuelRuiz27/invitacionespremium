@@ -28,6 +28,7 @@ import {
   FloorplanSeatingMode,
   Prisma,
   SeatingAction,
+  ServiceCode,
   type Event,
   type Floorplan,
   type FloorplanShape
@@ -860,6 +861,7 @@ export class FloorplanService {
       }
       this.assertSeatingMutable(event);
       const floorplan = await this.lockFloorplan(tx, eventId);
+      await this.assertExactSeatingSupported(tx, event);
       if (floorplan.seatingMode !== FloorplanSeatingMode.SEAT)
         throw floorplanError('SEATING_MODE_TABLE', 'Exact seating requires detailed seating mode.');
       const assistantIds = input.assignments.map(({ assistantId }) => assistantId).sort();
@@ -949,8 +951,7 @@ export class FloorplanService {
     return this.serializable(async (tx) => {
       const event = await this.requireTargetEvent(tx, eventId, principal, { kind: 'ADMIN', clientId }, true);
       this.assertSeatingModeMutable(event);
-      if (event.accessMode === 'ANONYMOUS' && seatingMode !== FloorplanSeatingMode.TABLE)
-        throw floorplanError('PHYSICAL_PASS_TABLE_INVALID', 'Anonymous access supports table seating only.');
+      if (seatingMode === FloorplanSeatingMode.SEAT) await this.assertExactSeatingSupported(tx, event);
       const floorplan = await this.lockFloorplan(tx, eventId);
       this.assertUnlocked(floorplan);
       if (floorplan.seatingMode === seatingMode)
@@ -996,6 +997,7 @@ export class FloorplanService {
       this.assertLayoutMutable(event);
       const floorplan = await this.lockFloorplan(tx, eventId);
       this.assertUnlocked(floorplan);
+      await this.assertExactSeatingSupported(tx, event);
       const seat = await tx.floorplanSeat.findFirst({
         where: { id: seatId, eventId, floorplanId: floorplan.id, deletedAt: null }
       });
@@ -1039,6 +1041,7 @@ export class FloorplanService {
       this.assertLayoutMutable(event);
       const floorplan = await this.lockFloorplan(tx, eventId);
       this.assertUnlocked(floorplan);
+      await this.assertExactSeatingSupported(tx, event);
       const seat = await tx.floorplanSeat.findFirst({
         where: { id: seatId, eventId, floorplanId: floorplan.id, deletedAt: null }
       });
@@ -1064,6 +1067,7 @@ export class FloorplanService {
       const floorplan = await this.lockFloorplan(tx, eventId);
       this.assertUnlocked(floorplan);
       const seatIds = input.seats.map(({ seatId }) => seatId).sort();
+      await this.assertExactSeatingSupported(tx, event);
       await tx.$queryRaw`SELECT "id" FROM "floorplan_seat" WHERE "id" = ANY(ARRAY[${Prisma.join(seatIds)}]::uuid[]) ORDER BY "id" FOR UPDATE`;
       const seats = await tx.floorplanSeat.findMany({
         where: { id: { in: seatIds }, eventId, floorplanId: floorplan.id, deletedAt: null }
@@ -1117,6 +1121,7 @@ export class FloorplanService {
       const floorplan = await this.lockFloorplan(tx, eventId);
       this.assertUnlocked(floorplan);
       const seatIds = [...input.seatIds].sort();
+      await this.assertExactSeatingSupported(tx, event);
       await tx.$queryRaw`SELECT "id" FROM "floorplan_seat" WHERE "id" = ANY(ARRAY[${Prisma.join(seatIds)}]::uuid[]) ORDER BY "id" FOR UPDATE`;
       const seats = await tx.floorplanSeat.findMany({
         where: { id: { in: seatIds }, eventId, floorplanId: floorplan.id, deletedAt: null }
@@ -1175,6 +1180,7 @@ export class FloorplanService {
       this.assertLayoutMutable(event);
       const floorplan = await this.lockFloorplan(tx, eventId);
       this.assertUnlocked(floorplan);
+      await this.assertExactSeatingSupported(tx, event);
       if (floorplan.seatingMode !== FloorplanSeatingMode.SEAT)
         throw floorplanError('FLOORPLAN_SEAT_MODE_REQUIRED', 'Seats require detailed seating mode.');
       const shape = await this.lockShape(tx, eventId, floorplan.id, shapeId);
@@ -1607,6 +1613,14 @@ export class FloorplanService {
     if (!LAYOUT_MUTABLE.has(event.status)) {
       throw floorplanError('FLOORPLAN_EVENT_STATE_LOCKED', 'Floorplan layout is read-only in the Event state.');
     }
+  }
+
+  private async assertExactSeatingSupported(tx: Prisma.TransactionClient, event: Event): Promise<void> {
+    const service = event.serviceId
+      ? await tx.service.findUnique({ where: { id: event.serviceId }, select: { code: true } })
+      : null;
+    if (event.accessMode === 'ANONYMOUS' || service?.code === ServiceCode.PHYSICAL_QR)
+      throw floorplanError('PHYSICAL_PASS_TABLE_INVALID', 'This Event supports table seating only.');
   }
 
   private assertSeatingMutable(event: Event): void {

@@ -16,7 +16,7 @@ export function AdminFloorplanPreparationHeader({
   editing,
   hasPendingTables,
   accessEventReadOnly,
-  anonymousAccess,
+  tableOnly,
   reconciliationError,
   validationMessage,
   message,
@@ -38,7 +38,7 @@ export function AdminFloorplanPreparationHeader({
   editing: boolean;
   hasPendingTables: boolean;
   accessEventReadOnly: boolean;
-  anonymousAccess: boolean;
+  tableOnly: boolean;
   reconciliationError: boolean;
   validationMessage: string | undefined;
   message: string | undefined;
@@ -52,8 +52,8 @@ export function AdminFloorplanPreparationHeader({
   const controls = (
     <>
       <Chip label={`${elementCount} elementos · ${places} lugares`} variant="outlined" />
-      {finalized ? (
-        <Chip label={seatingMode === 'TABLE' ? 'Por mesa' : 'Por lugar exacto'} variant="outlined" />
+      {finalized || (tableOnly && seatingMode === 'SEAT') ? (
+        <Chip label={tableOnly || seatingMode === 'TABLE' ? 'Por mesa' : 'Por lugar exacto'} variant="outlined" />
       ) : (
         <TextField
           select
@@ -65,7 +65,7 @@ export function AdminFloorplanPreparationHeader({
           sx={{ minWidth: 148 }}
         >
           <MenuItem value="TABLE">Por mesa</MenuItem>
-          {!anonymousAccess ? <MenuItem value="SEAT">Por lugar exacto</MenuItem> : null}
+          {!tableOnly ? <MenuItem value="SEAT">Por lugar exacto</MenuItem> : null}
         </TextField>
       )}
       {sourceControl}
@@ -82,6 +82,19 @@ export function AdminFloorplanPreparationHeader({
   );
   return (
     <>
+      {tableOnly && seatingMode === 'SEAT' ? (
+        <Alert
+          severity="warning"
+          action={
+            <Button disabled={readOnly || editing} onClick={() => onSeatingModeChange('TABLE')}>
+              Volver a Por mesa
+            </Button>
+          }
+        >
+          Este servicio admite sólo acomodo por mesa. El croquis conserva lugares heredados; cambia explícitamente a Por
+          mesa para continuar.
+        </Alert>
+      ) : null}
       <Stack
         direction={compact ? 'row' : { xs: 'column', md: 'row' }}
         useFlexGap

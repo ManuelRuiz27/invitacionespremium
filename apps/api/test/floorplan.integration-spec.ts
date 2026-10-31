@@ -591,6 +591,164 @@ describe('Floorplan and seating', () => {
     ).rejects.toMatchObject({ response: { code: 'SEATING_SELECTION_NOT_FOUND' } });
   });
 
+  it.each([null, 'NOMINAL'] as const)(
+    'CALCA-BLOCKER-02 rejects PHYSICAL_QR SEAT mode for legacy accessMode %s',
+    async (accessMode) => {
+      const f = await createSeatingPolicyFixture(ServiceCode.PHYSICAL_QR);
+      await prisma.$transaction(async (tx) => {
+        await tx.$executeRawUnsafe('SET LOCAL session_replication_role = replica');
+        await tx.event.update({ where: { id: f.event.id }, data: { accessMode } });
+      });
+      await expect(
+        floorplan.setSeatingModeAdministrative(f.client.id, f.event.id, 'SEAT', f.admin)
+      ).rejects.toMatchObject({ response: { code: 'PHYSICAL_PASS_TABLE_INVALID' } });
+      expect((await prisma.floorplan.findUniqueOrThrow({ where: { id: f.plan.id } })).seatingMode).toBe('TABLE');
+      expect(await prisma.floorplanSeat.count({ where: { eventId: f.event.id } })).toBe(0);
+      await expect(
+        floorplan.setSeatingModeAdministrative(f.client.id, f.event.id, 'TABLE', f.admin)
+      ).resolves.toMatchObject({ seatingMode: 'TABLE' });
+    }
+  );
+
+  it('CALCA-BLOCKER-02 freezes legacy PHYSICAL_QR exact writes and permits explicit return to TABLE without deleting Seats', async () => {
+    const f = await createSeatingPolicyFixture(ServiceCode.PHYSICAL_QR, true);
+    const beforeSeats = await prisma.floorplanSeat.findMany({ where: { eventId: f.event.id }, orderBy: { id: 'asc' } });
+    const beforePerson = await prisma.assistant.findUniqueOrThrow({ where: { id: f.assistants[0]!.id } });
+    const key = randomUUID(),
+      seat = f.seats[0]!;
+    const writes = [
+      () =>
+        floorplan.createSeatAdministrative(
+          f.client.id,
+          f.event.id,
+          f.tables[0]!.id,
+          { label: 'Nuevo', x: 0.3, y: 0.3 },
+          f.admin
+        ),
+      () =>
+        floorplan.updateSeatAdministrative(
+          f.client.id,
+          f.event.id,
+          seat.id,
+          { label: 'Cambio', isBlocked: false },
+          f.admin
+        ),
+      () =>
+        floorplan.batchSeatsAdministrative(
+          f.client.id,
+          f.event.id,
+          { seats: [{ seatId: seat.id, x: 0.5, isBlocked: false }] },
+          f.admin
+        ),
+      () => floorplan.renumberSeatsAdministrative(f.client.id, f.event.id, { seatIds: [seat.id] }, f.admin),
+      () => floorplan.deleteSeatAdministrative(f.client.id, f.event.id, seat.id, f.admin),
+      () =>
+        floorplan.assignSeats(
+          f.event.id,
+          key,
+          { assignments: [{ assistantId: f.assistants[1]!.id, seatId: f.seats[1]!.id }] },
+          f.principal
+        )
+    ];
+    const audits = await prisma.auditLog.count({ where: { eventId: f.event.id } });
+    for (const write of writes)
+      await expect(write()).rejects.toMatchObject({ response: { code: 'PHYSICAL_PASS_TABLE_INVALID' } });
+    expect(await prisma.floorplanSeat.findMany({ where: { eventId: f.event.id }, orderBy: { id: 'asc' } })).toEqual(
+      beforeSeats
+    );
+    expect(await prisma.assistant.findUniqueOrThrow({ where: { id: beforePerson.id } })).toEqual(beforePerson);
+    expect(await prisma.seatingOperation.count({ where: { idempotencyKey: key } })).toBe(0);
+    expect(await prisma.auditLog.count({ where: { eventId: f.event.id } })).toBe(audits);
+    await floorplan.setSeatingModeAdministrative(f.client.id, f.event.id, 'TABLE', f.admin);
+    expect(await prisma.floorplanSeat.findMany({ where: { eventId: f.event.id }, orderBy: { id: 'asc' } })).toEqual(
+      beforeSeats
+    );
+    expect(await prisma.assistant.findUniqueOrThrow({ where: { id: beforePerson.id } })).toMatchObject({
+      floorplanShapeId: beforePerson.floorplanShapeId,
+      floorplanSeatId: null
+    });
+    process.stdout.write(
+      'CALCA-BLOCKER-02 DB evidence ' +
+        JSON.stringify({
+          service: 'PHYSICAL_QR',
+          legacySeats: beforeSeats.length,
+          rejectedWrites: writes.length,
+          remainingSeats: await prisma.floorplanSeat.count({ where: { eventId: f.event.id } }),
+          mode: (await prisma.floorplan.findUniqueOrThrow({ where: { id: f.plan.id } })).seatingMode
+        }) +
+        '\n'
+    );
+  });
+
+  it.each([ServiceCode.FLYER, ServiceCode.FLIPBOOK, ServiceCode.DEMO, ServiceCode.ACCESS_CONTROL])(
+    'CALCA-BLOCKER-02 retains eligible exact seating for %s NOMINAL',
+    async (service) => {
+      const f = await createSeatingPolicyFixture(service);
+      await floorplan.setSeatingModeAdministrative(f.client.id, f.event.id, 'SEAT', f.admin);
+      const seat = await floorplan.createSeatAdministrative(
+        f.client.id,
+        f.event.id,
+        f.tables[0]!.id,
+        { label: 'Lugar autorizado', x: 0.4, y: 0.4 },
+        f.admin
+      );
+      await floorplan.assignSeats(
+        f.event.id,
+        randomUUID(),
+        { assignments: [{ assistantId: f.assistants[0]!.id, seatId: seat.id }] },
+        f.principal
+      );
+      expect(await prisma.assistant.findUniqueOrThrow({ where: { id: f.assistants[0]!.id } })).toMatchObject({
+        floorplanSeatId: seat.id,
+        floorplanShapeId: seat.floorplanShapeId
+      });
+    }
+  );
+
+  it('CALCA-BLOCKER-02 retains anonymous, ownership and layout lock guards', async () => {
+    const anon = await createSeatingPolicyFixture(ServiceCode.ACCESS_CONTROL);
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe('SET LOCAL session_replication_role = replica');
+      await tx.event.update({
+        where: { id: anon.event.id },
+        data: { accessMode: 'ANONYMOUS', confirmationEnabled: false }
+      });
+    });
+    await expect(
+      floorplan.setSeatingModeAdministrative(anon.client.id, anon.event.id, 'SEAT', anon.admin)
+    ).rejects.toMatchObject({ response: { code: 'PHYSICAL_PASS_TABLE_INVALID' } });
+    const f = await createSeatingPolicyFixture(ServiceCode.PHYSICAL_QR, true);
+    await expect(
+      floorplan.createSeatAdministrative(
+        anon.client.id,
+        f.event.id,
+        f.tables[0]!.id,
+        { label: 'Ajeno', x: 0.2, y: 0.2 },
+        f.admin
+      )
+    ).rejects.toMatchObject({ status: 404 });
+    await floorplan.lockAdministrative(f.client.id, f.event.id, f.admin);
+    await expect(
+      floorplan.createSeatAdministrative(
+        f.client.id,
+        f.event.id,
+        f.tables[0]!.id,
+        { label: 'Bloqueado', x: 0.2, y: 0.2 },
+        f.admin
+      )
+    ).rejects.toMatchObject({ response: { code: 'FLOORPLAN_LAYOUT_LOCKED' } });
+    await setEventStatusForFixture(f.event.id, EventStatus.CANCELLED);
+    await expect(
+      floorplan.createSeatAdministrative(
+        f.client.id,
+        f.event.id,
+        f.tables[0]!.id,
+        { label: 'Cerrado', x: 0.2, y: 0.2 },
+        f.admin
+      )
+    ).rejects.toMatchObject({ response: { code: 'FLOORPLAN_EVENT_STATE_LOCKED' } });
+  });
+
   it('CALCA-BLOCKER-01 clears exact unassignment atomically, releases the Seat and replays only the saved snapshot', async () => {
     const fixture = await createExactSeatingFixture();
     const assistantId = fixture.assistants[0]!.id;
@@ -2969,8 +3127,58 @@ describe('Floorplan and seating', () => {
     );
   }
 
-  async function createExactSeatingFixture() {
-    const fixture = await createFixture();
+  async function createSeatingPolicyFixture(service: ServiceCode, legacy = false) {
+    const f = await createExactSeatingFixture(
+      legacy,
+      service === ServiceCode.ACCESS_CONTROL
+        ? { clientType: ClientType.ORGANIZATION, role: UserRole.ORGANIZATION_ADMIN }
+        : {}
+    );
+    if (legacy)
+      await floorplan.assignSeats(
+        f.event.id,
+        randomUUID(),
+        { assignments: [{ assistantId: f.assistants[0]!.id, seatId: f.seats[0]!.id }] },
+        f.principal
+      );
+    await setEventStatusForFixture(f.event.id, EventStatus.DRAFT);
+    const target = await prisma.service.upsert({ where: { code: service }, create: { code: service }, update: {} });
+    // Seed immutable service/access configuration only in the isolated fixture, before testing normal operations.
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe('SET LOCAL session_replication_role = replica');
+      await tx.event.update({
+        where: { id: f.event.id },
+        data: {
+          serviceId: target.id,
+          accessMode: service === ServiceCode.ACCESS_CONTROL ? 'NOMINAL' : null,
+          confirmationEnabled: service !== ServiceCode.ACCESS_CONTROL
+        }
+      });
+      if (service === ServiceCode.ACCESS_CONTROL) {
+        await tx.invitation.update({
+          where: { id: f.invitation.id },
+          data: {
+            mode: InvitationMode.INDIVIDUAL,
+            responseStatus: InvitationResponseStatus.PENDING,
+            additionalAssistantLimit: 0
+          }
+        });
+        await tx.assistant.update({
+          where: { id: f.assistants[0]!.id },
+          data: { responseStatus: AssistantResponseStatus.PENDING, isPrimary: true }
+        });
+        await tx.assistant.updateMany({
+          where: { eventId: f.event.id, id: { not: f.assistants[0]!.id } },
+          data: { deletedAt: new Date() }
+        });
+      }
+    });
+    await floorplan.unlockAdministrative(f.client.id, f.event.id, f.admin);
+    return f;
+  }
+
+  async function createExactSeatingFixture(detailed = true, options: Parameters<typeof createFixture>[0] = {}) {
+    const fixture = await createFixture(options);
     const plan = await floorplan.create(
       fixture.event.id,
       { imageAssetId: (await createAsset(fixture, 'exact-release')).id },
@@ -2978,7 +3186,7 @@ describe('Floorplan and seating', () => {
     );
     const tables = [await createTable(fixture), await createTable(fixture)];
     // Seed an already-prepared detailed layout; this ticket does not change or certify mode switching/activation.
-    await prisma.floorplan.update({ where: { id: plan.id }, data: { seatingMode: 'SEAT' } });
+    if (detailed) await prisma.floorplan.update({ where: { id: plan.id }, data: { seatingMode: 'SEAT' } });
     const user = await prisma.user.create({
       data: {
         email: `${randomUUID()}@example.test`,
@@ -2997,7 +3205,7 @@ describe('Floorplan and seating', () => {
       clientOperatingProfile: null
     };
     const seats = [];
-    for (const table of tables)
+    for (const table of detailed ? tables : [])
       seats.push(
         await floorplan.createSeatAdministrative(
           fixture.client.id,

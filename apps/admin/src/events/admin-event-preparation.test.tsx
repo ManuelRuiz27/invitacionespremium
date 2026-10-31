@@ -364,6 +364,73 @@ describe('Admin Event preparation surfaces', () => {
     expect(fixture.api.adminEventPreparation.lockFloorplan).toHaveBeenCalledOnce();
   });
 
+  it.each([1440, 1024])('CALCA-BLOCKER-02 PHYSICAL_QR offers only TABLE and no Seat path at %d', async (width) => {
+    setAdminViewportWidth(width);
+    const api = preparedFloorplanApi(floorplan({ shapes: [shape()] }));
+    vi.mocked(api.adminEvents.get).mockResolvedValue({
+      ...adminEvent,
+      serviceCode: 'PHYSICAL_QR',
+      accessMode: null,
+      floorplanEnabled: true
+    });
+    renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    const accommodation = await screen.findByRole('combobox', { name: 'Acomodo' });
+    await userEvent.click(accommodation);
+    expect(screen.getAllByRole('option')).toHaveLength(1);
+    expect(screen.getByRole('option', { name: 'Por mesa' })).toBeVisible();
+    expect(screen.queryByRole('option', { name: 'Por lugar exacto' })).not.toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+    await userEvent.click(screen.getByRole('button', { name: 'Calcar distribución' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Mesa Principal' }));
+    expect(screen.queryByRole('button', { name: 'Trazar lugares' })).not.toBeInTheDocument();
+    expectNoSeatWrites(api);
+  });
+
+  it('CALCA-BLOCKER-02 legacy PHYSICAL_QR exposes only explicit TABLE recovery, never exact tools', async () => {
+    const fixture = traceFixture();
+    vi.mocked(fixture.api.adminEvents.get).mockResolvedValue({
+      ...adminEvent,
+      serviceCode: 'PHYSICAL_QR',
+      accessMode: null,
+      floorplanEnabled: true
+    });
+    vi.mocked(fixture.api.adminEventPreparation.setFloorplanSeatingMode).mockImplementation(
+      async (_client, _event, mode) => {
+        fixture.state = { ...fixture.state, seatingMode: mode };
+        return fixture.state;
+      }
+    );
+    renderAdminApp(fixture.api, `/eventos/${adminEvent.id}/preparar/croquis`);
+    await screen.findByText(/El croquis conserva lugares heredados/);
+    expect(screen.queryByRole('option', { name: 'Por lugar exacto' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Volver a Por mesa' }));
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cambiar a mesas' }));
+    await waitFor(() =>
+      expect(fixture.api.adminEventPreparation.setFloorplanSeatingMode).toHaveBeenCalledWith(
+        adminEvent.clientId,
+        adminEvent.id,
+        'TABLE'
+      )
+    );
+    expectNoSeatWrites(fixture.api);
+  });
+
+  it.each(['FLYER', 'FLIPBOOK', 'DEMO', 'ACCESS_CONTROL'] as const)(
+    'CALCA-BLOCKER-02 eligible %s NOMINAL keeps the SEAT option',
+    async (serviceCode) => {
+      const api = preparedFloorplanApi(floorplan({ shapes: [shape()] }));
+      vi.mocked(api.adminEvents.get).mockResolvedValue({
+        ...adminEvent,
+        serviceCode,
+        accessMode: serviceCode === 'ACCESS_CONTROL' ? 'NOMINAL' : null,
+        floorplanEnabled: true
+      });
+      renderAdminApp(api, `/eventos/${adminEvent.id}/preparar/croquis`);
+      await userEvent.click(await screen.findByRole('combobox', { name: 'Acomodo' }));
+      expect(screen.getByRole('option', { name: 'Por lugar exacto' })).toBeVisible();
+    }
+  );
+
   it.each(['PHYSICAL_QR', 'ACCESS_CONTROL'] as const)(
     'CALCA05 review does not enable exact seating for restricted TABLE %s',
     async (serviceCode) => {

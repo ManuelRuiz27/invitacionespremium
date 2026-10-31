@@ -1,0 +1,17 @@
+{
+  "method": "Existing transactional service operations against isolated PostgreSQL; assertions read persisted rows, assignments, audit and seatingOperation through Prisma. Native HTTP reproduction is recorded separately. Only fictitious fixtures.",
+  "observation": {
+    "service": "PHYSICAL_QR",
+    "legacySeats": 2,
+    "rejectedWrites": 6,
+    "remainingSeats": 2,
+    "mode": "TABLE"
+  },
+  "verified": [
+    "TABLE rejects SEAT without creating Seats",
+    "Legacy SEAT rejects create/update/batch/renumber/delete/assign-seats without persisted changes",
+    "Explicit TABLE conversion preserves legacy Seat rows/UUID/label/parent and clears Assistant exact reference through existing trigger",
+    "Eligible FLYER/FLIPBOOK/DEMO/ACCESS_CONTROL NOMINAL exact flows work",
+    "ANONYMOUS, isolation, lock and lifecycle protections pass"
+  ]
+}

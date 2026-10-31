@@ -221,6 +221,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
   );
   const accessEventReadOnly = event.serviceCode === 'ACCESS_CONTROL' && layoutEventReadOnly;
   const anonymousAccess = event.serviceCode === 'ACCESS_CONTROL' && event.accessMode === 'ANONYMOUS';
+  const tableOnly = anonymousAccess || event.serviceCode === 'PHYSICAL_QR';
   const readOnly = pending || floorplan?.locked === true || accessEventReadOnly;
   const finalized = floorplan?.locked === true || accessEventReadOnly;
   const dirty =
@@ -477,6 +478,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     await refreshAfterConfirmedMutation();
   };
   const canTraceSeats =
+    !tableOnly &&
     constructionTool === 'trace' &&
     !reviewOpen &&
     !reviewLoading &&
@@ -514,6 +516,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     const latestRead = authoritativeFloorplan.current;
     if (
       !session ||
+      tableOnly ||
       traceWriteLock.current ||
       mutationLock.current ||
       refreshLock.current ||
@@ -581,18 +584,20 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     }
   };
   const traceCorrectionBlocked = () =>
-    constructionTool === 'trace' &&
-    (reviewOpen ||
-      reviewLoading ||
-      mode !== 'correcting-seats' ||
-      layoutEventReadOnly ||
-      traceBusy ||
-      Boolean(traceSession.current) ||
-      refreshRequired ||
-      reconciliationError ||
-      mutationLock.current ||
-      refreshLock.current);
+    tableOnly ||
+    (constructionTool === 'trace' &&
+      (reviewOpen ||
+        reviewLoading ||
+        mode !== 'correcting-seats' ||
+        layoutEventReadOnly ||
+        traceBusy ||
+        Boolean(traceSession.current) ||
+        refreshRequired ||
+        reconciliationError ||
+        mutationLock.current ||
+        refreshLock.current));
   const selectSeat = (seatId: string, options: { additive: boolean }) => {
+    if (tableOnly) return;
     const trace = constructionTool === 'trace';
     if (
       (trace && (renameSeatOpen || reviewOpen || reviewLoading)) ||
@@ -633,11 +638,13 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     }
   };
   const addSeat = () => {
+    if (tableOnly) return;
     if (!floorplan || !selected || selected.kind !== 'TABLE' || readOnly) return;
     setMode('placing-seat');
     setMessage(undefined);
   };
   const placeSeat = async (point: { x: number; y: number }) => {
+    if (tableOnly) return;
     if (!floorplan || !selected || selected.kind !== 'TABLE' || readOnly) return;
     const saved = await runMutation('seating', () =>
       apiClient.adminEventPreparation.createFloorplanSeat(event.clientId, event.id, selected.id, {
@@ -760,7 +767,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
     await refreshAfterConfirmedMutation();
   };
   const setSeatingMode = async (seatingMode: 'TABLE' | 'SEAT') => {
-    if (!floorplan || floorplan.seatingMode === seatingMode || readOnly || (anonymousAccess && seatingMode === 'SEAT'))
+    if (!floorplan || floorplan.seatingMode === seatingMode || readOnly || (tableOnly && seatingMode === 'SEAT'))
       return;
     const updated = await runMutation('seating', () =>
       apiClient.adminEventPreparation.setFloorplanSeatingMode(event.clientId, event.id, seatingMode)
@@ -1193,6 +1200,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
         simple={constructionTool === 'trace' && draft.kind === 'TABLE'}
         traceSeatCount={floorplan.seats.filter((seat) => seat.floorplanShapeId === selectedId).length}
         showTraceNextStep={
+          !tableOnly &&
           constructionTool === 'trace' &&
           !layoutEventReadOnly &&
           floorplan.seatingMode === 'SEAT' &&
@@ -1238,7 +1246,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
         editing={editing || reviewOpen || reviewLoading || refreshRequired || reconciliationError}
         hasPendingTables={pendingTables.length > 0}
         accessEventReadOnly={accessEventReadOnly}
-        anonymousAccess={anonymousAccess}
+        tableOnly={tableOnly}
         reconciliationError={reconciliationError}
         validationMessage={validationMessage}
         message={message}
@@ -1349,6 +1357,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
           constructionTool !== 'entry' &&
           constructionTool !== 'trace' &&
           floorplan.seatingMode === 'SEAT' &&
+          !tableOnly &&
           selected?.kind === 'TABLE' ? (
             <AdminFloorplanSeatControls
               readOnly={readOnly}
@@ -1390,7 +1399,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
               }
               readOnly={finalized || reviewOpen}
               onSelect={reviewOpen || reviewLoading ? () => undefined : selectShape}
-              onSeatSelect={selectSeat}
+              onSeatSelect={tableOnly ? undefined : selectSeat}
               onDraftChange={setDraft}
               onCanvasPlace={
                 !reviewOpen &&
@@ -1408,6 +1417,7 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
                 (constructionTool === 'trace' && mode === 'placing-preset')
               }
               onSeatMove={
+                !tableOnly &&
                 !reviewOpen &&
                 !reviewLoading &&
                 (constructionTool === 'manual' ||
