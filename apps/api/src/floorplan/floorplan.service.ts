@@ -965,6 +965,21 @@ export class FloorplanService {
           throw floorplanError('FLOORPLAN_SEAT_TABLE_REQUIRED', 'Detailed seating requires a table.');
       }
       await tx.floorplan.update({ where: { id: floorplan.id }, data: { seatingMode } });
+      if (seatingMode === FloorplanSeatingMode.SEAT) {
+        await tx.$executeRaw`
+          UPDATE "floorplan_shape" AS shape
+          SET "capacity" = (
+            SELECT count(*)::integer FROM "floorplan_seat" AS seat
+            WHERE seat."floorplan_shape_id" = shape."id"
+              AND seat."floorplan_id" = ${floorplan.id}::uuid
+              AND seat."event_id" = ${eventId}::uuid
+              AND seat."deleted_at" IS NULL AND seat."is_blocked" = false
+          ), "updated_at" = CURRENT_TIMESTAMP
+          WHERE shape."floorplan_id" = ${floorplan.id}::uuid
+            AND shape."event_id" = ${eventId}::uuid
+            AND shape."kind" = 'TABLE' AND shape."deleted_at" IS NULL
+        `;
+      }
       await this.recordAudit(tx, event, principal, operationId, 'FLOORPLAN_SEATING_MODE_UPDATE', floorplan.id, {
         seatingMode
       });

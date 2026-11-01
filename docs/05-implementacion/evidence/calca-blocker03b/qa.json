@@ -1,0 +1,258 @@
+{
+  "status": "PASS_TICKET_ONLY",
+  "baseHead": "f842bdb4c343fc6015aca4e16c80c6fcb64dcdae",
+  "runtimeSha256": "06b7ff3b4a675e033cf987bc4c2964d0a544e5aab4bd1519ff8823b775cb38f0",
+  "sourceSha256Lf": {
+    "apps/api/src/floorplan/floorplan.service.ts": "7a721b6eec82f000f1bd00c56f66b26c458407dc2b437e8c925ce20c14360409",
+    "apps/api/test/floorplan.integration-spec.ts": "4c813875895fc88c1730cc63c0aab3b1d89bfa93dbd3f970421d570865556e12",
+    "apps/api/prisma/migrations/20261101170000_align_seat_transition_capacity/migration.sql": "5dc4c23ce5964490e79f1a915857cc2793513de2e6330e272cccb36e11b01483"
+  },
+  "fullCalca06Run": false,
+  "fullQaRun": false,
+  "logs": [
+    {
+      "file": "var/qa/calca-blocker03b/api-initial.log",
+      "sha256": "4b00a9d62974fc00c5373eec1145b470ec56a2969768a488311086fb25c8b026",
+      "bytes": 29740,
+      "result": "52 PASS / 2 FAIL: new test expected a nonexistent domain error instead of P2002; PhysicalPass fixture nonce invalid",
+      "summary": [
+        "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯",
+        " Test Files  1 failed (1)",
+        "      Tests  2 failed | 52 passed (54)",
+        "   Duration  61.89s (transform 1.99s, setup 0ms, import 5.26s, tests 56.35s, environment 0ms)"
+      ]
+    },
+    {
+      "file": "var/qa/calca-blocker03b/api-final.log",
+      "sha256": "40544ab2b2ed1632955eb8969136f578c497007b723130f97a62f9bd92554747",
+      "bytes": 20994,
+      "result": "54/54 PASS after correcting only tests/fixture",
+      "summary": [
+        " Test Files  1 passed (1)",
+        "      Tests  54 passed (54)",
+        "   Duration  66.88s (transform 1.89s, setup 0ms, import 4.99s, tests 61.67s, environment 0ms)"
+      ]
+    },
+    {
+      "file": "var/qa/calca-blocker03b/api-complete.log",
+      "sha256": "9e7ab1ff3eeb09745dadc4209244c6a4bc9b7c846d6b9afbd7f2f15fbd2c75cf",
+      "bytes": 20998,
+      "result": "55/55 PASS final migration, including new INSERT/UPDATE derived capacity regression",
+      "summary": [
+        " Test Files  1 passed (1)",
+        "      Tests  55 passed (55)",
+        "   Duration  127.87s (transform 2.98s, setup 0ms, import 8.10s, tests 119.42s, environment 0ms)"
+      ]
+    },
+    {
+      "file": "var/qa/calca-blocker03b/api-approved.log",
+      "sha256": "64a17395bd8ec852fbbcf4c8401e65ca6bcd7ed88566939fc05c05fb0fe05c55",
+      "bytes": 20994,
+      "result": "56/56 PASS final, adding explicit PostgreSQL parent/Event, blocked/deleted/unique Seat and exact-occupied table protection",
+      "summary": [
+        " Test Files  1 passed (1)",
+        "      Tests  56 passed (56)",
+        "   Duration  65.78s (transform 1.84s, setup 0ms, import 4.84s, tests 60.72s, environment 0ms)"
+      ]
+    },
+    {
+      "file": "var/qa/calca-blocker03b/migration-initial.log",
+      "sha256": "5555457449d45374e4daba787349b3f00e415e49822cb1c42afd21ee5f9d3b35",
+      "bytes": 33600,
+      "result": "Diagnostic FAIL: raw SQL/Prisma model differences subsequently confirmed identical at pre-migration HEAD",
+      "summary": []
+    },
+    {
+      "file": "var/qa/calca-blocker03b/migration-final.log",
+      "sha256": "e1fd39524f5fd1db59f0171d8d3a218913739cb736344cdbfe1646d0349617fb",
+      "bytes": 18938,
+      "result": "Fixture FAIL: invalid app_user password hash format",
+      "summary": []
+    },
+    {
+      "file": "var/qa/calca-blocker03b/migration-green.log",
+      "sha256": "0fb1ffdddf0a99d39928f78281213943abeaa0c379605008016f54f531ff52d3",
+      "bytes": 18508,
+      "result": "Fixture FAIL: service already seeded by migration chain",
+      "summary": []
+    },
+    {
+      "file": "var/qa/calca-blocker03b/migration-complete.log",
+      "sha256": "7219bb91c3c94b3fbb41e4a0fdd971f0ad3d0ddc537652869640ea0ae94d4410",
+      "bytes": 19308,
+      "result": "Fixture FAIL: READY asset missing checksum",
+      "summary": []
+    },
+    {
+      "file": "var/qa/calca-blocker03b/migration-validated.log",
+      "sha256": "79abfa136346706dab1407ac079c8434b225486026f51c90eeee81b3ddf77553",
+      "bytes": 18496,
+      "result": "Fixture FAIL: asset owner association missing",
+      "summary": []
+    },
+    {
+      "file": "var/qa/calca-blocker03b/migration-final-validation.log",
+      "sha256": "261e18c48ca4536f1f64be6f734e73add411f30eb34728af3b6d37855c4e0da0",
+      "bytes": 35384,
+      "result": "PASS: fresh + upgrade + repeat deploy + validate + zero migration-chain drift; raw model diff identical to HEAD",
+      "summary": []
+    },
+    {
+      "file": "var/qa/calca-blocker03b/static-build.log",
+      "sha256": "3caf694dd409ef029800008bceaf7c5831b2af36e7ef0469c8fbd0ca7babbb5c",
+      "bytes": 8796,
+      "result": "15/15 PASS intermediate",
+      "summary": [" Tasks:    15 successful, 15 total", "Cached:    0 cached, 15 total", "  Time:    1m52.486s "]
+    },
+    {
+      "file": "var/qa/calca-blocker03b/static-final.log",
+      "sha256": "aaf1881e4fce7ad4c42929c29673c88ca7ec8aec424db13a1873a2dae6caef7e",
+      "bytes": 8796,
+      "result": "15/15 PASS final, 0 cache hits",
+      "summary": [" Tasks:    15 successful, 15 total", "Cached:    0 cached, 15 total", "  Time:    2m35.294s "]
+    },
+    {
+      "file": "var/qa/calca-blocker03b/test-static-final.log",
+      "sha256": "a8062d2f9a27ce6fbe2e3a9e95e7df08753189792c4ace23b6653a6e26d8b6cf",
+      "bytes": 1980,
+      "result": "PASS API lint/typecheck after final direct-DB regression addition; product/migration unchanged",
+      "summary": []
+    },
+    {
+      "file": "var/qa/calca-blocker03b/api-units.log",
+      "sha256": "d2de02f5d3a7bc060a6df4798f025026ae137f51c0f5e22d1527953d5492d60d",
+      "bytes": 1784,
+      "result": "58/58 PASS / 4 files",
+      "summary": [
+        " Test Files  4 passed (4)",
+        "      Tests  58 passed (58)",
+        "   Duration  5.21s (transform 2.02s, setup 0ms, import 11.64s, tests 113ms, environment 1ms)"
+      ]
+    },
+    {
+      "file": "var/qa/calca-blocker03b/admin-initial.log",
+      "sha256": "b1a253b910e456b8fdc523cea7ec436350d0c73a8b95887b1cbe276d3d57d0a3",
+      "bytes": 570,
+      "result": "149/149 PASS first run",
+      "summary": [
+        " Test Files  1 passed (1)",
+        "      Tests  149 passed (149)",
+        "   Duration  180.62s (transform 2.50s, setup 1.05s, import 34.37s, tests 141.54s, environment 3.29s)"
+      ]
+    },
+    {
+      "file": "var/qa/calca-blocker03b/reproduction-initial.log",
+      "sha256": "8a58aaa5013af59b8aba3cd9f6b5ad98b7d5053c38143a0ad1da739dae5376bc",
+      "bytes": 16598,
+      "result": "4/4 PASS intermediate migration; source data archived locally before final run",
+      "summary": []
+    },
+    {
+      "file": "var/qa/calca-blocker03b/reproduction-final.log",
+      "sha256": "04b8023b5c586440762adaa277bf90200acbfd2e9541bf235e18d905c2d30852",
+      "bytes": 16598,
+      "result": "4/4 PASS final migration: 1440/1024, empty and pending precision",
+      "summary": []
+    },
+    {
+      "file": "var/qa/calca-blocker03b/guide-publication.log",
+      "sha256": "81e1e6115108b7610ce8a65d9da4bb031551e68bc3e35c95fb6976a04f55de4f",
+      "bytes": 18590,
+      "result": "Journey/PDF PASS; publication FAIL because first admin-09-aforo crop excluded part of target. No verifier/crop/mask change",
+      "summary": [
+        "[passed] UX02 real organization, both access modes, printable material and camera reception (130259 ms)",
+        "01_MANUAL_ADMIN: 14 Letter pages; images, print layout and mobile width verified.",
+        "02_MANUAL_SALON: 21 Letter pages; images, print layout and mobile width verified.",
+        "03_PRUEBA_USABILIDAD: 2 Letter pages; images, print layout and mobile width verified.",
+        "UX02 publication verification failed: A manual crop cuts off its target control."
+      ]
+    },
+    {
+      "file": "var/qa/calca-blocker03b/guide-publication-rerun.log",
+      "sha256": "682d9cbec44d5ce9850304c31e7ececdf1b7294a13b1c8a1f04a6c6879206b18",
+      "bytes": 18488,
+      "result": "PASS unchanged serial rerun: UX02 journey, PDF 14/21/2 pages, 39 PNG",
+      "summary": [
+        "[passed] UX02 real organization, both access modes, printable material and camera reception (93352 ms)",
+        "01_MANUAL_ADMIN: 14 Letter pages; images, print layout and mobile width verified.",
+        "02_MANUAL_SALON: 21 Letter pages; images, print layout and mobile width verified.",
+        "03_PRUEBA_USABILIDAD: 2 Letter pages; images, print layout and mobile width verified.",
+        "UX02: 39 PNG verified; complete inventory, hashes, masks and no decodable QR."
+      ]
+    },
+    {
+      "file": "var/qa/calca-blocker03b/guide-tests.log",
+      "sha256": "282e7c584ccba1c55c06382b22adc47d79ca4291b325feffd665e1589f55b60c",
+      "bytes": 3300,
+      "result": "5/5 PASS",
+      "summary": ["# tests 5", "# pass 5", "# fail 0"]
+    },
+    {
+      "file": "var/qa/calca-blocker03b/guide-verify-final.log",
+      "sha256": "77b57b2aed4c52f5d209d48c24f67d4bc61038f21f9af0643c966642306beac7",
+      "bytes": 1004,
+      "result": "PASS final publication after metadata-only PDF restoration",
+      "summary": ["UX02: 39 PNG verified; complete inventory, hashes, masks and no decodable QR."]
+    },
+    {
+      "file": "var/qa/calca-blocker03b/evidence-lint-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "result": "PASS reproducibility scripts ESLint",
+      "summary": []
+    }
+  ],
+  "preexistingRawSqlPrismaDiff": {
+    "exitCode": 2,
+    "sqlSha256": "df5df555dbbd0a3718b16cb8a65effe4ed69ea57a4d3bde7e437dd56767b6c48",
+    "identicalToPreMigrationHead": true,
+    "newDifference": false
+  },
+  "finalChecks": {
+    "unchangedScopes": [
+      "apps/admin",
+      "apps/client",
+      "apps/scanner",
+      "packages",
+      "scripts",
+      "apps/api/prisma/schema.prisma",
+      "docs/05-implementacion/evidence/calca06",
+      "docs/05-implementacion/CALCA06_TRACE_MODE_CERTIFICATION.md"
+    ],
+    "runtimeMatchesNativeAndGuides": true,
+    "nativeScreenshots": 4,
+    "ephemeralDatabasesLeft": [],
+    "pdfMetadataRestoration": [
+      {
+        "file": "docs/guias-usuario/control-de-acceso/01_MANUAL_ADMIN.pdf",
+        "restored": false,
+        "reason": "Content differs; retained"
+      },
+      {
+        "file": "docs/guias-usuario/control-de-acceso/02_MANUAL_SALON.pdf",
+        "restored": false,
+        "reason": "Content differs; retained"
+      },
+      {
+        "file": "docs/guias-usuario/control-de-acceso/03_PRUEBA_USABILIDAD.pdf",
+        "restored": true,
+        "reason": "Only CreationDate/ModDate metadata differs; content identical"
+      }
+    ],
+    "initialGuideCropFailure": {
+      "file": "admin-09-aforo.png",
+      "focus": {
+        "x": 296,
+        "y": 715.53125,
+        "width": 1104,
+        "height": 383.84375
+      },
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "unchangedRerunPassed": true,
+      "causeProven": false
+    }
+  }
+}

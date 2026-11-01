@@ -591,10 +591,344 @@ describe('Floorplan and seating', () => {
     ).rejects.toMatchObject({ response: { code: 'SEATING_SELECTION_NOT_FOUND' } });
   });
 
+  it('CALCA-BLOCKER-03 derives zero capacity from zero Seats on TABLE to SEAT, in DB and API', async () => {
+    const f = await createSeatingPolicyFixture(ServiceCode.FLYER);
+    for (const [index, capacity] of [12, 24].entries())
+      await prisma.floorplanShape.update({ where: { id: f.tables[index]!.id }, data: { capacity } });
+    const switched = await floorplan.setSeatingModeAdministrative(f.client.id, f.event.id, 'SEAT', f.admin);
+    expect(switched.seatingMode).toBe('SEAT');
+    expect(switched.shapes.filter((s) => s.kind === 'TABLE').map((s) => s.capacity)).toEqual([0, 0]);
+    for (const table of f.tables)
+      expect((await prisma.floorplanShape.findUniqueOrThrow({ where: { id: table.id } })).capacity).toBe(0);
+    const reloaded = await floorplan.getAdministrative(f.client.id, f.event.id, f.admin);
+    expect(reloaded.shapes.map((s) => s.capacity)).toEqual([0, 0]);
+    expect(await prisma.floorplanSeat.count({ where: { eventId: f.event.id } })).toBe(0);
+    process.stdout.write(
+      'CALCA-BLOCKER-03 zero Seats ' +
+        JSON.stringify({
+          before: [12, 24],
+          after: reloaded.shapes.map((s) => s.capacity),
+          seats: reloaded.seats.length
+        }) +
+        '\n'
+    );
+  });
+
+  it('CALCA-BLOCKER-03 derives active unblocked capacity and preserves existing Seat mutation synchronization', async () => {
+    const f = await createSeatingPolicyFixture(ServiceCode.FLYER);
+    for (const [index, table] of f.tables.entries()) {
+      await prisma.floorplanShape.update({ where: { id: table.id }, data: { capacity: index === 0 ? 12 : 24 } });
+      for (let n = 0; n < (index === 0 ? 10 : 4); n++)
+        await prisma.floorplanSeat.create({
+          data: {
+            eventId: f.event.id,
+            floorplanId: f.plan.id,
+            floorplanShapeId: table.id,
+            label: `Lugar ${n + 1}`,
+            normalizedLabel: `lugar ${n + 1}`,
+            x: 0.3,
+            y: 0.4,
+            isBlocked: index === 0 && n < 2,
+            deletedAt: index === 1 && n === 3 ? new Date() : null
+          }
+        });
+    }
+    const seatsBefore = await prisma.floorplanSeat.findMany({ where: { eventId: f.event.id }, orderBy: { id: 'asc' } });
+    const switched = await floorplan.setSeatingModeAdministrative(f.client.id, f.event.id, 'SEAT', f.admin);
+    expect(switched.shapes.map((s) => s.capacity)).toEqual([8, 3]);
+    expect(await prisma.floorplanSeat.findMany({ where: { eventId: f.event.id }, orderBy: { id: 'asc' } })).toEqual(
+      seatsBefore
+    );
+    const checkCapacity = async (expected: number) => {
+      const table = await prisma.floorplanShape.findUniqueOrThrow({ where: { id: f.tables[0]!.id } });
+      expect(table.capacity).toBe(expected);
+      expect(table.capacity).toBe(
+        await prisma.floorplanSeat.count({ where: { floorplanShapeId: table.id, deletedAt: null, isBlocked: false } })
+      );
+    };
+    const created = await floorplan.createSeatAdministrative(
+      f.client.id,
+      f.event.id,
+      f.tables[0]!.id,
+      { label: 'Nuevo', x: 0.4, y: 0.4 },
+      f.admin
+    );
+    await checkCapacity(9);
+    const blocked = seatsBefore.find((s) => s.isBlocked)!;
+    await floorplan.updateSeatAdministrative(f.client.id, f.event.id, blocked.id, { isBlocked: false }, f.admin);
+    await checkCapacity(10);
+    await floorplan.updateSeatAdministrative(f.client.id, f.event.id, blocked.id, { isBlocked: true }, f.admin);
+    await checkCapacity(9);
+    await floorplan.deleteSeatAdministrative(f.client.id, f.event.id, created.id, f.admin);
+    await checkCapacity(8);
+    process.stdout.write(
+      'CALCA-BLOCKER-03 existing Seats ' +
+        JSON.stringify({
+          before: [12, 24],
+          after: switched.shapes.map((s) => s.capacity),
+          seatRowsPreserved: seatsBefore.length,
+          mutationCapacities: [9, 10, 9, 8]
+        }) +
+        '\n'
+    );
+  });
+
+  it('CALCA-BLOCKER-03 retains table-only assignments while deriving zero capacity on transition', async () => {
+    const f = await createSeatingPolicyFixture(ServiceCode.FLYER);
+    await prisma.floorplanShape.update({ where: { id: f.tables[0]!.id }, data: { capacity: 12 } });
+    await prisma.assistant.update({ where: { id: f.assistants[0]!.id }, data: { floorplanShapeId: f.tables[0]!.id } });
+    const before = await prisma.assistant.findUniqueOrThrow({ where: { id: f.assistants[0]!.id } });
+    const auditBefore = await prisma.auditLog.count({
+      where: { eventId: f.event.id, action: 'FLOORPLAN_SEATING_MODE_UPDATE' }
+    });
+    const switched = await floorplan
+      .setSeatingModeAdministrative(f.client.id, f.event.id, 'SEAT', f.admin)
+      .catch(async (error: unknown) => {
+        const person = await prisma.assistant.findUniqueOrThrow({ where: { id: before.id } });
+        process.stdout.write(
+          'CALCA-BLOCKER-03 transition rejected ' +
+            JSON.stringify({
+              error: error instanceof Error ? error.message : String(error),
+              persistedMode: (await prisma.floorplan.findUniqueOrThrow({ where: { id: f.plan.id } })).seatingMode,
+              persistedCapacity: (await prisma.floorplanShape.findUniqueOrThrow({ where: { id: f.tables[0]!.id } }))
+                .capacity,
+              assistantPreserved:
+                person.floorplanShapeId === before.floorplanShapeId && person.floorplanSeatId === null,
+              seats: await prisma.floorplanSeat.count({ where: { eventId: f.event.id } }),
+              auditDelta:
+                (await prisma.auditLog.count({
+                  where: { eventId: f.event.id, action: 'FLOORPLAN_SEATING_MODE_UPDATE' }
+                })) - auditBefore
+            }) +
+            '\n'
+        );
+        throw error;
+      });
+    expect(switched.shapes.find((s) => s.id === f.tables[0]!.id)?.capacity).toBe(0);
+    expect(await prisma.assistant.findUniqueOrThrow({ where: { id: before.id } })).toEqual(before);
+    expect(switched.seats).toHaveLength(0);
+    process.stdout.write(
+      'CALCA-BLOCKER-03B one pending ' +
+        JSON.stringify({
+          beforeCapacity: 12,
+          afterCapacity: switched.shapes.find((s) => s.id === f.tables[0]!.id)?.capacity,
+          tableRetained: true,
+          exactSeat: null,
+          seats: switched.seats.length
+        }) +
+        '\n'
+    );
+  });
+
+  it('CALCA-BLOCKER-03B keeps newly created and updated SEAT table capacity derived in PostgreSQL', async () => {
+    const f = await createSeatingPolicyFixture(ServiceCode.FLYER);
+    await floorplan.setSeatingModeAdministrative(f.client.id, f.event.id, 'SEAT', f.admin);
+    const table = await floorplan.createShapeAdministrative(
+      f.client.id,
+      f.event.id,
+      {
+        kind: 'TABLE',
+        geometry: 'CIRCLE',
+        name: 'Mesa nueva',
+        capacity: 24,
+        x: 0.4,
+        y: 0.4,
+        width: 0.1,
+        height: 0.1,
+        rotation: 0,
+        polygonPoints: null
+      },
+      f.admin
+    );
+    expect(table.capacity).toBe(0);
+    expect((await prisma.floorplanShape.update({ where: { id: table.id }, data: { capacity: 99 } })).capacity).toBe(0);
+    await floorplan.createSeatAdministrative(
+      f.client.id,
+      f.event.id,
+      table.id,
+      { label: 'Lugar 1', x: 0.5, y: 0.5 },
+      f.admin
+    );
+    expect((await prisma.floorplanShape.update({ where: { id: table.id }, data: { capacity: 99 } })).capacity).toBe(1);
+  });
+
+  it('CALCA-BLOCKER-03B transitions five pending people to three places and assigns exact Seats without counting pending rows as Seat occupancy', async () => {
+    const f = await createSeatingPolicyFixture(ServiceCode.FLYER);
+    const family = await createFamily(f.event.id, f.group.id, 3);
+    const people = [...f.assistants, ...family.assistants];
+    const table = f.tables[0]!;
+    await prisma.floorplanShape.update({ where: { id: table.id }, data: { capacity: 12 } });
+    await prisma.assistant.updateMany({
+      where: { id: { in: people.map((p) => p.id) } },
+      data: { floorplanShapeId: table.id }
+    });
+    const places = [];
+    for (let n = 0; n < 3; n++)
+      places.push(
+        await prisma.floorplanSeat.create({
+          data: {
+            eventId: f.event.id,
+            floorplanId: f.plan.id,
+            floorplanShapeId: table.id,
+            label: `Lugar ${n + 1}`,
+            normalizedLabel: `lugar ${n + 1}`,
+            x: 0.3,
+            y: 0.4
+          }
+        })
+      );
+    const before = await prisma.assistant.findMany({ where: { eventId: f.event.id }, orderBy: { id: 'asc' } });
+    const switched = await floorplan.setSeatingModeAdministrative(f.client.id, f.event.id, 'SEAT', f.admin);
+    expect(switched.shapes.find((s) => s.id === table.id)?.capacity).toBe(3);
+    expect(await prisma.assistant.findMany({ where: { eventId: f.event.id }, orderBy: { id: 'asc' } })).toEqual(before);
+    const key = randomUUID();
+    const input = { assignments: [{ assistantId: people[0]!.id, seatId: places[0]!.id }] };
+    const assigned = await floorplan.assignSeats(f.event.id, key, input, f.principal);
+    expect(await floorplan.assignSeats(f.event.id, key, input, f.principal)).toEqual(assigned);
+    expect(await prisma.assistant.findUniqueOrThrow({ where: { id: people[0]!.id } })).toMatchObject({
+      floorplanShapeId: table.id,
+      floorplanSeatId: places[0]!.id
+    });
+    expect(
+      await prisma.assistant.count({
+        where: { eventId: f.event.id, floorplanShapeId: table.id, floorplanSeatId: null }
+      })
+    ).toBe(4);
+    expect((await prisma.floorplanShape.findUniqueOrThrow({ where: { id: table.id } })).capacity).toBe(3);
+    expect(await prisma.floorplanSeat.count({ where: { eventId: f.event.id } })).toBe(3);
+    await expect(
+      floorplan.assignSeats(
+        f.event.id,
+        randomUUID(),
+        { assignments: [{ assistantId: people[1]!.id, seatId: places[0]!.id }] },
+        f.principal
+      )
+    ).rejects.toMatchObject({ code: 'P2002' });
+    await floorplan.updateSeatAdministrative(f.client.id, f.event.id, places[1]!.id, { isBlocked: true }, f.admin);
+    expect((await prisma.floorplanShape.findUniqueOrThrow({ where: { id: table.id } })).capacity).toBe(2);
+    await expect(
+      floorplan.assignSeats(
+        f.event.id,
+        randomUUID(),
+        { assignments: [{ assistantId: people[1]!.id, seatId: places[1]!.id }] },
+        f.principal
+      )
+    ).rejects.toMatchObject({ response: { code: 'SEATING_SELECTION_NOT_FOUND' } });
+    await expect(
+      floorplan.assign(
+        f.event.id,
+        randomUUID(),
+        { assistantIds: [people[1]!.id], tableShapeId: f.tables[1]!.id },
+        f.principal
+      )
+    ).rejects.toMatchObject({ response: { code: 'SEATING_TABLE_INVALID' } });
+    process.stdout.write(
+      'CALCA-BLOCKER-03B pending precision ' +
+        JSON.stringify({
+          pendingBefore: people.length,
+          manualCapacity: 12,
+          capacityAfterTransition: 3,
+          seats: places.length,
+          exactAssigned: 1,
+          pendingAfter: 4,
+          capacityAfterBlock: 2
+        }) +
+        '\n'
+    );
+  });
+
+  it.each(['TABLE', 'SEAT'] as const)(
+    'CALCA-BLOCKER-03B retains occupied table structural protection in %s including pending precision',
+    async (mode) => {
+      const f = await createSeatingPolicyFixture(ServiceCode.FLYER);
+      const table = f.tables[0]!;
+      await prisma.assistant.update({ where: { id: f.assistants[0]!.id }, data: { floorplanShapeId: table.id } });
+      if (mode === 'SEAT') await floorplan.setSeatingModeAdministrative(f.client.id, f.event.id, 'SEAT', f.admin);
+      await expect(
+        floorplan.deleteShapeAdministrative(f.client.id, f.event.id, table.id, f.admin)
+      ).rejects.toMatchObject({ response: { code: 'FLOORPLAN_TABLE_OCCUPIED' } });
+      await expect(
+        prisma.floorplanShape.update({ where: { id: table.id }, data: { deletedAt: new Date() } })
+      ).rejects.toThrow('FLOORPLAN_TABLE_OCCUPIED_OR_CAPACITY');
+      await expect(
+        prisma.floorplanShape.update({ where: { id: table.id }, data: { kind: 'DECORATIVE_ZONE', capacity: 0 } })
+      ).rejects.toThrow('FLOORPLAN_TABLE_OCCUPIED_OR_CAPACITY');
+      expect(await prisma.assistant.findUniqueOrThrow({ where: { id: f.assistants[0]!.id } })).toMatchObject({
+        floorplanShapeId: table.id,
+        floorplanSeatId: null
+      });
+    }
+  );
+
+  it('CALCA-BLOCKER-03B retains TABLE capacity limits for combined Assistant and active PhysicalPass occupancy', async () => {
+    const f = await createSeatingPolicyFixture(ServiceCode.PHYSICAL_QR);
+    const table = f.tables[0]!;
+    await prisma.assistant.update({ where: { id: f.assistants[0]!.id }, data: { floorplanShapeId: table.id } });
+    await prisma.physicalPass.create({
+      data: {
+        eventId: f.event.id,
+        passNumber: 1,
+        floorplanShapeId: table.id,
+        qrTokenNonce: createHash('sha256').update(randomUUID()).digest('hex'),
+        createdByUserId: f.admin.userId
+      }
+    });
+    await expect(prisma.floorplanShape.update({ where: { id: table.id }, data: { capacity: 1 } })).rejects.toThrow(
+      'FLOORPLAN_TABLE_OCCUPIED_OR_CAPACITY'
+    );
+    await expect(
+      prisma.assistant.update({ where: { id: f.assistants[1]!.id }, data: { floorplanShapeId: table.id } })
+    ).rejects.toThrow('SEATING_TABLE_CAPACITY_EXCEEDED');
+    await expect(
+      prisma.floorplanShape.update({ where: { id: table.id }, data: { deletedAt: new Date() } })
+    ).rejects.toThrow('FLOORPLAN_TABLE_OCCUPIED_OR_CAPACITY');
+    expect((await prisma.floorplanShape.findUniqueOrThrow({ where: { id: table.id } })).capacity).toBe(2);
+  });
+
+  it('CALCA-BLOCKER-03B retains direct PostgreSQL exact parent, Event and active Seat protections', async () => {
+    const f = await createSeatingPolicyFixture(ServiceCode.FLYER, true);
+    const person = f.assistants[1]!;
+    const free = f.seats[1]!;
+    const occupied = f.seats[0]!;
+    const bind = (tableId: string, seatId: string) =>
+      prisma.assistant.update({
+        where: { id: person.id },
+        data: { floorplanShapeId: tableId, floorplanSeatId: seatId }
+      });
+    await expect(bind(f.tables[0]!.id, free.id)).rejects.toMatchObject({ code: 'P2003' });
+    await expect(bind(f.tables[0]!.id, occupied.id)).rejects.toMatchObject({ code: 'P2002' });
+    await expect(
+      prisma.floorplanShape.update({ where: { id: f.tables[0]!.id }, data: { deletedAt: new Date() } })
+    ).rejects.toThrow('FLOORPLAN_TABLE_OCCUPIED_OR_CAPACITY');
+    await expect(
+      prisma.floorplanShape.update({ where: { id: f.tables[0]!.id }, data: { kind: 'DECORATIVE_ZONE', capacity: 0 } })
+    ).rejects.toThrow('FLOORPLAN_TABLE_OCCUPIED_OR_CAPACITY');
+    await floorplan.updateSeatAdministrative(f.client.id, f.event.id, free.id, { isBlocked: true }, f.admin);
+    await expect(bind(f.tables[1]!.id, free.id)).rejects.toThrow('SEATING_SEAT_INVALID');
+    await floorplan.updateSeatAdministrative(f.client.id, f.event.id, free.id, { isBlocked: false }, f.admin);
+    await floorplan.deleteSeatAdministrative(f.client.id, f.event.id, free.id, f.admin);
+    await expect(bind(f.tables[1]!.id, free.id)).rejects.toThrow('SEATING_SEAT_INVALID');
+    const foreign = await createSeatingPolicyFixture(ServiceCode.FLYER, true);
+    await expect(bind(f.tables[1]!.id, foreign.seats[1]!.id)).rejects.toThrow('SEATING_SEAT_INVALID');
+    await expect(
+      floorplan.assignSeats(
+        f.event.id,
+        randomUUID(),
+        { assignments: [{ assistantId: person.id, seatId: foreign.seats[1]!.id }] },
+        f.principal
+      )
+    ).rejects.toMatchObject({ response: { code: 'SEATING_SELECTION_NOT_FOUND' } });
+    expect(await prisma.assistant.findUniqueOrThrow({ where: { id: person.id } })).toMatchObject({
+      floorplanShapeId: null,
+      floorplanSeatId: null
+    });
+  });
+
   it.each([null, 'NOMINAL'] as const)(
     'CALCA-BLOCKER-02 rejects PHYSICAL_QR SEAT mode for legacy accessMode %s',
     async (accessMode) => {
       const f = await createSeatingPolicyFixture(ServiceCode.PHYSICAL_QR);
+      await prisma.floorplanShape.update({ where: { id: f.tables[0]!.id }, data: { capacity: 12 } });
       await prisma.$transaction(async (tx) => {
         await tx.$executeRawUnsafe('SET LOCAL session_replication_role = replica');
         await tx.event.update({ where: { id: f.event.id }, data: { accessMode } });
@@ -603,6 +937,7 @@ describe('Floorplan and seating', () => {
         floorplan.setSeatingModeAdministrative(f.client.id, f.event.id, 'SEAT', f.admin)
       ).rejects.toMatchObject({ response: { code: 'PHYSICAL_PASS_TABLE_INVALID' } });
       expect((await prisma.floorplan.findUniqueOrThrow({ where: { id: f.plan.id } })).seatingMode).toBe('TABLE');
+      expect((await prisma.floorplanShape.findUniqueOrThrow({ where: { id: f.tables[0]!.id } })).capacity).toBe(12);
       expect(await prisma.floorplanSeat.count({ where: { eventId: f.event.id } })).toBe(0);
       await expect(
         floorplan.setSeatingModeAdministrative(f.client.id, f.event.id, 'TABLE', f.admin)
@@ -707,6 +1042,7 @@ describe('Floorplan and seating', () => {
 
   it('CALCA-BLOCKER-02 retains anonymous, ownership and layout lock guards', async () => {
     const anon = await createSeatingPolicyFixture(ServiceCode.ACCESS_CONTROL);
+    await prisma.floorplanShape.update({ where: { id: anon.tables[0]!.id }, data: { capacity: 24 } });
     await prisma.$transaction(async (tx) => {
       await tx.$executeRawUnsafe('SET LOCAL session_replication_role = replica');
       await tx.event.update({
@@ -717,6 +1053,7 @@ describe('Floorplan and seating', () => {
     await expect(
       floorplan.setSeatingModeAdministrative(anon.client.id, anon.event.id, 'SEAT', anon.admin)
     ).rejects.toMatchObject({ response: { code: 'PHYSICAL_PASS_TABLE_INVALID' } });
+    expect((await prisma.floorplanShape.findUniqueOrThrow({ where: { id: anon.tables[0]!.id } })).capacity).toBe(24);
     const f = await createSeatingPolicyFixture(ServiceCode.PHYSICAL_QR, true);
     await expect(
       floorplan.createSeatAdministrative(

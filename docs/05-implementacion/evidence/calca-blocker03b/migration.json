@@ -1,0 +1,58 @@
+{
+  "baseHead": "f842bdb4c343fc6015aca4e16c80c6fcb64dcdae",
+  "migration": "20261101170000_align_seat_transition_capacity",
+  "historicalMigrationsUnchanged": 55,
+  "scenarios": [
+    {
+      "kind": "upgrade",
+      "result": "PASS",
+      "migrationsApplied": 56,
+      "newMigrationAppliedOnce": true,
+      "existingRowsPreserved": true,
+      "pendingTransitionAfterUpgrade": {
+        "beforeCapacity": 12,
+        "afterCapacity": 0,
+        "tableRetained": true,
+        "seatId": null,
+        "seats": 0
+      },
+      "migrationChainDrift": false,
+      "prismaSchemaValid": true,
+      "preexistingSqlPrismaModelingDifference": {
+        "exitCode": 2,
+        "sqlSha256": "df5df555dbbd0a3718b16cb8a65effe4ed69ea57a4d3bde7e437dd56767b6c48",
+        "identicalToPreMigrationHead": true,
+        "newDifference": false
+      },
+      "functionSha256": {
+        "assert_assistant_floorplan_seat": "06812014502be65a3ffcf558468a014d18a2431f6082bf5520fe879685b6cb77",
+        "assert_assistant_seating": "3b7e9db93b961e0924dd7319f614d431ca67cee8a25fb703d77cbc0713019332",
+        "assert_floorplan_shape_capacity": "1eb6c9fa216767eafe5681c526a518e023d254dbcd4ae1c970e8f1053a9facb5",
+        "sync_floorplan_seat_capacity": "15daa5590391f60e862382fffa02df079e5993cbb83a5dba4fca2b5989ca0961"
+      }
+    },
+    {
+      "kind": "fresh",
+      "result": "PASS",
+      "migrationsApplied": 56,
+      "newMigrationAppliedOnce": true,
+      "existingRowsPreserved": false,
+      "pendingTransitionAfterUpgrade": null,
+      "migrationChainDrift": false,
+      "prismaSchemaValid": true,
+      "preexistingSqlPrismaModelingDifference": {
+        "exitCode": 2,
+        "sqlSha256": "df5df555dbbd0a3718b16cb8a65effe4ed69ea57a4d3bde7e437dd56767b6c48",
+        "identicalToPreMigrationHead": true,
+        "newDifference": false
+      },
+      "functionSha256": {
+        "assert_assistant_floorplan_seat": "06812014502be65a3ffcf558468a014d18a2431f6082bf5520fe879685b6cb77",
+        "assert_assistant_seating": "3b7e9db93b961e0924dd7319f614d431ca67cee8a25fb703d77cbc0713019332",
+        "assert_floorplan_shape_capacity": "1eb6c9fa216767eafe5681c526a518e023d254dbcd4ae1c970e8f1053a9facb5",
+        "sync_floorplan_seat_capacity": "15daa5590391f60e862382fffa02df079e5993cbb83a5dba4fca2b5989ca0961"
+      }
+    }
+  ],
+  "status": "PASS"
+}

@@ -1,0 +1,34 @@
+{
+  "method": "Isolated real PostgreSQL, existing transactional service operations, Prisma readback and native HTTP reproduction. All fixture data fictitious. No automatic replay of uncertain writes or exactly-once claim.",
+  "observations": {
+    "empty": {
+      "before": [12, 24],
+      "after": [0, 0],
+      "seats": 0
+    },
+    "existing": {
+      "before": [12, 24],
+      "after": [8, 3],
+      "seatRowsPreserved": 14,
+      "mutationCapacities": [9, 10, 9, 8]
+    },
+    "onePending": {
+      "beforeCapacity": 12,
+      "afterCapacity": 0,
+      "tableRetained": true,
+      "exactSeat": null,
+      "seats": 0
+    },
+    "fivePending": {
+      "pendingBefore": 5,
+      "manualCapacity": 12,
+      "capacityAfterTransition": 3,
+      "seats": 3,
+      "exactAssigned": 1,
+      "pendingAfter": 4,
+      "capacityAfterBlock": 2
+    }
+  },
+  "uniqueIntegrationCases": 56,
+  "previousBlockersIncluded": ["CALCA-BLOCKER-01", "CALCA-BLOCKER-02"]
+}
