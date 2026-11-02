@@ -43,6 +43,8 @@ docker compose ps
 docker compose logs -f workspace
 ```
 
+Para exponer este mismo entorno de desarrollo a teléfonos, tablets u otros equipos de la misma red, use los scripts y el manual de [run/README.md](run/README.md). Configuran una única IPv4 LAN en CORS y en las URL públicas en memoria; no modifican `.env`.
+
 Credenciales locales de Platform Admin:
 
 ```text
