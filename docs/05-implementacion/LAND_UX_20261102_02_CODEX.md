@@ -30,6 +30,49 @@ Este archivo es el **contrato de ejecución autocontenido para Codex sin acceso 
 
 **Aplazado / prohibido:** plegar las cinco escenas de demo o reescribir su estructura; acordeón de campos opcionales B2B; analytics, rastreo, CRM, tercer formulario, contacto manual no verificado, cambios de API/SDK/DTO/DB, roles/permisos, catálogo, tarifas, pagos, precios, infraestructura, despliegue y refactor amplio del design system. No tocar backend para resolver una necesidad visual.
 
+## 2.1. Lenguaje comercial y de nicho (criterio transversal P1/P2)
+
+**Objetivo editorial:** los textos visibles de la landing deben hablar de necesidades y beneficios que entiende el comprador, no de arquitectura o vocabulario interno. Este es un ajuste de **copy y jerarquía UX dentro del alcance ya aprobado**, no una autorización para cambiar el producto, las tarifas, los contratos ni rehacer todo el sitio.
+
+**Dos niveles de lenguaje:**
+- **Evento individual:** español natural y concreto; «tu evento», «tus invitados», «confirmar asistencia», «ver precios» y «conocer cómo funciona». No simular que existe un medio de contratación individual si aún no está aprobado.
+- **Profesionales:** vocabulario conocido por wedding planners, organizadores de eventos, salones y jardines; «invitaciones personalizadas», «lista de invitados», «confirmaciones», «distribución de mesas», «equipo de recepción», «pases QR», «propuesta para tu salón», «condiciones para planners». Explicar el beneficio operativo antes de la funcionalidad.
+
+**Equivalencias orientativas para interfaz pública (NO renombrar identificadores de código/API):**
+
+| Jergas internas o técnicas | Texto para visitantes |
+| --- | --- |
+| RSVP | Confirmación de asistencia |
+| Scanner / Staff | Escaneo de pases QR / Equipo de recepción |
+| Seating / Croquis | Distribución de mesas / Plano de mesas |
+| SKU / serviceCode | Tipo de servicio / Modalidad |
+| Bracket / capacityMin / capacityMax | Cantidad de invitados / Hasta 50, 100 o 150 personas |
+| Venue / Organization | Salón o jardín |
+| B2B lead / intake | Solicitud de información / Solicitar propuesta |
+| PVP | Precio estándar por evento (MXN antes de IVA) |
+| Partner pricing | Condiciones para planners y agencias (sin sugerir descuento automático) |
+| Servicio gestionado / Provider prepara | Preparamos la experiencia digital para que tú organices a tus invitados |
+| Flipbook | **Flipbook Premium**, con explicación «invitación digital tipo revista» |
+| Flyer | **Flyer digital**, con explicación «invitación digital personalizada» |
+| QR / EventOps | **QR / EventOps**, con explicación «control de acceso con pases QR» |
+
+**Preservar** nombres comerciales Flyer, Flipbook y QR/EventOps, marcas e información normativa. «Planner» y «wedding planner» son términos de nicho válidos para ese público; preferir «organizador de eventos» cuando se hable a visitantes generales. Conservar terminología técnica en tipos TypeScript, DTO, API, tests internos y documentación normativa.
+
+**Microcopy por intención:**
+- Individual: «Explora las invitaciones y elige una opción según la cantidad de invitados»; CTA informativo sin prometer cotización ni contacto.
+- Planner: «Ofrece invitaciones digitales a tus clientes y organiza sus invitados, confirmaciones y accesos»; CTA «Consultar condiciones para planners».
+- Salón o jardín: «Organiza la recepción de tus eventos con pases QR y control de entradas»; CTA «Solicitar propuesta para mi salón».
+- En precios: «Selecciona un servicio y el tamaño de tu evento» y «Precio estándar por evento, antes de IVA». Para Venue, aclarar que la propuesta comercial se cotiza por separado.
+
+**Reglas de contenido:**
+- Frases breves, voz activa, beneficios primero; evitar adjetivos vacíos, claims medibles sin evidencia, anglicismos innecesarios y siglas sin explicación.
+- No decir que todos los servicios incluyen RSVP, álbum o diseño; QR/EventOps excluye esas capacidades. No prometer que InvitePremium sustituye al personal del evento; el cliente conserva la operación.
+- No inventar testimonios, clientes reales, SLA, descuentos, disponibilidad o contacto; las capturas simuladas dicen «Demostración» o «Ejemplo del sistema».
+- Mantener el alcance contractual real de Flyer/Flipbook: piezas/páginas, confirmación y hasta dos rondas consolidadas de cambios; simplificar sin alterar condiciones.
+- Mantener la precisión en avisos legales, privacidad, pricing, errores y formularios; no sustituir términos jurídicos necesarios por marketing ambiguo.
+
+**QA editorial obligatorio:** revisar Hero, header/menu móvil, servicios, pricing, Planner, Venue, formulario B2B, FAQ, CTA final, SEO visible, textos alternativos y anuncios de accesibilidad. Comprobar que no se filtren «SKU», «bracket», «lead», «DTO», «API», «Provider», «M-1» o «RSVP» como jerga sin explicación en textos orientados al cliente. No añadir complejidad ni un refactor general de contenidos para hacerlo.
+
 ## 3. Puntos concretos de código
 
 Inspeccionar primero `apps/landing/src/App.tsx`, `config/landing-config.ts`, `components/{LandingHero,LandingHeader,LandingPricing,LandingServices,LandingProductProof,LandingPlanners,LandingVenue,CommercialLeadModal}.tsx`, `public-pricing-model.ts`, `use-public-pricing.ts` y tests relacionados. Priorizar estado local en App o hook ligero, props tipadas y componentes existentes, sin nueva dependencia por defecto.
