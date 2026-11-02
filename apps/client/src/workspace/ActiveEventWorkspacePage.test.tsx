@@ -402,6 +402,68 @@ describe('Active Event workspace summary', () => {
 });
 
 describe('Active Event seating workspace', () => {
+  it('searches 200 loaded TABLEs locally and synchronizes name, canvas and clearing without offering zones', async () => {
+    const api = mockApiClient();
+    const tables = Array.from({ length: 200 }, (_, i) => ({
+      ...floorplan.shapes[0]!,
+      id: `table-${i}`,
+      name: `Mesa ${i + 1}`
+    }));
+    vi.mocked(api.events.get).mockResolvedValue(workspaceEvent);
+    vi.mocked(api.floorplan.get).mockResolvedValue({
+      ...floorplan,
+      shapes: [...tables, { ...floorplan.shapes[1]!, kind: 'DECORATIVE_ZONE', name: 'Escenario' }]
+    });
+    vi.mocked(api.fileAssets.content).mockResolvedValue(new Blob(['image'], { type: 'image/png' }));
+    vi.mocked(api.floorplan.seating).mockResolvedValue(unassignedPage);
+    const user = userEvent.setup();
+    renderApp(api, `/eventos/${workspaceEvent.id}?seccion=mesas`);
+    const selector = await screen.findByRole('combobox', { name: 'Buscar o seleccionar mesa' });
+    await waitFor(() => expect(api.floorplan.seating).toHaveBeenCalled());
+    const reads = [vi.mocked(api.floorplan.get).mock.calls.length, vi.mocked(api.floorplan.seating).mock.calls.length];
+    await user.type(selector, 'Mesa 200');
+    expect(screen.getAllByRole('option')).toHaveLength(1);
+    expect([
+      vi.mocked(api.floorplan.get).mock.calls.length,
+      vi.mocked(api.floorplan.seating).mock.calls.length
+    ]).toEqual(reads);
+    await user.click(screen.getByRole('option', { name: 'Mesa 200' }));
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(selector).toHaveValue('Mesa 200');
+    expect(seatingFloorplanHarness.props?.selectedId).toBe('table-199');
+    expect(seatingFloorplanHarness.props?.showShapeList).toBe(false);
+    act(() => (seatingFloorplanHarness.props?.onSelect as (shape: Floorplan['shapes'][number]) => void)(tables[0]!));
+    expect(selector).toHaveValue('Mesa 1');
+    await user.click(screen.getByRole('button', { name: 'Limpiar mesa seleccionada' }));
+    expect(selector).toHaveValue('');
+    expect(seatingFloorplanHarness.props?.selectedId).toBeUndefined();
+    await user.type(selector, 'Escenario');
+    expect(screen.getByText('No hay mesas con ese nombre.')).toBeInTheDocument();
+    expect(screen.queryByRole('option')).not.toBeInTheDocument();
+  });
+
+  it('uses the existing tablet assignment drawer at 1024 and restores the name selector after closing', async () => {
+    setViewportWidth(1024);
+    const api = mockApiClient();
+    vi.mocked(api.events.get).mockResolvedValue(workspaceEvent);
+    vi.mocked(api.floorplan.get).mockResolvedValue(floorplan);
+    vi.mocked(api.fileAssets.content).mockResolvedValue(new Blob(['image'], { type: 'image/png' }));
+    vi.mocked(api.floorplan.seating).mockResolvedValue(unassignedPage);
+    const user = userEvent.setup();
+    renderApp(api, `/eventos/${workspaceEvent.id}?seccion=mesas`);
+    const selector = await screen.findByRole('combobox', { name: 'Buscar o seleccionar mesa' });
+    await user.click(selector);
+    await user.keyboard('{ArrowDown}{ArrowUp}{Enter}');
+    expect(await screen.findByTestId('seating-tablet-drawer')).toBeVisible();
+    expect(selector).toHaveValue('12');
+    await user.click(screen.getByRole('button', { name: 'Cerrar panel de Mesa' }));
+    await waitFor(() => expect(screen.queryByTestId('seating-tablet-drawer')).not.toBeInTheDocument());
+    expect(selector).toHaveValue('');
+    await user.click(selector);
+    expect(screen.getByRole('listbox')).toBeVisible();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  });
   it('does not expose or request Floorplan when floorplanEnabled is false', async () => {
     const api = mockApiClient();
     vi.mocked(api.events.get).mockResolvedValue({ ...workspaceEvent, floorplanEnabled: false });
@@ -566,6 +628,7 @@ describe('Active Event seating workspace', () => {
     await user.click(screen.getByRole('button', { name: 'Lugar A1' }));
     expect(seatingFloorplanHarness.props?.selectedId).toBe(floorplan.shapes[0]!.id);
     expect(seatingFloorplanHarness.props?.selectedSeatId).toBe('seat-global');
+    expect(screen.getByRole('combobox', { name: 'Buscar o seleccionar mesa' })).toHaveValue('12');
   });
 
   it('retries an uncertain assignment with the same idempotency key', async () => {

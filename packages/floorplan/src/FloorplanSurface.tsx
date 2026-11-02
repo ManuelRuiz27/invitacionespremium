@@ -21,6 +21,7 @@ const defaultViewport: ViewportState = { scale: 1, x: 0, y: 0 };
 
 export type FloorplanSurfaceProps = Omit<FloorplanRendererProps, 'showSeats' | 'snap' | 'panEnabled'> & {
   dock?: ReactNode;
+  showShapeList?: boolean;
 };
 
 export function FloorplanSurface(props: FloorplanSurfaceProps) {
@@ -111,6 +112,8 @@ export function FloorplanSurface(props: FloorplanSurfaceProps) {
   return (
     <Box
       sx={{
+        minWidth: 0,
+        maxWidth: '100%',
         ...(props.tracePresentation ? { display: 'flex', flexDirection: 'column', flex: '1 1 0', minHeight: 0 } : {}),
         overflow: 'hidden',
         border: `1px solid ${floorplanColors.line}`,
@@ -123,6 +126,9 @@ export function FloorplanSurface(props: FloorplanSurfaceProps) {
         ref={props.tracePresentation ? measureOwner : undefined}
         sx={{
           position: 'relative',
+          minWidth: 0,
+          gridTemplateColumns: props.tracePresentation ? undefined : 'minmax(0, 1fr)',
+          overflow: 'hidden',
           minHeight: props.tracePresentation ? 0 : { xs: 360, md: 520 },
           display: props.tracePresentation ? 'flex' : 'grid',
           flexDirection: 'column',
@@ -183,6 +189,9 @@ export function FloorplanSurface(props: FloorplanSurfaceProps) {
           sx={{
             width: props.tracePresentation && stageWidth ? stageWidth : '100%',
             maxWidth: '100%',
+            minWidth: 0,
+            position: 'relative',
+            contain: 'paint',
             overflow: 'hidden',
             bgcolor: floorplanColors.canvas,
             flexShrink: 0
@@ -317,28 +326,37 @@ export function FloorplanSurface(props: FloorplanSurfaceProps) {
           </Box>
         ) : null}
 
-        <Box
-          component="details"
-          sx={{ borderTop: `1px solid ${floorplanColors.line}`, bgcolor: floorplanColors.paper, px: 2, py: 1.25 }}
-        >
-          <Typography component="summary" id="floorplan-elements-title" variant="subtitle2" sx={{ cursor: 'pointer' }}>
-            Mesas y zonas ({props.floorplan.shapes.length})
-          </Typography>
-          <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap', pt: 1.25 }}>
-            {props.floorplan.shapes.map((shape) => (
-              <Button
-                key={shape.id}
-                size="small"
-                variant={props.selectedId === shape.id ? 'contained' : 'outlined'}
-                disabled={props.disabled || Boolean(props.draft)}
-                onClick={() => props.onSelect(shape)}
-                sx={{ minHeight: 44 }}
-              >
-                {shape.kind === 'TABLE' ? `${tableDisplayName(shape.name)} · ${shape.capacity}` : `Zona ${shape.name}`}
-              </Button>
-            ))}
-          </Stack>
-        </Box>
+        {props.showShapeList !== false ? (
+          <Box
+            component="details"
+            sx={{ borderTop: `1px solid ${floorplanColors.line}`, bgcolor: floorplanColors.paper, px: 2, py: 1.25 }}
+          >
+            <Typography
+              component="summary"
+              id="floorplan-elements-title"
+              variant="subtitle2"
+              sx={{ cursor: 'pointer' }}
+            >
+              Mesas y zonas ({props.floorplan.shapes.length})
+            </Typography>
+            <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap', pt: 1.25 }}>
+              {props.floorplan.shapes.map((shape) => (
+                <Button
+                  key={shape.id}
+                  size="small"
+                  variant={props.selectedId === shape.id ? 'contained' : 'outlined'}
+                  disabled={props.disabled || Boolean(props.draft)}
+                  onClick={() => props.onSelect(shape)}
+                  sx={{ minHeight: 44 }}
+                >
+                  {shape.kind === 'TABLE'
+                    ? `${tableDisplayName(shape.name)} · ${shape.capacity}`
+                    : `Zona ${shape.name}`}
+                </Button>
+              ))}
+            </Stack>
+          </Box>
+        ) : null}
       </Box>
     </Box>
   );

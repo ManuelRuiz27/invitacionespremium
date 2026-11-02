@@ -42,6 +42,26 @@ const floorplan: Floorplan = {
 };
 
 describe('FloorplanSurface', () => {
+  it('can omit the generic Shape cloud for a consumer without removing it from other surfaces', async () => {
+    const props = {
+      floorplan: { ...floorplan, shapes: buildFloorplanScale(200).shapes },
+      imageUrl: 'blob:plan',
+      disabled: false,
+      onSelect: vi.fn(),
+      onDraftChange: vi.fn()
+    };
+    const view = render(<FloorplanSurface {...props} showShapeList={false} />);
+    await screen.findByTestId('production-konva-renderer');
+    expect(screen.queryByText(/Mesas y zonas/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Mesa 200/ })).not.toBeInTheDocument();
+    expect(screen.getByTestId('floorplan-renderer-host')).toHaveStyle({
+      contain: 'paint',
+      overflow: 'hidden',
+      minWidth: '0'
+    });
+    view.rerender(<FloorplanSurface {...props} />);
+    expect(screen.getByText(/Mesas y zonas/)).toBeInTheDocument();
+  });
   it('exposes full focused/selected Trace seat labels through an accessible navigator without creating history', async () => {
     const seats = Array.from({ length: 30 }, (_, i) => ({
       id: `dense-${i}`,

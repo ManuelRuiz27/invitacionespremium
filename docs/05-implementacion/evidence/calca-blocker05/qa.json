@@ -1,0 +1,951 @@
+{
+  "status": "PASS_TICKET_ONLY",
+  "baseHead": "6e9a850abb7f8acd0278169d7e4901f832bfb566",
+  "runtimeSha256": "160fd3778ff15c0734966948bd89299f0c5cf2010f041b76f9092f86889dad61",
+  "sourceSha256Lf": {
+    "apps/client/src/workspace/TableNameSelector.tsx": "8c69e7d9fbec87cfe5bf3ba5fac554160a35f6de1f005c384eb5be66a6b3eb4c",
+    "apps/client/src/workspace/TableNameSelector.test.tsx": "df1f2a5d0154a3664051630b0c92eb57e52ead36614e82db4b75111bca8fb2b7",
+    "apps/client/src/workspace/SeatingWorkspace.tsx": "5babce4d107447b3d6c8031d88b757b3a770cbeab1a652e84669c199cc0a7cdf",
+    "apps/client/src/workspace/ActiveEventWorkspacePage.test.tsx": "dcbd8f1ba6780d9feab77dd653528d9e5642a443f10534a6f599ff554f9e9f6b",
+    "packages/floorplan/src/FloorplanSurface.tsx": "1170f6bbb5593a6cb5d4999572b9e2d496d4e138dec381edf9ac1d7a90e1a3fe",
+    "packages/floorplan/src/FloorplanSurface.test.tsx": "196c9c0f0e10a528bd710759f1e0e98b3c1c878d680858229c215d4a35fbc165"
+  },
+  "fullCalca06Run": false,
+  "fullQaRun": false,
+  "dt09Run": false,
+  "logs": [
+    {
+      "file": "var/qa/calca-blocker05/typecheck-initial.log",
+      "sha256": "0ced86569aa4affa128210e071af0bcca313ffcea675df2bd42b6e1091a0d32f",
+      "bytes": 2552,
+      "result": "5/5 PASS intermediate",
+      "summary": [
+        " Tasks:    5 successful, 5 total",
+        "Cached:    2 cached, 5 total",
+        "  Time:    14.054s "
+      ]
+    },
+    {
+      "file": "var/qa/calca-blocker05/client-initial.log",
+      "sha256": "7a8e1b5f765d05cdc0922b627d2c807207dba846292144cf1b93a4a1936ae33f",
+      "bytes": 38072,
+      "result": "55 PASS / 1 FAIL new tablet test: focus restoration reopened dropdown; openOnFocus removed",
+      "summary": [
+        "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+        " Test Files  1 failed | 1 passed (2)",
+        "      Tests  1 failed | 55 passed (56)",
+        "   Duration  57.56s (transform 1.43s, setup 1.38s, import 6.34s, tests 44.53s, environment 4.71s)"
+      ]
+    },
+    {
+      "file": "var/qa/calca-blocker05/client-second.log",
+      "sha256": "20fb03ac37ece6e2eca5da22c4465180317a958b5a0b77c63d29ead125abf1a4",
+      "bytes": 562,
+      "result": "56/56 PASS after narrow product correction, assertions/timeouts unchanged",
+      "summary": [
+        " Test Files  2 passed (2)",
+        "      Tests  56 passed (56)",
+        "   Duration  38.06s (transform 1.41s, setup 1.38s, import 6.06s, tests 25.69s, environment 4.36s)"
+      ]
+    },
+    {
+      "file": "var/qa/calca-blocker05/floorplan-initial.log",
+      "sha256": "42d6a1a5fc4f5a17fad26d04dfccdcd209942a4a4bc2dc764774e9f8ef1b381b",
+      "bytes": 1324,
+      "result": "134/134 PASS first run; includes BLOCKER-04",
+      "summary": [
+        " Test Files  17 passed (17)",
+        "      Tests  134 passed (134)",
+        "   Duration  40.18s (transform 1.18s, setup 20.06s, import 38.95s, tests 22.52s, environment 67.43s)"
+      ]
+    },
+    {
+      "file": "var/qa/calca-blocker05/admin-initial.log",
+      "sha256": "5840d211317db4663bc2279803dff28c1bf8f69cf25b69754897cc226ea03fd4",
+      "bytes": 568,
+      "result": "149/149 PASS first run",
+      "summary": [
+        " Test Files  1 passed (1)",
+        "      Tests  149 passed (149)",
+        "   Duration  111.58s (transform 1.33s, setup 562ms, import 18.16s, tests 90.55s, environment 2.00s)"
+      ]
+    },
+    {
+      "file": "var/qa/calca-blocker05/static-initial.log",
+      "sha256": "3411e9eacc36c5cd518177ceb0747daa17774d592874256f33ef9adb519f0db5",
+      "bytes": 14456,
+      "result": "18/18 PASS final sources",
+      "summary": [
+        " Tasks:    18 successful, 18 total",
+        "Cached:    9 cached, 18 total",
+        "  Time:    53.241s "
+      ]
+    },
+    {
+      "file": "var/qa/calca-blocker05/product-format-final.log",
+      "sha256": "fbdd37869c73ce85afb11ffefa058e0181874c073fdfee7d7a4b5086b7ea3b1b",
+      "bytes": 138,
+      "result": "PASS product/source formatting",
+      "summary": []
+    },
+    {
+      "file": "var/qa/calca-blocker05/evidence-lint-initial.log",
+      "sha256": "a48b45b5b5fc02928454d74ef57eee4e87d553978e4b643d418520f3d09747b8",
+      "bytes": 526,
+      "result": "FAIL harness navigator declaration duplicated builtin; removed",
+      "summary": []
+    },
+    {
+      "file": "var/qa/calca-blocker05/evidence-lint-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "result": "PASS evidence scripts ESLint",
+      "summary": []
+    },
+    {
+      "file": "var/qa/calca-blocker05/reproduction-initial.log",
+      "sha256": "3dc0c7bf7cab609ff82bfa08e1c5e3471dcaef49bb1f86ca1cc2a61a87337969",
+      "bytes": 20780,
+      "result": "FAIL harness close check included hidden shell navigation Drawer; narrowed to assignment test IDs",
+      "summary": [
+        "[calca-blocker05] owned harness exit 1",
+        "Native process exit: 1"
+      ]
+    },
+    {
+      "file": "var/qa/calca-blocker05/reproduction-second.log",
+      "sha256": "fb44db03ad2524844d04ee279cf5bdb547b2e7b0f443a8ced4a2a85f5e5a6fc3",
+      "bytes": 17610,
+      "result": "6 scale/viewport scenarios and 34 geometry checks PASS; FAIL harness checked lazy request signal before request started",
+      "summary": [
+        "[calca-blocker05] owned harness exit 1",
+        "Native process exit: 1"
+      ]
+    },
+    {
+      "file": "var/qa/calca-blocker05/reproduction-third.log",
+      "sha256": "91a03c9186e9b75b9e3399c934134774256441b57985a570ff71706568221d25",
+      "bytes": 21512,
+      "result": "6 scale/viewport + desktop DOM PASS; harness marker assertion excluded aria-hidden canvas under legitimate tablet Drawer",
+      "summary": [
+        "[calca-blocker05] owned harness exit 1",
+        "Native process exit: 1"
+      ]
+    },
+    {
+      "file": "var/qa/calca-blocker05/reproduction-fourth.log",
+      "sha256": "6b9263b56e40764f74a81350f8520ecbc5d3c5788613c9d6f48ccc746efbee57",
+      "bytes": 17498,
+      "result": "All scale and DOM checks PASS; harness used stale Cambiar mesa literal instead of Cambiar mesa de 1 after TABLE assignment",
+      "summary": [
+        "[calca-blocker05] owned harness exit 1",
+        "Native process exit: 1"
+      ]
+    },
+    {
+      "file": "var/qa/calca-blocker05/reproduction-fifth.log",
+      "sha256": "c3cb0ab6a533e224148c2b225dabc2d28f49a1f2b538c9444278768da6ba2f70",
+      "bytes": 21566,
+      "result": "8 graphical cases, 36 geometry checks, 12 Seat selections, TABLE/SEAT desktop consumers PASS; harness tried Drawer close before move Dialog exit released aria-hidden",
+      "summary": [
+        "[calca-blocker05] owned harness exit 1",
+        "Native process exit: 1"
+      ]
+    },
+    {
+      "file": "var/qa/calca-blocker05/reproduction-approved.log",
+      "sha256": "f71332acf928503f8718672f613076295e05ba50d86f6c54cf8d40ed79008849",
+      "bytes": 17508,
+      "result": "PASS final native journey, including original BLOCKER-04 point and neighboring Seats",
+      "summary": [
+        "[calca-blocker05] owned harness exit 0",
+        "Native process exit: 0"
+      ]
+    },
+    {
+      "file": "var/qa/calca-blocker05/guide-publication.log",
+      "sha256": "26731bebdb710b3586574b5cd46b40782c447596256a88d0c590fa85745d4d4d",
+      "bytes": 18530,
+      "result": "PASS first run: UX02 journey, PDF 14/21/2 pages, 39 PNG verification, process exit 0",
+      "summary": [
+        "[passed] UX02 real organization, both access modes, printable material and camera reception (98447 ms)",
+        "01_MANUAL_ADMIN: 14 Letter pages; images, print layout and mobile width verified.",
+        "02_MANUAL_SALON: 21 Letter pages; images, print layout and mobile width verified.",
+        "03_PRUEBA_USABILIDAD: 2 Letter pages; images, print layout and mobile width verified.",
+        "UX02: 39 PNG verified; complete inventory, hashes, masks and no decodable QR.",
+        "Guide process exit: 0"
+      ]
+    },
+    {
+      "file": "var/qa/calca-blocker05/guide-tests.log",
+      "sha256": "84f45f6ef885c4eb380917e43fb8a906330172a54a9d17e54fb0e08d2792f102",
+      "bytes": 3302,
+      "result": "5/5 PASS",
+      "summary": [
+        "# tests 5",
+        "# pass 5",
+        "# fail 0"
+      ]
+    },
+    {
+      "file": "var/qa/calca-blocker05/guide-verify-final.log",
+      "sha256": "77b57b2aed4c52f5d209d48c24f67d4bc61038f21f9af0643c966642306beac7",
+      "bytes": 1004,
+      "result": "PASS required publication after metadata-only PDF restoration",
+      "summary": [
+        "UX02: 39 PNG verified; complete inventory, hashes, masks and no decodable QR."
+      ]
+    }
+  ],
+  "initialNative": [
+    {
+      "file": "var/qa/calca-blocker05/native-initial/results.json",
+      "sha256": "a6b9b1feb3699d5aea02026f535cb445fcab5325ed7963cba4b200f74318d6b9",
+      "status": "FAIL",
+      "error": "expect(locator).toHaveCount(expected) failed\n\nLocator:  locator('.MuiDrawer-root.MuiModal-root')\nExpected: 0\nReceived: 1\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"to.have.count\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('.MuiDrawer-root.MuiModal-root')\u001b[22m\n\u001b[2m    9 × locator resolved to 1 element\u001b[22m\n\u001b[2m      - unexpected value \"1\"\u001b[22m\n",
+      "scenarios": [],
+      "geometryChecks": 0,
+      "consumers": [],
+      "seatChecks": 0
+    },
+    {
+      "file": "var/qa/calca-blocker05/native-second/results.json",
+      "sha256": "56899db3870237e1a0341667c64d6c428c89c2ad31057d99992f4297fa9e4cd9",
+      "status": "FAIL",
+      "error": "The expression evaluated to a falsy value:\n\n  assert(delayed > 0)\n",
+      "scenarios": [
+        {
+          "tables": 50,
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "nameCycles": 3,
+          "clientSideFilter": true,
+          "canvasSynchronization": true,
+          "geometryWrites": 0,
+          "result": "PASS"
+        },
+        {
+          "tables": 50,
+          "viewport": {
+            "width": 1024,
+            "height": 768
+          },
+          "nameCycles": 3,
+          "clientSideFilter": true,
+          "canvasSynchronization": true,
+          "geometryWrites": 0,
+          "result": "PASS"
+        },
+        {
+          "tables": 100,
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "nameCycles": 3,
+          "clientSideFilter": true,
+          "canvasSynchronization": true,
+          "geometryWrites": 0,
+          "result": "PASS"
+        },
+        {
+          "tables": 100,
+          "viewport": {
+            "width": 1024,
+            "height": 768
+          },
+          "nameCycles": 3,
+          "clientSideFilter": true,
+          "canvasSynchronization": true,
+          "geometryWrites": 0,
+          "result": "PASS"
+        },
+        {
+          "tables": 200,
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "nameCycles": 10,
+          "clientSideFilter": true,
+          "canvasSynchronization": true,
+          "geometryWrites": 0,
+          "result": "PASS"
+        },
+        {
+          "tables": 200,
+          "viewport": {
+            "width": 1024,
+            "height": 768
+          },
+          "nameCycles": 10,
+          "clientSideFilter": true,
+          "canvasSynchronization": true,
+          "geometryWrites": 0,
+          "result": "PASS"
+        }
+      ],
+      "geometryChecks": 34,
+      "consumers": [],
+      "seatChecks": 0,
+      "lastGeometry": {
+        "tables": 200,
+        "cycle": 9,
+        "previousSelection": {
+          "id": "1be1236b-4185-4d5a-90fa-e96f85173ec6",
+          "name": "Mesa 200"
+        },
+        "viewport": {
+          "width": 1024,
+          "height": 768
+        },
+        "selectedTable": null,
+        "host": {
+          "x": 265,
+          "y": 159.640625,
+          "width": 726,
+          "height": 453.75,
+          "right": 991,
+          "bottom": 613.390625
+        },
+        "canvas": {
+          "x": 265,
+          "y": 159.640625,
+          "width": 726,
+          "height": 453.75,
+          "right": 991,
+          "bottom": 613.390625
+        },
+        "paintedCanvas": {
+          "x": 265,
+          "y": 159.640625,
+          "right": 991,
+          "bottom": 613.390625
+        },
+        "selector": {
+          "x": 264,
+          "y": 15.921875,
+          "width": 520,
+          "height": 56,
+          "right": 784,
+          "bottom": 71.921875
+        },
+        "summary": {
+          "x": 264,
+          "y": 659.515625,
+          "width": 728,
+          "height": 66.5,
+          "right": 992,
+          "bottom": 726.015625
+        },
+        "selectorOverlap": 0,
+        "summaryOverlap": 0,
+        "containment": "paint",
+        "horizontalOverflow": false,
+        "stalePoppers": 0,
+        "selectedName": "",
+        "elementFromPoint": [
+          {
+            "x": 628,
+            "y": 692.765625,
+            "tag": "DD",
+            "label": "0",
+            "belongsToControl": true,
+            "canvas": false
+          },
+          {
+            "x": 648.5,
+            "y": 166.515625,
+            "tag": "path",
+            "label": "",
+            "belongsToControl": true,
+            "canvas": false
+          }
+        ],
+        "result": "PASS"
+      }
+    },
+    {
+      "file": "var/qa/calca-blocker05/native-third/results.json",
+      "sha256": "1d14fb6e7c2961aedc3fa7c872b7afc142b57db4ca8aa6b288adb2867f8b03d7",
+      "status": "FAIL",
+      "error": "expect(locator).toHaveAttribute(expected) failed\n\nLocator: getByTestId('floorplan-renderer-host').getByRole('button', { name: 'Seleccionar mesa Mesa 101', exact: true })\nExpected string: \"true\"\nReceived: <element(s) not found>\nTimeout: 5000ms\n\nCall log:\n\u001b[2m  - Expect \"to.have.attribute.value\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByTestId('floorplan-renderer-host').getByRole('button', { name: 'Seleccionar mesa Mesa 101', exact: true })\u001b[22m\n",
+      "scenarios": [
+        {
+          "tables": 50,
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "nameCycles": 3,
+          "clientSideFilter": true,
+          "canvasSynchronization": true,
+          "geometryWrites": 0,
+          "result": "PASS"
+        },
+        {
+          "tables": 50,
+          "viewport": {
+            "width": 1024,
+            "height": 768
+          },
+          "nameCycles": 3,
+          "clientSideFilter": true,
+          "canvasSynchronization": true,
+          "geometryWrites": 0,
+          "result": "PASS"
+        },
+        {
+          "tables": 100,
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "nameCycles": 3,
+          "clientSideFilter": true,
+          "canvasSynchronization": true,
+          "geometryWrites": 0,
+          "result": "PASS"
+        },
+        {
+          "tables": 100,
+          "viewport": {
+            "width": 1024,
+            "height": 768
+          },
+          "nameCycles": 3,
+          "clientSideFilter": true,
+          "canvasSynchronization": true,
+          "geometryWrites": 0,
+          "result": "PASS"
+        },
+        {
+          "tables": 200,
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "nameCycles": 10,
+          "clientSideFilter": true,
+          "canvasSynchronization": true,
+          "geometryWrites": 0,
+          "result": "PASS"
+        },
+        {
+          "tables": 200,
+          "viewport": {
+            "width": 1024,
+            "height": 768
+          },
+          "nameCycles": 10,
+          "clientSideFilter": true,
+          "canvasSynchronization": true,
+          "geometryWrites": 0,
+          "result": "PASS"
+        },
+        {
+          "tables": 200,
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "renderer": "DOM-fallback",
+          "delayedLazyModule": true,
+          "result": "PASS"
+        }
+      ],
+      "geometryChecks": 35,
+      "consumers": [],
+      "seatChecks": 0,
+      "lastGeometry": {
+        "tables": 200,
+        "renderer": "DOM-fallback",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "selectedTable": null,
+        "host": {
+          "x": 273,
+          "y": 486.84375,
+          "width": 1126,
+          "height": 703.75,
+          "right": 1399,
+          "bottom": 1190.59375
+        },
+        "canvas": {
+          "x": 273,
+          "y": 486.84375,
+          "width": 1126,
+          "height": 703.75,
+          "right": 1399,
+          "bottom": 1190.59375
+        },
+        "paintedCanvas": {
+          "x": 273,
+          "y": 486.84375,
+          "right": 1399,
+          "bottom": 1190.59375
+        },
+        "selector": {
+          "x": 272,
+          "y": 376.25,
+          "width": 520,
+          "height": 56,
+          "right": 792,
+          "bottom": 432.25
+        },
+        "summary": {
+          "x": 272,
+          "y": 1203.59375,
+          "width": 1128,
+          "height": 66.5,
+          "right": 1400,
+          "bottom": 1270.09375
+        },
+        "selectorOverlap": 0,
+        "summaryOverlap": 0,
+        "containment": "paint",
+        "horizontalOverflow": false,
+        "stalePoppers": 0,
+        "selectedName": "",
+        "elementFromPoint": [
+          {
+            "x": 836,
+            "y": 786.84375,
+            "tag": "DD",
+            "label": "0",
+            "belongsToControl": true,
+            "canvas": false
+          },
+          {
+            "x": 856.5,
+            "y": 76.84375,
+            "tag": "path",
+            "label": "",
+            "belongsToControl": true,
+            "canvas": false
+          }
+        ],
+        "result": "PASS"
+      }
+    },
+    {
+      "file": "var/qa/calca-blocker05/native-fourth/results.json",
+      "sha256": "317ae8b211065e139231e65a71a6512486142f77e9061c8a8b47ca90a078e79a",
+      "status": "FAIL",
+      "error": "locator.click: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Cambiar mesa', exact: true })\u001b[22m\n",
+      "scenarios": [
+        {
+          "tables": 50,
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "nameCycles": 3,
+          "clientSideFilter": true,
+          "canvasSynchronization": true,
+          "geometryWrites": 0,
+          "result": "PASS"
+        },
+        {
+          "tables": 50,
+          "viewport": {
+            "width": 1024,
+            "height": 768
+          },
+          "nameCycles": 3,
+          "clientSideFilter": true,
+          "canvasSynchronization": true,
+          "geometryWrites": 0,
+          "result": "PASS"
+        },
+        {
+          "tables": 100,
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "nameCycles": 3,
+          "clientSideFilter": true,
+          "canvasSynchronization": true,
+          "geometryWrites": 0,
+          "result": "PASS"
+        },
+        {
+          "tables": 100,
+          "viewport": {
+            "width": 1024,
+            "height": 768
+          },
+          "nameCycles": 3,
+          "clientSideFilter": true,
+          "canvasSynchronization": true,
+          "geometryWrites": 0,
+          "result": "PASS"
+        },
+        {
+          "tables": 200,
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "nameCycles": 10,
+          "clientSideFilter": true,
+          "canvasSynchronization": true,
+          "geometryWrites": 0,
+          "result": "PASS"
+        },
+        {
+          "tables": 200,
+          "viewport": {
+            "width": 1024,
+            "height": 768
+          },
+          "nameCycles": 10,
+          "clientSideFilter": true,
+          "canvasSynchronization": true,
+          "geometryWrites": 0,
+          "result": "PASS"
+        },
+        {
+          "tables": 200,
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "renderer": "DOM-fallback",
+          "delayedLazyModule": true,
+          "result": "PASS"
+        },
+        {
+          "tables": 200,
+          "viewport": {
+            "width": 1024,
+            "height": 768
+          },
+          "renderer": "DOM-fallback",
+          "delayedLazyModule": true,
+          "result": "PASS"
+        }
+      ],
+      "geometryChecks": 36,
+      "consumers": [],
+      "seatChecks": 0,
+      "lastGeometry": {
+        "tables": 200,
+        "renderer": "DOM-fallback",
+        "viewport": {
+          "width": 1024,
+          "height": 768
+        },
+        "selectedTable": null,
+        "host": {
+          "x": 265,
+          "y": 511.640625,
+          "width": 726,
+          "height": 453.75,
+          "right": 991,
+          "bottom": 965.390625
+        },
+        "canvas": {
+          "x": 265,
+          "y": 511.640625,
+          "width": 726,
+          "height": 453.75,
+          "right": 991,
+          "bottom": 965.390625
+        },
+        "paintedCanvas": {
+          "x": 265,
+          "y": 511.640625,
+          "right": 991,
+          "bottom": 965.390625
+        },
+        "selector": {
+          "x": 264,
+          "y": 367.921875,
+          "width": 520,
+          "height": 56,
+          "right": 784,
+          "bottom": 423.921875
+        },
+        "summary": {
+          "x": 264,
+          "y": 1011.515625,
+          "width": 728,
+          "height": 66.5,
+          "right": 992,
+          "bottom": 1078.015625
+        },
+        "selectorOverlap": 0,
+        "summaryOverlap": 0,
+        "containment": "paint",
+        "horizontalOverflow": false,
+        "stalePoppers": 0,
+        "selectedName": "",
+        "elementFromPoint": [
+          {
+            "x": 628,
+            "y": 654.765625,
+            "tag": "DD",
+            "label": "0",
+            "belongsToControl": true,
+            "canvas": false
+          },
+          {
+            "x": 648.5,
+            "y": 128.515625,
+            "tag": "path",
+            "label": "",
+            "belongsToControl": true,
+            "canvas": false
+          }
+        ],
+        "result": "PASS"
+      }
+    },
+    {
+      "file": "var/qa/calca-blocker05/native-fifth/results.json",
+      "sha256": "5b68135d8ce713c977e186582de0fa8de35b22b6a1827030a84f5460045d2697",
+      "status": "FAIL",
+      "error": "expect(locator).toHaveCount(expected) failed\n\nLocator:  getByTestId('seating-tablet-drawer')\nExpected: 0\nReceived: 1\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"to.have.count\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByTestId('seating-tablet-drawer')\u001b[22m\n\u001b[2m    9 × locator resolved to 1 element\u001b[22m\n\u001b[2m      - unexpected value \"1\"\u001b[22m\n",
+      "scenarios": [
+        {
+          "tables": 50,
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "nameCycles": 3,
+          "clientSideFilter": true,
+          "canvasSynchronization": true,
+          "geometryWrites": 0,
+          "result": "PASS"
+        },
+        {
+          "tables": 50,
+          "viewport": {
+            "width": 1024,
+            "height": 768
+          },
+          "nameCycles": 3,
+          "clientSideFilter": true,
+          "canvasSynchronization": true,
+          "geometryWrites": 0,
+          "result": "PASS"
+        },
+        {
+          "tables": 100,
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "nameCycles": 3,
+          "clientSideFilter": true,
+          "canvasSynchronization": true,
+          "geometryWrites": 0,
+          "result": "PASS"
+        },
+        {
+          "tables": 100,
+          "viewport": {
+            "width": 1024,
+            "height": 768
+          },
+          "nameCycles": 3,
+          "clientSideFilter": true,
+          "canvasSynchronization": true,
+          "geometryWrites": 0,
+          "result": "PASS"
+        },
+        {
+          "tables": 200,
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "nameCycles": 10,
+          "clientSideFilter": true,
+          "canvasSynchronization": true,
+          "geometryWrites": 0,
+          "result": "PASS"
+        },
+        {
+          "tables": 200,
+          "viewport": {
+            "width": 1024,
+            "height": 768
+          },
+          "nameCycles": 10,
+          "clientSideFilter": true,
+          "canvasSynchronization": true,
+          "geometryWrites": 0,
+          "result": "PASS"
+        },
+        {
+          "tables": 200,
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "renderer": "DOM-fallback",
+          "delayedLazyModule": true,
+          "result": "PASS"
+        },
+        {
+          "tables": 200,
+          "viewport": {
+            "width": 1024,
+            "height": 768
+          },
+          "renderer": "DOM-fallback",
+          "delayedLazyModule": true,
+          "result": "PASS"
+        }
+      ],
+      "geometryChecks": 36,
+      "consumers": [
+        {
+          "mode": "TABLE",
+          "assign": true,
+          "move": true,
+          "unassign": true,
+          "dbVerified": true,
+          "result": "PASS"
+        },
+        {
+          "mode": "SEAT",
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "assign": true,
+          "move": true,
+          "unassign": true,
+          "dbVerified": true,
+          "result": "PASS"
+        }
+      ],
+      "seatChecks": 12,
+      "lastGeometry": {
+        "tables": 200,
+        "renderer": "DOM-fallback",
+        "viewport": {
+          "width": 1024,
+          "height": 768
+        },
+        "selectedTable": null,
+        "host": {
+          "x": 265,
+          "y": 511.640625,
+          "width": 726,
+          "height": 453.75,
+          "right": 991,
+          "bottom": 965.390625
+        },
+        "canvas": {
+          "x": 265,
+          "y": 511.640625,
+          "width": 726,
+          "height": 453.75,
+          "right": 991,
+          "bottom": 965.390625
+        },
+        "paintedCanvas": {
+          "x": 265,
+          "y": 511.640625,
+          "right": 991,
+          "bottom": 965.390625
+        },
+        "selector": {
+          "x": 264,
+          "y": 367.921875,
+          "width": 520,
+          "height": 56,
+          "right": 784,
+          "bottom": 423.921875
+        },
+        "summary": {
+          "x": 264,
+          "y": 1011.515625,
+          "width": 728,
+          "height": 66.5,
+          "right": 992,
+          "bottom": 1078.015625
+        },
+        "selectorOverlap": 0,
+        "summaryOverlap": 0,
+        "containment": "paint",
+        "horizontalOverflow": false,
+        "stalePoppers": 0,
+        "selectedName": "",
+        "elementFromPoint": [
+          {
+            "x": 628,
+            "y": 654.765625,
+            "tag": "DD",
+            "label": "0",
+            "belongsToControl": true,
+            "canvas": false
+          },
+          {
+            "x": 648.5,
+            "y": 128.515625,
+            "tag": "path",
+            "label": "",
+            "belongsToControl": true,
+            "canvas": false
+          }
+        ],
+        "result": "PASS"
+      }
+    }
+  ],
+  "finalChecks": {
+    "unchangedScopes": [
+      "apps/api",
+      "apps/admin",
+      "apps/scanner",
+      "packages/api-client",
+      "scripts",
+      "packages/floorplan/src/floorplan-seat-selection.ts",
+      "packages/floorplan/src/useConsumerSeatSelection.ts",
+      "packages/floorplan/src/FloorplanKonvaRenderer.tsx",
+      "packages/floorplan/src/FloorplanDomRenderer.tsx",
+      "docs/05-implementacion/evidence/calca06",
+      "docs/05-implementacion/evidence/calca-blocker04",
+      "docs/05-implementacion/CALCA06_TRACE_MODE_CERTIFICATION.md"
+    ],
+    "runtimeMatchesNativeAndGuides": true,
+    "nativeScreenshots": 5,
+    "scaleViewportScenarios": 6,
+    "domFallbackScenarios": 2,
+    "nameCycles": 32,
+    "geometryChecks": 36,
+    "controlHitTests": 72,
+    "denseSeatChecks": 12,
+    "consumerAssignMoveUnassignScenarios": 3,
+    "uniqueFocusedTests": 339,
+    "ephemeralDatabasesLeft": [],
+    "pdfMetadataRestoration": [
+      {
+        "file": "docs/guias-usuario/control-de-acceso/01_MANUAL_ADMIN.pdf",
+        "restored": false,
+        "reason": "Content differs; retained"
+      },
+      {
+        "file": "docs/guias-usuario/control-de-acceso/02_MANUAL_SALON.pdf",
+        "restored": false,
+        "reason": "Content differs; retained"
+      },
+      {
+        "file": "docs/guias-usuario/control-de-acceso/03_PRUEBA_USABILIDAD.pdf",
+        "restored": true,
+        "reason": "Only CreationDate/ModDate metadata differs; content identical"
+      }
+    ]
+  }
+}

@@ -37,6 +37,7 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useWorkspaceRealtime } from './useWorkspaceRealtime';
+import { TableNameSelector } from './TableNameSelector';
 
 type Scope = 'UNASSIGNED' | 'TABLE';
 type ConfirmIntent = { kind: 'FAMILY'; item: SeatingWorkspaceItem } | { kind: 'GROUP'; item: SeatingWorkspaceItem };
@@ -52,7 +53,7 @@ const mutableStatuses = new Set(['ACTIVE', 'EVENT_DAY']);
 export function SeatingWorkspace({ apiClient, event }: { apiClient: ApiClient; event: Event }) {
   const queryClient = useQueryClient();
   const theme = useTheme();
-  const compact = useMediaQuery(theme.breakpoints.down('md'));
+  const compact = useMediaQuery(theme.breakpoints.down('lg'));
   const mobile = useMediaQuery(theme.breakpoints.down('sm'));
   const nominalAccess = event.serviceCode === 'ACCESS_CONTROL' && event.accessMode === 'NOMINAL';
   const digital = event.serviceCode === 'FLYER' || event.serviceCode === 'FLIPBOOK' || nominalAccess;
@@ -375,6 +376,12 @@ export function SeatingWorkspace({ apiClient, event }: { apiClient: ApiClient; e
       {!mutable && digital ? (
         <Alert severity="info">Este Evento está en modo de consulta. La distribución no admite cambios.</Alert>
       ) : null}
+      <TableNameSelector
+        tables={tables}
+        selectedTable={selectedTable}
+        onSelect={selectTable}
+        onClear={clearSelection}
+      />
       <Box
         sx={{
           display: 'grid',
@@ -395,6 +402,7 @@ export function SeatingWorkspace({ apiClient, event }: { apiClient: ApiClient; e
             svgSource={svgSourceQuery.data}
             disabled={false}
             readOnly
+            showShapeList={false}
             onSelect={selectTable}
             onSeatSelect={(seatId) => {
               const seat = (floorplan.seats ?? []).find((candidate) => candidate.id === seatId);
