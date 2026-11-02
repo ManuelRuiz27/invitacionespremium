@@ -32,6 +32,7 @@ export function LandingHeader({ onOpenCommercial, config }: LandingHeaderProps) 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const chooseIntentAfterClose = useRef(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -147,7 +148,7 @@ export function LandingHeader({ onOpenCommercial, config }: LandingHeaderProps) 
                 disabled={!landingContent.urls.login}
                 sx={{
                   ...landingTokens.buttons.secondary,
-                  minHeight: 40,
+                  minHeight: 44,
                   px: 2.5,
                   py: 0.85,
                   ...landingTokens.typography.headline,
@@ -166,7 +167,7 @@ export function LandingHeader({ onOpenCommercial, config }: LandingHeaderProps) 
                 onClick={onOpenCommercial}
                 sx={{
                   ...landingTokens.buttons.primary,
-                  minHeight: 40,
+                  minHeight: 44,
                   px: 2.75,
                   py: 0.85,
                   ...landingTokens.typography.headline,
@@ -174,7 +175,7 @@ export function LandingHeader({ onOpenCommercial, config }: LandingHeaderProps) 
                   whiteSpace: 'nowrap'
                 }}
               >
-                {landingContent.cta.primaryCta}
+                Elegir cómo contratar
               </Button>
             )}
 
@@ -185,7 +186,7 @@ export function LandingHeader({ onOpenCommercial, config }: LandingHeaderProps) 
                 aria-label="Abrir menú de navegación"
                 aria-controls="landing-mobile-navigation"
                 aria-expanded={drawerOpen}
-                sx={{ color: landingTokens.colors.base.text }}
+                sx={{ color: landingTokens.colors.base.text, minWidth: 44, minHeight: 44 }}
               >
                 <MenuIcon />
               </IconButton>
@@ -199,6 +200,14 @@ export function LandingHeader({ onOpenCommercial, config }: LandingHeaderProps) 
         open={drawerOpen}
         onClose={toggleDrawer(false)}
         slotProps={{
+          transition: {
+            onExited: () => {
+              if (chooseIntentAfterClose.current) {
+                chooseIntentAfterClose.current = false;
+                onOpenCommercial();
+              }
+            }
+          },
           paper: {
             sx: {
               bgcolor: 'background.paper',
@@ -240,8 +249,8 @@ export function LandingHeader({ onOpenCommercial, config }: LandingHeaderProps) 
               variant="contained"
               fullWidth
               onClick={() => {
+                chooseIntentAfterClose.current = true;
                 setDrawerOpen(false);
-                onOpenCommercial();
               }}
               sx={{
                 ...landingTokens.buttons.primary,
@@ -250,7 +259,7 @@ export function LandingHeader({ onOpenCommercial, config }: LandingHeaderProps) 
                 fontSize: '0.92rem'
               }}
             >
-              {landingContent.cta.primaryCta}
+              Elegir cómo contratar
             </Button>
 
             <Button

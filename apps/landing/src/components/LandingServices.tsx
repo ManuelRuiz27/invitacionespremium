@@ -13,9 +13,9 @@ import { ProductProofPicture } from './ProductProofPicture';
 const landingContent = getLandingConfig();
 
 const assetMap = {
-  FLIPBOOK: { avif: flipbookAvif, webp: flipbookWebp, alt: 'Invitación Premium real' },
-  FLYER: { avif: rsvpAvif, webp: rsvpWebp, alt: 'Confirmación digital real' },
-  PHYSICAL_QR: { avif: scannerAvif, webp: scannerWebp, alt: 'Control de acceso real para recibir invitados' }
+  FLIPBOOK: { avif: flipbookAvif, webp: flipbookWebp, alt: 'Demostración de invitación Premium' },
+  FLYER: { avif: rsvpAvif, webp: rsvpWebp, alt: 'Demostración de confirmación digital' },
+  PHYSICAL_QR: { avif: scannerAvif, webp: scannerWebp, alt: 'Demostración de control de acceso para recibir invitados' }
 };
 
 export function LandingServices() {
@@ -98,6 +98,7 @@ export function LandingServices() {
               <Box
                 sx={{
                   flex: 1.5,
+                  flexDirection: 'column',
                   width: '100%',
                   display: 'flex',
                   justifyContent: 'center',
@@ -117,6 +118,9 @@ export function LandingServices() {
                   }}
                   imageStyle={{ maxHeight: 470, objectFit: 'cover', objectPosition: 'top' }}
                 />
+                <Typography variant="caption" sx={{ mt: 2, color: 'text.secondary' }}>
+                  Pantalla de demostración
+                </Typography>
               </Box>
             </Box>
           ))}

@@ -1,0 +1,179 @@
+{
+  "results": [
+    {
+      "width": 320,
+      "dimensions": {
+        "width": 320,
+        "scrollWidth": 320,
+        "intentTargets": [
+          {
+            "w": 288,
+            "h": 48
+          },
+          {
+            "w": 288,
+            "h": 48
+          },
+          {
+            "w": 288,
+            "h": 48
+          }
+        ]
+      },
+      "modalDimensions": {
+        "w": 256,
+        "scroll": 256,
+        "client": 256
+      },
+      "journeys": "PASS",
+      "editorialSection2_1": "PASS"
+    },
+    {
+      "width": 360,
+      "dimensions": {
+        "width": 360,
+        "scrollWidth": 360,
+        "intentTargets": [
+          {
+            "w": 328,
+            "h": 48
+          },
+          {
+            "w": 328,
+            "h": 48
+          },
+          {
+            "w": 328,
+            "h": 48
+          }
+        ]
+      },
+      "modalDimensions": {
+        "w": 296,
+        "scroll": 296,
+        "client": 296
+      },
+      "journeys": "PASS",
+      "editorialSection2_1": "PASS"
+    },
+    {
+      "width": 390,
+      "dimensions": {
+        "width": 390,
+        "scrollWidth": 390,
+        "intentTargets": [
+          {
+            "w": 358,
+            "h": 48
+          },
+          {
+            "w": 358,
+            "h": 48
+          },
+          {
+            "w": 358,
+            "h": 48
+          }
+        ]
+      },
+      "modalDimensions": {
+        "w": 326,
+        "scroll": 326,
+        "client": 326
+      },
+      "journeys": "PASS",
+      "editorialSection2_1": "PASS"
+    },
+    {
+      "width": 768,
+      "dimensions": {
+        "width": 768,
+        "scrollWidth": 768,
+        "intentTargets": [
+          {
+            "w": 720,
+            "h": 48
+          },
+          {
+            "w": 720,
+            "h": 48
+          },
+          {
+            "w": 720,
+            "h": 48
+          }
+        ]
+      },
+      "modalDimensions": {
+        "w": 600,
+        "scroll": 600,
+        "client": 600
+      },
+      "journeys": "PASS",
+      "editorialSection2_1": "PASS"
+    },
+    {
+      "width": 1024,
+      "dimensions": {
+        "width": 1024,
+        "scrollWidth": 1024,
+        "intentTargets": [
+          {
+            "w": 320,
+            "h": 48
+          },
+          {
+            "w": 320,
+            "h": 48
+          },
+          {
+            "w": 320,
+            "h": 48
+          }
+        ]
+      },
+      "modalDimensions": {
+        "w": 600,
+        "scroll": 600,
+        "client": 600
+      },
+      "journeys": "PASS",
+      "editorialSection2_1": "PASS"
+    },
+    {
+      "width": 1440,
+      "dimensions": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "intentTargets": [
+          {
+            "w": 378.65625,
+            "h": 48
+          },
+          {
+            "w": 378.671875,
+            "h": 48
+          },
+          {
+            "w": 378.65625,
+            "h": 48
+          }
+        ]
+      },
+      "modalDimensions": {
+        "w": 600,
+        "scroll": 600,
+        "client": 600
+      },
+      "journeys": "PASS",
+      "editorialSection2_1": "PASS"
+    },
+    {
+      "transportSimulations": "409/429/201 PASS",
+      "sameSubmissionId": true,
+      "notesOnlyContext": true,
+      "postsReachedBackend": false
+    }
+  ],
+  "errors": []
+}

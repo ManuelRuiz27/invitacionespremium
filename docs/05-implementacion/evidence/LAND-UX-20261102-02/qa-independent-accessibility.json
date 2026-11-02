@@ -1,0 +1,228 @@
+{
+  "normalVideo": {
+    "controls": true,
+    "muted": true,
+    "autoplay": true,
+    "poster": true
+  },
+  "videoErrorFallback": "PASS",
+  "mobileGenericCta": "PASS",
+  "pageContrast": [
+    {
+      "text": "¿Cómo quieres contratar?",
+      "ratio": 16.05,
+      "min": 4.5
+    },
+    {
+      "text": "Elige tu caso para conocer el siguiente paso. El precio estándar por evento",
+      "ratio": 16.05,
+      "min": 4.5
+    },
+    {
+      "text": "Organizo mi evento",
+      "ratio": 16.05,
+      "min": 4.5
+    },
+    {
+      "text": "Soy Planner/agencia",
+      "ratio": 16.05,
+      "min": 4.5
+    },
+    {
+      "text": "Tengo salón o jardín",
+      "ratio": 16.05,
+      "min": 4.5
+    },
+    {
+      "text": "Selecciona una opción; no crea una cuenta ni asigna tarifas.",
+      "ratio": 16.05,
+      "min": 4.5
+    },
+    {
+      "text": "Precios por evento",
+      "ratio": 16.05,
+      "min": 3
+    },
+    {
+      "text": "Selecciona un servicio y el tamaño de tu evento. Compara opciones de hasta ",
+      "ratio": 6.38,
+      "min": 4.5
+    },
+    {
+      "text": "MXN antes de IVA · Tarifas por evento según capacidad. Los planes para salo",
+      "ratio": 6.38,
+      "min": 4.5
+    },
+    {
+      "text": "Tu selección",
+      "ratio": 16.05,
+      "min": 3
+    },
+    {
+      "text": "Servicio",
+      "ratio": 6.38,
+      "min": 4.5
+    },
+    {
+      "text": "QR / EventOpsFlyer digitalFlipbook Premium",
+      "ratio": 17.93,
+      "min": 4.5
+    },
+    {
+      "text": "Capacidad del evento",
+      "ratio": 6.38,
+      "min": 4.5
+    },
+    {
+      "text": "1–50 personas51–100 personas101–150 personas",
+      "ratio": 17.93,
+      "min": 4.5
+    },
+    {
+      "text": "QR / EventOps · 1–50 personas",
+      "ratio": 16.05,
+      "min": 4.5
+    },
+    {
+      "text": "$2,500 MXN antes de IVA",
+      "ratio": 16.05,
+      "min": 3
+    },
+    {
+      "text": "Precio estándar por evento, antes de IVA. Esta selección no fija una cotiza",
+      "ratio": 16.05,
+      "min": 4.5
+    },
+    {
+      "text": "Pases numerados de uso individual y único",
+      "ratio": 16.05,
+      "min": 4.5
+    },
+    {
+      "text": "Distribución y plano de mesas cuando aplica",
+      "ratio": 16.05,
+      "min": 4.5
+    },
+    {
+      "text": "Accesos temporales para tu equipo de recepción",
+      "ratio": 16.05,
+      "min": 4.5
+    },
+    {
+      "text": "Validación de ingreso con escaneo de pases QR",
+      "ratio": 16.05,
+      "min": 4.5
+    },
+    {
+      "text": "Sin confirmación pública de asistencia ni álbum",
+      "ratio": 16.05,
+      "min": 4.5
+    },
+    {
+      "text": "Elige cómo contratar para conocer el siguiente paso.",
+      "ratio": 16.05,
+      "min": 4.5
+    },
+    {
+      "text": "El escaneo de pases QR requiere conexión. Atendemos eventos de 1 a 150 pers",
+      "ratio": 16.05,
+      "min": 4.5
+    },
+    {
+      "text": "Elegir cómo contratar",
+      "ratio": 16.05,
+      "min": 4.5
+    }
+  ],
+  "modalContrast": [
+    {
+      "text": "Condiciones para Planners y agencias",
+      "ratio": 17.93,
+      "min": 4.5
+    },
+    {
+      "text": "Comparte los datos necesarios para dar seguimiento a tu solicitud comercial",
+      "ratio": 17.93,
+      "min": 4.5
+    },
+    {
+      "text": "Puedes cambiar el servicio y la cantidad de invitados",
+      "ratio": 17.93,
+      "min": 4.5
+    },
+    {
+      "text": "Servicio",
+      "ratio": 7.13,
+      "min": 4.5
+    },
+    {
+      "text": "Capacidad del evento",
+      "ratio": 7.13,
+      "min": 4.5
+    },
+    {
+      "text": "Precio estándar de referencia. Las condiciones para planners y agencias se ",
+      "ratio": 17.93,
+      "min": 4.5
+    },
+    {
+      "text": "Nombre de contacto *",
+      "ratio": 7.13,
+      "min": 4.5
+    },
+    {
+      "text": "Empresa / salón / jardín / agencia *",
+      "ratio": 7.13,
+      "min": 4.5
+    },
+    {
+      "text": "Correo electrónico *",
+      "ratio": 7.13,
+      "min": 4.5
+    },
+    {
+      "text": "Teléfono / WhatsApp (opcional)",
+      "ratio": 7.13,
+      "min": 4.5
+    },
+    {
+      "text": "Eventos estimados por mes (opcional)",
+      "ratio": 7.13,
+      "min": 4.5
+    },
+    {
+      "text": "Mensaje (opcional)",
+      "ratio": 7.13,
+      "min": 4.5
+    },
+    {
+      "text": "88/1000 caracteres, incluido el contexto de precio.",
+      "ratio": 7.13,
+      "min": 4.5
+    },
+    {
+      "text": "Acepto el uso de estos datos para dar seguimiento a mi solicitud comercial.",
+      "ratio": 17.93,
+      "min": 4.5
+    },
+    {
+      "text": "Enviar solicitud",
+      "ratio": 16.05,
+      "min": 4.5
+    }
+  ],
+  "tabTrap": "PASS: 24 Tab and Shift+Tab remain inside Dialog; honeypot skipped",
+  "targets": [
+    {
+      "label": "Cerrar solicitud comercial",
+      "width": 44,
+      "height": 44
+    },
+    {
+      "label": "Enviar solicitud",
+      "width": 179.453125,
+      "height": 44
+    }
+  ],
+  "failures": []
+}

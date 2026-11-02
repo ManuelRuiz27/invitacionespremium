@@ -79,12 +79,15 @@ export function LandingPlanners({ onOpenCommercial }: LandingPlannersProps) {
             <ProductProofPicture
               avif={distributionAvif}
               webp={distributionWebp}
-              alt="Vista real para organizar invitaciones y confirmaciones"
+              alt="Vista de demostración para organizar invitaciones y confirmaciones"
               width={2160}
               height={1500}
               sx={{ border: landingTokens.borders.hairlineLight, boxShadow: landingTokens.shadows.productLayer }}
               imageStyle={{ minHeight: 430, objectFit: 'cover', objectPosition: 'center' }}
             />
+            <Typography variant="caption" sx={{ display: 'block', mt: 2, color: 'text.secondary' }}>
+              Pantalla de demostración · Datos ficticios
+            </Typography>
           </Grid>
         </Grid>
       </LandingContainer>

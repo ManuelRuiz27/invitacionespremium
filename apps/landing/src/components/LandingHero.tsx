@@ -1,6 +1,4 @@
-import invitationVideoWebm from '../assets/product-proof/invitation-demo.webm';
-import invitationAnimatedWebp from '../assets/product-proof/invitation-demo-animated.webp';
-import invitationAnimatedGif from '../assets/product-proof/invitation-demo-animated.gif';
+import { DemoVideo } from './DemoVideo';
 import { getLandingConfig, type LandingConfig } from '../config/landing-config';
 
 import { scrollToLandingSection } from '../navigation';
@@ -83,7 +81,7 @@ export function LandingHero({ config }: LandingHeroProps) {
                 variant="outlined"
                 size="large"
                 endIcon={<ArrowForwardIcon />}
-                onClick={() => scrollToLandingSection('#venues')}
+                onClick={() => scrollToLandingSection('#como-funciona')}
                 sx={landingTokens.buttons.secondary}
               >
                 {content.hero.secondaryCta}
@@ -99,7 +97,7 @@ export function LandingHero({ config }: LandingHeroProps) {
                 pt: 0.5
               }}
             >
-              Tecnología invisible · Eventos extraordinarios
+              Preparamos la experiencia. Tú decides quién asiste.
             </Typography>
           </Stack>
 
@@ -115,7 +113,7 @@ export function LandingHero({ config }: LandingHeroProps) {
             }}
           >
             <Box
-              aria-label="Invitación Premium real interactiva — Boda de Prueba"
+              aria-label="Demostración de invitación Premium — Boda de Prueba"
               sx={{
                 width: '100%',
                 maxWidth: { xs: 250, sm: 290, md: 320, lg: 340 },
@@ -126,45 +124,16 @@ export function LandingHero({ config }: LandingHeroProps) {
                 boxShadow: landingTokens.shadows.protagonist,
                 bgcolor: landingTokens.colors.base.surface,
                 transition: `transform ${landingTokens.transitions.duration} ${landingTokens.transitions.easing}`,
+                '@media (prefers-reduced-motion: reduce)': { transition: 'none', transform: 'none' },
                 '&:hover': {
                   transform: 'translateY(-3px)'
                 }
               }}
             >
-              <video
-                autoPlay
-                loop
-                muted
-                playsInline
-                aria-label="Invitación Premium real interactiva con efecto magazine — Boda de Prueba"
-                style={{
-                  width: '100%',
-                  height: 'auto',
-                  aspectRatio: '390 / 844',
-                  display: 'block',
-                  objectFit: 'cover'
-                }}
-              >
-                <source src={invitationVideoWebm} type="video/webm" />
-                <picture>
-                  <source srcSet={invitationAnimatedWebp} type="image/webp" />
-                  <img
-                    src={invitationAnimatedGif}
-                    alt="Invitación Premium real interactiva — Boda de Prueba con animación de páginas"
-                    width={390}
-                    height={844}
-                    loading="eager"
-                    decoding="async"
-                    style={{
-                      width: '100%',
-                      height: 'auto',
-                      aspectRatio: '390 / 844',
-                      display: 'block',
-                      objectFit: 'cover'
-                    }}
-                  />
-                </picture>
-              </video>
+              <DemoVideo
+                label="Demostración de invitación Premium — Boda de Prueba"
+                sx={{ width: '100%', height: 'auto', aspectRatio: '390 / 844', display: 'block', objectFit: 'cover' }}
+              />
             </Box>
 
             <Typography
@@ -178,7 +147,7 @@ export function LandingHero({ config }: LandingHeroProps) {
                 opacity: 0.8
               }}
             >
-              Invitación Digital · Experiencia móvil
+              Demostración · Invitación Digital · Experiencia móvil
             </Typography>
           </Box>
         </Box>

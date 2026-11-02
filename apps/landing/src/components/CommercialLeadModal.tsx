@@ -19,6 +19,8 @@ import {
   Typography
 } from '@mui/material';
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { commercialNotes, type PriceSelection } from '../commercial-selection';
+import { PriceSelectionFields } from './PriceSelectionFields';
 
 type FormStatus = 'idle' | 'submitting' | 'success' | 'error' | 'rate-limited';
 
@@ -34,7 +36,7 @@ interface FormValues {
 }
 
 type FieldErrors = Partial<
-  Record<'contactName' | 'businessName' | 'email' | 'estimatedEventsPerMonth' | 'privacy', string>
+  Record<'contactName' | 'businessName' | 'email' | 'estimatedEventsPerMonth' | 'privacy' | 'notes', string>
 >;
 
 const emptyValues: FormValues = {
@@ -52,6 +54,7 @@ export interface CommercialLeadModalProps {
   open: boolean;
   opportunityType: CommercialOpportunityType;
   initialNotes?: string;
+  initialSelection?: PriceSelection;
   onClose: () => void;
   client?: LandingCommercialLeadsClient;
 }
@@ -60,11 +63,13 @@ export function CommercialLeadModal({
   open,
   opportunityType,
   initialNotes = '',
+  initialSelection,
   onClose,
   client: clientProp
 }: CommercialLeadModalProps) {
   const client = useMemo(() => clientProp ?? createLandingCommercialLeadsClient(), [clientProp]);
   const [values, setValues] = useState<FormValues>(() => ({ ...emptyValues, notes: initialNotes }));
+  const [selection, setSelection] = useState(initialSelection);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [status, setStatus] = useState<FormStatus>('idle');
   const [requestMessage, setRequestMessage] = useState<string>();
@@ -80,10 +85,11 @@ export function CommercialLeadModal({
     submissionIdRef.current = undefined;
     submittingRef.current = false;
     setValues({ ...emptyValues, notes: initialNotes });
+    setSelection(initialSelection);
     setErrors({});
     setStatus('idle');
     setRequestMessage(undefined);
-  }, [initialNotes]);
+  }, [initialNotes, initialSelection]);
 
   useEffect(() => {
     if (!open) reset();
@@ -98,7 +104,12 @@ export function CommercialLeadModal({
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     if (submittingRef.current) return;
-    const parsed = parseCommercialLeadForm(values, opportunityType, submissionIdRef.current ?? crypto.randomUUID());
+    const parsed = parseCommercialLeadForm(
+      values,
+      opportunityType,
+      submissionIdRef.current ?? crypto.randomUUID(),
+      selection
+    );
     setErrors(parsed.errors);
     setRequestMessage(undefined);
     if (!parsed.input) return;
@@ -152,7 +163,7 @@ export function CommercialLeadModal({
         <IconButton
           aria-label="Cerrar solicitud comercial"
           onClick={handleClose}
-          sx={{ position: 'absolute', right: 16, top: 12 }}
+          sx={{ position: 'absolute', right: 16, top: 12, minWidth: 44, minHeight: 44 }}
         >
           <CloseIcon />
         </IconButton>
@@ -168,6 +179,19 @@ export function CommercialLeadModal({
               <Typography color="text.secondary">
                 Comparte los datos necesarios para dar seguimiento a tu solicitud comercial.
               </Typography>
+              {selection && (
+                <Box>
+                  <Typography component="h3" variant="subtitle1" sx={{ mb: 2 }}>
+                    Puedes cambiar el servicio y la cantidad de invitados
+                  </Typography>
+                  <PriceSelectionFields value={selection} onChange={setSelection} disabled={status === 'submitting'} />
+                  <Typography variant="body2" sx={{ mt: 1 }}>
+                    {opportunityType === 'VENUE'
+                      ? 'La propuesta para tu salón se cotiza por separado, según la operación y los eventos efectivamente cobrados del mes anterior. La cantidad de invitados no asigna una tarifa por volumen.'
+                      : 'Precio estándar de referencia. Las condiciones para planners y agencias se evalúan por separado, sin descuentos automáticos.'}
+                  </Typography>
+                </Box>
+              )}
               {requestMessage ? (
                 <Alert severity="error" aria-live="polite">
                   {requestMessage}
@@ -233,6 +257,11 @@ export function CommercialLeadModal({
                 value={values.notes}
                 onChange={(event) => update('notes', event.target.value)}
                 disabled={status === 'submitting'}
+                error={Boolean(errors.notes)}
+                helperText={
+                  errors.notes ??
+                  `${commercialNotes(selection, values.notes).length}/1000 caracteres, incluido el contexto de precio.`
+                }
                 slotProps={{ htmlInput: { maxLength: 1000 } }}
               />
               <FormControlLabel
@@ -265,7 +294,7 @@ export function CommercialLeadModal({
       </DialogContent>
       <DialogActions sx={{ p: 2.5 }}>
         {status === 'success' ? (
-          <Button variant="contained" onClick={handleClose}>
+          <Button variant="contained" onClick={handleClose} sx={{ minHeight: 44 }}>
             Cerrar
           </Button>
         ) : (
@@ -274,6 +303,7 @@ export function CommercialLeadModal({
             form="commercial-lead-form"
             variant="contained"
             size="large"
+            sx={{ minHeight: 44 }}
             startIcon={status === 'submitting' ? <CircularProgress size={20} color="inherit" /> : <SendOutlined />}
             disabled={status === 'submitting'}
           >
@@ -292,13 +322,18 @@ export function CommercialLeadModal({
 export function parseCommercialLeadForm(
   values: FormValues,
   opportunityType: CommercialOpportunityType,
-  submissionId: string
+  submissionId: string,
+  selection?: PriceSelection
 ): { input?: CommercialLeadInput; errors: FieldErrors } {
   const errors: FieldErrors = {};
   const contactName = values.contactName.trim();
   const businessName = values.businessName.trim();
   const email = values.email.trim().toLowerCase();
   const estimated = values.estimatedEventsPerMonth.trim();
+  const notes = commercialNotes(selection, values.notes);
+  if (notes.length > 1000)
+    errors.notes =
+      'El mensaje y su contexto superan 1000 caracteres. Acorta el mensaje; no se ha enviado ni recortado.';
   if (contactName.length < 2 || contactName.length > 160)
     errors.contactName = 'Ingresa un nombre de 2 a 160 caracteres.';
   if (businessName.length < 2 || businessName.length > 160)
@@ -322,7 +357,7 @@ export function parseCommercialLeadForm(
       email,
       phone: values.phone.trim() || null,
       estimatedEventsPerMonth: estimatedNumber ?? null,
-      notes: values.notes.trim() || null,
+      notes: notes || null,
       privacyAccepted: true,
       website: values.website.trim()
     },

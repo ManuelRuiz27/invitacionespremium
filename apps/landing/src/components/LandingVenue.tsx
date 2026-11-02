@@ -120,6 +120,9 @@ export function LandingVenue({
           </Grid>
         </Grid>
         <Box sx={{ mt: { xs: 8, md: 10 }, pt: 5, borderTop: landingTokens.borders.hairlineDark, maxWidth: 820 }}>
+          <Typography variant="overline" sx={{ color: 'text.secondary' }}>
+            Adicional opcional · Proyecto a medida
+          </Typography>
           <Typography
             component="h3"
             sx={{ ...landingTokens.typography.headline, color: landingTokens.colors.dark.text, fontSize: '1.75rem' }}

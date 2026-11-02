@@ -16,6 +16,23 @@ const content = getLandingConfig();
 const renderWithTheme = (node: ReactNode) => render(<AppThemeProvider>{node}</AppThemeProvider>);
 
 describe('Managed landing commercial presentation', () => {
+  it('uses customer language in visible, accessible and SEO copy without changing service boundaries', () => {
+    renderWithTheme(<App />);
+    const internalJargon = /\b(?:SKU|bracket|lead|DTO|API|Provider|M-1|RSVP|Scanner|Staff|Venue|PVP)\b/i;
+    expect(document.querySelector('main')!.textContent).not.toMatch(internalJargon);
+    expect(content.seo.description).not.toMatch(internalJargon);
+    for (const element of document.querySelectorAll('[alt], [aria-label]')) {
+      expect(element.getAttribute('alt') ?? element.getAttribute('aria-label')).not.toMatch(internalJargon);
+    }
+    expect(
+      within(document.querySelector('#servicios')!).getByText('Sin confirmación pública de asistencia ni álbum')
+    ).toBeInTheDocument();
+    expect(content.services.items[1].description).toContain('invitación digital personalizada');
+    expect(content.services.items[2].description).toContain('invitación digital tipo revista');
+    expect(content.services.items[1].features).toContain('Diseño personalizado de dos piezas principales');
+    expect(content.services.items[2].features).toContain('Hasta 10 páginas');
+  });
+
   it('publishes working invitation, pricing and Venue navigation without self-service promises', () => {
     expect(content.nav.map((item) => item.href)).toEqual([
       '#servicios',
@@ -35,8 +52,11 @@ describe('Managed landing commercial presentation', () => {
   });
 
   it('uses the Managed Hero promise and routes its CTAs to active sections', () => {
-    document.body.insertAdjacentHTML('beforeend', '<section id="venues"></section><section id="servicios"></section>');
-    const venues = document.getElementById('venues')!;
+    document.body.insertAdjacentHTML(
+      'beforeend',
+      '<section id="como-funciona"></section><section id="servicios"></section>'
+    );
+    const venues = document.getElementById('como-funciona')!;
     const services = document.getElementById('servicios')!;
     venues.scrollIntoView = vi.fn();
     services.scrollIntoView = vi.fn();
@@ -44,11 +64,11 @@ describe('Managed landing commercial presentation', () => {
     expect(
       screen.getByRole('heading', {
         level: 1,
-        name: 'Invitaciones memorables. Accesos bajo control.'
+        name: 'Menos listas dispersas. Más control de tu evento.'
       })
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Explorar invitaciones' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Soluciones para salones' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ver servicios y precios' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cómo funciona' }));
     expect(venues.scrollIntoView).toHaveBeenCalledOnce();
     expect(services.scrollIntoView).toHaveBeenCalledOnce();
   });
@@ -59,7 +79,7 @@ describe('Managed landing commercial presentation', () => {
     for (const label of [
       'Reciben su invitación',
       'Confirman su asistencia',
-      'Organizas el croquis de mesas',
+      'Organizas la distribución de mesas',
       'Cada invitado recibe su acceso',
       'Tu equipo recibe a cada persona'
     ])
@@ -99,7 +119,7 @@ describe('Managed landing commercial presentation', () => {
     const drawer = screen.getByRole('navigation', { name: 'Navegación principal' });
     for (const item of content.nav)
       expect(within(drawer).getByRole('button', { name: item.label })).toBeInTheDocument();
-    expect(within(drawer).getByRole('button', { name: content.cta.primaryCta })).toBeInTheDocument();
+    expect(within(drawer).getByRole('button', { name: 'Elegir cómo contratar' })).toBeInTheDocument();
   });
 
   it('routes the desktop commercial CTA and disables login safely without a configured Client URL', () => {
@@ -108,7 +128,7 @@ describe('Managed landing commercial presentation', () => {
     renderWithTheme(
       <LandingHeader onOpenCommercial={openCommercial} config={createLandingConfig({}, { development: false })} />
     );
-    fireEvent.click(screen.getByRole('button', { name: content.cta.primaryCta }));
+    fireEvent.click(screen.getByRole('button', { name: 'Elegir cómo contratar' }));
     expect(openCommercial).toHaveBeenCalledOnce();
     expect(screen.getByRole('button', { name: 'Iniciar sesión' })).toBeDisabled();
   });

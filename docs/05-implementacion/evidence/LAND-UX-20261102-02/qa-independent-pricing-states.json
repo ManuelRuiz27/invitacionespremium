@@ -1,0 +1,10 @@
+{
+  "loading": "PASS",
+  "error503": "PASS",
+  "incomplete": "PASS",
+  "explicitRetry": "PASS",
+  "noInventedPrice": true,
+  "oracle": "live public API",
+  "networkRequests": 4,
+  "unavailable": "Existing use-public-pricing.test.tsx and LandingCommercialFlow.test.tsx reviewed; undefined configured client produces unavailable with no request."
+}

@@ -1,3 +1,4 @@
+import { ApiError } from '@invitaciones/api-client';
 import { AppThemeProvider } from '@invitaciones/ui';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -22,6 +23,112 @@ beforeEach(() => {
 });
 
 describe('Landing commercial journeys', () => {
+  it('requires an explicit intent, keeps Individual informational and preserves selection across profiles', async () => {
+    renderLanding();
+    const pricing = within(document.querySelector('#precios')!);
+    fireEvent.click(pricing.getByRole('button', { name: 'Elegir cómo contratar' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(
+      within(document.querySelector('#como-contratar')!).getByRole('radio', { name: 'Organizo mi evento' })
+    ).toHaveFocus();
+    expect(
+      within(document.querySelector('#como-contratar')!)
+        .getAllByRole('radio')
+        .every((radio) => !(radio as HTMLInputElement).checked)
+    ).toBe(true);
+    fireEvent.click(
+      within(document.querySelector('#como-contratar')!).getByRole('radio', { name: 'Organizo mi evento' })
+    );
+    fireEvent.change(pricing.getByLabelText('Servicio'), { target: { value: 'FLYER' } });
+    fireEvent.change(pricing.getByLabelText('Capacidad del evento'), { target: { value: '100' } });
+    expect(await pricing.findByText('$5,500 MXN antes de IVA')).toBeInTheDocument();
+    expect(pricing.getByText('Diseño personalizado de dos piezas principales')).toBeInTheDocument();
+    fireEvent.click(pricing.getByRole('button', { name: 'Conocer cómo funciona' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(submit).not.toHaveBeenCalled();
+    for (const label of ['Soy Planner/agencia', 'Tengo salón o jardín', 'Organizo mi evento']) {
+      fireEvent.click(within(document.querySelector('#como-contratar')!).getByRole('radio', { name: label }));
+      expect(pricing.getByLabelText('Servicio')).toHaveValue('FLYER');
+      expect(pricing.getByLabelText('Capacidad del evento')).toHaveValue('100');
+      expect(pricing.getByText('$5,500 MXN antes de IVA')).toBeInTheDocument();
+    }
+    expect(list).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ['Soy Planner/agencia', 'FLIPBOOK', '150', '$8,000', 'Consultar condiciones para planners', 'PLANNER_AGENCY'],
+    ['Tengo salón o jardín', 'PHYSICAL_QR', '50', '$2,500', 'Solicitar propuesta para mi salón', 'VENUE']
+  ] as const)(
+    'carries editable context for %s using notes only',
+    async (label, sku, capacity, amount, cta, opportunityType) => {
+      renderLanding();
+      fireEvent.click(within(document.querySelector('#como-contratar')!).getByRole('radio', { name: label }));
+      const pricing = within(document.querySelector('#precios')!);
+      fireEvent.change(pricing.getByLabelText('Servicio'), { target: { value: sku } });
+      fireEvent.change(pricing.getByLabelText('Capacidad del evento'), { target: { value: capacity } });
+      expect(await pricing.findByText(`${amount} MXN antes de IVA`)).toBeInTheDocument();
+      expect(
+        pricing.getByText(
+          opportunityType === 'VENUE' ? /eventos efectivamente cobrados del mes anterior/ : /no es una tarifa especial/
+        )
+      ).toBeInTheDocument();
+      fireEvent.click(pricing.getByRole('button', { name: cta }));
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getByLabelText('Servicio')).toHaveValue(sku);
+      expect(within(dialog).getByLabelText('Capacidad del evento')).toHaveValue(capacity);
+      fireEvent.change(within(dialog).getByLabelText('Servicio'), { target: { value: 'FLYER' } });
+      fireEvent.change(within(dialog).getByLabelText('Capacidad del evento'), { target: { value: '100' } });
+      const message = 'Interfaz exclusiva; "sku":"FLIPBOOK"\n<script>texto</script>';
+      fireEvent.change(within(dialog).getByLabelText('Mensaje (opcional)'), { target: { value: message } });
+      fillAndSubmit();
+      await screen.findByText(/Recibimos tu solicitud/);
+      const input = submit.mock.calls[0]![0];
+      expect(input.opportunityType).toBe(opportunityType);
+      expect(JSON.parse(input.notes)).toEqual({
+        contextoPrecioPublico: { sku: 'FLYER', capacidad: '51–100 personas' },
+        mensaje: message
+      });
+      expect(input).not.toHaveProperty('sku');
+      expect(input).not.toHaveProperty('capacityMax');
+      expect(input.notes.length).toBeLessThanOrEqual(1000);
+    }
+  );
+
+  it.each([409, 429])('preserves edited context, message and submission ID after HTTP %s', async (status) => {
+    submit.mockRejectedValueOnce(new ApiError(status, 'ERROR', 'technical'));
+    renderLanding();
+    fireEvent.click(
+      within(document.querySelector('#como-contratar')!).getByRole('radio', { name: 'Soy Planner/agencia' })
+    );
+    fireEvent.click(
+      within(document.querySelector('#precios')!).getByRole('button', { name: 'Consultar condiciones para planners' })
+    );
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(within(dialog).getByLabelText('Servicio'), { target: { value: 'FLIPBOOK' } });
+    fireEvent.change(within(dialog).getByLabelText('Mensaje (opcional)'), { target: { value: 'Conservar mis notas' } });
+    fillAndSubmit();
+    await screen.findByText(status === 409 ? /solicitud cambió/ : /varias solicitudes/);
+    expect(screen.queryByText(/Recibimos tu solicitud/)).not.toBeInTheDocument();
+    expect(within(dialog).getByLabelText('Servicio')).toHaveValue('FLIPBOOK');
+    expect(within(dialog).getByLabelText('Mensaje (opcional)')).toHaveValue('Conservar mis notas');
+    expect(within(dialog).getByLabelText(/Nombre de contacto/)).toHaveValue('María López');
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar envío' }));
+    await screen.findByText(/Recibimos tu solicitud/);
+    expect(submit.mock.calls[1]![0]).toEqual(submit.mock.calls[0]![0]);
+  });
+
+  it('rejects oversized encoded notes without truncating the free message or personalization', async () => {
+    renderLanding();
+    fireEvent.click(screen.getByRole('button', { name: content.venue.personalization.cta }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByLabelText('Mensaje (opcional)')).toHaveValue(content.venue.personalization.inquiry);
+    const message = `${content.venue.personalization.inquiry}${'"'.repeat(500)}`;
+    fireEvent.change(within(dialog).getByLabelText('Mensaje (opcional)'), { target: { value: message } });
+    fillAndSubmit();
+    expect(screen.getByText(/superan 1000 caracteres/)).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('Mensaje (opcional)')).toHaveValue(message);
+    expect(submit).not.toHaveBeenCalled();
+  });
   it.each([
     ['#planners', content.planners.commercialCta, 'PLANNER_AGENCY', null],
     ['#venues', content.venue.cta, 'VENUE', null],
@@ -32,14 +139,21 @@ describe('Landing commercial journeys', () => {
       renderLanding();
       fireEvent.click(within(document.querySelector(section)!).getByRole('button', { name: cta }));
       const dialog = await screen.findByRole('dialog', undefined, { timeout: 10_000 });
-      expect(within(dialog).getByRole('heading')).toHaveTextContent(
+      expect(within(dialog).getByRole('heading', { level: 2 })).toHaveTextContent(
         opportunityType === 'VENUE' ? 'Propuesta para tu salón o jardín' : 'Condiciones para Planners y agencias'
       );
       expect(within(dialog).getByLabelText('Mensaje (opcional)')).toHaveValue(notes ?? '');
       fillAndSubmit();
       await screen.findByText(/Recibimos tu solicitud/);
       expect(submit).toHaveBeenCalledExactlyOnceWith(
-        expect.objectContaining({ opportunityType, notes, privacyAccepted: true }),
+        expect.objectContaining({
+          opportunityType,
+          notes: JSON.stringify({
+            contextoPrecioPublico: { sku: 'PHYSICAL_QR', capacidad: '1–50 personas' },
+            mensaje: notes ?? ''
+          }),
+          privacyAccepted: true
+        }),
         expect.any(AbortSignal)
       );
     },
@@ -71,7 +185,10 @@ describe('Landing commercial journeys', () => {
     expect(within(dialog).getByLabelText(/Nombre de contacto/)).toHaveValue('');
     fillAndSubmit();
     await screen.findByText(/Recibimos tu solicitud/);
-    expect(submit.mock.calls[1]![0]).toMatchObject({ opportunityType: 'PLANNER_AGENCY', notes: null });
+    expect(submit.mock.calls[1]![0]).toMatchObject({
+      opportunityType: 'PLANNER_AGENCY',
+      notes: expect.stringContaining('PHYSICAL_QR')
+    });
     expect(submit.mock.calls[1]![0].submissionId).not.toBe(submit.mock.calls[0]![0].submissionId);
   }, 15_000);
 
@@ -81,7 +198,7 @@ describe('Landing commercial journeys', () => {
     );
     renderLanding();
     const pricing = within(document.querySelector('#precios')!);
-    expect(await pricing.findByText('$2,719')).toBeInTheDocument();
+    expect(await pricing.findByText('$2,719 MXN antes de IVA')).toBeInTheDocument();
     expect(pricing.queryByText('$2,500')).not.toBeInTheDocument();
     expect(pricing.getAllByText('MXN')).toHaveLength(9);
     expect(document.querySelectorAll('[data-service-code]')).toHaveLength(3);
@@ -104,7 +221,7 @@ describe('Landing commercial journeys', () => {
   it('shows unavailable prices without a configured API and keeps the release limitations visible', () => {
     vi.mocked(createLandingPricingClient).mockReturnValue(undefined);
     renderLanding();
-    expect(screen.getByText('Los precios no están disponibles en este entorno.')).toBeInTheDocument();
+    expect(screen.getByText('Los precios no están disponibles en este momento.')).toBeInTheDocument();
     const venues = within(document.querySelector('#venues')!);
     expect(venues.getByText(content.venue.notice)).toBeInTheDocument();
     expect(venues.getByText(content.venue.personalization.notice)).toBeInTheDocument();
@@ -122,11 +239,12 @@ function renderLanding() {
 }
 
 function fillAndSubmit() {
-  fireEvent.change(screen.getByLabelText(/Nombre de contacto/), { target: { value: 'María López' } });
-  fireEvent.change(screen.getByLabelText(/Empresa \/ salón \/ jardín \/ agencia/), {
+  const form = within(screen.getByRole('dialog'));
+  fireEvent.change(form.getByLabelText(/Nombre de contacto/), { target: { value: 'María López' } });
+  fireEvent.change(form.getByLabelText(/Empresa \/ salón \/ jardín \/ agencia/), {
     target: { value: 'Eventos Aurora' }
   });
-  fireEvent.change(screen.getByLabelText(/Correo electrónico/), { target: { value: 'maria@example.test' } });
-  fireEvent.click(screen.getByRole('checkbox'));
-  fireEvent.click(screen.getByRole('button', { name: 'Enviar solicitud' }));
+  fireEvent.change(form.getByLabelText(/Correo electrónico/), { target: { value: 'maria@example.test' } });
+  fireEvent.click(form.getByRole('checkbox'));
+  fireEvent.click(form.getByRole('button', { name: 'Enviar solicitud' }));
 }

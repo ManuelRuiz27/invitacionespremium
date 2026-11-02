@@ -4,6 +4,10 @@ import type { PublicPricingState } from '../use-public-pricing';
 import { landingTokens } from '../theme/landing-theme';
 import { Alert, Box, Button, CircularProgress, Typography } from '@mui/material';
 import type { ReactNode } from 'react';
+import type { CommercialIntent, PriceSelection } from '../commercial-selection';
+import { capacityOptions } from '../commercial-selection';
+import { PriceSelectionFields } from './PriceSelectionFields';
+import { scrollToLandingSection } from '../navigation';
 import { LandingContainer, LandingSectionIntro } from './primitives';
 
 const landingContent = getLandingConfig();
@@ -11,11 +15,29 @@ const landingContent = getLandingConfig();
 export interface LandingPricingProps {
   state: PublicPricingState;
   onRetry: () => void;
+  intent: CommercialIntent | null;
+  selection: PriceSelection;
+  onSelectionChange: (selection: PriceSelection) => void;
+  onChooseIntent: () => void;
+  onOpenCommercial: () => void;
 }
 
-export function LandingPricing({ state, onRetry }: LandingPricingProps) {
+export function LandingPricing({
+  state,
+  onRetry,
+  intent,
+  selection,
+  onSelectionChange,
+  onChooseIntent,
+  onOpenCommercial
+}: LandingPricingProps) {
   const headingId = 'landing-pricing-heading';
   const matrix = state.status === 'ready' ? buildPublicPricingMatrix(state.prices) : null;
+  const service = landingContent.services.items.find((item) => item.code === selection.sku)!;
+  const bracket = capacityOptions.find((option) => option.value === selection.capacityMax)!;
+  const price = matrix?.rows
+    .find((row) => row.serviceCode === selection.sku)
+    ?.brackets.find((item) => item.capacityMax === selection.capacityMax);
 
   return (
     <Box
@@ -54,7 +76,9 @@ export function LandingPricing({ state, onRetry }: LandingPricingProps) {
         )}
 
         {state.status === 'unavailable' && (
-          <PricingMessage>Los precios no están disponibles en este entorno.</PricingMessage>
+          <PricingMessage action={<RetryButton onRetry={onRetry} />}>
+            Los precios no están disponibles en este momento.
+          </PricingMessage>
         )}
 
         {state.status === 'error' && (
@@ -73,6 +97,7 @@ export function LandingPricing({ state, onRetry }: LandingPricingProps) {
           <Box
             aria-label="Precios por servicio y capacidad"
             sx={{
+              display: { xs: 'none', md: 'block' },
               borderTop: landingTokens.borders.hairlineDark,
               borderBottom: landingTokens.borders.hairlineDark,
               maxWidth: 1080,
@@ -164,6 +189,60 @@ export function LandingPricing({ state, onRetry }: LandingPricingProps) {
             ))}
           </Box>
         )}
+        <Box sx={{ maxWidth: 850, mx: 'auto', mt: 5, pt: 4, borderTop: landingTokens.borders.hairlineDark }}>
+          <Typography component="h3" variant="h5" sx={{ mb: 3 }}>
+            Tu selección
+          </Typography>
+          <PriceSelectionFields value={selection} onChange={onSelectionChange} />
+          <Box role="status" aria-live="polite" aria-atomic="true" sx={{ my: 3 }}>
+            <Typography sx={{ fontWeight: 600 }}>
+              {service.name} · {bracket.label}
+            </Typography>
+            <Typography sx={{ fontSize: '1.5rem', mt: 1 }}>
+              {price ? `${formatMxnFromCents(price.amountMxnCents)} MXN antes de IVA` : 'Precio pendiente de consulta'}
+            </Typography>
+            <Typography variant="body2">
+              Precio estándar por evento, antes de IVA. Esta selección no fija una cotización.
+            </Typography>
+          </Box>
+          <Box component="ul" sx={{ pl: 2.5 }}>
+            {service.features.map((feature) => (
+              <li key={feature}>{feature}</li>
+            ))}
+          </Box>
+          <Typography sx={{ my: 2 }}>
+            {intent === 'PLANNER_AGENCY'
+              ? 'Ofrece invitaciones digitales a tus clientes y organiza sus invitados, confirmaciones y accesos. Las condiciones para planners y agencias se evalúan por separado; este precio estándar no es una tarifa especial para profesionales.'
+              : intent === 'VENUE'
+                ? 'Organiza la recepción de tus eventos con pases QR y control de entradas. La propuesta para salones y jardines se cotiza por separado del precio estándar, según la operación y los eventos efectivamente cobrados del mes anterior. No depende de la cantidad de invitados seleccionada ni del volumen declarado. Esta selección no asigna una tarifa por volumen.'
+                : intent === 'INDIVIDUAL'
+                  ? 'Explora los servicios y elige una opción según la cantidad de invitados. Consulta las demostraciones y conoce cómo preparamos tu evento; esta consulta es informativa.'
+                  : 'Elige cómo contratar para conocer el siguiente paso.'}
+          </Typography>
+          <Typography variant="body2" sx={{ mb: 3 }}>
+            El escaneo de pases QR requiere conexión. Atendemos eventos de 1 a 150 personas; no hay precio confirmado
+            para más de 150.
+          </Typography>
+          <Button
+            variant="contained"
+            sx={landingTokens.buttons.primary}
+            onClick={
+              !intent
+                ? onChooseIntent
+                : intent === 'INDIVIDUAL'
+                  ? () => scrollToLandingSection('#como-funciona')
+                  : onOpenCommercial
+            }
+          >
+            {!intent
+              ? 'Elegir cómo contratar'
+              : intent === 'INDIVIDUAL'
+                ? 'Conocer cómo funciona'
+                : intent === 'VENUE'
+                  ? 'Solicitar propuesta para mi salón'
+                  : 'Consultar condiciones para planners'}
+          </Button>
+        </Box>
       </LandingContainer>
     </Box>
   );
@@ -171,7 +250,7 @@ export function LandingPricing({ state, onRetry }: LandingPricingProps) {
 
 function RetryButton({ onRetry }: { onRetry: () => void }) {
   return (
-    <Button color="inherit" onClick={onRetry} sx={{ textTransform: 'none' }}>
+    <Button color="inherit" onClick={onRetry} sx={{ textTransform: 'none', minHeight: 44 }}>
       Reintentar
     </Button>
   );

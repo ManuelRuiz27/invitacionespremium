@@ -1,6 +1,7 @@
 import invitationVideoWebm from '../assets/product-proof/invitation-demo.webm';
-import invitationAnimatedWebp from '../assets/product-proof/invitation-demo-animated.webp';
-import invitationAnimatedGif from '../assets/product-proof/invitation-demo-animated.gif';
+import invitationAnimatedWebp from '../assets/product-proof/flipbook-public-mobile.avif';
+import invitationAnimatedGif from '../assets/product-proof/flipbook-public-mobile.webp';
+import { DemoVideo } from './DemoVideo';
 import rsvpAvif from '../assets/product-proof/rsvp-public-mobile.avif';
 import rsvpWebp from '../assets/product-proof/rsvp-public-mobile.webp';
 import distributionAvif from '../assets/product-proof/invitation-distribution-desktop.avif';
@@ -38,7 +39,7 @@ const scenes: readonly ProofScene[] = [
     avif: invitationAnimatedWebp,
     webp: invitationAnimatedGif,
     video: invitationVideoWebm,
-    alt: 'Invitación Premium real — Flipbook digital interactivo de Boda de Prueba con animación de páginas',
+    alt: 'Demostración de invitación Premium — Flipbook digital interactivo de Boda de Prueba',
     width: 390,
     height: 844,
     mobile: true
@@ -50,20 +51,20 @@ const scenes: readonly ProofScene[] = [
     description: 'En Flyer y Flipbook, cada invitación concentra la confirmación y los acompañantes permitidos.',
     avif: rsvpAvif,
     webp: rsvpWebp,
-    alt: 'Formulario real de confirmación de asistencia',
+    alt: 'Demostración del formulario de confirmación de asistencia',
     width: 780,
     height: 1688,
     mobile: true
   },
   {
     number: '03',
-    label: 'Organizas el croquis de mesas',
-    title: 'Distribuye a tus invitados en el plano real del salón',
+    label: 'Organizas la distribución de mesas',
+    title: 'Distribuye a tus invitados en el plano de demostración del salón',
     description:
-      'El Croquis de Mesas refleja la distribución del espacio en BOda Flyer. Asigna asistentes a cada lugar directamente desde el mapa del evento.',
+      'El plano de mesas muestra la distribución del espacio en Boda Flyer. Asigna invitados a cada lugar directamente desde el mapa del evento.',
     avif: floorplanAvif,
     webp: floorplanWebp,
-    alt: 'Croquis de mesas real del evento BOda Flyer — plano con mesas asignadas',
+    alt: 'Plano de mesas de demostración del evento Boda Flyer — mesas asignadas',
     width: 2160,
     height: 1350,
     mobile: false
@@ -75,7 +76,7 @@ const scenes: readonly ProofScene[] = [
     description: 'Organiza las mesas y conserva cada acceso listo para compartir desde el evento activo.',
     avif: distributionAvif,
     webp: distributionWebp,
-    alt: 'Vista real de invitaciones y accesos individuales del evento BOda Flyer',
+    alt: 'Vista de demostración de invitaciones y accesos individuales del evento Boda Flyer',
     width: 2160,
     height: 1500,
     mobile: false
@@ -87,7 +88,7 @@ const scenes: readonly ProofScene[] = [
     description: 'El equipo de recepción consulta la invitación y registra la entrada.',
     avif: scannerAvif,
     webp: scannerWebp,
-    alt: 'Control de acceso real mostrando asistentes pendientes y croquis asignado',
+    alt: 'Demostración de control de acceso con invitados pendientes y plano de mesas asignado',
     width: 780,
     height: 1688,
     mobile: true
@@ -123,7 +124,7 @@ export function LandingProductProof() {
         <LandingSectionIntro
           headingId="landing-product-proof-heading"
           title="Así acompañamos a tus invitados"
-          subtitle="Recorrido de demostración de Flyer y Flipbook: invitación, RSVP, mesas y recepción. Los pases anónimos tienen un flujo distinto, sin RSVP."
+          subtitle="Recorrido de demostración de Flyer digital y Flipbook Premium: invitación, confirmación de asistencia, mesas y recepción. Los pases anónimos tienen un flujo distinto, sin confirmación pública."
           align="left"
           dark={false}
         />
@@ -182,8 +183,9 @@ export function LandingProductProof() {
                       sx={{
                         display: { xs: 'none', md: 'inline-flex' },
                         mt: 2,
-                        p: 0,
-                        minWidth: 0,
+                        p: 1,
+                        minHeight: 44,
+                        minWidth: 44,
                         textTransform: 'none'
                       }}
                     >
@@ -192,13 +194,8 @@ export function LandingProductProof() {
                   </Box>
                 </Box>
                 {scene.video ? (
-                  <Box
-                    component="video"
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                    aria-label={scene.alt}
+                  <DemoVideo
+                    label={scene.alt}
                     sx={{
                       display: { xs: 'block', md: 'none' },
                       mt: 4,
@@ -211,17 +208,7 @@ export function LandingProductProof() {
                       objectFit: 'cover',
                       objectPosition: 'top'
                     }}
-                  >
-                    <source src={scene.video} type="video/webm" />
-                    <ProductProofPicture
-                      avif={scene.avif}
-                      webp={scene.webp}
-                      alt={scene.alt}
-                      width={scene.width}
-                      height={scene.height}
-                      imageStyle={{ maxHeight: 650, objectFit: 'cover', objectPosition: 'top' }}
-                    />
-                  </Box>
+                  />
                 ) : (
                   <ProductProofPicture
                     avif={scene.avif}
@@ -258,14 +245,9 @@ export function LandingProductProof() {
             }}
           >
             {activeScene.video ? (
-              <Box
-                component="video"
+              <DemoVideo
                 key={activeScene.number}
-                autoPlay
-                loop
-                muted
-                playsInline
-                aria-label={activeScene.alt}
+                label={activeScene.alt}
                 sx={{
                   width: activeScene.mobile ? '46%' : '92%',
                   border: landingTokens.borders.hairlineLight,
@@ -281,17 +263,7 @@ export function LandingProductProof() {
                   },
                   '@media (prefers-reduced-motion: reduce)': { animation: 'none' }
                 }}
-              >
-                <source src={activeScene.video} type="video/webm" />
-                <ProductProofPicture
-                  avif={activeScene.avif}
-                  webp={activeScene.webp}
-                  alt={activeScene.alt}
-                  width={activeScene.width}
-                  height={activeScene.height}
-                  imageStyle={{ maxHeight: '78vh', objectFit: 'contain' }}
-                />
-              </Box>
+              />
             ) : (
               <ProductProofPicture
                 key={activeScene.number}
