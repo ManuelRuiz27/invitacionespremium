@@ -11,6 +11,7 @@ import { stagePointToNormalized } from './floorplan-scene';
 import { floorplanColors } from './floorplan-sticker-style';
 import { FloorplanToolbar } from './FloorplanToolbar';
 import type { ViewportState } from './FloorplanKonvaRenderer';
+import { isSpatialSeatConsumer } from './floorplan-seat-selection';
 
 const LazyKonvaRenderer = lazy(() =>
   import('./FloorplanKonvaRenderer').then((module) => ({ default: module.FloorplanKonvaRenderer }))
@@ -72,6 +73,7 @@ export function FloorplanSurface(props: FloorplanSurfaceProps) {
   }, [image, stageWidth]);
 
   const useKonva = Boolean(image && image.src === props.imageUrl && ownerSize.width > 0 && stageHeight > 0);
+  const domViewport = isSpatialSeatConsumer(props) ? { viewport, onViewportChange: setViewport } : {};
 
   const changeDraft = (next: FloorplanShapeInput) => {
     setHistory((current) => {
@@ -240,7 +242,7 @@ export function FloorplanSurface(props: FloorplanSurfaceProps) {
           }}
         >
           {useKonva && image ? (
-            <Suspense fallback={<FloorplanDomRenderer {...rendererProps} />}>
+            <Suspense fallback={<FloorplanDomRenderer {...rendererProps} {...domViewport} />}>
               <LazyKonvaRenderer
                 {...rendererProps}
                 image={image}
@@ -251,7 +253,7 @@ export function FloorplanSurface(props: FloorplanSurfaceProps) {
               />
             </Suspense>
           ) : (
-            <FloorplanDomRenderer {...rendererProps} />
+            <FloorplanDomRenderer {...rendererProps} {...domViewport} />
           )}
         </Box>
       </Box>

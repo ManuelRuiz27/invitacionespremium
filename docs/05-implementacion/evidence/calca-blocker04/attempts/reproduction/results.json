@@ -1,0 +1,2198 @@
+{
+  "runtimeSha256": "47e4eb4893763111a345c328fe4b8a398b5b96521f54df5f2a15480d2547dda5",
+  "sourceSha256": "9c158fc4c19ab71216eece27336285e37a598588525db6e002fe3521acfc543f",
+  "originalPoint": {
+    "x": 0.33150371,
+    "y": 0.37560058
+  },
+  "method": "Original portrait raster, 50-place pattern and exact normalized failing point from attempt-4. Fresh fictitious UUIDs, real services and native pointer/touch. Read-only Konva scene geometry and pointer-up observer, no injected product state/styles. Not full CALCA06.",
+  "captures": [
+    {
+      "file": "1440-01-dense-before-selection.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "metrics": {
+        "horizontalOverflow": false,
+        "blockingModal": true,
+        "canvas": {
+          "x": 336,
+          "y": 414.84375,
+          "width": 1000,
+          "height": 1500
+        },
+        "surface": {
+          "x": 273,
+          "y": 414.84375,
+          "width": 1126,
+          "height": 1500
+        },
+        "surfaceFraction": 1.3032407407407407,
+        "controls": [
+          {
+            "label": "Cerrar sesión",
+            "tag": "button",
+            "width": 192,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Alejar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Acercar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Ajustar plano a la vista",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Activar modo mover plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Mostrar sillas de referencia",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          }
+        ]
+      },
+      "sha256": "50370d7de6ed25b7ff182ea0dc4d83fc64de8f19a0ea02369b8ce378a78294d1"
+    },
+    {
+      "file": "1440-02-expected-selected.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "metrics": {
+        "horizontalOverflow": false,
+        "blockingModal": true,
+        "canvas": {
+          "x": 273,
+          "y": 377.25,
+          "width": 690,
+          "height": 1035
+        },
+        "surface": {
+          "x": 273,
+          "y": 377.25,
+          "width": 690,
+          "height": 1035
+        },
+        "surfaceFraction": 0.5510416666666667,
+        "controls": [
+          {
+            "label": "Cerrar sesión",
+            "tag": "button",
+            "width": 192,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Alejar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Acercar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Ajustar plano a la vista",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Activar modo mover plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Mostrar sillas de referencia",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Cerrar panel de Mesa",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Sin mesa (1)",
+            "tag": "button",
+            "width": 198,
+            "height": 48,
+            "disabled": false
+          },
+          {
+            "label": "En esta mesa (0)",
+            "tag": "button",
+            "width": 198,
+            "height": 48,
+            "disabled": false
+          },
+          {
+            "label": "Buscar Asistente",
+            "tag": "input",
+            "width": 184,
+            "height": 56,
+            "disabled": false
+          },
+          {
+            "label": "​",
+            "tag": "div",
+            "width": 150,
+            "height": 56,
+            "disabled": false
+          },
+          {
+            "label": "Seleccionar Invitado de prueba",
+            "tag": "input",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          }
+        ]
+      },
+      "sha256": "02a7a42010014500cd73e059091ce5f1950dc3cbc3f4af62aa54e5f8f9f74185",
+      "selectedSeat": {
+        "id": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+        "center": {
+          "x": 617.31020420864,
+          "y": 670.35495038208
+        },
+        "scale": 2.0736
+      }
+    },
+    {
+      "file": "1440-03-neighbor-selected.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "metrics": {
+        "horizontalOverflow": false,
+        "blockingModal": true,
+        "canvas": {
+          "x": 273,
+          "y": 377.25,
+          "width": 690,
+          "height": 1035
+        },
+        "surface": {
+          "x": 273,
+          "y": 377.25,
+          "width": 690,
+          "height": 1035
+        },
+        "surfaceFraction": 0.5510416666666667,
+        "controls": [
+          {
+            "label": "Cerrar sesión",
+            "tag": "button",
+            "width": 192,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Alejar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Acercar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Ajustar plano a la vista",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Activar modo mover plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Mostrar sillas de referencia",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Cerrar panel de Mesa",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Sin mesa (1)",
+            "tag": "button",
+            "width": 198,
+            "height": 48,
+            "disabled": false
+          },
+          {
+            "label": "En esta mesa (0)",
+            "tag": "button",
+            "width": 198,
+            "height": 48,
+            "disabled": false
+          },
+          {
+            "label": "Buscar Asistente",
+            "tag": "input",
+            "width": 184,
+            "height": 56,
+            "disabled": false
+          },
+          {
+            "label": "​",
+            "tag": "div",
+            "width": 150,
+            "height": 56,
+            "disabled": false
+          },
+          {
+            "label": "Seleccionar Invitado de prueba",
+            "tag": "input",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          }
+        ]
+      },
+      "sha256": "055c43d276f30a5f9504356ba82ae10a668fd518bc4cddca673de03c3c2c365e",
+      "selectedSeat": {
+        "id": "315a0bfd-86a1-4224-8cc3-9eaf33fbe9f4",
+        "center": {
+          "x": 617.69696,
+          "y": 671.1623199999999
+        },
+        "scale": 2.0736
+      }
+    },
+    {
+      "file": "1024-01-dense-before-selection.png",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "metrics": {
+        "horizontalOverflow": false,
+        "blockingModal": true,
+        "canvas": {
+          "x": 265,
+          "y": 406.515625,
+          "width": 726,
+          "height": 1089
+        },
+        "surface": {
+          "x": 265,
+          "y": 406.515625,
+          "width": 726,
+          "height": 1089
+        },
+        "surfaceFraction": 1.0053176879882812,
+        "controls": [
+          {
+            "label": "Cerrar sesión",
+            "tag": "button",
+            "width": 192,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Alejar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Acercar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Ajustar plano a la vista",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Activar modo mover plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Mostrar sillas de referencia",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          }
+        ]
+      },
+      "sha256": "f43e565cde6bfc4f8ffcb7344504591a7486d4bea04e2db245b783fb270abcfb"
+    },
+    {
+      "file": "1024-02-expected-selected.png",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "metrics": {
+        "horizontalOverflow": false,
+        "blockingModal": true,
+        "canvas": {
+          "x": 265,
+          "y": 411.421875,
+          "width": 290,
+          "height": 435
+        },
+        "surface": {
+          "x": 265,
+          "y": 368.921875,
+          "width": 290,
+          "height": 520
+        },
+        "surfaceFraction": 0.19175211588541666,
+        "controls": [
+          {
+            "label": "Cerrar sesión",
+            "tag": "button",
+            "width": 192,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Alejar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Acercar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Ajustar plano a la vista",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Activar modo mover plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Mostrar sillas de referencia",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Cerrar panel de Mesa",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Sin mesa (1)",
+            "tag": "button",
+            "width": 198,
+            "height": 48,
+            "disabled": false
+          },
+          {
+            "label": "En esta mesa (0)",
+            "tag": "button",
+            "width": 198,
+            "height": 48,
+            "disabled": false
+          },
+          {
+            "label": "Buscar Asistente",
+            "tag": "input",
+            "width": 184,
+            "height": 56,
+            "disabled": false
+          },
+          {
+            "label": "​",
+            "tag": "div",
+            "width": 150,
+            "height": 56,
+            "disabled": false
+          },
+          {
+            "label": "Seleccionar Invitado de prueba",
+            "tag": "input",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          }
+        ]
+      },
+      "sha256": "e2152c6f8fd1256fcfb79cd99bb80b70e9b55541972d21490b6d000a7a1f6298",
+      "selectedSeat": {
+        "id": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+        "center": {
+          "x": 409.34776698624,
+          "y": 622.21960776928
+        },
+        "scale": 2.0736
+      }
+    },
+    {
+      "file": "1024-03-neighbor-selected.png",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "metrics": {
+        "horizontalOverflow": false,
+        "blockingModal": true,
+        "canvas": {
+          "x": 265,
+          "y": 411.421875,
+          "width": 290,
+          "height": 435
+        },
+        "surface": {
+          "x": 265,
+          "y": 368.921875,
+          "width": 290,
+          "height": 520
+        },
+        "surfaceFraction": 0.19175211588541666,
+        "controls": [
+          {
+            "label": "Cerrar sesión",
+            "tag": "button",
+            "width": 192,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Alejar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Acercar plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Ajustar plano a la vista",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Activar modo mover plano",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Mostrar sillas de referencia",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Cerrar panel de Mesa",
+            "tag": "button",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          },
+          {
+            "label": "Sin mesa (1)",
+            "tag": "button",
+            "width": 198,
+            "height": 48,
+            "disabled": false
+          },
+          {
+            "label": "En esta mesa (0)",
+            "tag": "button",
+            "width": 198,
+            "height": 48,
+            "disabled": false
+          },
+          {
+            "label": "Buscar Asistente",
+            "tag": "input",
+            "width": 184,
+            "height": 56,
+            "disabled": false
+          },
+          {
+            "label": "​",
+            "tag": "div",
+            "width": 150,
+            "height": 56,
+            "disabled": false
+          },
+          {
+            "label": "Seleccionar Invitado de prueba",
+            "tag": "input",
+            "width": 44,
+            "height": 44,
+            "disabled": false
+          }
+        ]
+      },
+      "sha256": "c80a9c978acd597527df6f3be2bfe7d5ec1f60bc5a0033c845dbc7d9b7156ca5",
+      "selectedSeat": {
+        "id": "315a0bfd-86a1-4224-8cc3-9eaf33fbe9f4",
+        "center": {
+          "x": 409.42336,
+          "y": 621.442995
+        },
+        "scale": 2.0736
+      }
+    }
+  ],
+  "geometry": [
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "label": "original-attempt-4",
+      "scale": 2.0736,
+      "translation": {
+        "x": -188,
+        "y": -893
+      },
+      "gesture": {
+        "clientX": 835.4060668945312,
+        "clientY": 690.11181640625,
+        "type": "mouse"
+      },
+      "expected": {
+        "id": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+        "normalized": {
+          "x": 0.33150371,
+          "y": 0.37560058
+        },
+        "center": {
+          "x": 835.406093056,
+          "y": 690.111794032
+        }
+      },
+      "nearestCompeting": {
+        "id": "315a0bfd-86a1-4224-8cc3-9eaf33fbe9f4",
+        "center": {
+          "x": 801.184,
+          "y": 711.5717499999998
+        }
+      },
+      "expectedDistance": 0.00003442425758579009,
+      "competingDistance": 40.39404179309031,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "label": "nearest-neighbor",
+      "scale": 2.0736,
+      "translation": {
+        "x": -106,
+        "y": -527
+      },
+      "gesture": {
+        "clientX": 617.6969604492188,
+        "clientY": 671.1622924804688,
+        "type": "mouse"
+      },
+      "expected": {
+        "id": "315a0bfd-86a1-4224-8cc3-9eaf33fbe9f4",
+        "normalized": {
+          "x": 0.315,
+          "y": 0.3825
+        },
+        "center": {
+          "x": 617.69696,
+          "y": 671.1623199999999
+        }
+      },
+      "nearestCompeting": {
+        "id": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+        "center": {
+          "x": 641.31020420864,
+          "y": 656.35495038208
+        }
+      },
+      "expectedDistance": 0.00002752319735590765,
+      "competingDistance": 27.87189733155177,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "315a0bfd-86a1-4224-8cc3-9eaf33fbe9f4",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "label": "neighbor-series-1",
+      "scale": 1,
+      "translation": {
+        "x": 116,
+        "y": -95
+      },
+      "gesture": {
+        "clientX": 617.737548828125,
+        "clientY": 670.99658203125,
+        "type": "mouse"
+      },
+      "expected": {
+        "id": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+        "normalized": {
+          "x": 0.33150371,
+          "y": 0.37560058
+        },
+        "center": {
+          "x": 617.7375599,
+          "y": 670.9966003
+        }
+      },
+      "nearestCompeting": {
+        "id": "315a0bfd-86a1-4224-8cc3-9eaf33fbe9f4",
+        "center": {
+          "x": 606.35,
+          "y": 678.1375
+        }
+      },
+      "expectedDistance": 0.000021361967134036783,
+      "competingDistance": 13.441316072072253,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "label": "neighbor-series-1",
+      "scale": 1,
+      "translation": {
+        "x": 127,
+        "y": -102
+      },
+      "gesture": {
+        "clientX": 617.3499755859375,
+        "clientY": 671.1375122070312,
+        "type": "mouse"
+      },
+      "expected": {
+        "id": "315a0bfd-86a1-4224-8cc3-9eaf33fbe9f4",
+        "normalized": {
+          "x": 0.315,
+          "y": 0.3825
+        },
+        "center": {
+          "x": 617.35,
+          "y": 671.1375
+        }
+      },
+      "nearestCompeting": {
+        "id": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+        "center": {
+          "x": 628.7375599,
+          "y": 663.9966003
+        }
+      },
+      "expectedDistance": 0.00002729575167846423,
+      "competingDistance": 13.441342915566976,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "315a0bfd-86a1-4224-8cc3-9eaf33fbe9f4",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "label": "neighbor-series-1",
+      "scale": 1,
+      "translation": {
+        "x": 127,
+        "y": -69
+      },
+      "gesture": {
+        "clientX": 617.3499755859375,
+        "clientY": 670.5,
+        "type": "mouse"
+      },
+      "expected": {
+        "id": "9e2ea398-9002-471a-a3fc-843816f9a3a0",
+        "normalized": {
+          "x": 0.315,
+          "y": 0.35
+        },
+        "center": {
+          "x": 617.35,
+          "y": 670.5
+        }
+      },
+      "nearestCompeting": {
+        "id": "6bf6f2f9-eef4-4044-98b2-2cbbeebd560a",
+        "center": {
+          "x": 591.475,
+          "y": 670.5
+        }
+      },
+      "expectedDistance": 0.000024414062522737368,
+      "competingDistance": 25.874975585937477,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "9e2ea398-9002-471a-a3fc-843816f9a3a0",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "label": "neighbor-series-1",
+      "scale": 1,
+      "translation": {
+        "x": 153,
+        "y": -102
+      },
+      "gesture": {
+        "clientX": 617.4749755859375,
+        "clientY": 671.1375122070312,
+        "type": "mouse"
+      },
+      "expected": {
+        "id": "ccfab2c7-371b-4d29-8869-3ffbdad24b1a",
+        "normalized": {
+          "x": 0.2775,
+          "y": 0.3825
+        },
+        "center": {
+          "x": 617.475,
+          "y": 671.1375
+        }
+      },
+      "nearestCompeting": {
+        "id": "e22d801b-d419-456b-a19e-39f44cdce66b",
+        "center": {
+          "x": 591.6,
+          "y": 671.1375
+        }
+      },
+      "expectedDistance": 0.00002729575167846423,
+      "competingDistance": 25.874975585940355,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "ccfab2c7-371b-4d29-8869-3ffbdad24b1a",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "label": "neighbor-series-1",
+      "scale": 1,
+      "translation": {
+        "x": 127,
+        "y": -136
+      },
+      "gesture": {
+        "clientX": 617.3499755859375,
+        "clientY": 670.7750244140625,
+        "type": "mouse"
+      },
+      "expected": {
+        "id": "6de51763-6a82-45a1-bd40-82c6f73903cd",
+        "normalized": {
+          "x": 0.315,
+          "y": 0.415
+        },
+        "center": {
+          "x": 617.35,
+          "y": 670.775
+        }
+      },
+      "nearestCompeting": {
+        "id": "4ff4ddfe-1736-4bb1-b61d-5fab28e248ff",
+        "center": {
+          "x": 591.475,
+          "y": 670.775
+        }
+      },
+      "expectedDistance": 0.00003452669833227989,
+      "competingDistance": 25.87497558594899,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "6de51763-6a82-45a1-bd40-82c6f73903cd",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "label": "neighbor-series-2.0736",
+      "scale": 2.0736,
+      "translation": {
+        "x": -130,
+        "y": -513
+      },
+      "gesture": {
+        "clientX": 617.3101806640625,
+        "clientY": 670.35498046875,
+        "type": "mouse"
+      },
+      "expected": {
+        "id": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+        "normalized": {
+          "x": 0.33150371,
+          "y": 0.37560058
+        },
+        "center": {
+          "x": 617.31020420864,
+          "y": 670.35495038208
+        }
+      },
+      "nearestCompeting": {
+        "id": "315a0bfd-86a1-4224-8cc3-9eaf33fbe9f4",
+        "center": {
+          "x": 593.69696,
+          "y": 685.1623199999999
+        }
+      },
+      "expectedDistance": 0.00003820412074328953,
+      "competingDistance": 27.871876401193816,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "label": "neighbor-series-2.0736",
+      "scale": 2.0736,
+      "translation": {
+        "x": -106,
+        "y": -527
+      },
+      "gesture": {
+        "clientX": 617.6969604492188,
+        "clientY": 671.1622924804688,
+        "type": "mouse"
+      },
+      "expected": {
+        "id": "315a0bfd-86a1-4224-8cc3-9eaf33fbe9f4",
+        "normalized": {
+          "x": 0.315,
+          "y": 0.3825
+        },
+        "center": {
+          "x": 617.69696,
+          "y": 671.1623199999999
+        }
+      },
+      "nearestCompeting": {
+        "id": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+        "center": {
+          "x": 641.31020420864,
+          "y": 656.35495038208
+        }
+      },
+      "expectedDistance": 0.00002752319735590765,
+      "competingDistance": 27.87189733155177,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "315a0bfd-86a1-4224-8cc3-9eaf33fbe9f4",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "label": "neighbor-series-2.0736",
+      "scale": 2.0736,
+      "translation": {
+        "x": -106,
+        "y": -458
+      },
+      "gesture": {
+        "clientX": 617.6969604492188,
+        "clientY": 670.41162109375,
+        "type": "mouse"
+      },
+      "expected": {
+        "id": "9e2ea398-9002-471a-a3fc-843816f9a3a0",
+        "normalized": {
+          "x": 0.315,
+          "y": 0.35
+        },
+        "center": {
+          "x": 617.69696,
+          "y": 670.4115999999999
+        }
+      },
+      "nearestCompeting": {
+        "id": "6bf6f2f9-eef4-4044-98b2-2cbbeebd560a",
+        "center": {
+          "x": 564.0425600000001,
+          "y": 670.4115999999999
+        }
+      },
+      "expectedDistance": 0.00002109853289816922,
+      "competingDistance": 53.6544004492228,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "9e2ea398-9002-471a-a3fc-843816f9a3a0",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "label": "neighbor-series-2.0736",
+      "scale": 2.0736,
+      "translation": {
+        "x": -53,
+        "y": -527
+      },
+      "gesture": {
+        "clientX": 617.0425415039062,
+        "clientY": 671.1622924804688,
+        "type": "mouse"
+      },
+      "expected": {
+        "id": "ccfab2c7-371b-4d29-8869-3ffbdad24b1a",
+        "normalized": {
+          "x": 0.2775,
+          "y": 0.3825
+        },
+        "center": {
+          "x": 617.0425600000001,
+          "y": 671.1623199999999
+        }
+      },
+      "nearestCompeting": {
+        "id": "e22d801b-d419-456b-a19e-39f44cdce66b",
+        "center": {
+          "x": 563.38816,
+          "y": 671.1623199999999
+        }
+      },
+      "expectedDistance": 0.00003315765496362611,
+      "competingDistance": 53.654381503913335,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "ccfab2c7-371b-4d29-8869-3ffbdad24b1a",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "label": "neighbor-series-2.0736",
+      "scale": 2.0736,
+      "translation": {
+        "x": -106,
+        "y": -597
+      },
+      "gesture": {
+        "clientX": 617.6969604492188,
+        "clientY": 670.9130249023438,
+        "type": "mouse"
+      },
+      "expected": {
+        "id": "6de51763-6a82-45a1-bd40-82c6f73903cd",
+        "normalized": {
+          "x": 0.315,
+          "y": 0.415
+        },
+        "center": {
+          "x": 617.69696,
+          "y": 670.9130399999999
+        }
+      },
+      "nearestCompeting": {
+        "id": "4ff4ddfe-1736-4bb1-b61d-5fab28e248ff",
+        "center": {
+          "x": 564.0425600000001,
+          "y": 670.9130399999999
+        }
+      },
+      "expectedDistance": 0.000015104337755015531,
+      "competingDistance": 53.65440044922077,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "6de51763-6a82-45a1-bd40-82c6f73903cd",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "label": "neighbor-series-4",
+      "scale": 4,
+      "translation": {
+        "x": -570.0000000000001,
+        "y": -1261.2500000000005
+      },
+      "gesture": {
+        "clientX": 617.9502563476562,
+        "clientY": 670.9863891601562,
+        "type": "mouse"
+      },
+      "expected": {
+        "id": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+        "normalized": {
+          "x": 0.33150371,
+          "y": 0.37560058
+        },
+        "center": {
+          "x": 617.9502395999999,
+          "y": 670.9864011999996
+        }
+      },
+      "nearestCompeting": {
+        "id": "315a0bfd-86a1-4224-8cc3-9eaf33fbe9f4",
+        "center": {
+          "x": 572.3999999999999,
+          "y": 699.5499999999995
+        }
+      },
+      "expectedDistance": 0.000020626241060576196,
+      "competingDistance": 53.765283571717745,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "label": "neighbor-series-4",
+      "scale": 4,
+      "translation": {
+        "x": -525.0000000000001,
+        "y": -1290.2500000000005
+      },
+      "gesture": {
+        "clientX": 617.4000244140625,
+        "clientY": 670.5499877929688,
+        "type": "mouse"
+      },
+      "expected": {
+        "id": "315a0bfd-86a1-4224-8cc3-9eaf33fbe9f4",
+        "normalized": {
+          "x": 0.315,
+          "y": 0.3825
+        },
+        "center": {
+          "x": 617.3999999999999,
+          "y": 670.5499999999995
+        }
+      },
+      "nearestCompeting": {
+        "id": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+        "center": {
+          "x": 662.9502395999999,
+          "y": 641.9864011999996
+        }
+      },
+      "expectedDistance": 0.000027295751576779638,
+      "competingDistance": 53.76523581775914,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "315a0bfd-86a1-4224-8cc3-9eaf33fbe9f4",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "label": "neighbor-series-4",
+      "scale": 4,
+      "translation": {
+        "x": -525.0000000000001,
+        "y": -1155.2500000000005
+      },
+      "gesture": {
+        "clientX": 617.4000244140625,
+        "clientY": 671,
+        "type": "mouse"
+      },
+      "expected": {
+        "id": "9e2ea398-9002-471a-a3fc-843816f9a3a0",
+        "normalized": {
+          "x": 0.315,
+          "y": 0.35
+        },
+        "center": {
+          "x": 617.3999999999999,
+          "y": 670.9999999999995
+        }
+      },
+      "nearestCompeting": {
+        "id": "6bf6f2f9-eef4-4044-98b2-2cbbeebd560a",
+        "center": {
+          "x": 513.9,
+          "y": 670.9999999999995
+        }
+      },
+      "expectedDistance": 0.000024414062636424212,
+      "competingDistance": 103.50002441406252,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "9e2ea398-9002-471a-a3fc-843816f9a3a0",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "label": "neighbor-series-4",
+      "scale": 4,
+      "translation": {
+        "x": -421.0000000000001,
+        "y": -1290.2500000000005
+      },
+      "gesture": {
+        "clientX": 617.9000244140625,
+        "clientY": 670.5499877929688,
+        "type": "mouse"
+      },
+      "expected": {
+        "id": "ccfab2c7-371b-4d29-8869-3ffbdad24b1a",
+        "normalized": {
+          "x": 0.2775,
+          "y": 0.3825
+        },
+        "center": {
+          "x": 617.9,
+          "y": 670.5499999999995
+        }
+      },
+      "nearestCompeting": {
+        "id": "315a0bfd-86a1-4224-8cc3-9eaf33fbe9f4",
+        "center": {
+          "x": 721.3999999999999,
+          "y": 670.5499999999995
+        }
+      },
+      "expectedDistance": 0.000027295751475095037,
+      "competingDistance": 103.49997558593807,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "ccfab2c7-371b-4d29-8869-3ffbdad24b1a",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "label": "neighbor-series-4",
+      "scale": 4,
+      "translation": {
+        "x": -525.0000000000001,
+        "y": -1424.2500000000005
+      },
+      "gesture": {
+        "clientX": 617.4000244140625,
+        "clientY": 671.0999755859375,
+        "type": "mouse"
+      },
+      "expected": {
+        "id": "6de51763-6a82-45a1-bd40-82c6f73903cd",
+        "normalized": {
+          "x": 0.315,
+          "y": 0.415
+        },
+        "center": {
+          "x": 617.3999999999999,
+          "y": 671.0999999999995
+        }
+      },
+      "nearestCompeting": {
+        "id": "4ff4ddfe-1736-4bb1-b61d-5fab28e248ff",
+        "center": {
+          "x": 513.9,
+          "y": 671.0999999999995
+        }
+      },
+      "expectedDistance": 0.000034526698010724945,
+      "competingDistance": 103.5000244140654,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "6de51763-6a82-45a1-bd40-82c6f73903cd",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "label": "assignment-target",
+      "scale": 2.0736,
+      "translation": {
+        "x": -130,
+        "y": -513
+      },
+      "gesture": {
+        "clientX": 617.3101806640625,
+        "clientY": 670.35498046875,
+        "type": "mouse"
+      },
+      "expected": {
+        "id": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+        "normalized": {
+          "x": 0.33150371,
+          "y": 0.37560058
+        },
+        "center": {
+          "x": 617.31020420864,
+          "y": 670.35495038208
+        }
+      },
+      "nearestCompeting": {
+        "id": "315a0bfd-86a1-4224-8cc3-9eaf33fbe9f4",
+        "center": {
+          "x": 593.69696,
+          "y": 685.1623199999999
+        }
+      },
+      "expectedDistance": 0.00003820412074328953,
+      "competingDistance": 27.871876401193816,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "label": "reload-occupied-target",
+      "scale": 1,
+      "translation": {
+        "x": 168,
+        "y": -288
+      },
+      "gesture": {
+        "clientX": 835.5037231445312,
+        "clientY": 690.24462890625,
+        "type": "mouse"
+      },
+      "expected": {
+        "id": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+        "normalized": {
+          "x": 0.33150371,
+          "y": 0.37560058
+        },
+        "center": {
+          "x": 835.50371,
+          "y": 690.24462
+        }
+      },
+      "nearestCompeting": {
+        "id": "315a0bfd-86a1-4224-8cc3-9eaf33fbe9f4",
+        "center": {
+          "x": 819,
+          "y": 700.59375
+        }
+      },
+      "expectedDistance": 0.000015877656975929104,
+      "competingDistance": 19.480174153339537,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "label": "original-attempt-4",
+      "scale": 2.0736,
+      "translation": {
+        "x": -350,
+        "y": -635
+      },
+      "gesture": {
+        "clientX": 414.05682373046875,
+        "clientY": 619.67822265625,
+        "type": "touch"
+      },
+      "expected": {
+        "id": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+        "normalized": {
+          "x": 0.33150371,
+          "y": 0.37560058
+        },
+        "center": {
+          "x": 414.056823558656,
+          "y": 619.6782249672319
+        }
+      },
+      "nearestCompeting": {
+        "id": "315a0bfd-86a1-4224-8cc3-9eaf33fbe9f4",
+        "center": {
+          "x": 389.21158399999996,
+          "y": 635.258153
+        }
+      },
+      "expectedDistance": 0.0000023173599395285592,
+      "competingDistance": 29.326100435969437,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "label": "nearest-neighbor",
+      "scale": 2.0736,
+      "translation": {
+        "x": -45,
+        "y": -135
+      },
+      "gesture": {
+        "clientX": 409.4233703613281,
+        "clientY": 621.4429931640625,
+        "type": "touch"
+      },
+      "expected": {
+        "id": "315a0bfd-86a1-4224-8cc3-9eaf33fbe9f4",
+        "normalized": {
+          "x": 0.315,
+          "y": 0.3825
+        },
+        "center": {
+          "x": 409.42336,
+          "y": 621.442995
+        }
+      },
+      "nearestCompeting": {
+        "id": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+        "center": {
+          "x": 419.34776698624,
+          "y": 615.21960776928
+        }
+      },
+      "expectedDistance": 0.000010522727163350138,
+      "competingDistance": 11.71427224118319,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "315a0bfd-86a1-4224-8cc3-9eaf33fbe9f4",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "label": "neighbor-series-1",
+      "scale": 1,
+      "translation": {
+        "x": 48,
+        "y": 47
+      },
+      "gesture": {
+        "clientX": 409.1360778808594,
+        "clientY": 621.80810546875,
+        "type": "touch"
+      },
+      "expected": {
+        "id": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+        "normalized": {
+          "x": 0.33150371,
+          "y": 0.37560058
+        },
+        "center": {
+          "x": 409.13607590000004,
+          "y": 621.8081273
+        }
+      },
+      "nearestCompeting": {
+        "id": "315a0bfd-86a1-4224-8cc3-9eaf33fbe9f4",
+        "center": {
+          "x": 404.35,
+          "y": 624.809375
+        }
+      },
+      "expectedDistance": 0.000021920932491937166,
+      "competingDistance": 5.649261923549042,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "label": "neighbor-series-1",
+      "scale": 1,
+      "translation": {
+        "x": 53,
+        "y": 44
+      },
+      "gesture": {
+        "clientX": 409.3500061035156,
+        "clientY": 621.8093872070312,
+        "type": "touch"
+      },
+      "expected": {
+        "id": "315a0bfd-86a1-4224-8cc3-9eaf33fbe9f4",
+        "normalized": {
+          "x": 0.315,
+          "y": 0.3825
+        },
+        "center": {
+          "x": 409.35,
+          "y": 621.809375
+        }
+      },
+      "nearestCompeting": {
+        "id": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+        "center": {
+          "x": 414.13607590000004,
+          "y": 618.8081273
+        }
+      },
+      "expectedDistance": 0.000013647875788389816,
+      "competingDistance": 5.649249961399605,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "315a0bfd-86a1-4224-8cc3-9eaf33fbe9f4",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "label": "neighbor-series-1",
+      "scale": 1,
+      "translation": {
+        "x": 53,
+        "y": 58
+      },
+      "gesture": {
+        "clientX": 409.3500061035156,
+        "clientY": 621.671875,
+        "type": "touch"
+      },
+      "expected": {
+        "id": "9e2ea398-9002-471a-a3fc-843816f9a3a0",
+        "normalized": {
+          "x": 0.315,
+          "y": 0.35
+        },
+        "center": {
+          "x": 409.35,
+          "y": 621.671875
+        }
+      },
+      "nearestCompeting": {
+        "id": "6bf6f2f9-eef4-4044-98b2-2cbbeebd560a",
+        "center": {
+          "x": 398.475,
+          "y": 621.671875
+        }
+      },
+      "expectedDistance": 0.0000061035156022626325,
+      "competingDistance": 10.875006103515602,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "9e2ea398-9002-471a-a3fc-843816f9a3a0",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "label": "neighbor-series-1",
+      "scale": 1,
+      "translation": {
+        "x": 64,
+        "y": 44
+      },
+      "gesture": {
+        "clientX": 409.4750061035156,
+        "clientY": 621.8093872070312,
+        "type": "touch"
+      },
+      "expected": {
+        "id": "ccfab2c7-371b-4d29-8869-3ffbdad24b1a",
+        "normalized": {
+          "x": 0.2775,
+          "y": 0.3825
+        },
+        "center": {
+          "x": 409.475,
+          "y": 621.809375
+        }
+      },
+      "nearestCompeting": {
+        "id": "315a0bfd-86a1-4224-8cc3-9eaf33fbe9f4",
+        "center": {
+          "x": 420.35,
+          "y": 621.809375
+        }
+      },
+      "expectedDistance": 0.000013647875788389816,
+      "competingDistance": 10.87499389649125,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "ccfab2c7-371b-4d29-8869-3ffbdad24b1a",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "label": "neighbor-series-1",
+      "scale": 1,
+      "translation": {
+        "x": 53,
+        "y": 30
+      },
+      "gesture": {
+        "clientX": 409.3500061035156,
+        "clientY": 621.9468994140625,
+        "type": "touch"
+      },
+      "expected": {
+        "id": "6de51763-6a82-45a1-bd40-82c6f73903cd",
+        "normalized": {
+          "x": 0.315,
+          "y": 0.415
+        },
+        "center": {
+          "x": 409.35,
+          "y": 621.946875
+        }
+      },
+      "nearestCompeting": {
+        "id": "4ff4ddfe-1736-4bb1-b61d-5fab28e248ff",
+        "center": {
+          "x": 398.475,
+          "y": 621.946875
+        }
+      },
+      "expectedDistance": 0.000025165439626026657,
+      "competingDistance": 10.875006103543008,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "6de51763-6a82-45a1-bd40-82c6f73903cd",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "label": "neighbor-series-2.0736",
+      "scale": 2.0736,
+      "translation": {
+        "x": -55,
+        "y": -128
+      },
+      "gesture": {
+        "clientX": 409.3477783203125,
+        "clientY": 622.2196044921875,
+        "type": "touch"
+      },
+      "expected": {
+        "id": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+        "normalized": {
+          "x": 0.33150371,
+          "y": 0.37560058
+        },
+        "center": {
+          "x": 409.34776698624,
+          "y": 622.21960776928
+        }
+      },
+      "nearestCompeting": {
+        "id": "315a0bfd-86a1-4224-8cc3-9eaf33fbe9f4",
+        "center": {
+          "x": 399.42336,
+          "y": 628.442995
+        }
+      },
+      "expectedDistance": 0.000011798327604298828,
+      "competingDistance": 11.714293338024493,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "label": "neighbor-series-2.0736",
+      "scale": 2.0736,
+      "translation": {
+        "x": -45,
+        "y": -135
+      },
+      "gesture": {
+        "clientX": 409.4233703613281,
+        "clientY": 621.4429931640625,
+        "type": "touch"
+      },
+      "expected": {
+        "id": "315a0bfd-86a1-4224-8cc3-9eaf33fbe9f4",
+        "normalized": {
+          "x": 0.315,
+          "y": 0.3825
+        },
+        "center": {
+          "x": 409.42336,
+          "y": 621.442995
+        }
+      },
+      "nearestCompeting": {
+        "id": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+        "center": {
+          "x": 419.34776698624,
+          "y": 615.21960776928
+        }
+      },
+      "expectedDistance": 0.000010522727163350138,
+      "competingDistance": 11.71427224118319,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "315a0bfd-86a1-4224-8cc3-9eaf33fbe9f4",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "label": "neighbor-series-2.0736",
+      "scale": 2.0736,
+      "translation": {
+        "x": -45,
+        "y": -105
+      },
+      "gesture": {
+        "clientX": 409.4233703613281,
+        "clientY": 622.1275024414062,
+        "type": "touch"
+      },
+      "expected": {
+        "id": "9e2ea398-9002-471a-a3fc-843816f9a3a0",
+        "normalized": {
+          "x": 0.315,
+          "y": 0.35
+        },
+        "center": {
+          "x": 409.42336,
+          "y": 622.127475
+        }
+      },
+      "nearestCompeting": {
+        "id": "6bf6f2f9-eef4-4044-98b2-2cbbeebd560a",
+        "center": {
+          "x": 386.87296000000003,
+          "y": 622.127475
+        }
+      },
+      "expectedDistance": 0.00002933236944438805,
+      "competingDistance": 22.550410361344785,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "9e2ea398-9002-471a-a3fc-843816f9a3a0",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "label": "neighbor-series-2.0736",
+      "scale": 2.0736,
+      "translation": {
+        "x": -22,
+        "y": -135
+      },
+      "gesture": {
+        "clientX": 409.8729553222656,
+        "clientY": 621.4429931640625,
+        "type": "touch"
+      },
+      "expected": {
+        "id": "ccfab2c7-371b-4d29-8869-3ffbdad24b1a",
+        "normalized": {
+          "x": 0.2775,
+          "y": 0.3825
+        },
+        "center": {
+          "x": 409.87296000000003,
+          "y": 621.442995
+        }
+      },
+      "nearestCompeting": {
+        "id": "e22d801b-d419-456b-a19e-39f44cdce66b",
+        "center": {
+          "x": 387.32255999999995,
+          "y": 621.442995
+        }
+      },
+      "expectedDistance": 0.0000050251234509091185,
+      "competingDistance": 22.550395322265747,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "ccfab2c7-371b-4d29-8869-3ffbdad24b1a",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "label": "neighbor-series-2.0736",
+      "scale": 2.0736,
+      "translation": {
+        "x": -45,
+        "y": -164
+      },
+      "gesture": {
+        "clientX": 409.4233703613281,
+        "clientY": 621.758544921875,
+        "type": "touch"
+      },
+      "expected": {
+        "id": "6de51763-6a82-45a1-bd40-82c6f73903cd",
+        "normalized": {
+          "x": 0.315,
+          "y": 0.415
+        },
+        "center": {
+          "x": 409.42336,
+          "y": 621.758515
+        }
+      },
+      "nearestCompeting": {
+        "id": "4ff4ddfe-1736-4bb1-b61d-5fab28e248ff",
+        "center": {
+          "x": 386.87296000000003,
+          "y": 621.758515
+        }
+      },
+      "expectedDistance": 0.00003166505526077207,
+      "competingDistance": 22.55041036134794,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "6de51763-6a82-45a1-bd40-82c6f73903cd",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "label": "neighbor-series-4",
+      "scale": 4,
+      "translation": {
+        "x": -240.00000000000006,
+        "y": -440.734375
+      },
+      "gesture": {
+        "clientX": 409.5443115234375,
+        "clientY": 624.2324829101562,
+        "type": "touch"
+      },
+      "expected": {
+        "id": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+        "normalized": {
+          "x": 0.33150371,
+          "y": 0.37560058
+        },
+        "center": {
+          "x": 409.5443036,
+          "y": 624.2325092
+        }
+      },
+      "nearestCompeting": {
+        "id": "315a0bfd-86a1-4224-8cc3-9eaf33fbe9f4",
+        "center": {
+          "x": 390.3999999999999,
+          "y": 636.2375000000001
+        }
+      },
+      "expectedDistance": 0.000027457908616348615,
+      "competingDistance": 22.597015268257596,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "label": "neighbor-series-4",
+      "scale": 4,
+      "translation": {
+        "x": -221.00000000000006,
+        "y": -454.734375
+      },
+      "gesture": {
+        "clientX": 409.3999938964844,
+        "clientY": 622.2374877929688,
+        "type": "touch"
+      },
+      "expected": {
+        "id": "315a0bfd-86a1-4224-8cc3-9eaf33fbe9f4",
+        "normalized": {
+          "x": 0.315,
+          "y": 0.3825
+        },
+        "center": {
+          "x": 409.3999999999999,
+          "y": 622.2375000000001
+        }
+      },
+      "nearestCompeting": {
+        "id": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+        "center": {
+          "x": 428.5443036,
+          "y": 610.2325092
+        }
+      },
+      "expectedDistance": 0.000013647875864653264,
+      "competingDistance": 22.596993274366394,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "315a0bfd-86a1-4224-8cc3-9eaf33fbe9f4",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "label": "neighbor-series-4",
+      "scale": 4,
+      "translation": {
+        "x": -221.00000000000006,
+        "y": -398.734375
+      },
+      "gesture": {
+        "clientX": 409.3999938964844,
+        "clientY": 621.6875,
+        "type": "touch"
+      },
+      "expected": {
+        "id": "9e2ea398-9002-471a-a3fc-843816f9a3a0",
+        "normalized": {
+          "x": 0.315,
+          "y": 0.35
+        },
+        "center": {
+          "x": 409.3999999999999,
+          "y": 621.6875
+        }
+      },
+      "nearestCompeting": {
+        "id": "6bf6f2f9-eef4-4044-98b2-2cbbeebd560a",
+        "center": {
+          "x": 365.9,
+          "y": 621.6875
+        }
+      },
+      "expectedDistance": 0.000006103515545419214,
+      "competingDistance": 43.4999938964844,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "9e2ea398-9002-471a-a3fc-843816f9a3a0",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "label": "neighbor-series-4",
+      "scale": 4,
+      "translation": {
+        "x": -177.00000000000006,
+        "y": -454.734375
+      },
+      "gesture": {
+        "clientX": 409.8999938964844,
+        "clientY": 622.2374877929688,
+        "type": "touch"
+      },
+      "expected": {
+        "id": "ccfab2c7-371b-4d29-8869-3ffbdad24b1a",
+        "normalized": {
+          "x": 0.2775,
+          "y": 0.3825
+        },
+        "center": {
+          "x": 409.9,
+          "y": 622.2375000000001
+        }
+      },
+      "nearestCompeting": {
+        "id": "e22d801b-d419-456b-a19e-39f44cdce66b",
+        "center": {
+          "x": 366.3999999999999,
+          "y": 622.2375000000001
+        }
+      },
+      "expectedDistance": 0.000013647875890074415,
+      "competingDistance": 43.49999389648617,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "ccfab2c7-371b-4d29-8869-3ffbdad24b1a",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "label": "neighbor-series-4",
+      "scale": 4,
+      "translation": {
+        "x": -221.00000000000006,
+        "y": -511.734375
+      },
+      "gesture": {
+        "clientX": 409.3999938964844,
+        "clientY": 621.7874755859375,
+        "type": "touch"
+      },
+      "expected": {
+        "id": "6de51763-6a82-45a1-bd40-82c6f73903cd",
+        "normalized": {
+          "x": 0.315,
+          "y": 0.415
+        },
+        "center": {
+          "x": 409.3999999999999,
+          "y": 621.7874999999999
+        }
+      },
+      "nearestCompeting": {
+        "id": "4ff4ddfe-1736-4bb1-b61d-5fab28e248ff",
+        "center": {
+          "x": 365.9,
+          "y": 621.7874999999999
+        }
+      },
+      "expectedDistance": 0.00002516543950194767,
+      "competingDistance": 43.49999389649125,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "6de51763-6a82-45a1-bd40-82c6f73903cd",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "label": "assignment-target",
+      "scale": 2.0736,
+      "translation": {
+        "x": -55,
+        "y": -128
+      },
+      "gesture": {
+        "clientX": 409.3477783203125,
+        "clientY": 622.2196044921875,
+        "type": "touch"
+      },
+      "expected": {
+        "id": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+        "normalized": {
+          "x": 0.33150371,
+          "y": 0.37560058
+        },
+        "center": {
+          "x": 409.34776698624,
+          "y": 622.21960776928
+        }
+      },
+      "nearestCompeting": {
+        "id": "315a0bfd-86a1-4224-8cc3-9eaf33fbe9f4",
+        "center": {
+          "x": 399.42336,
+          "y": 628.442995
+        }
+      },
+      "expectedDistance": 0.000011798327604298828,
+      "competingDistance": 11.714293338024493,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "label": "reload-occupied-target",
+      "scale": 1,
+      "translation": {
+        "x": -91,
+        "y": -196
+      },
+      "gesture": {
+        "clientX": 414.67169189453125,
+        "clientY": 619.544677734375,
+        "type": "touch"
+      },
+      "expected": {
+        "id": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+        "normalized": {
+          "x": 0.33150371,
+          "y": 0.37560058
+        },
+        "center": {
+          "x": 414.67169346000003,
+          "y": 619.5446566200001
+        }
+      },
+      "nearestCompeting": {
+        "id": "315a0bfd-86a1-4224-8cc3-9eaf33fbe9f4",
+        "center": {
+          "x": 402.69,
+          "y": 627.058125
+        }
+      },
+      "expectedDistance": 0.000021172329140393285,
+      "competingDistance": 14.142589242030752,
+      "radiusScreenPx": 22,
+      "resolvedSeatId": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+      "result": "PASS"
+    }
+  ],
+  "assignments": [
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "apiSeatId": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+      "expectedSeatId": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+      "parentId": "4422ed1c-4893-498f-b8d1-eecfff186d98",
+      "reloadedSeatId": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+      "label": "Lugar 1",
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "apiSeatId": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+      "expectedSeatId": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+      "parentId": "4422ed1c-4893-498f-b8d1-eecfff186d98",
+      "reloadedSeatId": "f3ec1772-c517-4a17-8d5e-c8062bd33dbb",
+      "label": "Lugar 1",
+      "result": "PASS"
+    }
+  ],
+  "scenarios": [
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "selectedCenters": 19,
+      "seatCount": 50,
+      "plannerGeometryWrites": 0,
+      "exactAssignmentPosts": 1,
+      "result": "PASS"
+    },
+    {
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "selectedCenters": 19,
+      "seatCount": 50,
+      "plannerGeometryWrites": 0,
+      "exactAssignmentPosts": 1,
+      "result": "PASS"
+    }
+  ],
+  "status": "PASS"
+}

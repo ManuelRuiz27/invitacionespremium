@@ -1,0 +1,587 @@
+{
+  "status": "PASS_TICKET_ONLY",
+  "baseHead": "07f45f7eeb8ad8294c30e978f9da498035c8bd0b",
+  "runtimeSha256": "47e4eb4893763111a345c328fe4b8a398b5b96521f54df5f2a15480d2547dda5",
+  "sourceSha256Lf": {
+    "packages/floorplan/src/FloorplanDomRenderer.tsx": "1b3a86a2f44a5d49569270816a96bfd564e33789bb9519e6bebbea92600c50e9",
+    "packages/floorplan/src/FloorplanKonvaRenderer.tsx": "424caf7ecaf406e6d2bd8a44d41334f6da8f736f76fd92816179c4380726fb1f",
+    "packages/floorplan/src/FloorplanSurface.tsx": "d35549ac1b436d494204ab46075b2593ddebb18c10d8578ee75c5707ac5af963",
+    "packages/floorplan/src/floorplan-seat-selection.ts": "438f1171cf48491fe98c8c8a23201efdd0724abfa14a63ff65f26b3e5e648294",
+    "packages/floorplan/src/useConsumerSeatSelection.ts": "e609d88d2eac6a0c8dde9cfeec440499076c743e88b87a52367e772be3252143",
+    "packages/floorplan/src/floorplan-seat-selection.test.ts": "93f686f73205de8edd06fd9308614fc9cc035cd1d85986ce2a246a0ee86be786",
+    "packages/floorplan/src/floorplan-consumer-selection.test.tsx": "fe42ce1d7b408363e239021a8022e53fd6e3b9f6c54ad287f0fcfb9a75598bf2"
+  },
+  "fullCalca06Run": false,
+  "fullQaRun": false,
+  "dt09Run": false,
+  "logs": [
+    {
+      "file": "var/qa/calca-blocker04/typecheck-initial.log",
+      "sha256": "9fb09fb3f2650b5db80b544f9eb525c244e692ebd571f66df99e73c55a890a14",
+      "bytes": 3312,
+      "result": "FAIL new refs/optional bool type errors; corrected",
+      "summary": []
+    },
+    {
+      "file": "var/qa/calca-blocker04/typecheck-second.log",
+      "sha256": "f70cbfcd40bdca510438d50b6f160bac351cbdf9502a101b3bec12b5cec8f4ea",
+      "bytes": 5662,
+      "result": "FAIL new Testing Library exact option; corrected",
+      "summary": []
+    },
+    {
+      "file": "var/qa/calca-blocker04/floorplan-initial.log",
+      "sha256": "e59c5ab1b1eeef9dadc12981b37d21484157152ede0478ced41d5f6511bc31ff",
+      "bytes": 1324,
+      "result": "118/118 PASS before renderer parity regression",
+      "summary": [
+        " Test Files  16 passed (16)",
+        "      Tests  118 passed (118)",
+        "   Duration  32.18s (transform 1.46s, setup 17.48s, import 28.45s, tests 13.45s, environment 56.54s)"
+      ]
+    },
+    {
+      "file": "var/qa/calca-blocker04/floorplan-second.log",
+      "sha256": "4e9a1dda7edcb1b8ad6c343bb3d26b7878b04d9c611239c6b2755bf565598049",
+      "bytes": 1324,
+      "result": "131/131 PASS",
+      "summary": [
+        " Test Files  17 passed (17)",
+        "      Tests  131 passed (131)",
+        "   Duration  34.49s (transform 1.06s, setup 16.56s, import 30.78s, tests 15.38s, environment 57.02s)"
+      ]
+    },
+    {
+      "file": "var/qa/calca-blocker04/floorplan-final.log",
+      "sha256": "cd71fa4b1e3bba61426dc0c5200d18d573fc4eff20e689f0cb05921bf553b8ab",
+      "bytes": 1324,
+      "result": "132/132 PASS including pointer cancellation reset",
+      "summary": [
+        " Test Files  17 passed (17)",
+        "      Tests  132 passed (132)",
+        "   Duration  41.13s (transform 1.20s, setup 19.59s, import 36.32s, tests 20.76s, environment 64.12s)"
+      ]
+    },
+    {
+      "file": "var/qa/calca-blocker04/floorplan-approved.log",
+      "sha256": "d6e18cf7488b2e446d390de6080b168113f232c639db577e69cf86019d82848f",
+      "bytes": 1324,
+      "result": "133/133 PASS including clipped content-frame regression",
+      "summary": [
+        " Test Files  17 passed (17)",
+        "      Tests  133 passed (133)",
+        "   Duration  33.20s (transform 1.20s, setup 16.68s, import 31.97s, tests 15.64s, environment 56.62s)"
+      ]
+    },
+    {
+      "file": "var/qa/calca-blocker04/client-initial.log",
+      "sha256": "286487bdbceeb2aec75bb4c86def8b76dc5f4ac3264199b067a5304cef43ce3c",
+      "bytes": 562,
+      "result": "52/52 PASS first run",
+      "summary": [
+        " Test Files  1 passed (1)",
+        "      Tests  52 passed (52)",
+        "   Duration  31.35s (transform 1.62s, setup 955ms, import 4.69s, tests 23.03s, environment 2.41s)"
+      ]
+    },
+    {
+      "file": "var/qa/calca-blocker04/admin-initial.log",
+      "sha256": "040dc33efb066a5e30e879225fb9551664f5efc0160d6ceac9806fe4bcb2dc04",
+      "bytes": 568,
+      "result": "149/149 PASS first run",
+      "summary": [
+        " Test Files  1 passed (1)",
+        "      Tests  149 passed (149)",
+        "   Duration  121.76s (transform 1.62s, setup 1.02s, import 26.70s, tests 90.70s, environment 3.05s)"
+      ]
+    },
+    {
+      "file": "var/qa/calca-blocker04/static-initial.log",
+      "sha256": "1b16b6e7c66bc3774f42ac703f769ea5c920d5c1a8e1da47efd66cc77e6edd06",
+      "bytes": 14432,
+      "result": "18/18 PASS intermediate",
+      "summary": [
+        " Tasks:    18 successful, 18 total",
+        "Cached:    6 cached, 18 total",
+        "  Time:    57.847s "
+      ]
+    },
+    {
+      "file": "var/qa/calca-blocker04/static-final.log",
+      "sha256": "ea8d2e09a59cb44985dcae8477c34fb135c2d926e08a8738d1be040e12e4722e",
+      "bytes": 14458,
+      "result": "18/18 PASS intermediate",
+      "summary": [
+        " Tasks:    18 successful, 18 total",
+        "Cached:    9 cached, 18 total",
+        "  Time:    1m1.228s "
+      ]
+    },
+    {
+      "file": "var/qa/calca-blocker04/static-approved.log",
+      "sha256": "900e6d6369bbee2f743a1853aa8f0cff890ae2849b021e839320c5db2a8333fb",
+      "bytes": 14456,
+      "result": "18/18 PASS final",
+      "summary": [
+        " Tasks:    18 successful, 18 total",
+        "Cached:    9 cached, 18 total",
+        "  Time:    43.865s "
+      ]
+    },
+    {
+      "file": "var/qa/calca-blocker04/reproduction-initial.log",
+      "sha256": "a02c3407eb323cd19ec5decc1bc72fee6c71bbdc7d1ad1ef815aadf589b27f1f",
+      "bytes": 18534,
+      "result": "FAIL first original point PASS, neighbor wrong selection; corrected painted content frame and harness navigation",
+      "summary": []
+    },
+    {
+      "file": "var/qa/calca-blocker04/reproduction-second.log",
+      "sha256": "7e878636c876f3a9ceeb3d9443f337bb50f390dadab4c2fe7426b33deecd3253",
+      "bytes": 17872,
+      "result": "FAIL harness click outside visible canvas at max zoom after 1x/2.0736x PASS",
+      "summary": []
+    },
+    {
+      "file": "var/qa/calca-blocker04/reproduction-third.log",
+      "sha256": "c5f7df7533b28f13c41f4d1276de07b11650338e47021321177a5c49bb0be823",
+      "bytes": 776,
+      "result": "Runner startup FAIL missing npm_execpath, no journey",
+      "summary": []
+    },
+    {
+      "file": "var/qa/calca-blocker04/reproduction-third-pnpm.log",
+      "sha256": "cf7e4aaaa253351fb05d3d5294244b09d5bf0f00640909dd019b5467d3c64cce",
+      "bytes": 836,
+      "result": "Runner startup FAIL missing npm_execpath, no journey",
+      "summary": []
+    },
+    {
+      "file": "var/qa/calca-blocker04/reproduction-third-runtime.log",
+      "sha256": "6fb85a0e602647cff17948eee60d6f693f910d016b2bd416ab7419c9f189a062",
+      "bytes": 18594,
+      "result": "FAIL harness scroll ancestor did not bring requested point inside visible canvas",
+      "summary": []
+    },
+    {
+      "file": "var/qa/calca-blocker04/reproduction-fourth.log",
+      "sha256": "35a5c3a5ee673c0849b5f2ccd57b96b3f46e7ea3c242025ac4dd21a8f6668e14",
+      "bytes": 20032,
+      "result": "FAIL harness malformed text literal after desktop geometry/assignment/reload PASS",
+      "summary": []
+    },
+    {
+      "file": "var/qa/calca-blocker04/reproduction-fifth.log",
+      "sha256": "c88d7bfb14281a152889e9e379775ffa19088eb7da7cf2efbd0a3e73a34afcfb",
+      "bytes": 16550,
+      "result": "PASS final native mouse/touch reproduction, both viewports",
+      "summary": []
+    },
+    {
+      "file": "var/qa/calca-blocker04/reproduction-approved.log",
+      "sha256": "fd3c4cfb03c6b2b1a3a979c5a07011590a19b0c9306b91ae163d082bbb600903",
+      "bytes": 16678,
+      "result": "PASS unchanged functional rerun; explicit owned harness and native process exit 0",
+      "summary": []
+    },
+    {
+      "file": "var/qa/calca-blocker04/reproduction-captures-final.log",
+      "sha256": "1f88e21d4dd8337dc580219bbf3932f56c245fc4b06d268216fa5f7f9427fbe0",
+      "bytes": 16678,
+      "result": "PASS final evidence run; recenter confirmed selection through existing toolbar after panel resize, assert marker visible before PNG",
+      "summary": []
+    },
+    {
+      "file": "var/qa/calca-blocker04/evidence-lint-initial.log",
+      "sha256": "604178a14ecf21efc76c49c331845f206ccabff47d64472007aad601c7693636",
+      "bytes": 800,
+      "result": "FAIL unused import and requestAnimationFrame browser-global declaration in harness; corrected",
+      "summary": []
+    },
+    {
+      "file": "var/qa/calca-blocker04/evidence-lint-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "result": "PASS evidence scripts ESLint",
+      "summary": []
+    },
+    {
+      "file": "var/qa/calca-blocker04/guide-publication.log",
+      "sha256": "312f3c47f2648a4b1b3c73a129a4a96c3402151a6ce1e0c6bf77aafd5dfcf403",
+      "bytes": 18534,
+      "result": "PASS first run: UX02 journey, PDF 14/21/2 pages, 39 PNG verification; process exit 0",
+      "summary": [
+        "[passed] UX02 real organization, both access modes, printable material and camera reception (90906 ms)",
+        "01_MANUAL_ADMIN: 14 Letter pages; images, print layout and mobile width verified.",
+        "02_MANUAL_SALON: 21 Letter pages; images, print layout and mobile width verified.",
+        "03_PRUEBA_USABILIDAD: 2 Letter pages; images, print layout and mobile width verified.",
+        "UX02: 39 PNG verified; complete inventory, hashes, masks and no decodable QR."
+      ]
+    },
+    {
+      "file": "var/qa/calca-blocker04/guide-tests.log",
+      "sha256": "962dbf6cecb19c2f744859e4b5400559eab2e6d2ca95a86bf55250ed8025bd35",
+      "bytes": 3302,
+      "result": "5/5 PASS",
+      "summary": [
+        "# tests 5",
+        "# pass 5",
+        "# fail 0"
+      ]
+    },
+    {
+      "file": "var/qa/calca-blocker04/guide-verify-final.log",
+      "sha256": "77b57b2aed4c52f5d209d48c24f67d4bc61038f21f9af0643c966642306beac7",
+      "bytes": 1004,
+      "result": "PASS final required guide publication",
+      "summary": [
+        "UX02: 39 PNG verified; complete inventory, hashes, masks and no decodable QR."
+      ]
+    }
+  ],
+  "initialNative": [
+    {
+      "file": "var/qa/calca-blocker04/native-initial/results.json",
+      "sha256": "6e9a35a48756128d7c46ae109a9e85c9b3420ce5f8efddadb1c870953eea202e",
+      "status": "FAIL",
+      "error": "expect(received).toBe(expected) // Object.is equality\n\nExpected: \"b13b621e-cb02-4b7f-a51f-3b4a5a87305d\"\nReceived: \"7c233881-4ae7-4be3-8060-41fb8eb6b22e\"\n\nCall Log:\n- Timeout 5000ms exceeded while waiting on the predicate",
+      "geometryChecks": 1,
+      "resolvedCorrect": 1,
+      "failingGeometry": [],
+      "lastGeometry": {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "label": "original-attempt-4",
+        "scale": 2.0736,
+        "translation": {
+          "x": -44,
+          "y": -1100
+        },
+        "gesture": {
+          "clientX": 979.4060668945312,
+          "clientY": 477.1117858886719,
+          "type": "mouse"
+        },
+        "expected": {
+          "id": "7c233881-4ae7-4be3-8060-41fb8eb6b22e",
+          "normalized": {
+            "x": 0.33150371,
+            "y": 0.37560058
+          },
+          "center": {
+            "x": 979.406093056,
+            "y": 477.11179403200003
+          }
+        },
+        "nearestCompeting": {
+          "id": "b13b621e-cb02-4b7f-a51f-3b4a5a87305d",
+          "center": {
+            "x": 945.184,
+            "y": 498.57174999999984
+          }
+        },
+        "expectedDistance": 0.0000273995664622315,
+        "competingDistance": 40.39405800601442,
+        "radiusScreenPx": 22,
+        "resolvedSeatId": "7c233881-4ae7-4be3-8060-41fb8eb6b22e"
+      }
+    },
+    {
+      "file": "var/qa/calca-blocker04/native-second/results.json",
+      "sha256": "c89e5565fcf7562b7e0cde2724d54375dc56ce121a2427b58197a9e26a910c98",
+      "status": "FAIL",
+      "error": "The expression evaluated to a falsy value:\n\n  assert(observed)\n",
+      "geometryChecks": 12,
+      "resolvedCorrect": 12,
+      "failingGeometry": [],
+      "lastGeometry": {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "label": "neighbor-series-2.0736",
+        "scale": 2.0736,
+        "translation": {
+          "x": 0,
+          "y": 0
+        },
+        "gesture": {
+          "clientX": 723.6969604492188,
+          "clientY": 552.9130249023438,
+          "type": "mouse"
+        },
+        "expected": {
+          "id": "57286fe3-9ae3-42b0-96c4-87c99c8cfc28",
+          "normalized": {
+            "x": 0.315,
+            "y": 0.415
+          },
+          "center": {
+            "x": 723.69696,
+            "y": 552.9130399999999
+          }
+        },
+        "nearestCompeting": {
+          "id": "27eb26d3-d85f-45fc-a6e5-51f7abfd7efd",
+          "center": {
+            "x": 670.0425600000001,
+            "y": 552.9130399999999
+          }
+        },
+        "expectedDistance": 0.000015104337755015531,
+        "competingDistance": 53.65440044922077,
+        "radiusScreenPx": 22,
+        "resolvedSeatId": "57286fe3-9ae3-42b0-96c4-87c99c8cfc28",
+        "result": "PASS"
+      }
+    },
+    {
+      "file": "var/qa/calca-blocker04/native-third/results.json",
+      "sha256": "3001ce854db0668e0119c6851821bb8fb0fa0d30ad406ecff9ccf1f980d11d0f",
+      "status": "FAIL",
+      "error": "Harness gesture did not reach canvas",
+      "geometryChecks": 1,
+      "resolvedCorrect": 0,
+      "failingGeometry": [
+        {
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "label": "original-attempt-4",
+          "expected": {
+            "id": "8815e56f-88c4-40af-b7d6-95526b3d5f76",
+            "center": {
+              "x": 1023.406093056,
+              "y": 1583.111794032
+            }
+          },
+          "bounds": {
+            "left": 336,
+            "top": 414.84375,
+            "width": 1000,
+            "height": 1500
+          },
+          "host": {
+            "x": 336,
+            "y": 414.84375,
+            "width": 1000,
+            "height": 1500
+          },
+          "gesture": null,
+          "result": "OUTSIDE_CANVAS"
+        }
+      ],
+      "lastGeometry": {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "label": "original-attempt-4",
+        "expected": {
+          "id": "8815e56f-88c4-40af-b7d6-95526b3d5f76",
+          "center": {
+            "x": 1023.406093056,
+            "y": 1583.111794032
+          }
+        },
+        "bounds": {
+          "left": 336,
+          "top": 414.84375,
+          "width": 1000,
+          "height": 1500
+        },
+        "host": {
+          "x": 336,
+          "y": 414.84375,
+          "width": 1000,
+          "height": 1500
+        },
+        "gesture": null,
+        "result": "OUTSIDE_CANVAS"
+      }
+    },
+    {
+      "file": "var/qa/calca-blocker04/native-fourth/results.json",
+      "sha256": "518252065da821fb6e3f579dd3c40decc166cf6db71abc488dad5ec56413531b",
+      "status": "FAIL",
+      "error": "expect(locator).toBeVisible() failed\n\nLocator:  getByText('Mesa Mesa 1 Â· Lugar Lugar 1', { exact: true })\nExpected: visible\nReceived: <element(s) not found>\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"to.be.visible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByText('Mesa Mesa 1 Â· Lugar Lugar 1', { exact: true })\u001b[22m\n",
+      "geometryChecks": 19,
+      "resolvedCorrect": 19,
+      "failingGeometry": [],
+      "lastGeometry": {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "label": "reload-occupied-target",
+        "scale": 1,
+        "translation": {
+          "x": 168,
+          "y": -288
+        },
+        "gesture": {
+          "clientX": 835.5037231445312,
+          "clientY": 690.24462890625,
+          "type": "mouse"
+        },
+        "expected": {
+          "id": "41c727c2-0b49-4046-9b87-9f7d8060f24f",
+          "normalized": {
+            "x": 0.33150371,
+            "y": 0.37560058
+          },
+          "center": {
+            "x": 835.50371,
+            "y": 690.24462
+          }
+        },
+        "nearestCompeting": {
+          "id": "9e2e83b1-4ccf-4d5e-9e27-0ebf63b07e94",
+          "center": {
+            "x": 819,
+            "y": 700.59375
+          }
+        },
+        "expectedDistance": 0.000015877656975929104,
+        "competingDistance": 19.480174153339537,
+        "radiusScreenPx": 22,
+        "resolvedSeatId": "41c727c2-0b49-4046-9b87-9f7d8060f24f",
+        "result": "PASS"
+      }
+    },
+    {
+      "file": "var/qa/calca-blocker04/native-fifth/results.json",
+      "sha256": "5bc37db4ecc65e3006e1ac17b47fa583c46684fdf057ee49691a4e6b4200218b",
+      "status": "PASS",
+      "geometryChecks": 38,
+      "resolvedCorrect": 38,
+      "failingGeometry": [],
+      "lastGeometry": {
+        "viewport": {
+          "width": 1024,
+          "height": 768
+        },
+        "label": "reload-occupied-target",
+        "scale": 1,
+        "translation": {
+          "x": -91,
+          "y": -196
+        },
+        "gesture": {
+          "clientX": 414.67169189453125,
+          "clientY": 619.544677734375,
+          "type": "touch"
+        },
+        "expected": {
+          "id": "90df36b2-a2c9-46cd-8995-0a4bf285a800",
+          "normalized": {
+            "x": 0.33150371,
+            "y": 0.37560058
+          },
+          "center": {
+            "x": 414.67169346000003,
+            "y": 619.5446566200001
+          }
+        },
+        "nearestCompeting": {
+          "id": "e55c406a-15cd-4933-b41f-b4b6b09894f4",
+          "center": {
+            "x": 402.69,
+            "y": 627.058125
+          }
+        },
+        "expectedDistance": 0.000021172329140393285,
+        "competingDistance": 14.142589242030752,
+        "radiusScreenPx": 22,
+        "resolvedSeatId": "90df36b2-a2c9-46cd-8995-0a4bf285a800",
+        "result": "PASS"
+      }
+    },
+    {
+      "file": "var/qa/calca-blocker04/native-approved/results.json",
+      "sha256": "f0c9a637165a3d61b17a1830e668f4fceefecd826bc782923d80b71439d04391",
+      "status": "PASS",
+      "geometryChecks": 38,
+      "resolvedCorrect": 38,
+      "failingGeometry": [],
+      "lastGeometry": {
+        "viewport": {
+          "width": 1024,
+          "height": 768
+        },
+        "label": "reload-occupied-target",
+        "scale": 1,
+        "translation": {
+          "x": -91,
+          "y": -196
+        },
+        "gesture": {
+          "clientX": 414.67169189453125,
+          "clientY": 619.544677734375,
+          "type": "touch"
+        },
+        "expected": {
+          "id": "5eb26d41-4e44-4c98-9618-d307d3ce0146",
+          "normalized": {
+            "x": 0.33150371,
+            "y": 0.37560058
+          },
+          "center": {
+            "x": 414.67169346000003,
+            "y": 619.5446566200001
+          }
+        },
+        "nearestCompeting": {
+          "id": "7b6016be-058e-4677-af82-89a8058c3324",
+          "center": {
+            "x": 402.69,
+            "y": 627.058125
+          }
+        },
+        "expectedDistance": 0.000021172329140393285,
+        "competingDistance": 14.142589242030752,
+        "radiusScreenPx": 22,
+        "resolvedSeatId": "5eb26d41-4e44-4c98-9618-d307d3ce0146",
+        "result": "PASS"
+      }
+    }
+  ],
+  "finalChecks": {
+    "unchangedScopes": [
+      "apps/api",
+      "apps/client",
+      "apps/admin",
+      "apps/scanner",
+      "packages/api-client",
+      "scripts",
+      "docs/05-implementacion/evidence/calca06",
+      "docs/05-implementacion/CALCA06_TRACE_MODE_CERTIFICATION.md"
+    ],
+    "runtimeMatchesNativeAndGuides": true,
+    "nativeScreenshots": 6,
+    "nativeGeometryChecks": 38,
+    "realAssignmentAndReloadChecks": 2,
+    "uniqueFocusedTests": 334,
+    "ephemeralDatabasesLeft": [],
+    "pdfMetadataRestoration": [
+      {
+        "file": "docs/guias-usuario/control-de-acceso/01_MANUAL_ADMIN.pdf",
+        "restored": false,
+        "reason": "Content differs; retained"
+      },
+      {
+        "file": "docs/guias-usuario/control-de-acceso/02_MANUAL_SALON.pdf",
+        "restored": false,
+        "reason": "Content differs; retained"
+      },
+      {
+        "file": "docs/guias-usuario/control-de-acceso/03_PRUEBA_USABILIDAD.pdf",
+        "restored": true,
+        "reason": "Only CreationDate/ModDate metadata differs; content identical"
+      }
+    ]
+  }
+}

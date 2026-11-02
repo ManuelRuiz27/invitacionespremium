@@ -10,6 +10,7 @@ import { floorplanColors } from './floorplan-sticker-style';
 import { resolveSvgTableVisualState } from './floorplan-svg-table-state';
 import { visualSeats } from './floorplan-visual-seats';
 import { createPlacementGestureGuard } from './floorplan-placement-gesture';
+import { useConsumerSeatSelection } from './useConsumerSeatSelection';
 
 export interface ViewportState {
   scale: number;
@@ -27,6 +28,18 @@ export function FloorplanKonvaRenderer(
   }
 ) {
   const stageRef = useRef<Konva.Stage>(null);
+  const seatSelection = useConsumerSeatSelection(props, () => {
+    const bounds = stageRef.current?.getContent().getBoundingClientRect();
+    if (!bounds) return;
+    const ratioX = bounds.width / props.width,
+      ratioY = bounds.height / props.height;
+    return {
+      left: bounds.left + props.viewport.x * ratioX,
+      top: bounds.top + props.viewport.y * ratioY,
+      width: props.width * props.viewport.scale * ratioX,
+      height: props.height * props.viewport.scale * ratioY
+    };
+  });
   const placementGesture = useRef(createPlacementGestureGuard());
   const cancelIndividualCommitRef = useRef(false);
   const pinchRef = useRef<
@@ -170,6 +183,7 @@ export function FloorplanKonvaRenderer(
               Boolean(props.onSeatMove)
             }
             onClick={(event) => {
+              if (seatSelection.enabled) return;
               if (props.disabled || props.captureCanvasClicks || (props.tracePresentation && props.panEnabled)) return;
               event.cancelBubble = true;
               props.onSeatSelect?.(seat.id, {
@@ -177,6 +191,7 @@ export function FloorplanKonvaRenderer(
               });
             }}
             onTap={(event) => {
+              if (seatSelection.enabled) return;
               if (props.disabled || props.captureCanvasClicks || (props.tracePresentation && props.panEnabled)) return;
               event.cancelBubble = true;
               props.onSeatSelect?.(seat.id, { additive: false });
@@ -201,9 +216,17 @@ export function FloorplanKonvaRenderer(
                 props.tracePresentation
                   ? ((props.selectedSeatIds?.includes(seat.id) ?? props.selectedSeatId === seat.id) ? 7 : 5) /
                     props.viewport.scale
-                  : 7
+                  : seatSelection.enabled
+                    ? 7 / props.viewport.scale
+                    : 7
               }
-              hitStrokeWidth={props.tracePresentation ? 34 / props.viewport.scale : 30}
+              hitStrokeWidth={
+                props.tracePresentation
+                  ? 34 / props.viewport.scale
+                  : seatSelection.enabled
+                    ? 30 / props.viewport.scale
+                    : 30
+              }
               fill={seat.isBlocked ? '#b0b6bf' : seat.occupied ? floorplanColors.accent : floorplanColors.paper}
               stroke={
                 (props.selectedSeatIds?.includes(seat.id) ?? props.selectedSeatId === seat.id)
@@ -212,7 +235,7 @@ export function FloorplanKonvaRenderer(
               }
               strokeWidth={
                 ((props.selectedSeatIds?.includes(seat.id) ?? props.selectedSeatId === seat.id) ? 3 : 1.5) /
-                (props.tracePresentation ? props.viewport.scale : 1)
+                (props.tracePresentation || seatSelection.enabled ? props.viewport.scale : 1)
               }
             />
             {!props.tracePresentation ? (
@@ -242,171 +265,179 @@ export function FloorplanKonvaRenderer(
       : null;
 
   return (
-    <Stage
-      ref={stageRef}
-      width={props.width}
-      height={props.height}
-      scaleX={props.viewport.scale}
-      scaleY={props.viewport.scale}
-      x={props.viewport.x}
-      y={props.viewport.y}
-      draggable={Boolean(props.panEnabled)}
-      onMouseDown={(event) => {
-        placementGesture.current.start(event.evt, event.evt.button === 0);
-        if (props.panEnabled) placementGesture.current.cancel();
-      }}
-      onMouseMove={(event) => placementGesture.current.move(event.evt)}
-      onMouseUp={(event) => placementGesture.current.move(event.evt)}
-      onTouchCancel={() => placementGesture.current.cancel()}
-      onDragStart={() => placementGesture.current.cancel()}
-      onDragEnd={(event) => {
-        if (!props.panEnabled || event.target.getType() !== 'Stage') return;
-        props.onViewportChange({ ...props.viewport, x: event.target.x(), y: event.target.y() });
-      }}
-      onWheel={wheel}
-      onTouchStart={startPinch}
-      onTouchMove={movePinch}
-      onTouchEnd={finishPinch}
-      onClick={place}
-      onTap={place}
-      style={{ touchAction: props.panEnabled ? 'none' : 'pan-y' }}
-    >
-      <Layer>
-        <KonvaImage
-          name="floorplan-image"
-          image={props.image}
-          width={props.width}
-          height={props.height}
-          listening={!selected}
-        />
-        {props.svgSource?.selectableElements.map((element) => {
-          const mapped = props.floorplan.shapes.find((shape) => shape.sourceElementId === element.sourceElementId);
-          const sourceSelected =
-            props.selectedSourceElementId === element.sourceElementId ||
-            Boolean(mapped && props.selectedId === mapped.id);
-          const tableState = mapped
-            ? resolveSvgTableVisualState(props.floorplan, mapped, {
-                selected: sourceSelected,
-                readOnly: Boolean(props.readOnly || props.disabled)
-              })
-            : undefined;
-          const selectElement = (event: KonvaEventObject<MouseEvent | TouchEvent>) => {
-            event.cancelBubble = true;
-            if (mapped) props.onSelect(mapped);
-            else props.onSourceSelect?.(element.sourceElementId);
-          };
-          const stateStroke =
-            tableState?.occupancyState === 'FULL'
-              ? '#a03d2f'
-              : tableState?.occupancyState === 'PARTIAL'
-                ? '#9a6700'
-                : floorplanColors.accent;
-          return (
-            <Fragment key={element.sourceElementId}>
-              <Rect
-                key={element.sourceElementId}
-                name="floorplan-svg-source-element"
-                x={element.bbox.x * props.width}
-                y={element.bbox.y * props.height}
-                width={element.bbox.width * props.width}
-                height={element.bbox.height * props.height}
-                fill="rgba(0,0,0,0)"
-                {...(tableState
-                  ? {
-                      stroke: sourceSelected ? floorplanColors.accent : stateStroke,
-                      strokeWidth: sourceSelected ? 4 : 3,
-                      dash: sourceSelected
-                        ? []
-                        : tableState.occupancyState === 'PARTIAL'
-                          ? [8, 5]
-                          : tableState.occupancyState === 'FULL'
-                            ? [2, 2]
-                            : [],
-                      opacity: props.readOnly || props.disabled ? 0.72 : 1
-                    }
-                  : sourceSelected
-                    ? { stroke: floorplanColors.accent, strokeWidth: 3 }
-                    : mapped
-                      ? { stroke: floorplanColors.accent, strokeWidth: 2, dash: [6, 4] }
-                      : { strokeWidth: 0 })}
-                listening={
-                  Boolean(mapped || props.onSourceSelect) && !props.disabled && !selected && !props.captureCanvasClicks
-                }
-                onClick={selectElement}
-                onTap={selectElement}
-              />
-              {tableState && element.bbox.width * props.width >= 56 && element.bbox.height * props.height >= 22 ? (
-                <Text
-                  name="floorplan-svg-table-status"
-                  x={element.bbox.x * props.width + 4}
-                  y={element.bbox.y * props.height + 4}
-                  width={Math.max(0, element.bbox.width * props.width - 8)}
-                  text={tableState.label}
-                  align="center"
-                  fontSize={Math.max(8, Math.min(12, (element.bbox.width * props.width) / 8))}
-                  fontStyle="bold"
-                  fill={stateStroke}
+    <div data-testid="floorplan-konva-pointer-surface" {...seatSelection.handlers}>
+      <Stage
+        ref={stageRef}
+        width={props.width}
+        height={props.height}
+        scaleX={props.viewport.scale}
+        scaleY={props.viewport.scale}
+        x={props.viewport.x}
+        y={props.viewport.y}
+        draggable={Boolean(props.panEnabled)}
+        onMouseDown={(event) => {
+          placementGesture.current.start(event.evt, event.evt.button === 0);
+          if (props.panEnabled) placementGesture.current.cancel();
+        }}
+        onMouseMove={(event) => placementGesture.current.move(event.evt)}
+        onMouseUp={(event) => placementGesture.current.move(event.evt)}
+        onTouchCancel={() => placementGesture.current.cancel()}
+        onDragStart={() => placementGesture.current.cancel()}
+        onDragEnd={(event) => {
+          if (!props.panEnabled || event.target.getType() !== 'Stage') return;
+          props.onViewportChange({ ...props.viewport, x: event.target.x(), y: event.target.y() });
+        }}
+        onWheel={wheel}
+        onTouchStart={startPinch}
+        onTouchMove={movePinch}
+        onTouchEnd={finishPinch}
+        onClick={place}
+        onTap={place}
+        style={{ touchAction: props.panEnabled ? 'none' : 'pan-y' }}
+      >
+        <Layer>
+          <KonvaImage
+            name="floorplan-image"
+            image={props.image}
+            width={props.width}
+            height={props.height}
+            listening={!selected}
+          />
+          {props.svgSource?.selectableElements.map((element) => {
+            const mapped = props.floorplan.shapes.find((shape) => shape.sourceElementId === element.sourceElementId);
+            const sourceSelected =
+              props.selectedSourceElementId === element.sourceElementId ||
+              Boolean(mapped && props.selectedId === mapped.id);
+            const tableState = mapped
+              ? resolveSvgTableVisualState(props.floorplan, mapped, {
+                  selected: sourceSelected,
+                  readOnly: Boolean(props.readOnly || props.disabled)
+                })
+              : undefined;
+            const selectElement = (event: KonvaEventObject<MouseEvent | TouchEvent>) => {
+              event.cancelBubble = true;
+              if (seatSelection.suppressNodeSelection()) return;
+              if (mapped) props.onSelect(mapped);
+              else props.onSourceSelect?.(element.sourceElementId);
+            };
+            const stateStroke =
+              tableState?.occupancyState === 'FULL'
+                ? '#a03d2f'
+                : tableState?.occupancyState === 'PARTIAL'
+                  ? '#9a6700'
+                  : floorplanColors.accent;
+            return (
+              <Fragment key={element.sourceElementId}>
+                <Rect
+                  key={element.sourceElementId}
+                  name="floorplan-svg-source-element"
+                  x={element.bbox.x * props.width}
+                  y={element.bbox.y * props.height}
+                  width={element.bbox.width * props.width}
+                  height={element.bbox.height * props.height}
+                  fill="rgba(0,0,0,0)"
+                  {...(tableState
+                    ? {
+                        stroke: sourceSelected ? floorplanColors.accent : stateStroke,
+                        strokeWidth: sourceSelected ? 4 : 3,
+                        dash: sourceSelected
+                          ? []
+                          : tableState.occupancyState === 'PARTIAL'
+                            ? [8, 5]
+                            : tableState.occupancyState === 'FULL'
+                              ? [2, 2]
+                              : [],
+                        opacity: props.readOnly || props.disabled ? 0.72 : 1
+                      }
+                    : sourceSelected
+                      ? { stroke: floorplanColors.accent, strokeWidth: 3 }
+                      : mapped
+                        ? { stroke: floorplanColors.accent, strokeWidth: 2, dash: [6, 4] }
+                        : { strokeWidth: 0 })}
+                  listening={
+                    Boolean(mapped || props.onSourceSelect) &&
+                    !props.disabled &&
+                    !selected &&
+                    !props.captureCanvasClicks
+                  }
+                  onClick={selectElement}
+                  onTap={selectElement}
+                />
+                {tableState && element.bbox.width * props.width >= 56 && element.bbox.height * props.height >= 22 ? (
+                  <Text
+                    name="floorplan-svg-table-status"
+                    x={element.bbox.x * props.width + 4}
+                    y={element.bbox.y * props.height + 4}
+                    width={Math.max(0, element.bbox.width * props.width - 8)}
+                    text={tableState.label}
+                    align="center"
+                    fontSize={Math.max(8, Math.min(12, (element.bbox.width * props.width) / 8))}
+                    fontStyle="bold"
+                    fill={stateStroke}
+                    listening={false}
+                  />
+                ) : null}
+              </Fragment>
+            );
+          })}
+          {props.snap
+            ? Array.from({ length: 19 }, (_, index) => (index + 1) / 20).flatMap((position) => [
+                <Line
+                  key={`vertical-${position}`}
+                  points={[position * props.width, 0, position * props.width, props.height]}
+                  stroke={floorplanColors.gridLine}
+                  dash={[4, 6]}
+                  listening={false}
+                />,
+                <Line
+                  key={`horizontal-${position}`}
+                  points={[0, position * props.height, props.width, position * props.height]}
+                  stroke={floorplanColors.gridLine}
+                  dash={[4, 6]}
                   listening={false}
                 />
-              ) : null}
-            </Fragment>
-          );
-        })}
-        {props.snap
-          ? Array.from({ length: 19 }, (_, index) => (index + 1) / 20).flatMap((position) => [
-              <Line
-                key={`vertical-${position}`}
-                points={[position * props.width, 0, position * props.width, props.height]}
-                stroke={floorplanColors.gridLine}
-                dash={[4, 6]}
-                listening={false}
-              />,
-              <Line
-                key={`horizontal-${position}`}
-                points={[0, position * props.height, props.width, position * props.height]}
-                stroke={floorplanColors.gridLine}
-                dash={[4, 6]}
-                listening={false}
+              ])
+            : null}
+          {props.floorplan.shapes.map((shape) => {
+            if (
+              shape.sourceElementId &&
+              props.svgSource?.selectableElements.some((element) => element.sourceElementId === shape.sourceElementId)
+            )
+              return null;
+            if (selected && props.selectedId === shape.id) return null;
+            return (
+              <KonvaShapeNode
+                key={shape.id}
+                shape={shape}
+                stageSize={stageSize}
+                selected={props.selectedId === shape.id}
+                disabled={props.disabled || Boolean(selected) || Boolean(props.captureCanvasClicks)}
+                showSeats={props.showSeats}
+                tracePresentation={props.tracePresentation}
+                onSelect={() => {
+                  if (!seatSelection.suppressNodeSelection()) props.onSelect(shape);
+                }}
               />
-            ])
-          : null}
-        {props.floorplan.shapes.map((shape) => {
-          if (
-            shape.sourceElementId &&
-            props.svgSource?.selectableElements.some((element) => element.sourceElementId === shape.sourceElementId)
-          )
-            return null;
-          if (selected && props.selectedId === shape.id) return null;
-          return (
-            <KonvaShapeNode
-              key={shape.id}
-              shape={shape}
+            );
+          })}
+          {!props.tracePresentation ? seatNodes : null}
+          {selected && selectedRect ? (
+            <EditableKonvaShape
+              shape={selected}
               stageSize={stageSize}
-              selected={props.selectedId === shape.id}
-              disabled={props.disabled || Boolean(selected) || Boolean(props.captureCanvasClicks)}
+              disabled={props.disabled}
+              snap={props.snap}
               showSeats={props.showSeats}
               tracePresentation={props.tracePresentation}
-              onSelect={() => props.onSelect(shape)}
+              occupancy={selectedOccupancy}
+              cancelIndividualCommitRef={cancelIndividualCommitRef}
+              onChange={props.onDraftChange}
             />
-          );
-        })}
-        {!props.tracePresentation ? seatNodes : null}
-        {selected && selectedRect ? (
-          <EditableKonvaShape
-            shape={selected}
-            stageSize={stageSize}
-            disabled={props.disabled}
-            snap={props.snap}
-            showSeats={props.showSeats}
-            tracePresentation={props.tracePresentation}
-            occupancy={selectedOccupancy}
-            cancelIndividualCommitRef={cancelIndividualCommitRef}
-            onChange={props.onDraftChange}
-          />
-        ) : null}
-        {props.tracePresentation ? seatNodes : null}
-      </Layer>
-    </Stage>
+          ) : null}
+          {props.tracePresentation ? seatNodes : null}
+        </Layer>
+      </Stage>
+    </div>
   );
 }
 

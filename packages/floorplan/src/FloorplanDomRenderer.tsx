@@ -9,6 +9,8 @@ import { contrastingText, stickerColor } from './floorplan-sticker-style';
 import { resolveSvgTableVisualState } from './floorplan-svg-table-state';
 import { visualSeats } from './floorplan-visual-seats';
 import { createPlacementGestureGuard } from './floorplan-placement-gesture';
+import { useConsumerSeatSelection } from './useConsumerSeatSelection';
+import type { ViewportState } from './FloorplanKonvaRenderer';
 
 export interface FloorplanRendererProps {
   floorplan: Omit<Floorplan, 'seatingMode' | 'seats'> & Pick<Partial<Floorplan>, 'seatingMode' | 'seats'>;
@@ -43,7 +45,12 @@ export interface FloorplanRendererProps {
   onSourceSelect?: ((sourceElementId: string) => void) | undefined;
 }
 
-export function FloorplanDomRenderer(props: FloorplanRendererProps) {
+export function FloorplanDomRenderer(
+  props: FloorplanRendererProps & {
+    viewport?: ViewportState;
+    onViewportChange?: (viewport: ViewportState) => void;
+  }
+) {
   const renderedSeats = props.tracePresentation
     ? [...(props.floorplan.seats ?? [])].sort((left, right) => {
         const rank = (id: string) => (props.selectedSeatId === id ? 2 : props.selectedSeatIds?.includes(id) ? 1 : 0);
@@ -57,6 +64,8 @@ export function FloorplanDomRenderer(props: FloorplanRendererProps) {
       props.svgSource?.selectableElements.some((element) => element.sourceElementId === shape.sourceElementId)
   );
   const ownerRef = useRef<HTMLDivElement>(null);
+  const seatSelection = useConsumerSeatSelection(props, () => ownerRef.current?.getBoundingClientRect());
+  const panStart = useRef<{ clientX: number; clientY: number; viewport: ViewportState } | undefined>(undefined);
   const placementGesture = useRef(createPlacementGestureGuard());
   const [measureOwner, ownerSize] = useElementSize<HTMLDivElement>();
   const setOwnerRef = useCallback(
@@ -79,14 +88,53 @@ export function FloorplanDomRenderer(props: FloorplanRendererProps) {
       ref={setOwnerRef}
       aria-label="Plano interactivo de mesas y zonas"
       onPointerDownCapture={(event) => {
+        seatSelection.handlers.onPointerDownCapture(event);
+        if (seatSelection.enabled && props.panEnabled && props.viewport) {
+          panStart.current = { clientX: event.clientX, clientY: event.clientY, viewport: props.viewport };
+          event.currentTarget.setPointerCapture?.(event.pointerId);
+        }
         placementGesture.current.start(event, event.isPrimary !== false && event.button === 0);
         if (props.panEnabled) placementGesture.current.cancel();
       }}
-      onPointerMoveCapture={(event) => placementGesture.current.move(event)}
-      onPointerUpCapture={(event) => placementGesture.current.move(event)}
-      onPointerCancelCapture={() => placementGesture.current.cancel()}
+      onPointerMoveCapture={(event) => {
+        seatSelection.handlers.onPointerMoveCapture(event);
+        placementGesture.current.move(event);
+        const start = panStart.current;
+        if (start)
+          props.onViewportChange?.({
+            ...start.viewport,
+            x: start.viewport.x + event.clientX - start.clientX,
+            y: start.viewport.y + event.clientY - start.clientY
+          });
+      }}
+      onPointerUpCapture={(event) => {
+        seatSelection.handlers.onPointerUpCapture(event);
+        placementGesture.current.move(event);
+        panStart.current = undefined;
+      }}
+      onPointerCancelCapture={(event) => {
+        seatSelection.handlers.onPointerCancelCapture(event);
+        placementGesture.current.cancel();
+        panStart.current = undefined;
+      }}
+      onPointerLeave={seatSelection.handlers.onPointerLeave}
       onDragStartCapture={() => placementGesture.current.cancel()}
-      onWheelCapture={() => placementGesture.current.cancel()}
+      onWheelCapture={(event) => {
+        placementGesture.current.cancel();
+        seatSelection.handlers.onWheelCapture();
+        if (!seatSelection.enabled || !props.viewport || !props.onViewportChange) return;
+        event.preventDefault();
+        const bounds = ownerRef.current?.parentElement?.getBoundingClientRect();
+        if (!bounds) return;
+        const { scale, x, y } = props.viewport;
+        const next = Math.min(4, Math.max(0.5, scale * (event.deltaY > 0 ? 0.9 : 1.1)));
+        const pointer = { x: event.clientX - bounds.left, y: event.clientY - bounds.top };
+        props.onViewportChange({
+          scale: next,
+          x: pointer.x - ((pointer.x - x) / scale) * next,
+          y: pointer.y - ((pointer.y - y) / scale) * next
+        });
+      }}
       onClick={(event) => {
         if (event.detail > 1) return;
         if (!props.captureCanvasClicks && (event.target as HTMLElement).closest('button')) return;
@@ -110,7 +158,14 @@ export function FloorplanDomRenderer(props: FloorplanRendererProps) {
         overflow: 'hidden',
         bgcolor: 'grey.100',
         outline: '1px solid',
-        outlineColor: 'divider'
+        outlineColor: 'divider',
+        ...(seatSelection.enabled && props.viewport
+          ? {
+              transform: `translate(${props.viewport.x}px, ${props.viewport.y}px) scale(${props.viewport.scale})`,
+              transformOrigin: 'top left',
+              touchAction: 'none'
+            }
+          : {})
       }}
     >
       <Box
@@ -144,6 +199,7 @@ export function FloorplanDomRenderer(props: FloorplanRendererProps) {
             disabled={props.disabled || Boolean(props.draft) || Boolean(props.captureCanvasClicks)}
             onClick={(event) => {
               event.stopPropagation();
+              if (event.detail !== 0 && seatSelection.suppressNodeSelection()) return;
               if (mapped) props.onSelect(mapped);
               else props.onSourceSelect?.(element.sourceElementId);
             }}
@@ -214,7 +270,9 @@ export function FloorplanDomRenderer(props: FloorplanRendererProps) {
             readOnly={props.readOnly}
             showSeats={props.showSeats}
             tracePresentation={props.tracePresentation}
-            onClick={() => props.onSelect(shape)}
+            onClick={(event) => {
+              if (event.detail === 0 || !seatSelection.suppressNodeSelection()) props.onSelect(shape);
+            }}
           />
         );
       })}
@@ -224,7 +282,11 @@ export function FloorplanDomRenderer(props: FloorplanRendererProps) {
               key={seat.id}
               seat={seat}
               selected={props.selectedSeatIds?.includes(seat.id) ?? props.selectedSeatId === seat.id}
-              disabled={props.disabled || Boolean(props.tracePresentation && props.panEnabled)}
+              disabled={
+                props.disabled || Boolean((props.tracePresentation || seatSelection.enabled) && props.panEnabled)
+              }
+              spatialSelection={seatSelection.enabled}
+              interactionScale={seatSelection.enabled ? (props.viewport?.scale ?? 1) : 1}
               placementActive={props.captureCanvasClicks === true}
               ownerRef={ownerRef}
               onSelect={(options) => props.onSeatSelect?.(seat.id, options)}
@@ -259,6 +321,8 @@ function SeatButton({
   onSelect,
   onMove,
   tracePresentation,
+  spatialSelection,
+  interactionScale,
   onFocus
 }: {
   seat: NonNullable<FloorplanRendererProps['floorplan']['seats']>[number];
@@ -269,6 +333,8 @@ function SeatButton({
   onSelect: (options: { additive: boolean }) => void;
   onMove?: FloorplanRendererProps['onSeatMove'];
   tracePresentation?: boolean | undefined;
+  spatialSelection: boolean;
+  interactionScale: number;
   onFocus?: FloorplanRendererProps['onSeatFocus'];
 }) {
   const [preview, setPreview] = useState({ x: seat.x, y: seat.y });
@@ -290,6 +356,7 @@ function SeatButton({
       onClick={(event) => {
         event.stopPropagation();
         if (disabled || placementActive) return;
+        if (spatialSelection && (event.detail !== 0 || seat.isBlocked)) return;
         if (suppressClick.current) {
           suppressClick.current = false;
           return;
@@ -343,8 +410,8 @@ function SeatButton({
         left: `${preview.x * 100}%`,
         top: `${preview.y * 100}%`,
         transform: 'translate(-50%, -50%)',
-        width: 44,
-        height: 44,
+        width: 44 / interactionScale,
+        height: 44 / interactionScale,
         borderRadius: '50%',
         border: 0,
         bgcolor: 'transparent',
@@ -356,7 +423,7 @@ function SeatButton({
         '&::after': {
           content: '""',
           position: 'absolute',
-          inset: tracePresentation ? 15 : 8,
+          inset: (tracePresentation ? 15 : 8) / interactionScale,
           borderRadius: '50%',
           border: 2,
           borderColor: selected
@@ -371,7 +438,7 @@ function SeatButton({
         '&:focus-visible': { outline: '3px solid', outlineColor: 'warning.main' }
       }}
     >
-      <Box component="span" sx={{ position: 'relative', zIndex: 1, fontSize: 11, fontWeight: 700 }}>
+      <Box component="span" sx={{ position: 'relative', zIndex: 1, fontSize: 11 / interactionScale, fontWeight: 700 }}>
         {tracePresentation ? (seat.isBlocked ? '×' : '') : seat.label}
       </Box>
     </Box>
@@ -395,7 +462,7 @@ function ShapeButton({
   readOnly?: boolean | undefined;
   showSeats: boolean;
   tracePresentation?: boolean | undefined;
-  onClick: () => void;
+  onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }) {
   const kind = shape.kind === 'TABLE' ? 'Mesa' : 'Zona';
   return (
