@@ -148,13 +148,16 @@ test('certifica el journey Managed M01 y sus negativos release-critical', async 
       await plannerPage.getByRole('link', { name: 'Mesas y distribución' }).click();
       await expect(plannerPage.getByRole('heading', { name: 'Mesas y distribución' })).toBeVisible();
       await expect(plannerPage.getByLabel('Resumen de la distribución')).toContainText('2');
-      await plannerPage.getByText('Mesas y zonas (3)', { exact: true }).click();
-      await expect(plannerPage.getByRole('button', { name: 'Mesa Elena · 4' })).toBeVisible();
-      await expect(plannerPage.getByRole('button', { name: 'Mesa Mateo · 4' })).toBeVisible();
+      const tableSelector = plannerPage.getByRole('combobox', { name: 'Buscar o seleccionar mesa' });
+      await expect(tableSelector).toBeVisible();
+      await tableSelector.click();
+      await expect(plannerPage.getByRole('option')).toHaveCount(2);
+      await expect(plannerPage.getByRole('option', { name: 'Mesa Elena', exact: true })).toBeVisible();
+      await expect(plannerPage.getByRole('option', { name: 'Mesa Mateo', exact: true })).toBeVisible();
     });
 
     await test.step('12. Desasigna a Diego Torres y verifica persistencia tras reload', async () => {
-      await plannerPage.getByRole('button', { name: 'Mesa Elena · 4' }).click();
+      await selectM01Table(plannerPage, 'Mesa Elena');
       await plannerPage.getByRole('tab', { name: /En esta mesa/ }).click();
       const diego = plannerPage.getByRole('listitem').filter({ hasText: 'Diego Torres' });
       await expect(diego).toBeVisible();
@@ -166,8 +169,7 @@ test('certifica el journey Managed M01 y sus negativos release-critical', async 
       await expect(diego).toHaveCount(0);
 
       await plannerPage.reload();
-      await plannerPage.getByText('Mesas y zonas (3)', { exact: true }).click();
-      await plannerPage.getByRole('button', { name: 'Mesa Elena · 4' }).click();
+      await selectM01Table(plannerPage, 'Mesa Elena');
       const unassigned = plannerPage.getByRole('list', { name: 'Asistentes sin mesa' });
       await expect(unassigned.getByText('Diego Torres')).toBeVisible();
       await plannerPage.getByRole('tab', { name: /En esta mesa/ }).click();
@@ -227,8 +229,7 @@ test('certifica el journey Managed M01 y sus negativos release-critical', async 
       ).toBeVisible();
 
       await plannerPage.goto(`${CLIENT_URL}/eventos/${EVENT_ID}?seccion=mesas`);
-      await plannerPage.getByText('Mesas y zonas (3)', { exact: true }).click();
-      await plannerPage.getByRole('button', { name: 'Mesa Mateo · 4' }).click();
+      await selectM01Table(plannerPage, 'Mesa Mateo');
       await plannerPage.getByRole('tab', { name: /En esta mesa/ }).click();
       const tableList = plannerPage.getByRole('list', { name: 'Asistentes en Mesa Mateo' });
       await expect(tableList.getByText('Ingreso registrado')).toHaveCount(3);
@@ -300,6 +301,16 @@ async function loginPlanner(page: Page, credentials: { email: string; password: 
   await page.getByLabel('Correo electrónico').fill(credentials.email);
   await page.getByLabel('Contraseña').fill(credentials.password);
   await page.getByRole('button', { name: 'Iniciar sesión' }).click();
+}
+
+async function selectM01Table(page: Page, name: string) {
+  const selector = page.getByRole('combobox', { name: 'Buscar o seleccionar mesa' });
+  await selector.fill(name);
+  await page.getByRole('option', { name, exact: true }).click();
+  await expect(selector).toHaveValue(name);
+  const details = page.getByRole('heading', { name, exact: true }).locator('..');
+  await expect(details).toBeVisible();
+  await expect(details).toContainText(/\d+ \/ 4 lugares/);
 }
 
 async function assertRedirectedToEvents(page: Page, url: string) {
