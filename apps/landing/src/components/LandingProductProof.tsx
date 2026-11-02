@@ -28,6 +28,7 @@ interface ProofScene {
   width: number;
   height: number;
   mobile: boolean;
+  crop?: { top: number; left: number };
 }
 
 const scenes: readonly ProofScene[] = [
@@ -64,6 +65,7 @@ const scenes: readonly ProofScene[] = [
       'El plano de mesas muestra la distribución del espacio en Boda Flyer. Asigna invitados a cada lugar directamente desde el mapa del evento.',
     avif: floorplanAvif,
     webp: floorplanWebp,
+    crop: { top: 0.28, left: 0.16 },
     alt: 'Plano de mesas de demostración del evento Boda Flyer — mesas asignadas',
     width: 2160,
     height: 1350,
@@ -76,9 +78,10 @@ const scenes: readonly ProofScene[] = [
     description: 'Organiza las mesas y conserva cada acceso listo para compartir desde el evento activo.',
     avif: distributionAvif,
     webp: distributionWebp,
+    crop: { top: 0.28, left: 0.16 },
     alt: 'Vista de demostración de invitaciones y accesos individuales del evento Boda Flyer',
     width: 2160,
-    height: 1500,
+    height: 1350,
     mobile: false
   },
   {
@@ -212,6 +215,7 @@ export function LandingProductProof() {
                 ) : (
                   <ProductProofPicture
                     avif={scene.avif}
+                    crop={scene.crop}
                     webp={scene.webp}
                     alt={scene.alt}
                     width={scene.width}
@@ -267,6 +271,7 @@ export function LandingProductProof() {
             ) : (
               <ProductProofPicture
                 key={activeScene.number}
+                crop={activeScene.crop}
                 avif={activeScene.avif}
                 webp={activeScene.webp}
                 alt={activeScene.alt}

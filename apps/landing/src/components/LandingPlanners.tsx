@@ -77,11 +77,12 @@ export function LandingPlanners({ onOpenCommercial }: LandingPlannersProps) {
 
           <Grid size={{ xs: 12, md: 6 }}>
             <ProductProofPicture
+              crop={{ top: 0.28, left: 0.16 }}
               avif={distributionAvif}
               webp={distributionWebp}
               alt="Vista de demostración para organizar invitaciones y confirmaciones"
               width={2160}
-              height={1500}
+              height={1350}
               sx={{ border: landingTokens.borders.hairlineLight, boxShadow: landingTokens.shadows.productLayer }}
               imageStyle={{ minHeight: 430, objectFit: 'cover', objectPosition: 'center' }}
             />

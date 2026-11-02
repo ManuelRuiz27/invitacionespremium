@@ -92,10 +92,11 @@ export function LandingVenue({
             <Box sx={{ mt: 5, position: 'relative', minHeight: { xs: 300, sm: 390 } }}>
               <ProductProofPicture
                 avif={seatingAvif}
+                crop={{ top: 0.28, left: 0.16 }}
                 webp={seatingWebp}
                 alt="Organización de mesas de un evento de demostración"
                 width={2160}
-                height={1500}
+                height={1350}
                 sx={{ width: '90%', ml: 'auto', border: landingTokens.borders.hairlineDark, opacity: 0.78 }}
               />
               <ProductProofPicture

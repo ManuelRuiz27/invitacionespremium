@@ -215,6 +215,22 @@ try {
     await expect(page.getByRole('radio', { name: 'Tengo salón o jardín' })).toBeFocused();
     result.genericCta = true;
 
+    // Review the framed, unretouched screenshots themselves, beyond DOM copy.
+    for (const [index, label, name] of [
+      [2, 'Organizas la distribución de mesas', 'demo-mesas'],
+      [3, 'Cada invitado recibe su acceso', 'demo-distribucion']
+    ]) {
+      const scene = page.locator(`[data-scene="${index}"]`);
+      await scene.getByRole('heading', { name: label }).scrollIntoViewIfNeeded();
+      if (viewport.width >= 900) await scene.getByRole('button', { name: 'Ver pantalla' }).click();
+      const alt =
+        index === 2
+          ? 'Plano de mesas de demostración del evento Boda Flyer — mesas asignadas'
+          : 'Vista de demostración de invitaciones y accesos individuales del evento Boda Flyer';
+      await screenshot(name, page.getByRole('img', { name: alt, exact: true }).locator('..'));
+    }
+    await screenshot('demo-salon', page.locator('#venues picture').first());
+
     await page.evaluate(() => window.scrollTo(0, 0));
     await sharp(await page.screenshot({ fullPage: true, animations: 'disabled' }))
       .resize({ width: Math.min(viewport.width, 1440), height: 16000, fit: 'inside', withoutEnlargement: true })
