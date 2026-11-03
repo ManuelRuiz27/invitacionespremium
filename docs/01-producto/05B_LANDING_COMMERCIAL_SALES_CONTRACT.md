@@ -115,17 +115,19 @@ Los créditos continúan como unidad financiera interna/contractual del sistema,
 
 La equivalencia `1 crédito = $20 MXN` puede permanecer en FAQ o detalle secundario para clientes registrados, pero no debe dominar la decisión de compra.
 
-### 5.2 PVP estándar visible
+### 5.2 PVP estándar visible — revisión CEO 2026-11-02
 
-Mostrar tabla/matriz por capacidad:
+**Mostrar el precio total al consumidor en MXN, con IVA general de 16 % incluido**, por capacidad, conforme a `DEC-PRC-20261102-001`:
 
 | SKU | Hasta 50 | Hasta 100 | Hasta 150 |
 | --- | ---: | ---: | ---: |
-| QR / EventOps | $2,500 | $3,000 | $3,500 |
-| Flyer | $4,500 | $5,500 | $6,500 |
-| Flipbook | $6,000 | $7,000 | $8,000 |
+| QR / EventOps | $2,320 | $2,784 | $3,248 |
+| Flyer | $4,176 | $5,104 | $6,032 |
+| Flipbook | $5,568 | $6,496 | $7,424 |
 
-Los importes deben provenir de una fuente pública derivada del price book autoritativo de Pricing V2, no de números duplicados permanentemente en componentes React.
+Los precios base del price book antes de IVA son: QR/EventOps $2,000/$2,400/$2,800; Flyer $3,600/$4,400/$5,200; Flipbook $4,800/$5,600/$6,400 para 50/100/150, respectivamente. Cotización: subtotal + IVA aplicable + total.
+
+Los importes deben provenir de una fuente pública derivada del price book autoritativo de Pricing V2, no de números duplicados permanentemente en componentes React. **Estos valores están aprobados documentalmente pero pendientes de configuración en Admin**: hasta verificar que los nueve precios STANDARD versionados se publiquen en `GET /public/pricing`, la landing no debe anunciar las nuevas tarifas como activas ni mostrarlas mediante hardcodeo. Las tarifas partner, venue y Managed no cambian.
 
 Hasta que COM-01 exista, la landing comercial V2 no debe publicarse con precios dinámicos simulados.
 
