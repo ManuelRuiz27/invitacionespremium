@@ -1,7 +1,7 @@
 # 05 — Modelo comercial, pricing y flujo operator-led
 
-Estado: **Decisión de producto para piloto comercial**  
-Fecha de decisión: **24 agosto 2026**  
+Estado: **Decisión de producto para piloto comercial**; PVP estándar actualizado por decisión CEO `DEC-PRC-20261102-001` el 2 de noviembre de 2026 (pendiente configurar en Admin).  
+Fecha de decisión original: **24 agosto 2026**  
 Alcance: pricing de lanzamiento, canales B2B/B2B2C, reglas financieras asociadas y flujo operativo operator-led.  
 Origen: alineación comercial Marketing/Admin → Product Manager del 24 agosto 2026.
 
@@ -172,29 +172,41 @@ Se conserva durante el MVP:
 
 Las hipótesis comerciales originales terminaban en `$...90`, incompatibles con créditos enteros de $20. Para evitar un cambio global de unidad y conservar el motor financiero existente, los precios de sistema se normalizan al múltiplo de $20 más cercano superior de $10.
 
-No se debe mostrar un PVP de `$2,490` si el sistema realmente cobrará `$2,500`.
+Ejemplo histórico del criterio de redondeo (no es tarifa vigente): no se debe mostrar un PVP de `$2,490` si el sistema realmente cobrará `$2,500`.
 
-### 6.2 PVP sugerido normalizado
+### 6.2 PVP sugerido normalizado — revisión CEO 2026-11-02
+
+**Precios base netos, antes de IVA**. La decisión `DEC-PRC-20261102-001` reduce un 20 % los nueve PVP estándar respecto del catálogo anterior:
 
 | SKU | Hasta 50 | Hasta 100 | Hasta 150 |
 | --- | ---: | ---: | ---: |
-| QR / EventOps | $2,500 / 125 cr | $3,000 / 150 cr | $3,500 / 175 cr |
-| Flyer | $4,500 / 225 cr | $5,500 / 275 cr | $6,500 / 325 cr |
-| Flipbook | $6,000 / 300 cr | $7,000 / 350 cr | $8,000 / 400 cr |
+| QR / EventOps | $2,000 / 100 cr | $2,400 / 120 cr | $2,800 / 140 cr |
+| Flyer | $3,600 / 180 cr | $4,400 / 220 cr | $5,200 / 260 cr |
+| Flipbook | $4,800 / 240 cr | $5,600 / 280 cr | $6,400 / 320 cr |
 
-Estos importes son configurables y deben conservar vigencia temporal/snapshot.
+**Precios finales al consumidor (IVA general 16 % incluido):**
+
+| SKU | Hasta 50 | Hasta 100 | Hasta 150 |
+| --- | ---: | ---: | ---: |
+| QR / EventOps | $2,320 | $2,784 | $3,248 |
+| Flyer | $4,176 | $5,104 | $6,032 |
+| Flipbook | $5,568 | $6,496 | $7,424 |
+
+Estos importes son configurables y deben conservar vigencia temporal y snapshots históricos. **La aprobación documental no actualiza los registros de Pricing V2**: requieren reemplazo versionado mediante Admin autenticado, sin alterar las tarifas previas ni eventos ya cotizados/activados. No anunciar como precios activos hasta validar la publicación de `GET /public/pricing` y la landing. La cotización al consumidor debe desglosar subtotal, IVA aplicable y total.
 
 ## 7. Tarifa Planner / agencia
 
 Planner/agencia compra a precio partner y puede revender al anfitrión.
 
-Para Eventos de hasta 100 personas, hipótesis normalizada:
+Para Eventos de hasta 100 personas, el PVP estándar se actualiza por decisión CEO; **la tarifa partner permanece intacta, sin descuento adicional autorizado**:
 
-| SKU | PVP sugerido | Precio partner | Margen potencial partner |
+| SKU | PVP estándar neto propuesto | Precio partner neto sin cambios | Diferencia potencial de reventa al PVP |
 | --- | ---: | ---: | ---: |
-| QR / EventOps | $3,000 | $2,400 / 120 cr | $600 |
-| Flyer | $5,500 | $4,300 / 215 cr | $1,200 |
-| Flipbook | $7,000 | $5,500 / 275 cr | $1,500 |
+| QR / EventOps | $2,400 | $2,400 / 120 cr | $0 |
+| Flyer | $4,400 | $4,300 / 215 cr | $100 |
+| Flipbook | $5,600 | $5,500 / 275 cr | $100 |
+
+**Riesgo comercial:** la diferencia de reventa sugerida se reduce a $0–$100 netos por Evento. No presentar los márgenes históricos $600/$1,200/$1,500 como vigentes ni modificar automáticamente precios partner. La política de reventa requiere decisión comercial diferenciada antes de promocionar descuentos a partners.
 
 Reglas:
 
