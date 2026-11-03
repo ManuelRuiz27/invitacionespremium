@@ -4,6 +4,60 @@ const reader = (page: Page) => page.locator('.flipbook-reader');
 const next = (page: Page) => page.locator('.flipbook-controls button').last();
 const previous = (page: Page) => page.locator('.flipbook-controls button').first();
 
+test('COUNTDOWN stays readable on Flyer and real Flipbook leaves without intercepting navigation', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.goto('/__dev/flipbook-magazine?format=flyer&countdown=1');
+  await expect(page.getByRole('timer')).toBeVisible();
+  await expect(page.getByRole('timer')).toHaveAccessibleName(/Faltan 16 días/);
+  await expect(page.getByTestId('invitation-countdown')).toHaveCSS('pointer-events', 'none');
+  await expect(page.getByRole('timer')).toHaveCSS('background-color', 'rgba(245, 242, 236, 0.95)');
+  await assertCountdownFits(page);
+
+  await open(page, '?pages=6&mixed&countdown=3');
+  await next(page).click();
+  await visible(page, '1');
+  await next(page).click();
+  await visible(page, '2');
+  await expect(page.getByRole('timer')).toBeVisible();
+  await assertCountdownFits(page);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await expect(page.getByRole('timer')).toBeVisible();
+  await assertCountdownFits(page);
+  await next(page).click();
+  await expect(page.getByRole('timer')).toHaveCount(0);
+  await page.setViewportSize({ width: 320, height: 844 });
+  await open(page, '?pages=6&mixed&countdown=3&ending');
+  await next(page).click();
+  await visible(page, '1');
+  await next(page).click();
+  await visible(page, '2');
+  await expect(page.getByRole('timer')).toHaveAccessibleName('El evento ha comenzado');
+  await assertCountdownFits(page);
+});
+
+async function assertCountdownFits(page: Page) {
+  await page.evaluate(() => document.fonts.ready);
+  const result = await page.getByRole('timer').evaluate((timer) => {
+    const box = timer.getBoundingClientRect();
+    const units = Array.from(timer.querySelector('[aria-hidden="true"]')?.children ?? []);
+    const overflows = units
+      .flatMap((unit) => Array.from(unit.children))
+      .some((text) => {
+        const rect = text.getBoundingClientRect();
+        return (
+          rect.left < box.left - 1 ||
+          rect.right > box.right + 1 ||
+          rect.top < box.top - 1 ||
+          rect.bottom > box.bottom + 1 ||
+          text.scrollWidth > text.clientWidth + 1
+        );
+      });
+    return { overflows, fontSize: Number.parseFloat(getComputedStyle(units[0]?.children[0] ?? timer).fontSize) };
+  });
+  expect(result.overflows).toBe(false);
+  expect(result.fontSize).toBeGreaterThanOrEqual(20);
+}
+
 type InitialLeafFrame = { x: number; y: number; width: number; height: number };
 
 async function installInitialLeafCapture(page: Page) {

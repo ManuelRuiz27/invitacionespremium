@@ -1,3 +1,4 @@
+import { isCountdown } from './countdown';
 import type { components, operations } from './generated/schema';
 import { isRecord, type ApiRequester } from './api-client';
 
@@ -46,6 +47,9 @@ const isAlbumProjection = (value: unknown) =>
     ((value.state === 'AVAILABLE' && isString(value.contentPath)) ||
       (value.state === 'RESTRICTED' && (value.message === undefined || isString(value.message)))));
 
+const countdownBelongsToPage = (countdown: { flipbookPageId: string | null }, pages: unknown[]) =>
+  pages.some((page) => isRecord(page) && page.id === countdown.flipbookPageId);
+
 const isAvailableInvitation = (value: Record<string, unknown>) =>
   isRecord(value.event) &&
   isString(value.event.name) &&
@@ -68,6 +72,16 @@ const isAvailableInvitation = (value: Record<string, unknown>) =>
   ['FLYER', 'FLIPBOOK'].includes(String(value.designType)) &&
   isRecord(value.design) &&
   value.design.type === value.designType &&
+  (value.serverNow === undefined ||
+    (typeof value.serverNow === 'string' && Number.isFinite(Date.parse(value.serverNow)))) &&
+  (value.design.countdown === undefined ||
+    value.design.countdown === null ||
+    (isCountdown(value.design.countdown) &&
+      (value.designType === 'FLYER'
+        ? value.design.countdown.visualOwnerType === 'FLYER'
+        : value.design.countdown.visualOwnerType === 'FLIPBOOK_PAGE' &&
+          Array.isArray(value.design.pages) &&
+          countdownBelongsToPage(value.design.countdown, value.design.pages)))) &&
   Array.isArray(value.design.hotspots) &&
   value.design.hotspots.every(isHotspot) &&
   Array.isArray(value.design.pages) &&

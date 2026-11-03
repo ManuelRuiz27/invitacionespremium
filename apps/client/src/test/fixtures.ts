@@ -204,6 +204,8 @@ export function mockApiClient(user: AuthUser = independentUser): ApiClient {
       updateAssignment: vi.fn()
     },
     adminEventPreparation: {
+      saveCountdown: vi.fn(),
+      removeCountdown: vi.fn(),
       getAccessOperations: vi.fn(),
       getAccessReadiness: vi.fn(),
       generatePhysicalPasses: vi.fn(),
@@ -370,6 +372,8 @@ export function mockApiClient(user: AuthUser = independentUser): ApiClient {
       content: vi.fn()
     },
     design: {
+      saveCountdown: vi.fn(),
+      removeCountdown: vi.fn(),
       get: vi.fn(),
       readiness: vi.fn().mockResolvedValue({ complete: true, blockers: [], designType: 'FLYER' }),
       createFlyer: vi.fn(),

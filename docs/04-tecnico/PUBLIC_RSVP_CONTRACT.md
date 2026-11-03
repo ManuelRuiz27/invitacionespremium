@@ -225,3 +225,21 @@ la operación.
 
 Close y reopen son naturalmente idempotentes, por lo que devuelven el estado actual en vez de
 `CONFIRMATION_ALREADY_OPEN` o `CONFIRMATION_ALREADY_CLOSED`.
+
+
+## COUNTDOWN y referencia temporal
+
+La vista AVAILABLE incorpora `serverNow` ISO UTC como referencia del reloj de la respuesta y
+`design.countdown` opcional/nullable. La configuración visual contiene UUID opaco, revisión,
+owner visual/página estable, geometría, fuentes/pesos, distribución, cinco colores, marco, sombra y
+opacidad del fondo; omite FK de Evento/diseño, timestamps y borrado lógico. Una cuenta retirada no
+se proyecta. Las vistas CANCELLED/CLOSED conservan sus proyecciones restrictivas existentes.
+
+El cliente calcula tiempo restante hacia `event.eventDateTime`, sin fecha editable independiente,
+usando `serverNow` y tiempo transcurrido en el dispositivo. `timeZone` sólo presenta la hora del Evento.
+No hay requests por segundo, persistencia de segundos restantes ni cambios de estado al llegar a cero.
+
+La caché local permitida se limita a metadatos visuales de COUNTDOWN y fecha/zona, versionados y con
+caducidad. Se consulta después de resolver acceso vigente, se invalida por revisión o fecha/zona y nunca
+sustituye autorización pública. No contiene token, asistentes, RSVP, QR, bytes ni contentPath privados.
+Los headers privados/no-store de assets y QR permanecen intactos; no se habilita descarga offline.

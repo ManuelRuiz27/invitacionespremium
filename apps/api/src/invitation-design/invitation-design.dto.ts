@@ -2,6 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { HotspotAction, HotspotVisualOwnerType, InvitationDesignType } from '../generated/prisma/client';
 import { z } from 'zod';
+import { CountdownResponseDto } from './countdown.dto';
 
 const uuid = z.string().uuid();
 const flyerSchema = z
@@ -207,6 +208,9 @@ export class FlipbookPageResponseDto {
 }
 
 export class InvitationDesignResponseDto {
+  @ApiPropertyOptional({ type: CountdownResponseDto, nullable: true })
+  countdown?: CountdownResponseDto | null;
+
   @ApiProperty({ type: String, format: 'uuid' })
   id!: string;
 

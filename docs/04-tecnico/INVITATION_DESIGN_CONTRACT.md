@@ -253,3 +253,59 @@ bucket público. CODEX-071 genera el QR de Invitación por separado y bajo deman
 cada página de Flipbook lleva un
 `contentPath` listo para consumir que incorpora el token actual codificado y el UUID del asset; nunca
 usa `{invitationToken}` ni otra plantilla pendiente de sustitución.
+
+
+## COUNTDOWN — elemento visual opcional
+
+COUNTDOWN pertenece al diseño activo del Evento y no es una acción Hotspot. Hay como máximo uno,
+compartido por sus Invitaciones: Flyer lo ancla a la imagen inicial; Flipbook a un `flipbookPageId`
+estable de cualquier página activa. Reordenar conserva el anclaje. No modifica readiness ni
+cardinalidades, destinos o disponibilidad RSVP/QR. No aplica a ACCESS_CONTROL ni PHYSICAL_QR.
+
+`InvitationCountdown` mantiene UUID, FK compuesta diseño/Evento y página/diseño/Evento, geometría
+normalizada, catálogo visual, cinco colores HEX6 independientes, opacidad exclusiva del fondo,
+revisión y timestamps. Una fila única por diseño conserva un tombstone al retirar el elemento.
+Recrearlo usa esa misma identidad con una revisión superior; no restaura diseños ni páginas eliminados.
+
+Catálogo cerrado V1:
+
+- `numberFont` / `labelFont`: `montserrat`, `playfair`, `system`;
+- `numberWeight` / `labelWeight`: 400, 500, 600, 700;
+- `layout`: `row`, `grid`;
+- `frame`: `none`, `thin`, `double`, `rounded`;
+- `shadow`: `none`, `soft`, `strong`;
+- `numberColor`, `labelColor`, `backgroundColor`, `borderColor`, `shadowColor`: HEX normalizado;
+- `backgroundOpacity`: número finito en `[0,1]`.
+
+El request acepta HEX3/HEX6 y normaliza a HEX6 mayúsculo. No acepta CSS, fuentes arbitrarias, URLs,
+fecha objetivo ni zona duplicadas. Inicio y zona siempre proceden de `Event.eventDateTime/timeZone`.
+La geometría válida se cuantiza a ocho decimales antes de persistir y se limita nuevamente al borde
+de la imagen para que el redondeo `DECIMAL(9,8)` no desborde. Las dimensiones que pierdan su valor
+positivo a esa precisión se rechazan; una geometría originalmente fuera del lienzo nunca se corrige.
+
+Operaciones nuevas en ambas superficies ya existentes:
+
+```http
+PUT    /api/v1/events/:eventId/design/countdown
+DELETE /api/v1/events/:eventId/design/countdown?revision=N
+PUT    /api/v1/admin/clients/:clientId/events/:eventId/design/countdown
+DELETE /api/v1/admin/clients/:clientId/events/:eventId/design/countdown?revision=N
+```
+
+PUT recibe configuración completa y `revision`; devuelve `CountdownResponseDto`. `revision=0`
+crea cuando no hay elemento activo; actualizar exige la revisión actual. DELETE exige revisión
+positiva y devuelve 204. Conflicto responde `409 COUNTDOWN_REVISION_CONFLICT` sin perder la versión
+persistida. Bloqueos Evento → diseño y transacciones Serializable impiden duplicados y sobrescrituras.
+
+Las operaciones reutilizan exactamente los permisos, ownership, gate Managed/Self-Service y estados
+mutables del diseño. Provider conserva actor real y rutas Admin; Planner Managed no recibe mutaciones
+técnicas. Desde ACTIVE no se permite crear, editar ni retirar COUNTDOWN mediante API.
+
+El borrado de página retira su COUNTDOWN y audita dentro de la misma transacción. Triggers también
+retiran la configuración cuando su página o diseño se elimina lógicamente por otra ruta. PostgreSQL
+refuerza unicidad, FKs, forma visual, geometría, catálogo, colores y revisión monotónica. No se borra
+la fila físicamente ni se permite TRUNCATE operativo.
+
+GET diseño incluye `countdown: configuración | null`. La proyección pública incluye únicamente esa
+configuración visual sin FK internas, timestamps ni tombstone. La caché del dispositivo no autoriza
+acceso ni persistencia de respuestas nominales, QR, assets o tokens.

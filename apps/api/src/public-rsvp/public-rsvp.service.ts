@@ -1,3 +1,4 @@
+import { toCountdownResponse } from '../invitation-design/countdown.dto';
 import { createHash, randomUUID } from 'node:crypto';
 import { ConflictException, HttpStatus, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
@@ -49,6 +50,7 @@ const publicInclude = {
         orderBy: [{ createdAt: 'desc' as const }],
         take: 1,
         include: {
+          countdown: true,
           flyerInitialAsset: true,
           flyerQrAsset: true,
           pages: {
@@ -672,6 +674,7 @@ export class PublicRsvpService {
     });
     return {
       status: 'AVAILABLE',
+      serverNow: new Date().toISOString(),
       event: {
         name: event.name,
         eventDateTime: event.eventDateTime,
@@ -702,6 +705,7 @@ export class PublicRsvpService {
             designType: design.type,
             design: {
               type: design.type,
+              countdown: design.countdown && !design.countdown.deletedAt ? toCountdownResponse(design.countdown) : null,
               ...(design.flyerInitialAssetId ? { flyerInitialAsset: asset(design.flyerInitialAssetId) } : {}),
               ...(design.flyerQrAssetId ? { flyerQrAsset: asset(design.flyerQrAssetId) } : {}),
               pages: design.pages.map((page) => ({

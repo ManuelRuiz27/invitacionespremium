@@ -257,6 +257,8 @@ export function mockAdminApi(user: AuthUser = platformAdmin): AdminTestApiClient
       updateAssignment: vi.fn().mockResolvedValue(adminEvent)
     },
     adminEventPreparation: {
+      saveCountdown: vi.fn(),
+      removeCountdown: vi.fn(),
       getAccessOperations: vi.fn(),
       getAccessReadiness: vi.fn().mockResolvedValue({
         complete: false,
@@ -499,6 +501,8 @@ export function mockAdminApi(user: AuthUser = platformAdmin): AdminTestApiClient
     },
     fileAssets: { list: vi.fn(), get: vi.fn(), upload: vi.fn(), remove: vi.fn(), content: vi.fn() },
     design: {
+      saveCountdown: vi.fn(),
+      removeCountdown: vi.fn(),
       get: vi.fn(),
       readiness: vi.fn(),
       createFlyer: vi.fn(),

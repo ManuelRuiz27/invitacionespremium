@@ -42,7 +42,10 @@ const MUTABLE_EVENT_STATUSES = new Set<EventStatus>([
   EventStatus.READY_TO_ACTIVATE
 ]);
 
+import { toCountdownResponse, type CountdownResponseDto, type SaveCountdownInput } from './countdown.dto';
+
 const DESIGN_INCLUDE = {
+  countdown: true,
   pages: {
     where: { deletedAt: null },
     orderBy: [{ position: 'asc' }, { id: 'asc' }],
@@ -105,6 +108,83 @@ export class InvitationDesignService {
       (transaction) => resolveDesignReadiness(transaction, eventId, event.service!.code),
       CRITICAL_TRANSACTION_OPTIONS
     );
+  }
+
+  async saveCountdown(
+    eventId: string,
+    input: SaveCountdownInput,
+    principal: AuthPrincipal,
+    operationId?: string,
+    target: InvitationDesignTarget = PLANNER_TARGET
+  ): Promise<CountdownResponseDto> {
+    return this.serializable(async (transaction) => {
+      const event = await this.lockMutableEvent(transaction, eventId, principal, target);
+      const design = await this.lockDesignForService(transaction, eventId, event.service!.code);
+      const current = await transaction.invitationCountdown.findUnique({ where: { designId: design.id } });
+      const expected = current && !current.deletedAt ? current.revision : 0;
+      if (input.revision !== expected) throw countdownConflict();
+      if (
+        (design.type === InvitationDesignType.FLYER && input.visualOwnerType !== HotspotVisualOwnerType.FLYER) ||
+        (design.type === InvitationDesignType.FLIPBOOK &&
+          input.visualOwnerType !== HotspotVisualOwnerType.FLIPBOOK_PAGE)
+      ) {
+        throw new DomainError(
+          'COUNTDOWN_OWNER_INVALID',
+          'Countdown must belong to the current design type.',
+          HttpStatus.CONFLICT
+        );
+      }
+      if (input.flipbookPageId) await this.lockPage(transaction, design.id, eventId, input.flipbookPageId);
+      const { revision: _revision, ...configuration } = input;
+      const data = { ...configuration, revision: (current?.revision ?? 0) + 1, deletedAt: null };
+      const saved = current
+        ? await transaction.invitationCountdown.update({ where: { id: current.id }, data })
+        : await transaction.invitationCountdown.create({ data: { ...data, eventId, designId: design.id } });
+      await this.record(
+        transaction,
+        principal,
+        event.clientId,
+        eventId,
+        saved.id,
+        'INVITATION_COUNTDOWN_SAVE',
+        current && !current.deletedAt ? { ...toCountdownResponse(current) } : undefined,
+        { ...toCountdownResponse(saved) },
+        operationId,
+        'INVITATION_COUNTDOWN'
+      );
+      return toCountdownResponse(saved);
+    });
+  }
+
+  async deleteCountdown(
+    eventId: string,
+    revision: number,
+    principal: AuthPrincipal,
+    operationId?: string,
+    target: InvitationDesignTarget = PLANNER_TARGET
+  ): Promise<void> {
+    await this.serializable(async (transaction) => {
+      const event = await this.lockMutableEvent(transaction, eventId, principal, target);
+      const design = await this.lockDesignForService(transaction, eventId, event.service!.code);
+      const current = await transaction.invitationCountdown.findUnique({ where: { designId: design.id } });
+      if (!current || current.deletedAt || current.revision !== revision) throw countdownConflict();
+      await transaction.invitationCountdown.update({
+        where: { id: current.id },
+        data: { deletedAt: new Date(), revision: { increment: 1 } }
+      });
+      await this.record(
+        transaction,
+        principal,
+        event.clientId,
+        eventId,
+        current.id,
+        'INVITATION_COUNTDOWN_DELETE',
+        { ...toCountdownResponse(current) },
+        undefined,
+        operationId,
+        'INVITATION_COUNTDOWN'
+      );
+    });
   }
 
   async createFlyer(
@@ -490,6 +570,25 @@ export class InvitationDesignService {
         where: { flipbookPageId: page.id, deletedAt: null },
         data: { deletedAt: at }
       });
+      const countdown = await transaction.invitationCountdown.findUnique({ where: { designId: design.id } });
+      if (countdown && !countdown.deletedAt && countdown.flipbookPageId === page.id) {
+        await transaction.invitationCountdown.update({
+          where: { id: countdown.id },
+          data: { deletedAt: at, revision: { increment: 1 } }
+        });
+        await this.record(
+          transaction,
+          principal,
+          event.clientId,
+          eventId,
+          countdown.id,
+          'INVITATION_COUNTDOWN_DELETE',
+          { ...toCountdownResponse(countdown) },
+          undefined,
+          operationId,
+          'INVITATION_COUNTDOWN'
+        );
+      }
       await transaction.flipbookPage.update({ where: { id: page.id }, data: { deletedAt: at } });
       const laterPages = await transaction.flipbookPage.findMany({
         where: { designId: design.id, deletedAt: null, position: { gt: page.position } },
@@ -980,6 +1079,7 @@ function toDesignResponse(design: DesignWithChildren): InvitationDesignResponseD
     id: design.id,
     eventId: design.eventId,
     type: design.type,
+    countdown: design.countdown && !design.countdown.deletedAt ? toCountdownResponse(design.countdown) : null,
     flyerInitialAssetId: design.flyerInitialAssetId,
     flyerQrAssetId: design.flyerQrAssetId,
     pages: design.pages.map((page) => ({
@@ -1164,4 +1264,12 @@ function mapPersistenceError(error: unknown): unknown {
 
 function hasPrismaCode(error: unknown, code: string): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: unknown }).code === code;
+}
+
+function countdownConflict() {
+  return new DomainError(
+    'COUNTDOWN_REVISION_CONFLICT',
+    'Countdown changed. Reload before saving.',
+    HttpStatus.CONFLICT
+  );
 }

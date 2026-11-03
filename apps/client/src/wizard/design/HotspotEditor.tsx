@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { isValidInvitationExternalUrl } from '../../shared/invitation-external-url';
 import { relativeRectStyles } from '../../shared/relative-rect';
 import { errorMessage, normalizeRect } from '../../shared/client-utils';
+import { startRelativeRectPointer } from '@invitaciones/ui';
 
 type Draft = Pick<Hotspot, 'x' | 'y' | 'width' | 'height' | 'action' | 'priority'> & { url: string };
 type EditorMode = 'idle' | 'choosing' | 'creating' | 'editing';
@@ -325,35 +326,17 @@ export function HotspotEditor({
 
   const startPointer = (event: React.PointerEvent<HTMLElement>, interaction: 'move' | 'resize') => {
     if (interactionDisabled || !editing) return;
-    event.preventDefault();
-    const target = event.currentTarget;
-    target.setPointerCapture?.(event.pointerId);
-    const startX = event.clientX;
-    const startY = event.clientY;
-    const start = { ...draft };
     const bounds = canvasRef.current?.getBoundingClientRect();
     if (!bounds?.width || !bounds.height) return;
-    const onMove = (next: PointerEvent) => {
-      if (next.pointerType === 'touch' && touchesRef.current.size >= 2) return;
-      next.preventDefault();
-      const deltaX = (next.clientX - startX) / bounds.width;
-      const deltaY = (next.clientY - startY) / bounds.height;
-      const rect = normalizeEditorRect({
-        ...start,
-        ...(interaction === 'move'
-          ? { x: start.x + deltaX, y: start.y + deltaY }
-          : { width: start.width + deltaX, height: start.height + deltaY })
-      });
-      setDraft((current) => ({ ...current, ...rect }));
-    };
-    const finish = () => {
-      target.removeEventListener('pointermove', onMove);
-      target.removeEventListener('pointerup', finish);
-      target.removeEventListener('pointercancel', finish);
-    };
-    target.addEventListener('pointermove', onMove);
-    target.addEventListener('pointerup', finish);
-    target.addEventListener('pointercancel', finish);
+    startRelativeRectPointer({
+      event,
+      interaction,
+      rect: draft,
+      bounds,
+      normalize: normalizeEditorRect,
+      shouldIgnore: (next) => next.pointerType === 'touch' && touchesRef.current.size >= 2,
+      onChange: (rect) => setDraft((current) => ({ ...current, ...rect }))
+    });
   };
 
   const currentAction = actionDetails(draft.action);

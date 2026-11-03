@@ -1,11 +1,14 @@
 import type { ApiClient, PublicInvitationView } from '@invitaciones/api-client';
 import { Box, Typography } from '@mui/material';
 import { PublicInvitationTokenPage } from './PublicInvitationPage';
+import { defaultCountdownStyle } from '@invitaciones/ui';
 
 const token = 'flipbook-magazine-local-fixture';
 const params = new URLSearchParams(window.location.search);
 const requestedCount = Number(params.get('pages') ?? 6);
 const pageCount = [1, 2, 3, 4, 5, 6, 10].includes(requestedCount) ? requestedCount : 6;
+const countdownPage = Math.min(pageCount, Math.max(1, Number(params.get('countdown') ?? 1)));
+const flyer = params.get('format') === 'flyer';
 const assetIds = Array.from(
   { length: pageCount },
   (_, index) => `5c643f2f-7247-42a3-8348-${String(index + 1).padStart(12, '0')}`
@@ -32,11 +35,16 @@ const fixtureApiClient = {
 
 const fixtureView = {
   status: 'AVAILABLE',
-  designType: 'FLIPBOOK',
+  designType: flyer ? 'FLYER' : 'FLIPBOOK',
+  serverNow: params.has('countdown')
+    ? params.has('ending')
+      ? '2030-12-17T23:59:59Z'
+      : '2030-12-01T12:00:00Z'
+    : undefined,
   event: {
     name: 'Ana & Luis',
-    eventDateTime: '2026-09-14T23:30:00Z',
-    eventEndDateTime: '2026-09-15T05:30:00Z',
+    eventDateTime: params.has('countdown') ? '2030-12-18T00:00:00Z' : '2026-09-14T23:30:00Z',
+    eventEndDateTime: params.has('countdown') ? '2030-12-18T06:00:00Z' : '2026-09-15T05:30:00Z',
     timeZone: 'America/Mexico_City'
   },
   invitation: {
@@ -49,7 +57,36 @@ const fixtureView = {
   confirmation: { open: true },
   qr: { available: true },
   design: {
-    type: 'FLIPBOOK',
+    type: flyer ? 'FLYER' : 'FLIPBOOK',
+    ...(flyer
+      ? {
+          flyerInitialAsset: {
+            id: assetIds[0],
+            contentPath: `/api/v1/public/invitations/${token}/assets/${assetIds[0]}/content`
+          }
+        }
+      : {}),
+    ...(params.has('countdown')
+      ? {
+          countdown: {
+            ...defaultCountdownStyle,
+            id: 'countdown-local-fixture',
+            revision: 1,
+            visualOwnerType: flyer ? 'FLYER' : 'FLIPBOOK_PAGE',
+            flipbookPageId: flyer ? null : `fixture-page-${countdownPage}`,
+            x: 0.1,
+            y: 0.25,
+            width: 0.8,
+            height: 0.3,
+            numberColor: '#24362A',
+            labelColor: '#465746',
+            backgroundColor: '#F5F2EC',
+            borderColor: '#6D705E',
+            shadowColor: '#171717',
+            backgroundOpacity: 0.95
+          }
+        }
+      : {}),
     pages: assetIds.map((assetId, index) => ({
       id: `fixture-page-${index + 1}`,
       position: index + 1,

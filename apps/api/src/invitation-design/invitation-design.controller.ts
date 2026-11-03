@@ -1,11 +1,26 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Inject, Param, Patch, Post, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Inject,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
+  Req
+} from '@nestjs/common';
 import {
   ApiBody,
   ApiCookieAuth,
   ApiCreatedResponse,
   ApiNoContentResponse,
   ApiOkResponse,
-  ApiTags
+  ApiTags,
+  ApiQuery
 } from '@nestjs/swagger';
 import type { AuthenticatedRequest, AuthPrincipal } from '../auth/auth.types';
 import { CurrentAuth } from '../auth/current-auth.decorator';
@@ -29,6 +44,12 @@ import {
   parseReplaceAsset,
   parseUpdateHotspot
 } from './invitation-design.dto';
+import {
+  CountdownResponseDto,
+  SaveCountdownRequestDto,
+  parseSaveCountdown,
+  parseCountdownRevision
+} from './countdown.dto';
 import { InvitationDesignService } from './invitation-design.service';
 
 @ApiTags('invitation-design')
@@ -45,6 +66,41 @@ export class InvitationDesignController {
     @CurrentAuth() principal: AuthPrincipal
   ): Promise<InvitationDesignResponseDto> {
     return this.designs.get(parseDesignUuid(eventId), principal);
+  }
+
+  @Put('design/countdown')
+  @ApiBody({ type: SaveCountdownRequestDto })
+  @ApiOkResponse({ type: CountdownResponseDto })
+  saveCountdown(
+    @Param('eventId') eventId: string,
+    @Body() body: unknown,
+    @CurrentAuth() principal: AuthPrincipal,
+    @Req() request: AuthenticatedRequest
+  ): Promise<CountdownResponseDto> {
+    return this.designs.saveCountdown(
+      parseDesignUuid(eventId),
+      parseSaveCountdown(body),
+      principal,
+      request.operationId
+    );
+  }
+
+  @Delete('design/countdown')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiNoContentResponse()
+  @ApiQuery({ name: 'revision', required: true, type: Number })
+  deleteCountdown(
+    @Param('eventId') eventId: string,
+    @Query('revision') revision: unknown,
+    @CurrentAuth() principal: AuthPrincipal,
+    @Req() request: AuthenticatedRequest
+  ): Promise<void> {
+    return this.designs.deleteCountdown(
+      parseDesignUuid(eventId),
+      parseCountdownRevision(revision),
+      principal,
+      request.operationId
+    );
   }
 
   @Get('design/readiness')

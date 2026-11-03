@@ -1,3 +1,4 @@
+import { isCountdown } from '../countdown';
 import type { components } from '../generated/schema';
 import { isRecord, isRecordArray, type ApiRequester } from '../api-client';
 import {
@@ -21,6 +22,8 @@ export interface AdminCommercialQuoteInput {
   capacity?: number;
 }
 export type AdminInvitationDesign = S['InvitationDesignResponseDto'];
+export type AdminCountdown = S['CountdownResponseDto'];
+export type AdminSaveCountdownInput = S['SaveCountdownRequestDto'];
 export type AdminDesignReadiness = S['DesignReadinessResponseDto'];
 export type AdminFlyerInput = S['CreateFlyerRequestDto'];
 export type AdminFlipbookPageInput = S['AddFlipbookPageRequestDto'];
@@ -144,6 +147,24 @@ export function createAdminEventPreparationClient(request: ApiRequester) {
         { method: 'PATCH', path: base(clientId, eventId), body, response: 'json', ...withSignal(signal) },
         record
       ),
+    saveCountdown: (clientId: string, eventId: string, body: AdminSaveCountdownInput, signal?: AbortSignal) =>
+      request<AdminCountdown>(
+        {
+          method: 'PUT',
+          path: `${base(clientId, eventId)}/design/countdown`,
+          body,
+          response: 'json',
+          ...withSignal(signal)
+        },
+        isCountdown
+      ),
+    removeCountdown: (clientId: string, eventId: string, revision: number, signal?: AbortSignal) =>
+      request<void>({
+        method: 'DELETE',
+        path: `${base(clientId, eventId)}/design/countdown?revision=${revision}`,
+        response: 'empty',
+        ...withSignal(signal)
+      }),
     getDesign: (clientId: string, eventId: string, signal?: AbortSignal) =>
       request<AdminInvitationDesign>(
         { path: `${base(clientId, eventId)}/design`, response: 'json', ...withSignal(signal) },

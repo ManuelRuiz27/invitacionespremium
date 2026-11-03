@@ -4,6 +4,7 @@ import { useElementSize } from '@invitaciones/ui';
 import { Box, CircularProgress } from '@mui/material';
 import { HotspotLayer } from './HotspotLayer';
 import { PublicAssetImage } from './FlyerRenderer';
+import { CountdownLayer } from './CountdownLayer';
 
 type Page = NonNullable<NonNullable<PublicInvitationView['design']>['pages']>[number];
 type Hotspot = NonNullable<PublicInvitationView['design']>['hotspots'][number];
@@ -23,6 +24,7 @@ interface FlipbookPageProps {
   rsvpConfirmed: boolean;
   onUnavailableQr: () => void;
   qrAvailable: boolean;
+  countdown?: NonNullable<PublicInvitationView['design']>['countdown'] | undefined;
 }
 
 export const FlipbookPage = forwardRef<HTMLDivElement, FlipbookPageProps>(function FlipbookPage(
@@ -40,7 +42,8 @@ export const FlipbookPage = forwardRef<HTMLDivElement, FlipbookPageProps>(functi
     onRsvp,
     rsvpConfirmed,
     onUnavailableQr,
-    qrAvailable
+    qrAvailable,
+    countdown
   },
   forwardedRef
 ) {
@@ -86,6 +89,7 @@ export const FlipbookPage = forwardRef<HTMLDivElement, FlipbookPageProps>(functi
             onImageLoad={(image) => setImageSize({ width: image.naturalWidth, height: image.naturalHeight })}
           />
           <Box sx={{ position: 'absolute', ...imageRect }}>
+            {imageSize ? <CountdownLayer countdown={countdown} hidden={!visible} /> : null}
             <HotspotLayer
               apiClient={apiClient}
               token={token}

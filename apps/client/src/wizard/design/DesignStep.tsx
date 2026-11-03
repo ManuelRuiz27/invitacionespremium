@@ -24,6 +24,7 @@ import { blockerMessage, errorMessage } from '../../shared/client-utils';
 import { AssetPreview } from './AssetPreview';
 import { HotspotEditor } from './HotspotEditor';
 import { usePrivateAssetUrl } from './usePrivateAssetUrl';
+import { DesignCountdown } from './DesignCountdown';
 
 type LoadState = 'loading' | 'ready' | 'error';
 type MutationKind = 'upload' | 'replace' | 'reorder' | 'delete';
@@ -431,7 +432,9 @@ export function DesignStep({
               onReorder={requestExactReorder}
               onReplace={(pageId, file) => void replacePage(pageId, file)}
               onDelete={(pageId) => {
-                const pageHasActions = design.hotspots.some((hotspot) => hotspot.flipbookPageId === pageId);
+                const pageHasActions =
+                  design.hotspots.some((hotspot) => hotspot.flipbookPageId === pageId) ||
+                  design.countdown?.flipbookPageId === pageId;
                 if (pageHasActions) setPendingDeleteId(pageId);
                 else void removePage(pageId);
               }}
@@ -463,6 +466,16 @@ export function DesignStep({
         <Alert severity="info">Selecciona Flyer o Flipbook en Datos.</Alert>
       )}
 
+      {design && (design.type === 'FLYER' || design.pages.length > 0) ? (
+        <DesignCountdown
+          key={design.id}
+          apiClient={apiClient}
+          event={event}
+          design={design}
+          disabled={interactionDisabled}
+          onSaved={(countdown) => setDesign((current) => (current ? { ...current, countdown } : current))}
+        />
+      ) : null}
       {design?.type === 'FLIPBOOK' && design.pages.length ? (
         <UploadButton
           multiple
@@ -497,10 +510,10 @@ export function DesignStep({
         onClose={() => setPendingDeleteId(undefined)}
         aria-labelledby="delete-page-title"
       >
-        <DialogTitle id="delete-page-title">Eliminar página y sus acciones</DialogTitle>
+        <DialogTitle id="delete-page-title">Eliminar página y sus elementos</DialogTitle>
         <DialogContent>
-          Esta página tiene acciones configuradas. Al eliminarla, esas acciones también se retirarán. Esta decisión no
-          afecta las demás páginas.
+          Al eliminar esta página, sus acciones y su cuenta regresiva también se retirarán. Esta decisión no afecta las
+          demás páginas.
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setPendingDeleteId(undefined)}>Conservar página</Button>

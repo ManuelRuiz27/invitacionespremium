@@ -224,6 +224,22 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/clients/{clientId}/events/{eventId}/design/countdown": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["AdminInvitationDesignController_saveCountdown"];
+        post?: never;
+        delete: operations["AdminInvitationDesignController_deleteCountdown"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/clients/{clientId}/events/{eventId}/design/file-assets": {
         parameters: {
             query?: never;
@@ -1906,6 +1922,22 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/events/{eventId}/design/countdown": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["InvitationDesignController_saveCountdown"];
+        post?: never;
+        delete: operations["InvitationDesignController_deleteCountdown"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events/{eventId}/design/flipbook": {
         parameters: {
             query?: never;
@@ -3571,6 +3603,39 @@ export type components = {
         CorrectPilotObservationRequestDto: {
             reason: string;
         };
+        CountdownResponseDto: {
+            backgroundColor: string;
+            backgroundOpacity: number;
+            borderColor: string;
+            /** Format: uuid */
+            flipbookPageId: string | null;
+            /** @enum {string} */
+            frame: "none" | "thin" | "double" | "rounded";
+            height: number;
+            /** Format: uuid */
+            id: string;
+            labelColor: string;
+            /** @enum {string} */
+            labelFont: "montserrat" | "playfair" | "system";
+            /** @enum {number} */
+            labelWeight: 400 | 500 | 600 | 700;
+            /** @enum {string} */
+            layout: "row" | "grid";
+            numberColor: string;
+            /** @enum {string} */
+            numberFont: "montserrat" | "playfair" | "system";
+            /** @enum {number} */
+            numberWeight: 400 | 500 | 600 | 700;
+            revision: number;
+            /** @enum {string} */
+            shadow: "none" | "soft" | "strong";
+            shadowColor: string;
+            /** @enum {string} */
+            visualOwnerType: "FLYER" | "FLIPBOOK_PAGE";
+            width: number;
+            x: number;
+            y: number;
+        };
         CreateAlbumRequestDto: {
             externalButton?: components["schemas"]["AlbumExternalButtonDto"] | null;
             thankYouMessage?: string | null;
@@ -4208,6 +4273,7 @@ export type components = {
             status: "CANCELLED";
         };
         InvitationDesignResponseDto: {
+            countdown?: components["schemas"]["CountdownResponseDto"] | null;
             /** Format: date-time */
             createdAt: string;
             /** Format: uuid */
@@ -4800,6 +4866,8 @@ export type components = {
             invitation?: components["schemas"]["PublicRsvpInvitationResponseDto"];
             message?: string;
             qr?: components["schemas"]["PublicInvitationQrResponseDto"];
+            /** Format: date-time */
+            serverNow?: string;
             /** @enum {string} */
             status: "AVAILABLE" | "CANCELLED" | "CLOSED";
         };
@@ -4839,6 +4907,7 @@ export type components = {
             open: boolean;
         };
         PublicRsvpDesignResponseDto: {
+            countdown?: components["schemas"]["CountdownResponseDto"] | null;
             flyerInitialAsset?: components["schemas"]["PublicRsvpAssetReferenceDto"];
             flyerQrAsset?: components["schemas"]["PublicRsvpAssetReferenceDto"];
             hotspots: components["schemas"]["PublicRsvpHotspotResponseDto"][];
@@ -5012,6 +5081,37 @@ export type components = {
             additionalAssistants: components["schemas"]["RsvpAssistantInputDto"][];
             /** @enum {string} */
             responseStatus: "CONFIRMED" | "REJECTED";
+        };
+        SaveCountdownRequestDto: {
+            backgroundColor: string;
+            backgroundOpacity: number;
+            borderColor: string;
+            /** Format: uuid */
+            flipbookPageId: string | null;
+            /** @enum {string} */
+            frame: "none" | "thin" | "double" | "rounded";
+            height: number;
+            labelColor: string;
+            /** @enum {string} */
+            labelFont: "montserrat" | "playfair" | "system";
+            /** @enum {number} */
+            labelWeight: 400 | 500 | 600 | 700;
+            /** @enum {string} */
+            layout: "row" | "grid";
+            numberColor: string;
+            /** @enum {string} */
+            numberFont: "montserrat" | "playfair" | "system";
+            /** @enum {number} */
+            numberWeight: 400 | 500 | 600 | 700;
+            revision: number;
+            /** @enum {string} */
+            shadow: "none" | "soft" | "strong";
+            shadowColor: string;
+            /** @enum {string} */
+            visualOwnerType: "FLYER" | "FLIPBOOK_PAGE";
+            width: number;
+            x: number;
+            y: number;
         };
         ScannerCheckInRequestDto: {
             assistantIds: string[];
@@ -5751,6 +5851,48 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["EventCommercialResponseDto"];
                 };
+            };
+        };
+    };
+    AdminInvitationDesignController_saveCountdown: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveCountdownRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CountdownResponseDto"];
+                };
+            };
+        };
+    };
+    AdminInvitationDesignController_deleteCountdown: {
+        parameters: {
+            query: {
+                revision: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -8397,6 +8539,48 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["InvitationDesignResponseDto"];
                 };
+            };
+        };
+    };
+    InvitationDesignController_saveCountdown: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveCountdownRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CountdownResponseDto"];
+                };
+            };
+        };
+    };
+    InvitationDesignController_deleteCountdown: {
+        parameters: {
+            query: {
+                revision: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

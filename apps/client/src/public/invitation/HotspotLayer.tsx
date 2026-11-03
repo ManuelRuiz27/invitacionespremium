@@ -49,7 +49,7 @@ export function HotspotLayer({
   const ordered = [...hotspots].sort((a, b) => a.priority - b.priority);
   const hitInsets = surfaceSize ? hotspotTouchInsets(ordered, surfaceSize) : null;
   return (
-    <Box aria-hidden={disabled || undefined} sx={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+    <Box aria-hidden={disabled || undefined} sx={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2 }}>
       {ordered.map((hotspot, index) => {
         const href = safeHttpsUrl(hotspot.destination);
         const common = {

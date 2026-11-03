@@ -1,9 +1,10 @@
-import { useCallback, type SyntheticEvent } from 'react';
+import { useCallback, useState, type SyntheticEvent } from 'react';
 import type { ApiClient, PublicInvitationView } from '@invitaciones/api-client';
 import { Box, Button, CircularProgress, Stack, Typography } from '@mui/material';
 import { usePublicAssetUrl } from '../assets/usePublicAssetUrl';
 import { invitationAssetIdFromPath } from '../routing/public-content-path';
 import { HotspotLayer } from './HotspotLayer';
+import { CountdownLayer } from './CountdownLayer';
 
 type Asset = NonNullable<NonNullable<PublicInvitationView['design']>['flyerInitialAsset']>;
 
@@ -71,6 +72,7 @@ export function FlyerRenderer({
   onUnavailableQr: () => void;
 }) {
   const design = view.design;
+  const [loadedAssetId, setLoadedAssetId] = useState<string>();
   if (!design?.flyerInitialAsset) return <Typography>No pudimos cargar este contenido.</Typography>;
   return (
     <Box sx={{ display: 'grid', gap: 3 }}>
@@ -88,6 +90,7 @@ export function FlyerRenderer({
           asset={design.flyerInitialAsset}
           alt="Diseño de la invitación"
           eager
+          onImageLoad={() => setLoadedAssetId(design.flyerInitialAsset!.id)}
         />
         <HotspotLayer
           apiClient={apiClient}
@@ -98,6 +101,9 @@ export function FlyerRenderer({
           onUnavailableQr={onUnavailableQr}
           qrAvailable={view.qr?.available === true}
         />
+        {loadedAssetId === design.flyerInitialAsset.id ? (
+          <CountdownLayer countdown={design.countdown?.visualOwnerType === 'FLYER' ? design.countdown : null} />
+        ) : null}
       </Box>
       {design.flyerQrAsset ? (
         <Box sx={{ maxWidth: 540, mx: 'auto', overflow: 'hidden', borderRadius: 1 }}>

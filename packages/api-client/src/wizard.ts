@@ -1,3 +1,4 @@
+import { isCountdown, type Countdown, type SaveCountdownInput } from './countdown';
 import type { components, operations } from './generated/schema';
 import { isRecord, isRecordArray, type ApiRequester } from './api-client';
 import {
@@ -23,6 +24,7 @@ export type FileAsset = S['FileAssetResponseDto'];
 export type FileAssetType = S['FileAssetType'];
 export type FileAssetOwnerType = S['FileAssetOwnerType'];
 export type InvitationDesign = S['InvitationDesignResponseDto'];
+export type { Countdown, SaveCountdownInput } from './countdown';
 export type DesignReadiness = S['DesignReadinessResponseDto'];
 export type FlyerInput = S['CreateFlyerRequestDto'];
 export type FlipbookPageInput = S['AddFlipbookPageRequestDto'];
@@ -220,6 +222,17 @@ export function createFileAssetsClient(request: ApiRequester) {
 export function createDesignClient(request: ApiRequester) {
   const base = (eventId: string) => `/events/${id(eventId)}`;
   return {
+    saveCountdown: (eventId: string, body: SaveCountdownInput) =>
+      request<Countdown>(
+        { method: 'PUT', path: `${base(eventId)}/design/countdown`, body, response: 'json' },
+        isCountdown
+      ),
+    removeCountdown: (eventId: string, revision: number) =>
+      request<void>({
+        method: 'DELETE',
+        path: `${base(eventId)}/design/countdown?revision=${revision}`,
+        response: 'empty'
+      }),
     get: (eventId: string) => request<InvitationDesign>({ path: `${base(eventId)}/design`, response: 'json' }, record),
     readiness: (eventId: string) =>
       request<DesignReadiness>({ path: `${base(eventId)}/design/readiness`, response: 'json' }, record),

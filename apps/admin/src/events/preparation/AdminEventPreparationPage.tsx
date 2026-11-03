@@ -36,6 +36,7 @@ import { AdminErrorState, AdminLoadingState } from '../../shared/AdminStates';
 import { AdminFloorplanBuilderWorkspace } from './floorplan/AdminFloorplanBuilderWorkspace';
 import { AdminAccessSection, accessReadinessKey } from './AdminAccessSection';
 import { AdminPilotOperationalLog } from './pilot/AdminPilotOperationalLog';
+import { AdminCountdown } from './AdminCountdown';
 
 type Section = 'comercial' | 'datos' | 'invitacion' | 'croquis' | 'registro' | 'accesos';
 
@@ -759,6 +760,7 @@ function InvitationSection({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string>();
   const [previewUrl, setPreviewUrl] = useState<string>();
+  const [pendingCountdownPageDelete, setPendingCountdownPageDelete] = useState<string>();
 
   const reload = async (signal?: AbortSignal) => {
     if (!supported) return;
@@ -965,9 +967,11 @@ function InvitationSection({
                       color="error"
                       startIcon={<DeleteOutlined />}
                       disabled={busy}
-                      onClick={() =>
-                        void run(() => apiClient.adminEventPreparation.removePage(event.clientId, event.id, page.id))
-                      }
+                      onClick={() => {
+                        if (design.countdown?.flipbookPageId === page.id) setPendingCountdownPageDelete(page.id);
+                        else
+                          void run(() => apiClient.adminEventPreparation.removePage(event.clientId, event.id, page.id));
+                      }}
                     >
                       Eliminar
                     </Button>
@@ -1015,6 +1019,33 @@ function InvitationSection({
         </CardContent>
       </Card>
       <Hotspots apiClient={apiClient} event={event} design={design} hotspots={hotspots} busy={busy} run={run} />
+      {design && (design.type === 'FLYER' || design.pages.length > 0) ? (
+        <AdminCountdown
+          key={design.id}
+          apiClient={apiClient}
+          event={event}
+          design={design}
+          disabled={busy || !['DRAFT', 'CONFIGURED', 'READY_TO_ACTIVATE'].includes(event.status)}
+          onSaved={(countdown) => setDesign((current) => (current ? { ...current, countdown } : current))}
+        />
+      ) : null}
+      <Dialog open={Boolean(pendingCountdownPageDelete)} onClose={() => setPendingCountdownPageDelete(undefined)}>
+        <DialogTitle>Eliminar página y cuenta regresiva</DialogTitle>
+        <DialogContent>La cuenta regresiva de esta página también se eliminará.</DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPendingCountdownPageDelete(undefined)}>Conservar página</Button>
+          <Button
+            color="error"
+            onClick={() => {
+              const id = pendingCountdownPageDelete;
+              setPendingCountdownPageDelete(undefined);
+              if (id) void run(() => apiClient.adminEventPreparation.removePage(event.clientId, event.id, id));
+            }}
+          >
+            Eliminar página
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }

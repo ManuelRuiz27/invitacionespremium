@@ -1,3 +1,4 @@
+import { countdownInput } from './countdown.fixture';
 import { randomBytes, randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
@@ -60,6 +61,143 @@ describe('InvitationDesignModule', () => {
     await resetDatabase();
     await app.close();
   }, 60_000);
+
+  it('persists a single optional Countdown with optimistic concurrency, audit rollback and freeze', async () => {
+    const owner = await createOwner(UserRole.INDEPENDENT_PLANNER, ClientType.PLANNER);
+    const event = await createEvent(owner, ServiceCode.FLYER);
+    const cookie = await login(owner.email);
+    const design = await createFlyerDesign(event, owner.userId, cookie);
+    const path = `/events/${event.id}/design/countdown`;
+    const before = (await read(`/events/${event.id}/design/readiness`, cookie)).body;
+    const saved = await mutate('put', path, cookie)
+      .send({ ...countdownInput, numberColor: '#abc' })
+      .expect(200);
+    expect(saved.body).toMatchObject({ ...countdownInput, numberColor: '#AABBCC', revision: 1 });
+    await read(`/events/${event.id}/design`, cookie)
+      .expect(200)
+      .expect(({ body }) => expect(body.countdown).toEqual(saved.body));
+    await mutate('put', path, cookie).send(countdownInput).expect(409);
+    const concurrent = await Promise.all([
+      mutate('put', path, cookie).send({ ...countdownInput, revision: 1, labelColor: '#111111' }),
+      mutate('put', path, cookie).send({ ...countdownInput, revision: 1, labelColor: '#222222' })
+    ]);
+    expect(concurrent.map((response) => response.status).sort()).toEqual([200, 409]);
+    expect(await prisma.invitationCountdown.count({ where: { designId: design.id, deletedAt: null } })).toBe(1);
+    expect((await read(`/events/${event.id}/design/readiness`, cookie)).body).toEqual(before);
+    const current = await prisma.invitationCountdown.findUniqueOrThrow({ where: { designId: design.id } });
+    const failAudit = vi.spyOn(audit, 'record').mockRejectedValueOnce(new Error('countdown audit unavailable'));
+    await mutate('put', path, cookie)
+      .send({ ...countdownInput, revision: current.revision })
+      .expect(500);
+    failAudit.mockRestore();
+    expect((await prisma.invitationCountdown.findUniqueOrThrow({ where: { designId: design.id } })).revision).toBe(
+      current.revision
+    );
+    await mutate('delete', `${path}?revision=${current.revision}`, cookie).expect(204);
+    const recreated = await mutate('put', path, cookie).send(countdownInput).expect(200);
+    expect(recreated.body.revision).toBeGreaterThan(current.revision);
+    await mutate('delete', `${path}?revision=${current.revision}`, cookie).expect(409);
+    await setEventStatus(event.id, EventStatus.ACTIVE);
+    await mutate('put', path, cookie)
+      .send({ ...countdownInput, revision: recreated.body.revision })
+      .expect(409);
+    await mutate('delete', `${path}?revision=${recreated.body.revision}`, cookie).expect(409);
+    expect(await prisma.auditLog.count({ where: { eventId: event.id, action: 'INVITATION_COUNTDOWN_SAVE' } })).toBe(3);
+  });
+
+  it('anchors Countdown to a stable Flipbook page and retires it on page deletion', async () => {
+    const owner = await createOwner(UserRole.INDEPENDENT_PLANNER, ClientType.PLANNER);
+    const event = await createEvent(owner, ServiceCode.FLIPBOOK);
+    const cookie = await login(owner.email);
+    const design = await createFlipbookDesign(event, owner.userId, cookie, 2);
+    const first = design.pages[0]!.id;
+    const second = design.pages[1]!.id;
+    const input = { ...countdownInput, visualOwnerType: 'FLIPBOOK_PAGE', flipbookPageId: first };
+    const path = `/events/${event.id}/design/countdown`;
+    await mutate('put', path, cookie)
+      .send({ ...input, flipbookPageId: randomUUID() })
+      .expect(404);
+    await mutate('put', path, cookie).send(countdownInput).expect(409);
+    await mutate('put', path, cookie).send(input).expect(200);
+    const reordered = await mutate('patch', `/events/${event.id}/design/flipbook/pages/reorder`, cookie)
+      .send({ pageIds: [second, first] })
+      .expect(200);
+    expect(reordered.body.countdown.flipbookPageId).toBe(first);
+    await mutate('put', path, cookie)
+      .send({ ...input, flipbookPageId: second, revision: 1 })
+      .expect(200);
+    await mutate('delete', `/events/${event.id}/design/flipbook/pages/${second}`, cookie)
+      .expect(200)
+      .expect(({ body }) => expect(body.countdown).toBeNull());
+    const stored = await prisma.invitationCountdown.findUniqueOrThrow({ where: { designId: design.id } });
+    expect(stored.deletedAt).not.toBeNull();
+    expect(stored.revision).toBe(3);
+    await expect(
+      prisma.invitationCountdown.update({ where: { id: stored.id }, data: { deletedAt: null, revision: 4 } })
+    ).rejects.toThrow();
+  });
+
+  it('rejects invalid direct Countdown writes, foreign ownership and unauthenticated callers', async () => {
+    const owner = await createOwner(UserRole.INDEPENDENT_PLANNER, ClientType.PLANNER);
+    const event = await createEvent(owner, ServiceCode.FLYER);
+    const cookie = await login(owner.email);
+    const design = await createFlyerDesign(event, owner.userId, cookie);
+    const path = `/api/v1/admin/clients/${event.clientId}/events/${event.id}/design/countdown`;
+    await request(app.getHttpServer()).put(path).send(countdownInput).expect(401);
+    await request(app.getHttpServer())
+      .put(path)
+      .set('Cookie', cookie)
+      .set('Origin', trustedOrigin)
+      .send(countdownInput)
+      .expect(403);
+    await request(app.getHttpServer())
+      .put(path.replace(event.clientId, randomUUID()))
+      .set('Cookie', providerCookie)
+      .set('Origin', trustedOrigin)
+      .send(countdownInput)
+      .expect(404);
+    const { revision: _revision, ...config } = countdownInput;
+    await request(app.getHttpServer())
+      .put(`/api/v1/events/${event.id}/design/countdown`)
+      .set('Cookie', cookie)
+      .set('Origin', trustedOrigin)
+      .send({ ...countdownInput, x: 0.499999995, width: 0.500000005 })
+      .expect(200)
+      .expect(({ body }) => expect(body).toMatchObject({ x: 0.5, width: 0.5 }));
+    const stored = await prisma.invitationCountdown.findUniqueOrThrow({ where: { designId: design.id } });
+    await expect(
+      prisma.invitationCountdown.update({ where: { id: stored.id }, data: { width: 2, revision: 2 } })
+    ).rejects.toThrow();
+    await expect(
+      prisma.invitationCountdown.update({ where: { id: stored.id }, data: { numberColor: 'red', revision: 2 } })
+    ).rejects.toThrow();
+    await expect(
+      prisma.invitationCountdown.update({ where: { id: stored.id }, data: { labelFont: 'unsafe', revision: 2 } })
+    ).rejects.toThrow();
+    await expect(
+      prisma.invitationCountdown.update({ where: { id: stored.id }, data: { labelColor: '#111111' } })
+    ).rejects.toThrow();
+    await expect(
+      prisma.invitationCountdown.create({ data: { ...config, designId: design.id, eventId: event.id } })
+    ).rejects.toThrow();
+    await prisma.client.update({ where: { id: event.clientId }, data: { operatingProfile: 'MANAGED' } });
+    await request(app.getHttpServer())
+      .put(`/api/v1/events/${event.id}/design/countdown`)
+      .set('Cookie', cookie)
+      .set('Origin', trustedOrigin)
+      .send({ ...countdownInput, revision: 1 })
+      .expect(403);
+    await request(app.getHttpServer())
+      .put(path)
+      .set('Cookie', providerCookie)
+      .set('Origin', trustedOrigin)
+      .send({ ...countdownInput, revision: 1 })
+      .expect(200);
+    await prisma.invitationDesign.update({ where: { id: design.id }, data: { deletedAt: new Date() } });
+    expect(
+      (await prisma.invitationCountdown.findUniqueOrThrow({ where: { designId: design.id } })).deletedAt
+    ).not.toBeNull();
+  });
 
   it('creates a complete Flyer, audits readiness and replaces each asset without exposing storage data', async () => {
     const owner = await createOwner(UserRole.INDEPENDENT_PLANNER, ClientType.PLANNER);
@@ -888,7 +1026,7 @@ describe('InvitationDesignModule', () => {
     expect(await prisma.hotspot.count()).toBe(0);
   });
 
-  function mutate(method: 'post' | 'patch' | 'delete', route: string, cookie: string) {
+  function mutate(method: 'post' | 'patch' | 'delete' | 'put', route: string, cookie: string) {
     const providerRoute = route.match(/^\/events\/([^/]+)\/(design(?:\/.*)?|hotspots(?:\/.*)?)$/u);
     if (providerRoute) {
       const [, eventId, suffix] = providerRoute;

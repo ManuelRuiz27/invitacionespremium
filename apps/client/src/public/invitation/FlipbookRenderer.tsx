@@ -420,6 +420,7 @@ export function FlipbookRenderer({
                 rsvpConfirmed={view.invitation?.responseStatus === 'CONFIRMED'}
                 onUnavailableQr={onUnavailableQr}
                 qrAvailable={view.qr?.available === true}
+                countdown={view.design?.countdown?.flipbookPageId === page.id ? view.design.countdown : null}
               />
             ))}
           </HTMLFlipBook>

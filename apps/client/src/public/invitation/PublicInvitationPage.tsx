@@ -16,6 +16,7 @@ import { CalendarAction } from './calendar/CalendarAction';
 import { toCalendarEventData } from './calendar/calendar';
 import { invitationStatusLabel, nominalIntentMatches } from './invitation-state';
 import { RsvpDialog } from './RsvpDialog';
+import { withAuthorizedCountdown, clearCountdownCache } from './countdown-cache';
 
 type LoadState =
   | { kind: 'loading'; token: string }
@@ -50,7 +51,8 @@ export function PublicInvitationTokenPage({
         .resolve(invitationToken, operation.signal)
         .then(
           (view) => {
-            if (operation.isCurrent()) setState({ kind: 'ready', token: invitationToken, view });
+            if (operation.isCurrent())
+              setState({ kind: 'ready', token: invitationToken, view: withAuthorizedCountdown(view) });
           },
           (error: unknown) => {
             if (!operation.isCurrent() || isAbortError(error)) return;
@@ -73,6 +75,27 @@ export function PublicInvitationTokenPage({
     return scope.abortAll;
   }, [invitationToken, reload, scope]);
 
+  useEffect(() => {
+    if (state.token === invitationToken && state.kind === 'error') clearCountdownCache();
+  }, [invitationToken, state]);
+
+  useEffect(() => {
+    let lastResume = -Infinity;
+    const resume = () => {
+      if (document.hidden || mutationSignalRef.current || performance.now() - lastResume < 1000) return;
+      lastResume = performance.now();
+      reload(false);
+    };
+    window.addEventListener('focus', resume);
+    window.addEventListener('online', resume);
+    document.addEventListener('visibilitychange', resume);
+    return () => {
+      window.removeEventListener('focus', resume);
+      window.removeEventListener('online', resume);
+      document.removeEventListener('visibilitychange', resume);
+    };
+  }, [reload]);
+
   const mutate = async (intent: 'CONFIRMED' | 'REJECTED', assistants: PublicRsvpAssistantInput[] = []) => {
     if (state.kind !== 'ready' || mutationSignalRef.current) return;
     const action =
@@ -93,7 +116,7 @@ export function PublicInvitationTokenPage({
       if (!operation.isCurrent()) return;
       const view = await apiClient.publicInvitation.resolve(invitationToken, operation.signal);
       if (!operation.isCurrent()) return;
-      setState({ kind: 'ready', token: invitationToken, view });
+      setState({ kind: 'ready', token: invitationToken, view: withAuthorizedCountdown(view) });
       setRsvpOpen(null);
       setNotice({
         severity: 'success',
@@ -105,7 +128,7 @@ export function PublicInvitationTokenPage({
         try {
           const view = await apiClient.publicInvitation.resolve(invitationToken, operation.signal);
           if (!operation.isCurrent()) return;
-          setState({ kind: 'ready', token: invitationToken, view });
+          setState({ kind: 'ready', token: invitationToken, view: withAuthorizedCountdown(view) });
           setRsvpOpen(null);
           return;
         } catch (reloadError) {
@@ -125,7 +148,7 @@ export function PublicInvitationTokenPage({
         try {
           const view = await apiClient.publicInvitation.resolve(invitationToken, operation.signal);
           if (!operation.isCurrent()) return;
-          setState({ kind: 'ready', token: invitationToken, view });
+          setState({ kind: 'ready', token: invitationToken, view: withAuthorizedCountdown(view) });
           if (nominalIntentMatches(view, intent, assistants)) {
             setRsvpOpen(null);
             setNotice({

@@ -1,3 +1,4 @@
+import { CountdownResponseDto } from '../invitation-design/countdown.dto';
 import { BadRequestException } from '@nestjs/common';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
@@ -205,6 +206,9 @@ export class PublicRsvpHotspotResponseDto {
 }
 
 export class PublicRsvpDesignResponseDto {
+  @ApiPropertyOptional({ type: CountdownResponseDto, nullable: true })
+  countdown?: CountdownResponseDto | null;
+
   @ApiProperty({ enum: InvitationDesignType })
   type!: InvitationDesignType;
 
@@ -245,6 +249,9 @@ export class PublicInvitationAlbumResponseDto {
 }
 
 export class PublicInvitationViewResponseDto {
+  @ApiPropertyOptional({ type: String, format: 'date-time' })
+  serverNow?: string;
+
   @ApiProperty({ enum: ['AVAILABLE', 'CANCELLED', 'CLOSED'] })
   status!: 'AVAILABLE' | 'CANCELLED' | 'CLOSED';
 

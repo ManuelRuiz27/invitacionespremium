@@ -1,3 +1,4 @@
+import { countdownInput } from './countdown.fixture';
 import { createNominalAccessFixture } from './nominal-access.fixture';
 import { randomBytes, randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
@@ -108,6 +109,32 @@ describe('Public RSVP', () => {
       'PENDING'
     );
     expect(await prisma.auditLog.count({ where: { eventId: event.id, action: { startsWith: 'RSVP_' } } })).toBe(0);
+  });
+
+  it('projects only the current Countdown configuration and authoritative server clock', async () => {
+    const fixture = await createFixture({ capacity: 4, withDesign: true });
+    const design = await prisma.invitationDesign.findFirstOrThrow({
+      where: { eventId: fixture.eventId, deletedAt: null }
+    });
+    const { revision: _revision, ...configuration } = countdownInput;
+    await prisma.invitationCountdown.create({
+      data: { ...configuration, designId: design.id, eventId: fixture.eventId }
+    });
+    const before = Date.now();
+    const response = await publicGet(fixture.token).expect(200);
+    expect(Date.parse(response.body.serverNow)).toBeGreaterThanOrEqual(before);
+    expect(Date.parse(response.body.serverNow)).toBeLessThanOrEqual(Date.now());
+    expect(response.body.design.countdown).toMatchObject({ ...countdownInput, revision: 1 });
+    expect(response.body.design.countdown).not.toHaveProperty('designId');
+    expect(response.body.design.countdown).not.toHaveProperty('eventId');
+    expect(response.body.design.countdown).not.toHaveProperty('deletedAt');
+    await prisma.invitationCountdown.update({
+      where: { designId: design.id },
+      data: { deletedAt: new Date(), revision: 2 }
+    });
+    await publicGet(fixture.token)
+      .expect(200)
+      .expect(({ body }) => expect(body.design.countdown).toBeNull());
   });
 
   it('resolves the private view, reconciles nominal assistants idempotently, rejects and supports close/reopen override', async () => {
