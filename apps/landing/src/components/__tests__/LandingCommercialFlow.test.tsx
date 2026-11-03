@@ -80,8 +80,8 @@ describe('Landing commercial journeys', () => {
       fireEvent.change(within(dialog).getByLabelText('Capacidad del evento'), { target: { value: '100' } });
       const message = 'Interfaz exclusiva; "sku":"FLIPBOOK"\n<script>texto</script>';
       fireEvent.change(within(dialog).getByLabelText('Mensaje (opcional)'), { target: { value: message } });
-      fillAndSubmit();
-      await screen.findByText(/Recibimos tu solicitud/);
+      fillAndSubmit(dialog);
+      await within(dialog).findByText(/Recibimos tu solicitud/);
       const input = submit.mock.calls[0]![0];
       expect(input.opportunityType).toBe(opportunityType);
       expect(JSON.parse(input.notes)).toEqual({
@@ -106,14 +106,14 @@ describe('Landing commercial journeys', () => {
     const dialog = await screen.findByRole('dialog');
     fireEvent.change(within(dialog).getByLabelText('Servicio'), { target: { value: 'FLIPBOOK' } });
     fireEvent.change(within(dialog).getByLabelText('Mensaje (opcional)'), { target: { value: 'Conservar mis notas' } });
-    fillAndSubmit();
-    await screen.findByText(status === 409 ? /solicitud cambió/ : /varias solicitudes/);
-    expect(screen.queryByText(/Recibimos tu solicitud/)).not.toBeInTheDocument();
+    fillAndSubmit(dialog);
+    await within(dialog).findByText(status === 409 ? /solicitud cambió/ : /varias solicitudes/);
+    expect(within(dialog).queryByText(/Recibimos tu solicitud/)).not.toBeInTheDocument();
     expect(within(dialog).getByLabelText('Servicio')).toHaveValue('FLIPBOOK');
     expect(within(dialog).getByLabelText('Mensaje (opcional)')).toHaveValue('Conservar mis notas');
     expect(within(dialog).getByLabelText(/Nombre de contacto/)).toHaveValue('María López');
-    fireEvent.click(screen.getByRole('button', { name: 'Reintentar envío' }));
-    await screen.findByText(/Recibimos tu solicitud/);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Reintentar envío' }));
+    await within(dialog).findByText(/Recibimos tu solicitud/);
     expect(submit.mock.calls[1]![0]).toEqual(submit.mock.calls[0]![0]);
   });
 
@@ -124,8 +124,8 @@ describe('Landing commercial journeys', () => {
     expect(within(dialog).getByLabelText('Mensaje (opcional)')).toHaveValue(content.venue.personalization.inquiry);
     const message = `${content.venue.personalization.inquiry}${'"'.repeat(500)}`;
     fireEvent.change(within(dialog).getByLabelText('Mensaje (opcional)'), { target: { value: message } });
-    fillAndSubmit();
-    expect(screen.getByText(/superan 1000 caracteres/)).toBeInTheDocument();
+    fillAndSubmit(dialog);
+    expect(within(dialog).getByText(/superan 1000 caracteres/)).toBeInTheDocument();
     expect(within(dialog).getByLabelText('Mensaje (opcional)')).toHaveValue(message);
     expect(submit).not.toHaveBeenCalled();
   });
@@ -238,8 +238,8 @@ function renderLanding() {
   );
 }
 
-function fillAndSubmit() {
-  const form = within(screen.getByRole('dialog'));
+function fillAndSubmit(dialog: HTMLElement = screen.getByRole('dialog')) {
+  const form = within(dialog);
   fireEvent.change(form.getByLabelText(/Nombre de contacto/), { target: { value: 'María López' } });
   fireEvent.change(form.getByLabelText(/Empresa \/ salón \/ jardín \/ agencia/), {
     target: { value: 'Eventos Aurora' }

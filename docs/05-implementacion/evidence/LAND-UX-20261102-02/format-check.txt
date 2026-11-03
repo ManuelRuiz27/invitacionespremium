@@ -1,0 +1,9 @@
+pnpm.cmd : $ prettier --check .
+En línea: 2 Carácter: 300
++ ... 0261102-02; pnpm.cmd format:check > var/LAND-UX-20261102-02/format-ch ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ($ prettier --check .:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+Checking formatting...
+All matched files use Prettier code style!

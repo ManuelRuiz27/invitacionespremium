@@ -1,0 +1,9 @@
+$ vitest run "--maxWorkers=1"
+
+ RUN  v4.1.10 C:/Users/ruiz_/Music/Proyecto Marketplace/invitacionespremium-docs/apps/landing
+
+
+ Test Files  9 passed (9)
+      Tests  74 passed (74)
+   Start at  18:14:04
+   Duration  107.28s (transform 2.19s, setup 6.02s, import 27.41s, tests 60.71s, environment 10.72s)

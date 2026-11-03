@@ -1,0 +1,63 @@
+$ vitest run "--maxWorkers=1"
+
+ RUN  v4.1.10 C:/Users/ruiz_/Music/Proyecto Marketplace/invitacionespremium-docs/apps/landing
+
+ ❯ src/components/__tests__/LandingCommercialFlow.test.tsx (13 tests | 5 failed) 55053ms
+     × requires an explicit intent, keeps Individual informational and preserves selection across profiles 5605ms
+     × carries editable context for Soy Planner/agencia using notes only 6930ms
+     × carries editable context for Tengo salón o jardín using notes only 5480ms
+     × preserves edited context, message and submission ID after HTTP 409 5083ms
+     × preserves edited context, message and submission ID after HTTP 429 5207ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/__tests__/LandingCommercialFlow.test.tsx > Landing commercial journeys > requires an explicit intent, keeps Individual informational and preserves selection across profiles
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/components/__tests__/LandingCommercialFlow.test.tsx:26:3
+     24|
+     25| describe('Landing commercial journeys', () => {
+     26|   it('requires an explicit intent, keeps Individual informational and …
+       |   ^
+     27|     renderLanding();
+     28|     const pricing = within(document.querySelector('#precios')!);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  src/components/__tests__/LandingCommercialFlow.test.tsx > Landing commercial journeys > carries editable context for Soy Planner/agencia using notes only
+ FAIL  src/components/__tests__/LandingCommercialFlow.test.tsx > Landing commercial journeys > carries editable context for Tengo salón o jardín using notes only
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/components/__tests__/LandingCommercialFlow.test.tsx:61:14
+     59|     ['Soy Planner/agencia', 'FLIPBOOK', '150', '$8,000', 'Consultar co…
+     60|     ['Tengo salón o jardín', 'PHYSICAL_QR', '50', '$2,500', 'Solicitar…
+     61|   ] as const)(
+       |              ^
+     62|     'carries editable context for %s using notes only',
+     63|     async (label, sku, capacity, amount, cta, opportunityType) => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  src/components/__tests__/LandingCommercialFlow.test.tsx > Landing commercial journeys > preserves edited context, message and submission ID after HTTP 409
+ FAIL  src/components/__tests__/LandingCommercialFlow.test.tsx > Landing commercial journeys > preserves edited context, message and submission ID after HTTP 429
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/components/__tests__/LandingCommercialFlow.test.tsx:97:22
+     95|   );
+     96|
+     97|   it.each([409, 429])('preserves edited context, message and submissio…
+       |                      ^
+     98|     submit.mockRejectedValueOnce(new ApiError(status, 'ERROR', 'techni…
+     99|     renderLanding();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+
+ Test Files  1 failed | 8 passed (9)
+      Tests  5 failed | 69 passed (74)
+   Start at  18:00:36
+   Duration  125.87s (transform 2.68s, setup 6.22s, import 30.47s, tests 75.49s, environment 11.28s)
+
+C:\Users\ruiz_\Music\Proyecto Marketplace\invitacionespremium-docs\apps\landing:
+[ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @invitaciones/landing@0.0.0 test: `vitest run "--maxWorkers=1"`
+Exit status 1

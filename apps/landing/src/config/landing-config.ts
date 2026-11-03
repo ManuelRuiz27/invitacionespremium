@@ -11,7 +11,7 @@ export interface LandingConfigOptions {
 const productName = 'InvitacionesPremium';
 const seoTitle = `${productName} | Invitaciones digitales y control de acceso QR`;
 const seoDescription =
-  'Invitaciones digitales Flyer y Flipbook, confirmación de asistencia, mesas y control de acceso QR. Preparamos la experiencia para organizadores, planners, salones y jardines.';
+  'Invitaciones digitales Flyer y Flipbook, confirmaciones de asistencia, mesas y control de acceso QR. Preparamos la experiencia para organizadores, planners, salones y jardines.';
 
 const commercialContent = {
   brand: {

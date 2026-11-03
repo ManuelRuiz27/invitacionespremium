@@ -16,7 +16,22 @@ import { LandingIntents } from './components/LandingIntents';
 import { scrollToLandingSection } from './navigation';
 import type { CommercialOpportunityType } from '@invitaciones/api-client';
 import { Box } from '@mui/material';
-import { lazy, Suspense, useState } from 'react';
+import { lazy, memo, Suspense, useCallback, useState } from 'react';
+
+// Price and intent changes only affect their controls. Preserve the existing
+// presentations instead of rebuilding every section for each selection.
+const Sections = {
+  header: memo(LandingHeader),
+  hero: memo(LandingHero),
+  proof: memo(LandingProductProof),
+  services: memo(LandingServices),
+  howItWorks: memo(LandingHowItWorks),
+  planners: memo(LandingPlanners),
+  venue: memo(LandingVenue),
+  faq: memo(LandingFaq),
+  cta: memo(LandingCta),
+  footer: memo(LandingFooter)
+};
 
 const CommercialLeadModal = lazy(() =>
   import('./components/CommercialLeadModal').then((module) => ({ default: module.CommercialLeadModal }))
@@ -30,30 +45,33 @@ export function App() {
     initialNotes?: string;
   }>();
   const pricing = usePublicPricing();
-  const chooseIntent = () => {
+  const chooseIntent = useCallback(() => {
     scrollToLandingSection('#como-contratar');
     (
       document.querySelector<HTMLInputElement>('#como-contratar input:checked') ??
       document.querySelector<HTMLInputElement>('#intent-INDIVIDUAL')
     )?.focus({ preventScroll: true });
-  };
-  const openPlanner = () => setCommercialRequest({ opportunityType: 'PLANNER_AGENCY' });
-  const openVenue = () => setCommercialRequest({ opportunityType: 'VENUE' });
-  const openPersonalization = () =>
-    setCommercialRequest({
-      opportunityType: 'VENUE',
-      initialNotes: getLandingConfig().venue.personalization.inquiry
-    });
+  }, []);
+  const openPlanner = useCallback(() => setCommercialRequest({ opportunityType: 'PLANNER_AGENCY' }), []);
+  const openVenue = useCallback(() => setCommercialRequest({ opportunityType: 'VENUE' }), []);
+  const openPersonalization = useCallback(
+    () =>
+      setCommercialRequest({
+        opportunityType: 'VENUE',
+        initialNotes: getLandingConfig().venue.personalization.inquiry
+      }),
+    []
+  );
 
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
-      <LandingHeader onOpenCommercial={chooseIntent} />
+      <Sections.header onOpenCommercial={chooseIntent} />
       <Box component="main" id="main-content" tabIndex={-1} sx={{ flexGrow: 1, outline: 'none' }}>
-        <LandingHero />
+        <Sections.hero />
         <LandingIntents value={intent} onChange={setIntent} />
-        <LandingProductProof />
+        <Sections.proof />
 
-        <LandingServices />
+        <Sections.services />
         <LandingPricing
           state={pricing.state}
           onRetry={pricing.retry}
@@ -66,13 +84,13 @@ export function App() {
             else if (intent === 'PLANNER_AGENCY') openPlanner();
           }}
         />
-        <LandingHowItWorks />
-        <LandingPlanners onOpenCommercial={openPlanner} />
-        <LandingVenue onOpenCommercial={openVenue} onOpenPersonalization={openPersonalization} />
-        <LandingFaq />
-        <LandingCta onOpenCommercial={openPlanner} onOpenVenue={openVenue} />
+        <Sections.howItWorks />
+        <Sections.planners onOpenCommercial={openPlanner} />
+        <Sections.venue onOpenCommercial={openVenue} onOpenPersonalization={openPersonalization} />
+        <Sections.faq />
+        <Sections.cta onOpenCommercial={openPlanner} onOpenVenue={openVenue} />
       </Box>
-      <LandingFooter />
+      <Sections.footer />
 
       {commercialRequest && (
         <Suspense fallback={null}>

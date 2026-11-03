@@ -1,0 +1,109 @@
+{
+  "status": "PASS",
+  "results": [
+    {
+      "width": 360,
+      "name": "mesas",
+      "naturalWidth": 2160,
+      "naturalHeight": 1350,
+      "widthAttribute": 388,
+      "heightAttribute": 241,
+      "pictureWidth": 328,
+      "pictureHeight": 175.703125,
+      "imageWidth": 388.09375,
+      "imageHeight": 241.25,
+      "topCrop": 0.2758419689119171,
+      "leftCrop": 0.15742008213221675,
+      "overflow": "hidden"
+    },
+    {
+      "width": 360,
+      "name": "distribucion",
+      "naturalWidth": 2160,
+      "naturalHeight": 1350,
+      "widthAttribute": 388,
+      "heightAttribute": 241,
+      "pictureWidth": 328,
+      "pictureHeight": 175.703125,
+      "imageWidth": 388.09375,
+      "imageHeight": 241.25,
+      "topCrop": 0.2758419689119171,
+      "leftCrop": 0.15742008213221675,
+      "overflow": "hidden"
+    },
+    {
+      "width": 360,
+      "name": "planners",
+      "naturalWidth": 2160,
+      "naturalHeight": 1350,
+      "pictureWidth": 328,
+      "pictureHeight": 175.703125,
+      "imageRatio": 1.608678756476684,
+      "topCrop": 0.2758419689119171,
+      "leftCrop": 0.15742008213221675
+    },
+    {
+      "width": 360,
+      "name": "venues",
+      "naturalWidth": 2160,
+      "naturalHeight": 1350,
+      "pictureWidth": 295.1875,
+      "pictureHeight": 158.125,
+      "imageRatio": 1.6097139151113353,
+      "topCrop": 0.27534769762917055,
+      "leftCrop": 0.1571313456889605
+    },
+    {
+      "width": 1440,
+      "name": "mesas",
+      "naturalWidth": 2160,
+      "naturalHeight": 1350,
+      "widthAttribute": 752,
+      "heightAttribute": 469,
+      "pictureWidth": 634.0625,
+      "pictureHeight": 339.671875,
+      "imageWidth": 752.453125,
+      "imageHeight": 468.984375,
+      "topCrop": 0.27786106946526734,
+      "leftCrop": 0.15866852171023943,
+      "overflow": "hidden"
+    },
+    {
+      "width": 1440,
+      "name": "distribucion",
+      "naturalWidth": 2160,
+      "naturalHeight": 1350,
+      "widthAttribute": 752,
+      "heightAttribute": 469,
+      "pictureWidth": 634.0625,
+      "pictureHeight": 339.671875,
+      "imageWidth": 752.453125,
+      "imageHeight": 468.984375,
+      "topCrop": 0.27786106946526734,
+      "leftCrop": 0.15866852171023943,
+      "overflow": "hidden"
+    },
+    {
+      "width": 1440,
+      "name": "planners",
+      "naturalWidth": 2160,
+      "naturalHeight": 1350,
+      "pictureWidth": 544,
+      "pictureHeight": 291.421875,
+      "imageRatio": 1.605185415532924,
+      "topCrop": 0.27750136049133173,
+      "leftCrop": 0.15844533236469308
+    },
+    {
+      "width": 1440,
+      "name": "venues",
+      "naturalWidth": 2160,
+      "naturalHeight": 1350,
+      "pictureWidth": 574.78125,
+      "pictureHeight": 307.90625,
+      "imageRatio": 1.6049428119598397,
+      "topCrop": 0.2776286271192674,
+      "leftCrop": 0.1585242896425298
+    }
+  ]
+}
