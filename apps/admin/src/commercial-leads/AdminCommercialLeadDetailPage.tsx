@@ -28,7 +28,11 @@ export function AdminCommercialLeadDetailPage({ apiClient }: { apiClient: ApiCli
   const lead = query.data;
   return (
     <Stack spacing={3}>
-      <PageHeader title={lead.businessName} description="Detalle de la oportunidad comercial. Vista de solo lectura." size="operational" />
+      <PageHeader
+        title={lead.businessName}
+        description="Detalle de la oportunidad comercial. Vista de solo lectura."
+        size="operational"
+      />
       <Button component={Link} to="/oportunidades" sx={{ alignSelf: 'flex-start' }}>
         Volver a oportunidades
       </Button>

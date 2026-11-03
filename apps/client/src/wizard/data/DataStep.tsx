@@ -183,10 +183,10 @@ export function DataStep({
   return (
     <Stack spacing={2.5} sx={{ minWidth: 0 }}>
       <Box>
-        <Typography component="h2" variant="h2">
+        <Typography component="h2" variant="h3">
           Datos del Evento
         </Typography>
-        <Typography color="text.secondary" variant="body2" sx={{ mt: 1 }}>
+        <Typography color="text.secondary" variant="body2" sx={{ mt: 0.5 }}>
           Los detalles que dan forma a tu celebración.
         </Typography>
       </Box>
