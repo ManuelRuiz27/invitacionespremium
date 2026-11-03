@@ -2,8 +2,9 @@ import { useState, type ReactNode } from 'react';
 import MenuRounded from '@mui/icons-material/MenuRounded';
 import { AppBar, Box, Drawer, IconButton, Stack, Toolbar, Typography } from '@mui/material';
 import { BrandLockup } from './BrandLockup';
+import { layoutTokens } from './layoutTokens';
 
-const drawerWidth = 232;
+const drawerWidth = layoutTokens.sidebar.width; // 240 px
 
 export interface ResponsiveAppShellProps {
   brand?: ReactNode;
@@ -103,11 +104,20 @@ export function ResponsiveAppShell({ brand, navigation, userMenu, children }: Re
           minWidth: 0,
           flex: 1,
           pt: { xs: 10, md: 0 },
-          px: { xs: 2, sm: 4, lg: 5 },
+          px: layoutTokens.contentPx,
           pb: 6
         }}
       >
-        <Box sx={{ width: '100%', maxWidth: 1440, mx: 'auto', py: { xs: 2, md: 4 } }}>{children}</Box>
+        <Box
+          sx={{
+            width: '100%',
+            maxWidth: layoutTokens.content.maxWidthDashboard,
+            mx: 'auto',
+            py: layoutTokens.contentPy
+          }}
+        >
+          {children}
+        </Box>
       </Box>
     </Box>
   );

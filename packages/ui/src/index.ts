@@ -15,6 +15,7 @@ export type { EmptyStateProps, ErrorStateProps, LoadingStateProps } from './Stat
 export { BrandLockup } from './BrandLockup';
 export type { BrandLockupProps } from './BrandLockup';
 export { appTheme, designTokens } from './theme';
+export { layoutTokens } from './layoutTokens';
 export { projectAspectAwareRect, relativeRectStyles } from './visual-geometry';
 export type { RelativeVisualRect, RenderedSize } from './visual-geometry';
 export { useElementSize } from './useElementSize';

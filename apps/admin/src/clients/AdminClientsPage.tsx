@@ -34,6 +34,7 @@ export function AdminClientsPage({ apiClient }: { apiClient: ApiClient }) {
       <PageHeader
         title="Clientes"
         description="Coleccion administrativa completa expuesta por el contrato actual."
+        size="operational"
         action={
           <Button variant="contained" startIcon={<AddOutlined />} onClick={() => setCreating(true)}>
             Crear organizacion

@@ -55,6 +55,7 @@ export function AdminEventsPage({ apiClient }: { apiClient: ApiClient }) {
       <PageHeader
         title="Eventos"
         description="Vista operativa global de Eventos, provenance y responsabilidad Planner."
+        size="operational"
         action={
           <Button variant="contained" startIcon={<AddOutlined />} onClick={() => setCreating(true)}>
             Nuevo evento

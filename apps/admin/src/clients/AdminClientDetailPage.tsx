@@ -170,6 +170,7 @@ function AdminClientDetail({ apiClient, clientId }: { apiClient: ApiClient; clie
       <PageHeader
         title={data.name}
         description={`${clientTypeLabel[data.type]} · creado ${formatDate(data.createdAt)}`}
+        size="operational"
         action={
           <StatusChip label={clientStatusLabel[data.status]} tone={data.status === 'ACTIVE' ? 'success' : 'warning'} />
         }

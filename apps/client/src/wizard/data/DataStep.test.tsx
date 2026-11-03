@@ -3,6 +3,7 @@ import { AppThemeProvider } from '@invitaciones/ui';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useState } from 'react';
 import { DataStep } from './DataStep';
 import { ApiError } from '@invitaciones/api-client';
 import { configuredEvent, mockApiClient } from '../../test/fixtures';
@@ -58,12 +59,11 @@ describe('DataStep time zones', () => {
 
     expect(screen.getByText('Flyer · 5 créditos')).toBeInTheDocument();
     expect(screen.queryByText('FLYER')).not.toBeInTheDocument();
-    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Tipo de evento' }));
-    expect(await screen.findByRole('option', { name: 'Boda' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'XV años' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Corporativo' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Cumpleaños' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Otro' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Boda' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'XV años' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Corporativo' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cumpleaños' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Otro' })).toBeInTheDocument();
     expect(screen.queryByText('WEDDING')).not.toBeInTheDocument();
     expect(screen.queryByText('Zona horaria IANA')).not.toBeInTheDocument();
   });
@@ -71,7 +71,8 @@ describe('DataStep time zones', () => {
   it('submits zone and instant atomically and preserves the wall clock after an authoritative reload', async () => {
     const onChange = vi.fn();
     const rendered = view(draft('2026-01-15T23:30:00.000Z'), onChange);
-    expect(screen.getByLabelText('Fecha y hora')).toHaveValue('2026-01-15T18:30');
+    expect(screen.getByRole('button', { name: '15 de enero de 2026' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Hora de inicio')).toHaveValue('18:30');
     await chooseZone('America/Tijuana');
     fireEvent.click(screen.getByRole('button', { name: 'Cambiar zona' }));
     expect(onChange).toHaveBeenCalledTimes(1);
@@ -79,6 +80,7 @@ describe('DataStep time zones', () => {
       timeZone: 'America/Tijuana',
       eventDateTime: '2026-01-16T02:30:00.000Z'
     });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 
     rendered.rerender(
       <AppThemeProvider>
@@ -90,7 +92,8 @@ describe('DataStep time zones', () => {
         />
       </AppThemeProvider>
     );
-    expect(screen.getByLabelText('Fecha y hora')).toHaveValue('2026-01-15T18:30');
+    expect(screen.getByRole('button', { name: '15 de enero de 2026' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Hora de inicio')).toHaveValue('18:30');
   });
 
   it.each([
@@ -99,7 +102,15 @@ describe('DataStep time zones', () => {
   ])('keeps the dialog open and the draft unchanged for %s', async (wallClock, message) => {
     const onChange = vi.fn();
     view(draft('2026-01-15T23:30:00.000Z'), onChange);
-    fireEvent.change(screen.getByLabelText('Fecha y hora'), { target: { value: wallClock } });
+    fireEvent.click(screen.getByRole('button', { name: '15 de enero de 2026' }));
+    const targetMonth = Number(wallClock.slice(5, 7));
+    for (let month = 1; month < targetMonth; month++)
+      fireEvent.click(screen.getByRole('button', { name: 'Mes siguiente' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: new RegExp(`, ${Number(wallClock.slice(8, 10))} de .* de 2026$`) })
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText('Hora de inicio'), { target: { value: wallClock.slice(11) } });
     onChange.mockClear();
     await chooseZone('America/Tijuana');
     fireEvent.click(screen.getByRole('button', { name: 'Cambiar zona' }));
@@ -115,6 +126,55 @@ describe('DataStep time zones', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
     expect(onChange).not.toHaveBeenCalled();
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('adopts an authoritative zone change even when the instant is unchanged', () => {
+    const { rerender } = view(draft('2026-01-15T23:30:00.000Z'));
+    rerender(
+      <AppThemeProvider>
+        <DataStep
+          services={services}
+          draft={draft('2026-01-15T23:30:00.000Z', 'America/Tijuana')}
+          disabled={false}
+          onChange={vi.fn()}
+        />
+      </AppThemeProvider>
+    );
+    expect(screen.getByLabelText('Hora de inicio')).toHaveValue('15:30');
+  });
+
+  it('changes the zone atomically for a selected day without inventing a start time', async () => {
+    const onChange = vi.fn();
+    function Controlled() {
+      const [value, setValue] = useState({
+        ...draft('2026-01-15T23:30:00.000Z'),
+        eventDateTime: null
+      } as UpdateEventInput);
+      return (
+        <AppThemeProvider>
+          <DataStep
+            services={services}
+            draft={value}
+            disabled={false}
+            onChange={(patch) => {
+              onChange(patch);
+              setValue((current) => ({ ...current, ...patch }));
+            }}
+          />
+        </AppThemeProvider>
+      );
+    }
+    render(<Controlled />);
+    fireEvent.click(screen.getByRole('button', { name: 'Elegir fecha del evento' }));
+    fireEvent.click(
+      screen.getAllByRole('button').find((button) => /, 15 de /.test(button.getAttribute('aria-label') ?? ''))!
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await chooseZone('America/Tijuana');
+    fireEvent.click(screen.getByRole('button', { name: 'Cambiar zona' }));
+    expect(onChange).toHaveBeenCalledWith({ timeZone: 'America/Tijuana', eventDateTime: null });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByText('Elige la hora de inicio para completar la fecha.')).toBeInTheDocument();
   });
 });
 

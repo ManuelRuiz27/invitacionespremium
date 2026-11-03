@@ -7,6 +7,10 @@ import {
 } from '@invitaciones/api-client';
 import {
   Alert,
+  Box,
+  ToggleButton,
+  ToggleButtonGroup,
+  useMediaQuery,
   Button,
   Dialog,
   DialogActions,
@@ -17,7 +21,22 @@ import {
   TextField,
   Typography
 } from '@mui/material';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import CelebrationOutlined from '@mui/icons-material/CelebrationOutlined';
+import FavoriteBorder from '@mui/icons-material/FavoriteBorder';
+import CakeOutlined from '@mui/icons-material/CakeOutlined';
+import BusinessCenterOutlined from '@mui/icons-material/BusinessCenterOutlined';
+import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
+import CalendarMonthOutlined from '@mui/icons-material/CalendarMonthOutlined';
+import LocationOnOutlined from '@mui/icons-material/LocationOnOutlined';
+import CardGiftcardOutlined from '@mui/icons-material/CardGiftcardOutlined';
+import OpenInNew from '@mui/icons-material/OpenInNew';
+import Add from '@mui/icons-material/Add';
+import { DataBlock } from './DataBlock';
+import { EventCalendar } from './EventCalendar';
+import { EventCountdown } from './EventCountdown';
+import { giftProvider, mapEmbedHref, previewHref } from './event-link-preview';
+import type { SaveState } from '../wizard-model';
 import { priceRuleForCapacity, serviceLabels, socialTypeLabels } from '../../shared/formatters';
 import { instantToWallClock, supportedTimeZones, wallClockToInstant } from './timezone';
 import { errorMessage } from '../../shared/client-utils';
@@ -30,7 +49,9 @@ export function DataStep({
   onChange,
   apiClient,
   event,
+  confirmedDraft,
   fieldErrors = {},
+  saveState = 'idle',
   onResetInvitationDesign
 }: {
   services: AvailableService[];
@@ -39,12 +60,20 @@ export function DataStep({
   onChange: (patch: Partial<UpdateEventInput>) => void;
   apiClient?: ApiClient;
   event?: Event | undefined;
+  confirmedDraft?: UpdateEventInput | undefined;
   fieldErrors?: EventFieldErrors;
+  saveState?: SaveState;
   onResetInvitationDesign?: (serviceId: string) => Promise<void>;
 }) {
   const zones = useMemo(supportedTimeZones, []);
+  const desktop = useMediaQuery('(min-width:900px)');
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [giftEditing, setGiftEditing] = useState(false);
+  const [mapLoaded, setMapLoaded] = useState<string>();
   const zone = draft.timeZone ?? 'America/Mexico_City';
   const [wallClock, setWallClock] = useState(() => instantToWallClock(draft.eventDateTime, zone));
+  const localInstant = useRef(draft.eventDateTime);
+  const localZone = useRef(zone);
   const [dateError, setDateError] = useState<string>();
   const [pendingZone, setPendingZone] = useState<string>();
   const [editingWallClock, setEditingWallClock] = useState(false);
@@ -53,22 +82,73 @@ export function DataStep({
   const [serviceBusy, setServiceBusy] = useState(false);
   const [serviceError, setServiceError] = useState<string>();
   useEffect(() => {
-    if (!editingWallClock && !pendingZone) setWallClock(instantToWallClock(draft.eventDateTime, zone));
+    if (
+      !editingWallClock &&
+      !pendingZone &&
+      (draft.eventDateTime !== localInstant.current || zone !== localZone.current)
+    ) {
+      setWallClock(instantToWallClock(draft.eventDateTime, zone));
+      localInstant.current = draft.eventDateTime;
+      localZone.current = zone;
+      setDateError(undefined);
+    }
   }, [draft.eventDateTime, editingWallClock, pendingZone, zone]);
   const commitDate = (value: string, targetZone = zone) => {
     setWallClock(value);
     if (!value) {
       setDateError(undefined);
+      localInstant.current = null;
       onChange({ eventDateTime: null });
       return;
     }
     try {
-      onChange({ eventDateTime: wallClockToInstant(value, targetZone) });
+      const eventDateTime = wallClockToInstant(value, targetZone);
+      localInstant.current = eventDateTime;
+      onChange({ eventDateTime });
       setDateError(undefined);
     } catch (error) {
       setDateError(error instanceof Error ? error.message : 'Fecha inválida.');
     }
   };
+  const selectedDate = wallClock.split('T')[0] ?? '';
+  const selectedTime = wallClock.split('T')[1] ?? '';
+  const today = instantToWallClock(new Date().toISOString(), zone).slice(0, 10);
+  const chooseDateTime = (date: string, time: string) => {
+    if (date && time) commitDate(`${date}T${time}`);
+    else {
+      setWallClock(`${date}T${time}`);
+      setDateError(undefined);
+      if (draft.eventDateTime) {
+        localInstant.current = null;
+        onChange({ eventDateTime: null });
+      }
+    }
+  };
+  const locationHref = fieldErrors.locationUrl ? null : previewHref(draft.locationUrl);
+  const giftHref = fieldErrors.giftRegistryUrl ? null : previewHref(draft.giftRegistryUrl);
+  const locationError =
+    fieldErrors.locationUrl ??
+    (draft.locationUrl && !locationHref
+      ? 'Revisa el enlace de ubicación. Pega un enlace web seguro y completo.'
+      : undefined);
+  const giftError =
+    fieldErrors.giftRegistryUrl ??
+    (draft.giftRegistryUrl && !giftHref
+      ? 'Revisa el enlace de la mesa de regalos. Pega un enlace web seguro y completo.'
+      : undefined);
+  const mapHref = mapEmbedHref(locationHref, import.meta.env.VITE_GOOGLE_MAPS_EMBED_API_KEY);
+  const blockProps = { draft, event, confirmedDraft, saveState };
+  const calendar = (
+    <EventCalendar
+      value={selectedDate}
+      today={today}
+      disabled={disabled}
+      onChange={(date) => {
+        chooseDateTime(date, selectedTime);
+        setCalendarOpen(false);
+      }}
+    />
+  );
   const chooseService = async (serviceId: string) => {
     const current = services.find((service) => service.id === draft.serviceId);
     const target = services.find((service) => service.id === serviceId);
@@ -101,130 +181,375 @@ export function DataStep({
     }
   };
   return (
-    <Stack spacing={2}>
-      <Typography component="h2" variant="h3">
-        Datos del Evento
-      </Typography>
-      <TextField
-        select
-        required
-        label="Servicio"
-        error={Boolean(fieldErrors.serviceId)}
-        helperText={fieldErrors.serviceId}
-        value={draft.serviceId ?? ''}
-        disabled={disabled || serviceBusy}
-        onChange={(e) => void chooseService(e.target.value)}
-      >
-        {services.map((service) => {
-          const price = priceRuleForCapacity(service, draft.capacity);
-          return (
-            <MenuItem key={service.id} value={service.id}>
-              {serviceLabels[service.code]} · {price ? `${price.credits} créditos` : 'precio según capacidad'}
-            </MenuItem>
-          );
-        })}
-      </TextField>
-      {serviceError ? (
-        <Alert
-          severity="error"
-          action={
-            failedServiceId ? (
-              <Button color="inherit" disabled={serviceBusy} onClick={() => void chooseService(failedServiceId)}>
-                Reintentar
-              </Button>
-            ) : undefined
-          }
-        >
-          No pudimos verificar el diseño actual. Inténtalo nuevamente antes de cambiar de servicio.
-        </Alert>
-      ) : null}
-      <TextField
-        label="Nombre del evento"
-        error={Boolean(fieldErrors.name)}
-        helperText={fieldErrors.name ?? 'Ej. Boda de Ana y Carlos'}
-        value={draft.name ?? ''}
-        disabled={disabled}
-        onChange={(e) => onChange({ name: e.target.value || null })}
-      />
-      <TextField
-        select
-        label="Tipo de evento"
-        error={Boolean(fieldErrors.socialType)}
-        helperText={fieldErrors.socialType}
-        value={draft.socialType ?? ''}
-        disabled={disabled}
-        onChange={(e) =>
-          onChange({
-            socialType: (e.target.value || null) as NonNullable<UpdateEventInput['socialType']> | null
-          })
+    <Stack spacing={2.5} sx={{ minWidth: 0 }}>
+      <Box>
+        <Typography component="h2" variant="h2">
+          Datos del Evento
+        </Typography>
+        <Typography color="text.secondary" variant="body2" sx={{ mt: 1 }}>
+          Los detalles que dan forma a tu celebración.
+        </Typography>
+      </Box>
+      <DataBlock
+        {...blockProps}
+        id="celebration"
+        title="Tu celebración"
+        icon={<CelebrationOutlined />}
+        fields={['name', 'socialType', 'serviceId', 'capacity']}
+        inlineError={!serviceError}
+        error={
+          fieldErrors.name ?? fieldErrors.socialType ?? fieldErrors.serviceId ?? fieldErrors.capacity ?? serviceError
         }
       >
-        <MenuItem value="">Sin definir</MenuItem>
-        {['WEDDING', 'QUINCEANERA', 'CORPORATE', 'BIRTHDAY', 'OTHER'].map((value) => (
-          <MenuItem key={value} value={value}>
-            {socialTypeLabels[value as NonNullable<UpdateEventInput['socialType']>]}
-          </MenuItem>
-        ))}
-      </TextField>
-      <TextField
-        type="datetime-local"
-        label="Fecha y hora"
-        value={wallClock}
-        disabled={disabled}
-        error={Boolean(dateError ?? fieldErrors.eventDateTime)}
-        helperText={dateError ?? fieldErrors.eventDateTime ?? `Hora local de ${timeZoneLabel(zone)}`}
-        slotProps={{ inputLabel: { shrink: true } }}
-        onFocus={() => setEditingWallClock(true)}
-        onBlur={() => setEditingWallClock(false)}
-        onChange={(e) => commitDate(e.target.value)}
-      />
-      <TextField
-        select
-        label="Zona horaria"
-        error={Boolean(fieldErrors.timeZone)}
-        helperText={fieldErrors.timeZone}
-        value={zone}
-        disabled={disabled}
-        onChange={(e) => setPendingZone(e.target.value)}
+        <Stack spacing={2.5}>
+          <TextField
+            fullWidth
+            label="Nombre del evento"
+            error={Boolean(fieldErrors.name)}
+            helperText={fieldErrors.name}
+            placeholder="Ej. Boda de Ana y Carlos"
+            value={draft.name ?? ''}
+            disabled={disabled}
+            onChange={(e) => onChange({ name: e.target.value || null })}
+            sx={{ '& input': { fontSize: { xs: '1.15rem', sm: '1.5rem' }, fontFamily: 'h2.fontFamily' } }}
+          />
+          <Box>
+            <Typography id="celebration-type" variant="body2" sx={{ mb: 1 }}>
+              Tipo de celebración
+            </Typography>
+            <ToggleButtonGroup
+              exclusive
+              aria-labelledby="celebration-type"
+              value={draft.socialType ?? ''}
+              disabled={disabled}
+              onChange={(_, value: UpdateEventInput['socialType']) => onChange({ socialType: value || null })}
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: 'repeat(2,minmax(0,1fr))', sm: 'repeat(5,minmax(0,1fr))' },
+                gap: 1,
+                '& .MuiToggleButtonGroup-grouped': {
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: '8px !important',
+                  m: 0,
+                  minHeight: 72,
+                  px: 1,
+                  flexDirection: 'column',
+                  gap: 0.75,
+                  color: 'text.secondary',
+                  '&.Mui-selected': { bgcolor: 'action.selected', borderColor: 'text.primary', color: 'text.primary' }
+                }
+              }}
+            >
+              {celebrationTypes.map(([value, Icon]) => (
+                <ToggleButton key={value} value={value} aria-label={socialTypeLabels[value]}>
+                  <Icon fontSize="small" />
+                  <Typography variant="caption">{socialTypeLabels[value]}</Typography>
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
+            {fieldErrors.socialType ? (
+              <Typography variant="body2" color="error">
+                {fieldErrors.socialType}
+              </Typography>
+            ) : null}
+          </Box>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'minmax(0,1fr) minmax(0,1fr)' }, gap: 2 }}>
+            <TextField
+              fullWidth
+              select
+              required
+              label="Servicio"
+              error={Boolean(fieldErrors.serviceId)}
+              helperText={fieldErrors.serviceId}
+              value={draft.serviceId ?? ''}
+              disabled={disabled || serviceBusy}
+              onChange={(e) => void chooseService(e.target.value)}
+            >
+              {services.map((service) => {
+                const price = priceRuleForCapacity(service, draft.capacity);
+                return (
+                  <MenuItem key={service.id} value={service.id}>
+                    {serviceLabels[service.code]} · {price ? `${price.credits} créditos` : 'precio según capacidad'}
+                  </MenuItem>
+                );
+              })}
+            </TextField>
+            <TextField
+              fullWidth
+              type="number"
+              label="Cantidad de invitados"
+              name="capacity"
+              error={Boolean(fieldErrors.capacity)}
+              helperText={fieldErrors.capacity}
+              value={draft.capacity ?? ''}
+              disabled={disabled}
+              slotProps={{ htmlInput: { min: 1 } }}
+              onChange={(e) => onChange({ capacity: e.target.value ? Number(e.target.value) : null })}
+            />
+          </Box>
+          {serviceError && failedServiceId ? (
+            <Button
+              sx={{ alignSelf: 'flex-start' }}
+              disabled={serviceBusy}
+              onClick={() => void chooseService(failedServiceId)}
+            >
+              Reintentar
+            </Button>
+          ) : null}
+          {serviceError && failedServiceId ? (
+            <Typography variant="body2" color="error">
+              No pudimos verificar el diseño actual. Inténtalo nuevamente antes de cambiar de servicio.
+            </Typography>
+          ) : null}
+        </Stack>
+      </DataBlock>
+      <DataBlock
+        {...blockProps}
+        id="event-date"
+        title="Fecha y hora del evento"
+        icon={<CalendarMonthOutlined />}
+        fields={['eventDateTime', 'timeZone']}
+        error={dateError ?? fieldErrors.eventDateTime ?? fieldErrors.timeZone}
       >
-        {zones.map((item) => (
-          <MenuItem key={item} value={item}>
-            {timeZoneLabel(item)}
-          </MenuItem>
-        ))}
-      </TextField>
-      <TextField
-        type="number"
-        label="Capacidad"
-        name="capacity"
-        error={Boolean(fieldErrors.capacity)}
-        helperText={fieldErrors.capacity}
-        value={draft.capacity ?? ''}
-        disabled={disabled}
-        slotProps={{ htmlInput: { min: 1 } }}
-        onChange={(e) => onChange({ capacity: e.target.value ? Number(e.target.value) : null })}
-      />
-      <TextField
-        type="url"
-        label="Ubicación"
-        name="locationUrl"
-        error={Boolean(fieldErrors.locationUrl)}
-        helperText={fieldErrors.locationUrl ?? 'Pega el enlace de Google Maps o la ubicación del evento.'}
-        value={draft.locationUrl ?? ''}
-        disabled={disabled}
-        onChange={(e) => onChange({ locationUrl: e.target.value || null })}
-      />
-      <TextField
-        type="url"
-        label="Mesa de regalos"
-        name="giftRegistryUrl"
-        error={Boolean(fieldErrors.giftRegistryUrl)}
-        helperText={fieldErrors.giftRegistryUrl ?? 'Pega el enlace de la mesa de regalos.'}
-        value={draft.giftRegistryUrl ?? ''}
-        disabled={disabled}
-        onChange={(e) => onChange({ giftRegistryUrl: e.target.value || null })}
-      />
-      {dateError ? <Alert severity="error">{dateError}</Alert> : null}
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: 'minmax(0,1fr)', lg: 'minmax(0,1fr) minmax(0,.9fr)' },
+            gap: { xs: 2.5, md: 4 },
+            alignItems: 'start'
+          }}
+        >
+          {desktop ? (
+            calendar
+          ) : (
+            <Button
+              variant="outlined"
+              startIcon={<CalendarMonthOutlined />}
+              disabled={disabled}
+              onClick={() => setCalendarOpen(true)}
+              sx={{ minHeight: 60, justifyContent: 'flex-start', textAlign: 'left' }}
+            >
+              {selectedDate ? dateSummary(selectedDate) : 'Elegir fecha del evento'}
+            </Button>
+          )}
+          <Box sx={{ minWidth: 0, pt: { md: 1 } }}>
+            <Typography variant="h3" sx={{ mb: 2, display: { xs: 'none', md: 'block' } }}>
+              {selectedDate ? dateSummary(selectedDate) : 'Elige el gran día'}
+            </Typography>
+            <Stack spacing={2}>
+              <TextField
+                fullWidth
+                type="time"
+                label="Hora de inicio"
+                value={selectedTime}
+                disabled={disabled}
+                error={Boolean(dateError ?? fieldErrors.eventDateTime)}
+                slotProps={{ inputLabel: { shrink: true } }}
+                onFocus={() => setEditingWallClock(true)}
+                onBlur={() => setEditingWallClock(false)}
+                onChange={(e) => chooseDateTime(selectedDate, e.target.value)}
+              />
+              <TextField
+                fullWidth
+                select
+                label="Zona horaria"
+                error={Boolean(fieldErrors.timeZone)}
+                helperText={fieldErrors.timeZone}
+                value={zone}
+                disabled={disabled}
+                onChange={(e) => setPendingZone(e.target.value)}
+              >
+                {[...new Set([zone, ...zones])].map((item) => (
+                  <MenuItem key={item} value={item}>
+                    {timeZoneLabel(item)}
+                  </MenuItem>
+                ))}
+              </TextField>
+              {selectedDate && !selectedTime ? (
+                <Typography variant="body2" color="text.secondary">
+                  Elige la hora de inicio para completar la fecha.
+                </Typography>
+              ) : null}
+              {wallClock ? (
+                <Button
+                  size="small"
+                  sx={{ alignSelf: 'flex-start' }}
+                  disabled={disabled}
+                  onClick={() => commitDate('')}
+                >
+                  Quitar fecha y hora
+                </Button>
+              ) : null}
+            </Stack>
+            <EventCountdown target={draft.eventDateTime} zone={zone} />
+          </Box>
+        </Box>
+      </DataBlock>
+      <Box
+        sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0,1fr)', md: 'repeat(2,minmax(0,1fr))' }, gap: 2.5 }}
+      >
+        <DataBlock
+          {...blockProps}
+          id="event-location"
+          title="Lugar del evento"
+          icon={<LocationOnOutlined />}
+          fields={['locationUrl']}
+          inlineError
+          error={locationError}
+        >
+          <Stack spacing={2}>
+            {mapHref && mapLoaded === mapHref ? (
+              <Box
+                component="iframe"
+                title="Mapa de la ubicación del evento"
+                src={mapHref}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                allowFullScreen
+                sx={{ width: '100%', height: 220, minWidth: 200, border: 0, borderRadius: 1 }}
+              />
+            ) : (
+              <Box
+                sx={{
+                  minHeight: 168,
+                  bgcolor: 'background.default',
+                  borderRadius: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  gap: 1,
+                  p: 2,
+                  textAlign: 'center'
+                }}
+              >
+                <LocationOnOutlined sx={{ fontSize: 36, color: 'text.secondary' }} />
+                <Typography variant="body2">
+                  {locationHref ? 'El lugar de tu celebración' : '¿Dónde será la celebración?'}
+                </Typography>
+                {mapHref ? (
+                  <Button size="small" onClick={() => setMapLoaded(mapHref)}>
+                    Ver mapa interactivo
+                  </Button>
+                ) : (
+                  <Typography variant="caption" color="text.secondary">
+                    {locationHref
+                      ? 'Consulta la ubicación desde su enlace.'
+                      : 'Agrega el enlace para que sea fácil llegar.'}
+                  </Typography>
+                )}
+              </Box>
+            )}
+            <TextField
+              fullWidth
+              type="url"
+              label="Ubicación"
+              name="locationUrl"
+              error={Boolean(locationError)}
+              helperText={locationError ?? 'Pega el enlace de Google Maps o del lugar.'}
+              value={draft.locationUrl ?? ''}
+              disabled={disabled}
+              onChange={(e) => onChange({ locationUrl: e.target.value || null })}
+            />
+            {locationHref ? (
+              <Button
+                href={locationHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                endIcon={<OpenInNew fontSize="small" />}
+                sx={{ alignSelf: 'flex-start' }}
+              >
+                Abrir ubicación
+              </Button>
+            ) : null}
+          </Stack>
+        </DataBlock>
+        <DataBlock
+          {...blockProps}
+          id="event-gifts"
+          title="Mesa de regalos"
+          icon={<CardGiftcardOutlined />}
+          fields={['giftRegistryUrl']}
+          inlineError
+          error={giftError}
+        >
+          <Stack spacing={2} sx={{ alignItems: 'flex-start' }}>
+            <Box
+              sx={{
+                width: 64,
+                height: 64,
+                borderRadius: '50%',
+                bgcolor: 'background.default',
+                display: 'grid',
+                placeItems: 'center'
+              }}
+            >
+              <CardGiftcardOutlined sx={{ fontSize: 32, color: 'text.secondary' }} />
+            </Box>
+            {giftEditing || giftError ? (
+              <>
+                <TextField
+                  autoFocus
+                  fullWidth
+                  type="url"
+                  label="Mesa de regalos"
+                  name="giftRegistryUrl"
+                  error={Boolean(giftError)}
+                  helperText={giftError ?? 'Pega el enlace de tu mesa de regalos.'}
+                  value={draft.giftRegistryUrl ?? ''}
+                  disabled={disabled}
+                  onChange={(e) => onChange({ giftRegistryUrl: e.target.value || null })}
+                />
+                <Button disabled={!giftHref} onClick={() => setGiftEditing(false)}>
+                  Ver tarjeta
+                </Button>
+              </>
+            ) : giftHref ? (
+              <>
+                <Typography variant="h3">{giftProvider(giftHref)}</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
+                  {new URL(giftHref).hostname}
+                </Typography>
+                <Button
+                  href={giftHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  endIcon={<OpenInNew fontSize="small" />}
+                >
+                  Abrir mesa de regalos
+                </Button>
+                <Button disabled={disabled} onClick={() => setGiftEditing(true)}>
+                  Editar
+                </Button>
+              </>
+            ) : (
+              <>
+                <Typography variant="body2" color="text.secondary">
+                  Comparte un lugar para encontrar el regalo ideal.
+                </Typography>
+                <Button variant="outlined" startIcon={<Add />} disabled={disabled} onClick={() => setGiftEditing(true)}>
+                  Agregar mesa de regalos
+                </Button>
+              </>
+            )}
+          </Stack>
+        </DataBlock>
+      </Box>
+      <Dialog
+        open={!desktop && calendarOpen}
+        onClose={() => setCalendarOpen(false)}
+        aria-labelledby="calendar-title"
+        fullWidth
+        maxWidth="xs"
+        slotProps={{ paper: { sx: { m: 0.5, width: 'calc(100% - 8px)' } } }}
+      >
+        <DialogTitle id="calendar-title">Elegir fecha del evento</DialogTitle>
+        <DialogContent sx={{ px: 0 }}>{calendar}</DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCalendarOpen(false)}>Cerrar calendario</Button>
+        </DialogActions>
+      </Dialog>
       <Dialog open={Boolean(pendingZone)} onClose={() => setPendingZone(undefined)} aria-labelledby="zone-title">
         <DialogTitle id="zone-title">Cambiar zona horaria</DialogTitle>
         <DialogContent>
@@ -239,7 +564,9 @@ export function DataStep({
               const next = pendingZone;
               if (!next) return;
               try {
-                const eventDateTime = wallClock ? wallClockToInstant(wallClock, next) : null;
+                const eventDateTime = selectedDate && selectedTime ? wallClockToInstant(wallClock, next) : null;
+                localInstant.current = eventDateTime;
+                localZone.current = next;
                 onChange({ timeZone: next, eventDateTime });
                 setDateError(undefined);
                 setPendingZone(undefined);
@@ -304,4 +631,18 @@ const knownTimeZones: Record<string, string> = {
 
 function timeZoneLabel(value: string): string {
   return knownTimeZones[value] ?? value.split('/').at(-1)?.replaceAll('_', ' ') ?? value;
+}
+
+const celebrationTypes = [
+  ['WEDDING', FavoriteBorder],
+  ['QUINCEANERA', AutoAwesomeOutlined],
+  ['CORPORATE', BusinessCenterOutlined],
+  ['BIRTHDAY', CakeOutlined],
+  ['OTHER', CelebrationOutlined]
+] as const;
+
+function dateSummary(value: string) {
+  return new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
+    new Date(`${value}T12:00:00Z`)
+  );
 }

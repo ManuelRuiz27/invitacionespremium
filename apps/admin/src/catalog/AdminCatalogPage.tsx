@@ -107,6 +107,7 @@ export function AdminCatalogPage({ apiClient }: { apiClient: ApiClient }) {
       <PageHeader
         title="Catálogo"
         description="Servicios, tarifas por Evento, planes gestionados e historial comercial."
+        size="operational"
       />
       {notice ? (
         <Alert severity="success" onClose={() => setNotice('')}>

@@ -52,9 +52,25 @@ export function WizardLayout({
       <PageHeader
         title={event ? (event.name ?? 'Configurar Evento') : 'Nuevo Evento'}
         description="Completa los pasos para dejar tu evento listo para activar."
+        size="operational"
       />
       <Stack spacing={2.5}>
-        <Paper variant="outlined" sx={{ p: { xs: 1.5, md: 2.5 } }}>
+        <Paper
+          variant="outlined"
+          sx={
+            selectedStep === 'datos'
+              ? {
+                  py: 1,
+                  border: 0,
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                  bgcolor: 'transparent',
+                  boxShadow: 'none',
+                  borderRadius: 0
+                }
+              : { p: { xs: 1.5, md: 2.5 } }
+          }
+        >
           <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="body2" aria-live="polite">
               {saveLabel[saveState]}
@@ -100,7 +116,7 @@ export function WizardLayout({
           component="section"
           variant="outlined"
           sx={
-            selectedStep === 'croquis'
+            selectedStep === 'croquis' || selectedStep === 'datos'
               ? { p: 0, border: 0, bgcolor: 'transparent', boxShadow: 'none' }
               : { p: { xs: 2, md: 3 } }
           }

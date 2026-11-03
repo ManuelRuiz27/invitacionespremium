@@ -30,7 +30,11 @@ export function AdminReportsPage({ apiClient }: { apiClient: ApiClient }) {
   const [tab, setTab] = useState(0);
   return (
     <Stack spacing={3}>
-      <PageHeader title="Reportes" description="Metadata global y cortes derivados de fuentes autoritativas." />
+      <PageHeader
+        title="Reportes"
+        description="Metadata global y cortes derivados de fuentes autoritativas."
+        size="operational"
+      />
       <Paper variant="outlined">
         <Tabs value={tab} onChange={(_, value: number) => setTab(value)} aria-label="Secciones de reportes">
           <Tab label="Metadata" />
@@ -54,7 +58,11 @@ export function AdminEventReportsPage({ apiClient, eventId }: { apiClient: ApiCl
   });
   return (
     <Stack spacing={3}>
-      <PageHeader title="Reportes del Evento" description={`Metadata administrativa del Evento ${eventId}.`} />
+      <PageHeader
+        title="Reportes del Evento"
+        description={`Metadata administrativa del Evento ${eventId}.`}
+        size="operational"
+      />
       <Button component={Link} to={`/eventos/${encodeURIComponent(eventId)}`} sx={{ alignSelf: 'flex-start' }}>
         Ver detalle del Evento
       </Button>

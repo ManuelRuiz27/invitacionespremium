@@ -114,7 +114,7 @@ export function ScannerWelcomePage() {
                   fullWidth
                   endIcon={<ArrowForwardRounded />}
                   onClick={() => handleStart()}
-                  sx={{ minHeight: 46 }}
+                  sx={{ minHeight: 48 }}
                 >
                   Acceder a la sesión
                 </Button>

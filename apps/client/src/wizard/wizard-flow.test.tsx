@@ -34,6 +34,26 @@ const deferred = <T,>() => {
 };
 
 describe('integrated Event wizard flows', () => {
+  it('confirms the exact accepted payload after server URL normalization and keeps newer edits pending', async () => {
+    const api = mockApiClient();
+    vi.mocked(api.events.get).mockResolvedValue({ ...configuredEvent, serviceId: 'service-flyer' });
+    const accepted = deferred<Event>();
+    vi.mocked(api.events.update)
+      .mockReturnValueOnce(accepted.promise)
+      .mockImplementation(
+        async (_, input) => ({ ...configuredEvent, ...input, locationUrl: `${input.locationUrl}/` }) as Event
+      );
+    renderApp(api, `/eventos/${configuredEvent.id}/configuracion/datos`);
+    fireEvent.change(await screen.findByLabelText('Ubicación'), { target: { value: 'https://venue.example' } });
+    await waitFor(() => expect(api.events.update).toHaveBeenCalledTimes(1));
+    fireEvent.change(screen.getByLabelText('Ubicación'), { target: { value: 'https://other.example' } });
+    accepted.resolve({ ...configuredEvent, serviceId: 'service-flyer', locationUrl: 'https://venue.example/' });
+    expect(screen.getByRole('region', { name: 'Lugar del evento' })).toHaveAttribute('data-validation', 'editing');
+    await waitFor(() =>
+      expect(screen.getByRole('region', { name: 'Lugar del evento' })).toHaveAttribute('data-validation', 'confirmed')
+    );
+    expect(screen.getByLabelText('Ubicación')).toHaveValue('https://other.example');
+  });
   it('marks rejected fields, preserves the draft, and allows correcting and resubmitting creation', async () => {
     const api = mockApiClient();
     vi.mocked(api.events.create)
@@ -43,16 +63,16 @@ describe('integrated Event wizard flows', () => {
       .mockResolvedValueOnce(configuredEvent);
     renderApp(api, '/eventos/nuevo');
     await userEvent.type(await screen.findByLabelText('Nombre del evento'), 'Evento conservado');
-    fireEvent.change(screen.getByLabelText('Capacidad'), { target: { value: '-1' } });
+    fireEvent.change(screen.getByLabelText('Cantidad de invitados'), { target: { value: '-1' } });
     fireEvent.change(screen.getByLabelText('Ubicación'), { target: { value: 'enlace incorrecto' } });
     await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
     expect(await screen.findByText('Escribe una capacidad válida en número entero, mayor que cero.')).toBeVisible();
-    expect(screen.getByLabelText('Capacidad')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText('Cantidad de invitados')).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByLabelText('Ubicación')).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByLabelText('Nombre del evento')).toHaveValue('Evento conservado');
-    fireEvent.change(screen.getByLabelText('Capacidad'), { target: { value: '100' } });
+    fireEvent.change(screen.getByLabelText('Cantidad de invitados'), { target: { value: '100' } });
     fireEvent.change(screen.getByLabelText('Ubicación'), { target: { value: 'https://example.com/location' } });
-    expect(screen.getByLabelText('Capacidad')).toHaveAttribute('aria-invalid', 'false');
+    expect(screen.getByLabelText('Cantidad de invitados')).toHaveAttribute('aria-invalid', 'false');
     await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
     await waitFor(() => expect(api.events.create).toHaveBeenCalledTimes(2));
     expect(api.events.create).toHaveBeenLastCalledWith(
@@ -243,8 +263,11 @@ describe('integrated Event wizard flows', () => {
       timeZone: 'America/Cancun'
     });
     renderApp(api, `/eventos/${configuredEvent.id}/configuracion/datos`);
-    const date = await screen.findByLabelText('Fecha y hora');
-    fireEvent.change(date, { target: { value: '2026-01-15T18:30' } });
+    fireEvent.click(await screen.findByRole('button', { name: '31 de diciembre de 2025' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mes siguiente' }));
+    fireEvent.click(screen.getByRole('button', { name: /jueves, 15 de enero de 2026/ }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText('Hora de inicio'), { target: { value: '18:30' } });
     fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Zona horaria' }));
     fireEvent.click(await screen.findByRole('option', { name: 'Tijuana' }));
     fireEvent.click(screen.getByRole('button', { name: 'Cambiar zona' }));

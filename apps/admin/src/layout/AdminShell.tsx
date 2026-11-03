@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Box, Drawer } from '@mui/material';
-import { BrandLockup } from '@invitaciones/ui';
+import { BrandLockup, layoutTokens } from '@invitaciones/ui';
 import { Outlet } from 'react-router-dom';
 import { AdminHeader } from './AdminHeader';
 import { AdminNavigation } from './AdminNavigation';
 
-const drawerWidth = 256;
+const drawerWidth = layoutTokens.sidebar.width; // 240 px — alineado con ResponsiveAppShell
 
 function NavigationBrand() {
   return (
@@ -70,7 +70,10 @@ export function AdminShell() {
       </Drawer>
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <AdminHeader onOpenNavigation={() => setMobileOpen(true)} />
-        <Box component="main" sx={{ p: { xs: 2.5, sm: 4, lg: 5 }, maxWidth: 1480, mx: 'auto' }}>
+        <Box
+          component="main"
+          sx={{ p: layoutTokens.contentPx, maxWidth: layoutTokens.content.maxWidthDashboard, mx: 'auto' }}
+        >
           <Outlet />
         </Box>
       </Box>

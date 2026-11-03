@@ -52,6 +52,7 @@ export function AdminCommercialLeadsPage({ apiClient }: { apiClient: ApiClient }
       <PageHeader
         title="Oportunidades"
         description="Solicitudes comerciales recibidas desde la landing. Vista exclusivamente de lectura."
+        size="operational"
       />
       <Paper variant="outlined" sx={{ p: 2.5 }}>
         <FormControl fullWidth sx={{ maxWidth: 360 }}>

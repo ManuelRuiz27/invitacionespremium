@@ -199,6 +199,7 @@ export function AdminEventPreparationPage({ apiClient }: { apiClient: ApiClient 
         {...(section === 'croquis'
           ? {}
           : { description: `Cliente ${data.clientId} · Servicio ${data.serviceCode ?? 'sin asignar'}` })}
+        size="operational"
         action={
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
             <StatusChip label={eventStatusLabel[data.status]} tone="neutral" />

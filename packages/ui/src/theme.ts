@@ -159,7 +159,7 @@ export const appTheme = createTheme({
       },
       styleOverrides: {
         root: {
-          minHeight: 42,
+          minHeight: 44, // mínimo táctil WCAG / HIG (layoutTokens.tapTarget.min)
           borderRadius: designTokens.radius.small,
           paddingInline: 18,
           transition: 'background-color 140ms ease, border-color 140ms ease, color 140ms ease'

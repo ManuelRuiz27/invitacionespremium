@@ -88,6 +88,7 @@ export function AdminAuditPage({ apiClient }: { apiClient: ApiClient }) {
       <PageHeader
         title="Auditoría"
         description="Consulta global de registros inmutables. Esta vista es exclusivamente de lectura."
+        size="operational"
       />
       <Alert severity="info">
         Los registros se muestran sin enriquecer identidades ni recursos. Los datos sensibles vuelven a sanitizarse

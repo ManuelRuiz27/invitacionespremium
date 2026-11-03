@@ -1,6 +1,6 @@
 import type { ApiClient, AvailableService, Event, UpdateEventInput } from '@invitaciones/api-client';
 import { ErrorState, LoadingState } from '@invitaciones/ui';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { GuestManagementPanel } from '../guests/GuestManagementPanel';
@@ -54,6 +54,7 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
   const [services, setServices] = useState<AvailableService[]>();
   const [event, setEvent] = useState<Event>();
   const [draft, setDraft] = useState<UpdateEventInput>(emptyDraft);
+  const [confirmedDraft, setConfirmedDraft] = useState<UpdateEventInput>();
   const draftRef = useRef<UpdateEventInput>(emptyDraft);
   const [loadError, setLoadError] = useState<unknown>();
   const [saveState, setSaveState] = useState<SaveState>('idle');
@@ -71,6 +72,7 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
         const updated = await apiClient.events.update(eventRef.current.id, value);
         eventRef.current = updated;
         setEvent(updated);
+        setConfirmedDraft(value);
         setFieldErrors({});
         setMessage(undefined);
       } catch (reason) {
@@ -81,15 +83,22 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
     },
     [apiClient]
   );
-  const autosave = useMemo(() => new SerialAutosave(save, setSaveState), [save]);
-  useEffect(() => () => autosave.dispose(), [autosave]);
+  const autosaveRef = useRef<SerialAutosave<UpdateEventInput> | null>(null);
+  useEffect(() => {
+    const autosave = new SerialAutosave(save, setSaveState);
+    autosaveRef.current = autosave;
+    return () => {
+      autosave.dispose();
+      if (autosaveRef.current === autosave) autosaveRef.current = null;
+    };
+  }, [save]);
   useEffect(() => {
     const warn = (browserEvent: BeforeUnloadEvent) => {
-      if (autosave.hasPending()) browserEvent.preventDefault();
+      if (autosaveRef.current?.hasPending()) browserEvent.preventDefault();
     };
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
-  }, [autosave]);
+  }, []);
   useEffect(() => {
     const controller = new AbortController();
     Promise.all([
@@ -101,6 +110,7 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
         if (loaded) {
           setEvent(loaded);
           const loadedDraft = toDraft(loaded);
+          setConfirmedDraft(loadedDraft);
           draftRef.current = loadedDraft;
           setDraft(loadedDraft);
         }
@@ -124,7 +134,7 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
     const next = applyDraftPatch(draftRef.current, patch);
     draftRef.current = next;
     setDraft(next);
-    if (eventRef.current && isEditableEvent(eventRef.current.status)) autosave.schedule(next);
+    if (eventRef.current && isEditableEvent(eventRef.current.status)) autosaveRef.current?.schedule(next);
   };
   const resetInvitationDesignAndChangeService = async (serviceId: string): Promise<void> => {
     const current = eventRef.current;
@@ -132,7 +142,7 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
       changeDraft({ serviceId });
       return;
     }
-    if (!(await autosave.flush())) throw new Error('Pending Event changes could not be saved.');
+    if (!(await autosaveRef.current?.flush())) throw new Error('Pending Event changes could not be saved.');
     setSaveState('saving');
     try {
       const request: UpdateEventInput & { resetInvitationDesign: true } = {
@@ -146,6 +156,7 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
       draftRef.current = next;
       setEvent(updated);
       setDraft(next);
+      setConfirmedDraft(next);
       setSaveState('saved');
     } catch (reason) {
       setSaveState('error');
@@ -154,7 +165,7 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
   };
   const ensureEvent = async (): Promise<Event | undefined> => {
     if (eventRef.current) {
-      if (!(await autosave.flush())) {
+      if (!(await autosaveRef.current?.flush())) {
         return;
       }
       return eventRef.current;
@@ -174,6 +185,7 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
       .then((created) => {
         setEvent(created);
         const createdDraft = toDraft(created);
+        setConfirmedDraft(createdDraft);
         draftRef.current = createdDraft;
         setDraft(createdDraft);
         setSaveState('saved');
@@ -199,6 +211,7 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
   const onReload = useCallback((next: Event) => {
     setEvent(next);
     const reloadedDraft = toDraft(next);
+    setConfirmedDraft(reloadedDraft);
     draftRef.current = reloadedDraft;
     setDraft(reloadedDraft);
   }, []);
@@ -226,7 +239,9 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
           onChange={changeDraft}
           apiClient={apiClient}
           event={event}
+          confirmedDraft={confirmedDraft}
           fieldErrors={fieldErrors}
+          saveState={saveState}
           onResetInvitationDesign={resetInvitationDesignAndChangeService}
         />
       ) : null}

@@ -6,13 +6,23 @@ export function AdminHeader({ onOpenNavigation }: { onOpenNavigation: () => void
   const auth = useAdminAuth();
   return (
     <AppBar position="sticky" color="inherit" elevation={0} sx={{ borderBottom: 1, borderColor: 'divider' }}>
-      <Toolbar sx={{ gap: 2 }}>
-        <IconButton aria-label="Abrir navegacion" onClick={onOpenNavigation} sx={{ display: { md: 'none' } }}>
+      <Toolbar sx={{ gap: 2, minHeight: { xs: 56, sm: 64 } }}>
+        <IconButton
+          aria-label="Abrir navegacion"
+          onClick={onOpenNavigation}
+          sx={{ display: { md: 'none' }, minWidth: 44, minHeight: 44 }}
+        >
           <MenuOutlined />
         </IconButton>
         <Box sx={{ flex: 1 }}>
-          <Typography sx={{ fontWeight: 760 }}>Centro de administración</Typography>
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+            Centro de administración
+          </Typography>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: { xs: 'none', sm: 'block' }, lineHeight: 1.2 }}
+          >
             Operación global, sin impersonación
           </Typography>
         </Box>

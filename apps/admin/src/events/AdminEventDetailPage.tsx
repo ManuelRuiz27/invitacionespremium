@@ -87,6 +87,7 @@ function AdminEventDetail({ apiClient, eventId }: { apiClient: ApiClient; eventI
       <PageHeader
         title={data.name ?? 'Evento sin nombre'}
         description={`${eventServiceLabel(data)}${accessControl ? ` · ${accessModeLabel(data.accessMode)}` : ''}`}
+        size="operational"
         action={
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
             {!data.deletedAt ? (
