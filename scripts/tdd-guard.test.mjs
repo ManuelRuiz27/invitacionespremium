@@ -1,4 +1,8 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { test } from 'node:test';
 import { checkScope, matches, safePath, validate } from './tdd-guard.mjs';
 
@@ -37,4 +41,69 @@ test('invalid paths and unsafe contract changes are rejected', () => {
   assert.throws(() => validate({ ...spec, implementationPaths: ['apps/api/src/**'] }, contract));
   assert.throws(() => validate({ ...spec, qaCommands: [['pnpm', 'qa:full']] }, contract));
   assert.equal(validate({ ...spec, risk: 'L3', independentReviewRequired: true }, contract).risk, 'L3');
+});
+
+
+test('git integration: RED/GREEN contract locks tests and CI validates original baseline', () => {
+  const work = mkdtempSync(join(tmpdir(), 'invitation-tdd-'));
+  const runGit = (...args) => {
+    const command = spawnSync('git', args, { cwd: work, encoding: 'utf8', windowsHide: true });
+    assert.equal(command.status, 0, command.stderr);
+    return command.stdout.trim();
+  };
+  const runGuard = (...args) => spawnSync(process.execPath, [join(work, 'scripts/tdd-guard.mjs'), ...args], {
+    cwd: work,
+    encoding: 'utf8',
+    windowsHide: true
+  });
+  try {
+    runGit('init', '-q');
+    runGit('config', 'user.email', 'qa@example.invalid');
+    runGit('config', 'user.name', 'QA Fixture');
+    mkdirSync(join(work, 'scripts'), { recursive: true });
+    mkdirSync(join(work, 'apps/api/src'), { recursive: true });
+    mkdirSync(join(work, 'tdd/contracts'), { recursive: true });
+    copyFileSync(new URL('./tdd-guard.mjs', import.meta.url), join(work, 'scripts/tdd-guard.mjs'));
+    writeFileSync(join(work, 'package.json'), '{"type":"module"}\n');
+    writeFileSync(join(work, '.gitignore'), 'var/tdd/\n');
+    writeFileSync(join(work, 'apps/api/src/example.js'), 'export const answer = () => 0;\n');
+    runGit('add', '.');
+    runGit('commit', '-qm', 'initial implementation');
+    runGit('branch', '-M', 'main');
+    runGit('switch', '-q', '-c', 'tdd/IP-TDD-001');
+
+    const task = {
+      schemaVersion: 1,
+      taskId: 'IP-TDD-001',
+      executor: 'codex',
+      risk: 'L2',
+      testPaths: ['apps/api/src/example.spec.js'],
+      implementationPaths: ['apps/api/src/example.js'],
+      qaCommands: [['node', '--test', 'apps/api/src/example.spec.js']],
+      acceptance: ['answer() must return 42']
+    };
+    writeFileSync(join(work, 'tdd/contracts/IP-TDD-001.json'), JSON.stringify(task, null, 2) + '\n');
+    writeFileSync(join(work, 'apps/api/src/example.spec.js'),
+      "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { answer } from './example.js';\ntest('RED then GREEN', () => assert.equal(answer(), 42));\n");
+    runGit('add', '.');
+    runGit('commit', '-qm', 'test: baseline RED');
+    const baseline = runGit('rev-parse', 'HEAD');
+    const args = ['--contract=tdd/contracts/IP-TDD-001.json', '--baseline=' + baseline];
+    assert.equal(runGuard(...args).status, 0);
+    assert.notEqual(runGuard(...args, '--run').status, 0, 'RED should fail');
+
+    writeFileSync(join(work, 'apps/api/src/example.js'), 'export const answer = () => 42;\n');
+    assert.equal(runGuard(...args, '--run').status, 0, 'GREEN should pass');
+    runGit('add', 'apps/api/src/example.js');
+    runGit('commit', '-qm', 'feat: implement approved test');
+    assert.equal(runGuard('--ci', '--main-ref=main').status, 0, 'CI scope should pass');
+
+    writeFileSync(join(work, 'apps/api/src/example.spec.js'), 'test tampered\n');
+    assert.notEqual(runGuard(...args).status, 0, 'locked test must fail');
+    runGit('checkout', '--', 'apps/api/src/example.spec.js');
+    writeFileSync(join(work, 'apps/client-extra.ts'), 'out of scope\n');
+    assert.notEqual(runGuard(...args).status, 0, 'untracked out-of-scope work must fail');
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
 });

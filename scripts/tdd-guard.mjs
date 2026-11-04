@@ -155,6 +155,8 @@ function main() {
       (options['--run'] && options['--dry-run']))
     throw new Error('Use --contract=tdd/contracts/ID.json --baseline=<RED-SHA> [--run|--dry-run].');
   const checked = verify(options['--contract'], options['--baseline']);
+  if (git(['branch', '--show-current']) !== 'tdd/' + checked.spec.taskId)
+    throw new Error('TDD execution requires branch tdd/' + checked.spec.taskId);
   process.stdout.write('[tdd] Scope PASS; changed files: ' + checked.changed.length + '\n');
   if (options['--run'] || options['--dry-run']) {
     execute(checked.spec, Boolean(options['--dry-run']));
