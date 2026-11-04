@@ -1,6 +1,6 @@
 # START HERE — InvitacionesPremium
 
-Estado: **FUENTE DE ENTRADA OBLIGATORIA PARA DEV / AGENTES**
+Estado: **ÍNDICE DE DIRECCIÓN VIGENTE — CONSULTA SELECTIVA POR TAREA**
 
 Este archivo existe para evitar que documentación histórica, futura o comercial se interprete como alcance vigente de implementación.
 
@@ -25,13 +25,7 @@ PLATFORM_ADMIN / INVITACIONESP​REMIUM
        STAFF TEMPORAL
 ```
 
-Leer inmediatamente después:
-
-1. `docs/00-inicio/01_DIRECCION_ACTUAL_M01_MANAGED.md`
-2. `docs/01-producto/04_OPERATOR_LED_MVP.md`
-3. `docs/01-producto/06A_MODELO_01_PLANNER_INDEPENDIENTE.md`
-4. `docs/01-producto/03_ROLES_PERMISOS_ACCESO.md`
-5. contrato técnico especializado de la tarea.
+**Lectura selectiva:** no es necesario abrir los contratos M01 para una corrección aislada de estilos, copy o documentación. Si la tarea modifica comportamiento de producto, límites Provider/Planner, permisos o flujos operativos, consultar la dirección M01 vigente y **únicamente** los contratos aplicables mediante el índice de la sección 7. Una tarea no requiere leer todas las referencias de este archivo.
 
 ## 2. Regla de autoridad documental
 
@@ -199,7 +193,7 @@ Usar estas etiquetas mentalmente:
 
 ## 9. Regla para agentes
 
-Antes de proponer código, responder internamente:
+Cuando la tarea afecte reglas de dominio o comportamiento M01, verificar internamente:
 
 1. ¿Esto pertenece a M01 Managed?
 2. ¿El runtime ya lo tiene?

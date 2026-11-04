@@ -1,101 +1,52 @@
-# Reglas para agentes y Codex
+# InvitacionesPremium — Reglas de ejecución para agentes (V2)
 
-1. Antes de editar, leer `README.md`, `docs/00-inicio/00_START_HERE.md` y la documentación obligatoria que ese archivo indique para la tarea. No recorrer `/docs` como una lista plana ni asumir que todo documento describe alcance vigente.
-2. `docs/04-tecnico/MONOREPO_ARCHITECTURE.md` define límites entre apps y packages.
-3. No inventar entidades, roles, estados, permisos, rutas ni reglas.
-4. Las reglas de negocio viven en `apps/api`; los frontends no las duplican.
-5. Una app no importa código fuente de otra app.
-6. Código compartido solo vive en `packages/*`.
-7. `packages/ui` no contiene reglas de negocio ni llamadas API.
-8. `packages/api-client` se genera desde OpenAPI; no mantener DTOs duplicados manualmente.
-9. Cada cambio de código debe ejecutar lint, typecheck, tests relevantes y build; cualquier fallo preexistente se reporta por separado de una regresión introducida.
-10. No agregar secretos ni credenciales al repositorio.
-11. Cualquier cambio en Croquis, Mesas, distribución o asignación visual debe leer primero la dirección activa Managed y los contratos especializados vigentes: `docs/04-tecnico/FLOORPLAN_DETAILED_SEATING_CONTRACT.md`, `docs/04-tecnico/FLOORPLAN_SVG_MAPPING_CONTRACT.md` cuando aplique y `docs/04-tecnico/FLOORPLAN_STICKER_SEATING_CONTRACT.md`; para UI/UX consultar además `docs/03-diseno/FLOORPLAN_UX_TARGET.md`. Documentación histórica que prohibía asientos detallados o SVG queda subordinada a estos contratos actuales.
-12. Cualquier cambio en envío, distribución o compartición de Invitaciones debe leer `docs/01-producto/02_PRD.md`, `docs/02-flujos-reglas/05_REGLAS_NEGOCIO.md` y `docs/04-tecnico/ACTIVE_EVENT_WORKSPACE_CONTRACT.md`. El MVP comparte el link individual desde el workspace en `ACTIVE`/`EVENT_DAY`; no inventar WhatsApp API, webhooks, estados `sent/delivered/read` ni auditoría de entrega sin un contrato posterior explícito.
-13. Workflow vigente del proyecto: trabajar directamente sobre `main`. Antes de editar: `git checkout main`, `git pull --ff-only origin main` y confirmar árbol limpio. Después: implementar el scope autorizado, ejecutar QA, crear un commit pequeño y hacer `git push origin main`. No crear ramas ni PRs salvo instrucción expresa del usuario.
-14. Codex se delega cuando la tarea requiere modificar código. Trabajo exclusivamente documental no se delega a Codex; lo realiza el Technical Owner. Codex sólo modifica documentación cuando forma parte inseparable de un cambio de código autorizado, por ejemplo OpenAPI generado, contratos técnicos directamente afectados o referencias obligatorias del cambio.
-15. No ejecutar fases `PLAN-ONLY` con Codex cuando el ticket técnico ya está cerrado. En ese caso Codex debe implementar el código solicitado, probarlo, hacer commit y push a `main`, y devolver evidencia verificable.
-16. Ante cualquier referencia antigua a flujo por rama/PR en documentación previa, prevalecen las reglas 13–15 de este archivo salvo instrucción expresa del usuario.
-17. Antes de crear, modificar o inferir roles, ownership, superficies o permisos para un escenario comercial (Planner, salón/jardín, agencia, reseller, licencia, instancia dedicada u otro), leer `docs/00-inicio/01_DIRECCION_ACTUAL_M01_MANAGED.md`, `docs/01-producto/06_MODELOS_OPERATIVOS_DE_VENTA.md` y el modelo especializado aplicable. Un escenario comercial no autoriza por sí mismo un nuevo rol ni una nueva capacidad.
-18. Dirección activa de lanzamiento: **M01 Managed para Planner independiente**. M02–M05, Partner/Venue pricing, Self-Service, Enterprise y Commercial/Finance V3 son referencia futura salvo ticket explícito posterior. No usar `CommercialChannel`, tipo de tarifa, créditos o pricing como capability profile. La primera fase autorizada es `MG00_MANAGED_PROFILE_IMPLEMENTATION_AUDIT`; no modificar dominio, roles, Finance ni activación Managed antes de que ese audit sea revisado y aprobado.
+Estas reglas aplican a Codex (extensión de VS Code) y Gemini (Antigravity Desktop). Prioridad: entregar cambios correctos con el menor trabajo y contexto necesarios. No son un permiso para modificar el alcance del producto.
 
-# Protocolo obligatorio de ejecución con Codex — V1.2
+## 1. Producto y arquitectura
 
-Aplicable a toda modificación de código en `ManuelRuiz27/invitacionespremium`, independientemente del agente responsable.
+- Lanzamiento activo: M01 Managed, Planner independiente. Provider prepara el evento, Planner opera invitados/RSVP/mesas/Staff y Staff registra accesos. No ampliar M02–M05, Self-Service, Enterprise ni Finance V3 sin autorización explícita.
+- No inventar roles, entidades, estados, endpoints, permisos, pricing ni capacidades. Separar perfil operativo de canal comercial, créditos y tarifas.
+- Respetar aislamiento entre clientes, ownership, autorización en servidor, auditoría y protección de datos. Ocultar controles en UI nunca sustituye permisos de API.
+- Las reglas de negocio pertenecen a `apps/api`. No importar fuentes entre `apps/*`; el código compartido reside en `packages/*`. `packages/ui` no implementa reglas de negocio ni llamadas API. `packages/api-client` se genera desde OpenAPI; evitar DTOs duplicados.
+- No agregar credenciales, desactivar controles de seguridad ni modificar contratos fuera del objetivo.
 
-## 1. Propiedad del trabajo
+## 2. Ejecutores y alcance
 
-- El PM autoriza objetivo, alcance y criterios de aceptación.
-- Cada tarea tiene un único agente responsable.
-- El agente responsable coordina directamente Codex y sus subagentes.
-- No transferir tareas a otro agente únicamente por el lenguaje, framework o archivos utilizados.
+- **Gemini / Antigravity:** responsable de cambios visuales: UI/UX, layout, CSS, responsive, copy de interfaz, accesibilidad y presentación de componentes. Puede editar TSX para ese fin, sin alterar lógica de dominio, permisos, API, modelos o persistencia.
+- **Codex / VS Code:** responsable de backend, arquitectura, bases de datos, API, integraciones, seguridad, estado y comportamiento funcional. React/TSX con cambios de lógica, hooks, autenticación o contratos corresponde a Codex.
+- Si una tarea mezcla ambos campos, dividirla por límites técnicos reales y acordar la interfaz; no convocar agentes sólo por el lenguaje de los archivos. Un solo responsable modifica cada archivo a la vez.
+- Si el usuario designa explícitamente un ejecutor, seguir su elección dentro de sus capacidades y avisar si hay un riesgo técnico; no crear handoffs automáticos.
+- Diagnóstico, implementación y QA son actividades, **no tres agentes obligatorios**. Una tarea ordinaria tiene un solo ejecutor; revisión independiente es obligatoria para riesgo L3 o cuando se indique expresamente.
 
-## 2. Preparación
+## 3. Inicio: documentación mínima
 
-Antes de modificar código:
+1. Identificar objetivo aprobado, archivos probables, criterio de aceptación y riesgo.
+2. Consultar `docs/00-inicio/00_START_HERE.md` **sólo cuando la tarea afecte reglas, permisos, flujo del producto o exista duda de vigencia**. Usarlo como índice, no como orden de leer todos los documentos.
+3. Leer únicamente contratos técnicos asociados a las superficies y dependencias realmente afectadas. No recorrer `/docs` ni cargar conversaciones, logs o documentos completos por defecto.
+4. Para croquis, seating, RSVP, Scanner, Finance y activación, aplicar los contratos especializados señalados en `START_HERE` antes de cambiar sus invariantes.
+5. El preparador del prompt consulta documentación oficial vigente de Codex o Antigravity cuando corresponda; el agente ejecutor no repite esa investigación salvo que necesite resolver una incompatibilidad específica.
+6. Si hay contradicción real de producto o seguridad, detener **sólo la parte afectada**, señalar archivo/contrato y solicitar la decisión mínima. No generar planes, documentos ni tickets rutinarios.
 
-- Consultar ticket, decisión PM y documentación aplicable.
-- Leer `AGENTS.md` y los contratos técnicos vigentes.
-- Verificar rama `main`, último commit y árbol limpio.
-- Identificar archivos afectados, causa o requerimiento y límites del cambio.
-- No realizar refactorizaciones ajenas al objetivo.
+## 4. QA local proporcional (política; scripts en adaptación)
 
-## 3. Ejecución con Codex
+El prompt debe indicar nivel, comandos concretos y evidencia esperada. Evaluar el diff final: ampliar QA sólo si toca nuevas dependencias o aumenta el riesgo.
 
-El agente responsable debe organizar tres funciones:
+| Nivel | Cambios | Verificación local mínima |
+| --- | --- | --- |
+| L0 | Documentación, copy estático, estilos sin lógica | Revisar diff, formato de archivos tocados; comprobación visual si aplica. Sin suite general ni build por defecto. |
+| L1 | UI/interacción acotada sin cambio de contrato | Tests relacionados; lint/typecheck del workspace tocado; build cuando afecte compilación o empaquetado; revisión visual en tamaños relevantes. |
+| L2 | Lógica funcional, API, contratos o flujos compartidos | Tests unitarios y de integración de las rutas afectadas; validación de contratos; regresiones E2E pertinentes; lint/typecheck/build de workspaces afectados. |
+| L3 | Auth, permisos, aislamiento tenant, QR/check-in, Finance, migraciones o seguridad | L2 más casos negativos y regresiones críticas, QA independiente y controles completos aplicables. Sin omitir gates de seguridad. |
 
-**Diagnóstico:** localizar el problema, reproducirlo cuando corresponda y establecer una solución mínima.
+- `pnpm qa:quick`, `qa:focused` y `qa:full` **ya existen**, pero `qa:focused` puede ejecutar journeys extensos. No invocarlos automáticamente sin inspeccionar la selección/comandos que realmente ejecutarán. Se optimizarán en una fase técnica posterior.
+- No reducir aserciones, saltarse regresiones necesarias ni subir timeouts/retries para ocultar fallos. Un fallo preexistente se informa separado del cambio nuevo.
+- Limitar la salida mostrada al modelo a resumen, error y fragmentos relevantes; dejar logs completos como artefactos. No hacer polling repetitivo con llamadas al modelo ni reiniciar una suite aprobada sin modificaciones posteriores.
+- Terminado el QA establecido y sin riesgos nuevos, **detener QA local**. No encadenar revisiones adicionales por rutina.
+- El CI actual sigue siendo independiente de QA local; verificar el resultado real de `quality` para el SHA entregado. No declarar PASS si no hay evidencia, ni confundir un CI pendiente con éxito.
 
-**Implementación:** generar y ejecutar el prompt técnico, modificar código y agregar o actualizar pruebas.
+## 5. Git, cierre y gobierno
 
-**QA independiente:** un subagente distinto del implementador revisa el diff, ejecuta pruebas y emite PASS o BLOCKED con evidencia.
-
-Si los subagentes no están disponibles, informar la limitación y obtener revisión independiente antes de solicitar aceptación PM.
-
-No inventar ejecuciones, resultados ni verificaciones.
-
-## 4. Restricciones
-
-- No ampliar alcance sin aprobación PM.
-- No eliminar aserciones ni desactivar verificaciones.
-- No aumentar timeouts o retries para ocultar defectos.
-- No modificar API, contratos, roles, precios o persistencia fuera del alcance autorizado.
-- No involucrar otros agentes salvo dependencia real.
-
-## 5. QA y CI
-
-- Ejecutar tests relevantes, lint, typecheck y build conforme a `AGENTS.md`.
-- Ejecutar pruebas negativas y de regresión correspondientes.
-- QA independiente debe revisar el cambio final.
-- Realizar commit pequeño y push a `main` siguiendo el flujo vigente del repositorio.
-- Verificar GitHub Actions, incluido `quality`, sobre el SHA exacto entregado.
-- Si el commit cambia después del QA, revalidar lo afectado y comprobar CI del nuevo SHA.
-- No realizar force-push ni sobrescribir cambios de otros agentes.
-
-## 6. Entrega del agente
-
-Entregar únicamente:
-
-- Ticket y objetivo resuelto.
-- Causa raíz o explicación del cambio.
-- Archivos modificados.
-- Commit y SHA.
-- Resultado del QA independiente.
-- URL y resultado del CI remoto.
-- Riesgos o limitaciones restantes.
-
-Actualizar el ticket al finalizar o encontrar un bloqueo. No generar reportes intermedios, handoffs o tickets adicionales sin necesidad real.
-
-## 7. Aceptación PM
-
-El PM verifica evidencia, diff y CI.
-
-Puede emitir:
-
-- **ACCEPTED:** cambio validado.
-- **BLOCKED:** requiere corrección.
-- **REJECTED:** incumple el alcance o contrato.
-
-La aceptación de código no autoriza automáticamente staging, producción ni pilotos.
-
-**Principio central: el PM gobierna el resultado; el agente responsable ejecuta el trabajo y coordina a Codex.**
+- Flujo vigente: `main`. Antes de escribir, verificar HEAD actualizado y que no se mezclen cambios ajenos; en entorno local, `git pull --ff-only` y árbol limpio. No force-push. Crear commit pequeño y push sólo del alcance autorizado. Si el usuario dispone otra estrategia, seguirla.
+- La aceptación técnica y CI verde **no** autorizan staging, producción, ventas o pilotos; requieren sus permisos específicos.
+- PM coordina y resuelve dependencias reales, no intermedia cada edición. COO participa sólo por incidencia operativa, costos, recursos o despliegue. Evitar documentos, handoffs y registros por cada acción rutinaria.
+- Entrega única y breve: objetivo, archivos/diff, SHA, QA ejecutado (PASS/FAIL/pendiente), CI exacto y riesgos. No inventar pruebas ni resultados.
