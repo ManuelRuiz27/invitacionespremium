@@ -31,7 +31,7 @@ const explicit = options.find((arg) => arg.startsWith('--files='))?.slice(8);
 const riskOption = options.find((arg) => arg.startsWith('--risk='))?.slice(7) ?? 'auto';
 const journeysOption = options.find((arg) => arg.startsWith('--journeys='))?.slice(11);
 if (base !== undefined && (!base || base.startsWith('-'))) throw new Error('Invalid Git baseline.');
-if (explicit !== undefined && (!explicit || explicit.split(',').every((file) => file))) throw new Error('Invalid file selection.');
+if (explicit !== undefined && (!explicit || explicit.split(',').some((file) => !file))) throw new Error('Invalid file selection.');
 if (base && explicit) throw new Error('Choose --base or --files.');
 if (journeysOption !== undefined && (!journeysOption || journeysOption.split(',').some((item) => !item)))
   throw new Error('Invalid QA journeys.');
