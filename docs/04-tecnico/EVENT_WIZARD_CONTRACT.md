@@ -66,6 +66,11 @@ diálogo ni alterar el borrador. Cambiar la zona conserva explícitamente la hor
 patch atómico con `timeZone` y `eventDateTime`. Los parches síncronos se acumulan sobre la referencia más
 reciente del draft y el wall-clock adopta cambios autoritativos cuando no existe una edición activa.
 
+Una fecha u hora parcial, o una combinación rechazada por DST, permanece en el formulario. Mientras no se
+complete o quite explícitamente, se bloquea salir del paso, navegar por la aplicación o usar Atrás, y se
+advierte al cerrar o recargar la pestaña. No se inventa una hora ni se envía `null` al borrar sólo la hora:
+el último instante válido permanece guardado hasta completar la nueva captura o quitar fecha y hora.
+
 Contactos permite alta, edición de nombre/WhatsApp/Grupo y eliminación confirmada. La capacidad visible se
 basa en Asistentes nominales autorizados de Invitaciones, no en el número de Contactos. El preview presenta
 todas las filas y errores antes del commit.

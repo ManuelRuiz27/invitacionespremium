@@ -25,8 +25,12 @@ const eventFixture = {
   floorplanEnabled: false,
   updatedAt: '2026-11-03T12:00:00Z'
 };
-async function fixture(page: Page, managed = false) {
-  let event = { ...eventFixture };
+async function fixture(
+  page: Page,
+  managed = false,
+  overrides: { eventDateTime?: string | null; locationUrl?: string | null } = {}
+) {
+  let event = { ...eventFixture, ...overrides };
   const patches: Record<string, unknown>[] = [];
   await page.route('**/api/v1/**', async (route) => {
     const request = route.request();
@@ -69,21 +73,20 @@ for (const width of [320, 360, 390, 768, 1024, 1440]) {
     page.on('pageerror', (error) => errors.push(error.message));
     const patches = await fixture(page);
     await page.goto(`/eventos/${eventId}/configuracion/datos`);
-    await expect(page.getByRole('heading', { name: 'Tu celebración' })).toBeVisible();
+    await expect(page.getByLabel('Nombre del evento', { exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Datos del Evento' })).toHaveCount(0);
     const sectionTabs = page.getByRole('tablist', { name: 'Secciones de datos del evento' });
     const showSection = async (name: string) => {
       if (await sectionTabs.isVisible()) await sectionTabs.getByRole('tab', { name, exact: true }).click();
     };
-    for (const [title, tab] of [
-      ['Tu celebración', 'Celebración'],
-      ['Fecha y hora del evento', 'Fecha y hora'],
-      ['Lugar del evento', 'Lugar'],
-      ['Mesa de regalos', 'Regalos']
+    for (const [id, tab] of [
+      ['celebration', 'Celebración'],
+      ['event-date', 'Fecha y hora'],
+      ['event-location', 'Lugar'],
+      ['event-gifts', 'Regalos']
     ]) {
       await showSection(tab!);
-      const block = page
-        .locator('section[data-validation]')
-        .filter({ has: page.getByRole('heading', { name: title!, exact: true }) });
+      const block = page.locator(`#${id}-panel`);
       await expect(block).toBeVisible();
       const bounds = await block.boundingBox();
       expect(bounds!.x).toBeGreaterThanOrEqual(0);
@@ -142,7 +145,7 @@ for (const width of [320, 360, 390, 768, 1024, 1440]) {
       );
     await showSection('Celebración');
     await page.getByLabel('Nombre del evento', { exact: true }).fill('Celebración de Elena y Mateo');
-    await page.getByRole('heading', { name: 'Datos del Evento' }).click();
+    await page.getByLabel('Nombre del evento', { exact: true }).blur();
     await expect(page.getByText('Cambios guardados', { exact: true })).toBeVisible();
     await expect(page.locator('#celebration-panel')).toHaveAttribute('data-validation', 'confirmed');
     expect(patches.at(-1)?.name).toBe('Celebración de Elena y Mateo');
@@ -162,7 +165,7 @@ test('Managed requests never mount the technical editor', async ({ page }) => {
   await fixture(page, true);
   await page.goto(`/eventos/${eventId}/configuracion/datos`);
   await expect(page).toHaveURL(/\/eventos$/);
-  await expect(page.getByRole('heading', { name: 'Datos del Evento' })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Datos del evento', exact: true })).toHaveCount(0);
 });
 
 for (const width of [360, 1440]) {
@@ -170,7 +173,7 @@ for (const width of [360, 1440]) {
     await page.setViewportSize({ width, height: width === 360 ? 844 : 900 });
     await fixture(page);
     await page.goto(`/eventos/${eventId}/configuracion/datos`);
-    await expect(page.getByRole('heading', { name: 'Datos del Evento' })).toBeVisible();
+    await expect(page.getByLabel('Nombre del evento', { exact: true })).toBeVisible();
     const tabs = page.getByRole('tablist', { name: 'Secciones de datos del evento' });
     if (await tabs.isVisible()) await tabs.getByRole('tab', { name: 'Lugar', exact: true }).click();
     const map = page.getByTitle('Mapa de la ubicación del evento');
@@ -190,3 +193,52 @@ for (const width of [360, 1440]) {
     });
   });
 }
+
+for (const width of [900, 1199]) {
+  test(`keeps the calendar modal and empty location compact at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1200 });
+    await fixture(page, false, { locationUrl: null });
+    await page.goto(`/eventos/${eventId}/configuracion/datos`);
+    const tabs = page.getByRole('tablist', { name: 'Secciones de datos del evento' });
+    await tabs.getByRole('tab', { name: 'Fecha y hora', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'sábado, 19 de junio de 2027' })).toHaveCount(0);
+    await page.getByRole('button', { name: '19 de junio de 2027' }).click();
+    await expect(page.getByRole('dialog', { name: 'Elegir fecha del evento' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await tabs.getByRole('tab', { name: 'Lugar', exact: true }).click();
+    const block = page.locator('#event-location-panel');
+    expect((await block.boundingBox())!.height).toBeLessThan(160);
+    expect((await page.getByLabel('Ubicación', { exact: true }).boundingBox())!.width).toBeGreaterThan(width / 2);
+    await expect(page.getByTitle('Mapa de la ubicación del evento')).toHaveCount(0);
+    await expect(block.getByRole('heading')).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Datos del Evento' })).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true);
+  });
+}
+
+test('keeps the selected date when leaving is blocked and saves it after completing the time', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const patches = await fixture(page, false, { eventDateTime: null, locationUrl: null });
+  await page.goto(`/eventos/${eventId}/configuracion/datos`);
+  const tabs = page.getByRole('tablist', { name: 'Secciones de datos del evento' });
+  await tabs.getByRole('tab', { name: 'Fecha y hora', exact: true }).click();
+  await page.getByRole('button', { name: 'Elegir fecha del evento' }).click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: /, 15 de / })
+    .click();
+  const chosenDay = await page
+    .locator('#event-date-panel')
+    .getByRole('button', { name: /^15 de / })
+    .innerText();
+  await tabs.getByRole('tab', { name: 'Celebración', exact: true }).click();
+  await page.getByRole('button', { name: 'Salir', exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/eventos/${eventId}/configuracion/datos$`));
+  await expect(tabs.getByRole('tab', { name: 'Fecha y hora', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('button', { name: chosenDay, exact: true })).toBeVisible();
+  expect(patches).toEqual([]);
+  await page.getByLabel('Hora de inicio').fill('18:30');
+  await page.getByRole('button', { name: 'Salir', exact: true }).click();
+  await expect(page).toHaveURL(/\/eventos$/);
+  expect(patches.at(-1)?.eventDateTime).toMatch(/T00:30:00.000Z$/);
+});

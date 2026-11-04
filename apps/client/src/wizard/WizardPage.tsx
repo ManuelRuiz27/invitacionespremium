@@ -1,7 +1,7 @@
 import type { ApiClient, AvailableService, Event, UpdateEventInput } from '@invitaciones/api-client';
 import { ErrorState, LoadingState } from '@invitaciones/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useBlocker, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { GuestManagementPanel } from '../guests/GuestManagementPanel';
 import { errorMessage } from '../shared/client-utils';
@@ -42,6 +42,20 @@ const toDraft = (event: Event): UpdateEventInput => ({
   floorplanEnabled: event.floorplanEnabled
 });
 
+const pendingDateMessage = 'Completa la fecha y la hora, o quítalas para continuar.';
+
+// Mounted only while Datos has a partial date, so other steps retain their own router blockers.
+function PendingDateGuard({ onBlocked }: { onBlocked: () => void }) {
+  const blocker = useBlocker(true);
+  useEffect(() => {
+    if (blocker.state === 'blocked') {
+      blocker.reset();
+      onBlocked();
+    }
+  }, [blocker, onBlocked]);
+  return null;
+}
+
 export const applyDraftPatch = (draft: UpdateEventInput, patch: Partial<UpdateEventInput>): UpdateEventInput => ({
   ...draft,
   ...patch
@@ -61,6 +75,25 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
   const [message, setMessage] = useState<string>();
   const [fieldErrors, setFieldErrors] = useState<EventFieldErrors>({});
   const [creating, setCreating] = useState(false);
+  const [pendingDate, setPendingDate] = useState(false);
+  const pendingDateRef = useRef(false);
+  const changePendingDate = useCallback((pending: boolean) => {
+    pendingDateRef.current = pending;
+    setPendingDate(pending);
+    if (!pending) {
+      setFieldErrors((current) => {
+        if (current.eventDateTime !== pendingDateMessage) return current;
+        const next = { ...current };
+        delete next.eventDateTime;
+        return next;
+      });
+      setMessage((current) => (current === pendingDateMessage ? undefined : current));
+    }
+  }, []);
+  const showPendingDate = useCallback(() => {
+    setFieldErrors((current) => ({ ...current, eventDateTime: pendingDateMessage }));
+    setMessage(pendingDateMessage);
+  }, []);
   const eventRef = useRef<Event | undefined>(undefined);
   eventRef.current = event;
   const createPromiseRef = useRef<Promise<Event | undefined> | undefined>(undefined);
@@ -94,7 +127,7 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
   }, [save]);
   useEffect(() => {
     const warn = (browserEvent: BeforeUnloadEvent) => {
-      if (autosaveRef.current?.hasPending()) browserEvent.preventDefault();
+      if (pendingDateRef.current || autosaveRef.current?.hasPending()) browserEvent.preventDefault();
     };
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
@@ -164,6 +197,10 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
     }
   };
   const ensureEvent = async (): Promise<Event | undefined> => {
+    if (pendingDateRef.current) {
+      showPendingDate();
+      return;
+    }
     if (eventRef.current) {
       if (!(await autosaveRef.current?.flush())) {
         return;
@@ -224,15 +261,17 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
       steps={steps}
       selectedStep={selectedStep}
       editable={editable}
-      saveState={saveState}
+      saveState={pendingDate && (saveState === 'idle' || saveState === 'saved') ? 'pending' : saveState}
       message={message}
       busy={creating}
       onDismissMessage={() => setMessage(undefined)}
       onGo={(target) => void go(target)}
       onExit={() => void ensureEvent().then((saved) => saved && navigate('/eventos'))}
     >
+      {pendingDate && selectedStep === 'datos' ? <PendingDateGuard onBlocked={showPendingDate} /> : null}
       {selectedStep === 'datos' ? (
         <DataStep
+          key={eventId ?? 'new'}
           services={services ?? []}
           draft={draft}
           disabled={!editable || creating}
@@ -242,6 +281,7 @@ export function WizardPage({ apiClient }: { apiClient: ApiClient }) {
           confirmedDraft={confirmedDraft}
           fieldErrors={fieldErrors}
           saveState={saveState}
+          onPendingDateChange={changePendingDate}
           onResetInvitationDesign={resetInvitationDesignAndChangeService}
         />
       ) : null}

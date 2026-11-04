@@ -104,7 +104,7 @@ describe('integrated Event wizard flows', () => {
     const api = mockApiClient();
     vi.mocked(api.events.get).mockResolvedValue(physicalEvent);
     renderApp(api, `/eventos/${physicalEvent.id}/configuracion/contactos`);
-    expect(await screen.findByRole('heading', { name: 'Datos del Evento' })).toBeInTheDocument();
+    expect(await screen.findByLabelText('Nombre del evento')).toBeInTheDocument();
     expect(api.contacts.list).not.toHaveBeenCalled();
     expect(api.contacts.groups).not.toHaveBeenCalled();
     expect(api.invitations.list).not.toHaveBeenCalled();
@@ -137,7 +137,7 @@ describe('integrated Event wizard flows', () => {
       serviceCode: 'FLYER'
     });
     const { router } = renderApp(api, `/eventos/${configuredEvent.id}/configuracion/${step}`);
-    expect(await screen.findByRole('heading', { name: 'Datos del Evento' })).toBeInTheDocument();
+    expect(await screen.findByLabelText('Nombre del evento')).toBeInTheDocument();
     await waitFor(() =>
       expect(router.state.location.pathname).toBe(`/eventos/${configuredEvent.id}/configuracion/datos`)
     );

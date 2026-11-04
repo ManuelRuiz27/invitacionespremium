@@ -121,6 +121,20 @@ describe('Event data experience', () => {
     render(<Harness value={{ ...initial, locationUrl: 'https://maps.google.com/?q=Salon' }} />);
     expect(screen.getByRole('link', { name: 'Abrir ubicación' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Ver mapa interactivo' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Agrega el mapa de tu celebración')).not.toBeInTheDocument();
+  });
+
+  it('keeps untouched confirmed and empty blocks unchanged while another block is saving', () => {
+    const server = { ...configuredEvent, ...initial } as Event;
+    render(<Harness event={server} saveState="saving" />);
+    fireEvent.change(screen.getByLabelText('Nombre del evento'), { target: { value: 'Nombre pendiente' } });
+    expect(screen.getByRole('region', { name: 'Tu celebración' })).toHaveAttribute('data-validation', 'editing');
+    expect(screen.getByRole('region', { name: 'Fecha y hora del evento' })).toHaveAttribute(
+      'data-validation',
+      'confirmed'
+    );
+    expect(screen.getByRole('region', { name: 'Lugar del evento' })).toHaveAttribute('data-validation', 'empty');
+    expect(screen.getByRole('region', { name: 'Mesa de regalos' })).toHaveAttribute('data-validation', 'empty');
   });
 
   it('requires a server snapshot for completion, keeps optional empty blocks unconfirmed, and exposes failed autosave', () => {

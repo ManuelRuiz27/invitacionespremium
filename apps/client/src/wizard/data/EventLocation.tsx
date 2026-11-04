@@ -1,4 +1,3 @@
-import LocationOnOutlined from '@mui/icons-material/LocationOnOutlined';
 import OpenInNew from '@mui/icons-material/OpenInNew';
 import { Box, Button, Stack, TextField, Typography } from '@mui/material';
 import { useState } from 'react';
@@ -29,7 +28,9 @@ export function EventLocation({
           gridTemplateColumns: 'minmax(0,1fr)',
           gap: 1.5,
           alignItems: 'center',
-          '@container (min-width: 440px)': { gridTemplateColumns: 'minmax(200px,.9fr) minmax(0,1fr)' }
+          ...(embedHref
+            ? { '@container (min-width: 440px)': { gridTemplateColumns: 'minmax(200px,.9fr) minmax(0,1fr)' } }
+            : {})
         }}
       >
         {embedHref && failedMap !== embedHref ? (
@@ -65,10 +66,9 @@ export function EventLocation({
               sx={{ display: 'block', width: '100%', height: 'clamp(200px, 24vh, 240px)', border: 0, borderRadius: 1 }}
             />
           </Box>
-        ) : (
+        ) : embedHref ? (
           <Box
             sx={{
-              minHeight: 120,
               bgcolor: 'background.default',
               borderRadius: 1,
               display: 'grid',
@@ -79,10 +79,7 @@ export function EventLocation({
               textAlign: 'center'
             }}
           >
-            <LocationOnOutlined sx={{ fontSize: 28, color: 'text.secondary' }} />
-            <Typography variant="body2">
-              {failedMap === embedHref && embedHref ? 'No pudimos cargar el mapa.' : 'Agrega el mapa de tu celebración'}
-            </Typography>
+            <Typography variant="body2">No pudimos cargar el mapa.</Typography>
             {embedHref ? (
               <Button
                 onClick={() => {
@@ -94,7 +91,7 @@ export function EventLocation({
               </Button>
             ) : null}
           </Box>
-        )}
+        ) : null}
         <Stack spacing={1.25} sx={{ minWidth: 0 }}>
           <TextField
             size="small"

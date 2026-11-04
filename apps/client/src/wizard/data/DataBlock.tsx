@@ -16,6 +16,7 @@ export function DataBlock({
   saveState,
   error,
   inlineError = false,
+  pending = false,
   selected = true,
   tabId
 }: {
@@ -30,12 +31,13 @@ export function DataBlock({
   saveState: SaveState;
   error?: string | undefined;
   inlineError?: boolean;
+  pending?: boolean;
   selected?: boolean;
   tabId?: string | undefined;
 }) {
   const [focused, setFocused] = useState(false);
   const confirmed = confirmedDraft ?? event;
-  const dirty = fields.some((field) => (draft[field] ?? null) !== (confirmed?.[field] ?? null));
+  const dirty = pending || fields.some((field) => (draft[field] ?? null) !== (confirmed?.[field] ?? null));
   const complete =
     Boolean(event) &&
     fields.every(
@@ -49,19 +51,14 @@ export function DataBlock({
     ) &&
     !dirty;
   const failed = Boolean(error) || (dirty && saveState === 'error');
-  const state = failed
-    ? 'error'
-    : focused || dirty || saveState === 'saving'
-      ? 'editing'
-      : complete
-        ? 'confirmed'
-        : 'empty';
+  const state = failed ? 'error' : focused || dirty ? 'editing' : complete ? 'confirmed' : 'empty';
   return (
     <Box
       component="section"
       id={`${id}-panel`}
       role={tabId ? 'tabpanel' : 'region'}
       aria-labelledby={tabId ?? `${id}-title`}
+      aria-description={state === 'confirmed' ? 'Confirmado por el servidor' : undefined}
       tabIndex={tabId ? 0 : undefined}
       data-validation={state}
       onFocusCapture={() => setFocused(true)}
@@ -87,25 +84,34 @@ export function DataBlock({
         '@media (prefers-reduced-motion: reduce)': { transition: 'none' }
       }}
     >
-      <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', mb: 1.5 }}>
-        <Box sx={{ color: 'text.secondary', display: 'flex' }}>{icon}</Box>
-        <Typography id={`${id}-title`} component="h3" variant="h4" sx={{ flex: 1 }}>
-          {title}
-        </Typography>
-        <Box
-          sx={{ width: 24, height: 24, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-        >
-          {state === 'confirmed' ? (
-            <CheckCircleOutline
-              fontSize="small"
-              color="success"
-              role="img"
-              titleAccess={`${title}: confirmado por el servidor`}
-              aria-label={`${title}: confirmado por el servidor`}
-            />
-          ) : null}
-        </Box>
-      </Stack>
+      {!tabId ? (
+        <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', mb: 1.5 }}>
+          <Box sx={{ color: 'text.secondary', display: 'flex' }}>{icon}</Box>
+          <Typography id={`${id}-title`} component="h2" variant="h4" sx={{ flex: 1 }}>
+            {title}
+          </Typography>
+          <Box
+            sx={{
+              width: 24,
+              height: 24,
+              flexShrink: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            {state === 'confirmed' ? (
+              <CheckCircleOutline
+                fontSize="small"
+                color="success"
+                role="img"
+                titleAccess={`${title}: confirmado por el servidor`}
+                aria-label={`${title}: confirmado por el servidor`}
+              />
+            ) : null}
+          </Box>
+        </Stack>
+      ) : null}
       {children}
       {failed ? (
         <Typography role="alert" color="error" variant="body2" sx={{ mt: 1.5 }}>

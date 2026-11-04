@@ -57,6 +57,7 @@ export function DataStep({
   confirmedDraft,
   fieldErrors = {},
   saveState = 'idle',
+  onPendingDateChange,
   onResetInvitationDesign
 }: {
   services: AvailableService[];
@@ -68,6 +69,7 @@ export function DataStep({
   confirmedDraft?: UpdateEventInput | undefined;
   fieldErrors?: EventFieldErrors;
   saveState?: SaveState;
+  onPendingDateChange?: (pending: boolean) => void;
   onResetInvitationDesign?: (serviceId: string) => Promise<void>;
 }) {
   const zones = useMemo(supportedTimeZones, []);
@@ -82,6 +84,7 @@ export function DataStep({
   const localZone = useRef(zone);
   const [dateError, setDateError] = useState<string>();
   const [pendingZone, setPendingZone] = useState<string>();
+  const [zoneError, setZoneError] = useState<string>();
   const [editingWallClock, setEditingWallClock] = useState(false);
   const [pendingServiceId, setPendingServiceId] = useState<string>();
   const [failedServiceId, setFailedServiceId] = useState<string>();
@@ -118,16 +121,17 @@ export function DataStep({
   };
   const selectedDate = wallClock.split('T')[0] ?? '';
   const selectedTime = wallClock.split('T')[1] ?? '';
+  const pendingDate =
+    !disabled && Boolean(selectedDate || selectedTime) && wallClock !== instantToWallClock(draft.eventDateTime, zone);
+  useEffect(() => {
+    onPendingDateChange?.(pendingDate);
+  }, [onPendingDateChange, pendingDate]);
   const today = instantToWallClock(new Date().toISOString(), zone).slice(0, 10);
   const chooseDateTime = (date: string, time: string) => {
     if (date && time) commitDate(`${date}T${time}`);
     else {
       setWallClock(`${date}T${time}`);
       setDateError(undefined);
-      if (draft.eventDateTime) {
-        localInstant.current = null;
-        onChange({ eventDateTime: null });
-      }
     }
   };
   const locationHref = fieldErrors.locationUrl ? null : previewHref(draft.locationUrl);
@@ -195,12 +199,7 @@ export function DataStep({
     }
   };
   return (
-    <Stack spacing={1.5} sx={{ minWidth: 0 }}>
-      <Box>
-        <Typography component="h2" variant="h3">
-          Datos del Evento
-        </Typography>
-      </Box>
+    <Stack component="section" aria-label="Datos del evento" spacing={1.5} sx={{ minWidth: 0 }}>
       {compactNavigation ? (
         <Tabs
           value={activeSection}
@@ -354,6 +353,7 @@ export function DataStep({
           title="Fecha y hora del evento"
           icon={<CalendarMonthOutlined />}
           fields={['eventDateTime', 'timeZone']}
+          pending={pendingDate}
           error={dateError ?? fieldErrors.eventDateTime ?? fieldErrors.timeZone}
         >
           <Box
@@ -401,6 +401,7 @@ export function DataStep({
                   value={selectedTime}
                   disabled={disabled}
                   error={Boolean(dateError ?? fieldErrors.eventDateTime)}
+                  helperText={fieldErrors.eventDateTime}
                   slotProps={{ inputLabel: { shrink: true } }}
                   onFocus={() => setEditingWallClock(true)}
                   onBlur={() => setEditingWallClock(false)}
@@ -416,7 +417,10 @@ export function DataStep({
                   helperText={fieldErrors.timeZone}
                   value={zone}
                   disabled={disabled}
-                  onChange={(e) => setPendingZone(e.target.value)}
+                  onChange={(e) => {
+                    setZoneError(undefined);
+                    setPendingZone(e.target.value);
+                  }}
                 >
                   {[...new Set([zone, ...zones])].map((item) => (
                     <MenuItem key={item} value={item}>
@@ -430,7 +434,7 @@ export function DataStep({
                   </Typography>
                 ) : null}
               </Box>
-              <EventCountdown target={draft.eventDateTime} zone={zone} />
+              <EventCountdown target={pendingDate ? null : draft.eventDateTime} zone={zone} />
             </Box>
           </Box>
         </DataBlock>
@@ -546,7 +550,7 @@ export function DataStep({
         <DialogTitle id="zone-title">Cambiar zona horaria</DialogTitle>
         <DialogContent>
           La hora escrita se conservará para {pendingZone ? timeZoneLabel(pendingZone) : ''}. Confirma este cambio.
-          {dateError ? <Alert severity="error">{dateError}</Alert> : null}
+          {zoneError ? <Alert severity="error">{zoneError}</Alert> : null}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setPendingZone(undefined)}>Cancelar</Button>
@@ -556,14 +560,19 @@ export function DataStep({
               const next = pendingZone;
               if (!next) return;
               try {
-                const eventDateTime = selectedDate && selectedTime ? wallClockToInstant(wallClock, next) : null;
+                const eventDateTime =
+                  selectedDate && selectedTime
+                    ? wallClockToInstant(wallClock, next)
+                    : draft.eventDateTime
+                      ? wallClockToInstant(instantToWallClock(draft.eventDateTime, zone), next)
+                      : null;
                 localInstant.current = eventDateTime;
                 localZone.current = next;
                 onChange({ timeZone: next, eventDateTime });
                 setDateError(undefined);
                 setPendingZone(undefined);
               } catch (error) {
-                setDateError(error instanceof Error ? error.message : 'Fecha inválida.');
+                setZoneError(error instanceof Error ? error.message : 'Fecha inválida.');
               }
             }}
           >
