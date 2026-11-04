@@ -68,6 +68,13 @@ test('agent configuration is non-runtime and does not activate every workspace',
   assert.equal(qaPlan(files).risk, 'L0');
 });
 
+test('TDD contract is non-runtime and guard changes trigger tooling tests', () => {
+  assert.deepEqual(selectWorkspaces(workspaces, ['tdd/contracts/IP-TDD-001.json']).selected, []);
+  assert.equal(qaPlan(['tdd/contracts/IP-TDD-001.json']).risk, 'L0');
+  assert.equal(touchesQaTooling(['scripts/tdd-guard.mjs']), true);
+  assert.equal(touchesQaTooling(['scripts/tdd-guard.test.mjs']), true);
+});
+
 test('docs-only and empty selections do not invent affected runtime modules', () => {
   assert.deepEqual(selectWorkspaces(workspaces, ['README.md', 'docs/INDEX.md']).selected, []);
   assert.deepEqual(selectWorkspaces(workspaces, []).selected, []);

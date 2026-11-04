@@ -220,6 +220,10 @@ jobs:
       - name: Validate QA tooling and integration selection
         run: pnpm qa:tooling:test
 
+      - name: Enforce TDD test and implementation scope on pull requests
+        if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'tdd/')
+        run: node scripts/tdd-guard.mjs --ci --main-ref=origin/main
+
       - name: Validate Prisma schema
         run: pnpm --filter @invitaciones/api db:validate
 

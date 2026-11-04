@@ -12,3 +12,4 @@ description: "Usar exclusivamente en tareas de diseño visual, UI/UX, CSS, respo
 - Probar el viewport afectado y una contraparte móvil/desktop únicamente cuando la modificación altere responsive. Revisar teclado/foco, contraste, estados loading/error y reduced-motion cuando se hayan tocado.
 - Para QA visual usar la skill `visual-qa` bajo demanda. No ejecutar E2E de Scanner, PostgreSQL o Flipbook para una corrección cosmética ajena a ellos; respetar la elevación de riesgo en componentes críticos.
 - Entregar cambios y evidencia concisa, no portfolios ni reportes intermedios.
+- Si una tarea visual cambia comportamiento automatizable, cumplir el contrato de `tdd-scope`; no crear TDD artificial para CSS/copy cosmético.

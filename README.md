@@ -99,6 +99,8 @@ pnpm format:check
 pnpm ci
 ```
 
+**TDD-First:** ChatGPT publica contrato y tests RED en rama `tdd/<ID>`. El agente ejecuta `pnpm qa:tdd -- --contract=tdd/contracts/<ID>.json --baseline=<SHA_RED> --run` con tests y alcance bloqueados. CI verifica el PR. Consultar [TDD Workflow](docs/05-implementacion/TDD_WORKFLOW.md).
+
 QA local por archivos y riesgo (CI remoto conserva certificación completa):
 
 ```bash

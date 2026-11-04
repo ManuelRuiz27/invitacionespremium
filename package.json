@@ -22,7 +22,7 @@
     "qa:quick": "node scripts/run-qa.mjs quick",
     "qa:focused": "node scripts/run-qa.mjs focused",
     "qa:full": "node scripts/run-qa.mjs full",
-    "qa:tooling:test": "eslint scripts/run-qa.mjs scripts/qa-selection.mjs scripts/qa-selection.test.mjs && node --test scripts/qa-selection.test.mjs scripts/access-control-integration-selection.test.mjs scripts/qa-redaction.test.mjs",
+    "qa:tooling:test": "eslint scripts/run-qa.mjs scripts/qa-selection.mjs scripts/qa-selection.test.mjs scripts/tdd-guard.mjs scripts/tdd-guard.test.mjs && node --test scripts/qa-selection.test.mjs scripts/tdd-guard.test.mjs scripts/access-control-integration-selection.test.mjs scripts/qa-redaction.test.mjs",
     "local:seed": "pnpm --filter @invitaciones/api local:seed",
     "local:smoke": "node scripts/smoke-local.mjs",
     "product-proof:capture": "node scripts/capture-landing-product-proof.mjs",
@@ -37,7 +37,8 @@
     "access-control-guide:capture": "node scripts/run-access-control-e2e.mjs --guide && node scripts/access-control-guide/render.mjs && node scripts/access-control-guide/verify.mjs",
     "access-control-guide:render": "node scripts/access-control-guide/render.mjs",
     "access-control-guide:verify": "node scripts/access-control-guide/verify.mjs",
-    "access-control-guide:test": "tsc -p tsconfig.access-control-guide.json && node --test scripts/access-control-guide/*.test.mjs"
+    "access-control-guide:test": "tsc -p tsconfig.access-control-guide.json && node --test scripts/access-control-guide/*.test.mjs",
+    "qa:tdd": "node scripts/tdd-guard.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
