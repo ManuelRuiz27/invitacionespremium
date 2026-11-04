@@ -12,36 +12,36 @@
   },
   {
     "file": "admin-02-crear-salon.png",
-    "sourceSha256": "a895cef45641bd3c3f2972c6e38ab298763ec3833892fdb4a59c9e879f3969a6",
+    "sourceSha256": "09eeedcb4610bf1c24929e56f1c2fd11b869e498f774e97beb4b133002e09465",
     "crop": {
       "left": 400,
-      "top": 207,
+      "top": 206,
       "width": 640,
-      "height": 485
+      "height": 487
     },
-    "sha256": "95cfe2303de48be7176b0598fde7b01ad6b083dd55fc235a3666a4da9994681c"
+    "sha256": "6528d1b9c778a924c8eb02bd23fd8991e00154a0fd3db156638814a6ab912cd6"
   },
   {
     "file": "admin-03-preparar-salon.png",
-    "sourceSha256": "55f9c126563d7cfca24b0dac23804e27fa5fb50ae7cfebc148c7a5a3dd18f921",
+    "sourceSha256": "379a875a55faf50440052f266e0b6798e4f349c2366f2f69cabb78e52dd66758",
     "crop": {
       "left": 240,
       "top": 65,
       "width": 1180,
       "height": 835
     },
-    "sha256": "9a8f46265abf31e96dc097eaae70a76e71d1fdc02a47517ebbfcb45d79535b88"
+    "sha256": "a7e1ef6068acc841b471137e9510e2770b81a979cc4b64641a831cffc8a491d9"
   },
   {
     "file": "admin-03b-responsable.png",
-    "sourceSha256": "c5d187783365304275881e7140ef897ff45400a767e59df29707de42de6271a7",
+    "sourceSha256": "d0ff2dcb4f50b914c43338a008da4ddf8d1ed06dd3b849f451635f507290087c",
     "crop": {
       "left": 400,
-      "top": 270,
+      "top": 269,
       "width": 640,
-      "height": 360
+      "height": 362
     },
-    "sha256": "b6e895979a73a7ae48e6ddedc956cf72746cbdb0bf18c257cf5a10749441b58a"
+    "sha256": "153a732f2548983a3c0a2e1040ebc7def669e60acf8cf21b6960e6b0a90cff44"
   },
   {
     "file": "salon-00-entrar.png",
@@ -56,146 +56,146 @@
   },
   {
     "file": "admin-04-crear-evento.png",
-    "sourceSha256": "2a0f6cfa03d62728c745fe18efa4bd9a86488029dbc7837a8b024129658ddc29",
+    "sourceSha256": "5d74762317b5e95efd06129b8c5ff1e55a42969a601e630f557dd2387a65d9dc",
     "crop": {
       "left": 400,
-      "top": 104,
+      "top": 103,
       "width": 640,
-      "height": 692
+      "height": 694
     },
-    "sha256": "be013071be4d95571de39bffee9fc08645225c6bd5da4187698d5c986a5ade7b"
+    "sha256": "2d32d9846c0eaf2ac9b990bc6f1a999f87b40c6c59952109fd0e3168c7506db6"
   },
   {
     "file": "admin-05-preparar-evento.png",
-    "sourceSha256": "455b0c0cc40a149a5a55936b2d5268703a0cb26b4953a25b5536b04ececa7cfd",
+    "sourceSha256": "672dd576a2357c7d56db2c206d59845daa24bd25ca9be9a1a0462f577a2b5d83",
     "crop": {
       "left": 240,
       "top": 65,
       "width": 1180,
       "height": 835
     },
-    "sha256": "65a5953b30bbbd7c94d9904e24c09717dc98cb70e2979731e5de2b5b8d9a6823"
+    "sha256": "a897b045da09b7bad41b98934d8e31b7aa8185329bd23c98239f41741f333fd5"
   },
   {
     "file": "admin-06-requisitos.png",
-    "sourceSha256": "339f9519d855bc77ebee252b3ff1784c4588247f8c39de2b08e148cebd3a0fdd",
+    "sourceSha256": "ca8c2ebbdc39f9443b2fcab7447334a8265c377f205ae794781fc4a4630d60c8",
     "crop": {
       "left": 240,
       "top": 65,
       "width": 1180,
       "height": 835
     },
-    "sha256": "983ea0d99173bd578a4413668488798dc3ca6654ab88eae2eac7352a5976502e"
+    "sha256": "07485f544611ab1c68ec90c0083b84d4659a9edf73717e6d3e44bb5c66534613"
   },
   {
     "file": "salon-02-resumen.png",
-    "sourceSha256": "fcb2953f005c4c611190a18ef11e50ab1f601c7784186a53543cf9e526a71979",
+    "sourceSha256": "265631b159bc8d8e9177b2e64b0b3fc73e32ed69a0582d7b03252c059de3a3d3",
     "crop": {
       "left": 240,
       "top": 65,
       "width": 1180,
       "height": 835
     },
-    "sha256": "02d6df35a3dbe46cf1d4e092b2cf2a26a812f5a18679ba6caccf02e27823ec3f"
+    "sha256": "d76e5ccbc789c04f4fbc7704b973de1aee190ddcee470738a0db043e29449949"
   },
   {
     "file": "salon-03-invitados.png",
-    "sourceSha256": "04e3e3650b186d362d2449ac5d7b73508f59a7b3fc2b11425bd2950602bc0201",
+    "sourceSha256": "942f3145cfd5b22b0dd6fc7b8bce8dea6a8b9a20195e3949eb9f9cfe1931b107",
     "crop": {
       "left": 240,
       "top": 65,
       "width": 1180,
       "height": 835
     },
-    "sha256": "56f21fb4b6797ea62adf7f76e9625775c8815a21ef277ede640ee5b90ce6768b"
+    "sha256": "bfbd1ab5c2efd276176435979b940e3e04e390dc3703fc6ea41e200290d7b26e"
   },
   {
     "file": "salon-04-importar.png",
-    "sourceSha256": "7e8be783ca1374d625889a18d6f1409d2eb6be94a57298d4034bda7e87820400",
+    "sourceSha256": "04f26ee64502ffed10afa392da62b74f4612bf723fed78c8248973cab2b0bc78",
     "crop": {
       "left": 240,
       "top": 65,
       "width": 1180,
       "height": 835
     },
-    "sha256": "5d8791b64b843aefd67b5383a089fa278db2cd16559ff1ad7ba960e7ec006ba4"
+    "sha256": "3898c9cd264a05e231ead3f1d1d988fc5f8e0b0dfe0b9bcbf41253790acaea0d"
   },
   {
     "file": "salon-05-emitir.png",
-    "sourceSha256": "16692356993c9e6cc81bd66c7940c758621c9d7173e967e6d193638779a2d495",
+    "sourceSha256": "5445f3e54670fd24bd9ed05b71edf5dd17af3a0942efbdf52fc02c201268d2cd",
     "crop": {
       "left": 240,
       "top": 65,
       "width": 1180,
       "height": 835
     },
-    "sha256": "f46eb5cdb41ea82d9a0e002444e098a8593aacebb72caf3019bfadfbd0638aae"
+    "sha256": "a27960b0b3e3517f3d749ba1c1d398d8e9626072fa88a380371b22a3a616fb44"
   },
   {
     "file": "salon-05b-credenciales.png",
-    "sourceSha256": "daa55fa0cbaebacdb76b5f769d91f5e31ce493d6cbf298bc6853c6f34fb2f5aa",
+    "sourceSha256": "22765db6616ac839e033609e25a2d05b9a2906d7419aedaa6a5c18942fde895e",
     "crop": {
       "left": 240,
       "top": 65,
       "width": 1180,
       "height": 835
     },
-    "sha256": "dfe2fb686c6f6ae861a4db355b48a9c2b5e9a4d0541b1eb2c0874807a288c2cc"
+    "sha256": "e27cb925b8bd5c35bfac124c88229cfd95662b82d9b58b4db4b6100b164b2cf6"
   },
   {
     "file": "salon-06-material.png",
-    "sourceSha256": "c5bd638c46becad1cc856118c7d5ba6ff0e8034a8fc35c9bf25435149b49826c",
+    "sourceSha256": "62d97c02aa9dc238b0803df6ed6aac911ae0e4b260f023f009e92d22a3cda1ca",
     "crop": {
       "left": 240,
       "top": 65,
       "width": 1180,
       "height": 835
     },
-    "sha256": "28feb885d3e39980dab2efea8afb8ed85dfa30b83ca83164a4293204b06f12de"
+    "sha256": "a9b30a349a8a5b7e74353f727f3ce414abe173b45d5ca8801f9df1bfea3d7b44"
   },
   {
     "file": "admin-07b-listo.png",
-    "sourceSha256": "ff81fb45d8a006ba0951e3f88e449289a950fcf4f116b43fdd66d0ab0b813e10",
+    "sourceSha256": "70c71b026d48e8654d177e3622263a9a848d54ec3021943e62d05f95030b94a2",
     "crop": {
       "left": 240,
       "top": 65,
       "width": 1180,
       "height": 835
     },
-    "sha256": "e7fbda9e7d45986f88f683b97073c7e7995c5bef46a80b588ade90cbfd4f2a06"
+    "sha256": "33cd69472de49b95e82ab3567244ac6b661bf2c2fa11c9f985c9b1d95aa79273"
   },
   {
     "file": "admin-08-evento-activo.png",
-    "sourceSha256": "392dae896f54b17398ee4b1d3151989775531958cd215fa598c178aa47154384",
+    "sourceSha256": "e52cb8d3a858097adf1fdf067d830aa2eced49ed421b38aa7ca37b2290d644e1",
     "crop": {
       "left": 240,
       "top": 65,
       "width": 1180,
       "height": 835
     },
-    "sha256": "891d4d60962fda58c89071e360bb2fb814960a098399d542352960f20342c14d"
+    "sha256": "3d7960e12562e460cdfd35726b8d392c6f2cfc91be7c727891a65b902c7cefb7"
   },
   {
     "file": "salon-09-staff.png",
-    "sourceSha256": "00c158e34d3709e9370dc28261b4e0231bcc0e9e09fc741b966dc91e6f41eeeb",
+    "sourceSha256": "3afd25e6a5909286568ee4d9a4dbf75418b4cea41fb5f9fe531a6c37ed595543",
     "crop": {
       "left": 240,
       "top": 65,
       "width": 1180,
       "height": 835
     },
-    "sha256": "ff5b065624a64e86766697b4c099df6e076f12775cc444dac55c2bb3131bb1b1"
+    "sha256": "7834a3c4171329d162cab86257c0b5bfa079ad9dba680d21d75f69f5216fc306"
   },
   {
     "file": "salon-09b-compartir.png",
-    "sourceSha256": "a958878373313cf2c50f86699efb0952cbd0093795fbe95c147f7eb7b58caf7c",
+    "sourceSha256": "6c9283c3f27f17bdb479df7e30a61b85a6fa8a64074cc9ba2c05d088790524c7",
     "crop": {
       "left": 240,
       "top": 65,
       "width": 1180,
       "height": 835
     },
-    "sha256": "28a98eaa2f7888a2b5fcf2fecc2701df66eb0ac30c09b987a2eaeaaa5ac31da2"
+    "sha256": "981e06e2bb8cef613203a1a3e66892a488e61422bcb5ebccabe277c103ca213b"
   },
   {
     "file": "salon-10-scanner.png",
@@ -221,135 +221,135 @@
   },
   {
     "file": "salon-12-aforo.png",
-    "sourceSha256": "4073f354d7851955404d7b336f2b625143ac4c1df95521b33546b0bbe9bb4b1e",
+    "sourceSha256": "b98a5b3b8b7f50092b4af4c5c1af66a508850f1188be5ff42bd3eb6c8f8e654d",
     "crop": {
       "left": 240,
       "top": 65,
       "width": 1180,
       "height": 835
     },
-    "sha256": "22c6a610f93063ff8b42ca98e0b05623047cbb913d944247e9ecc632d47d8fe5"
+    "sha256": "4439462334091ebbbe37536e96e5a7233075ac89642c51f44a1f71e17314fd70"
   },
   {
     "file": "admin-09-aforo.png",
-    "sourceSha256": "c43405e76e21415cb354df486d3687e358bd025caa74339cc566bb6515c3c5ed",
+    "sourceSha256": "804c410479f07ee07968d1dceda9cddc08d4a6227abfb685ed737015c08e8e16",
     "crop": {
-      "left": 284,
+      "left": 260,
       "top": 505,
-      "width": 1128,
+      "width": 1160,
       "height": 395
     },
-    "sha256": "2c3597dcec00116dd2361ce55c0bdd7c04ccfb42c2e1a0b321cdb70fa4e024d0"
+    "sha256": "a44017726fb938fde10798896d4ff31943b2cb2fc375f338e2a15bdbea0d7f5c"
   },
   {
     "file": "admin-04-crear-evento-numerados.png",
-    "sourceSha256": "dda5dd285933ec5712aea03fe1ff3ea0a8d7ac2903f5078271d32877f31b7c52",
+    "sourceSha256": "2377c3c8217d30c37310222e28d83d4a9d3b0fed508d39cec66924abfd58b57f",
     "crop": {
       "left": 400,
-      "top": 104,
+      "top": 103,
       "width": 640,
-      "height": 692
+      "height": 694
     },
-    "sha256": "45f450d0a00c19fd3135ace4dac8399e70a59c6297c6d0f62343a77817ce699b"
+    "sha256": "a5da8db35cb1ee180b1af6557f76a8b9b290fbfe59940eeace00d2efbf7fa331"
   },
   {
     "file": "admin-05-preparar-evento-numerados.png",
-    "sourceSha256": "f6930461bd555af66e66c81fcf645355dd3889cd534831fc00e3037348ec2001",
+    "sourceSha256": "b51b33c1d7083229a63e73c60467414fb5e21c599c16afaa60f4c91145c0d112",
     "crop": {
       "left": 240,
       "top": 65,
       "width": 1180,
       "height": 835
     },
-    "sha256": "e87bb4a97705283e4d069c08b60dd204787e480d56385a4155c2108124b6b6fa"
+    "sha256": "3ab20e9e865e095d7fe8ca34f7cc1e546e623bcb61f10e9868462ea13a9c3bfb"
   },
   {
     "file": "admin-06-requisitos-numerados.png",
-    "sourceSha256": "a5dcb2dcda7a0e02b9f8f071cdaf36abe1f938da83db58431a81183ecf26617a",
+    "sourceSha256": "fdc0ef6a9841a03407fc5da37930e58d365cb4f2b6a5600996eeb84eba1fc5c0",
     "crop": {
       "left": 240,
       "top": 65,
       "width": 1180,
       "height": 835
     },
-    "sha256": "82d0a23903d8f48945a2c2028e3cc3b86528ebf507f41751eb89f1893d3cce64"
+    "sha256": "4db5d5180af60c96c2180d6e416f9dad0cb7e54813b33842a550b553bfeb5858"
   },
   {
     "file": "salon-02-resumen-numerados.png",
-    "sourceSha256": "8b140c191ecc70f4b5a52488167ffb7ad55f91453f51971d44091dc8f85283ac",
+    "sourceSha256": "99121bcc0bdb510cce30249b4cf7bd5cf9d49ee94dab3a85a40bab5c52b5ee8a",
     "crop": {
       "left": 240,
       "top": 65,
       "width": 1180,
       "height": 835
     },
-    "sha256": "c762fffce5d34e7ea7a5ba24f9e8001c5837ed6515b212c492dfa353ed501140"
+    "sha256": "1b38e91836df17123f1532e05691d14b2934b31937ae4fee042fc2e2f42a8fa3"
   },
   {
     "file": "admin-07-pases-anonimos.png",
-    "sourceSha256": "89b2df40704ea8682135d262fe5f407cf5ad403450da53f12c54e9f920dc53d9",
+    "sourceSha256": "7be13fd9d6b088027086ae5ab63ad3451d01021e219bd8d7be9a1c9ddabad6a1",
     "crop": {
       "left": 240,
       "top": 65,
       "width": 1180,
       "height": 835
     },
-    "sha256": "eb2838022ae2f1e75e89b57261181122132dca11c48a1341596979df9511c808"
+    "sha256": "74c3b03010ca42ad568a12429a0b919b045463af2a8400250645a0a3b7c12868"
   },
   {
     "file": "salon-06-material-numerados.png",
-    "sourceSha256": "c0d69c2c14c446236c22f9c3d4da0ee033a40073747cb223d2c0cfc022146f91",
+    "sourceSha256": "fffecfa395cbf12d13de4ebd302d7ee02c0704f5dd437fbbec0c0129d39619a0",
     "crop": {
       "left": 240,
       "top": 65,
       "width": 1180,
       "height": 835
     },
-    "sha256": "dbdb127dafafdd562f476d3fe62f95c094cdcd61d8ec5358762024791870d940"
+    "sha256": "966ada61c441e9213fa0bb20b5e9d4f89f8f0f353a4d428e7a8740c47bf774c8"
   },
   {
     "file": "admin-07b-listo-numerados.png",
-    "sourceSha256": "41f240208448eab9eda98152124dd0e1c4a94b6056dbe7157e0e1a64bc96e617",
+    "sourceSha256": "d105fdab36f306b2aeb2b7a8666d3901d5524371a1b69b61248a46c90c5f4ef4",
     "crop": {
       "left": 240,
       "top": 65,
       "width": 1180,
       "height": 835
     },
-    "sha256": "b32b834404bd26f9c205f9d54a1de501b96e88560162dc95633343dd4e1bf02e"
+    "sha256": "3a74079b53928825d4baeff67115ccf13b2d9bdf5d575ae4b539c2a58e242389"
   },
   {
     "file": "admin-08-evento-activo-numerados.png",
-    "sourceSha256": "ba322181145fa9ac6896ddf09e5746373ff61c8b964187676efdb5a021a98355",
+    "sourceSha256": "aadf03ff256f6d658e479e1bb43f739998bf6d184b365f911f9b5b49b939966b",
     "crop": {
       "left": 240,
       "top": 65,
       "width": 1180,
       "height": 835
     },
-    "sha256": "a006e93b58306a89d9a34bac3e87e3b49a74a8bfac6d22a252a76e4da88a6363"
+    "sha256": "fde946f4e61537b65f36af2b2ea0aa3bfb1edd95a37b57ebbad827762fa7894e"
   },
   {
     "file": "salon-09-staff-numerados.png",
-    "sourceSha256": "74b5bdb43bce42606da971c8049a8372f53e82c74873a47990ebfbe7802417f4",
+    "sourceSha256": "221315f90ea72ae236070dc910508d6026be577938013234719f531ed88ced80",
     "crop": {
       "left": 240,
       "top": 65,
       "width": 1180,
       "height": 835
     },
-    "sha256": "ae1434ce616578457d77ec0d8e0ef3f9ad85685585e4d299c42653d56825331d"
+    "sha256": "5e4c3189c402f9912f5a39e09ec937a149e00803a89c74850dce82497b192717"
   },
   {
     "file": "salon-09b-compartir-numerados.png",
-    "sourceSha256": "d3527152ef759bd9e22ec2b538c7a7161a560aad4dfaef13752163ab5979186c",
+    "sourceSha256": "1c27218600fa2ec52ef47eccf1a57fed2fdce7d9f394df81f56cdfc0b7efbb3b",
     "crop": {
       "left": 240,
       "top": 65,
       "width": 1180,
       "height": 835
     },
-    "sha256": "a1aacefb022ed037b30f17c17d6201c82587a1af3a8f11bf7fa7ea3aa465bd51"
+    "sha256": "af5277948b158b98342a92d61483861c76af63594ce40b50784843c2f8715899"
   },
   {
     "file": "salon-10-scanner-numerados.png",
@@ -375,57 +375,57 @@
   },
   {
     "file": "salon-12-aforo-numerados.png",
-    "sourceSha256": "6a884b85d820876988e65d18945568856170c5bf93d5d93003f84aefe239aa2f",
+    "sourceSha256": "43a75b946ffb84ba3c509d25339354f9af73a60a6fa2a72d05d8883328a3626a",
     "crop": {
       "left": 240,
       "top": 65,
       "width": 1180,
       "height": 835
     },
-    "sha256": "d910da8148d3aff45a70ec835df1ca72b39a088a258ce8165ee07388adf74525"
+    "sha256": "28307774b55daefc26e0d667cc9e1015aa5355c171021717f03f6503d9c3b4ed"
   },
   {
     "file": "salon-07-pases.png",
-    "sourceSha256": "eb37687b2f76aba1fa5030ae71426280a9ff11100b818e3efaa746f4de7cc1e0",
+    "sourceSha256": "bd205ea94efa0e740a5d9b467ae0f0c8942333df5a246e362072c5c870b07ee8",
     "crop": {
       "left": 240,
       "top": 65,
       "width": 1180,
       "height": 835
     },
-    "sha256": "9de7a36577ed1a55c32e704a034a465a2839aa97ce57e1813fa84983370fd7a3"
+    "sha256": "18f53619f1ee966b9a84a4508923896e66ddb68d84939ceeeda656b17cfc57d6"
   },
   {
     "file": "admin-09-aforo-numerados.png",
-    "sourceSha256": "eb1ceff27969462e46e12e66567b42547a10acfef31120de095c7de2cde266cd",
+    "sourceSha256": "6b632629610ecccfe168aa9b5cec07334764c2709a2c09aa048204e947bde1e4",
     "crop": {
-      "left": 284,
+      "left": 260,
       "top": 505,
-      "width": 1128,
+      "width": 1160,
       "height": 395
     },
-    "sha256": "66c714deff442ec53ae7d6dbb626616d64405745347095bb9298488984da4cd5"
+    "sha256": "d67c9b103cd836361fd4f7bf0db2f3f22d0066dfa1874c3da1003a0666bed59c"
   },
   {
     "file": "admin-01-clientes.png",
-    "sourceSha256": "27fdb5ebe9f9113c2cf4bec411197a713556d2965dd1f117cd7d98b5626bb892",
+    "sourceSha256": "f452bb91bb35c6ae37c9cd8ff002dfe59937518a868acfaa69469cc986b7a6f6",
     "crop": {
       "left": 0,
       "top": 0,
       "width": 1440,
       "height": 900
     },
-    "sha256": "27fdb5ebe9f9113c2cf4bec411197a713556d2965dd1f117cd7d98b5626bb892"
+    "sha256": "f452bb91bb35c6ae37c9cd8ff002dfe59937518a868acfaa69469cc986b7a6f6"
   },
   {
     "file": "salon-01-eventos.png",
-    "sourceSha256": "4304a436022db7fd49cc9df954ae1d593ec439f0fa8cfcd599f554d85e6ff8fc",
+    "sourceSha256": "392dad174e64fe3a3dfffbe111927f5cc0257213ff1001cd044e616496e352dd",
     "crop": {
       "left": 0,
       "top": 0,
       "width": 1440,
       "height": 900
     },
-    "sha256": "4304a436022db7fd49cc9df954ae1d593ec439f0fa8cfcd599f554d85e6ff8fc"
+    "sha256": "392dad174e64fe3a3dfffbe111927f5cc0257213ff1001cd044e616496e352dd"
   }
 ]
