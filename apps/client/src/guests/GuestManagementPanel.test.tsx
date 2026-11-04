@@ -293,6 +293,7 @@ describe('Guest management workspace', () => {
     await user.click(screen.getByRole('button', { name: 'Agregar invitado' }));
     await user.click(screen.getByRole('button', { name: 'Crear grupo' }));
     await user.type(screen.getByRole('textbox', { name: 'Nuevo grupo' }), 'Amistades');
+    expect(screen.getByRole('textbox', { name: 'Nuevo grupo' })).toHaveValue('Amistades');
     await user.click(screen.getByRole('button', { name: 'Guardar grupo' }));
     await waitFor(() => expect(api.contacts.createGroup).toHaveBeenCalledWith(managedEvent.id, { name: 'Amistades' }));
     await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Nuevo grupo' })).not.toBeInTheDocument());

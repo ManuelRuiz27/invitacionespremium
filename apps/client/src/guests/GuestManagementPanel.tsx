@@ -514,7 +514,14 @@ export function GuestManagementPanel({
         fullWidth
         maxWidth="xs"
         aria-labelledby="contact-editor-title"
-        slotProps={{ transition: { onEntered: () => nameInput.current?.focus() } }}
+        slotProps={{
+          transition: {
+            onEntered: () => {
+              const input = nameInput.current;
+              if (input?.closest('[role="dialog"]') === document.activeElement) input.focus();
+            }
+          }
+        }}
       >
         <Box
           component="form"
