@@ -5,13 +5,14 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const contractName = /^tdd\/contracts\/[A-Z0-9][A-Z0-9_-]{2,63}\.json$/u;
+const containsControlChars = (value) => [...value].some((character) => character.charCodeAt(0) < 32);
 
 export function safePath(file, prefix = false) {
   if (typeof file !== 'string' || !file || file.includes('\\') || file.includes(':') || file.startsWith('/'))
     throw new Error('Use relative POSIX paths in the TDD contract.');
   const path = prefix && file.endsWith('/**') ? file.slice(0, -3) : file;
   if (!path || path.split('/').some((part) => !part || part === '.' || part === '..' || part.includes('*')) ||
-      /[\x00-\x1f]/u.test(file))
+      containsControlChars(file))
     throw new Error('Unsafe TDD path: ' + file);
   return file;
 }
@@ -42,7 +43,7 @@ export function validate(raw, file) {
       throw new Error('Governance and TDD guard are protected.');
   for (const command of raw.qaCommands) {
     if (!Array.isArray(command) || !['node', 'pnpm'].includes(command[0]) ||
-        command.some((arg) => typeof arg !== 'string' || !arg || /[\x00-\x1f]/u.test(arg)))
+        command.some((arg) => typeof arg !== 'string' || !arg || containsControlChars(arg)))
       throw new Error('Only node/pnpm argument arrays are allowed.');
     if (command[0] === 'node' && !command.includes('--test'))
       throw new Error('Node test command must include --test.');
@@ -164,7 +165,15 @@ function main() {
   }
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+// Windows can vary drive-letter casing between argv[1] and fileURLToPath().
+const invocation = process.argv[1] ? resolve(process.argv[1]) : null;
+const moduleFile = resolve(fileURLToPath(import.meta.url));
+const isDirectExecution =
+  invocation !== null &&
+  (process.platform === 'win32'
+    ? invocation.toLowerCase() === moduleFile.toLowerCase()
+    : invocation === moduleFile);
+if (isDirectExecution) {
   try {
     main();
   } catch (error) {

@@ -89,20 +89,32 @@ test('git integration: RED/GREEN contract locks tests and CI validates original 
     runGit('commit', '-qm', 'test: baseline RED');
     const baseline = runGit('rev-parse', 'HEAD');
     const args = ['--contract=tdd/contracts/IP-TDD-001.json', '--baseline=' + baseline];
-    assert.equal(runGuard(...args).status, 0);
-    assert.notEqual(runGuard(...args, '--run').status, 0, 'RED should fail');
+    const preflight = runGuard(...args);
+    assert.equal(preflight.status, 0, preflight.stderr);
+    assert.match(preflight.stdout, /Scope PASS/, 'the CLI must execute, not silently exit');
+    const red = runGuard(...args, '--run');
+    assert.notEqual(red.status, 0, 'RED should fail; stdout: ' + red.stdout + '; stderr: ' + red.stderr);
+    assert.match(red.stderr, /QA FAILED/, 'RED must fail because the test failed');
 
     writeFileSync(join(work, 'apps/api/src/example.js'), 'export const answer = () => 42;\n');
-    assert.equal(runGuard(...args, '--run').status, 0, 'GREEN should pass');
+    const green = runGuard(...args, '--run');
+    assert.equal(green.status, 0, 'GREEN should pass: ' + green.stderr);
+    assert.match(green.stdout, /PASS; log:/, 'GREEN must execute the declared QA command');
     runGit('add', 'apps/api/src/example.js');
     runGit('commit', '-qm', 'feat: implement approved test');
-    assert.equal(runGuard('--ci', '--main-ref=main').status, 0, 'CI scope should pass');
+    const ci = runGuard('--ci', '--main-ref=main');
+    assert.equal(ci.status, 0, 'CI scope should pass: ' + ci.stderr);
+    assert.match(ci.stdout, /CI scope PASS/, 'CI guard must execute');
 
     writeFileSync(join(work, 'apps/api/src/example.spec.js'), 'test tampered\n');
-    assert.notEqual(runGuard(...args).status, 0, 'locked test must fail');
+    const tampered = runGuard(...args);
+    assert.notEqual(tampered.status, 0, 'locked test must fail');
+    assert.match(tampered.stderr, /Locked TDD file modified/);
     runGit('checkout', '--', 'apps/api/src/example.spec.js');
     writeFileSync(join(work, 'apps/client-extra.ts'), 'out of scope\n');
-    assert.notEqual(runGuard(...args).status, 0, 'untracked out-of-scope work must fail');
+    const outside = runGuard(...args);
+    assert.notEqual(outside.status, 0, 'untracked out-of-scope work must fail');
+    assert.match(outside.stderr, /Out-of-scope or locked file changed/);
   } finally {
     rmSync(work, { recursive: true, force: true });
   }
