@@ -80,11 +80,9 @@ describe('Event data experience', () => {
     );
   });
 
-  it('loads a configured Google map only on request and retains a safe fallback for short links and invalid URLs', async () => {
+  it('loads a configured Google map lazily and retains a safe fallback for short links and invalid URLs', async () => {
     vi.stubEnv('VITE_GOOGLE_MAPS_EMBED_API_KEY', `AIza${'x'.repeat(35)}`);
     render(<Harness value={{ ...initial, locationUrl: 'https://maps.google.com/?q=Salon%20Central' }} />);
-    expect(screen.queryByTitle('Mapa de la ubicación del evento')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Ver mapa interactivo' }));
     expect(screen.getByTitle('Mapa de la ubicación del evento')).toHaveAttribute('loading', 'lazy');
     fireEvent.change(screen.getByLabelText('Ubicación'), { target: { value: 'https://maps.app.goo.gl/ejemplo' } });
     expect(screen.queryByTitle('Mapa de la ubicación del evento')).not.toBeInTheDocument();
@@ -95,6 +93,27 @@ describe('Event data experience', () => {
     fireEvent.change(screen.getByLabelText('Ubicación'), { target: { value: 'https://user:pass@example.com' } });
     expect(screen.getByLabelText('Ubicación')).toHaveAttribute('aria-invalid', 'true');
     expect(screen.queryByRole('link', { name: 'Abrir ubicación' })).not.toBeInTheDocument();
+  });
+
+  it('accepts copied Google Maps HTML without a key and never renders arbitrary markup', () => {
+    vi.stubEnv('VITE_GOOGLE_MAPS_EMBED_API_KEY', '');
+    const onChange = vi.fn();
+    render(<Harness onChange={onChange} />);
+    const href = 'https://www.google.com/maps/embed?pb=!1m18!2sVenue';
+    fireEvent.paste(screen.getByLabelText('Ubicación'), {
+      clipboardData: { getData: () => `<iframe src="${href}" onload="alert(1)"></iframe>` }
+    });
+    expect(onChange).toHaveBeenCalledWith({ locationUrl: 'https://www.google.com/maps/embed?pb=%211m18%212sVenue' });
+    expect(screen.getByTitle('Mapa de la ubicación del evento')).toHaveAttribute(
+      'src',
+      'https://www.google.com/maps/embed?pb=%211m18%212sVenue'
+    );
+    expect(screen.getByTitle('Mapa de la ubicación del evento')).not.toHaveAttribute('onload');
+    fireEvent.error(screen.getByTitle('Mapa de la ubicación del evento'));
+    expect(screen.getByText('No pudimos cargar el mapa.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Abrir ubicación' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar mapa' }));
+    expect(screen.getByTitle('Mapa de la ubicación del evento')).toBeInTheDocument();
   });
 
   it('shows a functional location link without Maps configuration', () => {

@@ -2,6 +2,7 @@ import { CountdownVisual, defaultCountdownStyle, useCountdownSeconds } from '@in
 import { Box, Typography, useTheme } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { instantToWallClock, wallClockToInstant } from './timezone';
+import { EventAnalogClock } from './EventAnalogClock';
 
 export function EventCountdown({ target, zone }: { target: string | null | undefined; zone: string }) {
   const theme = useTheme();
@@ -43,29 +44,32 @@ export function EventCountdown({ target, zone }: { target: string | null | undef
           : 'Hoy es el evento'
         : null;
   return (
-    <Box sx={{ pt: 2.5, mt: 2.5, borderTop: '1px solid', borderColor: 'divider' }}>
+    <Box sx={{ pt: 1, mt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
       <Typography variant="overline" color="text.secondary">
         Cuenta regresiva
       </Typography>
-      {message ? (
-        <Typography role="status" sx={{ mt: 1 }}>
-          {message}
-        </Typography>
-      ) : (
-        <Box sx={{ height: 104, mt: 1, position: 'relative', overflow: 'hidden' }}>
-          <CountdownVisual
-            seconds={seconds}
-            appearance={{
-              ...defaultCountdownStyle,
-              frame: 'none',
-              shadow: 'none',
-              backgroundOpacity: 0,
-              numberColor: theme.palette.text.primary,
-              labelColor: theme.palette.text.secondary
-            }}
-          />
-        </Box>
-      )}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 0.5 }}>
+        <EventAnalogClock zone={zone} />
+        {message ? (
+          <Typography role="status" variant="body2">
+            {message}
+          </Typography>
+        ) : (
+          <Box sx={{ height: 96, minWidth: 0, flex: 1, position: 'relative', overflow: 'hidden' }}>
+            <CountdownVisual
+              seconds={seconds}
+              appearance={{
+                ...defaultCountdownStyle,
+                frame: 'none',
+                shadow: 'none',
+                backgroundOpacity: 0,
+                numberColor: theme.palette.text.primary,
+                labelColor: theme.palette.text.secondary
+              }}
+            />
+          </Box>
+        )}
+      </Box>
     </Box>
   );
 }

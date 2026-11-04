@@ -1,7 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { giftProvider, mapEmbedHref, previewHref } from './event-link-preview';
+import { giftProvider, mapEmbedHref, pastedMapHref, previewHref } from './event-link-preview';
 
 describe('Event link previews', () => {
+  it('supports the public Google Maps embed URL and extracts only its URL from copied HTML', () => {
+    const href = 'https://www.google.com/maps/embed?pb=!1m18!2sVenue';
+    expect(new URL(mapEmbedHref(href, undefined)!).searchParams.get('pb')).toBe('!1m18!2sVenue');
+    expect(
+      pastedMapHref(`<iframe src="${href}" width="600" onload="alert(1)" style="border:0" allowfullscreen=""></iframe>`)
+    ).toBe('https://www.google.com/maps/embed?pb=%211m18%212sVenue');
+    expect(pastedMapHref('<iframe src="https://evil.test/maps/embed?pb=123"></iframe>')).toBeNull();
+    expect(pastedMapHref('<iframe src="javascript:alert(1)"></iframe>')).toBeNull();
+    expect(pastedMapHref(`<script>alert(1)</script><iframe src="${href}"></iframe>`)).toBeNull();
+    expect(mapEmbedHref('https://www.google.com/maps/embed?pb=', undefined)).toBeNull();
+    expect(mapEmbedHref('https://www.google.com:444/maps/embed?pb=x', undefined)).toBeNull();
+    expect(mapEmbedHref('https://www.google.com/maps/embed/v1/place?key=anything&q=Venue', undefined)).toBeNull();
+  });
   it.each([
     'javascript:alert(1)',
     'http://example.com',

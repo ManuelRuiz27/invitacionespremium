@@ -15,7 +15,9 @@ export function DataBlock({
   fields,
   saveState,
   error,
-  inlineError = false
+  inlineError = false,
+  selected = true,
+  tabId
 }: {
   id: string;
   title: string;
@@ -28,6 +30,8 @@ export function DataBlock({
   saveState: SaveState;
   error?: string | undefined;
   inlineError?: boolean;
+  selected?: boolean;
+  tabId?: string | undefined;
 }) {
   const [focused, setFocused] = useState(false);
   const confirmed = confirmedDraft ?? event;
@@ -55,15 +59,19 @@ export function DataBlock({
   return (
     <Box
       component="section"
-      aria-labelledby={`${id}-title`}
+      id={`${id}-panel`}
+      role={tabId ? 'tabpanel' : 'region'}
+      aria-labelledby={tabId ?? `${id}-title`}
+      tabIndex={tabId ? 0 : undefined}
       data-validation={state}
       onFocusCapture={() => setFocused(true)}
       onBlurCapture={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget)) setFocused(false);
       }}
       sx={{
+        display: selected ? 'block' : 'none',
         minWidth: 0,
-        p: { xs: 1.5, sm: 2.5 },
+        p: 1.5,
         border: '2px solid',
         borderColor: (theme) =>
           state === 'error'
@@ -79,20 +87,24 @@ export function DataBlock({
         '@media (prefers-reduced-motion: reduce)': { transition: 'none' }
       }}
     >
-      <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', mb: 2.5 }}>
+      <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', mb: 1.5 }}>
         <Box sx={{ color: 'text.secondary', display: 'flex' }}>{icon}</Box>
         <Typography id={`${id}-title`} component="h3" variant="h4" sx={{ flex: 1 }}>
           {title}
         </Typography>
-        {state === 'confirmed' ? (
-          <CheckCircleOutline
-            fontSize="small"
-            color="success"
-            role="img"
-            titleAccess={`${title}: confirmado por el servidor`}
-            aria-label={`${title}: confirmado por el servidor`}
-          />
-        ) : null}
+        <Box
+          sx={{ width: 24, height: 24, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          {state === 'confirmed' ? (
+            <CheckCircleOutline
+              fontSize="small"
+              color="success"
+              role="img"
+              titleAccess={`${title}: confirmado por el servidor`}
+              aria-label={`${title}: confirmado por el servidor`}
+            />
+          ) : null}
+        </Box>
       </Stack>
       {children}
       {failed ? (

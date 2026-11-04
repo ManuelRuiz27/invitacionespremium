@@ -48,13 +48,19 @@ export function WizardLayout({
 }) {
   const index = steps.indexOf(selectedStep);
   return (
-    <>
+    <Box
+      sx={
+        selectedStep === 'datos' ? { mt: { xs: -3, md: -1 }, mb: { xs: -8, md: -10 }, '& > header': { mb: 1.5 } } : {}
+      }
+    >
       <PageHeader
         title={event ? (event.name ?? 'Configurar Evento') : 'Nuevo Evento'}
-        description="Completa los pasos para dejar tu evento listo para activar."
+        {...(selectedStep === 'datos'
+          ? {}
+          : { description: 'Completa los pasos para dejar tu evento listo para activar.' })}
         size="operational"
       />
-      <Stack spacing={2.5}>
+      <Stack spacing={selectedStep === 'datos' ? 1.5 : 2.5}>
         <Paper
           variant="outlined"
           sx={
@@ -71,7 +77,10 @@ export function WizardLayout({
               : { p: { xs: 1.5, md: 2.5 } }
           }
         >
-          <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Stack
+            direction="row"
+            sx={{ justifyContent: 'space-between', alignItems: 'center', mb: selectedStep === 'datos' ? 1 : 2 }}
+          >
             <Typography variant="body2" aria-live="polite">
               {saveLabel[saveState]}
             </Typography>
@@ -123,7 +132,10 @@ export function WizardLayout({
         >
           {children}
         </Paper>
-        <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ justifyContent: 'space-between', gap: 1.5 }}>
+        <Stack
+          direction={selectedStep === 'datos' ? 'row' : { xs: 'column', sm: 'row' }}
+          sx={{ justifyContent: 'space-between', gap: 1.5 }}
+        >
           <Button disabled={busy} onClick={onExit}>
             Salir
           </Button>
@@ -141,6 +153,6 @@ export function WizardLayout({
           </Stack>
         </Stack>
       </Stack>
-    </>
+    </Box>
   );
 }

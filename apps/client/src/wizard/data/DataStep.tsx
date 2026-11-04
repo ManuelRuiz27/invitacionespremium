@@ -19,7 +19,10 @@ import {
   MenuItem,
   Stack,
   TextField,
-  Typography
+  Typography,
+  IconButton,
+  Tabs,
+  Tab
 } from '@mui/material';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import CelebrationOutlined from '@mui/icons-material/CelebrationOutlined';
@@ -32,9 +35,11 @@ import LocationOnOutlined from '@mui/icons-material/LocationOnOutlined';
 import CardGiftcardOutlined from '@mui/icons-material/CardGiftcardOutlined';
 import OpenInNew from '@mui/icons-material/OpenInNew';
 import Add from '@mui/icons-material/Add';
+import ClearOutlined from '@mui/icons-material/ClearOutlined';
 import { DataBlock } from './DataBlock';
 import { EventCalendar } from './EventCalendar';
 import { EventCountdown } from './EventCountdown';
+import { EventLocation } from './EventLocation';
 import { giftProvider, mapEmbedHref, previewHref } from './event-link-preview';
 import type { SaveState } from '../wizard-model';
 import { priceRuleForCapacity, serviceLabels, socialTypeLabels } from '../../shared/formatters';
@@ -66,10 +71,11 @@ export function DataStep({
   onResetInvitationDesign?: (serviceId: string) => Promise<void>;
 }) {
   const zones = useMemo(supportedTimeZones, []);
-  const desktop = useMediaQuery('(min-width:900px)');
+  const desktop = useMediaQuery('(min-width:1200px) and (min-height:1100px)');
+  const compactNavigation = useMediaQuery('(max-width:1199px), (max-height:799px)');
+  const [activeSection, setActiveSection] = useState('celebration');
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [giftEditing, setGiftEditing] = useState(false);
-  const [mapLoaded, setMapLoaded] = useState<string>();
   const zone = draft.timeZone ?? 'America/Mexico_City';
   const [wallClock, setWallClock] = useState(() => instantToWallClock(draft.eventDateTime, zone));
   const localInstant = useRef(draft.eventDateTime);
@@ -137,6 +143,14 @@ export function DataStep({
       ? 'Revisa el enlace de la mesa de regalos. Pega un enlace web seguro y completo.'
       : undefined);
   const mapHref = mapEmbedHref(locationHref, import.meta.env.VITE_GOOGLE_MAPS_EMBED_API_KEY);
+  useEffect(() => {
+    if (!compactNavigation) return;
+    if (fieldErrors.name || fieldErrors.socialType || fieldErrors.serviceId || fieldErrors.capacity)
+      setActiveSection('celebration');
+    else if (fieldErrors.eventDateTime || fieldErrors.timeZone) setActiveSection('event-date');
+    else if (fieldErrors.locationUrl) setActiveSection('event-location');
+    else if (fieldErrors.giftRegistryUrl) setActiveSection('event-gifts');
+  }, [compactNavigation, fieldErrors]);
   const blockProps = { draft, event, confirmedDraft, saveState };
   const calendar = (
     <EventCalendar
@@ -181,315 +195,293 @@ export function DataStep({
     }
   };
   return (
-    <Stack spacing={2.5} sx={{ minWidth: 0 }}>
+    <Stack spacing={1.5} sx={{ minWidth: 0 }}>
       <Box>
         <Typography component="h2" variant="h3">
           Datos del Evento
         </Typography>
-        <Typography color="text.secondary" variant="body2" sx={{ mt: 0.5 }}>
-          Los detalles que dan forma a tu celebración.
-        </Typography>
       </Box>
-      <DataBlock
-        {...blockProps}
-        id="celebration"
-        title="Tu celebración"
-        icon={<CelebrationOutlined />}
-        fields={['name', 'socialType', 'serviceId', 'capacity']}
-        inlineError={!serviceError}
-        error={
-          fieldErrors.name ?? fieldErrors.socialType ?? fieldErrors.serviceId ?? fieldErrors.capacity ?? serviceError
-        }
-      >
-        <Stack spacing={2.5}>
-          <TextField
-            fullWidth
-            label="Nombre del evento"
-            error={Boolean(fieldErrors.name)}
-            helperText={fieldErrors.name}
-            placeholder="Ej. Boda de Ana y Carlos"
-            value={draft.name ?? ''}
-            disabled={disabled}
-            onChange={(e) => onChange({ name: e.target.value || null })}
-            sx={{ '& input': { fontSize: { xs: '1.15rem', sm: '1.5rem' }, fontFamily: 'h2.fontFamily' } }}
-          />
-          <Box>
-            <Typography id="celebration-type" variant="body2" sx={{ mb: 1 }}>
-              Tipo de celebración
-            </Typography>
-            <ToggleButtonGroup
-              exclusive
-              aria-labelledby="celebration-type"
-              value={draft.socialType ?? ''}
-              disabled={disabled}
-              onChange={(_, value: UpdateEventInput['socialType']) => onChange({ socialType: value || null })}
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: 'repeat(2,minmax(0,1fr))', sm: 'repeat(5,minmax(0,1fr))' },
-                gap: 1,
-                '& .MuiToggleButtonGroup-grouped': {
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  borderRadius: '8px !important',
-                  m: 0,
-                  minHeight: 72,
-                  px: 1,
-                  flexDirection: 'column',
-                  gap: 0.75,
-                  color: 'text.secondary',
-                  '&.Mui-selected': { bgcolor: 'action.selected', borderColor: 'text.primary', color: 'text.primary' }
-                }
-              }}
-            >
-              {celebrationTypes.map(([value, Icon]) => (
-                <ToggleButton key={value} value={value} aria-label={socialTypeLabels[value]}>
-                  <Icon fontSize="small" />
-                  <Typography variant="caption">{socialTypeLabels[value]}</Typography>
-                </ToggleButton>
-              ))}
-            </ToggleButtonGroup>
-            {fieldErrors.socialType ? (
-              <Typography variant="body2" color="error">
-                {fieldErrors.socialType}
-              </Typography>
-            ) : null}
-          </Box>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'minmax(0,1fr) minmax(0,1fr)' }, gap: 2 }}>
-            <TextField
-              fullWidth
-              select
-              required
-              label="Servicio"
-              error={Boolean(fieldErrors.serviceId)}
-              helperText={fieldErrors.serviceId}
-              value={draft.serviceId ?? ''}
-              disabled={disabled || serviceBusy}
-              onChange={(e) => void chooseService(e.target.value)}
-            >
-              {services.map((service) => {
-                const price = priceRuleForCapacity(service, draft.capacity);
-                return (
-                  <MenuItem key={service.id} value={service.id}>
-                    {serviceLabels[service.code]} · {price ? `${price.credits} créditos` : 'precio según capacidad'}
-                  </MenuItem>
-                );
-              })}
-            </TextField>
-            <TextField
-              fullWidth
-              type="number"
-              label="Cantidad de invitados"
-              name="capacity"
-              error={Boolean(fieldErrors.capacity)}
-              helperText={fieldErrors.capacity}
-              value={draft.capacity ?? ''}
-              disabled={disabled}
-              slotProps={{ htmlInput: { min: 1 } }}
-              onChange={(e) => onChange({ capacity: e.target.value ? Number(e.target.value) : null })}
-            />
-          </Box>
-          {serviceError && failedServiceId ? (
-            <Button
-              sx={{ alignSelf: 'flex-start' }}
-              disabled={serviceBusy}
-              onClick={() => void chooseService(failedServiceId)}
-            >
-              Reintentar
-            </Button>
-          ) : null}
-          {serviceError && failedServiceId ? (
-            <Typography variant="body2" color="error">
-              No pudimos verificar el diseño actual. Inténtalo nuevamente antes de cambiar de servicio.
-            </Typography>
-          ) : null}
-        </Stack>
-      </DataBlock>
-      <DataBlock
-        {...blockProps}
-        id="event-date"
-        title="Fecha y hora del evento"
-        icon={<CalendarMonthOutlined />}
-        fields={['eventDateTime', 'timeZone']}
-        error={dateError ?? fieldErrors.eventDateTime ?? fieldErrors.timeZone}
-      >
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: 'minmax(0,1fr)', lg: 'minmax(0,1fr) minmax(0,.9fr)' },
-            gap: { xs: 2.5, md: 4 },
-            alignItems: 'start'
-          }}
+      {compactNavigation ? (
+        <Tabs
+          value={activeSection}
+          variant="fullWidth"
+          sx={{ '& .MuiTab-root': { minWidth: 0, px: 0.5, minHeight: 44, fontSize: '.75rem' } }}
+          aria-label="Secciones de datos del evento"
+          onChange={(_, value: string) => setActiveSection(value)}
         >
-          {desktop ? (
-            calendar
-          ) : (
-            <Button
-              variant="outlined"
-              startIcon={<CalendarMonthOutlined />}
-              disabled={disabled}
-              onClick={() => setCalendarOpen(true)}
-              sx={{ minHeight: 60, justifyContent: 'flex-start', textAlign: 'left' }}
-            >
-              {selectedDate ? dateSummary(selectedDate) : 'Elegir fecha del evento'}
-            </Button>
-          )}
-          <Box sx={{ minWidth: 0, pt: { md: 1 } }}>
-            <Typography variant="h3" sx={{ mb: 2, display: { xs: 'none', md: 'block' } }}>
-              {selectedDate ? dateSummary(selectedDate) : 'Elige el gran día'}
-            </Typography>
-            <Stack spacing={2}>
-              <TextField
-                fullWidth
-                type="time"
-                label="Hora de inicio"
-                value={selectedTime}
-                disabled={disabled}
-                error={Boolean(dateError ?? fieldErrors.eventDateTime)}
-                slotProps={{ inputLabel: { shrink: true } }}
-                onFocus={() => setEditingWallClock(true)}
-                onBlur={() => setEditingWallClock(false)}
-                onChange={(e) => chooseDateTime(selectedDate, e.target.value)}
-              />
-              <TextField
-                fullWidth
-                select
-                label="Zona horaria"
-                error={Boolean(fieldErrors.timeZone)}
-                helperText={fieldErrors.timeZone}
-                value={zone}
-                disabled={disabled}
-                onChange={(e) => setPendingZone(e.target.value)}
-              >
-                {[...new Set([zone, ...zones])].map((item) => (
-                  <MenuItem key={item} value={item}>
-                    {timeZoneLabel(item)}
-                  </MenuItem>
-                ))}
-              </TextField>
-              {selectedDate && !selectedTime ? (
-                <Typography variant="body2" color="text.secondary">
-                  Elige la hora de inicio para completar la fecha.
-                </Typography>
-              ) : null}
-              {wallClock ? (
-                <Button
-                  size="small"
-                  sx={{ alignSelf: 'flex-start' }}
-                  disabled={disabled}
-                  onClick={() => commitDate('')}
-                >
-                  Quitar fecha y hora
-                </Button>
-              ) : null}
-            </Stack>
-            <EventCountdown target={draft.eventDateTime} zone={zone} />
-          </Box>
-        </Box>
-      </DataBlock>
+          <Tab id="data-tab-celebration" aria-controls="celebration-panel" value="celebration" label="Celebración" />
+          <Tab id="data-tab-event-date" aria-controls="event-date-panel" value="event-date" label="Fecha y hora" />
+          <Tab id="data-tab-event-location" aria-controls="event-location-panel" value="event-location" label="Lugar" />
+          <Tab id="data-tab-event-gifts" aria-controls="event-gifts-panel" value="event-gifts" label="Regalos" />
+        </Tabs>
+      ) : null}
       <Box
-        sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0,1fr)', md: 'repeat(2,minmax(0,1fr))' }, gap: 2.5 }}
+        data-testid="event-data-grid"
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: compactNavigation
+            ? 'minmax(0,1fr)'
+            : { xs: 'minmax(0,1fr)', md: 'repeat(2,minmax(0,1fr))' },
+          gap: 1.5,
+          alignItems: 'start',
+          '& .MuiTextField-root': { '& .MuiInputBase-root': { minHeight: 44 } }
+        }}
       >
         <DataBlock
           {...blockProps}
+          id="celebration"
+          tabId={compactNavigation ? 'data-tab-celebration' : undefined}
+          selected={!compactNavigation || activeSection === 'celebration'}
+          title="Tu celebración"
+          icon={<CelebrationOutlined />}
+          fields={['name', 'socialType', 'serviceId', 'capacity']}
+          inlineError={!serviceError}
+          error={
+            fieldErrors.name ?? fieldErrors.socialType ?? fieldErrors.serviceId ?? fieldErrors.capacity ?? serviceError
+          }
+        >
+          <Stack spacing={1.5}>
+            <TextField
+              size="small"
+              fullWidth
+              label="Nombre del evento"
+              error={Boolean(fieldErrors.name)}
+              helperText={fieldErrors.name}
+              placeholder="Ej. Boda de Ana y Carlos"
+              value={draft.name ?? ''}
+              disabled={disabled}
+              onChange={(e) => onChange({ name: e.target.value || null })}
+              sx={{ '& input': { fontSize: '1.15rem', fontFamily: 'h2.fontFamily' } }}
+            />
+            <Box>
+              <Typography id="celebration-type" variant="body2" sx={{ mb: 1 }}>
+                Tipo de celebración
+              </Typography>
+              <ToggleButtonGroup
+                exclusive
+                aria-labelledby="celebration-type"
+                value={draft.socialType ?? ''}
+                disabled={disabled}
+                onChange={(_, value: UpdateEventInput['socialType']) => onChange({ socialType: value || null })}
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: 'repeat(2,minmax(0,1fr))', sm: 'repeat(5,minmax(0,1fr))' },
+                  gap: 1,
+                  '& .MuiToggleButtonGroup-grouped': {
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: '8px !important',
+                    m: 0,
+                    minHeight: 44,
+                    px: 1,
+                    flexDirection: { xs: 'row', sm: 'column' },
+                    gap: 0.75,
+                    color: 'text.secondary',
+                    '&.Mui-selected': { bgcolor: 'action.selected', borderColor: 'text.primary', color: 'text.primary' }
+                  }
+                }}
+              >
+                {celebrationTypes.map(([value, Icon]) => (
+                  <ToggleButton key={value} value={value} aria-label={socialTypeLabels[value]}>
+                    <Icon fontSize="small" />
+                    <Typography variant="caption">{socialTypeLabels[value]}</Typography>
+                  </ToggleButton>
+                ))}
+              </ToggleButtonGroup>
+              {fieldErrors.socialType ? (
+                <Typography variant="body2" color="error">
+                  {fieldErrors.socialType}
+                </Typography>
+              ) : null}
+            </Box>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 1.5 }}>
+              <TextField
+                size="small"
+                fullWidth
+                select
+                required
+                label="Servicio"
+                error={Boolean(fieldErrors.serviceId)}
+                helperText={fieldErrors.serviceId}
+                value={draft.serviceId ?? ''}
+                disabled={disabled || serviceBusy}
+                onChange={(e) => void chooseService(e.target.value)}
+              >
+                {services.map((service) => {
+                  const price = priceRuleForCapacity(service, draft.capacity);
+                  return (
+                    <MenuItem key={service.id} value={service.id}>
+                      {serviceLabels[service.code]} · {price ? `${price.credits} créditos` : 'precio según capacidad'}
+                    </MenuItem>
+                  );
+                })}
+              </TextField>
+              <TextField
+                size="small"
+                fullWidth
+                type="number"
+                label="Cantidad de invitados"
+                name="capacity"
+                error={Boolean(fieldErrors.capacity)}
+                helperText={fieldErrors.capacity}
+                value={draft.capacity ?? ''}
+                disabled={disabled}
+                slotProps={{ htmlInput: { min: 1 } }}
+                onChange={(e) => onChange({ capacity: e.target.value ? Number(e.target.value) : null })}
+              />
+            </Box>
+            {serviceError && failedServiceId ? (
+              <Button
+                sx={{ alignSelf: 'flex-start' }}
+                disabled={serviceBusy}
+                onClick={() => void chooseService(failedServiceId)}
+              >
+                Reintentar
+              </Button>
+            ) : null}
+            {serviceError && failedServiceId ? (
+              <Typography variant="body2" color="error">
+                No pudimos verificar el diseño actual. Inténtalo nuevamente antes de cambiar de servicio.
+              </Typography>
+            ) : null}
+          </Stack>
+        </DataBlock>
+        <DataBlock
+          {...blockProps}
+          id="event-date"
+          tabId={compactNavigation ? 'data-tab-event-date' : undefined}
+          selected={!compactNavigation || activeSection === 'event-date'}
+          title="Fecha y hora del evento"
+          icon={<CalendarMonthOutlined />}
+          fields={['eventDateTime', 'timeZone']}
+          error={dateError ?? fieldErrors.eventDateTime ?? fieldErrors.timeZone}
+        >
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: 'minmax(0,1fr)',
+              gap: 1.5,
+              alignItems: 'start'
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, minWidth: 0 }}>
+              {desktop ? (
+                <Box sx={{ flex: 1, minWidth: 0 }}>{calendar}</Box>
+              ) : (
+                <Button
+                  variant="outlined"
+                  startIcon={<CalendarMonthOutlined />}
+                  disabled={disabled}
+                  onClick={() => setCalendarOpen(true)}
+                  sx={{ flex: 1, minWidth: 0, minHeight: 44, justifyContent: 'flex-start', textAlign: 'left' }}
+                >
+                  {selectedDate ? dateSummary(selectedDate) : 'Elegir fecha del evento'}
+                </Button>
+              )}
+              {wallClock ? (
+                <IconButton
+                  aria-label="Quitar fecha y hora"
+                  title="Quitar fecha y hora"
+                  disabled={disabled}
+                  onClick={() => commitDate('')}
+                  sx={{ minWidth: 44, minHeight: 44 }}
+                >
+                  <ClearOutlined fontSize="small" />
+                </IconButton>
+              ) : null}
+            </Box>
+            <Box sx={{ minWidth: 0 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 1.5 }}>
+                <TextField
+                  size="small"
+                  fullWidth
+                  type="time"
+                  label="Hora de inicio"
+                  sx={{ gridColumn: { xs: '1 / -1', sm: 'auto' } }}
+                  value={selectedTime}
+                  disabled={disabled}
+                  error={Boolean(dateError ?? fieldErrors.eventDateTime)}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                  onFocus={() => setEditingWallClock(true)}
+                  onBlur={() => setEditingWallClock(false)}
+                  onChange={(e) => chooseDateTime(selectedDate, e.target.value)}
+                />
+                <TextField
+                  size="small"
+                  fullWidth
+                  select
+                  label="Zona horaria"
+                  sx={{ gridColumn: { xs: '1 / -1', sm: 'auto' } }}
+                  error={Boolean(fieldErrors.timeZone)}
+                  helperText={fieldErrors.timeZone}
+                  value={zone}
+                  disabled={disabled}
+                  onChange={(e) => setPendingZone(e.target.value)}
+                >
+                  {[...new Set([zone, ...zones])].map((item) => (
+                    <MenuItem key={item} value={item}>
+                      {timeZoneLabel(item)}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                {selectedDate && !selectedTime ? (
+                  <Typography variant="body2" color="text.secondary">
+                    Elige la hora de inicio para completar la fecha.
+                  </Typography>
+                ) : null}
+              </Box>
+              <EventCountdown target={draft.eventDateTime} zone={zone} />
+            </Box>
+          </Box>
+        </DataBlock>
+        <DataBlock
+          {...blockProps}
           id="event-location"
+          tabId={compactNavigation ? 'data-tab-event-location' : undefined}
+          selected={!compactNavigation || activeSection === 'event-location'}
           title="Lugar del evento"
           icon={<LocationOnOutlined />}
           fields={['locationUrl']}
           inlineError
           error={locationError}
         >
-          <Stack spacing={2}>
-            {mapHref && mapLoaded === mapHref ? (
-              <Box
-                component="iframe"
-                title="Mapa de la ubicación del evento"
-                src={mapHref}
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                allowFullScreen
-                sx={{ width: '100%', height: 220, minWidth: 200, border: 0, borderRadius: 1 }}
-              />
-            ) : (
-              <Box
-                sx={{
-                  minHeight: 168,
-                  bgcolor: 'background.default',
-                  borderRadius: 1,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  gap: 1,
-                  p: 2,
-                  textAlign: 'center'
-                }}
-              >
-                <LocationOnOutlined sx={{ fontSize: 36, color: 'text.secondary' }} />
-                <Typography variant="body2">
-                  {locationHref ? 'El lugar de tu celebración' : '¿Dónde será la celebración?'}
-                </Typography>
-                {mapHref ? (
-                  <Button size="small" onClick={() => setMapLoaded(mapHref)}>
-                    Ver mapa interactivo
-                  </Button>
-                ) : (
-                  <Typography variant="caption" color="text.secondary">
-                    {locationHref
-                      ? 'Consulta la ubicación desde su enlace.'
-                      : 'Agrega el enlace para que sea fácil llegar.'}
-                  </Typography>
-                )}
-              </Box>
-            )}
-            <TextField
-              fullWidth
-              type="url"
-              label="Ubicación"
-              name="locationUrl"
-              error={Boolean(locationError)}
-              helperText={locationError ?? 'Pega el enlace de Google Maps o del lugar.'}
-              value={draft.locationUrl ?? ''}
-              disabled={disabled}
-              onChange={(e) => onChange({ locationUrl: e.target.value || null })}
-            />
-            {locationHref ? (
-              <Button
-                href={locationHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                endIcon={<OpenInNew fontSize="small" />}
-                sx={{ alignSelf: 'flex-start' }}
-              >
-                Abrir ubicación
-              </Button>
-            ) : null}
-          </Stack>
+          <EventLocation
+            value={draft.locationUrl}
+            href={locationHref}
+            embedHref={mapHref}
+            error={locationError}
+            disabled={disabled}
+            onChange={(locationUrl) => onChange({ locationUrl })}
+          />
         </DataBlock>
         <DataBlock
           {...blockProps}
           id="event-gifts"
+          tabId={compactNavigation ? 'data-tab-event-gifts' : undefined}
+          selected={!compactNavigation || activeSection === 'event-gifts'}
           title="Mesa de regalos"
           icon={<CardGiftcardOutlined />}
           fields={['giftRegistryUrl']}
           inlineError
           error={giftError}
         >
-          <Stack spacing={2} sx={{ alignItems: 'flex-start' }}>
+          <Stack spacing={1} sx={{ alignItems: 'flex-start' }}>
             <Box
               sx={{
-                width: 64,
-                height: 64,
+                width: 44,
+                height: 44,
                 borderRadius: '50%',
                 bgcolor: 'background.default',
                 display: 'grid',
                 placeItems: 'center'
               }}
             >
-              <CardGiftcardOutlined sx={{ fontSize: 32, color: 'text.secondary' }} />
+              <CardGiftcardOutlined sx={{ fontSize: 24, color: 'text.secondary' }} />
             </Box>
             {giftEditing || giftError ? (
               <>
                 <TextField
+                  size="small"
                   autoFocus
                   fullWidth
                   type="url"
