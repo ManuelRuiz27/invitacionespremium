@@ -1,4 +1,6 @@
-import { Box, Button, Stack, Typography } from '@mui/material';
+import MoreHorizRounded from '@mui/icons-material/MoreHorizRounded';
+import { Box, Button, ListItemText, Menu, MenuItem, Stack, Typography } from '@mui/material';
+import { useState, type MouseEvent } from 'react';
 
 export type FloorplanConstructionTool = 'entry' | 'trace' | 'manual' | 'svg';
 
@@ -20,10 +22,62 @@ export function AdminFloorplanTraceEntry({
   reviewLoading: boolean;
   onReview: () => void;
   svgAvailable: boolean;
-  selectedTableName: string | undefined;
   onToolChange: (tool: FloorplanConstructionTool) => void;
   onAddTable: () => void;
 }) {
+  const [toolsAnchor, setToolsAnchor] = useState<HTMLElement | null>(null);
+  const openTools = (event: MouseEvent<HTMLButtonElement>) => setToolsAnchor(event.currentTarget);
+  const chooseTool = (nextTool: FloorplanConstructionTool) => {
+    setToolsAnchor(null);
+    onToolChange(nextTool);
+  };
+  const toolsMenu = (
+    <>
+      <Button
+        startIcon={<MoreHorizRounded />}
+        disabled={disabled}
+        aria-controls={toolsAnchor ? 'admin-floorplan-construction-tools' : undefined}
+        aria-haspopup="menu"
+        aria-expanded={toolsAnchor ? 'true' : undefined}
+        onClick={openTools}
+        sx={{ minHeight: 44 }}
+      >
+        Más herramientas
+      </Button>
+      <Menu
+        id="admin-floorplan-construction-tools"
+        anchorEl={toolsAnchor}
+        open={Boolean(toolsAnchor)}
+        onClose={() => setToolsAnchor(null)}
+        slotProps={{ paper: { sx: { width: 'min(320px, 90vw)' } } }}
+      >
+        <MenuItem
+          selected={tool === 'manual'}
+          disabled={disabled}
+          onClick={() => chooseTool('manual')}
+          sx={{ minHeight: 44 }}
+        >
+          Construcción manual
+        </MenuItem>
+        <MenuItem
+          selected={tool === 'svg'}
+          disabled={disabled || !svgAvailable}
+          onClick={() => chooseTool('svg')}
+          sx={{ minHeight: 44 }}
+        >
+          <ListItemText
+            primary="Vincular elementos del plano"
+            secondary={svgAvailable ? undefined : 'Disponible al cargar un plano SVG'}
+          />
+        </MenuItem>
+        {tool === 'trace' ? (
+          <MenuItem disabled={disabled} onClick={() => chooseTool('entry')} sx={{ minHeight: 44 }}>
+            Salir de Calca
+          </MenuItem>
+        ) : null}
+      </Menu>
+    </>
+  );
   if (tool === 'trace')
     return (
       <Stack
@@ -43,20 +97,7 @@ export function AdminFloorplanTraceEntry({
         <Button variant="outlined" disabled={!canReview} onClick={onReview} sx={{ minHeight: 44 }}>
           {reviewLoading ? 'Actualizando plano…' : 'Revisar distribución'}
         </Button>
-        <Button disabled={disabled} aria-pressed={false} onClick={() => onToolChange('manual')} sx={{ minHeight: 44 }}>
-          Manual
-        </Button>
-        <Button
-          disabled={disabled || !svgAvailable}
-          title={svgAvailable ? undefined : 'Disponible con un plano SVG'}
-          onClick={() => onToolChange('svg')}
-          sx={{ minHeight: 44 }}
-        >
-          Mapeo SVG
-        </Button>
-        <Button disabled={disabled} onClick={() => onToolChange('entry')} sx={{ minHeight: 44 }}>
-          Salir de Calca
-        </Button>
+        {toolsMenu}
       </Stack>
     );
   return (
@@ -84,25 +125,7 @@ export function AdminFloorplanTraceEntry({
           >
             Calcar distribución
           </Button>
-          <Button
-            variant="outlined"
-            aria-pressed={tool === 'manual'}
-            disabled={disabled}
-            onClick={() => onToolChange('manual')}
-            sx={{ minHeight: 44 }}
-          >
-            Manual
-          </Button>
-          <Button
-            variant="text"
-            aria-pressed={tool === 'svg'}
-            disabled={disabled || !svgAvailable}
-            title={svgAvailable ? undefined : 'Disponible con un plano SVG'}
-            onClick={() => onToolChange('svg')}
-            sx={{ minHeight: 44 }}
-          >
-            Mapeo SVG
-          </Button>
+          {toolsMenu}
         </Stack>
       </Stack>
     </Stack>

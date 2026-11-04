@@ -18,3 +18,84 @@
 16. Ante cualquier referencia antigua a flujo por rama/PR en documentación previa, prevalecen las reglas 13–15 de este archivo salvo instrucción expresa del usuario.
 17. Antes de crear, modificar o inferir roles, ownership, superficies o permisos para un escenario comercial (Planner, salón/jardín, agencia, reseller, licencia, instancia dedicada u otro), leer `docs/00-inicio/01_DIRECCION_ACTUAL_M01_MANAGED.md`, `docs/01-producto/06_MODELOS_OPERATIVOS_DE_VENTA.md` y el modelo especializado aplicable. Un escenario comercial no autoriza por sí mismo un nuevo rol ni una nueva capacidad.
 18. Dirección activa de lanzamiento: **M01 Managed para Planner independiente**. M02–M05, Partner/Venue pricing, Self-Service, Enterprise y Commercial/Finance V3 son referencia futura salvo ticket explícito posterior. No usar `CommercialChannel`, tipo de tarifa, créditos o pricing como capability profile. La primera fase autorizada es `MG00_MANAGED_PROFILE_IMPLEMENTATION_AUDIT`; no modificar dominio, roles, Finance ni activación Managed antes de que ese audit sea revisado y aprobado.
+
+# Protocolo obligatorio de ejecución con Codex — V1.2
+
+Aplicable a toda modificación de código en `ManuelRuiz27/invitacionespremium`, independientemente del agente responsable.
+
+## 1. Propiedad del trabajo
+
+- El PM autoriza objetivo, alcance y criterios de aceptación.
+- Cada tarea tiene un único agente responsable.
+- El agente responsable coordina directamente Codex y sus subagentes.
+- No transferir tareas a otro agente únicamente por el lenguaje, framework o archivos utilizados.
+
+## 2. Preparación
+
+Antes de modificar código:
+
+- Consultar ticket, decisión PM y documentación aplicable.
+- Leer `AGENTS.md` y los contratos técnicos vigentes.
+- Verificar rama `main`, último commit y árbol limpio.
+- Identificar archivos afectados, causa o requerimiento y límites del cambio.
+- No realizar refactorizaciones ajenas al objetivo.
+
+## 3. Ejecución con Codex
+
+El agente responsable debe organizar tres funciones:
+
+**Diagnóstico:** localizar el problema, reproducirlo cuando corresponda y establecer una solución mínima.
+
+**Implementación:** generar y ejecutar el prompt técnico, modificar código y agregar o actualizar pruebas.
+
+**QA independiente:** un subagente distinto del implementador revisa el diff, ejecuta pruebas y emite PASS o BLOCKED con evidencia.
+
+Si los subagentes no están disponibles, informar la limitación y obtener revisión independiente antes de solicitar aceptación PM.
+
+No inventar ejecuciones, resultados ni verificaciones.
+
+## 4. Restricciones
+
+- No ampliar alcance sin aprobación PM.
+- No eliminar aserciones ni desactivar verificaciones.
+- No aumentar timeouts o retries para ocultar defectos.
+- No modificar API, contratos, roles, precios o persistencia fuera del alcance autorizado.
+- No involucrar otros agentes salvo dependencia real.
+
+## 5. QA y CI
+
+- Ejecutar tests relevantes, lint, typecheck y build conforme a `AGENTS.md`.
+- Ejecutar pruebas negativas y de regresión correspondientes.
+- QA independiente debe revisar el cambio final.
+- Realizar commit pequeño y push a `main` siguiendo el flujo vigente del repositorio.
+- Verificar GitHub Actions, incluido `quality`, sobre el SHA exacto entregado.
+- Si el commit cambia después del QA, revalidar lo afectado y comprobar CI del nuevo SHA.
+- No realizar force-push ni sobrescribir cambios de otros agentes.
+
+## 6. Entrega del agente
+
+Entregar únicamente:
+
+- Ticket y objetivo resuelto.
+- Causa raíz o explicación del cambio.
+- Archivos modificados.
+- Commit y SHA.
+- Resultado del QA independiente.
+- URL y resultado del CI remoto.
+- Riesgos o limitaciones restantes.
+
+Actualizar el ticket al finalizar o encontrar un bloqueo. No generar reportes intermedios, handoffs o tickets adicionales sin necesidad real.
+
+## 7. Aceptación PM
+
+El PM verifica evidencia, diff y CI.
+
+Puede emitir:
+
+- **ACCEPTED:** cambio validado.
+- **BLOCKED:** requiere corrección.
+- **REJECTED:** incumple el alcance o contrato.
+
+La aceptación de código no autoriza automáticamente staging, producción ni pilotos.
+
+**Principio central: el PM gobierna el resultado; el agente responsable ejecuta el trabajo y coordina a Codex.**

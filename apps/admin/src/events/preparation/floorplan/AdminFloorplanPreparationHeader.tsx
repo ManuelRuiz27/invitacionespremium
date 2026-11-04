@@ -1,11 +1,23 @@
 import type { AdminFloorplan } from '@invitaciones/api-client';
 import LockOpenRounded from '@mui/icons-material/LockOpenRounded';
 import LockRounded from '@mui/icons-material/LockRounded';
-import { Alert, Box, Button, Chip, MenuItem, Stack, TextField, Typography } from '@mui/material';
-import type { ReactNode } from 'react';
+import MoreHorizRounded from '@mui/icons-material/MoreHorizRounded';
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  Divider,
+  IconButton,
+  Menu,
+  MenuItem,
+  Stack,
+  TextField,
+  Typography
+} from '@mui/material';
+import { useState, type ReactNode } from 'react';
 
 export function AdminFloorplanPreparationHeader({
-  compact = false,
   locked,
   finalized,
   seatingMode,
@@ -27,7 +39,6 @@ export function AdminFloorplanPreparationHeader({
   onChangeLock,
   onRefresh
 }: {
-  compact?: boolean;
   locked: boolean;
   finalized: boolean;
   seatingMode: AdminFloorplan['seatingMode'];
@@ -49,37 +60,24 @@ export function AdminFloorplanPreparationHeader({
   onChangeLock: () => void;
   onRefresh: () => void;
 }) {
-  const controls = (
-    <>
-      <Chip label={`${elementCount} elementos · ${places} lugares`} variant="outlined" />
-      {finalized || (tableOnly && seatingMode === 'SEAT') ? (
-        <Chip label={tableOnly || seatingMode === 'TABLE' ? 'Por mesa' : 'Por lugar exacto'} variant="outlined" />
-      ) : (
-        <TextField
-          select
-          size="small"
-          label="Acomodo"
-          value={seatingMode}
-          disabled={readOnly || editing}
-          onChange={(event) => onSeatingModeChange(event.target.value as 'TABLE' | 'SEAT')}
-          sx={{ minWidth: 148 }}
-        >
-          <MenuItem value="TABLE">Por mesa</MenuItem>
-          {!tableOnly ? <MenuItem value="SEAT">Por lugar exacto</MenuItem> : null}
-        </TextField>
-      )}
-      {sourceControl}
-      <Button
-        variant={locked ? 'contained' : 'outlined'}
-        startIcon={locked ? <LockOpenRounded /> : <LockRounded />}
-        disabled={pending || editing || hasPendingTables || accessEventReadOnly}
-        onClick={onChangeLock}
-        sx={{ minHeight: 44 }}
+  const [optionsAnchor, setOptionsAnchor] = useState<HTMLElement | null>(null);
+  const accommodationControl =
+    finalized || (tableOnly && seatingMode === 'SEAT') ? (
+      <Chip label={tableOnly || seatingMode === 'TABLE' ? 'Por mesa' : 'Por lugar exacto'} variant="outlined" />
+    ) : (
+      <TextField
+        select
+        size="small"
+        label="Acomodo"
+        value={seatingMode}
+        disabled={readOnly || editing}
+        onChange={(event) => onSeatingModeChange(event.target.value as 'TABLE' | 'SEAT')}
+        sx={{ minWidth: { xs: 132, sm: 148 } }}
       >
-        {locked ? 'Editar distribución' : 'Finalizar distribución'}
-      </Button>
-    </>
-  );
+        <MenuItem value="TABLE">Por mesa</MenuItem>
+        {!tableOnly ? <MenuItem value="SEAT">Por lugar exacto</MenuItem> : null}
+      </TextField>
+    );
   return (
     <>
       {tableOnly && seatingMode === 'SEAT' ? (
@@ -96,12 +94,12 @@ export function AdminFloorplanPreparationHeader({
         </Alert>
       ) : null}
       <Stack
-        direction={compact ? 'row' : { xs: 'column', md: 'row' }}
+        direction="row"
         useFlexGap
         spacing={1}
-        sx={{ alignItems: compact ? 'center' : { md: 'center' }, justifyContent: 'space-between' }}
+        sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}
       >
-        <Box sx={{ flex: '1 1 auto', minWidth: 0 }}>
+        <Box sx={{ flex: '1 1 140px', minWidth: 0 }}>
           <Typography id="admin-floorplan-title" component="h2" variant="h5">
             Croquis
           </Typography>
@@ -112,6 +110,7 @@ export function AdminFloorplanPreparationHeader({
           ) : null}
         </Box>
         <Stack direction="row" useFlexGap spacing={1} sx={{ flex: '0 1 auto', flexWrap: 'wrap', alignItems: 'center' }}>
+          {accommodationControl}
           <Chip
             label={
               pending
@@ -140,44 +139,53 @@ export function AdminFloorplanPreparationHeader({
             variant="outlined"
             aria-live="polite"
           />
-          {compact ? (
-            <Box component="details" sx={{ position: 'relative' }}>
-              {compact ? (
-                <Typography component="summary" variant="body2" sx={{ cursor: 'pointer', p: 1.25 }}>
-                  Opciones del croquis
-                </Typography>
-              ) : null}
-              <Stack
-                direction="row"
-                useFlexGap
-                spacing={1}
-                sx={{
-                  flexWrap: 'wrap',
-                  alignItems: 'center',
-                  ...(compact
-                    ? {
-                        position: 'absolute',
-                        right: 0,
-                        top: '100%',
-                        width: 'min(440px, 85vw)',
-                        p: 2,
-                        bgcolor: 'background.paper',
-                        border: 1,
-                        borderColor: 'divider',
-                        boxShadow: 4,
-                        zIndex: 5
-                      }
-                    : {})
-                }}
-              >
-                {controls}
-              </Stack>
-            </Box>
-          ) : (
-            controls
-          )}
+          <IconButton
+            aria-label="Opciones del croquis"
+            aria-controls={optionsAnchor ? 'admin-floorplan-options-menu' : undefined}
+            aria-haspopup="menu"
+            aria-expanded={optionsAnchor ? 'true' : undefined}
+            onClick={(event) => setOptionsAnchor(event.currentTarget)}
+            sx={{ width: 44, height: 44 }}
+          >
+            <MoreHorizRounded />
+          </IconButton>
         </Stack>
       </Stack>
+      <Menu
+        id="admin-floorplan-options-menu"
+        anchorEl={optionsAnchor}
+        open={Boolean(optionsAnchor)}
+        onClose={() => setOptionsAnchor(null)}
+        slotProps={{ paper: { sx: { width: 'min(360px, 90vw)', p: 1 } } }}
+      >
+        <Box sx={{ px: 1, py: 0.75 }}>
+          <Typography variant="overline" color="text.secondary">
+            Resumen del croquis
+          </Typography>
+          <Typography variant="body2">{`${elementCount} elementos · ${places} lugares`}</Typography>
+        </Box>
+        <Divider sx={{ my: 0.5 }} />
+        {sourceControl ? (
+          <Box sx={{ px: 1, py: 0.5 }} onChangeCapture={() => setOptionsAnchor(null)}>
+            {sourceControl}
+          </Box>
+        ) : null}
+        <MenuItem
+          disabled={pending || editing || hasPendingTables || accessEventReadOnly}
+          onClick={() => {
+            setOptionsAnchor(null);
+            onChangeLock();
+          }}
+          sx={{ minHeight: 44 }}
+        >
+          {locked ? (
+            <LockOpenRounded fontSize="small" sx={{ mr: 1.25 }} />
+          ) : (
+            <LockRounded fontSize="small" sx={{ mr: 1.25 }} />
+          )}
+          {locked ? 'Editar distribución' : 'Finalizar distribución'}
+        </MenuItem>
+      </Menu>
       {validationMessage ? <Alert severity="warning">{validationMessage}</Alert> : null}
       {message ? <Alert severity="error">{message}</Alert> : null}
       {reconciliationError ? (

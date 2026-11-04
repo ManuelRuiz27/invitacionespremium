@@ -1235,7 +1235,6 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
       }
     >
       <AdminFloorplanPreparationHeader
-        compact={tracing}
         locked={floorplan.locked}
         finalized={finalized}
         seatingMode={floorplan.seatingMode}
@@ -1288,7 +1287,6 @@ export function AdminFloorplanBuilderWorkspace({ apiClient, event }: { apiClient
             mode !== 'tracing-seats'
           }
           svgAvailable={floorplan.image.sourceType === 'SVG'}
-          selectedTableName={selected?.kind === 'TABLE' ? selected.name : undefined}
           onToolChange={chooseConstructionTool}
           onAddTable={() => selectPreset('round-table')}
         />
