@@ -60,6 +60,14 @@ test('root tooling/config changes conservatively select every workspace', () => 
   assert.equal(result.selected.length, workspaces.length);
   assert.equal(quickRelatedFiles(workspaces[3], ['apps/client/src/view.tsx'], result), null);
 });
+test('agent configuration is non-runtime and does not activate every workspace', () => {
+  const files = ['.codex/config.toml', '.agents/rules/ui.md', '.agents/skills/qa-scope/SKILL.md', 'AGENTS.md'];
+  const selected = selectWorkspaces(workspaces, files);
+  assert.deepEqual(selected.selected, []);
+  assert.equal(selected.global, false);
+  assert.equal(qaPlan(files).risk, 'L0');
+});
+
 test('docs-only and empty selections do not invent affected runtime modules', () => {
   assert.deepEqual(selectWorkspaces(workspaces, ['README.md', 'docs/INDEX.md']).selected, []);
   assert.deepEqual(selectWorkspaces(workspaces, []).selected, []);

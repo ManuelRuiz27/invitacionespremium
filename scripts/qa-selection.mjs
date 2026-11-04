@@ -38,7 +38,7 @@ export function qaPlan(files, { risk = 'auto', journeys = [] } = {}) {
     else if (
       path.startsWith('apps/api/') ||
       path.startsWith('packages/') ||
-      (!path.startsWith('apps/') && !path.startsWith('docs/') && path !== 'README.md' && path !== 'AGENTS.md' && !path.startsWith('.agents/') && !path.endsWith('.md'))
+      (!path.startsWith('apps/') && !path.startsWith('docs/') && path !== 'README.md' && path !== 'AGENTS.md' && !path.startsWith('.agents/') && !path.startsWith('.codex/') && !path.endsWith('.md'))
     )
       updateFloor('L2');
     else if (/\.[cm]?[jt]sx?$/u.test(path) || (path.startsWith('apps/') && !/\.(?:css|scss|md)$/u.test(path))) updateFloor('L1');
@@ -74,7 +74,7 @@ export function selectWorkspaces(workspaces, files, { includeApiConsumers = true
       throw new Error('QA paths must be relative to the repository.');
     const owner = workspaces.find((workspace) => file.startsWith(`${workspace.path}/`));
     if (owner) owners.add(owner.name);
-    else if (!file.startsWith('docs/') && !file.endsWith('.md') && !qaToolingPath.test(file)) global = true;
+    else if (!file.startsWith('docs/') && !file.endsWith('.md') && !file.startsWith('.codex/') && !file.startsWith('.agents/') && !qaToolingPath.test(file)) global = true;
   }
   const affected = new Set(global ? byName.keys() : owners);
   // The generated API client is a contract consumer of the API, not a workspace import.

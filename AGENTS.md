@@ -1,52 +1,49 @@
-# InvitacionesPremium — Reglas de ejecución para agentes (V2)
+# InvitacionesPremium — instrucciones generales del proyecto (V3)
 
-Estas reglas aplican a Codex (extensión de VS Code) y Gemini (Antigravity Desktop). Prioridad: entregar cambios correctos con el menor trabajo y contexto necesarios. No son un permiso para modificar el alcance del producto.
+Aplican a **Codex en VS Code** y **Gemini en Antigravity Desktop**. Son reglas permanentes de trabajo, no un backlog ni una orden de implementar funcionalidades. Minimizar contexto, llamadas al modelo, documentación y pasos de coordinación sin debilitar seguridad.
 
-## 1. Producto y arquitectura
+## 1. Producto y alcance vigente
 
-- Lanzamiento activo: M01 Managed, Planner independiente. Provider prepara el evento, Planner opera invitados/RSVP/mesas/Staff y Staff registra accesos. No ampliar M02–M05, Self-Service, Enterprise ni Finance V3 sin autorización explícita.
-- No inventar roles, entidades, estados, endpoints, permisos, pricing ni capacidades. Separar perfil operativo de canal comercial, créditos y tarifas.
-- Respetar aislamiento entre clientes, ownership, autorización en servidor, auditoría y protección de datos. Ocultar controles en UI nunca sustituye permisos de API.
-- Las reglas de negocio pertenecen a `apps/api`. No importar fuentes entre `apps/*`; el código compartido reside en `packages/*`. `packages/ui` no implementa reglas de negocio ni llamadas API. `packages/api-client` se genera desde OpenAPI; evitar DTOs duplicados.
-- No agregar credenciales, desactivar controles de seguridad ni modificar contratos fuera del objetivo.
+- Producto: servicio gestionado de logística digital para eventos sociales; invitaciones Flyer/Flipbook cuando aplique, RSVP, invitados y acompañantes, mesas/croquis, pases QR y check-in. **QR/EventOps no equivale automáticamente a RSVP o invitación gráfica**.
+- Lanzamiento prioritario: **M01 MANAGED para Planner independiente**. `PLATFORM_ADMIN` prepara el evento; `INDEPENDENT_PLANNER` opera invitados, confirmaciones, mesas y Staff; Staff accede con token temporal y realiza check-in.
+- En Managed, Planner no recibe constructores técnicos del Provider. No inventar roles ni usar canal comercial, créditos o tarifas para decidir permisos.
+- M02–M05, Self-Service, Enterprise, nuevas licencias, Partner/Venue pricing y Finance V3 **no son trabajo implícito**. No agregar checkout, WhatsApp API, CRM ni pagos por iniciativa del agente.
+- Fuente de verdad de producto: `docs/00-inicio/01_DIRECCION_ACTUAL_M01_MANAGED.md`. Los contratos especializados gobiernan sus invariantes. `docs/00-inicio/00_START_HERE.md` es un **índice selectivo**, no una lista de lectura obligatoria.
+- Respetar el gate MG00 antes de alterar dominio, roles, Finance o activación Managed, excepto autorización posterior explícita. Una corrección de configuración de agentes no autoriza esas áreas.
 
-## 2. Ejecutores y alcance
+## 2. Arquitectura e invariantes
 
-- **Gemini / Antigravity:** responsable de cambios visuales: UI/UX, layout, CSS, responsive, copy de interfaz, accesibilidad y presentación de componentes. Puede editar TSX para ese fin, sin alterar lógica de dominio, permisos, API, modelos o persistencia.
-- **Codex / VS Code:** responsable de backend, arquitectura, bases de datos, API, integraciones, seguridad, estado y comportamiento funcional. React/TSX con cambios de lógica, hooks, autenticación o contratos corresponde a Codex.
-- Si una tarea mezcla ambos campos, dividirla por límites técnicos reales y acordar la interfaz; no convocar agentes sólo por el lenguaje de los archivos. Un solo responsable modifica cada archivo a la vez.
-- Si el usuario designa explícitamente un ejecutor, seguir su elección dentro de sus capacidades y avisar si hay un riesgo técnico; no crear handoffs automáticos.
-- Diagnóstico, implementación y QA son actividades, **no tres agentes obligatorios**. Una tarea ordinaria tiene un solo ejecutor; revisión independiente es obligatoria para riesgo L3 o cuando se indique expresamente.
+- Monorepo Node.js / pnpm / Turborepo / TypeScript: `apps/api` (NestJS, Prisma, PostgreSQL), `apps/client` (Planner y vistas públicas), `apps/admin` (Provider), `apps/scanner` (check-in), `apps/landing` (comercial); compartidos `packages/ui` y `packages/api-client`.
+- La lógica de negocio y las autorizaciones pertenecen a `apps/api`. Ninguna app importa fuentes de otra app. `packages/ui` es presentación; el SDK de `packages/api-client` se genera desde OpenAPI.
+- Preservar aislamiento tenant, ownership, idempotencia, reglas RSVP, validez/duplicidad QR, controles Staff, trazabilidad, privacidad y contratos existentes. Ocultar UI nunca sustituye autorización del servidor.
+- No incorporar secretos, datos personales reales, estados, DTOs, rutas, permisos, tarifas o entidades inventadas. No eliminar pruebas/aserciones ni encubrir fallos con timeouts o retries.
+- Para un cambio funcional consultar **sólo** los contratos del dominio afectado. No recorrer todo `docs/` ni reinterpretar documentación histórica como dirección activa.
 
-## 3. Inicio: documentación mínima
+## 3. Responsables y ejecución
 
-1. Identificar objetivo aprobado, archivos probables, criterio de aceptación y riesgo.
-2. Consultar `docs/00-inicio/00_START_HERE.md` **sólo cuando la tarea afecte reglas, permisos, flujo del producto o exista duda de vigencia**. Usarlo como índice, no como orden de leer todos los documentos.
-3. Leer únicamente contratos técnicos asociados a las superficies y dependencias realmente afectadas. No recorrer `/docs` ni cargar conversaciones, logs o documentos completos por defecto.
-4. Para croquis, seating, RSVP, Scanner, Finance y activación, aplicar los contratos especializados señalados en `START_HERE` antes de cambiar sus invariantes.
-5. El preparador del prompt consulta documentación oficial vigente de Codex o Antigravity cuando corresponda; el agente ejecutor no repite esa investigación salvo que necesite resolver una incompatibilidad específica.
-6. Si hay contradicción real de producto o seguridad, detener **sólo la parte afectada**, señalar archivo/contrato y solicitar la decisión mínima. No generar planes, documentos ni tickets rutinarios.
+- **Gemini / Antigravity:** diseño UI/UX, CSS, layout, responsive, accesibilidad, microcopy y cambios visuales TSX. Sin cambiar lógica de negocio, auth, integraciones, contratos ni DB.
+- **Codex / VS Code:** lógica funcional React/TS, hooks con estado de negocio, backend, API, Prisma, DB, seguridad, arquitectura, integraciones y DevOps.
+- Respetar el ejecutor elegido expresamente por el usuario; advertir incompatibilidades técnicas. Si un cambio mezcla dominios, dividir sólo donde exista una dependencia real y evitar que dos ejecutores editen el mismo archivo en paralelo.
+- Un responsable por tarea. No crear obligatoriamente agentes separados de diagnóstico, implementación y QA. No exigir tickets, handoffs, documentos en Drive, planes adicionales o aprobaciones repetidas para un objetivo ya autorizado.
+- No hacer búsquedas web generales ni leer toda la documentación en cada ejecución: **quien prepara el prompt** consulta la documentación oficial relevante del agente; el ejecutor sólo investiga incompatibilidades concretas.
 
-## 4. QA local proporcional (política; scripts en adaptación)
+## 4. Contrato de cambio y QA dirigido
 
-El prompt debe indicar nivel, comandos concretos y evidencia esperada. Evaluar el diff final: ampliar QA sólo si toca nuevas dependencias o aumenta el riesgo.
+Antes de editar, identificar objetivo, criterio verificable, archivos probables, riesgo **L0–L3** y comandos de prueba. Al finalizar, revisar el diff real; ampliar pruebas **sólo** cuando cambien dependencias o criticidad. Puede usarse la skill `qa-scope` cuando el alcance de pruebas sea ambiguo.
 
-| Nivel | Cambios | Verificación local mínima |
-| --- | --- | --- |
-| L0 | Documentación, copy estático, estilos sin lógica | Revisar diff, formato de archivos tocados; comprobación visual si aplica. Sin suite general ni build por defecto. |
-| L1 | UI/interacción acotada sin cambio de contrato | Tests relacionados; lint/typecheck del workspace tocado; build cuando afecte compilación o empaquetado; revisión visual en tamaños relevantes. |
-| L2 | Lógica funcional, API, contratos o flujos compartidos | Tests unitarios y de integración de las rutas afectadas; validación de contratos; regresiones E2E pertinentes; lint/typecheck/build de workspaces afectados. |
-| L3 | Auth, permisos, aislamiento tenant, QR/check-in, Finance, migraciones o seguridad | L2 más casos negativos y regresiones críticas, QA independiente y controles completos aplicables. Sin omitir gates de seguridad. |
+- **L0:** documentación, copy/CSS sin lógica. Diff, formato y comprobación visual puntual cuando aplique.
+- **L1:** interfaz/comportamiento local. Tests relacionados, lint/typecheck del workspace, build si corresponde y revisión visual afectada.
+- **L2:** lógica, APIs o contratos. Tests de unidades/integración afectados, validación de contratos y E2E pertinentes.
+- **L3:** auth, permisos, aislamiento, QR/check-in, finanzas, migraciones y seguridad. Regresiones críticas, negativos, QA independiente y gates completos aplicables.
 
-- `pnpm qa:quick`, `qa:focused` y `qa:full` **ya existen**, pero `qa:focused` puede ejecutar journeys extensos. No invocarlos automáticamente sin inspeccionar la selección/comandos que realmente ejecutarán. Se optimizarán en una fase técnica posterior.
-- No reducir aserciones, saltarse regresiones necesarias ni subir timeouts/retries para ocultar fallos. Un fallo preexistente se informa separado del cambio nuevo.
-- Limitar la salida mostrada al modelo a resumen, error y fragmentos relevantes; dejar logs completos como artefactos. No hacer polling repetitivo con llamadas al modelo ni reiniciar una suite aprobada sin modificaciones posteriores.
-- Terminado el QA establecido y sin riesgos nuevos, **detener QA local**. No encadenar revisiones adicionales por rutina.
-- El CI actual sigue siendo independiente de QA local; verificar el resultado real de `quality` para el SHA entregado. No declarar PASS si no hay evidencia, ni confundir un CI pendiente con éxito.
+Comandos disponibles: `pnpm qa:quick -- --files=<rutas>` y `pnpm qa:focused -- --files=<rutas> --risk=L1|L2|L3 [--journeys=...]`. Ejecutar `--dry-run` **una vez si es necesario** para confirmar alcance. **Los selectores por ruta son conservadores**: si no reflejan el impacto real, documentar la discrepancia; no forzar una clasificación insegura. `qa:full` sólo para certificación explícita. El CI remoto mantiene sus controles independientes.
 
-## 5. Git, cierre y gobierno
+No hacer polling conversacional repetitivo, no releer logs completos y no repetir una suite en PASS sin nuevos cambios. Guardar logs extensos como artefactos y reportar sólo resumen/error relevante. **Detener QA local al cumplir criterios.** Nunca declarar PASS sin evidencia.
 
-- Flujo vigente: `main`. Antes de escribir, verificar HEAD actualizado y que no se mezclen cambios ajenos; en entorno local, `git pull --ff-only` y árbol limpio. No force-push. Crear commit pequeño y push sólo del alcance autorizado. Si el usuario dispone otra estrategia, seguirla.
-- La aceptación técnica y CI verde **no** autorizan staging, producción, ventas o pilotos; requieren sus permisos específicos.
-- PM coordina y resuelve dependencias reales, no intermedia cada edición. COO participa sólo por incidencia operativa, costos, recursos o despliegue. Evitar documentos, handoffs y registros por cada acción rutinaria.
-- Entrega única y breve: objetivo, archivos/diff, SHA, QA ejecutado (PASS/FAIL/pendiente), CI exacto y riesgos. No inventar pruebas ni resultados.
+## 5. Git, aprobación y entrega
+
+- Flujo autorizado actual: `main`. Verificar HEAD y árbol limpio antes de editar; no sobrescribir cambios ajenos, no force-push ni introducir ramas/PR por rutina. Commit pequeño sólo del alcance autorizado.
+- Verificar el CI del **SHA exacto** cuando haya push; diferenciar pendiente, fallido, cancelado y aprobado. No inferir calidad del código por el simple fin de una ejecución.
+- No desplegar staging/producción ni iniciar pilotos, campañas o gastos por un PASS técnico: requieren autorización correspondiente.
+- PM resuelve alcance y dependencias reales; COO sólo operaciones, recursos, infraestructura y finanzas. Git es la evidencia técnica; Drive conserva decisiones relevantes, no microactividades.
+- Respuesta final breve: cambio, archivos, SHA, QA ejecutado y resultado, estado CI, bloqueos/riesgos. No crear reportes narrativos sin necesidad.

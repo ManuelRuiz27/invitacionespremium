@@ -1,0 +1,5 @@
+# Configuración de proyecto para Codex (VS Code).
+# Se aplica sólo si Codex reconoce este repositorio como confiable.
+# No fijar modelo ni políticas globales del usuario.
+model_reasoning_effort = "medium"
+approval_policy = "on-request"
