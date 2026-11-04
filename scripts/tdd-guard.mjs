@@ -11,14 +11,17 @@ export function safePath(file, prefix = false) {
   if (typeof file !== 'string' || !file || file.includes('\\') || file.includes(':') || file.startsWith('/'))
     throw new Error('Use relative POSIX paths in the TDD contract.');
   const path = prefix && file.endsWith('/**') ? file.slice(0, -3) : file;
-  if (!path || path.split('/').some((part) => !part || part === '.' || part === '..' || part.includes('*')) ||
-      containsControlChars(file))
+  if (
+    !path ||
+    path.split('/').some((part) => !part || part === '.' || part === '..' || part.includes('*')) ||
+    containsControlChars(file)
+  )
     throw new Error('Unsafe TDD path: ' + file);
   return file;
 }
 
 export function matches(file, paths) {
-  return paths.some((path) => path.endsWith('/**') ? file.startsWith(path.slice(0, -2)) : file === path);
+  return paths.some((path) => (path.endsWith('/**') ? file.startsWith(path.slice(0, -2)) : file === path));
 }
 
 export function validate(raw, file) {
@@ -31,26 +34,35 @@ export function validate(raw, file) {
     if (!Array.isArray(raw[field]) || raw[field].length === 0) throw new Error('Missing contract field: ' + field);
   raw.testPaths.forEach((path) => safePath(path));
   raw.implementationPaths.forEach((path) => safePath(path, true));
-  if (new Set(raw.testPaths).size !== raw.testPaths.length ||
-      new Set(raw.implementationPaths).size !== raw.implementationPaths.length)
+  if (
+    new Set(raw.testPaths).size !== raw.testPaths.length ||
+    new Set(raw.implementationPaths).size !== raw.implementationPaths.length
+  )
     throw new Error('Duplicate TDD paths.');
   if (raw.testPaths.some((path) => matches(path, raw.implementationPaths)))
     throw new Error('Tests overlap implementation scope.');
   for (const path of raw.implementationPaths)
-    if (path === 'AGENTS.md' || path.startsWith('tdd/') || path.startsWith('.agents/') ||
-        path.startsWith('.codex/') || path.startsWith('.github/') ||
-        path === 'scripts/tdd-guard.mjs' || path === 'scripts/tdd-guard.test.mjs')
+    if (
+      path === 'AGENTS.md' ||
+      path.startsWith('tdd/') ||
+      path.startsWith('.agents/') ||
+      path.startsWith('.codex/') ||
+      path.startsWith('.github/') ||
+      path === 'scripts/tdd-guard.mjs' ||
+      path === 'scripts/tdd-guard.test.mjs'
+    )
       throw new Error('Governance and TDD guard are protected.');
   for (const command of raw.qaCommands) {
-    if (!Array.isArray(command) || !['node', 'pnpm'].includes(command[0]) ||
-        command.some((arg) => typeof arg !== 'string' || !arg || containsControlChars(arg)))
+    if (
+      !Array.isArray(command) ||
+      !['node', 'pnpm'].includes(command[0]) ||
+      command.some((arg) => typeof arg !== 'string' || !arg || containsControlChars(arg))
+    )
       throw new Error('Only node/pnpm argument arrays are allowed.');
-    if (command[0] === 'node' && !command.includes('--test'))
-      throw new Error('Node test command must include --test.');
+    if (command[0] === 'node' && !command.includes('--test')) throw new Error('Node test command must include --test.');
     if (command.includes('qa:full')) throw new Error('Full QA is not task-scoped.');
   }
-  if (raw.risk === 'L3' && raw.independentReviewRequired !== true)
-    throw new Error('L3 requires independent review.');
+  if (raw.risk === 'L3' && raw.independentReviewRequired !== true) throw new Error('L3 requires independent review.');
   if (raw.acceptance.some((text) => typeof text !== 'string' || !text.trim()))
     throw new Error('Invalid acceptance criterion.');
   return raw;
@@ -87,15 +99,20 @@ function verify(contractPath, baseline, mainRef = null) {
   const spec = validate(JSON.parse(original.toString('utf8')), contractPath);
   for (const file of [contractPath, ...spec.testPaths]) {
     const target = join(root, file);
-    if (!existsSync(target) || !lstatSync(target).isFile() ||
-        git(['rev-parse', baseline + ':' + file]) !== git(['hash-object', '--path=' + file, '--', file]))
+    if (
+      !existsSync(target) ||
+      !lstatSync(target).isFile() ||
+      git(['rev-parse', baseline + ':' + file]) !== git(['hash-object', '--path=' + file, '--', file])
+    )
       throw new Error('Locked TDD file modified: ' + file);
   }
-  const changed = [...new Set([
-    ...paths(['diff', '--no-renames', '--name-only', '-z', baseline, '--']),
-    ...paths(['diff', '--no-renames', '--name-only', '-z', 'HEAD', '--']),
-    ...paths(['ls-files', '--others', '--exclude-standard', '-z'])
-  ])];
+  const changed = [
+    ...new Set([
+      ...paths(['diff', '--no-renames', '--name-only', '-z', baseline, '--']),
+      ...paths(['diff', '--no-renames', '--name-only', '-z', 'HEAD', '--']),
+      ...paths(['ls-files', '--others', '--exclude-standard', '-z'])
+    ])
+  ];
   checkScope(changed, spec, contractPath);
   if (mainRef) {
     const common = git(['merge-base', mainRef, 'HEAD']);
@@ -122,12 +139,19 @@ function execute(spec, dry) {
       const childEnv = { ...process.env };
       // Running a test runner from node:test inherits this marker and silently skips nested tests.
       delete childEnv.NODE_TEST_CONTEXT;
-      result = spawnSync(process.execPath, cmd, { cwd: root, windowsHide: true, stdio: ['ignore', fd, fd], env: childEnv });
+      result = spawnSync(process.execPath, cmd, {
+        cwd: root,
+        windowsHide: true,
+        stdio: ['ignore', fd, fd],
+        env: childEnv
+      });
     } finally {
       closeSync(fd);
     }
     if (result.error || result.status !== 0)
-      throw new Error('QA FAILED; log: ' + logfile + '\n' + readFileSync(logfile, 'utf8').split('\n').slice(-30).join('\n'));
+      throw new Error(
+        'QA FAILED; log: ' + logfile + '\n' + readFileSync(logfile, 'utf8').split('\n').slice(-30).join('\n')
+      );
     process.stdout.write('[tdd] PASS; log: ' + logfile + '\n');
   }
 }
@@ -149,14 +173,18 @@ function main() {
     const contracts = newFiles.filter((file) => contractName.test(file));
     if (contracts.length !== 1) throw new Error('Expected exactly one TDD contract in pull request.');
     const history = git(['log', '--reverse', '--format=%H', mainRef + '..HEAD', '--', contracts[0]])
-      .split('\n').filter(Boolean);
+      .split('\n')
+      .filter(Boolean);
     if (!history.length) throw new Error('Cannot find RED commit.');
     const checked = verify(contracts[0], history[0], mainRef);
     process.stdout.write('[tdd] CI scope PASS: ' + checked.spec.taskId + '\n');
     return;
   }
-  if (typeof options['--contract'] !== 'string' || typeof options['--baseline'] !== 'string' ||
-      (options['--run'] && options['--dry-run']))
+  if (
+    typeof options['--contract'] !== 'string' ||
+    typeof options['--baseline'] !== 'string' ||
+    (options['--run'] && options['--dry-run'])
+  )
     throw new Error('Use --contract=tdd/contracts/ID.json --baseline=<RED-SHA> [--run|--dry-run].');
   const checked = verify(options['--contract'], options['--baseline']);
   if (git(['branch', '--show-current']) !== 'tdd/' + checked.spec.taskId)
@@ -173,9 +201,7 @@ const invocation = process.argv[1] ? resolve(process.argv[1]) : null;
 const moduleFile = resolve(fileURLToPath(import.meta.url));
 const isDirectExecution =
   invocation !== null &&
-  (process.platform === 'win32'
-    ? invocation.toLowerCase() === moduleFile.toLowerCase()
-    : invocation === moduleFile);
+  (process.platform === 'win32' ? invocation.toLowerCase() === moduleFile.toLowerCase() : invocation === moduleFile);
 if (isDirectExecution) {
   try {
     main();

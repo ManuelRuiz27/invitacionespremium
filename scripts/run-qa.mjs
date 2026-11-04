@@ -4,7 +4,13 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { qaPlan, quickRelatedFiles, requiresApiConsumers, selectWorkspaces, touchesQaTooling } from './qa-selection.mjs';
+import {
+  qaPlan,
+  quickRelatedFiles,
+  requiresApiConsumers,
+  selectWorkspaces,
+  touchesQaTooling
+} from './qa-selection.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const startedAt = performance.now();
@@ -12,7 +18,8 @@ const [level, ...options] = process.argv.slice(2).filter((arg) => arg !== '--');
 if (!['quick', 'focused', 'full'].includes(level)) throw new Error('Expected quick, focused or full.');
 if (
   options.some(
-    (arg) => arg !== '--dry-run' && !['--base=', '--files=', '--risk=', '--journeys='].some((prefix) => arg.startsWith(prefix))
+    (arg) =>
+      arg !== '--dry-run' && !['--base=', '--files=', '--risk=', '--journeys='].some((prefix) => arg.startsWith(prefix))
   )
 )
   throw new Error('Supported options: --base=, --files=, --risk=, --journeys= and --dry-run.');
@@ -31,7 +38,8 @@ const explicit = options.find((arg) => arg.startsWith('--files='))?.slice(8);
 const riskOption = options.find((arg) => arg.startsWith('--risk='))?.slice(7) ?? 'auto';
 const journeysOption = options.find((arg) => arg.startsWith('--journeys='))?.slice(11);
 if (base !== undefined && (!base || base.startsWith('-'))) throw new Error('Invalid Git baseline.');
-if (explicit !== undefined && (!explicit || explicit.split(',').some((file) => !file))) throw new Error('Invalid file selection.');
+if (explicit !== undefined && (!explicit || explicit.split(',').some((file) => !file)))
+  throw new Error('Invalid file selection.');
 if (base && explicit) throw new Error('Choose --base or --files.');
 if (journeysOption !== undefined && (!journeysOption || journeysOption.split(',').some((item) => !item)))
   throw new Error('Invalid QA journeys.');
@@ -72,10 +80,13 @@ const files =
               ]
         )
       ].map((file) => file.replaceAll('\\', '/'));
-const plan = level === 'full' ? { risk: 'L3', floor: 'L3', journeys: [] } : qaPlan(files, {
-  risk: riskOption,
-  journeys: journeysOption ? journeysOption.split(',') : []
-});
+const plan =
+  level === 'full'
+    ? { risk: 'L3', floor: 'L3', journeys: [] }
+    : qaPlan(files, {
+        risk: riskOption,
+        journeys: journeysOption ? journeysOption.split(',') : []
+      });
 const selection =
   level === 'full'
     ? {
@@ -191,7 +202,13 @@ if (level === 'focused' || level === 'full') {
   }
 }
 process.stdout.write(
-  '[qa:' + level + '] ' + (dry ? 'Dry run only; no validations executed' : 'Passed in ' + ((performance.now() - startedAt) / 1000).toFixed(2) + 's') + '.\n'
+  '[qa:' +
+    level +
+    '] ' +
+    (dry
+      ? 'Dry run only; no validations executed'
+      : 'Passed in ' + ((performance.now() - startedAt) / 1000).toFixed(2) + 's') +
+    '.\n'
 );
 
 async function openApiChecks() {

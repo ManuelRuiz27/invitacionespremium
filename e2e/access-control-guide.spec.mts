@@ -299,13 +299,18 @@ test('UX02 real organization, both access modes, printable material and camera r
       'AMBOS'
     );
     // Exercise the organization administrator's real scope as well, without impersonation.
+    console.log('[guide] verifying organization administrator scope');
     const orgAdmin = await browser.newContext();
     try {
       const page = await orgAdmin.newPage();
       await login(page, client, 'administracion@jardines.example', false);
+      console.log('[guide] organization administrator signed in');
       await expect(page.getByText('Celebración empresarial', { exact: true })).toBeVisible();
+      console.log('[guide] organization administrator scope verified');
     } finally {
+      console.log('[guide] closing organization administrator context');
       await orgAdmin.close();
+      console.log('[guide] organization administrator context closed');
     }
     await writeFile(
       join(stage, 'inventory.json'),

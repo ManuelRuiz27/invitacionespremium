@@ -3,7 +3,13 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
-import { qaPlan, quickRelatedFiles, requiresApiConsumers, selectWorkspaces, touchesQaTooling } from './qa-selection.mjs';
+import {
+  qaPlan,
+  quickRelatedFiles,
+  requiresApiConsumers,
+  selectWorkspaces,
+  touchesQaTooling
+} from './qa-selection.mjs';
 
 const workspaces = [
   { name: '@invitaciones/api', path: 'apps/api', dependencies: [] },
@@ -127,24 +133,35 @@ test('critical paths cannot be classified as trivial', () => {
 test('focused landing QA requires explicit browser journeys', () => {
   const entry = fileURLToPath(new URL('./run-qa.mjs', import.meta.url));
   const basic = spawnSync(process.execPath, [entry, 'focused', '--files=apps/landing/src/App.tsx', '--dry-run'], {
-    encoding: 'utf8', windowsHide: true
+    encoding: 'utf8',
+    windowsHide: true
   });
   assert.equal(basic.status, 0, basic.stderr);
   assert(!basic.stdout.includes('test:e2e:managed'));
   assert(!basic.stdout.includes('playwright test'));
   assert(!basic.stdout.includes('pnpm format:check'));
   assert(basic.stdout.includes('vitest related --run src/App.tsx'));
-  const selected = spawnSync(process.execPath, [entry, 'focused', '--files=apps/landing/src/App.tsx', '--journeys=public-catalog', '--dry-run'], {
-    encoding: 'utf8', windowsHide: true
-  });
+  const selected = spawnSync(
+    process.execPath,
+    [entry, 'focused', '--files=apps/landing/src/App.tsx', '--journeys=public-catalog', '--dry-run'],
+    {
+      encoding: 'utf8',
+      windowsHide: true
+    }
+  );
   assert.equal(selected.status, 0, selected.stderr);
   assert(selected.stdout.includes('test:e2e:public-catalog'));
 });
 test('critical Scanner retains mandatory E2E regardless of requested risk', () => {
   const entry = fileURLToPath(new URL('./run-qa.mjs', import.meta.url));
-  const run = spawnSync(process.execPath, [entry, 'focused', '--files=apps/scanner/src/App.tsx', '--risk=L0', '--dry-run'], {
-    encoding: 'utf8', windowsHide: true
-  });
+  const run = spawnSync(
+    process.execPath,
+    [entry, 'focused', '--files=apps/scanner/src/App.tsx', '--risk=L0', '--dry-run'],
+    {
+      encoding: 'utf8',
+      windowsHide: true
+    }
+  );
   assert.equal(run.status, 0, run.stderr);
   assert(run.stdout.includes('Requested risk upgraded to L3'));
   assert(run.stdout.includes('test:e2e:managed'));
@@ -154,12 +171,14 @@ test('critical Scanner retains mandatory E2E regardless of requested risk', () =
 test('docs and QA tooling skip unrelated runtime suites', () => {
   const entry = fileURLToPath(new URL('./run-qa.mjs', import.meta.url));
   const docs = spawnSync(process.execPath, [entry, 'focused', '--files=docs/INDEX.md', '--dry-run'], {
-    encoding: 'utf8', windowsHide: true
+    encoding: 'utf8',
+    windowsHide: true
   });
   assert.equal(docs.status, 0, docs.stderr);
   assert(docs.stdout.includes('No runtime suites required'));
   const tooling = spawnSync(process.execPath, [entry, 'focused', '--files=scripts/qa-selection.mjs', '--dry-run'], {
-    encoding: 'utf8', windowsHide: true
+    encoding: 'utf8',
+    windowsHide: true
   });
   assert.equal(tooling.status, 0, tooling.stderr);
   assert(tooling.stdout.includes('pnpm qa:tooling:test'));

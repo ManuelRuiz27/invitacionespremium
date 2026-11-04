@@ -43,7 +43,6 @@ test('invalid paths and unsafe contract changes are rejected', () => {
   assert.equal(validate({ ...spec, risk: 'L3', independentReviewRequired: true }, contract).risk, 'L3');
 });
 
-
 test('git integration: RED/GREEN contract locks tests and CI validates original baseline', () => {
   const work = mkdtempSync(join(tmpdir(), 'invitation-tdd-'));
   const runGit = (...args) => {
@@ -51,11 +50,12 @@ test('git integration: RED/GREEN contract locks tests and CI validates original 
     assert.equal(command.status, 0, command.stderr);
     return command.stdout.trim();
   };
-  const runGuard = (...args) => spawnSync(process.execPath, [join(work, 'scripts/tdd-guard.mjs'), ...args], {
-    cwd: work,
-    encoding: 'utf8',
-    windowsHide: true
-  });
+  const runGuard = (...args) =>
+    spawnSync(process.execPath, [join(work, 'scripts/tdd-guard.mjs'), ...args], {
+      cwd: work,
+      encoding: 'utf8',
+      windowsHide: true
+    });
   try {
     runGit('init', '-q');
     runGit('config', 'user.email', 'qa@example.invalid');
@@ -84,8 +84,10 @@ test('git integration: RED/GREEN contract locks tests and CI validates original 
       acceptance: ['answer() must return 42']
     };
     writeFileSync(join(work, 'tdd/contracts/IP-TDD-001.json'), JSON.stringify(task, null, 2) + '\n');
-    writeFileSync(join(work, 'apps/api/src/example.spec.js'),
-      "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { answer } from './example.js';\ntest('RED then GREEN', () => assert.equal(answer(), 42));\n");
+    writeFileSync(
+      join(work, 'apps/api/src/example.spec.js'),
+      "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { answer } from './example.js';\ntest('RED then GREEN', () => assert.equal(answer(), 42));\n"
+    );
     runGit('add', '.');
     runGit('commit', '-qm', 'test: baseline RED');
     const baseline = runGit('rev-parse', 'HEAD');

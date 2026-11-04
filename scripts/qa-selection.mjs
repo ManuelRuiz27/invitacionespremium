@@ -1,6 +1,7 @@
 import { posix } from 'node:path';
 
-const qaToolingPath = /^scripts\/(?:run-qa|qa-selection|qa-redaction|qa-visual-layout|access-control-integration-selection|tdd-guard)(?:\.test)?\.mjs$/u;
+const qaToolingPath =
+  /^scripts\/(?:run-qa|qa-selection|qa-redaction|qa-visual-layout|access-control-integration-selection|tdd-guard)(?:\.test)?\.mjs$/u;
 const levels = ['L0', 'L1', 'L2', 'L3'];
 
 export function touchesQaTooling(files) {
@@ -32,16 +33,26 @@ export function qaPlan(files, { risk = 'auto', journeys = [] } = {}) {
     if (
       path.startsWith('apps/scanner/') ||
       path.startsWith('apps/api/prisma/') ||
-      /^(?:apps\/(?:api|client|admin)\/src\/).*(?:auth|permissions?|roles?|security|finance|ledger|credits?|check.?in|scanner|access-control|qr)(?:\/|[.-])/iu.test(path)
+      /^(?:apps\/(?:api|client|admin)\/src\/).*(?:auth|permissions?|roles?|security|finance|ledger|credits?|check.?in|scanner|access-control|qr)(?:\/|[.-])/iu.test(
+        path
+      )
     )
       updateFloor('L3');
     else if (
       path.startsWith('apps/api/') ||
       path.startsWith('packages/') ||
-      (!path.startsWith('apps/') && !path.startsWith('docs/') && path !== 'README.md' && path !== 'AGENTS.md' && !path.startsWith('.agents/') && !path.startsWith('.codex/') && !path.startsWith('tdd/') && !path.endsWith('.md'))
+      (!path.startsWith('apps/') &&
+        !path.startsWith('docs/') &&
+        path !== 'README.md' &&
+        path !== 'AGENTS.md' &&
+        !path.startsWith('.agents/') &&
+        !path.startsWith('.codex/') &&
+        !path.startsWith('tdd/') &&
+        !path.endsWith('.md'))
     )
       updateFloor('L2');
-    else if (/\.[cm]?[jt]sx?$/u.test(path) || (path.startsWith('apps/') && !/\.(?:css|scss|md)$/u.test(path))) updateFloor('L1');
+    else if (/\.[cm]?[jt]sx?$/u.test(path) || (path.startsWith('apps/') && !/\.(?:css|scss|md)$/u.test(path)))
+      updateFloor('L1');
   }
   const effective = levels[Math.max(levels.indexOf(floor), risk === 'auto' ? 0 : levels.indexOf(risk))];
   const required = [];
@@ -62,7 +73,6 @@ export function qaPlan(files, { risk = 'auto', journeys = [] } = {}) {
   return { requestedRisk: risk, floor, risk: effective, journeys: [...new Set([...required, ...journeys])] };
 }
 
-
 // Workspace edges come from package.json, including dev/optional dependencies.
 export function selectWorkspaces(workspaces, files, { includeApiConsumers = true } = {}) {
   const byName = new Map(workspaces.map((workspace) => [workspace.name, workspace]));
@@ -74,7 +84,15 @@ export function selectWorkspaces(workspaces, files, { includeApiConsumers = true
       throw new Error('QA paths must be relative to the repository.');
     const owner = workspaces.find((workspace) => file.startsWith(`${workspace.path}/`));
     if (owner) owners.add(owner.name);
-    else if (!file.startsWith('docs/') && !file.endsWith('.md') && !file.startsWith('.codex/') && !file.startsWith('.agents/') && !file.startsWith('tdd/') && !qaToolingPath.test(file)) global = true;
+    else if (
+      !file.startsWith('docs/') &&
+      !file.endsWith('.md') &&
+      !file.startsWith('.codex/') &&
+      !file.startsWith('.agents/') &&
+      !file.startsWith('tdd/') &&
+      !qaToolingPath.test(file)
+    )
+      global = true;
   }
   const affected = new Set(global ? byName.keys() : owners);
   // The generated API client is a contract consumer of the API, not a workspace import.

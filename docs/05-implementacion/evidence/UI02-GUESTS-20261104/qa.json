@@ -26,6 +26,25 @@
                  ],
     "scopeNote":  "Directed commands replace transitive related-test selection. access-control test edits adapt only UI locators and counter copy; permissions, API and business rules are unchanged.",
     "baselineCi":  "de62feeb5356afe629bcce2e12a88470b1c005b0 already fails formatting in six QA scripts and stale UX02 guide evidence.",
-    "guideCaptureStatus":  "BLOCKED: existing 600000 ms limit reached; browserContext.close failed at the final organization administrator context. All 39 screenshots remained temporary and were not published.",
-    "focusRegression":  "CI exposed dialog transition focus stealing characters from contextual group creation. Initial focus now only applies while the dialog container owns focus. Full group-name assertion preserved and strengthened; isolated CRUD PASS in 8.79 s at the original 15 s limit; 4 affected browser cases PASS. A parallel local attempt hit resource contention (lint heap failure and CRUD timeout); sequential lint and isolated CRUD passed without limit changes."
+    "guideCaptureStatus":  "PASS: complete real capture in 118735 ms at the unchanged 600000 ms limit; 39 screenshots, refreshed manuals and independent hash/mask/QR verification passed. The prior context-close timeout did not reproduce; safe phase markers retain precise diagnostics.",
+    "focusRegression":  "CI exposed dialog transition focus stealing characters from contextual group creation. Initial focus now only applies while the dialog container owns focus. Full group-name assertion preserved and strengthened; isolated CRUD PASS in 8.79 s at the original 15 s limit; 4 affected browser cases PASS. A parallel local attempt hit resource contention (lint heap failure and CRUD timeout); sequential lint and isolated CRUD passed without limit changes.",
+    "blockerRemediation":  {
+                               "baseline":  "375f28679229005c84e04b4d0a177f498052051b",
+                               "formatting":  "Six scripts exactly match Prettier output from baseline; no control logic changed.",
+                               "toolingTestsPassed":  28,
+                               "guideSafetyTestsPassed":  5,
+                               "guideCaptureScenario":  "PASS, including real organization administrator scope and context closure",
+                               "captureDurationMs":  118735,
+                               "captureTimeoutMs":  600000,
+                               "retries":  0,
+                               "assertions":  "All existing assertions retained",
+                               "guideImagesVerified":  39,
+                               "manualPageCounts":  [
+                                                        14,
+                                                        21,
+                                                        2
+                                                    ],
+                               "privacy":  "Current source hash, image hashes, secret masks and no usable QR verified by unchanged publication verifier",
+                               "productSourcesChanged":  false
+                           }
 }
