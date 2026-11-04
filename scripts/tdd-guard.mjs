@@ -119,7 +119,10 @@ function execute(spec, dry) {
     let result;
     try {
       const cmd = args[0] === 'pnpm' ? [process.env.npm_execpath, ...args.slice(1)] : args.slice(1);
-      result = spawnSync(process.execPath, cmd, { cwd: root, windowsHide: true, stdio: ['ignore', fd, fd] });
+      const childEnv = { ...process.env };
+      // Running a test runner from node:test inherits this marker and silently skips nested tests.
+      delete childEnv.NODE_TEST_CONTEXT;
+      result = spawnSync(process.execPath, cmd, { cwd: root, windowsHide: true, stdio: ['ignore', fd, fd], env: childEnv });
     } finally {
       closeSync(fd);
     }
