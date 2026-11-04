@@ -1,0 +1,30 @@
+{
+    "date":  "2026-11-04",
+    "route":  "/eventos/:eventId/configuracion/contactos",
+    "risk":  "L1",
+    "fixtures":  "Fictional Planner, CONFIGURED FLYER; ACTIVE Managed read-only",
+    "viewports":  [
+                      360,
+                      768,
+                      1440
+                  ],
+    "componentAndIntegrationTests":  92,
+    "browserTests":  8,
+    "guideUnitTests":  5,
+    "checks":  [
+                   "lint PASS",
+                   "typecheck PASS",
+                   "client build PASS",
+                   "format PASS",
+                   "diff check PASS"
+               ],
+    "evidence":  [
+                     "guests-360.png",
+                     "guests-768.png",
+                     "guests-1440.png",
+                     "csv-errors-360.png"
+                 ],
+    "scopeNote":  "Directed commands replace transitive related-test selection. access-control test edits adapt only UI locators and counter copy; permissions, API and business rules are unchanged.",
+    "baselineCi":  "de62feeb5356afe629bcce2e12a88470b1c005b0 already fails formatting in six QA scripts and stale UX02 guide evidence.",
+    "guideCaptureStatus":  "BLOCKED: existing 600000 ms limit reached; browserContext.close failed at the final organization administrator context. All 39 screenshots remained temporary and were not published."
+}

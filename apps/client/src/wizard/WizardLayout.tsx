@@ -1,5 +1,5 @@
 import type { Event } from '@invitaciones/api-client';
-import { PageHeader, StatusChip } from '@invitaciones/ui';
+import { layoutTokens, PageHeader, StatusChip } from '@invitaciones/ui';
 import { Alert, Box, Button, Paper, Stack, Step, StepButton, Stepper, Tab, Tabs, Typography } from '@mui/material';
 import type { ReactNode } from 'react';
 import { getEventStatusPresentation } from '../shared/event-status';
@@ -15,7 +15,7 @@ const labels: Record<WizardStep, string> = {
   revision: 'Revisión'
 };
 const saveLabel: Record<SaveState, string> = {
-  idle: 'Sin cambios pendientes',
+  idle: '',
   pending: 'Cambios pendientes',
   saving: 'Guardando…',
   saved: 'Cambios guardados',
@@ -47,93 +47,135 @@ export function WizardLayout({
   children: ReactNode;
 }) {
   const index = steps.indexOf(selectedStep);
+  const floorplan = selectedStep === 'croquis';
+  const status = event ? getEventStatusPresentation(event.status) : undefined;
+  const saveFeedback = (
+    <Typography
+      variant="body2"
+      role={saveState === 'error' ? 'alert' : 'status'}
+      aria-live={saveState === 'error' ? 'assertive' : 'polite'}
+      sx={{ color: saveState === 'error' ? 'error.main' : 'text.secondary', minHeight: floorplan ? 21 : undefined }}
+    >
+      {saveLabel[saveState]}
+    </Typography>
+  );
   return (
     <Box
       sx={
-        selectedStep === 'datos' ? { mt: { xs: -3, md: -1 }, mb: { xs: -8, md: -10 }, '& > header': { mb: 1.5 } } : {}
+        selectedStep === 'datos'
+          ? { mt: { xs: -3, md: -1 }, mb: { xs: -8, md: -10 }, '& > header': { mb: 1.5 } }
+          : selectedStep === 'contactos'
+            ? { maxWidth: layoutTokens.content.maxWidthDetail, mx: 'auto' }
+            : {}
       }
     >
       <PageHeader
         title={event ? (event.name ?? 'Configurar Evento') : 'Nuevo Evento'}
-        {...(selectedStep === 'datos'
-          ? {}
-          : { description: 'Completa los pasos para dejar tu evento listo para activar.' })}
+        {...(floorplan ? { description: 'Completa los pasos para dejar tu evento listo para activar.' } : {})}
         size="operational"
+        {...(!floorplan
+          ? {
+              action: (
+                <Stack direction="row" spacing={2} sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 1 }}>
+                  {saveState !== 'idle' ? saveFeedback : null}
+                  {status ? <StatusChip label={status.label} tone={status.tone} /> : null}
+                </Stack>
+              )
+            }
+          : {})}
       />
-      <Stack spacing={selectedStep === 'datos' ? 1.5 : 2.5}>
-        <Paper
-          variant="outlined"
-          sx={
-            selectedStep === 'datos'
-              ? {
-                  py: 1,
-                  border: 0,
-                  borderBottom: '1px solid',
-                  borderColor: 'divider',
-                  bgcolor: 'transparent',
-                  boxShadow: 'none',
-                  borderRadius: 0
-                }
-              : { p: { xs: 1.5, md: 2.5 } }
-          }
-        >
-          <Stack
-            direction="row"
-            sx={{ justifyContent: 'space-between', alignItems: 'center', mb: selectedStep === 'datos' ? 1 : 2 }}
-          >
-            <Typography variant="body2" aria-live="polite">
-              {saveLabel[saveState]}
-            </Typography>
-            {event
-              ? (() => {
-                  const status = getEventStatusPresentation(event.status);
-                  return <StatusChip label={status.label} tone={status.tone} />;
-                })()
-              : null}
-          </Stack>
-          <Box sx={{ display: { xs: 'none', md: 'block' } }}>
-            <Stepper nonLinear activeStep={index}>
+      <Stack spacing={selectedStep === 'datos' ? 1.5 : selectedStep === 'contactos' ? 3 : 2.5}>
+        {floorplan ? (
+          <Paper variant="outlined" sx={{ p: { xs: 1.5, md: 2.5 } }}>
+            <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              {saveFeedback}
+              {event
+                ? (() => {
+                    const status = getEventStatusPresentation(event.status);
+                    return <StatusChip label={status.label} tone={status.tone} />;
+                  })()
+                : null}
+            </Stack>
+            <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+              <Stepper nonLinear activeStep={index}>
+                {steps.map((item) => (
+                  <Step key={item}>
+                    <StepButton disabled={busy} onClick={() => onGo(item)}>
+                      {labels[item]}
+                    </StepButton>
+                  </Step>
+                ))}
+              </Stepper>
+            </Box>
+            <Tabs
+              value={selectedStep}
+              variant="scrollable"
+              scrollButtons="auto"
+              sx={{ display: { md: 'none' } }}
+              onChange={(_, value: WizardStep) => onGo(value)}
+              aria-label="Etapas de configuración"
+            >
               {steps.map((item) => (
-                <Step key={item}>
-                  <StepButton disabled={busy} onClick={() => onGo(item)}>
-                    {labels[item]}
-                  </StepButton>
-                </Step>
+                <Tab key={item} value={item} label={labels[item]} disabled={busy} />
               ))}
-            </Stepper>
-          </Box>
+            </Tabs>
+          </Paper>
+        ) : (
           <Tabs
             value={selectedStep}
             variant="scrollable"
             scrollButtons="auto"
-            sx={{ display: { md: 'none' } }}
+            allowScrollButtonsMobile
             onChange={(_, value: WizardStep) => onGo(value)}
             aria-label="Etapas de configuración"
+            sx={{
+              minHeight: 48,
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+              '& .MuiTab-root': {
+                minHeight: 48,
+                minWidth: 'auto',
+                px: { xs: 1.5, md: 2.5 },
+                color: 'text.secondary',
+                fontWeight: 400
+              },
+              '& .Mui-selected': { color: 'text.primary', fontWeight: 600 }
+            }}
           >
             {steps.map((item) => (
-              <Tab key={item} value={item} label={labels[item]} disabled={busy} />
+              <Tab
+                key={item}
+                value={item}
+                label={labels[item]}
+                disabled={busy}
+                aria-current={item === selectedStep ? 'step' : undefined}
+              />
             ))}
           </Tabs>
-        </Paper>
+        )}
         {!editable ? <Alert severity="info">Este Evento es de solo lectura en su estado actual.</Alert> : null}
         {message ? (
           <Alert severity="warning" onClose={onDismissMessage}>
             {message}
           </Alert>
         ) : null}
-        <Paper
-          component="section"
-          variant="outlined"
-          sx={
-            selectedStep === 'croquis' || selectedStep === 'datos'
-              ? { p: 0, border: 0, bgcolor: 'transparent', boxShadow: 'none' }
-              : { p: { xs: 2, md: 3 } }
-          }
-        >
-          {children}
-        </Paper>
+        {selectedStep === 'contactos' ? (
+          <Box component="section">{children}</Box>
+        ) : (
+          <Paper
+            component="section"
+            variant="outlined"
+            sx={
+              selectedStep === 'croquis' || selectedStep === 'datos'
+                ? { p: 0, border: 0, bgcolor: 'transparent', boxShadow: 'none' }
+                : { p: { xs: 2, md: 3 } }
+            }
+          >
+            {children}
+          </Paper>
+        )}
         <Stack
-          direction={selectedStep === 'datos' ? 'row' : { xs: 'column', sm: 'row' }}
+          direction={selectedStep === 'datos' || selectedStep === 'contactos' ? 'row' : { xs: 'column', sm: 'row' }}
           sx={{ justifyContent: 'space-between', gap: 1.5 }}
         >
           <Button disabled={busy} onClick={onExit}>

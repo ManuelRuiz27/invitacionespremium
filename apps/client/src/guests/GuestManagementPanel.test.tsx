@@ -1,9 +1,39 @@
 import type { Contact, ContactGroup, Event, Invitation } from '@invitaciones/api-client';
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { activeEvent, configuredEvent, managedUser, mockApiClient } from '../test/fixtures';
 import { renderApp } from '../test/render-app';
+import { ApiError } from '@invitaciones/api-client';
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((yes, no) => {
+    resolve = yes;
+    reject = no;
+  });
+  return { promise, resolve, reject };
+}
+
+const csvPreview = (previewId = 'preview-a') => ({
+  previewId,
+  expiresAt: '2027-01-01T00:00:00.000Z',
+  totalRows: 1,
+  validRows: 1,
+  invalidRows: 0,
+  rows: [
+    {
+      rowNumber: 2,
+      name: 'Carla Díaz',
+      normalizedPhone: '+525551111111',
+      group: null,
+      groupId: null,
+      groupResolution: 'NONE' as const,
+      errors: [] as string[]
+    }
+  ]
+});
 
 const managedEvent = {
   ...configuredEvent,
@@ -72,6 +102,145 @@ beforeEach(() => {
 });
 
 describe('Guest management workspace', () => {
+  it('filters by group while preserving distinct contact, invitation and assistant counts', async () => {
+    const api = mockApiClient(managedUser);
+    vi.mocked(api.events.get).mockResolvedValue(managedEvent);
+    vi.mocked(api.contacts.list).mockResolvedValue([contactAna, { ...contactLuis, groupId: null }]);
+    vi.mocked(api.contacts.groups).mockResolvedValue([group]);
+    vi.mocked(api.invitations.list).mockResolvedValue([
+      {
+        ...invitation,
+        assistants: [
+          invitation.assistants[0]!,
+          { ...invitation.assistants[0]!, id: 'additional' },
+          { ...invitation.assistants[0]!, id: 'third' }
+        ]
+      }
+    ]);
+    const user = userEvent.setup();
+    renderApp(api, `/eventos/${managedEvent.id}?seccion=invitados`);
+    expect(await screen.findByText('2 contactos registrados')).toBeInTheDocument();
+    expect(
+      screen.getByText(/Invitaciones: 1 · Personas contempladas: 3 · Lugares disponibles: 117/)
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('combobox', { name: 'Filtrar por grupo' }));
+    await user.click(screen.getByRole('option', { name: group.name }));
+    const list = screen.getByRole('list', { name: 'Lista de invitados' });
+    expect(within(list).getByText('Ana García')).toBeInTheDocument();
+    expect(within(list).queryByText('Luis Pérez')).not.toBeInTheDocument();
+    await user.type(screen.getByRole('textbox', { name: 'Buscar invitado' }), 'sin coincidencias');
+    expect(screen.getByText(/No encontramos invitados/)).toBeInTheDocument();
+    expect(api.contacts.list).toHaveBeenCalledOnce();
+  });
+
+  it('blocks repeated creates and shows operation errors inside the dialog without losing the draft', async () => {
+    const api = mockApiClient(managedUser);
+    vi.mocked(api.events.get).mockResolvedValue(managedEvent);
+    const pending = deferred<Contact>();
+    vi.mocked(api.contacts.create).mockReturnValue(pending.promise);
+    const user = userEvent.setup();
+    renderApp(api, `/eventos/${managedEvent.id}?seccion=invitados`);
+    await user.click(await screen.findByRole('button', { name: 'Agregar invitado' }));
+    const dialog = screen.getByRole('dialog', { name: 'Agregar invitado' });
+    await user.type(within(dialog).getByRole('textbox', { name: 'Nombre' }), 'Luis Pérez');
+    await user.type(within(dialog).getByRole('textbox', { name: 'Número de WhatsApp' }), '+525551234567');
+    const form = within(dialog).getByRole('button', { name: 'Agregar' }).closest('form')!;
+    fireEvent.submit(form);
+    fireEvent.submit(form);
+    expect(api.contacts.create).toHaveBeenCalledOnce();
+    expect(within(dialog).getByRole('button', { name: 'Agregando…' })).toBeDisabled();
+    await act(async () => pending.reject(new ApiError(409, 'CONTACT_LIMIT_EXCEEDED', 'limit')));
+    expect(within(dialog).getByRole('alert')).toHaveTextContent(/150/);
+    expect(within(dialog).getByRole('textbox', { name: 'Nombre' })).toHaveValue('Luis Pérez');
+  });
+
+  it('invalidates the previous preview immediately and ignores out-of-order CSV responses', async () => {
+    const api = mockApiClient(managedUser);
+    vi.mocked(api.events.get).mockResolvedValue(managedEvent);
+    const second = deferred<ReturnType<typeof csvPreview>>();
+    const third = deferred<ReturnType<typeof csvPreview>>();
+    vi.mocked(api.contacts.preview)
+      .mockResolvedValueOnce(csvPreview())
+      .mockReturnValueOnce(second.promise)
+      .mockReturnValueOnce(third.promise);
+    const user = userEvent.setup();
+    renderApp(api, `/eventos/${managedEvent.id}?seccion=invitados`);
+    await user.click(await screen.findByRole('button', { name: 'Importar lista' }));
+    const input = screen.getByLabelText('Seleccionar archivo CSV');
+    const upload = (name: string) => user.upload(input, new File(['csv'], name, { type: 'text/csv' }));
+    await upload('uno.csv');
+    expect(await screen.findByRole('button', { name: 'Confirmar importación' })).toBeEnabled();
+    await upload('dos.csv');
+    expect(screen.queryByText(/Fila 2: Carla/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Confirmar importación' })).toBeDisabled();
+    await upload('tres.csv');
+    await act(async () => third.resolve(csvPreview('preview-c')));
+    await act(async () => second.resolve(csvPreview('preview-b')));
+    await user.click(screen.getByRole('button', { name: 'Confirmar importación' }));
+    await waitFor(() =>
+      expect(api.contacts.commit).toHaveBeenCalledWith(managedEvent.id, 'preview-c', expect.any(String))
+    );
+  });
+
+  it('clears an older preview when replacement validation fails and blocks rows with errors', async () => {
+    const api = mockApiClient(managedUser);
+    vi.mocked(api.events.get).mockResolvedValue(managedEvent);
+    vi.mocked(api.contacts.preview)
+      .mockResolvedValueOnce(csvPreview())
+      .mockRejectedValueOnce(new ApiError(400, 'CONTACT_LIMIT_EXCEEDED', 'limit'))
+      .mockResolvedValueOnce({
+        ...csvPreview('invalid'),
+        validRows: 0,
+        invalidRows: 1,
+        rows: [{ ...csvPreview().rows[0]!, errors: ['CONTACT_PHONE_INVALID'] }]
+      });
+    const user = userEvent.setup();
+    renderApp(api, `/eventos/${managedEvent.id}?seccion=invitados`);
+    await user.click(await screen.findByRole('button', { name: 'Importar lista' }));
+    const input = screen.getByLabelText('Seleccionar archivo CSV');
+    await user.upload(input, new File(['a'], 'uno.csv', { type: 'text/csv' }));
+    await screen.findByText(/Fila 2: Carla/);
+    await user.upload(input, new File(['b'], 'dos.csv', { type: 'text/csv' }));
+    expect(await within(screen.getByRole('dialog')).findByRole('alert')).toHaveTextContent(/150/);
+    expect(screen.getByRole('button', { name: 'Confirmar importación' })).toBeDisabled();
+    await user.upload(input, new File(['c'], 'tres.csv', { type: 'text/csv' }));
+    expect(await screen.findByText(/CONTACT_PHONE_INVALID/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Confirmar importación' })).toBeDisabled();
+    expect(api.contacts.commit).not.toHaveBeenCalled();
+  });
+
+  it('preserves the same uncertain CSV attempt, blocks replacement and protects exit', async () => {
+    const api = mockApiClient(managedUser);
+    vi.mocked(api.events.get).mockResolvedValue(managedEvent);
+    vi.mocked(api.contacts.preview).mockResolvedValue(csvPreview());
+    vi.mocked(api.contacts.commit)
+      .mockRejectedValueOnce(new TypeError('network'))
+      .mockResolvedValueOnce({ createdContacts: 1, createdGroups: 0, contacts: [] });
+    const user = userEvent.setup();
+    const { router } = renderApp(api, `/eventos/${managedEvent.id}?seccion=invitados`);
+    await user.click(await screen.findByRole('button', { name: 'Importar lista' }));
+    await user.upload(
+      screen.getByLabelText('Seleccionar archivo CSV'),
+      new File(['csv'], 'uno.csv', { type: 'text/csv' })
+    );
+    await user.click(await screen.findByRole('button', { name: 'Confirmar importación' }));
+    expect(await screen.findByText(/resultado de la importación es incierto/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Seleccionar archivo CSV')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Cerrar' })).toBeDisabled();
+    await act(async () => {
+      void router.navigate('/eventos');
+    });
+    expect(await screen.findByRole('dialog', { name: 'Hay una importación pendiente' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Seguir trabajando' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Hay una importación pendiente' })).not.toBeInTheDocument()
+    );
+    await user.click(screen.getByRole('button', { name: 'Confirmar importación' }));
+    await waitFor(() => expect(api.contacts.commit).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(api.contacts.commit).mock.calls[1]).toEqual(vi.mocked(api.contacts.commit).mock.calls[0]);
+    expect(await screen.findByText(/1 contactos importados/)).toBeInTheDocument();
+  });
+
   it('lets a Managed Planner enter Invitados from CONFIGURED without mounting the technical Wizard', async () => {
     const api = mockApiClient(managedUser);
     vi.mocked(api.events.get).mockResolvedValue(managedEvent);
@@ -105,6 +274,8 @@ describe('Guest management workspace', () => {
     renderApp(api, `/eventos/${managedEvent.id}?seccion=invitados`);
 
     await screen.findByText(/Ana García/);
+    expect(screen.queryByRole('textbox', { name: 'Nombre' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Agregar invitado' }));
     await user.type(screen.getByRole('textbox', { name: 'Nombre' }), 'Luis Pérez');
     await user.type(screen.getByRole('textbox', { name: 'Número de WhatsApp' }), '+525551234567');
     await user.click(screen.getByRole('combobox', { name: 'Grupo' }));
@@ -118,12 +289,19 @@ describe('Guest management workspace', () => {
       })
     );
 
-    await user.type(screen.getByRole('textbox', { name: 'Nuevo grupo' }), 'Amistades');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Agregar invitado' }));
     await user.click(screen.getByRole('button', { name: 'Crear grupo' }));
+    await user.type(screen.getByRole('textbox', { name: 'Nuevo grupo' }), 'Amistades');
+    await user.click(screen.getByRole('button', { name: 'Guardar grupo' }));
     await waitFor(() => expect(api.contacts.createGroup).toHaveBeenCalledWith(managedEvent.id, { name: 'Amistades' }));
+    await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Nuevo grupo' })).not.toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 
-    await user.click(screen.getByRole('button', { name: 'Editar' }));
-    const editDialog = await screen.findByRole('dialog', { name: 'Editar Contacto' });
+    await user.click(screen.getByRole('button', { name: 'Opciones de Ana García' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Editar' }));
+    const editDialog = await screen.findByRole('dialog', { name: 'Editar invitado' });
     const editName = within(editDialog).getByRole('textbox', { name: 'Nombre' });
     await user.clear(editName);
     await user.type(editName, 'Ana María García');
@@ -135,9 +313,11 @@ describe('Guest management workspace', () => {
         expect.objectContaining({ name: 'Ana María García', groupId: group.id })
       )
     );
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Editar Contacto' })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Editar invitado' })).not.toBeInTheDocument());
 
-    await user.click(screen.getByRole('button', { name: 'Eliminar' }));
+    await user.click(screen.getByRole('button', { name: 'Opciones de Ana García' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Eliminar' }));
+    expect(api.contacts.remove).not.toHaveBeenCalled();
     await user.click(await screen.findByRole('button', { name: 'Confirmar eliminación' }));
     await waitFor(() => expect(api.contacts.remove).toHaveBeenCalledWith(managedEvent.id, contactAna.id));
   });
@@ -169,11 +349,12 @@ describe('Guest management workspace', () => {
     const user = userEvent.setup();
     renderApp(api, `/eventos/${managedEvent.id}?seccion=invitados`);
 
-    await user.click(await screen.findByRole('button', { name: 'Descargar plantilla' }));
+    await user.click(await screen.findByRole('button', { name: 'Importar lista' }));
+    await user.click(screen.getByRole('button', { name: 'Descargar plantilla' }));
     expect(api.contacts.template).toHaveBeenCalledWith(managedEvent.id);
 
     await user.upload(
-      screen.getByLabelText('Importar lista'),
+      screen.getByLabelText('Seleccionar archivo CSV'),
       new File(['csv'], 'invitados.csv', { type: 'text/csv' })
     );
     expect(await screen.findByText(/Fila 2: Carla Díaz/)).toBeInTheDocument();
@@ -231,7 +412,14 @@ describe('Guest management workspace', () => {
 
     expect(await screen.findByTestId('guest-management-panel')).toBeInTheDocument();
     expect(screen.getByText(/modo de consulta/)).toBeInTheDocument();
-    for (const action of ['Agregar', 'Editar', 'Eliminar', 'Crear grupo', 'Importar lista']) {
+    for (const action of [
+      'Agregar invitado',
+      'Editar',
+      'Eliminar',
+      'Crear grupo',
+      'Importar lista',
+      'Opciones de Ana García'
+    ]) {
       expect(screen.queryByRole('button', { name: action })).not.toBeInTheDocument();
     }
     expect(activeApi.contacts.create).not.toHaveBeenCalled();
@@ -241,7 +429,7 @@ describe('Guest management workspace', () => {
     vi.mocked(selfServiceApi.events.get).mockResolvedValue(managedEvent);
     renderApp(selfServiceApi, `/eventos/${managedEvent.id}/configuracion/contactos`);
     expect(await screen.findByTestId('guest-management-panel')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Agregar' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Agregar invitado' })).toBeInTheDocument();
     expect(selfServiceApi.contacts.list).toHaveBeenCalledWith(managedEvent.id);
   });
 });

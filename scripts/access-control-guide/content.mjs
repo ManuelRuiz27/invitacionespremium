@@ -136,16 +136,16 @@ export const salonGuide = {
         step(
           'Agrega una persona',
           'salon-03-invitados',
-          'En «Invitados», escribe el nombre y selecciona «Agregar». El teléfono es opcional en este tipo de evento.',
+          'En «Invitados», selecciona «Agregar invitado», escribe el nombre en el diálogo y selecciona «Agregar». El teléfono es opcional en este tipo de evento.',
           'El nombre aparece en la lista. Repite para cada persona; cada una tendrá su propio código.',
-          ['Agregar']
+          ['Agregar invitado', 'Agregar']
         ),
         step(
           'Importa una lista',
           'salon-04-importar',
-          'Selecciona «Descargar plantilla», completa el archivo con tus invitados y cárgalo con «Importar lista». Revisa la vista previa y selecciona «Confirmar importación».',
+          'Abre «Importar lista» y selecciona «Descargar plantilla». Completa el archivo, usa «Seleccionar archivo» y revisa las filas antes de elegir «Confirmar importación».',
           'Las filas válidas se agregan a tu lista. Corrige las filas señaladas antes de confirmar. Conserva los encabezados de la plantilla.',
-          ['Descargar plantilla', 'Importar lista', 'Confirmar importación']
+          ['Importar lista', 'Descargar plantilla', 'Seleccionar archivo', 'Confirmar importación']
         ),
         step(
           'Prepara el código de cada persona',

@@ -151,7 +151,7 @@ describe('ACCESS_CONTROL Client workspace', () => {
       { ...contact, id: 'contact-b', assistantId: 'assistant-b' }
     ]);
     renderApp(api, `/eventos/${nominalEvent.id}?seccion=invitados`);
-    expect(await screen.findByText('Invitados registrados: 2')).toBeInTheDocument();
+    expect(await screen.findByText('2 contactos registrados')).toBeInTheDocument();
     expect(screen.getByText('Espacios restantes para registrar invitados: 3')).toBeInTheDocument();
     expect(screen.getByText(/Los derechos de acceso vigentes.*Ingresos y aforo/)).toBeInTheDocument();
     expect(screen.queryByText(/Personas contempladas|Lugares disponibles/)).not.toBeInTheDocument();
@@ -292,9 +292,11 @@ describe('ACCESS_CONTROL Client workspace', () => {
     const actor = userEvent.setup();
     renderApp(api, `/eventos/${nominalEvent.id}?seccion=invitados`);
     const panel = await screen.findByTestId('guest-management-panel');
-    await actor.type(within(panel).getByRole('textbox', { name: 'Nombre' }), 'Ana Ruiz');
-    expect(within(panel).getByRole('textbox', { name: 'Teléfono (opcional)' })).not.toBeRequired();
-    await actor.click(within(panel).getByRole('button', { name: 'Agregar' }));
+    await actor.click(within(panel).getByRole('button', { name: 'Agregar invitado' }));
+    const dialog = screen.getByRole('dialog', { name: 'Agregar invitado' });
+    await actor.type(within(dialog).getByRole('textbox', { name: 'Nombre' }), 'Ana Ruiz');
+    expect(within(dialog).getByRole('textbox', { name: 'Teléfono (opcional)' })).not.toBeRequired();
+    await actor.click(within(dialog).getByRole('button', { name: 'Agregar' }));
     await waitFor(() =>
       expect(api.contacts.create).toHaveBeenCalledWith(nominalEvent.id, {
         name: 'Ana Ruiz',
@@ -329,10 +331,10 @@ describe('ACCESS_CONTROL Client workspace', () => {
       .mockRejectedValueOnce(new TypeError('Network'))
       .mockResolvedValueOnce({ createdContacts: 2, createdGroups: 0, contacts: [] });
     const actor = userEvent.setup();
-    const { container } = renderApp(api, `/eventos/${nominalEvent.id}?seccion=invitados`);
-    await screen.findByRole('button', { name: 'Importar lista' });
+    renderApp(api, `/eventos/${nominalEvent.id}?seccion=invitados`);
+    await actor.click(await screen.findByRole('button', { name: 'Importar lista' }));
     await actor.upload(
-      container.querySelector('input[type="file"]')!,
+      screen.getByLabelText('Seleccionar archivo CSV'),
       new File(['name,whatsappPhone,group\nAna Ruiz,,\nAna Ruiz,,'], 'invitados.csv', { type: 'text/csv' })
     );
     expect(await screen.findByText(/2 registros listos para importar/)).toBeInTheDocument();

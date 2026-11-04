@@ -240,7 +240,8 @@ describe('integrated Event wizard flows', () => {
       contacts: []
     });
     renderApp(api, `/eventos/${configuredEvent.id}/configuracion/contactos`);
-    const input = await screen.findByLabelText('Importar lista');
+    await userEvent.click(await screen.findByRole('button', { name: 'Importar lista' }));
+    const input = screen.getByLabelText('Seleccionar archivo CSV');
     const file = new File(['name,phone'], 'uno.csv', { type: 'text/csv' });
     await userEvent.upload(input, file);
     expect(await screen.findByText(/Fila 2: Persona 2/)).toBeInTheDocument();

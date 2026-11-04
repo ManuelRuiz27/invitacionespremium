@@ -113,6 +113,7 @@ for (const mode of ['NOMINAL', 'ANONYMOUS'] as const) {
       await organization.goto(`${client}/eventos/${eventId}?seccion=${mode === 'NOMINAL' ? 'invitados' : 'accesos'}`);
 
       if (mode === 'NOMINAL') {
+        await organization.getByRole('button', { name: 'Agregar invitado', exact: true }).click();
         await organization.getByRole('textbox', { name: /^Nombre/u }).fill('Invitado sin teléfono');
         const contactCreated = organization.waitForResponse(
           (response) => response.request().method() === 'POST' && response.url().endsWith('/contacts')
@@ -123,7 +124,7 @@ for (const mode of ['NOMINAL', 'ANONYMOUS'] as const) {
         await expect(organization.getByRole('list', { name: 'Lista de invitados' })).toContainText(
           'Invitado sin teléfono'
         );
-        await expect(organization.getByText('Invitados registrados: 1', { exact: true })).toBeVisible();
+        await expect(organization.getByText('1 contacto registrado', { exact: true })).toBeVisible();
         await expect(
           organization.getByText('Espacios restantes para registrar invitados: 2', { exact: true })
         ).toBeVisible();

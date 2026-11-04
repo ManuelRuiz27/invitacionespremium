@@ -130,12 +130,14 @@ test('UX02 real organization, both access modes, printable material and camera r
       );
       if (mode === 'NOMINAL') {
         await salon.getByRole('link', { name: 'Registrar invitados', exact: true }).click();
+        await button(salon, 'Agregar invitado').click();
         await salon.getByRole('textbox', { name: /^Nombre/u }).fill('Sofía Navarro');
         await button(salon, 'Agregar').click();
         await expect(salon.getByRole('list', { name: 'Lista de invitados' })).toContainText('Sofía Navarro');
-        await shot(salon, 'salon-03-invitados', button(salon, 'Agregar'));
+        await shot(salon, 'salon-03-invitados', button(salon, 'Agregar invitado'));
         // The UI template determines the supported CSV columns.
         const download = salon.waitForEvent('download');
+        await button(salon, 'Importar lista').click();
         await button(salon, 'Descargar plantilla').click();
         const stream = await (await download).createReadStream();
         const chunks: Buffer[] = [];
@@ -153,7 +155,9 @@ test('UX02 real organization, both access modes, printable material and camera r
         await expect(salon.getByText('4 registros listos para importar · 0 necesitan corrección')).toBeVisible();
         await shot(salon, 'salon-04-importar', button(salon, 'Confirmar importación'));
         await button(salon, 'Confirmar importación').click();
-        await expect(salon.getByText('Invitados registrados: 5', { exact: true })).toBeVisible();
+        await expect(salon.getByText(/4 contactos importados/u)).toBeVisible();
+        await button(salon, 'Cerrar').click();
+        await expect(salon.getByText('5 contactos registrados', { exact: true })).toBeVisible();
         await salon.getByRole('link', { name: 'Credenciales individuales', exact: true }).click();
         await shot(salon, 'salon-05-emitir', button(salon, 'Emitir credencial').first());
         for (let index = 0; index < 5; index++) {
