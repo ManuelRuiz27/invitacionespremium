@@ -4,29 +4,43 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { quickRelatedFiles, selectWorkspaces } from './qa-selection.mjs';
+import { qaPlan, quickRelatedFiles, requiresApiConsumers, selectWorkspaces, touchesQaTooling } from './qa-selection.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const startedAt = performance.now();
 const [level, ...options] = process.argv.slice(2).filter((arg) => arg !== '--');
 if (!['quick', 'focused', 'full'].includes(level)) throw new Error('Expected quick, focused or full.');
-if (options.some((arg) => arg !== '--dry-run' && !arg.startsWith('--base=') && !arg.startsWith('--files=')))
-  throw new Error('Supported options: --base=<git-ref>, --files=<comma-separated paths>, --dry-run.');
-if (level === 'full' && options.some((arg) => arg.startsWith('--base=') || arg.startsWith('--files=')))
+if (
+  options.some(
+    (arg) => arg !== '--dry-run' && !['--base=', '--files=', '--risk=', '--journeys='].some((prefix) => arg.startsWith(prefix))
+  )
+)
+  throw new Error('Supported options: --base=, --files=, --risk=, --journeys= and --dry-run.');
+for (const prefix of ['--base=', '--files=', '--risk=', '--journeys='])
+  if (options.filter((arg) => arg.startsWith(prefix)).length > 1) throw new Error('Repeated ' + prefix + ' option.');
+if (
+  level === 'full' &&
+  options.some((arg) => ['--base=', '--files=', '--risk=', '--journeys='].some((prefix) => arg.startsWith(prefix)))
+)
   throw new Error('Full QA cannot be filtered.');
-for (const prefix of ['--base=', '--files='])
-  if (options.filter((arg) => arg.startsWith(prefix)).length > 1) throw new Error(`Repeated ${prefix} option.`);
+if (level === 'quick' && options.some((arg) => arg.startsWith('--journeys=')))
+  throw new Error('QA journeys are only supported by focused QA.');
 const dry = options.includes('--dry-run');
 const base = options.find((arg) => arg.startsWith('--base='))?.slice(7);
 const explicit = options.find((arg) => arg.startsWith('--files='))?.slice(8);
+const riskOption = options.find((arg) => arg.startsWith('--risk='))?.slice(7) ?? 'auto';
+const journeysOption = options.find((arg) => arg.startsWith('--journeys='))?.slice(11);
 if (base !== undefined && (!base || base.startsWith('-'))) throw new Error('Invalid Git baseline.');
-if (explicit !== undefined && !explicit) throw new Error('Empty file selection.');
+if (explicit !== undefined && (!explicit || explicit.split(',').every((file) => file))) throw new Error('Invalid file selection.');
 if (base && explicit) throw new Error('Choose --base or --files.');
+if (journeysOption !== undefined && (!journeysOption || journeysOption.split(',').some((item) => !item)))
+  throw new Error('Invalid QA journeys.');
+if (!['auto', 'L0', 'L1', 'L2', 'L3'].includes(riskOption)) throw new Error('Unknown QA risk level.');
 const workspaces = ['apps', 'packages'].flatMap((directory) =>
   readdirSync(join(root, directory), { withFileTypes: true })
     .filter((entry) => entry.isDirectory() && existsSync(join(root, directory, entry.name, 'package.json')))
     .map((entry) => {
-      const path = `${directory}/${entry.name}`;
+      const path = directory + '/' + entry.name;
       const manifest = JSON.parse(readFileSync(join(root, path, 'package.json'), 'utf8'));
       return {
         name: manifest.name,
@@ -52,12 +66,16 @@ const files =
           explicit
             ? explicit.split(',')
             : [
-                ...git(['diff', '--no-renames', '--name-only', '-z', base ? `${base}...HEAD` : 'HEAD', '--']),
+                ...git(['diff', '--no-renames', '--name-only', '-z', base ? base + '...HEAD' : 'HEAD', '--']),
                 ...(base ? git(['diff', '--no-renames', '--name-only', '-z', 'HEAD', '--']) : []),
                 ...git(['ls-files', '--others', '--exclude-standard', '-z'])
               ]
         )
       ].map((file) => file.replaceAll('\\', '/'));
+const plan = level === 'full' ? { risk: 'L3', floor: 'L3', journeys: [] } : qaPlan(files, {
+  risk: riskOption,
+  journeys: journeysOption ? journeysOption.split(',') : []
+});
 const selection =
   level === 'full'
     ? {
@@ -66,8 +84,11 @@ const selection =
         affected: workspaces.map((workspace) => workspace.name),
         selected: workspaces.map((workspace) => workspace.name)
       }
-    : selectWorkspaces(workspaces, files, { includeApiConsumers: level !== 'quick' });
-process.stdout.write(`${JSON.stringify({ level, files, ...selection }, null, 2)}\n`);
+    : selectWorkspaces(workspaces, files, { includeApiConsumers: level !== 'quick' && requiresApiConsumers(files) });
+process.stdout.write(JSON.stringify({ level, files, ...plan, ...selection }, null, 2) + '\n');
+if (riskOption !== 'auto' && plan.risk !== riskOption)
+  process.stdout.write('[qa] Requested risk upgraded to ' + plan.risk + ' because of affected paths.\n');
+
 function run(args, environment = process.env) {
   process.stdout.write(`[qa:${level}] pnpm ${args.join(' ')}\n`);
   if (dry) return;
@@ -95,55 +116,82 @@ function turbo(tasks, names = selection.selected) {
     ]);
 }
 
-if (level === 'quick') {
+if (level === 'full') run(['format:check']);
+else {
   const existing = files.filter((file) => existsSync(join(root, file)));
-  if (existing.length) run(['exec', 'prettier', '--check', '--ignore-unknown', ...existing.map((file) => `./${file}`)]);
-  else process.stdout.write('[qa:quick] No existing modified files to format.\n');
-} else run(['format:check']);
-run(['qa:tooling:test']);
-if (level === 'full' || (level === 'focused' && selection.affected.includes('@invitaciones/api')))
-  await openApiChecks();
-turbo(['lint', 'typecheck']);
-if (level !== 'quick') turbo(['test']);
-for (const name of level === 'quick' ? selection.affected : []) {
-  const workspace = workspaces.find((item) => item.name === name);
-  const related = quickRelatedFiles(workspace, files, selection);
-  if (related) {
-    turbo(
-      ['build'],
-      selection.selected.filter(
-        (item) =>
-          item.startsWith('@invitaciones/') &&
-          item !== name &&
-          workspaces.find((entry) => entry.name === item).path.startsWith('packages/')
-      )
-    );
-    if (name === '@invitaciones/api') run(['--filter', name, 'db:generate']);
-    run(['--filter', name, 'exec', 'vitest', 'related', '--run', ...related]);
-  } else turbo(['test'], [name]);
+  if (existing.length) run(['exec', 'prettier', '--check', '--ignore-unknown', ...existing.map((file) => './' + file)]);
+  else process.stdout.write('[qa] No existing modified files to format.\n');
 }
-if (level !== 'quick') {
-  // All mutable DB suites and performance gates stay sequential in the owned harness.
-  if (selection.affected.includes('@invitaciones/api')) run(['test:e2e:access-control', '--', '--integration-only']);
-  turbo(['build']);
-  const affected = new Set(selection.affected);
-  // Journeys boot additional apps (for example Admin/Client for a Scanner change).
-  // Prepare their shared runtime packages even in a fresh, focused checkout.
-  if (level === 'focused' && affected.size) run(['exec', 'turbo', 'run', 'build', '--filter=@invitaciones/client^...']);
-  if (['admin', 'client', 'scanner'].some((app) => affected.has(`@invitaciones/${app}`))) {
-    run(['test:e2e:managed', '--', '--port-offset=1000']);
-    run(['test:e2e:access-control']);
+if (level === 'full' || touchesQaTooling(files)) run(['qa:tooling:test']);
+
+if (level !== 'full' && (plan.risk === 'L0' || selection.affected.length === 0)) {
+  process.stdout.write('[qa:' + level + '] No runtime suites required for this selection.\n');
+  process.stdout.write('[qa:' + level + '] ' + (dry ? 'Dry run only; no validations executed' : 'Completed') + '.\n');
+  process.exit(0);
+}
+
+if (level === 'full' || (level === 'focused' && ['L2', 'L3'].includes(plan.risk) && requiresApiConsumers(files)))
+  await openApiChecks();
+turbo(['lint', 'typecheck'], level === 'full' ? selection.selected : selection.affected);
+
+if (level === 'full' || (level === 'focused' && ['L2', 'L3'].includes(plan.risk))) {
+  turbo(['test'], level === 'full' ? selection.selected : selection.affected);
+} else {
+  for (const name of selection.affected) {
+    const workspace = workspaces.find((item) => item.name === name);
+    const related = quickRelatedFiles(workspace, files, selection);
+    if (related) {
+      const dependencies = selection.selected.filter(
+        (item) => item !== name && workspaces.find((entry) => entry.name === item)?.path.startsWith('packages/')
+      );
+      turbo(['build'], dependencies);
+      if (name === '@invitaciones/api') run(['--filter', name, 'db:generate']);
+      run(['--filter', name, 'exec', 'vitest', 'related', '--run', ...related]);
+    } else turbo(['test'], [name]);
   }
-  if (['admin', 'landing'].some((app) => affected.has(`@invitaciones/${app}`))) run(['test:e2e:public-catalog']);
-  if (affected.has('@invitaciones/client')) run(['exec', 'playwright', 'test', '-c', 'playwright.flipbook.config.ts']);
-  if (level === 'full' || selection.global || [...affected].some((name) => name !== '@invitaciones/landing')) {
-    run(['access-control-guide:test']);
-    run(['access-control-guide:verify']);
-    run(['access-control-guide:render']);
+}
+
+if (level === 'focused' || level === 'full') {
+  const affected = new Set(selection.affected);
+  const journeys =
+    level === 'full'
+      ? [
+          ...(['admin', 'client', 'scanner'].some((app) => affected.has('@invitaciones/' + app))
+            ? ['managed', 'access-control']
+            : []),
+          ...(['admin', 'landing'].some((app) => affected.has('@invitaciones/' + app)) ? ['public-catalog'] : []),
+          ...(affected.has('@invitaciones/client') ? ['flipbook'] : []),
+          'guide'
+        ]
+      : plan.journeys;
+
+  if (
+    affected.has('@invitaciones/api') &&
+    (level === 'full' || (['L2', 'L3'].includes(plan.risk) && !journeys.includes('access-control')))
+  )
+    run(['test:e2e:access-control', '--', '--integration-only']);
+  turbo(['build'], level === 'full' ? selection.selected : selection.affected);
+
+  if (
+    level === 'focused' &&
+    journeys.some((item) => ['managed', 'access-control', 'public-catalog', 'flipbook'].includes(item))
+  )
+    run(['exec', 'turbo', 'run', 'build', '--filter=@invitaciones/client^...']);
+
+  for (const journey of journeys) {
+    if (journey === 'managed') run(['test:e2e:managed', '--', '--port-offset=1000']);
+    else if (journey === 'access-control') run(['test:e2e:access-control']);
+    else if (journey === 'public-catalog') run(['test:e2e:public-catalog']);
+    else if (journey === 'flipbook') run(['exec', 'playwright', 'test', '-c', 'playwright.flipbook.config.ts']);
+    else if (journey === 'guide') {
+      run(['access-control-guide:test']);
+      run(['access-control-guide:verify']);
+      run(['access-control-guide:render']);
+    }
   }
 }
 process.stdout.write(
-  `[qa:${level}] ${dry ? 'Dry run only; no validations executed' : `Passed in ${((performance.now() - startedAt) / 1000).toFixed(2)}s`}.\n`
+  '[qa:' + level + '] ' + (dry ? 'Dry run only; no validations executed' : 'Passed in ' + ((performance.now() - startedAt) / 1000).toFixed(2) + 's') + '.\n'
 );
 
 async function openApiChecks() {

@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
-import { quickRelatedFiles, selectWorkspaces } from './qa-selection.mjs';
+import { qaPlan, quickRelatedFiles, requiresApiConsumers, selectWorkspaces, touchesQaTooling } from './qa-selection.mjs';
 
 const workspaces = [
   { name: '@invitaciones/api', path: 'apps/api', dependencies: [] },
@@ -80,7 +80,10 @@ test('invalid scopes and filtering full QA fail before running tools or creating
     ['full', '--files=apps/client/src/App.tsx'],
     ['quick', '--files='],
     ['quick', '--base=--help'],
-    ['focused', '--unknown']
+    ['focused', '--unknown'],
+    ['quick', '--journeys=managed'],
+    ['focused', '--journeys=unknown', '--files=apps/client/src/App.tsx'],
+    ['focused', '--risk=invalid', '--files=apps/client/src/App.tsx']
   ]) {
     const result = spawnSync(process.execPath, [fileURLToPath(new URL('./run-qa.mjs', import.meta.url)), ...args], {
       encoding: 'utf8',
@@ -90,22 +93,62 @@ test('invalid scopes and filtering full QA fail before running tools or creating
     assert(!result.stdout.includes('[qa:'));
   }
 });
-test('focused Scanner and Landing QA prepare the dependencies of all browser surfaces', () => {
-  for (const app of ['scanner', 'landing']) {
-    const result = spawnSync(
-      process.execPath,
-      [
-        fileURLToPath(new URL('./run-qa.mjs', import.meta.url)),
-        'focused',
-        `--files=apps/${app}/src/App.tsx`,
-        '--dry-run'
-      ],
-      { encoding: 'utf8', windowsHide: true }
-    );
-    assert.equal(result.status, 0, result.stderr);
-    assert(result.stdout.includes('turbo run build --filter=@invitaciones/client^...'));
-    assert(result.stdout.includes('Dry run only; no validations executed'));
-  }
+test('API contract scope traverses consumers; ordinary service changes do not', () => {
+  assert.equal(requiresApiConsumers(['apps/api/src/events/events.service.ts']), false);
+  assert.equal(requiresApiConsumers(['apps/api/src/events/events.controller.ts']), true);
+  assert.equal(requiresApiConsumers(['apps/api/prisma/schema.prisma']), true);
+  assert.deepEqual(selectWorkspaces(workspaces, ['scripts/run-qa.mjs']).selected, []);
+  assert.equal(touchesQaTooling(['scripts/run-qa.mjs']), true);
+});
+test('critical paths cannot be classified as trivial', () => {
+  assert.equal(qaPlan(['apps/landing/src/App.css']).risk, 'L0');
+  assert.equal(qaPlan(['apps/landing/src/App.tsx'], { risk: 'L0' }).risk, 'L1');
+  assert.equal(qaPlan(['apps/api/src/events/events.service.ts']).risk, 'L2');
+  assert.equal(qaPlan(['apps/scanner/src/App.tsx'], { risk: 'L0' }).risk, 'L3');
+  assert.deepEqual(qaPlan(['apps/scanner/src/App.tsx']).journeys, ['managed', 'access-control']);
+  assert.deepEqual(qaPlan(['apps/api/prisma/schema.prisma']).journeys, ['managed', 'access-control', 'public-catalog']);
+  assert.throws(() => qaPlan([], { journeys: ['unknown'] }));
+});
+test('focused landing QA requires explicit browser journeys', () => {
+  const entry = fileURLToPath(new URL('./run-qa.mjs', import.meta.url));
+  const basic = spawnSync(process.execPath, [entry, 'focused', '--files=apps/landing/src/App.tsx', '--dry-run'], {
+    encoding: 'utf8', windowsHide: true
+  });
+  assert.equal(basic.status, 0, basic.stderr);
+  assert(!basic.stdout.includes('test:e2e:managed'));
+  assert(!basic.stdout.includes('playwright test'));
+  assert(!basic.stdout.includes('pnpm format:check'));
+  assert(basic.stdout.includes('vitest related --run src/App.tsx'));
+  const selected = spawnSync(process.execPath, [entry, 'focused', '--files=apps/landing/src/App.tsx', '--journeys=public-catalog', '--dry-run'], {
+    encoding: 'utf8', windowsHide: true
+  });
+  assert.equal(selected.status, 0, selected.stderr);
+  assert(selected.stdout.includes('test:e2e:public-catalog'));
+});
+test('critical Scanner retains mandatory E2E regardless of requested risk', () => {
+  const entry = fileURLToPath(new URL('./run-qa.mjs', import.meta.url));
+  const run = spawnSync(process.execPath, [entry, 'focused', '--files=apps/scanner/src/App.tsx', '--risk=L0', '--dry-run'], {
+    encoding: 'utf8', windowsHide: true
+  });
+  assert.equal(run.status, 0, run.stderr);
+  assert(run.stdout.includes('Requested risk upgraded to L3'));
+  assert(run.stdout.includes('test:e2e:managed'));
+  assert(run.stdout.includes('test:e2e:access-control'));
+  assert(!run.stdout.includes('playwright.flipbook.config.ts'));
+});
+test('docs and QA tooling skip unrelated runtime suites', () => {
+  const entry = fileURLToPath(new URL('./run-qa.mjs', import.meta.url));
+  const docs = spawnSync(process.execPath, [entry, 'focused', '--files=docs/INDEX.md', '--dry-run'], {
+    encoding: 'utf8', windowsHide: true
+  });
+  assert.equal(docs.status, 0, docs.stderr);
+  assert(docs.stdout.includes('No runtime suites required'));
+  const tooling = spawnSync(process.execPath, [entry, 'focused', '--files=scripts/qa-selection.mjs', '--dry-run'], {
+    encoding: 'utf8', windowsHide: true
+  });
+  assert.equal(tooling.status, 0, tooling.stderr);
+  assert(tooling.stdout.includes('pnpm qa:tooling:test'));
+  assert(!tooling.stdout.includes('turbo run lint typecheck'));
 });
 test('quick formatting checks selected existing files; full QA keeps global format validation', () => {
   const entry = fileURLToPath(new URL('./run-qa.mjs', import.meta.url));

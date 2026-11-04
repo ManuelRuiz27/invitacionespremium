@@ -99,30 +99,22 @@ pnpm format:check
 pnpm ci
 ```
 
-QA local por alcance (QA02):
+QA local por archivos y riesgo (CI remoto conserva certificación completa):
 
 ```bash
-# Cambios staged/unstaged y archivos nuevos desde HEAD: formato seleccionado, tooling, lint,
-# typecheck y unidades relacionadas; dependencias compartidas incluyen consumidores.
-pnpm qa:quick
-pnpm qa:quick -- --files=apps/client/src/workspace/access-control/AccessOperationsPanel.tsx
-# Suites completas de los workspaces afectados, dependencias, builds y journeys aplicables.
-pnpm qa:focused -- --files=apps/scanner/src/App.tsx
-# Para revisar cambios ya confirmados en un commit:
-pnpm qa:focused -- --base=HEAD~1
-# Todas las validaciones de CI, incluyendo PostgreSQL real, M01/M02, PR01/PR02,
-# Flipbook Chromium/WebKit y guías. No admite filtros.
-pnpm qa:full
-# Mostrar selección y comandos sin ejecutar validaciones ni crear recursos:
+# QA L0: documentación y CSS, sólo formato (más inspección visual si procede).
+pnpm qa:quick -- --files=apps/landing/src/App.css
+# QA L1: UI con tests relacionados, sin E2E por defecto.
+pnpm qa:focused -- --files=apps/landing/src/App.tsx --risk=L1
+# E2E dirigido cuando un cambio afecta explícitamente el recorrido comercial.
+pnpm qa:focused -- --files=apps/landing/src/App.tsx --risk=L1 --journeys=public-catalog
+# QA de Scanner: escalado automático a L3 y regresiones críticas.
 pnpm qa:focused -- --files=apps/scanner/src/App.tsx --dry-run
+# Certificación completa sin filtros.
+pnpm qa:full
 ```
 
-`--files` usa rutas relativas separadas por comas (entre comillas en PowerShell si hay varias).
-`--base` incluye también cambios locales y archivos nuevos. Cambios de configuración global
-seleccionan todos los workspaces; en modo focalizado, los cambios de API incluyen el SDK y sus consumidores.
-El modo rápido usa `vitest related` para fuentes de una app y conserva suites completas para
-configuración, dependencias y consumidores. Si Vitest no encuentra pruebas relacionadas, falla:
-usar el modo focalizado para comprobar la suite completa, sin aceptar un resultado vacío.
+Opciones: `--files=` acepta rutas relativas separadas por comas; `--base=HEAD~1` compara commits e incluye cambios locales; `--risk=auto|L0|L1|L2|L3` permite elevar, pero no rebajar el riesgo detectado; `--journeys=managed,access-control,public-catalog,flipbook,guide` añade E2E para el recorrido indicado; `--dry-run` muestra comandos sin ejecutar. En L3 se agregan regresiones obligatorias. `qa:focused` sólo amplía consumidores de API cuando cambian controladores, DTO, contratos o Prisma. Un PASS local dirigido no sustituye CI.
 
 Los modos focalizado/completo requieren Chromium y WebKit instalados
 (`pnpm exec playwright install chromium webkit`), PostgreSQL local con permiso de crear bases,
