@@ -88,7 +88,7 @@ function verify(contractPath, baseline, mainRef = null) {
   for (const file of [contractPath, ...spec.testPaths]) {
     const target = join(root, file);
     if (!existsSync(target) || !lstatSync(target).isFile() ||
-        !git(['show', baseline + ':' + file], true).equals(readFileSync(target)))
+        git(['rev-parse', baseline + ':' + file]) !== git(['hash-object', '--path=' + file, '--', file]))
       throw new Error('Locked TDD file modified: ' + file);
   }
   const changed = [...new Set([

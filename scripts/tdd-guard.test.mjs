@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -60,6 +60,7 @@ test('git integration: RED/GREEN contract locks tests and CI validates original 
     runGit('init', '-q');
     runGit('config', 'user.email', 'qa@example.invalid');
     runGit('config', 'user.name', 'QA Fixture');
+    runGit('config', 'core.autocrlf', 'true');
     mkdirSync(join(work, 'scripts'), { recursive: true });
     mkdirSync(join(work, 'apps/api/src'), { recursive: true });
     mkdirSync(join(work, 'tdd/contracts'), { recursive: true });
@@ -111,6 +112,10 @@ test('git integration: RED/GREEN contract locks tests and CI validates original 
     assert.notEqual(tampered.status, 0, 'locked test must fail');
     assert.match(tampered.stderr, /Locked TDD file modified/);
     runGit('checkout', '--', 'apps/api/src/example.spec.js');
+    const restored = readFileSync(join(work, 'apps/api/src/example.spec.js'), 'utf8');
+    assert(restored.includes('\r\n'), 'fixture must reproduce CRLF restoration');
+    const afterCheckout = runGuard(...args);
+    assert.equal(afterCheckout.status, 0, 'restored test must be recognized despite CRLF: ' + afterCheckout.stderr);
     writeFileSync(join(work, 'apps/client-extra.ts'), 'out of scope\n');
     const outside = runGuard(...args);
     assert.notEqual(outside.status, 0, 'untracked out-of-scope work must fail');
