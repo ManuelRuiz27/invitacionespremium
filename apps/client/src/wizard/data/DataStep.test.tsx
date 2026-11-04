@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { DataStep } from './DataStep';
 import { ApiError } from '@invitaciones/api-client';
 import { configuredEvent, mockApiClient } from '../../test/fixtures';
+import { chooseEventTime, chooseEventZone } from '../../test/event-data-controls';
 
 const services = [
   { id: 'service-flyer', code: 'FLYER' as const, priceRules: [priceRule('flyer', 5)] },
@@ -35,11 +36,7 @@ const view = (value: UpdateEventInput, onChange = vi.fn()) =>
       <DataStep services={services} draft={value} disabled={false} onChange={onChange} />
     </AppThemeProvider>
   );
-const chooseZone = async (zone: string) => {
-  fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Zona horaria' }));
-  const label = zone === 'America/Tijuana' ? 'Tijuana' : zone;
-  fireEvent.click(await screen.findByRole('option', { name: label }));
-};
+const chooseZone = chooseEventZone;
 
 describe('DataStep time zones', () => {
   beforeEach(() =>
@@ -72,7 +69,7 @@ describe('DataStep time zones', () => {
     const onChange = vi.fn();
     const rendered = view(draft('2026-01-15T23:30:00.000Z'), onChange);
     expect(screen.getByRole('button', { name: '15 de enero de 2026' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Hora de inicio')).toHaveValue('18:30');
+    expect(screen.getByRole('button', { name: /^Hora de inicio:/ })).toHaveTextContent('6:30 p. m.');
     await chooseZone('America/Tijuana');
     fireEvent.click(screen.getByRole('button', { name: 'Cambiar zona' }));
     expect(onChange).toHaveBeenCalledTimes(1);
@@ -93,7 +90,7 @@ describe('DataStep time zones', () => {
       </AppThemeProvider>
     );
     expect(screen.getByRole('button', { name: '15 de enero de 2026' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Hora de inicio')).toHaveValue('18:30');
+    expect(screen.getByRole('button', { name: /^Hora de inicio:/ })).toHaveTextContent('6:30 p. m.');
   });
 
   it.each([
@@ -110,7 +107,7 @@ describe('DataStep time zones', () => {
       screen.getByRole('button', { name: new RegExp(`, ${Number(wallClock.slice(8, 10))} de .* de 2026$`) })
     );
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText('Hora de inicio'), { target: { value: wallClock.slice(11) } });
+    await chooseEventTime(wallClock.slice(11));
     onChange.mockClear();
     await chooseZone('America/Tijuana');
     fireEvent.click(screen.getByRole('button', { name: 'Cambiar zona' }));
@@ -140,7 +137,7 @@ describe('DataStep time zones', () => {
         />
       </AppThemeProvider>
     );
-    expect(screen.getByLabelText('Hora de inicio')).toHaveValue('15:30');
+    expect(screen.getByRole('button', { name: /^Hora de inicio:/ })).toHaveTextContent('3:30 p. m.');
   });
 
   it('changes the zone atomically for a selected day without inventing a start time', async () => {

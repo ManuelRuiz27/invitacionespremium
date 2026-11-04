@@ -3,10 +3,7 @@ import { mkdir } from 'node:fs/promises';
 
 // Browser captures exercise the real route and SDK with fictional, intercepted API data.
 // They never mutate the shared database or bypass the production Managed guard.
-// Published public map used only by this fictional browser fixture.
-// Source: https://www.hec.gov.pk/english/universities/Pages/Punjab/University-of-Narowal.aspx
-const sharedMap =
-  'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3380.0731495001196!2d74.87278641461955!3d32.09430862578863!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x39195471296167bf%3A0x3c61f167a2c35788!2sUniversity%20Of%20Narowal!5e0!3m2!1sen!2s!4v1572932067566!5m2!1sen!2s';
+const sharedMap = 'https://maps.google.com/?q=Salon%20Central';
 const eventId = 'ac1c081a-3893-47ce-a63d-aa2d33bf57e1';
 const eventFixture = {
   id: eventId,
@@ -81,8 +78,7 @@ for (const width of [320, 360, 390, 768, 1024, 1440]) {
     };
     for (const [id, tab] of [
       ['celebration', 'Celebración'],
-      ['event-date', 'Fecha y hora'],
-      ['event-location', 'Lugar'],
+      ['event-date', 'Cuándo y dónde'],
       ['event-gifts', 'Regalos']
     ]) {
       await showSection(tab!);
@@ -92,10 +88,10 @@ for (const width of [320, 360, 390, 768, 1024, 1440]) {
       expect(bounds!.x).toBeGreaterThanOrEqual(0);
       expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width + 1);
       expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true);
-      if (width === 360 && ['Lugar', 'Fecha y hora'].includes(tab!)) {
+      if (width === 360 && tab === 'Cuándo y dónde') {
         await mkdir('test-results/event-data', { recursive: true });
         await page.screenshot({
-          path: `test-results/event-data/mobile-${tab === 'Lugar' ? 'location' : 'date'}-360.png`,
+          path: `test-results/event-data/mobile-${'schedule'}-360.png`,
           fullPage: true
         });
       }
@@ -113,15 +109,16 @@ for (const width of [320, 360, 390, 768, 1024, 1440]) {
         }))
     }));
     expect(overflow.scroll, JSON.stringify(overflow)).toBeLessThanOrEqual(width);
-    await showSection('Lugar');
-    await expect(page.getByTitle('Mapa de la ubicación del evento')).toHaveAttribute('loading', 'lazy');
+    await showSection('Cuándo y dónde');
+    await expect(page.locator('iframe')).toHaveCount(0);
+    await expect(page.locator('input[type=time]')).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Abrir ubicación' })).toHaveAttribute('target', '_blank');
     await showSection('Regalos');
     await expect(page.getByRole('link', { name: 'Abrir mesa de regalos' })).toHaveAttribute(
       'rel',
       'noopener noreferrer'
     );
-    await showSection('Fecha y hora');
+    await showSection('Cuándo y dónde');
     if (await page.getByRole('button', { name: '19 de junio de 2027' }).isVisible()) {
       const trigger = page.getByRole('button', { name: '19 de junio de 2027' });
       await trigger.click();
@@ -169,28 +166,81 @@ test('Managed requests never mount the technical editor', async ({ page }) => {
 });
 
 for (const width of [360, 1440]) {
-  test(`loads the real shared Google map without a key at ${width}px`, async ({ page }) => {
+  test(`edits a precise 12-hour time with compact timezone and consistent select typography at ${width}px`, async ({
+    page
+  }) => {
     await page.setViewportSize({ width, height: width === 360 ? 844 : 900 });
-    await fixture(page);
-    await page.goto(`/eventos/${eventId}/configuracion/datos`);
-    await expect(page.getByLabel('Nombre del evento', { exact: true })).toBeVisible();
-    const tabs = page.getByRole('tablist', { name: 'Secciones de datos del evento' });
-    if (await tabs.isVisible()) await tabs.getByRole('tab', { name: 'Lugar', exact: true }).click();
-    const map = page.getByTitle('Mapa de la ubicación del evento');
-    await expect(map).toBeVisible();
-    await expect(map).not.toHaveAttribute('src', /[?&]key=/);
-    // This case intentionally reaches Google, unlike the intercepted application API fixture.
-    await page
-      .frameLocator('iframe[title="Mapa de la ubicación del evento"]')
-      .locator('body')
-      .filter({ hasText: /Map data.*Google/ })
-      .waitFor();
-    await expect(page.getByText('Cargando Google Maps…')).toHaveCount(0);
-    await expect(page.getByRole('link', { name: 'Abrir ubicación' })).toBeVisible();
-    await page.screenshot({
-      path: `test-results/event-data/${width === 360 ? 'mobile-location-360' : 'desktop-1440'}.png`,
-      fullPage: true
+    const patches = await fixture(page);
+    const mapRequests: string[] = [];
+    page.on('request', (request) => {
+      if (/google\.com\/maps|maps\.google/.test(request.url())) mapRequests.push(request.url());
     });
+    await page.goto(`/eventos/${eventId}/configuracion/datos`);
+    const service = page.getByRole('combobox', { name: 'Servicio', exact: true });
+    const typography = await service.evaluate((element) => ({
+      family: getComputedStyle(element).fontFamily,
+      size: getComputedStyle(element).fontSize
+    }));
+    await service.click();
+    const serviceOption = page.getByRole('option', { name: /Flyer/ });
+    expect(
+      await serviceOption.evaluate((element) => ({
+        family: getComputedStyle(element).fontFamily,
+        size: getComputedStyle(element).fontSize
+      }))
+    ).toEqual(typography);
+    await page.keyboard.press('Escape');
+    const tabs = page.getByRole('tablist', { name: 'Secciones de datos del evento' });
+    if (await tabs.isVisible()) await tabs.getByRole('tab', { name: 'Cuándo y dónde', exact: true }).click();
+    await expect(page.getByRole('link', { name: 'Abrir ubicación' })).toBeVisible();
+    await expect(page.locator('iframe, input[type=time]')).toHaveCount(0);
+    await page.getByRole('button', { name: /^Hora de inicio:/ }).click();
+    const hour = page.getByRole('combobox', { name: 'Hora', exact: true });
+    expect(
+      await hour.evaluate((element) => ({
+        family: getComputedStyle(element).fontFamily,
+        size: getComputedStyle(element).fontSize
+      }))
+    ).toEqual(typography);
+    await hour.click();
+    const hourOption = page.getByRole('option', { name: '9', exact: true });
+    expect(
+      await hourOption.evaluate((element) => ({
+        family: getComputedStyle(element).fontFamily,
+        size: getComputedStyle(element).fontSize
+      }))
+    ).toEqual(typography);
+    await hourOption.click();
+    await page.getByRole('combobox', { name: 'Minutos' }).click();
+    await page.getByRole('option', { name: '47', exact: true }).click();
+    await page.getByRole('button', { name: 'p. m.', exact: true }).click();
+    await page.getByRole('button', { name: 'Usar hora' }).click();
+    await expect(page.getByRole('button', { name: 'Hora de inicio: 9:47 p. m.', exact: true })).toBeVisible();
+    await expect(page.getByText('Cambios guardados', { exact: true })).toBeVisible();
+    expect(patches.at(-1)?.eventDateTime).toBe('2027-06-20T03:47:00.000Z');
+    await page.getByRole('button', { name: /^Cambiar zona horaria:/ }).click();
+    const zoneInput = page.getByRole('combobox', { name: 'Zona horaria' });
+    expect(
+      await zoneInput.evaluate((element) => ({
+        family: getComputedStyle(element).fontFamily,
+        size: getComputedStyle(element).fontSize
+      }))
+    ).toEqual(typography);
+    await zoneInput.fill('Tijuana');
+    const zoneOption = page.getByRole('option', { name: 'Tijuana', exact: true });
+    expect(
+      await zoneOption.evaluate((element) => ({
+        family: getComputedStyle(element).fontFamily,
+        size: getComputedStyle(element).fontSize
+      }))
+    ).toEqual(typography);
+    await zoneOption.click();
+    await page.getByRole('button', { name: 'Cambiar zona', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Cambiar zona horaria: Tijuana', exact: true })).toBeVisible();
+    await expect(page.getByText('Cambios guardados', { exact: true })).toBeVisible();
+    expect(patches.at(-1)).toMatchObject({ timeZone: 'America/Tijuana', eventDateTime: '2027-06-20T04:47:00.000Z' });
+    expect(mapRequests).toEqual([]);
+    await page.screenshot({ path: `test-results/event-data/schedule-${width}.png`, fullPage: true });
   });
 }
 
@@ -200,17 +250,17 @@ for (const width of [900, 1199]) {
     await fixture(page, false, { locationUrl: null });
     await page.goto(`/eventos/${eventId}/configuracion/datos`);
     const tabs = page.getByRole('tablist', { name: 'Secciones de datos del evento' });
-    await tabs.getByRole('tab', { name: 'Fecha y hora', exact: true }).click();
+    await tabs.getByRole('tab', { name: 'Cuándo y dónde', exact: true }).click();
     await expect(page.getByRole('button', { name: 'sábado, 19 de junio de 2027' })).toHaveCount(0);
     await page.getByRole('button', { name: '19 de junio de 2027' }).click();
     await expect(page.getByRole('dialog', { name: 'Elegir fecha del evento' })).toBeVisible();
     await page.keyboard.press('Escape');
-    await tabs.getByRole('tab', { name: 'Lugar', exact: true }).click();
-    const block = page.locator('#event-location-panel');
-    expect((await block.boundingBox())!.height).toBeLessThan(160);
+    const block = page.locator('#event-date-panel');
+    expect((await page.getByLabel('Ubicación', { exact: true }).boundingBox())!.height).toBeLessThan(60);
     expect((await page.getByLabel('Ubicación', { exact: true }).boundingBox())!.width).toBeGreaterThan(width / 2);
     await expect(page.getByTitle('Mapa de la ubicación del evento')).toHaveCount(0);
     await expect(block.getByRole('heading')).toHaveCount(0);
+    await expect(tabs.getByRole('tab')).toHaveCount(3);
     await expect(page.getByRole('heading', { name: 'Datos del Evento' })).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true);
   });
@@ -221,7 +271,7 @@ test('keeps the selected date when leaving is blocked and saves it after complet
   const patches = await fixture(page, false, { eventDateTime: null, locationUrl: null });
   await page.goto(`/eventos/${eventId}/configuracion/datos`);
   const tabs = page.getByRole('tablist', { name: 'Secciones de datos del evento' });
-  await tabs.getByRole('tab', { name: 'Fecha y hora', exact: true }).click();
+  await tabs.getByRole('tab', { name: 'Cuándo y dónde', exact: true }).click();
   await page.getByRole('button', { name: 'Elegir fecha del evento' }).click();
   await page
     .getByRole('dialog')
@@ -234,10 +284,16 @@ test('keeps the selected date when leaving is blocked and saves it after complet
   await tabs.getByRole('tab', { name: 'Celebración', exact: true }).click();
   await page.getByRole('button', { name: 'Salir', exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/eventos/${eventId}/configuracion/datos$`));
-  await expect(tabs.getByRole('tab', { name: 'Fecha y hora', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await expect(tabs.getByRole('tab', { name: 'Cuándo y dónde', exact: true })).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByRole('button', { name: chosenDay, exact: true })).toBeVisible();
   expect(patches).toEqual([]);
-  await page.getByLabel('Hora de inicio').fill('18:30');
+  await page.getByRole('button', { name: /^Hora de inicio:/ }).click();
+  await page.getByRole('combobox', { name: 'Hora', exact: true }).click();
+  await page.getByRole('option', { name: '6', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Minutos' }).click();
+  await page.getByRole('option', { name: '30', exact: true }).click();
+  await page.getByRole('button', { name: 'p. m.', exact: true }).click();
+  await page.getByRole('button', { name: 'Usar hora' }).click();
   await page.getByRole('button', { name: 'Salir', exact: true }).click();
   await expect(page).toHaveURL(/\/eventos$/);
   expect(patches.at(-1)?.eventDateTime).toMatch(/T00:30:00.000Z$/);

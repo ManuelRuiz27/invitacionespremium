@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Event as ApiEvent } from '@invitaciones/api-client';
 import { configuredEvent, mockApiClient } from '../test/fixtures';
 import { renderApp } from '../test/render-app';
+import { chooseEventTime, chooseEventZone } from '../test/event-data-controls';
 
 const route = `/eventos/${configuredEvent.id}/configuracion/datos`;
 const pendingMessage = 'Completa la fecha y la hora, o quítalas para continuar.';
@@ -34,13 +35,13 @@ describe('partial event date navigation', () => {
       expect(router.state.location.pathname).toBe(route);
       expect(screen.getAllByText(pendingMessage).length).toBeGreaterThan(0);
       expect(screen.getByRole('button', { name: selectedDay! })).toBeInTheDocument();
-      expect(screen.getByLabelText('Hora de inicio')).toHaveValue('');
+      expect(screen.getByRole('button', { name: /^Hora de inicio:/ })).toHaveTextContent('Elegir hora de inicio');
       expect(api.events.update).not.toHaveBeenCalled();
       const unload = new Event('beforeunload', { cancelable: true });
       window.dispatchEvent(unload);
       expect(unload.defaultPrevented).toBe(true);
 
-      fireEvent.change(screen.getByLabelText('Hora de inicio'), { target: { value: '18:30' } });
+      await chooseEventTime('18:30');
       await userEvent.click(screen.getByRole('button', { name: action }));
       await waitFor(() => expect(router.state.location.pathname).not.toBe(route));
       expect(api.events.update).toHaveBeenCalledWith(
@@ -58,7 +59,7 @@ describe('partial event date navigation', () => {
     expect(router.state.location.pathname).toBe(route);
     await act(() => router.navigate(-1));
     expect(router.state.location.pathname).toBe(route);
-    expect(screen.getByLabelText('Hora de inicio')).toHaveValue('');
+    expect(screen.getByRole('button', { name: /^Hora de inicio:/ })).toHaveTextContent('Elegir hora de inicio');
     await userEvent.click(screen.getByRole('button', { name: 'Quitar fecha y hora' }));
     // Clearing is still a pending autosave until the explicit exit flushes it.
     await userEvent.click(screen.getByRole('button', { name: 'Salir' }));
@@ -71,17 +72,19 @@ describe('partial event date navigation', () => {
 
   it('does not create a new event or lose a time-only draft when navigation is blocked', async () => {
     const { api, router } = setup(null, '/eventos/nuevo');
-    fireEvent.change(await screen.findByLabelText('Hora de inicio'), { target: { value: '18:30' } });
+    await screen.findByRole('button', { name: /^Hora de inicio:/ });
+    await chooseEventTime('18:30');
     await userEvent.click(screen.getByRole('button', { name: 'Salir' }));
     expect(router.state.location.pathname).toBe('/eventos/nuevo');
-    expect(screen.getByLabelText('Hora de inicio')).toHaveValue('18:30');
+    expect(screen.getByRole('button', { name: /^Hora de inicio:/ })).toHaveTextContent('6:30 p. m.');
     expect(api.events.create).not.toHaveBeenCalled();
   });
 
   it('keeps the last saved instant when only its time is erased, including other field autosaves', async () => {
     const instant = '2027-01-15T23:00:00.000Z';
     const { api, router } = setup(instant);
-    fireEvent.change(await screen.findByLabelText('Hora de inicio'), { target: { value: '' } });
+    await screen.findByRole('button', { name: /^Hora de inicio:/ });
+    await chooseEventTime('');
     fireEvent.change(screen.getByLabelText('Nombre del evento'), { target: { value: 'Nombre actualizado' } });
     await waitFor(() => expect(api.events.update).toHaveBeenCalledTimes(1));
     expect(api.events.update).toHaveBeenLastCalledWith(
@@ -91,22 +94,20 @@ describe('partial event date navigation', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
     expect(router.state.location.pathname).toBe(route);
     expect(screen.getByRole('button', { name: '15 de enero de 2027' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Hora de inicio')).toHaveValue('');
-    expect(screen.getByRole('region', { name: 'Fecha y hora del evento' })).not.toHaveAttribute(
-      'data-validation',
-      'confirmed'
-    );
+    expect(screen.getByRole('button', { name: /^Hora de inicio:/ })).toHaveTextContent('Elegir hora de inicio');
+    expect(screen.getByRole('region', { name: 'Cuándo y dónde' })).not.toHaveAttribute('data-validation', 'confirmed');
   });
 
   it('blocks departure for a nonexistent DST hour without changing the saved instant', async () => {
     const { api, router } = setup('2026-03-08T09:00:00.000Z', route, 'America/Tijuana');
-    fireEvent.change(await screen.findByLabelText('Hora de inicio'), { target: { value: '02:30' } });
+    await screen.findByRole('button', { name: /^Hora de inicio:/ });
+    await chooseEventTime('02:30');
     expect(screen.getByText(/La hora no existe/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
     expect(router.state.location.pathname).toBe(route);
-    expect(screen.getByLabelText('Hora de inicio')).toHaveValue('02:30');
+    expect(screen.getByRole('button', { name: /^Hora de inicio:/ })).toHaveTextContent('2:30 a. m.');
     expect(api.events.update).not.toHaveBeenCalled();
-    fireEvent.change(screen.getByLabelText('Hora de inicio'), { target: { value: '03:30' } });
+    await chooseEventTime('03:30');
     await userEvent.click(screen.getByRole('button', { name: 'Salir' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/eventos'));
     expect(api.events.update).toHaveBeenCalledWith(
@@ -119,8 +120,7 @@ describe('partial event date navigation', () => {
     'allows exiting after cancelling a rejected zone conversion for %s',
     async (instant) => {
       const { api, router } = setup(instant, route, 'America/Cancun');
-      fireEvent.mouseDown(await screen.findByRole('combobox', { name: 'Zona horaria' }));
-      fireEvent.click(await screen.findByRole('option', { name: 'Tijuana' }));
+      await chooseEventZone('America/Tijuana');
       await userEvent.click(screen.getByRole('button', { name: 'Cambiar zona' }));
       expect(screen.getByRole('dialog', { name: 'Cambiar zona horaria' })).toBeInTheDocument();
       expect(screen.getByRole('alert')).toHaveTextContent(/no existe|ambigua/);

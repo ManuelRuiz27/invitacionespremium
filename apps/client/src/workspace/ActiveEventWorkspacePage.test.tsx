@@ -990,7 +990,7 @@ describe('Active Event workspace loading and errors', () => {
     await router.navigate(`/eventos/${secondId}`);
     expect(await screen.findByRole('status')).toHaveTextContent('Cargando evento…');
     expect(screen.queryByText(workspaceEvent.name!)).not.toBeInTheDocument();
-    expect(api.events.get).toHaveBeenLastCalledWith(secondId, expect.any(AbortSignal));
+    await waitFor(() => expect(api.events.get).toHaveBeenLastCalledWith(secondId, expect.any(AbortSignal)));
     expect(api.services.listAvailable).not.toHaveBeenCalled();
   });
 

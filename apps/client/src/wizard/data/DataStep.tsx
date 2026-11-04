@@ -22,7 +22,9 @@ import {
   Typography,
   IconButton,
   Tabs,
-  Tab
+  Tab,
+  Autocomplete,
+  createFilterOptions
 } from '@mui/material';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import CelebrationOutlined from '@mui/icons-material/CelebrationOutlined';
@@ -31,7 +33,6 @@ import CakeOutlined from '@mui/icons-material/CakeOutlined';
 import BusinessCenterOutlined from '@mui/icons-material/BusinessCenterOutlined';
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined';
 import CalendarMonthOutlined from '@mui/icons-material/CalendarMonthOutlined';
-import LocationOnOutlined from '@mui/icons-material/LocationOnOutlined';
 import CardGiftcardOutlined from '@mui/icons-material/CardGiftcardOutlined';
 import OpenInNew from '@mui/icons-material/OpenInNew';
 import Add from '@mui/icons-material/Add';
@@ -40,7 +41,8 @@ import { DataBlock } from './DataBlock';
 import { EventCalendar } from './EventCalendar';
 import { EventCountdown } from './EventCountdown';
 import { EventLocation } from './EventLocation';
-import { giftProvider, mapEmbedHref, previewHref } from './event-link-preview';
+import { EventTimePicker } from './EventTimePicker';
+import { giftProvider, previewHref } from './event-link-preview';
 import type { SaveState } from '../wizard-model';
 import { priceRuleForCapacity, serviceLabels, socialTypeLabels } from '../../shared/formatters';
 import { instantToWallClock, supportedTimeZones, wallClockToInstant } from './timezone';
@@ -85,23 +87,18 @@ export function DataStep({
   const [dateError, setDateError] = useState<string>();
   const [pendingZone, setPendingZone] = useState<string>();
   const [zoneError, setZoneError] = useState<string>();
-  const [editingWallClock, setEditingWallClock] = useState(false);
   const [pendingServiceId, setPendingServiceId] = useState<string>();
   const [failedServiceId, setFailedServiceId] = useState<string>();
   const [serviceBusy, setServiceBusy] = useState(false);
   const [serviceError, setServiceError] = useState<string>();
   useEffect(() => {
-    if (
-      !editingWallClock &&
-      !pendingZone &&
-      (draft.eventDateTime !== localInstant.current || zone !== localZone.current)
-    ) {
+    if (!pendingZone && (draft.eventDateTime !== localInstant.current || zone !== localZone.current)) {
       setWallClock(instantToWallClock(draft.eventDateTime, zone));
       localInstant.current = draft.eventDateTime;
       localZone.current = zone;
       setDateError(undefined);
     }
-  }, [draft.eventDateTime, editingWallClock, pendingZone, zone]);
+  }, [draft.eventDateTime, pendingZone, zone]);
   const commitDate = (value: string, targetZone = zone) => {
     setWallClock(value);
     if (!value) {
@@ -146,13 +143,12 @@ export function DataStep({
     (draft.giftRegistryUrl && !giftHref
       ? 'Revisa el enlace de la mesa de regalos. Pega un enlace web seguro y completo.'
       : undefined);
-  const mapHref = mapEmbedHref(locationHref, import.meta.env.VITE_GOOGLE_MAPS_EMBED_API_KEY);
   useEffect(() => {
     if (!compactNavigation) return;
     if (fieldErrors.name || fieldErrors.socialType || fieldErrors.serviceId || fieldErrors.capacity)
       setActiveSection('celebration');
-    else if (fieldErrors.eventDateTime || fieldErrors.timeZone) setActiveSection('event-date');
-    else if (fieldErrors.locationUrl) setActiveSection('event-location');
+    else if (fieldErrors.eventDateTime || fieldErrors.timeZone || fieldErrors.locationUrl)
+      setActiveSection('event-date');
     else if (fieldErrors.giftRegistryUrl) setActiveSection('event-gifts');
   }, [compactNavigation, fieldErrors]);
   const blockProps = { draft, event, confirmedDraft, saveState };
@@ -209,8 +205,7 @@ export function DataStep({
           onChange={(_, value: string) => setActiveSection(value)}
         >
           <Tab id="data-tab-celebration" aria-controls="celebration-panel" value="celebration" label="Celebración" />
-          <Tab id="data-tab-event-date" aria-controls="event-date-panel" value="event-date" label="Fecha y hora" />
-          <Tab id="data-tab-event-location" aria-controls="event-location-panel" value="event-location" label="Lugar" />
+          <Tab id="data-tab-event-date" aria-controls="event-date-panel" value="event-date" label="Cuándo y dónde" />
           <Tab id="data-tab-event-gifts" aria-controls="event-gifts-panel" value="event-gifts" label="Regalos" />
         </Tabs>
       ) : null}
@@ -223,7 +218,10 @@ export function DataStep({
             : { xs: 'minmax(0,1fr)', md: 'repeat(2,minmax(0,1fr))' },
           gap: 1.5,
           alignItems: 'start',
-          '& .MuiTextField-root': { '& .MuiInputBase-root': { minHeight: 44 } }
+          '& .MuiTextField-root': {
+            '& .MuiInputBase-root': { minHeight: 44, typography: 'body2' },
+            '& .MuiInputBase-input': { fontFamily: 'inherit' }
+          }
         }}
       >
         <DataBlock
@@ -309,7 +307,7 @@ export function DataStep({
                 {services.map((service) => {
                   const price = priceRuleForCapacity(service, draft.capacity);
                   return (
-                    <MenuItem key={service.id} value={service.id}>
+                    <MenuItem key={service.id} value={service.id} sx={{ typography: 'body2' }}>
                       {serviceLabels[service.code]} · {price ? `${price.credits} créditos` : 'precio según capacidad'}
                     </MenuItem>
                   );
@@ -350,11 +348,14 @@ export function DataStep({
           id="event-date"
           tabId={compactNavigation ? 'data-tab-event-date' : undefined}
           selected={!compactNavigation || activeSection === 'event-date'}
-          title="Fecha y hora del evento"
+          title="Cuándo y dónde"
           icon={<CalendarMonthOutlined />}
-          fields={['eventDateTime', 'timeZone']}
+          fields={['eventDateTime', 'timeZone', 'locationUrl']}
+          completionFields={['eventDateTime', 'timeZone']}
           pending={pendingDate}
-          error={dateError ?? fieldErrors.eventDateTime ?? fieldErrors.timeZone}
+          error={dateError ?? fieldErrors.eventDateTime ?? fieldErrors.timeZone ?? locationError}
+          inlineError={!dateError && !fieldErrors.eventDateTime && !fieldErrors.timeZone && Boolean(locationError)}
+          sx={compactNavigation ? undefined : { gridRow: 'span 2' }}
         >
           <Box
             sx={{
@@ -391,72 +392,34 @@ export function DataStep({
               ) : null}
             </Box>
             <Box sx={{ minWidth: 0 }}>
-              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 1.5 }}>
-                <TextField
-                  size="small"
-                  fullWidth
-                  type="time"
-                  label="Hora de inicio"
-                  sx={{ gridColumn: { xs: '1 / -1', sm: 'auto' } }}
+              <Stack spacing={1.25}>
+                <EventTimePicker
                   value={selectedTime}
+                  zoneLabel={timeZoneLabel(zone)}
                   disabled={disabled}
-                  error={Boolean(dateError ?? fieldErrors.eventDateTime)}
-                  helperText={fieldErrors.eventDateTime}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                  onFocus={() => setEditingWallClock(true)}
-                  onBlur={() => setEditingWallClock(false)}
-                  onChange={(e) => chooseDateTime(selectedDate, e.target.value)}
-                />
-                <TextField
-                  size="small"
-                  fullWidth
-                  select
-                  label="Zona horaria"
-                  sx={{ gridColumn: { xs: '1 / -1', sm: 'auto' } }}
-                  error={Boolean(fieldErrors.timeZone)}
-                  helperText={fieldErrors.timeZone}
-                  value={zone}
-                  disabled={disabled}
-                  onChange={(e) => {
+                  error={dateError ?? fieldErrors.eventDateTime ?? fieldErrors.timeZone}
+                  onChange={(time) => chooseDateTime(selectedDate, time)}
+                  onEditZone={() => {
                     setZoneError(undefined);
-                    setPendingZone(e.target.value);
+                    setPendingZone(zone);
                   }}
-                >
-                  {[...new Set([zone, ...zones])].map((item) => (
-                    <MenuItem key={item} value={item}>
-                      {timeZoneLabel(item)}
-                    </MenuItem>
-                  ))}
-                </TextField>
+                />
                 {selectedDate && !selectedTime ? (
                   <Typography variant="body2" color="text.secondary">
                     Elige la hora de inicio para completar la fecha.
                   </Typography>
                 ) : null}
-              </Box>
+                <EventLocation
+                  value={draft.locationUrl}
+                  href={locationHref}
+                  error={locationError}
+                  disabled={disabled}
+                  onChange={(locationUrl) => onChange({ locationUrl })}
+                />
+              </Stack>
               <EventCountdown target={pendingDate ? null : draft.eventDateTime} zone={zone} />
             </Box>
           </Box>
-        </DataBlock>
-        <DataBlock
-          {...blockProps}
-          id="event-location"
-          tabId={compactNavigation ? 'data-tab-event-location' : undefined}
-          selected={!compactNavigation || activeSection === 'event-location'}
-          title="Lugar del evento"
-          icon={<LocationOnOutlined />}
-          fields={['locationUrl']}
-          inlineError
-          error={locationError}
-        >
-          <EventLocation
-            value={draft.locationUrl}
-            href={locationHref}
-            embedHref={mapHref}
-            error={locationError}
-            disabled={disabled}
-            onChange={(locationUrl) => onChange({ locationUrl })}
-          />
         </DataBlock>
         <DataBlock
           {...blockProps}
@@ -549,6 +512,27 @@ export function DataStep({
       <Dialog open={Boolean(pendingZone)} onClose={() => setPendingZone(undefined)} aria-labelledby="zone-title">
         <DialogTitle id="zone-title">Cambiar zona horaria</DialogTitle>
         <DialogContent>
+          <Autocomplete
+            disableClearable
+            disabled={disabled}
+            options={[...new Set([zone, ...Object.keys(knownTimeZones), ...zones])]}
+            filterOptions={createFilterOptions<string>({ limit: 20 })}
+            value={pendingZone ?? zone}
+            getOptionLabel={timeZoneLabel}
+            getOptionKey={(item) => item}
+            onChange={(_, value) => {
+              setZoneError(undefined);
+              setPendingZone(value);
+            }}
+            sx={{
+              mt: 1,
+              mb: 2,
+              '& .MuiInputBase-root': { typography: 'body2' },
+              '& .MuiInputBase-input': { fontFamily: 'inherit' }
+            }}
+            slotProps={{ paper: { sx: { typography: 'body2' } } }}
+            renderInput={(params) => <TextField {...params} label="Zona horaria" />}
+          />
           La hora escrita se conservará para {pendingZone ? timeZoneLabel(pendingZone) : ''}. Confirma este cambio.
           {zoneError ? <Alert severity="error">{zoneError}</Alert> : null}
         </DialogContent>
@@ -556,6 +540,7 @@ export function DataStep({
           <Button onClick={() => setPendingZone(undefined)}>Cancelar</Button>
           <Button
             variant="contained"
+            disabled={disabled || pendingZone === zone}
             onClick={() => {
               const next = pendingZone;
               if (!next) return;

@@ -3,8 +3,9 @@ import { AppThemeProvider } from '@invitaciones/ui';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { configuredEvent } from '../../test/fixtures';
+import { chooseEventTime } from '../../test/event-data-controls';
 import type { SaveState } from '../wizard-model';
 import { DataStep } from './DataStep';
 
@@ -17,7 +18,8 @@ const initial: UpdateEventInput = {
   socialType: 'WEDDING',
   capacity: 100,
   eventDateTime: '2027-01-15T23:00:00Z',
-  timeZone: 'America/Cancun'
+  timeZone: 'America/Cancun',
+  locationUrl: 'https://maps.google.com/?q=Salon'
 };
 function Harness({
   event,
@@ -49,7 +51,6 @@ function Harness({
     </AppThemeProvider>
   );
 }
-afterEach(() => vi.unstubAllEnvs());
 
 describe('Event data experience', () => {
   it('adds, edits and opens a gift registry with keyboard focus and no manual save', async () => {
@@ -80,12 +81,14 @@ describe('Event data experience', () => {
     );
   });
 
-  it('loads a configured Google map lazily and retains a safe fallback for short links and invalid URLs', async () => {
-    vi.stubEnv('VITE_GOOGLE_MAPS_EMBED_API_KEY', `AIza${'x'.repeat(35)}`);
-    render(<Harness value={{ ...initial, locationUrl: 'https://maps.google.com/?q=Salon%20Central' }} />);
-    expect(screen.getByTitle('Mapa de la ubicación del evento')).toHaveAttribute('loading', 'lazy');
-    fireEvent.change(screen.getByLabelText('Ubicación'), { target: { value: 'https://maps.app.goo.gl/ejemplo' } });
+  it('keeps external map links without loading an iframe and rejects unsafe destinations', () => {
+    render(<Harness />);
     expect(screen.queryByTitle('Mapa de la ubicación del evento')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Abrir ubicación' })).toHaveAttribute(
+      'href',
+      'https://maps.google.com/?q=Salon'
+    );
+    fireEvent.change(screen.getByLabelText('Ubicación'), { target: { value: 'https://maps.app.goo.gl/ejemplo' } });
     expect(screen.getByRole('link', { name: 'Abrir ubicación' })).toHaveAttribute(
       'href',
       'https://maps.app.goo.gl/ejemplo'
@@ -95,29 +98,23 @@ describe('Event data experience', () => {
     expect(screen.queryByRole('link', { name: 'Abrir ubicación' })).not.toBeInTheDocument();
   });
 
-  it('accepts copied Google Maps HTML without a key and never renders arbitrary markup', () => {
-    vi.stubEnv('VITE_GOOGLE_MAPS_EMBED_API_KEY', '');
+  it('extracts a safe external link from copied Maps HTML without rendering markup', () => {
     const onChange = vi.fn();
     render(<Harness onChange={onChange} />);
-    const href = 'https://www.google.com/maps/embed?pb=!1m18!2sVenue';
     fireEvent.paste(screen.getByLabelText('Ubicación'), {
-      clipboardData: { getData: () => `<iframe src="${href}" onload="alert(1)"></iframe>` }
+      clipboardData: {
+        getData: () => '<iframe src="https://www.google.com/maps/embed?pb=!1m18!2sVenue" onload="alert(1)"></iframe>'
+      }
     });
     expect(onChange).toHaveBeenCalledWith({ locationUrl: 'https://www.google.com/maps/embed?pb=%211m18%212sVenue' });
-    expect(screen.getByTitle('Mapa de la ubicación del evento')).toHaveAttribute(
-      'src',
+    expect(screen.getByRole('link', { name: 'Abrir ubicación' })).toHaveAttribute(
+      'href',
       'https://www.google.com/maps/embed?pb=%211m18%212sVenue'
     );
-    expect(screen.getByTitle('Mapa de la ubicación del evento')).not.toHaveAttribute('onload');
-    fireEvent.error(screen.getByTitle('Mapa de la ubicación del evento'));
-    expect(screen.getByText('No pudimos cargar el mapa.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Abrir ubicación' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Reintentar mapa' }));
-    expect(screen.getByTitle('Mapa de la ubicación del evento')).toBeInTheDocument();
+    expect(document.querySelector('iframe')).toBeNull();
   });
 
   it('shows a functional location link without Maps configuration', () => {
-    vi.stubEnv('VITE_GOOGLE_MAPS_EMBED_API_KEY', '');
     render(<Harness value={{ ...initial, locationUrl: 'https://maps.google.com/?q=Salon' }} />);
     expect(screen.getByRole('link', { name: 'Abrir ubicación' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Ver mapa interactivo' })).not.toBeInTheDocument();
@@ -129,19 +126,29 @@ describe('Event data experience', () => {
     render(<Harness event={server} saveState="saving" />);
     fireEvent.change(screen.getByLabelText('Nombre del evento'), { target: { value: 'Nombre pendiente' } });
     expect(screen.getByRole('region', { name: 'Tu celebración' })).toHaveAttribute('data-validation', 'editing');
-    expect(screen.getByRole('region', { name: 'Fecha y hora del evento' })).toHaveAttribute(
-      'data-validation',
-      'confirmed'
-    );
-    expect(screen.getByRole('region', { name: 'Lugar del evento' })).toHaveAttribute('data-validation', 'empty');
+    expect(screen.getByRole('region', { name: 'Cuándo y dónde' })).toHaveAttribute('data-validation', 'confirmed');
     expect(screen.getByRole('region', { name: 'Mesa de regalos' })).toHaveAttribute('data-validation', 'empty');
+  });
+
+  it('confirms saved date and time even when the optional location is empty', () => {
+    const value = { ...initial, locationUrl: null };
+    render(<Harness value={value} event={{ ...configuredEvent, ...value } as Event} />);
+    expect(screen.getByRole('region', { name: 'Cuándo y dónde' })).toHaveAttribute('data-validation', 'confirmed');
+    expect(screen.getByLabelText('Ubicación')).toHaveValue('');
+  });
+
+  it('keeps a DST error visible when the location link is also invalid', async () => {
+    render(<Harness value={{ ...initial, timeZone: 'America/Tijuana', eventDateTime: '2026-03-08T09:00:00.000Z' }} />);
+    fireEvent.change(screen.getByLabelText('Ubicación'), { target: { value: 'enlace inválido' } });
+    await chooseEventTime('02:30');
+    expect(screen.getByRole('alert')).toHaveTextContent('La hora no existe');
+    expect(screen.getByLabelText('Ubicación')).toHaveAttribute('aria-invalid', 'true');
   });
 
   it('requires a server snapshot for completion, keeps optional empty blocks unconfirmed, and exposes failed autosave', () => {
     const server = { ...configuredEvent, ...initial } as Event;
     const { rerender } = render(<Harness event={server} />);
     expect(screen.getByRole('region', { name: 'Tu celebración' })).toHaveAttribute('data-validation', 'confirmed');
-    expect(screen.getByRole('region', { name: 'Lugar del evento' })).toHaveAttribute('data-validation', 'empty');
     expect(screen.queryByLabelText('Mesa de regalos: confirmado por el servidor')).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Nombre del evento'), { target: { value: 'Nombre pendiente' } });
     expect(screen.getByRole('region', { name: 'Tu celebración' })).toHaveAttribute('data-validation', 'editing');
@@ -166,7 +173,7 @@ describe('Event data experience', () => {
     expect(trigger).toHaveFocus();
     expect(onChange).not.toHaveBeenCalled();
     expect(screen.getByText('Elige la hora de inicio para completar la fecha.')).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Hora de inicio'), { target: { value: '18:30' } });
+    await chooseEventTime('18:30');
     expect(onChange).toHaveBeenCalledWith({ eventDateTime: expect.stringMatching(/T23:30:00.000Z$/) });
     fireEvent.click(screen.getByRole('button', { name: 'Quitar fecha y hora' }));
     expect(onChange).toHaveBeenLastCalledWith({ eventDateTime: null });
@@ -175,8 +182,9 @@ describe('Event data experience', () => {
   it('keeps technical fields read-only when editing is disabled', () => {
     const onChange = vi.fn();
     render(<Harness disabled onChange={onChange} />);
-    for (const input of ['Nombre del evento', 'Cantidad de invitados', 'Hora de inicio', 'Ubicación'])
+    for (const input of ['Nombre del evento', 'Cantidad de invitados', 'Ubicación'])
       expect(screen.getByLabelText(input)).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^Hora de inicio:/ })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Boda' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Agregar mesa de regalos' })).toBeDisabled();
     expect(onChange).not.toHaveBeenCalled();

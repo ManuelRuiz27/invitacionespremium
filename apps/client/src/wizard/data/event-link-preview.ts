@@ -24,10 +24,10 @@ export function giftProvider(href: string): string {
   return providers.find(([domain]) => host === domain || host.endsWith(`.${domain}`))?.[1] ?? 'Mesa de regalos';
 }
 
-export function mapEmbedHref(href: string | null, key: string | undefined): string | null {
+function copiedMapHref(href: string | null): string | null {
   if (!href || !previewHref(href)) return null;
   const source = new URL(href);
-  // The URL produced by Google Maps → Share → Embed a map needs no browser API key.
+  // Preserve copied map links as safe external destinations; never render an iframe.
   if (
     source.origin === 'https://www.google.com' &&
     source.pathname === '/maps/embed' &&
@@ -37,22 +37,7 @@ export function mapEmbedHref(href: string | null, key: string | undefined): stri
     embed.searchParams.set('pb', source.searchParams.get('pb')!);
     return embed.href;
   }
-  if (!key || !/^AIza[\w-]{35}$/.test(key)) return null;
-  if (
-    !['www.google.com', 'google.com', 'maps.google.com', 'www.google.com.mx', 'maps.google.com.mx'].includes(
-      source.hostname
-    )
-  )
-    return null;
-  if (!source.hostname.startsWith('maps.') && source.pathname !== '/maps' && !source.pathname.startsWith('/maps/'))
-    return null;
-  const place = source.searchParams.get('query_place_id');
-  const query = place ? `place_id:${place}` : source.searchParams.get('q') || source.searchParams.get('query');
-  if (!query?.trim()) return null;
-  const embed = new URL('https://www.google.com/maps/embed/v1/place');
-  embed.searchParams.set('key', key);
-  embed.searchParams.set('q', query);
-  return embed.href;
+  return null;
 }
 
 /** Extract only the allowlisted URL; never render pasted HTML or its attributes. */
@@ -60,5 +45,5 @@ export function pastedMapHref(value: string): string | null {
   const match = /^\s*<iframe\b[^>]*\bsrc\s*=\s*(["'])([^"']+)\1[^>]*>\s*<\/iframe>\s*$/i.exec(value);
   if (!match) return null;
   const href = match[2]!.replaceAll('&amp;', '&');
-  return mapEmbedHref(href, undefined);
+  return copiedMapHref(href);
 }

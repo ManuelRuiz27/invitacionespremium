@@ -60,9 +60,10 @@ contra pérdida de cambios, sin presentar el guardado como una tarea manual.
 
 ## Datos, Contactos y CSV
 
-`datetime-local` representa el wall-clock del Evento. La conversión busca el instante de la zona IANA de
-`draft.timeZone`, no la zona del navegador. Horas inexistentes o ambiguas por DST se rechazan sin cerrar el
-diálogo ni alterar el borrador. Cambiar la zona conserva explícitamente la hora escrita y emite un único
+Los controles de fecha y hora representan el wall-clock del Evento. La conversión busca el instante de la zona IANA de
+`draft.timeZone`, no la zona del navegador. Horas inexistentes o ambiguas por DST se rechazan sin alterar el
+instante del borrador y muestran el error junto a la captura; el diálogo de cambio de zona permanece abierto
+si ese cambio es rechazado. Cambiar la zona conserva explícitamente la hora escrita y emite un único
 patch atómico con `timeZone` y `eventDateTime`. Los parches síncronos se acumulan sobre la referencia más
 reciente del draft y el wall-clock adopta cambios autoritativos cuando no existe una edición activa.
 
@@ -70,6 +71,11 @@ Una fecha u hora parcial, o una combinación rechazada por DST, permanece en el 
 complete o quite explícitamente, se bloquea salir del paso, navegar por la aplicación o usar Atrás, y se
 advierte al cerrar o recargar la pestaña. No se inventa una hora ni se envía `null` al borrar sólo la hora:
 el último instante válido permanece guardado hasta completar la nueva captura o quitar fecha y hora.
+
+La pestaña **Cuándo y dónde** reúne fecha, hora y enlace de ubicación, sin mapa integrado. La hora se
+selecciona en un diálogo de 12 horas con minutos exactos y a. m./p. m.; sólo se aplica al confirmar.
+La zona actual aparece en una acción compacta que abre un buscador de ciudades y conserva la confirmación
+atómica del cambio de zona. Los selectores y sus opciones usan la tipografía de cuerpo del formulario.
 
 Contactos permite alta, edición de nombre/WhatsApp/Grupo y eliminación confirmada. La capacidad visible se
 basa en Asistentes nominales autorizados de Invitaciones, no en el número de Contactos. El preview presenta

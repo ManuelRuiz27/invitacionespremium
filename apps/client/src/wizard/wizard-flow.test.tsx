@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ApiError, type Event } from '@invitaciones/api-client';
 import { configuredEvent, mockApiClient, organizationPlanner } from '../test/fixtures';
 import { renderApp } from '../test/render-app';
+import { chooseEventTime, chooseEventZone } from '../test/event-data-controls';
 
 const readyEvent = {
   ...configuredEvent,
@@ -48,9 +49,9 @@ describe('integrated Event wizard flows', () => {
     await waitFor(() => expect(api.events.update).toHaveBeenCalledTimes(1));
     fireEvent.change(screen.getByLabelText('Ubicación'), { target: { value: 'https://other.example' } });
     accepted.resolve({ ...configuredEvent, serviceId: 'service-flyer', locationUrl: 'https://venue.example/' });
-    expect(screen.getByRole('region', { name: 'Lugar del evento' })).toHaveAttribute('data-validation', 'editing');
+    expect(screen.getByRole('region', { name: 'Cuándo y dónde' })).toHaveAttribute('data-validation', 'editing');
     await waitFor(() =>
-      expect(screen.getByRole('region', { name: 'Lugar del evento' })).toHaveAttribute('data-validation', 'confirmed')
+      expect(screen.getByRole('region', { name: 'Cuándo y dónde' })).toHaveAttribute('data-validation', 'confirmed')
     );
     expect(screen.getByLabelText('Ubicación')).toHaveValue('https://other.example');
   });
@@ -267,9 +268,8 @@ describe('integrated Event wizard flows', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Mes siguiente' }));
     fireEvent.click(screen.getByRole('button', { name: /jueves, 15 de enero de 2026/ }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText('Hora de inicio'), { target: { value: '18:30' } });
-    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Zona horaria' }));
-    fireEvent.click(await screen.findByRole('option', { name: 'Tijuana' }));
+    await chooseEventTime('18:30');
+    await chooseEventZone('America/Tijuana');
     fireEvent.click(screen.getByRole('button', { name: 'Cambiar zona' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));

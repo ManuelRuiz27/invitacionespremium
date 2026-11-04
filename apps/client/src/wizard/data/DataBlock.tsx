@@ -1,6 +1,6 @@
 import CheckCircleOutline from '@mui/icons-material/CheckCircleOutlineOutlined';
 import type { Event, UpdateEventInput } from '@invitaciones/api-client';
-import { alpha, Box, Stack, Typography } from '@mui/material';
+import { alpha, Box, Stack, Typography, type SxProps, type Theme } from '@mui/material';
 import { useState, type ReactNode } from 'react';
 import type { SaveState } from '../wizard-model';
 
@@ -13,12 +13,14 @@ export function DataBlock({
   event,
   confirmedDraft,
   fields,
+  completionFields = fields,
   saveState,
   error,
   inlineError = false,
   pending = false,
   selected = true,
-  tabId
+  tabId,
+  sx = {}
 }: {
   id: string;
   title: string;
@@ -28,19 +30,21 @@ export function DataBlock({
   event: Event | undefined;
   confirmedDraft?: UpdateEventInput | undefined;
   fields: (keyof UpdateEventInput & keyof Event)[];
+  completionFields?: (keyof UpdateEventInput & keyof Event)[];
   saveState: SaveState;
   error?: string | undefined;
   inlineError?: boolean;
   pending?: boolean;
   selected?: boolean;
   tabId?: string | undefined;
+  sx?: SxProps<Theme> | undefined;
 }) {
   const [focused, setFocused] = useState(false);
   const confirmed = confirmedDraft ?? event;
   const dirty = pending || fields.some((field) => (draft[field] ?? null) !== (confirmed?.[field] ?? null));
   const complete =
     Boolean(event) &&
-    fields.every(
+    completionFields.every(
       (field) =>
         draft[field] !== null &&
         draft[field] !== undefined &&
@@ -65,24 +69,27 @@ export function DataBlock({
       onBlurCapture={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget)) setFocused(false);
       }}
-      sx={{
-        display: selected ? 'block' : 'none',
-        minWidth: 0,
-        p: 1.5,
-        border: '2px solid',
-        borderColor: (theme) =>
-          state === 'error'
-            ? theme.palette.error.main
-            : state === 'editing'
-              ? theme.palette.divider
-              : state === 'confirmed'
-                ? alpha(theme.palette.success.main, 0.28)
-                : 'transparent',
-        borderRadius: 2,
-        bgcolor: 'background.paper',
-        transition: 'border-color 160ms ease',
-        '@media (prefers-reduced-motion: reduce)': { transition: 'none' }
-      }}
+      sx={[
+        {
+          display: selected ? 'block' : 'none',
+          minWidth: 0,
+          p: 1.5,
+          border: '2px solid',
+          borderColor: (theme) =>
+            state === 'error'
+              ? theme.palette.error.main
+              : state === 'editing'
+                ? theme.palette.divider
+                : state === 'confirmed'
+                  ? alpha(theme.palette.success.main, 0.28)
+                  : 'transparent',
+          borderRadius: 2,
+          bgcolor: 'background.paper',
+          transition: 'border-color 160ms ease',
+          '@media (prefers-reduced-motion: reduce)': { transition: 'none' }
+        },
+        ...(Array.isArray(sx) ? sx : [sx])
+      ]}
     >
       {!tabId ? (
         <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', mb: 1.5 }}>
