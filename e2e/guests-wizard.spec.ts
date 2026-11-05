@@ -151,6 +151,109 @@ for (const width of [360, 768, 1440]) {
   });
 }
 
+test('CSV confirmation works on plain HTTP without randomUUID and reuses an uncertain attempt', async ({ page }) => {
+  const origin = 'http://csv-http.invalid';
+  await page.route(`${origin}/**`, async (route) => {
+    const url = new URL(route.request().url());
+    const response = await route.fetch({ url: `http://127.0.0.1:5190${url.pathname}${url.search}` });
+    await route.fulfill({ response });
+  });
+  await fixture(page);
+  await page.route('**/contacts/import/preview', (route) =>
+    route.fulfill({
+      json: {
+        previewId: 'http-preview',
+        totalRows: 1,
+        validRows: 1,
+        invalidRows: 0,
+        expiresAt: '2027-01-01T00:00:00Z',
+        rows: [
+          {
+            rowNumber: 2,
+            name: 'Invitado Ejemplo',
+            normalizedPhone: '+525500000099',
+            group: null,
+            groupId: null,
+            groupResolution: 'NONE',
+            errors: []
+          }
+        ]
+      }
+    })
+  );
+  const keys: string[] = [];
+  await page.route('**/contacts/import/commit', (route) => {
+    keys.push(route.request().headers()['idempotency-key']!);
+    if (keys.length === 1) return route.abort('failed');
+    return route.fulfill({ json: { createdContacts: 1, createdGroups: 0, contacts: [] } });
+  });
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.goto(`${origin}/eventos/${eventId}/configuracion/contactos`);
+  expect(await page.evaluate(() => window.isSecureContext)).toBe(false);
+  expect(await page.evaluate(() => typeof globalThis.crypto.randomUUID)).toBe('undefined');
+  expect(await page.evaluate(() => typeof globalThis.crypto.getRandomValues)).toBe('function');
+  await page.getByRole('button', { name: 'Importar lista' }).click();
+  await page.getByLabel('Seleccionar archivo CSV').setInputFiles({
+    name: 'invitados.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from('name,whatsapp_phone,group\nInvitado Ejemplo,+525500000099,')
+  });
+  await page.getByRole('button', { name: 'Confirmar importación' }).click();
+  await expect(page.getByText(/resultado de la importación es incierto/)).toBeVisible();
+  await expect(page.getByLabel('Seleccionar archivo CSV')).toBeDisabled();
+  await page.getByRole('button', { name: 'Confirmar importación' }).click();
+  await expect(page.getByText(/1 contactos importados/)).toBeVisible();
+  expect(keys).toHaveLength(2);
+  expect(keys[0]).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  expect(keys[1]).toBe(keys[0]);
+  expect(errors).toEqual([]);
+});
+
+test('CSV 401 is reported without silently retrying or claiming success', async ({ page }) => {
+  await fixture(page);
+  await page.route('**/contacts/import/preview', (route) =>
+    route.fulfill({
+      json: {
+        previewId: 'session-preview',
+        totalRows: 1,
+        validRows: 1,
+        invalidRows: 0,
+        expiresAt: '2027-01-01T00:00:00Z',
+        rows: [
+          {
+            rowNumber: 2,
+            name: 'Invitado Ejemplo',
+            normalizedPhone: '+525500000099',
+            group: null,
+            groupId: null,
+            groupResolution: 'NONE',
+            errors: []
+          }
+        ]
+      }
+    })
+  );
+  let commits = 0;
+  await page.route('**/contacts/import/commit', (route) => {
+    commits += 1;
+    return route.fulfill({ status: 401, json: { code: 'UNAUTHORIZED', message: 'Unauthorized' } });
+  });
+  await page.goto(`/eventos/${eventId}/configuracion/contactos`);
+  await page.getByRole('button', { name: 'Importar lista' }).click();
+  await page.getByLabel('Seleccionar archivo CSV').setInputFiles({
+    name: 'invitados.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from('name,whatsapp_phone,group\nInvitado Ejemplo,+525500000099,')
+  });
+  await page.getByRole('button', { name: 'Confirmar importación' }).click();
+  await expect(page.getByText('Tu sesión expiró. Inicia sesión nuevamente.')).toBeVisible();
+  await expect(page.getByText(/contactos importados/)).toHaveCount(0);
+  await expect(page.getByText(/resultado de la importación es incierto/)).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Cerrar' })).toBeEnabled();
+  expect(commits).toBe(1);
+});
+
 test('browser CRUD, contextual groups, filters and explicit deletion', async ({ page }) => {
   const writes = await fixture(page);
   await page.goto(`/eventos/${eventId}/configuracion/contactos`);

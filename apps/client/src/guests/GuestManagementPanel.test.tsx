@@ -1,10 +1,13 @@
 import type { Contact, ContactGroup, Event, Invitation } from '@invitaciones/api-client';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { activeEvent, configuredEvent, managedUser, mockApiClient } from '../test/fixtures';
 import { renderApp } from '../test/render-app';
 import { ApiError } from '@invitaciones/api-client';
+import { AttemptManager } from '../shared/attempt-manager';
+
+afterEach(() => vi.unstubAllGlobals());
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -102,6 +105,52 @@ beforeEach(() => {
 });
 
 describe('Guest management workspace', () => {
+  it('releases CSV controls when key creation fails before the request and permits a new confirmation', async () => {
+    const api = mockApiClient(managedUser);
+    vi.mocked(api.events.get).mockResolvedValue(managedEvent);
+    vi.mocked(api.contacts.preview).mockResolvedValue(csvPreview());
+    vi.mocked(api.contacts.commit).mockResolvedValue({ createdContacts: 1, createdGroups: 0, contacts: [] });
+    vi.spyOn(AttemptManager.prototype, 'start').mockImplementationOnce(() => {
+      throw new TypeError('provider unavailable');
+    });
+    const user = userEvent.setup();
+    renderApp(api, `/eventos/${managedEvent.id}?seccion=invitados`);
+    await user.click(await screen.findByRole('button', { name: 'Importar lista' }));
+    await user.upload(
+      screen.getByLabelText('Seleccionar archivo CSV'),
+      new File(['csv'], 'invitados.csv', { type: 'text/csv' })
+    );
+    await user.click(await screen.findByRole('button', { name: 'Confirmar importación' }));
+    expect(await screen.findByText(/No se pudo completar/)).toBeInTheDocument();
+    expect(api.contacts.commit).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Confirmar importación' })).toBeEnabled();
+    expect(screen.getByLabelText('Seleccionar archivo CSV')).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Cerrar' })).toBeEnabled();
+    expect(screen.queryByText(/resultado de la importación es incierto/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Confirmar importación' }));
+    expect(await screen.findByText(/1 contactos importados/)).toBeInTheDocument();
+    expect(api.contacts.commit).toHaveBeenCalledOnce();
+  });
+
+  it('reports an import 401 as a session error without treating it as uncertain or retrying automatically', async () => {
+    const api = mockApiClient(managedUser);
+    vi.mocked(api.events.get).mockResolvedValue(managedEvent);
+    vi.mocked(api.contacts.preview).mockResolvedValue(csvPreview());
+    vi.mocked(api.contacts.commit).mockRejectedValue(new ApiError(401, 'UNAUTHORIZED', 'Unauthorized'));
+    const user = userEvent.setup();
+    renderApp(api, `/eventos/${managedEvent.id}?seccion=invitados`);
+    await user.click(await screen.findByRole('button', { name: 'Importar lista' }));
+    await user.upload(
+      screen.getByLabelText('Seleccionar archivo CSV'),
+      new File(['csv'], 'invitados.csv', { type: 'text/csv' })
+    );
+    await user.click(await screen.findByRole('button', { name: 'Confirmar importación' }));
+    expect(await screen.findByText('Tu sesión expiró. Inicia sesión nuevamente.')).toBeInTheDocument();
+    expect(screen.queryByText(/resultado de la importación es incierto/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cerrar' })).toBeEnabled();
+    expect(api.contacts.commit).toHaveBeenCalledOnce();
+  });
+
   it('filters by group while preserving distinct contact, invitation and assistant counts', async () => {
     const api = mockApiClient(managedUser);
     vi.mocked(api.events.get).mockResolvedValue(managedEvent);
@@ -210,6 +259,7 @@ describe('Guest management workspace', () => {
   });
 
   it('preserves the same uncertain CSV attempt, blocks replacement and protects exit', async () => {
+    vi.stubGlobal('crypto', { getRandomValues: globalThis.crypto.getRandomValues.bind(globalThis.crypto) });
     const api = mockApiClient(managedUser);
     vi.mocked(api.events.get).mockResolvedValue(managedEvent);
     vi.mocked(api.contacts.preview).mockResolvedValue(csvPreview());
@@ -238,6 +288,9 @@ describe('Guest management workspace', () => {
     await user.click(screen.getByRole('button', { name: 'Confirmar importación' }));
     await waitFor(() => expect(api.contacts.commit).toHaveBeenCalledTimes(2));
     expect(vi.mocked(api.contacts.commit).mock.calls[1]).toEqual(vi.mocked(api.contacts.commit).mock.calls[0]);
+    expect(vi.mocked(api.contacts.commit).mock.calls[0]?.[2]).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+    );
     expect(await screen.findByText(/1 contactos importados/)).toBeInTheDocument();
   });
 

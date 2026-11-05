@@ -24,7 +24,7 @@ import UploadFileIcon from '@mui/icons-material/UploadFile';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useBeforeUnload, useBlocker } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { AttemptManager, isUncertainFailure } from '../shared/attempt-manager';
+import { AttemptManager, isUncertainFailure, type Attempt } from '../shared/attempt-manager';
 import { layoutTokens } from '@invitaciones/ui';
 import { downloadBlob, errorMessage } from '../shared/client-utils';
 
@@ -280,8 +280,9 @@ export function GuestManagementPanel({
     csvSubmitting.current = true;
     setCsvBusy(true);
     setImportError(undefined);
-    const attempt = attempts.current.start('csv', selected.previewId);
+    let attempt: Attempt | undefined;
     try {
+      attempt = attempts.current.start('csv', selected.previewId);
       const result = await apiClient.contacts.commit(event.id, selected.previewId, attempt.key);
       attempts.current.clear('csv', attempt.key);
       setCsvUncertain(false);
@@ -291,10 +292,11 @@ export function GuestManagementPanel({
       await refreshAfterMutation();
     } catch (reason) {
       const uncertain =
-        isUncertainFailure(reason) ||
-        (reason instanceof ApiError && (reason.status >= 500 || reason.code === 'UNEXPECTED_API_RESPONSE'));
+        Boolean(attempt) &&
+        (isUncertainFailure(reason) ||
+          (reason instanceof ApiError && (reason.status >= 500 || reason.code === 'UNEXPECTED_API_RESPONSE')));
       setCsvUncertain(uncertain);
-      if (!uncertain) attempts.current.clear('csv', attempt.key);
+      if (attempt && !uncertain) attempts.current.clear('csv', attempt.key);
       setImportError(contactError(reason));
     } finally {
       csvSubmitting.current = false;
@@ -760,6 +762,7 @@ export function GuestManagementPanel({
 }
 
 function contactError(reason: unknown): string {
+  if (reason instanceof ApiError && reason.status === 401) return 'Tu sesión expiró. Inicia sesión nuevamente.';
   if (
     reason instanceof ApiError &&
     ['CONTACT_LIMIT_EXCEEDED', 'CONTACT_IMPORT_ROW_LIMIT_EXCEEDED'].includes(reason.code)

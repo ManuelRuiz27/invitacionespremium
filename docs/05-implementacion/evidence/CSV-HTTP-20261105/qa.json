@@ -1,0 +1,29 @@
+{
+  "date": "2026-11-05",
+  "baseline": "13f3fbf748dab782041a8c14d41e8ac45ca6736a",
+  "risk": "L2",
+  "scope": ["apps/client/src/shared/attempt-manager.ts", "apps/client/src/guests/GuestManagementPanel.tsx"],
+  "regression": "CSV confirmation failed before the API request when crypto.randomUUID was unavailable, leaving submission controls busy.",
+  "solution": "Native UUID when available; otherwise UUID v4 using crypto.getRandomValues. No weak random fallback. Key creation is inside the CSV try/finally and pre-request failures are not uncertain API outcomes.",
+  "targetedUnitAndFlowTestsPassed": 78,
+  "browserTestsPassed": 2,
+  "browserContext": {
+    "origin": "http://csv-http.invalid",
+    "isSecureContext": false,
+    "randomUUID": "undefined",
+    "getRandomValues": "function",
+    "result": "CSV commit succeeds; an uncertain retry keeps the exact Idempotency-Key; no unhandled page error."
+  },
+  "http401": "Endpoint of the user's 401 was not provided. Authentication is unchanged. Import 401 feedback requests sign-in; no automatic retry or false success.",
+  "checks": ["lint PASS", "typecheck PASS", "client build PASS", "format PASS"],
+  "guide": {
+    "status": "PASS",
+    "realScenarioDurationMs": 102235,
+    "timeoutMs": 600000,
+    "retries": 0,
+    "imagesVerified": 39,
+    "verification": "Unchanged verifier checked current runtime source hash, image hashes, masks, no decodable QR and rendered manuals."
+  },
+  "qaSelection": "Explicit tests target the shared key generator, CSV panel, Wizard model/flow and two browser regressions. Transitive related selection through the router would expand to unrelated Client tests.",
+  "apiPrismaAuthAndPermissionsChanged": false
+}
