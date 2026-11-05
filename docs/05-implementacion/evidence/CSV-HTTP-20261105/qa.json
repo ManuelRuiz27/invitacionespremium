@@ -25,5 +25,6 @@
     "verification": "Unchanged verifier checked current runtime source hash, image hashes, masks, no decodable QR and rendered manuals."
   },
   "qaSelection": "Explicit tests target the shared key generator, CSV panel, Wizard model/flow and two browser regressions. Transitive related selection through the router would expand to unrelated Client tests.",
-  "apiPrismaAuthAndPermissionsChanged": false
+  "apiPrismaAuthAndPermissionsChanged": false,
+  "ciCompatibility": "pilot-browser-qa is pinned to Ubuntu 24.04. GitHub migrated ubuntu-latest to Ubuntu 26.04, rejected by the installed Playwright 1.55 before tests run. All job steps, gates and timeouts are unchanged."
 }

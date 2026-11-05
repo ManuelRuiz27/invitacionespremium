@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   pilot-browser-qa:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
