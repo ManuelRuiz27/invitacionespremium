@@ -357,7 +357,20 @@ export function DesignStep({
   }
 
   return (
-    <Stack spacing={1.5} data-testid="invitation-design-workspace">
+    <Stack
+      spacing={1.5}
+      data-testid="invitation-design-workspace"
+      sx={
+        service?.code === 'FLIPBOOK'
+          ? {
+              containerType: 'inline-size',
+              containerName: 'invitation-workspace',
+              '--workspace-sticky-gap': (theme) => theme.spacing(3),
+              minWidth: 0
+            }
+          : undefined
+      }
+    >
       <Stack
         direction={{ xs: 'column', sm: 'row' }}
         sx={{ gap: 1, justifyContent: 'space-between', alignItems: { sm: 'center' } }}
@@ -416,9 +429,13 @@ export function DesignStep({
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: { xs: 'minmax(0, 1fr)', xl: '172px minmax(0, 1fr)' },
-              gap: 2.5,
-              minHeight: 560
+              gridTemplateColumns: 'minmax(0, 1fr)',
+              gap: 3,
+              minWidth: 0,
+              alignItems: 'start',
+              '@container invitation-workspace (min-width: 1040px)': {
+                gridTemplateColumns: 'minmax(0, 19fr) minmax(0, 54fr) minmax(0, 27fr)'
+              }
             }}
           >
             <PageRail
@@ -558,6 +575,19 @@ function PageRail({
 }) {
   const [draggedId, setDraggedId] = useState<string>();
   const touchStartRef = useRef<{ id: string; x: number; y: number } | undefined>(undefined);
+  const railRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const rail = railRef.current;
+    const selected = rail?.querySelector('[aria-pressed="true"]')?.parentElement;
+    if (!rail || !selected) return;
+    // Keep selection in the rail's viewport without scrolling the document or canvas.
+    const railBounds = rail.getBoundingClientRect();
+    const selectedBounds = selected.getBoundingClientRect();
+    if (selectedBounds.top < railBounds.top) rail.scrollTop += selectedBounds.top - railBounds.top;
+    else if (selectedBounds.bottom > railBounds.bottom) rail.scrollTop += selectedBounds.bottom - railBounds.bottom;
+    if (selectedBounds.left < railBounds.left) rail.scrollLeft += selectedBounds.left - railBounds.left;
+    else if (selectedBounds.right > railBounds.right) rail.scrollLeft += selectedBounds.right - railBounds.right;
+  }, [activePageId, design.pages]);
   const dropOn = (targetId: string) => {
     if (!draggedId || draggedId === targetId) return;
     const ids = design.pages.map((page) => page.id).filter((id) => id !== draggedId);
@@ -568,15 +598,26 @@ function PageRail({
   return (
     <Box
       component="nav"
+      ref={railRef}
       aria-label="Páginas del Flipbook"
       sx={{
         display: 'flex',
-        flexDirection: { xs: 'row', xl: 'column' },
+        flexDirection: 'row',
         gap: 1,
         overflow: 'auto',
-        pb: { xs: 1, xl: 0 },
+        pb: 1,
         alignSelf: 'start',
-        minWidth: 0
+        minWidth: 0,
+        '@container invitation-workspace (min-width: 1040px)': {
+          flexDirection: 'column',
+          maxHeight: 'min(68svh, 760px)',
+          overflowX: 'hidden',
+          overflowY: 'auto',
+          scrollbarGutter: 'stable',
+          position: 'sticky',
+          top: 'var(--workspace-sticky-gap)',
+          pb: 0
+        }
       }}
     >
       {design.pages.map((page, index) => {
@@ -590,7 +631,9 @@ function PageRail({
             onDragOver={(event) => event.preventDefault()}
             onDrop={() => dropOn(page.id)}
             sx={{
-              minWidth: { xs: 172, xl: 0 },
+              width: 172,
+              minWidth: 0,
+              '@container invitation-workspace (min-width: 1040px)': { width: 'auto' },
               flexShrink: 0,
               border: '1px solid',
               borderColor: selected ? 'primary.main' : 'divider',

@@ -159,7 +159,7 @@ export function WizardLayout({
             {message}
           </Alert>
         ) : null}
-        {selectedStep === 'contactos' ? (
+        {selectedStep === 'contactos' || (selectedStep === 'invitacion' && event?.serviceCode === 'FLIPBOOK') ? (
           <Box component="section">{children}</Box>
         ) : (
           <Paper

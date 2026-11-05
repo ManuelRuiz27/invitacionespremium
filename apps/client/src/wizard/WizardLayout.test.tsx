@@ -30,6 +30,19 @@ function layout(overrides: Partial<ComponentProps<typeof WizardLayout>> = {}) {
 }
 
 describe('WizardLayout', () => {
+  it.each(['FLIPBOOK', 'FLYER'] as const)(
+    'uses a neutral invitation workspace only for Flipbook (%s)',
+    (serviceCode) => {
+      const { container } = layout({ selectedStep: 'invitacion', event: { ...configuredEvent, serviceCode } });
+      const section = screen.getByText('Contenido del paso').closest('section');
+      expect(section).not.toBeNull();
+      expect(section?.classList.contains('MuiPaper-root')).toBe(serviceCode === 'FLYER');
+      expect(container.querySelectorAll('.MuiPaper-root')).toHaveLength(serviceCode === 'FLYER' ? 1 : 0);
+      expect(screen.getByRole('tab', { name: 'Invitación', selected: true })).toHaveAttribute('aria-current', 'step');
+      expect(screen.getByRole('button', { name: 'Continuar' })).toBeEnabled();
+    }
+  );
+
   it('keeps the event as the only h1 and uses light navigation with the active step identified', () => {
     const { container } = layout();
     expect(screen.getByRole('heading', { level: 1, name: configuredEvent.name! })).toBeInTheDocument();

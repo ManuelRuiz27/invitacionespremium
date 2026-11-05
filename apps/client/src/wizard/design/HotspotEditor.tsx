@@ -345,17 +345,35 @@ export function HotspotEditor({
     <Box
       component="section"
       aria-labelledby="invitation-actions-title"
-      sx={{
-        display: 'grid',
-        gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1fr) 240px', xl: 'minmax(0, 1fr) 280px' },
-        gridTemplateRows: 'auto 1fr',
-        gap: { xs: 2, lg: 2.5 },
-        alignItems: 'start',
-        minWidth: 0,
-        height: '100%',
-        viewTimelineName: '--invitation-workspace',
-        viewTimelineAxis: 'block'
-      }}
+      sx={
+        ownerType === 'FLIPBOOK_PAGE'
+          ? {
+              display: 'grid',
+              gridTemplateColumns: 'minmax(0, 1fr)',
+              gridTemplateRows: 'auto 1fr',
+              gap: 3,
+              minWidth: 0,
+              alignItems: 'start',
+              '@container invitation-workspace (min-width: 760px)': {
+                gridTemplateColumns: 'minmax(0, 2fr) minmax(240px, 1fr)'
+              },
+              '@container invitation-workspace (min-width: 1040px)': {
+                gridColumn: '2 / -1',
+                gridTemplateColumns: 'subgrid'
+              }
+            }
+          : {
+              display: 'grid',
+              gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1fr) 240px', xl: 'minmax(0, 1fr) 280px' },
+              gridTemplateRows: 'auto 1fr',
+              gap: { xs: 2, lg: 2.5 },
+              alignItems: 'start',
+              minWidth: 0,
+              height: '100%',
+              viewTimelineName: '--invitation-workspace',
+              viewTimelineAxis: 'block'
+            }
+      }
     >
       <Stack spacing={0.5} sx={{ gridColumn: '1 / -1' }}>
         <Typography component="h3" variant="h4" id="invitation-actions-title">
@@ -373,40 +391,57 @@ export function HotspotEditor({
 
       <Box
         data-testid="invitation-preview-stage"
-        sx={{
-          gridColumn: { lg: 1 },
-          gridRow: { lg: 2 },
-          minWidth: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          position: { xs: 'relative', lg: 'sticky' },
-          top: { lg: 24 },
-          isolation: 'isolate',
-          '--preview-height': { xs: 'max(160px, calc(100svh - 200px))', md: 'max(160px, calc(100svh - 120px))' },
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            inset: '8% -8px 12%',
-            zIndex: -1,
-            borderRadius: '50%',
-            background: 'radial-gradient(ellipse, rgba(172,140,90,.16), transparent 70%)',
-            pointerEvents: 'none'
-          },
-          '@supports (animation-timeline: view())': {
-            '@media (prefers-reduced-motion: no-preference)': {
-              '&::before': {
-                animation: 'invitation-depth linear both',
-                animationTimeline: '--invitation-workspace',
-                animationRange: 'entry 0% exit 100%'
+        sx={
+          ownerType === 'FLIPBOOK_PAGE'
+            ? {
+                minWidth: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignSelf: 'start',
+                position: 'relative',
+                minHeight: (theme) => `calc(var(--preview-height) + ${theme.spacing(6.5)})`,
+                '--preview-height': 'min(60svh, 640px)',
+                '@container invitation-workspace (min-width: 760px)': {
+                  gridColumn: 1,
+                  gridRow: 2
+                }
               }
-            }
-          },
-          '@keyframes invitation-depth': {
-            from: { transform: 'translateY(-36px) scale(.94)' },
-            to: { transform: 'translateY(36px) scale(1.06)' }
-          },
-          '@media (prefers-reduced-motion: reduce)': { position: 'relative', top: 0 }
-        }}
+            : {
+                gridColumn: { lg: 1 },
+                gridRow: { lg: 2 },
+                minWidth: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                position: { xs: 'relative', lg: 'sticky' },
+                top: { lg: 24 },
+                isolation: 'isolate',
+                '--preview-height': { xs: 'max(160px, calc(100svh - 200px))', md: 'max(160px, calc(100svh - 120px))' },
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  inset: '8% -8px 12%',
+                  zIndex: -1,
+                  borderRadius: '50%',
+                  background: 'radial-gradient(ellipse, rgba(172,140,90,.16), transparent 70%)',
+                  pointerEvents: 'none'
+                },
+                '@supports (animation-timeline: view())': {
+                  '@media (prefers-reduced-motion: no-preference)': {
+                    '&::before': {
+                      animation: 'invitation-depth linear both',
+                      animationTimeline: '--invitation-workspace',
+                      animationRange: 'entry 0% exit 100%'
+                    }
+                  }
+                },
+                '@keyframes invitation-depth': {
+                  from: { transform: 'translateY(-36px) scale(.94)' },
+                  to: { transform: 'translateY(36px) scale(1.06)' }
+                },
+                '@media (prefers-reduced-motion: reduce)': { position: 'relative', top: 0 }
+              }
+        }
       >
         <Stack direction="row" spacing={0.5} sx={{ justifyContent: 'center', mt: 1, order: 1 }}>
           <Button
@@ -566,7 +601,27 @@ export function HotspotEditor({
         </Box>
       </Box>
 
-      <Stack spacing={1.5} sx={{ gridColumn: { lg: 2 }, gridRow: { lg: 2 }, minWidth: 0 }}>
+      <Stack
+        spacing={1.5}
+        data-testid="invitation-action-panel"
+        sx={
+          ownerType === 'FLIPBOOK_PAGE'
+            ? {
+                minWidth: 0,
+                '@container invitation-workspace (min-width: 760px)': {
+                  gridColumn: 2,
+                  gridRow: 2,
+                  position: 'sticky',
+                  top: 'var(--workspace-sticky-gap)',
+                  maxHeight: 'calc(100svh - 2 * var(--workspace-sticky-gap))',
+                  overflowY: 'auto',
+                  overscrollBehaviorY: 'contain',
+                  alignSelf: 'start'
+                }
+              }
+            : { gridColumn: { lg: 2 }, gridRow: { lg: 2 }, minWidth: 0 }
+        }
+      >
         {confirmedMessage ? (
           <Alert severity="warning" aria-live="polite" sx={{ gridColumn: { lg: 2 } }}>
             {confirmedMessage}
