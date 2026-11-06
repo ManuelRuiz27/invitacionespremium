@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "runtimeSha256": "dd59c03d0763d0fee2ce728d73c1ed55b1ea5c3171a6d66690b226ddef0b8422",
+  "runtimeSha256": "7ed7a8afa2d4f3252e62b224b7b1f9d2cc59a8c9607b2c231e198b01518f1a55",
   "captures": [
     {
       "file": "admin-00-entrar.png",
@@ -35,7 +35,7 @@
       "anchor": "Crear organizacion",
       "width": 1440,
       "height": 900,
-      "sha256": "09eeedcb4610bf1c24929e56f1c2fd11b869e498f774e97beb4b133002e09465",
+      "sha256": "2015fd36dd347759ef70960ab01416d9ba57ed43bd236c587ead3cb6468e6fe8",
       "masks": [
         {
           "x": 444,
@@ -65,7 +65,7 @@
       "anchor": "Preparar salón para control de acceso",
       "width": 1440,
       "height": 900,
-      "sha256": "c653dd03b28da0bd7cdbd87a5187bb0020da3c1b4cc6e102e46eedefbf250e0f",
+      "sha256": "c0e3640d8f3f191bf56aef85916bc277ee58a3de483afdb2e994871a3f0338b2",
       "masks": [],
       "focus": {
         "x": 289,
@@ -179,7 +179,7 @@
         {
           "x": 272,
           "y": -89.9375,
-          "width": 612.375,
+          "width": 617.375,
           "height": 25.59375
         }
       ],
@@ -199,12 +199,12 @@
       "anchor": "Hay requisitos pendientes antes de activar.",
       "width": 1440,
       "height": 900,
-      "sha256": "367e603d6c796b4e159fb2ac6ae72aa3a7a03080ad65735a5a542b70373b1b17",
+      "sha256": "4f60714d1cbafabcc6a3e6ff4c9dddb0d5ac15a807127f363911bc3da83dfd14",
       "masks": [
         {
           "x": 272,
           "y": 199.0625,
-          "width": 612.375,
+          "width": 617.375,
           "height": 25.59375
         }
       ],
@@ -337,12 +337,12 @@
       "anchor": "Activar evento",
       "width": 1440,
       "height": 900,
-      "sha256": "144f6cfffae225f23fa5253600cc2d34df5cb9c79719a67106d978ce77d88835",
+      "sha256": "7839a09ba1adc7fd4ae24891a694c04b665ae88def0fb2c7ac35f173f0f8d8c3",
       "masks": [
         {
           "x": 272,
           "y": 199.0625,
-          "width": 612.375,
+          "width": 617.375,
           "height": 25.59375
         }
       ],
@@ -362,12 +362,12 @@
       "anchor": "La activación ya fue realizada.",
       "width": 1440,
       "height": 900,
-      "sha256": "9da49e5155de23248f8f7f963d10b01774c8bcb81c4e2c574bf48d53ad4c6eef",
+      "sha256": "476a48817d8e929c1d01f7793cad0a803b8f1d8cffb5d4b6b22b6a5f8161980d",
       "masks": [
         {
           "x": 272,
           "y": 199.0625,
-          "width": 612.375,
+          "width": 617.375,
           "height": 25.59375
         }
       ],
@@ -405,7 +405,7 @@
       "anchor": "Copiar enlace",
       "width": 1440,
       "height": 900,
-      "sha256": "6b0038833e862914dbb42c69849b1b35253ed0fe99fc743d13616f9e815b2e27",
+      "sha256": "fffc15302b918e809099dac457d649e292d3b104c7c6fbdf3cfc16dcbf0b544c",
       "masks": [
         {
           "x": 293,
@@ -479,7 +479,7 @@
       "anchor": "Accesos vigentes\n5\nIngresados\n1\nPendientes\n4\nCapacidad disponible\n25",
       "width": 1440,
       "height": 900,
-      "sha256": "c443aa50f9cfb2fec5861a3c8efd8d050ed159e9706a1bbabeb7a3fd01c30aea",
+      "sha256": "d2d155ba1daafeff104f0f283c82cf1edaf935d3febb307ebb6d843dd925119f",
       "masks": [],
       "focus": {
         "x": 272,
@@ -494,10 +494,10 @@
       "surface": "admin",
       "mode": "NOMINAL",
       "route": "/eventos/[referencia]",
-      "anchor": "Ingresos y aforo\nActualizar\n\nModalidad: Nominal\n\nÚltima lectura del servidor: 5/11/2026, 11:47:02 a.m.\n\nAccesos vigentes\n5\nIngresados\n1\nPendientes\n4\nCapacidad disponible\n25\n\nLa capacidad disponible permite emitir nuevos derechos de acceso. Los pendientes son accesos vigentes que aún no han ingresado.\n\nCapacidad total: 30\n\nEmitidos históricos: 5\n\nRevocados históricos: 0\n\nEvento sin Croquis: se muestran los totales del Evento.",
+      "anchor": "Ingresos y aforo\nActualizar\n\nModalidad: Nominal\n\nÚltima lectura del servidor: 5/11/2026, 6:48:28 p.m.\n\nAccesos vigentes\n5\nIngresados\n1\nPendientes\n4\nCapacidad disponible\n25\n\nLa capacidad disponible permite emitir nuevos derechos de acceso. Los pendientes son accesos vigentes que aún no han ingresado.\n\nCapacidad total: 30\n\nEmitidos históricos: 5\n\nRevocados históricos: 0\n\nEvento sin Croquis: se muestran los totales del Evento.",
       "width": 1440,
       "height": 900,
-      "sha256": "1f83dd18c0bf75b445eaa30a9fcdef45bb3c1e8362ebaaf81b4aec35fd94fc2e",
+      "sha256": "71a245a3527696698636323a376626f31adc572c8546d368a667e945bbac2758",
       "masks": [
         {
           "x": 272,
@@ -570,18 +570,18 @@
       "anchor": "Guardar datos",
       "width": 1440,
       "height": 900,
-      "sha256": "b51b33c1d7083229a63e73c60467414fb5e21c599c16afaa60f4c91145c0d112",
+      "sha256": "451fa4c75c4b5eaf69551b6d0849fb6a34e67fe392b4d0f14f82f9cb90e1f256",
       "masks": [
         {
           "x": 272,
-          "y": -89.9375,
-          "width": 612.375,
+          "y": -146.9375,
+          "width": 617.375,
           "height": 25.59375
         }
       ],
       "focus": {
         "x": 289,
-        "y": 855.84375,
+        "y": 798.84375,
         "width": 1102,
         "height": 44
       },
@@ -595,12 +595,12 @@
       "anchor": "Hay requisitos pendientes antes de activar.",
       "width": 1440,
       "height": 900,
-      "sha256": "e6e2ada838922937f50172cd1343437050ea013887d79d3d7060e2515624cd0a",
+      "sha256": "19b32b844cc7998163d0b22771136cbdd3cd63ff05b07a3bff201132e1879556",
       "masks": [
         {
           "x": 272,
           "y": 199.0625,
-          "width": 612.375,
+          "width": 617.375,
           "height": 25.59375
         }
       ],
@@ -620,7 +620,7 @@
       "anchor": "Solicitar activación a InvitacionesPremium",
       "width": 1440,
       "height": 900,
-      "sha256": "11afbd51460b0d18418114946a76538728171e5aeb2d6d0470e7e81d97287eff",
+      "sha256": "99121bcc0bdb510cce30249b4cf7bd5cf9d49ee94dab3a85a40bab5c52b5ee8a",
       "masks": [],
       "focus": {
         "x": 296,
@@ -638,12 +638,12 @@
       "anchor": "Generar lote",
       "width": 1440,
       "height": 900,
-      "sha256": "0491088fa476857a094b43b99a68470813809bdbe9de9e0a0d7568211316183a",
+      "sha256": "c668813170b6c68edffc7f13a057b58c81589aa804cebf140428f920a3a438d0",
       "masks": [
         {
           "x": 272,
           "y": 194.0625,
-          "width": 612.375,
+          "width": 617.375,
           "height": 25.59375
         }
       ],
@@ -681,12 +681,12 @@
       "anchor": "Activar evento",
       "width": 1440,
       "height": 900,
-      "sha256": "ff856640746c4434f2a6e2fece031b52a5d295755a5ca561da5a6bb30f91a43e",
+      "sha256": "c19d77b31bb07394384b006ebff2e2162e6954030c4d820678cd2fb7aa460f9a",
       "masks": [
         {
           "x": 272,
           "y": 199.0625,
-          "width": 612.375,
+          "width": 617.375,
           "height": 25.59375
         }
       ],
@@ -706,12 +706,12 @@
       "anchor": "La activación ya fue realizada.",
       "width": 1440,
       "height": 900,
-      "sha256": "f3b29f44d7f412810ff77aa645b6adc0faff5d82faf87ced887f0ef37e72591a",
+      "sha256": "4a60de2dc137f8557f86b033828547e47f1f33a01519ce7a0ed578e19f44d844",
       "masks": [
         {
           "x": 272,
           "y": 199.0625,
-          "width": 612.375,
+          "width": 617.375,
           "height": 25.59375
         }
       ],
@@ -749,7 +749,7 @@
       "anchor": "Copiar enlace",
       "width": 1440,
       "height": 900,
-      "sha256": "ac0570eb76f49eaa644eca31e9baec0120acf2b89a87faa31ffa50e7a70b4ce8",
+      "sha256": "489f54d4a9403a419680e6dc20939678ff68596a5f3cba5d2abe6a977663d011",
       "masks": [
         {
           "x": 293,
@@ -823,7 +823,7 @@
       "anchor": "Accesos vigentes\n5\nIngresados\n1\nPendientes\n4\nCapacidad disponible\n25",
       "width": 1440,
       "height": 900,
-      "sha256": "95be0468f93c638006c8761472d1e0ccf68ec199c3397cbd5db64ba77c463cbd",
+      "sha256": "f7bb69075dd80085df2dd8630dbe43d6020c4d1b07d0fd6a3a7806d8708be56f",
       "masks": [],
       "focus": {
         "x": 272,
@@ -856,10 +856,10 @@
       "surface": "admin",
       "mode": "ANONYMOUS",
       "route": "/eventos/[referencia]",
-      "anchor": "Ingresos y aforo\nActualizar\n\nModalidad: Anónima\n\nÚltima lectura del servidor: 5/11/2026, 11:47:29 a.m.\n\nAccesos vigentes\n5\nIngresados\n1\nPendientes\n4\nCapacidad disponible\n25\n\nLa capacidad disponible permite emitir nuevos derechos de acceso. Los pendientes son accesos vigentes que aún no han ingresado.\n\nCapacidad total: 30\n\nEmitidos históricos: 6\n\nRevocados históricos: 1\n\nEvento sin Croquis: se muestran los totales del Evento.",
+      "anchor": "Ingresos y aforo\nActualizar\n\nModalidad: Anónima\n\nÚltima lectura del servidor: 5/11/2026, 6:49:40 p.m.\n\nAccesos vigentes\n5\nIngresados\n1\nPendientes\n4\nCapacidad disponible\n25\n\nLa capacidad disponible permite emitir nuevos derechos de acceso. Los pendientes son accesos vigentes que aún no han ingresado.\n\nCapacidad total: 30\n\nEmitidos históricos: 6\n\nRevocados históricos: 1\n\nEvento sin Croquis: se muestran los totales del Evento.",
       "width": 1440,
       "height": 900,
-      "sha256": "73a14579032659845995d25d832f2aa4ae7e3b7be38215526ee2aaed85ca9174",
+      "sha256": "39a5143257caf60bc38151da420320238bc18f5e24318c5ee0df7f37beade0af",
       "masks": [
         {
           "x": 272,
@@ -896,7 +896,7 @@
       "anchor": "Crear organizacion",
       "width": 1440,
       "height": 900,
-      "sha256": "252dcf2d84384e95136ded95b519f24cde9ed1db5e088abe6863a08dad86dcb7",
+      "sha256": "c3cce8289e08028f35f14794d6a2832a351c093a66ba0f020ad6557a90f9cb54",
       "masks": [],
       "focus": {
         "x": 1213.421875,
