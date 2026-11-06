@@ -366,6 +366,7 @@ export function DesignStep({
               containerType: 'inline-size',
               containerName: 'invitation-workspace',
               '--workspace-sticky-gap': (theme) => theme.spacing(3),
+              '--workspace-stage-height': 'min(68svh, 760px)',
               minWidth: 0
             }
           : undefined
@@ -605,18 +606,21 @@ function PageRail({
         flexDirection: 'row',
         gap: 1,
         overflow: 'auto',
-        pb: 1,
+        p: 1,
+        border: '1px solid',
+        borderColor: 'divider',
+        borderRadius: 1,
+        bgcolor: 'background.paper',
         alignSelf: 'start',
         minWidth: 0,
         '@container invitation-workspace (min-width: 1040px)': {
           flexDirection: 'column',
-          maxHeight: 'min(68svh, 760px)',
+          maxHeight: 'var(--workspace-stage-height)',
           overflowX: 'hidden',
           overflowY: 'auto',
           scrollbarGutter: 'stable',
           position: 'sticky',
-          top: 'var(--workspace-sticky-gap)',
-          pb: 0
+          top: 'var(--workspace-sticky-gap)'
         }
       }}
     >
@@ -636,11 +640,11 @@ function PageRail({
               '@container invitation-workspace (min-width: 1040px)': { width: 'auto' },
               flexShrink: 0,
               border: '1px solid',
-              borderColor: selected ? 'primary.main' : 'divider',
-              borderRadius: 2,
+              borderColor: selected ? 'primary.main' : 'transparent',
+              borderRadius: 1,
               p: 0.75,
               bgcolor: selected ? 'action.selected' : 'background.paper',
-              boxShadow: selected ? 2 : 0
+              boxShadow: 'none'
             }}
           >
             <Button
@@ -661,7 +665,7 @@ function PageRail({
             />
             <Stack
               direction="row"
-              sx={{ justifyContent: 'space-between', flexWrap: 'wrap' }}
+              sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(44px, 1fr))' }}
               aria-label={`Orden y opciones de Página ${index + 1}`}
             >
               <Button

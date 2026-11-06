@@ -340,6 +340,30 @@ export function HotspotEditor({
   };
 
   const currentAction = actionDetails(draft.action);
+  const editorHeading = (
+    <Stack spacing={0.5} sx={{ gridColumn: '1 / -1' }}>
+      <Typography
+        component="h3"
+        variant={ownerType === 'FLIPBOOK_PAGE' ? 'subtitle1' : 'h4'}
+        id="invitation-actions-title"
+        sx={ownerType === 'FLIPBOOK_PAGE' ? { fontWeight: 600 } : undefined}
+      >
+        Acciones de la invitación
+      </Typography>
+      {contextLabel ? (
+        <Typography
+          component="h4"
+          variant={ownerType === 'FLIPBOOK_PAGE' ? 'body2' : 'subtitle1'}
+          sx={ownerType === 'FLIPBOOK_PAGE' ? { color: 'text.secondary' } : { fontWeight: 700 }}
+        >
+          {contextLabel}
+        </Typography>
+      ) : null}
+      <Typography color="text.secondary" variant={ownerType === 'FLIPBOOK_PAGE' ? 'body2' : 'body1'}>
+        Marca sobre tu diseño dónde podrán tocar tus invitados para realizar cada acción.
+      </Typography>
+    </Stack>
+  );
 
   return (
     <Box
@@ -350,7 +374,6 @@ export function HotspotEditor({
           ? {
               display: 'grid',
               gridTemplateColumns: 'minmax(0, 1fr)',
-              gridTemplateRows: 'auto 1fr',
               gap: 3,
               minWidth: 0,
               alignItems: 'start',
@@ -375,19 +398,7 @@ export function HotspotEditor({
             }
       }
     >
-      <Stack spacing={0.5} sx={{ gridColumn: '1 / -1' }}>
-        <Typography component="h3" variant="h4" id="invitation-actions-title">
-          Acciones de la invitación
-        </Typography>
-        {contextLabel ? (
-          <Typography component="h4" variant="subtitle1" sx={{ fontWeight: 700 }}>
-            {contextLabel}
-          </Typography>
-        ) : null}
-        <Typography color="text.secondary">
-          Marca sobre tu diseño dónde podrán tocar tus invitados para realizar cada acción.
-        </Typography>
-      </Stack>
+      {ownerType === 'FLYER' ? editorHeading : null}
 
       <Box
         data-testid="invitation-preview-stage"
@@ -400,11 +411,17 @@ export function HotspotEditor({
                 justifyContent: 'center',
                 alignSelf: 'start',
                 position: 'relative',
-                minHeight: (theme) => `calc(var(--preview-height) + ${theme.spacing(6.5)})`,
-                '--preview-height': 'min(60svh, 640px)',
+                minHeight: 0,
+                p: 2,
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: 1,
+                bgcolor: 'action.hover',
+                '--preview-height': (theme) => `calc(var(--workspace-stage-height) - ${theme.spacing(10.5)} - 2px)`,
                 '@container invitation-workspace (min-width: 760px)': {
                   gridColumn: 1,
-                  gridRow: 2
+                  gridRow: 1,
+                  minHeight: 'var(--workspace-stage-height)'
                 }
               }
             : {
@@ -608,9 +625,14 @@ export function HotspotEditor({
           ownerType === 'FLIPBOOK_PAGE'
             ? {
                 minWidth: 0,
+                p: 2,
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: 1,
+                bgcolor: 'background.paper',
                 '@container invitation-workspace (min-width: 760px)': {
                   gridColumn: 2,
-                  gridRow: 2,
+                  gridRow: 1,
                   position: 'sticky',
                   top: 'var(--workspace-sticky-gap)',
                   maxHeight: 'calc(100svh - 2 * var(--workspace-sticky-gap))',
@@ -622,6 +644,7 @@ export function HotspotEditor({
             : { gridColumn: { lg: 2 }, gridRow: { lg: 2 }, minWidth: 0 }
         }
       >
+        {ownerType === 'FLIPBOOK_PAGE' ? editorHeading : null}
         {confirmedMessage ? (
           <Alert severity="warning" aria-live="polite" sx={{ gridColumn: { lg: 2 } }}>
             {confirmedMessage}
@@ -649,14 +672,18 @@ export function HotspotEditor({
             spacing={1.5}
             component="section"
             aria-labelledby="choose-action-title"
-            sx={{
-              p: 1.5,
-              border: '1px solid',
-              borderColor: 'divider',
-              borderRadius: 2,
-              bgcolor: 'background.paper',
-              boxShadow: 1
-            }}
+            sx={
+              ownerType === 'FLIPBOOK_PAGE'
+                ? { minWidth: 0 }
+                : {
+                    p: 1.5,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 2,
+                    bgcolor: 'background.paper',
+                    boxShadow: 1
+                  }
+            }
           >
             <Typography component="h4" variant="h6" id="choose-action-title">
               ¿Qué quieres que puedan hacer tus invitados?
@@ -691,14 +718,18 @@ export function HotspotEditor({
             spacing={2}
             component="section"
             aria-labelledby="edit-action-title"
-            sx={{
-              p: 1.5,
-              border: '1px solid',
-              borderColor: 'divider',
-              borderRadius: 2,
-              bgcolor: 'background.paper',
-              boxShadow: 1
-            }}
+            sx={
+              ownerType === 'FLIPBOOK_PAGE'
+                ? { minWidth: 0 }
+                : {
+                    p: 1.5,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 2,
+                    bgcolor: 'background.paper',
+                    boxShadow: 1
+                  }
+            }
           >
             <Stack spacing={0.5}>
               <Typography component="h4" variant="h6" id="edit-action-title">
