@@ -342,24 +342,15 @@ export function HotspotEditor({
   const currentAction = actionDetails(draft.action);
   const editorHeading = (
     <Stack spacing={0.5} sx={{ gridColumn: '1 / -1' }}>
-      <Typography
-        component="h3"
-        variant={ownerType === 'FLIPBOOK_PAGE' ? 'subtitle1' : 'h4'}
-        id="invitation-actions-title"
-        sx={ownerType === 'FLIPBOOK_PAGE' ? { fontWeight: 600 } : undefined}
-      >
+      <Typography component="h3" variant="h4" id="invitation-actions-title">
         Acciones de la invitación
       </Typography>
       {contextLabel ? (
-        <Typography
-          component="h4"
-          variant={ownerType === 'FLIPBOOK_PAGE' ? 'body2' : 'subtitle1'}
-          sx={ownerType === 'FLIPBOOK_PAGE' ? { color: 'text.secondary' } : { fontWeight: 700 }}
-        >
+        <Typography component="h4" variant="subtitle1" sx={{ fontWeight: 700 }}>
           {contextLabel}
         </Typography>
       ) : null}
-      <Typography color="text.secondary" variant={ownerType === 'FLIPBOOK_PAGE' ? 'body2' : 'body1'}>
+      <Typography color="text.secondary">
         Marca sobre tu diseño dónde podrán tocar tus invitados para realizar cada acción.
       </Typography>
     </Stack>
@@ -398,7 +389,27 @@ export function HotspotEditor({
             }
       }
     >
-      {ownerType === 'FLYER' ? editorHeading : null}
+      {ownerType === 'FLYER' ? (
+        editorHeading
+      ) : (
+        <Typography
+          component="h3"
+          id="invitation-actions-title"
+          sx={{
+            position: 'absolute',
+            width: '1px',
+            height: '1px',
+            p: 0,
+            m: '-1px',
+            overflow: 'hidden',
+            clip: 'rect(0, 0, 0, 0)',
+            whiteSpace: 'nowrap',
+            border: 0
+          }}
+        >
+          {contextLabel ?? 'Acciones de la invitación'}
+        </Typography>
+      )}
 
       <Box
         data-testid="invitation-preview-stage"
@@ -644,7 +655,6 @@ export function HotspotEditor({
             : { gridColumn: { lg: 2 }, gridRow: { lg: 2 }, minWidth: 0 }
         }
       >
-        {ownerType === 'FLIPBOOK_PAGE' ? editorHeading : null}
         {confirmedMessage ? (
           <Alert severity="warning" aria-live="polite" sx={{ gridColumn: { lg: 2 } }}>
             {confirmedMessage}
